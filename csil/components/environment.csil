@@ -1,0 +1,9 @@
+@wire-id(5)
+service Environment {
+    @wire-id(0)
+    create: EnvironmentRequest -> EnvironmentInstance / ServiceError,
+    @wire-id(1)
+    hold: HoldRequest -> HumanHold / ServiceError,
+    @wire-id(2)
+    release-hold: ReleaseHoldRequest -> Receipt / ServiceError
+}

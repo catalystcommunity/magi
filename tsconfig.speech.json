@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "rootDir": "generated/speech/typescript", "outDir": ".build/speech" },
+  "include": ["generated/speech/typescript/*.ts"]
+}

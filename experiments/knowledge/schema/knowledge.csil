@@ -1,0 +1,139 @@
+;;; Experimental knowledge and interaction contract. Not a production API.
+options {
+    emit_packages: ["rust"],
+    package_name: "opal_knowledge_wire",
+    package_version: "0.0.1",
+    decimal_mapping: "csil"
+}
+
+IdentityRef = { domain: text, account_id: text }
+RecordRef = { authority: IdentityRef, kind: text, record_id: text }
+ScopeRef = { authority: IdentityRef, scope_id: text }
+SchemaRef = { name: text, version: uint, digest: bytes }
+ArtifactRef = { authority: IdentityRef, object_id: text, digest: bytes, size: uint, media_type: text }
+
+;;; The server obtains actor from authentication. W02 integration is pending.
+ContextAccess = {
+    actor: IdentityRef,
+    control_scope: ScopeRef,
+    purpose: text,
+    processor: IdentityRef,
+    ? represented_identity: IdentityRef,
+    ? persona: IdentityRef
+}
+
+;;; Requirements compose by intersection, not by one private/group/public rank.
+Restrictions = { required_scopes: [* ScopeRef], permitted_purposes: [* text] }
+CaptureStatus = "complete" / "incomplete" / "unknown"
+Channel = "text" / "voice" / "system"
+PresentationState = "queued" / "started" / "interrupted" / "completed"
+RetrievalStatus = "complete" / "partial" / "no_match" / "unavailable" / "denied" / "cancelled"
+ErrorCode = "denied" / "conflict" / "invalid" / "unsupported" / "unavailable" / "limit"
+ServiceError = { code: ErrorCode, message: text }
+
+EvidenceHeader = {
+    ref: RecordRef,
+    producer: IdentityRef,
+    received_at: timestamp,
+    ? observed_at: timestamp,
+    stream_id: text,
+    source_sequence: uint,
+    restrictions: Restrictions,
+    causes: [* RecordRef],
+    capture: CaptureStatus,
+    ? represented_identity: IdentityRef,
+    ? persona: IdentityRef,
+    ? agent_id: text,
+    ? attempt_id: text
+}
+
+;;; Payloads are already in archive reference form. This type does not redact.
+InteractionRecord = {
+    header: EvidenceHeader,
+    point_id: text,
+    channel: Channel,
+    content: text,
+    ? media: ArtifactRef,
+    conversation_ids: [* text],
+    reply_hints: [* RecordRef]
+}
+DestinationMeaning = { session_id: text, prompt_refs: [* RecordRef], content: text }
+InterpretationRecord = {
+    header: EvidenceHeader,
+    sources: [* RecordRef],
+    context_refs: [* RecordRef],
+    destinations: [* DestinationMeaning],
+    method: text,
+    uncertainty: text,
+    ? prior: RecordRef
+}
+SessionInput = {
+    header: EvidenceHeader,
+    session_id: text,
+    interpretation: RecordRef,
+    sources: [* RecordRef],
+    content: text,
+    command_key: text,
+    policy_revision: uint
+}
+PresentationRecord = {
+    header: EvidenceHeader,
+    output: RecordRef,
+    point_id: text,
+    state: PresentationState
+}
+TypedDimension = { schema: SchemaRef, payload: bytes }
+LearningAssessment = {
+    header: EvidenceHeader,
+    inputs: [* RecordRef],
+    method: text,
+    supporting: [* RecordRef],
+    contrary: [* RecordRef],
+    ? prior: RecordRef,
+    ? dimensions: [* TypedDimension]
+}
+SourceContext = {
+    header: EvidenceHeader,
+    resource_id: text,
+    adapter: text,
+    ? origin_revision: text,
+    ? author: IdentityRef,
+    content: text,
+    enrichment_allowed: bool,
+    ? artifact: ArtifactRef
+}
+
+;;; Append variants only with a reviewed compatibility change. Order is wire ABI.
+EvidenceRecord = InteractionRecord / InterpretationRecord / SessionInput / PresentationRecord / LearningAssessment / SourceContext
+
+Receipt = { record: RecordRef, command_key: text, accepted_at: timestamp }
+DeliveryReceipt = { input: RecordRef, destination: text, received_at: timestamp }
+ContextUse = { input: RecordRef, context_id: text, used_at: timestamp }
+HistoryPage = { records: [* EvidenceRecord], ? next_cursor: bytes }
+
+;;; An exact quantity is independent of presentation or ranking scores.
+Quantity = { name: text, value: decimal, unit: text }
+KnowledgeQuery = { question: text, purpose: text, limit: uint, ? after: timestamp, ? before: timestamp }
+QueryMatch = { source: RecordRef, content: text, observed_at: timestamp }
+QueryResult = { status: RetrievalStatus, matches: [* QueryMatch], gaps: [* text], ? quantities: [* Quantity] }
+SubmitInputRequest = { command_key: text, interaction: InteractionRecord }
+CorrectAssociationRequest = { command_key: text, expected_revision: uint, interpretation: InterpretationRecord }
+ReadHistoryRequest = { root: RecordRef, limit: uint, ? after_cursor: bytes }
+
+@wire-id(20)
+service Interaction {
+    @wire-id(0)
+    submit-input: SubmitInputRequest -> Receipt / ServiceError,
+    @wire-id(1)
+    correct-association: CorrectAssociationRequest -> Receipt / ServiceError
+}
+@wire-id(21)
+service Evidence {
+    @wire-id(0)
+    read-history: ReadHistoryRequest -> HistoryPage / ServiceError
+}
+@wire-id(22)
+service Knowledge {
+    @wire-id(0)
+    query: KnowledgeQuery -> QueryResult / ServiceError
+}

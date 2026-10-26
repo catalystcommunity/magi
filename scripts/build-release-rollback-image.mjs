@@ -1,0 +1,34 @@
+import {requireDeployment} from '../config/deployment.mjs';
+if(process.argv.includes('--push'))requireDeployment();
+import {deployment as environmentConfig} from '../config/deployment.mjs';
+// Build a fixed failure fixture. No controller, secrets, or host tools enter it.
+import {operatorFile} from './operator-state.mjs';
+import {execFileSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
+import {readFileSync, writeFileSync, mkdirSync, mkdtempSync, cpSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join, resolve} from 'node:path';
+const root = resolve(import.meta.dirname, '..');
+if (process.argv.length !== 3 || process.argv[2] !== '--push') throw Error('Use: node scripts/build-release-rollback-image.mjs --push');
+const sha = b => createHash('sha256').update(b).digest('hex');
+const files = ['experiments/release-rollback/main.go', 'experiments/release-rollback/main_test.go', 'deploy/release-rollback.Dockerfile', 'scripts/build-release-rollback-image.mjs', 'go.mod', 'go.sum'];
+const sourceHashes = Object.fromEntries(files.sort().map(p => [p, sha(readFileSync(join(root, p)))]));
+const sourceDigest = sha(JSON.stringify(sourceHashes)), compiler = execFileSync('go', ['version'], {encoding: 'utf8'}).trim();
+const flags = ['-buildvcs=false', '-trimpath'], environment = {CGO_ENABLED: '0', GOOS: 'linux', GOARCH: 'amd64'};
+const recipeDigest = sha(JSON.stringify({sourceHashes, compiler, flags, environment}));
+const context = mkdtempSync(join(tmpdir(), 'opal-rollback-image-'));
+const run = (cmd, args, env = process.env) => execFileSync(cmd, args, {cwd: root, env, stdio: 'inherit'});
+run('go', ['test', '-race', '-count=1', './experiments/release-rollback']);
+run('go', ['build', ...flags, '-o', join(context, 'opal'), './experiments/release-rollback'], {...process.env, ...environment});
+cpSync(join(root, 'deploy/release-rollback.Dockerfile'), join(context, 'Dockerfile'));
+for (const [p, digest] of Object.entries(sourceHashes)) if (sha(readFileSync(join(root, p))) !== digest) throw Error('Source changed during build');
+const binarySha256 = sha(readFileSync(join(context, 'opal')));
+const repository = environmentConfig.repository, tag = `${repository}:rollback-drill-${binarySha256.slice(0, 16)}`;
+run('docker', ['build', '--platform=linux/amd64', '--label', 'org.opencontainers.image.title=Magi isolated rollback drill', '--label', `opal.binary-sha256=${binarySha256}`, '-t', tag, context]);
+run('docker', ['push', tag]);
+const refs = JSON.parse(execFileSync('docker', ['image', 'inspect', tag, '--format', '{{json .RepoDigests}}'], {encoding: 'utf8'}));
+const image = refs.find(ref => ref.startsWith(`${repository}@sha256:`)); if (!image) throw Error('Missing immutable image');
+const report = {image, tag, binarySha256, sourceDigest, recipeDigest, sourceHashes, compiler, builtAt: new Date().toISOString(), purpose: 'isolated-rollback-drill', failure: {readinessStatus: 204, operationStatus: 503, responseDigest: sha('intentional Magi rollback drill: protocol unavailable\n')}};
+
+for (const name of ['release-rollback-image.json', `release-rollback-image-${binarySha256.slice(0, 16)}.json`]) writeFileSync(operatorFile(name), JSON.stringify(report, null, 2) + '\n');
+console.log(JSON.stringify({image, binarySha256, purpose: report.purpose}));

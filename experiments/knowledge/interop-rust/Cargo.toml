@@ -1,0 +1,8 @@
+[package]
+name = "opal-codec-check"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+opal_knowledge_wire = { path = "../generated/rust" }
+opal_capture_wire = { path = "../generated-capture/rust" }

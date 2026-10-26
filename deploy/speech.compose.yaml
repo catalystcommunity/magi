@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: postgres@sha256:0b657ff48d7f76a1e907f381b1693eb4f2bf54c1d2df4feb6743d7dc601768dd
+    environment:
+      POSTGRES_PASSWORD: local-speech-fixture-only
+    ports:
+      - "127.0.0.1:25434:5432"
+    volumes:
+      - speech-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postgres"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    mem_limit: 512m
+    cpus: 2
+volumes:
+  speech-db:

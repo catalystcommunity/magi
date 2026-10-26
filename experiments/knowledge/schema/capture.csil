@@ -1,0 +1,34 @@
+;;; Internal capture experiment. No upload authority or public service yet.
+options {
+    emit_packages: ["rust"],
+    package_name: "opal_capture_wire",
+    package_version: "0.0.1"
+}
+
+IdentityRef = { domain: text, account_id: text }
+SecretBinding = {
+    authority: IdentityRef,
+    binding_id: text,
+    path: text,
+    key: text,
+    session_id: text,
+    ? issuance_id: text
+}
+Encoding = "raw" / "base64" / "json_string" / "url_query"
+SecretCandidate = { binding: SecretBinding, encoding: Encoding }
+LiteralSegment = { start: uint, value: bytes }
+SecretSegment = { start: uint, end: uint, candidate: SecretCandidate }
+AmbiguousSegment = { start: uint, end: uint, candidates: [* SecretCandidate], reason: text }
+GapSegment = { start: uint, end: uint, reason: text }
+;;; Variant order is wire ABI. Never parse display text to select a variant.
+Segment = LiteralSegment / SecretSegment / AmbiguousSegment / GapSegment
+CaptureBatch = {
+    schema_version: uint,
+    attempt_id: text,
+    stream_id: text,
+    sequence: uint,
+    segments: [* Segment],
+    final: bool,
+    complete: bool
+}
+CaptureReceipt = { attempt_id: text, stream_id: text, sequence: uint, digest: bytes }

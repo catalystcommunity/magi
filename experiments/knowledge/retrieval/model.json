@@ -1,0 +1,14 @@
+{
+  "repository": "sentence-transformers/all-MiniLM-L6-v2",
+  "revision": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+  "file": "onnx/model_quint8_avx2.onnx",
+  "size": 23046789,
+  "sha256": "b941bf19f1f1283680f449fa6a7336bb5600bdcd5f84d10ddc5cd72218a0fd21",
+  "tokenizer_git_blob": "cb202bfe2e3c98645018a6d12f182a434c9d3e02",
+  "tokenizer_size": 466247,
+  "dimensions": 384,
+  "max_tokens": 256,
+  "pooling": "attention-mask mean, then L2 normalization",
+  "provider": "CPUExecutionProvider",
+  "threads": 2
+}

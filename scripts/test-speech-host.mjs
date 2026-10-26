@@ -1,0 +1,23 @@
+import {requireDeployment} from '../config/deployment.mjs';
+import {deployment as environmentConfig} from '../config/deployment.mjs';
+requireDeployment();
+import {execFileSync} from 'node:child_process';
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {resolve,join} from 'node:path';
+const root=resolve(import.meta.dirname,'..'),env={...process.env,GOCACHE:process.env.GOCACHE||'/tmp/opal-knowledge-go-build-20261011',CGO_ENABLED:'0',GOOS:'linux',GOARCH:'amd64'};
+const config=JSON.parse(readFileSync(join(environmentConfig.speechProfileDir,'server.json'))),tts=config.backends.tts,stt=config.backends.stt;
+if(!tts.ssh_host||tts.ssh_host!==stt.ssh_host||!/^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$/.test(tts.ssh_host))throw Error('This test requires the same configured native SSH host for both engines');
+const quote=v=>"'"+String(v).replaceAll("'","'\\''")+"'";
+const options=['-o','BatchMode=yes','-o','StrictHostKeyChecking=yes','-o','ConnectTimeout=8'];
+const run=(cmd,args)=>execFileSync(cmd,args,{cwd:root,env,encoding:'utf8',maxBuffer:8*1024*1024});
+const ssh=command=>run('ssh',[...options,tts.ssh_host,command]);
+if(ssh('uname -sm').trim()!=='Linux x86_64')throw Error('This test binary requires Linux x86_64');
+mkdirSync(join(root,'.build'),{recursive:true});run('go',['test','-c','-tags=speechmodel','-o','.build/speech-model-test','./speech']);
+const directory=ssh('mktemp -d /tmp/opal-speech-verify.XXXXXXXX').trim();if(!/^\/tmp\/opal-speech-verify\.[A-Za-z0-9]{8}$/.test(directory))throw Error('Unexpected remote temporary directory');
+run('scp',[...options,'.build/speech-model-test',tts.ssh_host+':'+directory+'/speech-model-test']);
+const values={OPAL_SPEECH_TEST_TTS_PYTHON:tts.python,OPAL_SPEECH_TEST_TTS_MODEL:tts.model_dir,OPAL_SPEECH_TEST_STT_PYTHON:stt.python,OPAL_SPEECH_TEST_STT_MODEL:stt.model_dir};
+const command='env '+Object.entries(values).map(([key,value])=>key+'='+quote(value)).join(' ')+' '+quote(directory+'/speech-model-test')+' -test.run ^TestRealSpeechBackends$ -test.v -test.timeout 120s';
+const stamp=new Date().toISOString().replaceAll(':','-');let log,status='pass';try{log=ssh(command);}catch(e){log=(e.stdout||'')+'\n'+(e.stderr||'');status='failed';}
+if(!log.includes('--- PASS: TestRealSpeechBackends')||log.includes('--- SKIP:'))status='failed';
+const file=join(root,'test-results',stamp+'-speech-host.json');mkdirSync(join(root,'test-results'),{recursive:true});writeFileSync(file,JSON.stringify({status,host:tts.ssh_host,remoteTestDirectory:directory,binarySHA256:createHash('sha256').update(readFileSync(join(root,'.build/speech-model-test'))).digest('hex'),pins:JSON.parse(readFileSync(join(root,'speech/model-pins.json'))),log},null,2)+'\n');console.log(file);if(status!=='pass')process.exitCode=1;

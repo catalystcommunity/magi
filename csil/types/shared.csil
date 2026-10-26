@@ -1,0 +1,30 @@
+IdentityRef = { domain: text, account_id: text }
+ApplicationRef = { identity: IdentityRef, application_id: text, instance_id: text }
+ResourceRef = { authority: IdentityRef, kind: text, resource_id: text }
+RecordRef = { authority: IdentityRef, kind: text, record_id: text }
+RevisionRef = { resource: ResourceRef, revision: text, digest: bytes }
+ScopeRef = { authority: IdentityRef, scope_id: text }
+SchemaRef = { name: text, version: text, digest: bytes }
+TypedPayload = { schema: SchemaRef, data: bytes }
+ArtifactRef = { authority: IdentityRef, object_id: text, digest: bytes, size: uint, media_type: text }
+TimeWindow = { not_before: timestamp, ? expires_at: timestamp }
+Quantity = { value: decimal, unit: text }
+
+;;; Each restriction is a separate requirement. Combine by intersection.
+SourceRestriction = { owner: ScopeRef, policy: RevisionRef }
+Restrictions = { requirements: [* SourceRestriction] }
+ContextAccess = {
+    actor: IdentityRef, control_scope: ScopeRef, purpose: text,
+    result_audience: [* ScopeRef], processor: IdentityRef,
+    ? represented_identity: IdentityRef, ? persona: IdentityRef
+}
+OperationRef = { receiver: ApplicationRef, service_name: text, operation: text, schema: SchemaRef }
+ServiceError = { code: int, message: text, retryable: bool }
+CaptureStatus = "complete" / "incomplete" / "unknown"
+
+;;; These bytes are the signature input. Never reconstruct them for verification.
+SignatureInput = {
+    context: text, schema: SchemaRef, signer: ApplicationRef,
+    recipient: ApplicationRef, key_id: text, signed_at: timestamp, body: bytes
+}
+SignedRecord = { input: bytes, signature: bytes }

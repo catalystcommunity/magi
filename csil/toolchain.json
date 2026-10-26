@@ -1,0 +1,8 @@
+{
+  "version": "0.2.9",
+  "compilerSha256": "c0de42950d4da7cef723dbc9f7c7466c35b4daccdb707af01b0dd8df7ada2cfe",
+  "generators": {
+    "go": "3478752ad48c83963eb303e653cdb664cd28314ff4c9a7fe15c3fe589fdb015a",
+    "typescript": "2f6f22e302c0baa140db7a120525ece44298df3559949e1b7d7e512e7c4c767c"
+  }
+}

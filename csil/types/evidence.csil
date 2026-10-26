@@ -1,0 +1,80 @@
+SecretRef = { authority: IdentityRef, path: text, key: text }
+ResolutionMode = "current"
+SecretBinding = {
+    binding_id: text, secret: SecretRef, session_id: text, validity: TimeWindow,
+    resolution: ResolutionMode, ? issuance_id: text, ? version_metadata: text
+}
+Encoding = "raw" / "base64" / "json_string" / "url_query"
+SecretCandidate = { binding: SecretBinding, encoding: Encoding }
+LiteralSegment = { start: uint, value: bytes }
+SecretSegment = { start: uint, end: uint, candidate: SecretCandidate }
+AmbiguousSegment = { start: uint, end: uint, candidates: [* SecretCandidate], reason: text }
+GapSegment = { start: uint, end: uint, reason: text }
+Segment = LiteralSegment / SecretSegment / AmbiguousSegment / GapSegment
+CapturedContent = { segments: [* Segment], capture: CaptureStatus }
+CaptureBatch = {
+    producer: ActorBinding, stream_id: text, sequence: uint,
+    content: CapturedContent, final: bool, restrictions: Restrictions
+}
+EvidenceHeader = {
+    ref: RecordRef, producer: IdentityRef, access: ContextAccess,
+    recorded_at: timestamp, restrictions: Restrictions, causes: [* RecordRef],
+    capture: CaptureStatus, ? observed_at: timestamp, ? worker: ActorBinding,
+    ? environment: ResourceRef
+}
+SourceContext = {
+    header: EvidenceHeader, resource: ResourceRef, representations: [* ArtifactRef],
+    permitted_uses: [* text], enrichment_allowed: bool, ? origin_revision: RevisionRef,
+    ? author: IdentityRef, ? observation: TypedPayload
+}
+InteractionChannel = "text" / "voice" / "system"
+InteractionRecord = {
+    header: EvidenceHeader, point_id: text, channel: InteractionChannel,
+    sequence: uint, content: CapturedContent, conversations: [* text],
+    reply_hints: [* RecordRef], identity_evidence: [* RecordRef], ? media: ArtifactRef
+}
+DestinationMeaning = { session_id: text, prompts: [* RecordRef], content: CapturedContent }
+InterpretationRecord = {
+    header: EvidenceHeader, sources: [* RecordRef], context: [* RecordRef],
+    destinations: [* DestinationMeaning], method: text, uncertainty: text, ? prior: RecordRef
+}
+SessionInput = {
+    header: EvidenceHeader, session_id: text, sources: [* RecordRef], interpretations: [* RecordRef],
+    content: CapturedContent, command_id: text, admission: RecordRef
+}
+InputDelivery = { input: RecordRef, receiver: RecordRef, received_at: timestamp, receipt: RecordRef }
+ContextUse = { input: RecordRef, snapshot: RecordRef, used_at: timestamp }
+PresentationState = "queued" / "started" / "interrupted" / "completed"
+PresentationRecord = {
+    header: EvidenceHeader, point_id: text, outputs: [* RecordRef],
+    prompts: [* RecordRef], sequence: uint, state: PresentationState, uncertainty: text
+}
+ContextSnapshot = {
+    header: EvidenceHeader, session_id: text, purpose: text, ordered_inputs: [* RecordRef],
+    sources: [* RevisionRef], tool_schemas: [* SchemaRef], content: ArtifactRef,
+    ? persona_revision: RevisionRef, ? plan_revision: RevisionRef
+}
+AgentParticipation = { worker: ActorBinding, contexts: [* RecordRef], handoff_causes: [* RecordRef], policy: RevisionRef }
+SequenceRange = { first: uint, last: uint }
+StreamManifest = {
+    header: EvidenceHeader, producer: ActorBinding, stream_id: text,
+    accepted_ranges: [* SequenceRange], gaps: [* SequenceRange], artifacts: [* ArtifactRef],
+    receipts: [* RecordRef], ? final_sequence: uint
+}
+LearningAssessment = {
+    header: EvidenceHeader, inputs: [* RevisionRef], method: text,
+    supporting: [* RecordRef], contrary: [* RecordRef], adopting_scope: ScopeRef,
+    ? prior: RecordRef, ? dimensions: [* TypedPayload]
+}
+KnowledgeAcceptance = { ref: RecordRef, adopting_scope: ScopeRef, actor: IdentityRef, item: RevisionRef, basis: RecordRef }
+KnowledgeQuery = {
+    access: ContextAccess, purpose: text, question: text, limit: uint,
+    precision: text, effort: text, ? period: TimeWindow
+}
+RetrievalStatus = "complete" / "partial" / "no_match" / "unavailable" / "denied" / "cancelled"
+QuerySource = { source: RecordRef, observed_at: timestamp }
+QueryResult = { status: RetrievalStatus, sources: [* QuerySource], gaps: [* text], quantities: [* Quantity] }
+ReadHistory = { root: RecordRef, access: ContextAccess, limit: uint, ? cursor: bytes }
+HistoryPage = { records: [* TypedPayload], ? next_cursor: bytes }
+ReplayMode = "playback" / "prepare_current_inputs" / "new_execution"
+ReplayRequest = { command_id: text, mode: ReplayMode, sources: [* RecordRef], access: ContextAccess, ? new_attempt: ActorBinding }

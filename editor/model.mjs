@@ -1,0 +1,13 @@
+const name=/^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
+export const kinds=['text','integer','boolean','decimal','timestamp','bytes'];
+export function ports(text){return text.split(/[\n,]/).map(s=>s.trim()).filter(Boolean).map(s=>{const parts=s.split(':').map(s=>s.trim());if(parts.length!==2||!name.test(parts[0])||!kinds.includes(parts[1]))throw Error('Use port-name: type for each port.');return {name:parts[0],valueType:parts[1]};});}
+export function bindings(text){return text.split('\n').map(s=>s.trim()).filter(Boolean).map(s=>{const match=s.match(/^([A-Za-z][A-Za-z0-9_-]{0,63})\s*=\s*(\$input|[A-Za-z][A-Za-z0-9_-]{0,63})\.([A-Za-z][A-Za-z0-9_-]{0,63})$/);if(!match)throw Error('Use input = source-step.output for each connection.');return {input:match[1],sourceStep:match[2],output:match[3]};});}
+export const portText=list=>list.map(v=>`${v.name}: ${v.valueType}`).join('\n');
+export const bindingText=list=>list.map(v=>`${v.input} = ${v.sourceStep}.${v.output}`).join('\n');
+export function example(){return {version:0,positions:[{stepId:'draft',x:80,y:70},{stepId:'review',x:340,y:240},{stepId:'finish',x:600,y:410}],definition:{owner:{authority:{domain:'catalystsquad.local',accountId:'household'},scopeId:'private-test'},id:'meeting-brief',revision:'v1',title:'Prepare a meeting brief',inputs:ports('subject: text'),outputs:ports('brief: text'),steps:[
+ {id:'draft',kind:'call',dependsOn:[],inputs:ports('subject: text'),outputs:ports('brief: text'),bindings:bindings('subject = $input.subject'),capability:'fixture.draft',prompt:{revision:'v1',template:'Prepare a brief about {{subject}}.'}},
+ {id:'review',kind:'human',dependsOn:['draft'],inputs:ports('brief: text'),outputs:ports('approved: text'),bindings:bindings('brief = draft.brief')},
+ {id:'finish',kind:'finish',dependsOn:['review'],inputs:ports('approved: text'),outputs:ports('approved: text'),bindings:bindings('approved = review.approved')}
+ ],results:bindings('brief = finish.approved')}};}
+export function removeStep(draft,id){const next=structuredClone(draft);next.definition.steps=next.definition.steps.filter(s=>s.id!==id);next.positions=next.positions.filter(p=>p.stepId!==id);return next;}
+export function addStep(draft,kind){if(!['call','human','finish'].includes(kind)||draft.definition.steps.length>=16)throw Error('The first interpreter supports at most 16 call, human, or finish steps.');let n=1;while(draft.definition.steps.some(s=>s.id===`${kind}${n}`))n++;const id=`${kind}${n}`;const next=structuredClone(draft);next.definition.steps.push({id,kind,dependsOn:[],inputs:[],outputs:[],bindings:[],...(kind==='call'?{capability:'choose.capability'}:{})});next.positions.push({stepId:id,x:60+(n%4)*70,y:50+(n%4)*100});return {draft:next,id};}

@@ -1,0 +1,45 @@
+;;; This component has no task, persona, or execution dependency.
+;;; The optional session_id preserves the 0alpha1 Event record.
+Event = {
+    ref: RecordRef, producer: IdentityRef, recipients: [* IdentityRef], event_type: text,
+    occurred_at: timestamp, recorded_at: timestamp, payload: TypedPayload,
+    causes: [* RecordRef], restrictions: Restrictions, ? session_id: text
+}
+Delivery = { delivery_id: text, event: bytes, recipient: IdentityRef, subscription_id: text }
+DeliveryReceipt = {
+    delivery_id: text, event: RecordRef, recipient: IdentityRef, digest: bytes,
+    accepted_at: timestamp, receipt: RecordRef
+}
+CursorPage = { events: [* Event], ? next_cursor: bytes }
+ReadEvents = { subscription_id: text, limit: uint, ? cursor: bytes }
+PublicationReceipt = {
+    event: RecordRef, publisher: ApplicationRef, receiver: ApplicationRef,
+    digest: bytes, accepted_at: timestamp, receipt_id: text
+}
+EventSubscription = { subscription_id: text, producer: IdentityRef, event_type: text }
+SubscriptionReceipt = {
+    subscription: EventSubscription, consumer: ApplicationRef, accepted_at: timestamp
+}
+PullEvents = { subscription_id: text, limit: uint }
+DeliveryBatch = { deliveries: [* Delivery] }
+AcknowledgeDelivery = { subscription_id: text, receipt: DeliveryReceipt }
+ReadPublication = { event: RecordRef }
+
+@wire-id(4)
+service Events {
+    ;;; Reserved W03 operation. Pull does not require a client cursor.
+    @wire-id(0)
+    read: ReadEvents -> CursorPage / ServiceError,
+    ;;; SignedRecord bodies: Event, EventSubscription, PullEvents,
+    ;;; AcknowledgeDelivery, and ReadPublication, respectively.
+    @wire-id(1)
+    publish: SignedRecord -> PublicationReceipt / ServiceError,
+    @wire-id(2)
+    subscribe: SignedRecord -> SubscriptionReceipt / ServiceError,
+    @wire-id(3)
+    pull: SignedRecord -> DeliveryBatch / ServiceError,
+    @wire-id(4)
+    acknowledge: SignedRecord -> DeliveryReceipt / ServiceError,
+    @wire-id(5)
+    read-publication: SignedRecord -> PublicationReceipt / ServiceError
+}

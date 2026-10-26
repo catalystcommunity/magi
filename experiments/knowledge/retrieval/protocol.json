@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "dataset": "synthetic-retrieval-v1",
+  "development_questions": 10,
+  "test_questions": 20,
+  "test_policy": "Do not tune methods, prompts, or labels after viewing test results. Create a new evaluation version for further tuning.",
+  "independent_benchmark": false,
+  "rank_limit": 10,
+  "rrf_constant": 60,
+  "link_anchors": 3,
+  "link_hops": 1,
+  "distractors": 300,
+  "concurrency": 1,
+  "embedding_search": "exact cosine over authorized records",
+  "method_order": ["text_all", "text_any", "model_text", "embedding", "hybrid", "hybrid_links"],
+  "primary_metric": "all required supporting records in the first ten candidates",
+  "no_evidence_metric": "number of questions with returned candidates; not an answer or abstention score",
+  "expected_modes": "evaluation labels only; not supplied to models and not predicted by this retrieval experiment",
+  "time_filters": "Two questions receive a broad September window. Other questions have no time filter.",
+  "development_change": "After development run 1, model-generated queries use OR matching instead of AND matching. The planner prompt is unchanged.",
+  "production_use": false
+}

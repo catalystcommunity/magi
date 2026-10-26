@@ -1,0 +1,5 @@
+@wire-id(7)
+service Agent {
+    @wire-id(0)
+    control: AgentControlRequest -> Receipt / ServiceError
+}

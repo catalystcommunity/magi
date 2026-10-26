@@ -1,0 +1,77 @@
+;;; W02 experiment. These types are not a released protocol.
+Identity = { domain: text, account_id: text }
+Application = { identity: Identity, application_id: text, instance_id: text }
+Allowance = {
+    version: uint,
+    allowance_id: text,
+    issuer: Identity,
+    delegate: Application,
+    audience: text,
+    resource: text,
+    action: text,
+    purpose: text,
+    not_before: timestamp,
+    ? expires_at: timestamp
+}
+Approval = {
+    version: uint,
+    approval_id: text,
+    approval_service: Application,
+    human: Identity,
+    allowance: bytes,
+    allowance_digest: bytes,
+    approved_at: timestamp,
+    authenticated_at: timestamp,
+    authentication_evidence: text
+}
+SignatureInput = { context: text, body: bytes, key_id: text, signed_at: timestamp }
+SignedApproval = { body: bytes, key_id: text, signed_at: timestamp, signature: bytes }
+Status = {
+    version: uint,
+    approval_id: text,
+    approval_digest: bytes,
+    approval_service: Application,
+    audience: text,
+    nonce: bytes,
+    withdrawn: bool,
+    checked_at: timestamp
+}
+SignedStatus = { body: bytes, key_id: text, signed_at: timestamp, signature: bytes }
+Use = {
+    version: uint,
+    approval_id: text,
+    delegate: Application,
+    audience: text,
+    resource: text,
+    action: text,
+    nonce: bytes,
+    issued_at: timestamp
+}
+SignedUse = { body: bytes, key_id: text, signed_at: timestamp, signature: bytes }
+StatusQuery = {
+    version: uint,
+    requester: Application,
+    approval_id: text,
+    audience: text,
+    nonce: bytes,
+    issued_at: timestamp
+}
+SignedStatusQuery = { body: bytes, key_id: text, signed_at: timestamp, signature: bytes }
+LoginStart = { identity: text }
+LoginStarted = { redirect_url: text }
+LoginSession = { human: Identity, csrf: text }
+ReviewRequest = { allowance: bytes }
+ReviewResponse = { review_id: text, allowance: bytes, digest: bytes }
+ApproveRequest = { review_id: text, digest: bytes, command_key: text }
+WithdrawRequest = { approval_id: text }
+Accepted = { approval_id: text }
+service ApprovalService {
+    begin-login: LoginStart -> LoginStarted,
+    review: ReviewRequest -> ReviewResponse,
+    approve: ApproveRequest -> Approval,
+    withdraw: WithdrawRequest -> Accepted,
+    status: SignedStatusQuery -> SignedStatus
+}
+service ApprovalReceiver {
+    accept: SignedApproval -> Accepted
+}

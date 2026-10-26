@@ -1,0 +1,5 @@
+FROM scratch
+COPY --chown=65532:65532 opal /opal
+USER 65532:65532
+EXPOSE 8080
+ENTRYPOINT ["/opal"]

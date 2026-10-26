@@ -1,0 +1,60 @@
+Mechanism = "native" / "container" / "virtual_machine"
+AccessMode = "read_only" / "read_write"
+SharingMode = "shared" / "exclusive"
+HostSelector = { capabilities: [* text], ? exact_host: IdentityRef }
+ResourceBinding = {
+    binding_id: text, host_resource: ResourceRef, subpaths: [* text],
+    access: AccessMode, sharing: SharingMode, ? mount_at: text
+}
+ToolPin = { name: text, version: text, artifact: ArtifactRef }
+EnvironmentDefinition = {
+    ref: RevisionRef, operating_system: text, architecture: text,
+    mechanisms: [* Mechanism], tools: [* ToolPin], configuration: TypedPayload,
+    ? image_digest: text, ? bundle: ArtifactRef
+}
+ResourceLimits = { cpu: Quantity, memory_bytes: uint, disk_bytes: uint, max_processes: uint }
+EnvironmentRequest = {
+    request_id: text, host: HostSelector, definition: RevisionRef, mechanism: Mechanism,
+    bindings: [* ResourceBinding], worker: ActorBinding, access: ContextAccess,
+    allowances: [* RecordRef], secrets: [* SecretBinding], limits: ResourceLimits,
+    lifetime_policy: RevisionRef, admission: RecordRef
+}
+CleanupState = "retained" / "requested" / "in_progress" / "complete" / "failed"
+EnvironmentInstance = {
+    ref: ResourceRef, admission: RecordRef, host: IdentityRef, definition: RevisionRef,
+    assignment_generation: uint, active_uses: [* RecordRef], holds: [* RecordRef], cleanup: CleanupState
+}
+ControlAssignment = {
+    environment: ResourceRef, controller: IdentityRef, mode: SharingMode,
+    resources: [* ResourceRef], generation: uint, validity: TimeWindow, admission: RecordRef
+}
+HumanHold = {
+    ref: RecordRef, environment: ResourceRef, holder: IdentityRef, admission: RecordRef,
+    created_at: timestamp, ? release_receipt: RecordRef, ? forced_end: RecordRef
+}
+HoldRequest = { command_id: text, environment: ResourceRef, expected_generation: uint }
+ReleaseHoldRequest = { command_id: text, hold: RecordRef }
+AgentControlAction = "pause" / "resume"
+AgentControlRequest = { command_id: text, worker: ActorBinding, action: AgentControlAction }
+CancelCommandRequest = { command_id: text, target_command_id: text, environment: ResourceRef, expected_generation: uint }
+AttachShellRequest = { command_id: text, environment: ResourceRef, expected_generation: uint, admission: RecordRef }
+ArgumentCommand = { executable: text, arguments: [* CapturedContent] }
+ShellCommand = { interpreter: text, script: CapturedContent }
+CommandForm = ArgumentCommand / ShellCommand
+CommandOperation = {
+    command: Command, environment: ResourceRef, control_generation: uint,
+    form: CommandForm, working_binding: text, stream_ids: [* text]
+}
+CommandResult = {
+    command_id: text, effect: ReceiptState, evidence_capture: CaptureStatus,
+    streams: [* RecordRef], ? exit_code: int, ? termination_signal: text
+}
+PlanRevision = {
+    ref: RevisionRef, author: IdentityRef, changed_steps: [* text],
+    retained_commands: [* text], cancelled_commands: [* text], unknown_outcomes: [* text],
+    authorization: RecordRef, ? prior: RevisionRef
+}
+InvestigationRecord = {
+    ref: RecordRef, attempt: RecordRef, observations: [* RecordRef], assumptions: [* text],
+    checks: [* RecordRef], uncertainty: text, retained_resources: [* ResourceRef], next_action: TypedPayload
+}

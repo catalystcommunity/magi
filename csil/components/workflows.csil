@@ -1,0 +1,83 @@
+;;; Independent workflow definitions. A definition grants no resource permission.
+;;; A named timestamp record avoids the pinned TypeScript generator's bare
+;;; timestamp union guard, which otherwise matches later byte values.
+WorkflowTimestampValue = { at: timestamp }
+WorkflowScalar = text / int / bool / decimal / WorkflowTimestampValue / bytes
+WorkflowValueType = "text" / "integer" / "boolean" / "decimal" / "timestamp" / "bytes"
+WorkflowPort = { name: text, value_type: WorkflowValueType }
+WorkflowDatum = { name: text, value: WorkflowScalar }
+WorkflowValues = { values: [* WorkflowDatum] }
+;;; source_step = "$input" selects a run input. Other values select step outputs.
+WorkflowBinding = { input: text, source_step: text, output: text }
+WorkflowPrompt = { revision: text, template: text }
+WorkflowStepKind = "call" / "human" / "finish"
+WorkflowStep = {
+    id: text, kind: WorkflowStepKind, depends_on: [* text],
+    inputs: [* WorkflowPort], outputs: [* WorkflowPort], bindings: [* WorkflowBinding],
+    ? capability: text, ? prompt: WorkflowPrompt
+}
+WorkflowDefinition = {
+    owner: ScopeRef, id: text, revision: text, title: text,
+    inputs: [* WorkflowPort], outputs: [* WorkflowPort],
+    steps: [* WorkflowStep], results: [* WorkflowBinding]
+}
+WorkflowDefinitionRef = { owner: ScopeRef, id: text, revision: text, digest: bytes }
+WorkflowIssue = { path: text, code: text }
+WorkflowValidation = { valid: bool, issues: [* WorkflowIssue] }
+;;; Layout does not change the published definition or its digest.
+WorkflowPosition = { step_id: text, x: int, y: int }
+WorkflowDraft = { definition: WorkflowDefinition, positions: [* WorkflowPosition], version: uint }
+SaveWorkflowDraft = { draft: WorkflowDraft, expected_version: uint }
+ReadWorkflowDraft = { owner: ScopeRef, id: text }
+ReadWorkflowDefinition = { definition: WorkflowDefinitionRef }
+StartWorkflow = {
+    run_id: text, definition: WorkflowDefinitionRef, inputs: WorkflowValues,
+    restrictions: Restrictions, causes: [* RecordRef]
+}
+ReadWorkflowRun = { owner: ScopeRef, run_id: text }
+WorkflowRun = {
+    request: StartWorkflow, actor: ApplicationRef, accepted_at: timestamp,
+    steps: [* WorkflowStepObservation], ? result: WorkflowValues
+}
+;;; Observations are not an independently editable task state.
+WorkflowStepObservation = {
+    step_id: text, phase: text, observed_at: timestamp,
+    ? task_id: text, ? task_revision: int, ? result: WorkflowValues
+}
+CompleteWorkflowHuman = {
+    owner: ScopeRef, run_id: text, step_id: text, task_id: text,
+    task_revision: int, result: WorkflowValues, evidence: RecordRef
+}
+WorkflowHumanReceipt = { run_id: text, step_id: text, task_id: text, task_revision: int }
+ReadWorkflowCall = { owner: ScopeRef, run_id: text, step_id: text }
+;;; The request is retained before dispatch. A missing response is not failure proof.
+;;; Payloads use the adapter's versioned media type. They must contain no secrets.
+WorkflowCallEvidence = {
+    call: ReadWorkflowCall, capability: text, adapter_revision: text,
+    destination: text, media_type: text, request: bytes,
+    started_at: timestamp, outcome: text,
+    ? response: bytes, ? finished_at: timestamp, ? error_code: text
+}
+
+@wire-id(10)
+service Workflows {
+    ;;; Each signed body has the operation's request type, as listed below.
+    @wire-id(0)
+    validate: SignedRecord -> WorkflowValidation / ServiceError,
+    @wire-id(1)
+    save-draft: SignedRecord -> WorkflowDraft / ServiceError,
+    @wire-id(2)
+    read-draft: SignedRecord -> WorkflowDraft / ServiceError,
+    @wire-id(3)
+    publish: SignedRecord -> WorkflowDefinitionRef / ServiceError,
+    @wire-id(4)
+    read-definition: SignedRecord -> WorkflowDefinition / ServiceError,
+    @wire-id(5)
+    start: SignedRecord -> WorkflowRun / ServiceError,
+    @wire-id(6)
+    read-run: SignedRecord -> WorkflowRun / ServiceError,
+    @wire-id(7)
+    complete-human: SignedRecord -> WorkflowHumanReceipt / ServiceError,
+    @wire-id(8)
+    read-call: SignedRecord -> WorkflowCallEvidence / ServiceError
+}

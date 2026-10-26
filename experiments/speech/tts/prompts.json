@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "scope": "Fictional audition text. No personal records or recorded human voices.",
+  "prompts": [
+    {"id": "ack", "label": "Short acknowledgement", "text": "I'm here. What do you need?"},
+    {"id": "introduction", "label": "Common voice comparison", "text": "Good morning. Your first meeting starts in twenty minutes. I can read the notes, check your calendar, or wait while you finish breakfast. What would help you most?"},
+    {"id": "names", "label": "Names and technical terms", "text": "Janaya asked Magi to check LinkKeys authentication. Corndogs recovered the task. The Python worker sent its result through the API. Should I show you the evidence?"},
+    {"id": "numbers", "label": "Dates amounts and negation", "text": "The test appointment is on October twenty first at eight thirty in the morning. The total is forty two dollars and seventeen cents, not four hundred dollars. Do not send the payment."},
+    {"id": "long", "label": "Explanation and a question", "text": "The new version passed its local tests, but the shared service did not answer. I kept the previous version running and saved the failure report. Your work is still available. I can check the connection, compare the two versions, and prepare a small change for review. I have not changed the live service. Would you like the short explanation first, or should I show you the full sequence of events?"}
+  ]
+}

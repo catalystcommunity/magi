@@ -1,0 +1,7 @@
+@wire-id(8)
+service Evidence {
+    @wire-id(0)
+    read-history: ReadHistory -> HistoryPage / ServiceError,
+    @wire-id(1)
+    capture: CaptureBatch -> Receipt / ServiceError
+}

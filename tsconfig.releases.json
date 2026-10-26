@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "rootDir": "generated/releases/typescript", "outDir": ".build/releases" },
+  "include": ["generated/releases/typescript/*.ts"]
+}

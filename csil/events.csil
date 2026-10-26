@@ -1,0 +1,5 @@
+;;; Standalone event client. Include shared records exactly once.
+include "types/shared.csil"
+include "components/discovery.csil"
+include "components/events.csil"
+options { decimal_mapping: "csil", import_extension: "js" }

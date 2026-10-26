@@ -1,0 +1,12 @@
+[
+  {"source":"We discussed white dwarf stellar remnant mass.","exact":"white dwarf mass","paraphrase":"collapsed suns weight limits"},
+  {"source":"The calendar had a Tuesday dentist appointment.","exact":"Tuesday dentist appointment","paraphrase":"next week tooth consultation"},
+  {"source":"Kitchen speakers played music during dinner.","exact":"kitchen speakers dinner","paraphrase":"cooking room audio while eating"},
+  {"source":"The release review covered compiler errors.","exact":"release review compiler errors","paraphrase":"shipment meeting translator failures"},
+  {"source":"We compared household electricity bills.","exact":"household electricity bills","paraphrase":"family power expenses"},
+  {"source":"The lawn camera detected a passing animal.","exact":"lawn camera animal","paraphrase":"front yard video spotted wildlife"},
+  {"source":"We planned a bicycle repair before vacation.","exact":"bicycle repair vacation","paraphrase":"fixing bikes ahead of holidays"},
+  {"source":"The garden needed additional irrigation.","exact":"garden additional irrigation","paraphrase":"plants require more watering"},
+  {"source":"The library book concerned ocean currents.","exact":"library book ocean currents","paraphrase":"borrowed volume about sea circulation"},
+  {"source":"We estimated the children's shared rent expenses.","exact":"children shared rent expenses","paraphrase":"offspring apartment housing costs"}
+]

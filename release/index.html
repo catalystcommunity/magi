@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Magi release approval</title><script type="module" src="/app.mjs"></script></head>
+<body><main><h1>Magi release approval</h1>
+<p id="target"></p><p id="identity"></p>
+<p>This page approves one exact candidate for the isolated test installation. Task review does not grant release permission.</p>
+<button id="login">Sign in with LinkKeys</button>
+<p id="status" role="status">Open a proposal link and sign in to review it.</p>
+<button id="review" disabled>Refresh review</button>
+<section id="proposal" hidden><h2 id="title"></h2><p id="reason"></p>
+<h3>Proposed changes</h3><ul id="changes"></ul>
+<h3>Risks and limits</h3><ul id="risks"></ul>
+<p id="scope"></p><p id="checks"></p><p id="expiry"></p></section>
+<details><summary>Exact images, evidence references, and technical details</summary><pre id="details"></pre></details>
+<p id="digest"></p><button id="approve" disabled>Approve this exact candidate</button>
+<button id="withdraw" disabled>Withdraw this approval</button>
+<p>Withdrawal prevents new admission. It does not cancel an admitted release. The controller checks recovery without the candidate's help.</p>
+</main></body></html>
