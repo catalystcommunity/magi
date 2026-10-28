@@ -3,8 +3,11 @@
   server.py --engine stt --model-dir DIR   Parakeet TDT 0.6B v3 (sherpa-onnx)
   server.py --engine tts --model-dir DIR   Kokoro 82M
 
+--device auto (the default) runs Kokoro on a GPU when torch sees one (CUDA or
+ROCm), else on the CPU. Parakeet always runs on the CPU; it is fast enough.
+
 Endpoints (all except /health need "Authorization: Bearer <token>"):
-  GET  /health      {"ok": true, "engine": ..., "busy": bool}
+  GET  /health      {"ok": true, "engine": ..., "device": ..., "busy": bool}
   GET  /voices      {"voices": [...]}                      (tts)
   POST /synthesize  JSON {text, voice?, speed?} -> audio/wav (tts)
   POST /transcribe  audio bytes, any ffmpeg format -> JSON  (stt)
@@ -103,16 +106,31 @@ def load_stt(directory, threads):
     return transcribe
 
 
-def load_tts(directory, threads, repo):
+def tts_device(choice):
+    import torch
+    if choice == "auto":
+        return "cuda" if torch.cuda.is_available() else "cpu"
+    if choice == "gpu":
+        if not torch.cuda.is_available():
+            raise SystemExit("--device gpu: torch sees no GPU")
+        return "cuda"
+    return "cpu"
+
+
+def load_tts(directory, threads, repo, device):
     import numpy as np
     import torch
     from kokoro import KModel, KPipeline
 
     torch.set_num_threads(threads)
     torch.set_num_interop_threads(1)
+    if device == "cuda" and torch.version.hip:
+        # MIOpen fails on Kokoro's packed LSTMs (miopenStatusUnknownError on
+        # gfx1102), and its convolutions are slower than the native kernels.
+        torch.backends.cudnn.enabled = False
     model = KModel(repo_id=repo, config=str(directory / "config.json"),
-                   model=str(directory / "kokoro-v1_0.pth")).to("cpu").eval()
-    pipes = {lang: KPipeline(lang_code=lang, repo_id=repo, model=model, device="cpu") for lang in "ab"}
+                   model=str(directory / "kokoro-v1_0.pth")).to(device).eval()
+    pipes = {lang: KPipeline(lang_code=lang, repo_id=repo, model=model, device=device) for lang in "ab"}
     paths = {v[0]: str(directory / "voices" / f"{v[0]}.pt") for v in VOICES}
     for voice, path in paths.items():
         pipes[voice[0]].load_single_voice(path)
@@ -179,7 +197,7 @@ class Handler(BaseHTTPRequestHandler):
     def handle_one(self, method):
         s = self.server
         if method == "GET" and self.path == "/health":
-            return self.reply(200, {"ok": True, "engine": s.engine_name, "busy": s.lock.locked()})
+            return self.reply(200, {"ok": True, "engine": s.engine_name, "device": s.device, "busy": s.lock.locked()})
         if not self.authorized():
             return self.reply(401, {"error": "bearer token required"})
         route = (method, self.path, s.kind)
@@ -240,6 +258,7 @@ def main():
     ap.add_argument("--listen", default="0.0.0.0")
     ap.add_argument("--port", type=int, default=8092)
     ap.add_argument("--threads", type=int, default=2)
+    ap.add_argument("--device", choices=["auto", "cpu", "gpu"], default="auto")
     a = ap.parse_args()
 
     directory = Path(a.model_dir)
@@ -250,15 +269,17 @@ def main():
     start = time.monotonic()
     if a.engine == "stt":
         verify(directory, pins["parakeet"]["sha256"])
-        run, name = load_stt(directory, a.threads), "parakeet-tdt-0.6b-v3"
+        run, name, device = load_stt(directory, a.threads), "parakeet-tdt-0.6b-v3", "cpu"
     else:
         verify(directory, pins["kokoro"]["sha256"])
-        run, name = load_tts(directory, a.threads, pins["kokoro"]["repo"]), "kokoro-82m"
+        device = tts_device(a.device)
+        run, name = load_tts(directory, a.threads, pins["kokoro"]["repo"], device), "kokoro-82m"
         run("Ready.", DEFAULT_VOICE, 1.0)  # warm up
     srv = ThreadingHTTPServer((a.listen, a.port), Handler)
     srv.daemon_threads = True
     srv.kind, srv.engine_name, srv.run, srv.token, srv.lock = a.engine, name, run, token, threading.Lock()
-    print(json.dumps({"msg": "ready", "engine": name, "port": a.port,
+    srv.device = device
+    print(json.dumps({"msg": "ready", "engine": name, "device": device, "port": a.port,
                       "load_ms": int((time.monotonic() - start) * 1000)}), file=sys.stderr, flush=True)
     srv.serve_forever()
 

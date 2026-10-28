@@ -11,10 +11,10 @@ different process that serves the same engine API.
 
 ## Engines
 
-| Engine | Model | Model license | Default port | Threads |
-| --- | --- | --- | --- | --- |
-| STT | Parakeet TDT 0.6B v3 INT8 (sherpa-onnx) | CC-BY-4.0 (NVIDIA); sherpa-onnx is Apache-2.0 | 8092 | 2 |
-| TTS | Kokoro 82M | Apache-2.0 | 8093 | 3 |
+| Engine | Model | Model license | Default port | Threads | Device |
+| --- | --- | --- | --- | --- | --- |
+| STT | Parakeet TDT 0.6B v3 INT8 (sherpa-onnx) | CC-BY-4.0 (NVIDIA); sherpa-onnx is Apache-2.0 | 8092 | 2 | CPU |
+| TTS | Kokoro 82M | Apache-2.0 | 8093 | 3 | GPU if torch sees one, else CPU |
 
 CC-BY-4.0 lets you use, change, and share the model, also for commercial
 work. You must give attribution to NVIDIA when you distribute the model.
@@ -108,6 +108,34 @@ If user lingering is on, systemd user units `magi-speech-stt` and
 loop runs each engine and restarts it after a crash. The loop does not
 continue after a host restart. Then run `install.sh` again. Logs and PID
 files are in `~/magi-speech/`.
+
+### TTS on a GPU
+
+The TTS engine uses a GPU when its Python environment has a CUDA or ROCm
+build of PyTorch (BSD-3-Clause; ROCm is MIT and similar licenses). Make a
+second environment with the same packages and a GPU torch, then give its
+path to `install.sh`:
+
+```sh
+MAGI_SPEECH_TTS_PYTHON=/path/on/host/venv/bin/python \
+MAGI_SPEECH_TTS_DEVICE=gpu \
+MAGI_SPEECH_TTS_ENV=HIP_VISIBLE_DEVICES=0 \
+primitives/speech/engine/install.sh user@speech.example.local
+```
+
+- `gpu` stops the engine at start when torch sees no GPU. `auto` uses the
+  CPU then.
+- `/health` shows the device.
+- The user must be in the `render` and `video` groups. ROCm wheels have their
+  own runtime. The host does not need a system ROCm install.
+- If the host also has an integrated GPU, set `HIP_VISIBLE_DEVICES` (ROCm)
+  or `CUDA_VISIBLE_DEVICES` to the discrete GPU.
+- On ROCm the engine turns off MIOpen. MIOpen fails on the packed LSTMs of
+  Kokoro, and its convolutions are slower than the native kernels.
+
+Measured on an RX 7600 (gfx1102, torch 2.9.1+rocm6.4): a 20.8 s reply takes
+1.0 s on the GPU, and 3.0 s on 3 CPU threads. STT stays on the CPU: it
+transcribes 8.5 s of audio in 0.24 s.
 
 Copy the token to the host of the Go service. Do not show the token or put it
 in the repository.

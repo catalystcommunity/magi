@@ -9,6 +9,9 @@
 # MAGI_SPEECH_TTS_PYTHON, MAGI_SPEECH_TTS_MODEL (paths on the host).
 # Ports: MAGI_SPEECH_STT_PORT (8092), MAGI_SPEECH_TTS_PORT (8093).
 # Threads: MAGI_SPEECH_STT_THREADS (2), MAGI_SPEECH_TTS_THREADS (3).
+# TTS device: MAGI_SPEECH_TTS_DEVICE (auto, cpu, gpu; default auto). A GPU needs
+# a TTS environment with a CUDA or ROCm torch. MAGI_SPEECH_TTS_ENV adds
+# NAME=value words to the TTS engine environment (e.g. HIP_VISIBLE_DEVICES=0).
 #
 # Files go to ~/magi-speech on the host. The token is ~/magi-speech/token
 # (mode 600). It is made once and never printed. With user lingering enabled,
@@ -26,6 +29,7 @@ ssh "$host" \
   TTS_PY="${MAGI_SPEECH_TTS_PYTHON:-}" TTS_MODEL="${MAGI_SPEECH_TTS_MODEL:-}" \
   STT_PORT="${MAGI_SPEECH_STT_PORT:-8092}" TTS_PORT="${MAGI_SPEECH_TTS_PORT:-8093}" \
   STT_THREADS="${MAGI_SPEECH_STT_THREADS:-2}" TTS_THREADS="${MAGI_SPEECH_TTS_THREADS:-3}" \
+  TTS_DEVICE="${MAGI_SPEECH_TTS_DEVICE:-auto}" TTS_ENV="${MAGI_SPEECH_TTS_ENV:-}" \
   bash -s <<'REMOTE'
 set -euo pipefail
 cd ~/magi-speech
@@ -55,6 +59,8 @@ PYTHON=$TTS_PY
 MODEL_DIR=$TTS_MODEL
 PORT=$TTS_PORT
 THREADS=$TTS_THREADS
+DEVICE=$TTS_DEVICE
+ENGINE_ENV="$TTS_ENV"
 EOF
 
 stop_nohup() {

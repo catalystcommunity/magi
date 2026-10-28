@@ -80,10 +80,8 @@ Each slice must work through the API before the next one starts.
 
 ## Next Actions
 
-- The lab installation uses a remote provider (OpenAI-compatible chat
-  completions with tool calls). The local model stays for tests. Only
-  `MAGI_MODEL_BASE_URL`, `MAGI_MODEL_NAME`, and the key file change.
-- Run the speech engines on the GPU of their host.
+- Record which model endpoint answered each persona turn, so that the
+  local-first fallback can be measured.
 - Add a loopback redirect (RFC 8252) for command-line login.
 - Add the Android client after the API is stable.
 - Remove `../magi-old` after the new system covers the demo.
