@@ -1,0 +1,55 @@
+options {
+  rust_crate: "release_api",
+  go_package: "releaseapi",
+}
+
+;;; A deployable workload. The controller changes one container image.
+;;; health_path and health_port select an HTTP check on each new pod.
+Target = {
+  name: text,
+  namespace: text,
+  deployment: text,
+  container: text,
+  ? health_path: text,
+  ? health_port: uint,
+}
+
+TargetImage = { target: text, image: text }
+
+;;; status: "pending", "rolling", "verifying", "succeeded", "rolled-back",
+;;; "failed".
+ReleaseItem = {
+  target: text,
+  image: text,
+  previous_image: text,
+  status: text,
+  ? message: text,
+}
+
+Release = {
+  id: text,
+  owner: text,
+  status: text,
+  ? reason: text,
+  items: [* ReleaseItem],
+  created_ms: uint,
+  updated_ms: uint,
+}
+
+;;; Starts a release. It applies all images, waits for each rollout and
+;;; health check, and rolls every item back if one item fails.
+CreateReleaseRequest = { images: [* TargetImage], ? reason: text }
+GetReleaseRequest = { id: text }
+ListReleasesRequest = { ? limit: uint }
+ListReleasesResponse = { releases: [* Release] }
+RollbackRequest = { id: text }
+ListTargetsRequest = { ? name: text }
+ListTargetsResponse = { targets: [* Target] }
+
+service ReleaseService {
+  create: CreateReleaseRequest -> Release,
+  get: GetReleaseRequest -> Release,
+  list: ListReleasesRequest -> ListReleasesResponse,
+  rollback: RollbackRequest -> Release,
+  list-targets: ListTargetsRequest -> ListTargetsResponse,
+}

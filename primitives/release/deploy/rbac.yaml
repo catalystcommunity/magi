@@ -1,0 +1,42 @@
+# Release controller identity. Replace "magi" with the namespace of the
+# target Deployments. For targets in more namespaces, copy the Role and
+# RoleBinding into each one (the ServiceAccount stays in one namespace).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: release
+  namespace: magi
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: release
+  namespace: magi
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  # Only for MAGI_RELEASE_HEALTH=proxy:
+  # - apiGroups: [""]
+  #   resources: ["pods/proxy"]
+  #   verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: release
+  namespace: magi
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: release
+subjects:
+  - kind: ServiceAccount
+    name: release
+    namespace: magi

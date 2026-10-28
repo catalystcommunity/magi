@@ -1,4 +1,0 @@
-include "types/shared.csil"
-include "components/discovery.csil"
-include "components/releases.csil"
-options { decimal_mapping: "csil", import_extension: "js" }

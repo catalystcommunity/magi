@@ -1,0 +1,58 @@
+options {
+  go_package: "identityapi",
+}
+
+;;; Starts a LinkKeys login. identity is "user@domain". Open url in a
+;;; browser, then poll with login_id until the status is final. Keep
+;;; login_id secret. return_url is a page on the Magi public origin. After
+;;; the sign in, the browser goes back to it in the same tab.
+BeginLoginRequest = {
+  identity: text,
+  ? client: text,
+  ? return_url: text,
+}
+BeginLoginResponse = {
+  login_id: text,
+  url: text,
+  expires_ms: uint,
+}
+
+;;; status: "pending", "complete", "failed", or "expired".
+;;; The token is returned once, on the first poll after completion.
+PollLoginRequest = { login_id: text, ? wait_ms: uint }
+PollLoginResponse = {
+  status: text,
+  ? token: text,
+  ? subject: text,
+  ? expires_ms: uint,
+  ? message: text,
+}
+
+WhoAmIRequest = { ? detail: bool }
+WhoAmIResponse = {
+  subject: text,
+  ;;; Display name of a user. It is not an identifier.
+  ? name: text,
+  kind: text,
+  scopes: [* text],
+  expires_ms: uint,
+}
+
+;;; Requires the "identity:admin" scope.
+IssueServiceTokenRequest = {
+  subject: text,
+  scopes: [* text],
+  ttl_seconds: uint,
+}
+
+;;; Issues a new user token for the caller, inside the login lifetime limit.
+RefreshRequest = { ? ttl_seconds: uint }
+TokenResponse = { token: text, subject: text, expires_ms: uint }
+
+service IdentityService {
+  begin-login: BeginLoginRequest -> BeginLoginResponse,
+  poll-login: PollLoginRequest -> PollLoginResponse,
+  who-am-i: WhoAmIRequest -> WhoAmIResponse,
+  issue-service-token: IssueServiceTokenRequest -> TokenResponse,
+  refresh: RefreshRequest -> TokenResponse,
+}

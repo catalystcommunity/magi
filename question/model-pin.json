@@ -1,9 +1,0 @@
-{
-  "name": "Qwen2.5 1.5B Instruct Q4_K_M",
-  "repository": "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
-  "file": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
-  "sha256": "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e",
-  "llama_cpp_commit": "c96f608d9861f7e8466bc1b6ac2ff4e3c6f96641",
-  "llama_cpp_version": "8265 (c96f608d9)",
-  "alias": "opal-test-small"
-}

@@ -1,9 +1,0 @@
-{
-  "csilgen_version": "0.2.9",
-  "csilgen_linux_x86_64_sha256": "c0de42950d4da7cef723dbc9f7c7466c35b4daccdb707af01b0dd8df7ada2cfe",
-  "generators": {
-    "csilgen_go_generator.wasm": "3478752ad48c83963eb303e653cdb664cd28314ff4c9a7fe15c3fe589fdb015a",
-    "csilgen_rust_generator.wasm": "a90af2791b49bb32db502d47e702214e5b831a3cba3776ba1b568a544a5e9837"
-  },
-  "postgres_image": "postgres@sha256:0b657ff48d7f76a1e907f381b1693eb4f2bf54c1d2df4feb6743d7dc601768dd"
-}

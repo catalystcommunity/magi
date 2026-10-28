@@ -1,0 +1,91 @@
+# Example release controller install. Apply deploy/rbac.yaml first.
+# Replace <tag>, the targets, and the issuer key Secret name.
+# The Secret "magi-auth-public" must hold "issuer.json" with only the public key.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: release-targets
+  namespace: magi
+data:
+  targets.yaml: |
+    targets:
+      - name: example
+        namespace: magi
+        deployment: example
+        container: example
+        health_path: /healthz
+        health_port: 8080
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: release-data
+  namespace: magi
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 256Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: release
+  namespace: magi
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {app: release}
+  template:
+    metadata:
+      labels: {app: release}
+    spec:
+      serviceAccountName: release
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 30
+      imagePullSecrets: [{name: magi-registry}]
+      nodeSelector: {kubernetes.io/arch: amd64}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: release
+          image: localhost:30500/magi/release:<tag>
+          env:
+            - {name: MAGI_AUTH_KEYS, value: /etc/magi/auth/issuer.json}
+            - {name: MAGI_RELEASE_TARGETS, value: /etc/magi/release/targets.yaml}
+            - {name: MAGI_RELEASE_DATA, value: /var/lib/magi-release}
+          ports: [{name: http, containerPort: 8080}]
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {memory: 128Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          volumeMounts:
+            - {name: auth, mountPath: /etc/magi/auth, readOnly: true}
+            - {name: targets, mountPath: /etc/magi/release, readOnly: true}
+            - {name: data, mountPath: /var/lib/magi-release}
+      volumes:
+        - name: auth
+          secret: {secretName: magi-auth-public}
+        - name: targets
+          configMap: {name: release-targets}
+        - name: data
+          persistentVolumeClaim: {claimName: release-data}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: release
+  namespace: magi
+spec:
+  selector: {app: release}
+  ports: [{name: http, port: 8080, targetPort: http}]

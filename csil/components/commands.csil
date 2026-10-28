@@ -1,7 +1,0 @@
-@wire-id(2)
-service Commands {
-    @wire-id(0)
-    submit: Command -> Receipt / ServiceError,
-    @wire-id(1)
-    read-receipt: ReadReceipt -> Receipt / ServiceError
-}

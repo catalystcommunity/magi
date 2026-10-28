@@ -1,0 +1,133 @@
+options {
+  go_package: "conversationapi",
+}
+
+;;; Conversation graph records. This service stores interactions and their
+;;; links. It does not interpret them.
+Conversation = {
+  id: text,
+  title: text,
+  owner: text,
+  participants: [* text],
+  created_ms: uint,
+  updated_ms: uint,
+  last_seq: uint,
+}
+
+;;; A reference from an utterance to a record in another system.
+;;; kind examples: "artifact", "workflow-run", "knowledge-node", "url".
+Attachment = {
+  kind: text,
+  ref: text,
+  ? title: text,
+}
+
+;;; One interaction. author_kind is "human", "persona", or "system".
+;;; modality is "text" or "voice". seq increases by one in each conversation.
+;;; sessions lists the activities that this utterance advances.
+Utterance = {
+  id: text,
+  conversation: text,
+  seq: uint,
+  author: text,
+  author_kind: text,
+  modality: text,
+  text: text,
+  ? audio: text,
+  ? transcript_confidence: float,
+  ? reply_to: text,
+  sessions: [* text],
+  attachments: [* Attachment],
+  created_ms: uint,
+}
+
+;;; An activity inside a conversation, such as a task. status is free text,
+;;; for example "open", "waiting", or "closed".
+Session = {
+  id: text,
+  conversation: text,
+  title: text,
+  status: text,
+  refs: [* Attachment],
+  created_ms: uint,
+  updated_ms: uint,
+}
+
+;;; A later record about an utterance, such as an interpretation.
+;;; body is opaque to this service; producers usually store JSON.
+Annotation = {
+  id: text,
+  utterance: text,
+  kind: text,
+  author: text,
+  body: text,
+  created_ms: uint,
+}
+
+CreateConversationRequest = {
+  ? title: text,
+  ? participants: [* text],
+  ? owner: text,
+}
+GetConversationRequest = { id: text }
+ListConversationsRequest = { ? limit: uint, ? before_ms: uint }
+ListConversationsResponse = { conversations: [* Conversation] }
+
+;;; author defaults to the caller. Only a caller with the
+;;; "conversation:act-as" scope can name another author.
+PostRequest = {
+  conversation: text,
+  text: text,
+  ? author: text,
+  ? author_kind: text,
+  ? modality: text,
+  ? audio: text,
+  ? transcript_confidence: float,
+  ? reply_to: text,
+  ? sessions: [* text],
+  ? attachments: [* Attachment],
+}
+
+;;; Returns utterances with seq greater than after_seq, oldest first.
+;;; If there are none and wait_ms is set, waits up to wait_ms for new ones.
+ListUtterancesRequest = {
+  conversation: text,
+  ? after_seq: uint,
+  ? limit: uint,
+  ? wait_ms: uint,
+}
+ListUtterancesResponse = { utterances: [* Utterance], last_seq: uint }
+GetUtteranceRequest = { id: text }
+
+OpenSessionRequest = {
+  conversation: text,
+  title: text,
+  ? status: text,
+  ? refs: [* Attachment],
+}
+UpdateSessionRequest = {
+  id: text,
+  ? title: text,
+  ? status: text,
+  ? add_refs: [* Attachment],
+}
+ListSessionsRequest = { conversation: text }
+ListSessionsResponse = { sessions: [* Session] }
+
+AnnotateRequest = { utterance: text, kind: text, body: text }
+ListAnnotationsRequest = { utterance: text }
+ListAnnotationsResponse = { annotations: [* Annotation] }
+
+service ConversationService {
+  create-conversation: CreateConversationRequest -> Conversation,
+  get-conversation: GetConversationRequest -> Conversation,
+  list-conversations: ListConversationsRequest -> ListConversationsResponse,
+  post: PostRequest -> Utterance,
+  list-utterances: ListUtterancesRequest -> ListUtterancesResponse,
+  get-utterance: GetUtteranceRequest -> Utterance,
+  open-session: OpenSessionRequest -> Session,
+  update-session: UpdateSessionRequest -> Session,
+  list-sessions: ListSessionsRequest -> ListSessionsResponse,
+  annotate: AnnotateRequest -> Annotation,
+  list-annotations: ListAnnotationsRequest -> ListAnnotationsResponse,
+}

@@ -1,0 +1,47 @@
+options {
+  go_package: "artifactsapi",
+}
+
+;;; Content-addressed evidence. The digest is "sha256:<hex>" of the body.
+;;; One body can have records for several owners.
+Artifact = {
+  digest: text,
+  media_type: text,
+  size: uint,
+  owner: text,
+  labels: { * text => text },
+  created_ms: uint,
+}
+
+;;; owner defaults to the caller. Only a caller with the
+;;; "artifacts:act-as" scope can name another owner.
+PutRequest = {
+  media_type: text,
+  body: bytes,
+  ? labels: { * text => text },
+  ? owner: text,
+}
+
+GetRequest = { digest: text }
+GetResponse = { artifact: Artifact, body: bytes }
+StatRequest = { digest: text }
+
+;;; Lists the caller's artifacts, newest first.
+ListRequest = {
+  ? label_key: text,
+  ? label_value: text,
+  ? before_ms: uint,
+  ? limit: uint,
+}
+ListResponse = { artifacts: [* Artifact] }
+
+;;; Adds or replaces labels on the caller's record.
+LabelRequest = { digest: text, labels: { * text => text } }
+
+service ArtifactService {
+  put: PutRequest -> Artifact,
+  get: GetRequest -> GetResponse,
+  stat: StatRequest -> Artifact,
+  list: ListRequest -> ListResponse,
+  label: LabelRequest -> Artifact,
+}

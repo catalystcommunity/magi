@@ -1,0 +1,18 @@
+go 1.26.0
+
+use (
+	./lib/authn
+	./lib/rpc
+	./magi
+	./primitives/artifacts
+	./primitives/conversation
+	./primitives/execution
+	./primitives/identity
+	./primitives/inference
+	./primitives/knowledge
+	./primitives/release/goapi
+	./primitives/source
+	./primitives/speech
+	./primitives/workflow
+	./tools/dispatchgen
+)

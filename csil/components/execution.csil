@@ -1,9 +1,0 @@
-@wire-id(6)
-service Execution {
-    @wire-id(0)
-    start-command: CommandOperation -> Receipt / ServiceError,
-    @wire-id(1)
-    cancel-command: CancelCommandRequest -> Receipt / ServiceError,
-    @wire-id(2)
-    attach-shell: AttachShellRequest -> Receipt / ServiceError
-}

@@ -1,0 +1,43 @@
+options {
+  go_package: "speechapi",
+}
+
+;;; Speech to text. confidence is from 0 to 1, when the engine reports it.
+TranscribeRequest = {
+  audio: bytes,
+  media_type: text,
+  ? language: text,
+}
+Transcript = {
+  text: text,
+  ? confidence: float,
+  engine: text,
+  audio_ms: uint,
+  elapsed_ms: uint,
+}
+
+;;; Text to speech. format is "wav" by default.
+SynthesizeRequest = {
+  text: text,
+  ? voice: text,
+  ? format: text,
+  ? speed: float,
+}
+Audio = {
+  body: bytes,
+  media_type: text,
+  voice: text,
+  engine: text,
+  audio_ms: uint,
+  elapsed_ms: uint,
+}
+
+Voice = { id: text, name: text, language: text, ? description: text }
+ListVoicesRequest = { ? language: text }
+ListVoicesResponse = { voices: [* Voice] }
+
+service SpeechService {
+  transcribe: TranscribeRequest -> Transcript,
+  synthesize: SynthesizeRequest -> Audio,
+  list-voices: ListVoicesRequest -> ListVoicesResponse,
+}

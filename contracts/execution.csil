@@ -1,0 +1,88 @@
+options {
+  go_package: "executionapi",
+}
+
+;;; What an environment needs. backend selects how it runs: "kubernetes"
+;;; (container), "vm", or "host". The same in-environment agent runs in
+;;; every backend, so callers do not depend on the backend.
+;;; network is "none", "cluster", or "egress".
+;;; env can carry short-lived credentials admitted for this environment.
+EnvironmentSpec = {
+  image: text,
+  ? backend: text,
+  ? host: text,
+  ? cpu_millis: uint,
+  ? memory_mb: uint,
+  ? disk_mb: uint,
+  ? env: { * text => text },
+  ? workdir: text,
+  ? network: text,
+  ? ttl_seconds: uint,
+  ? labels: { * text => text },
+}
+
+;;; status: "creating", "ready", "failed", "destroyed".
+;;; A held environment is not destroyed when its TTL ends.
+Environment = {
+  id: text,
+  spec: EnvironmentSpec,
+  owner: text,
+  status: text,
+  ? message: text,
+  held: bool,
+  created_ms: uint,
+  expires_ms: uint,
+}
+
+CreateRequest = { spec: EnvironmentSpec, ? owner: text, ? wait_ready_ms: uint }
+GetRequest = { id: text }
+;;; owner selects another subject's environments. It needs
+;;; execution:act-as or execution:admin. Without owner, a caller sees its
+;;; own environments, and an admin sees all.
+;;; Without status, destroyed environments are not listed.
+ListRequest = { ? status: text, ? owner: text, ? limit: uint }
+ListResponse = { environments: [* Environment] }
+DestroyRequest = { id: text }
+HoldRequest = { id: text, held: bool }
+ExtendRequest = { id: text, ttl_seconds: uint }
+
+;;; Runs one command. Output beyond max_output_bytes is cut; truncated
+;;; is then true.
+ExecRequest = {
+  environment: text,
+  argv: [* text],
+  ? cwd: text,
+  ? env: { * text => text },
+  ? stdin: bytes,
+  ? timeout_ms: uint,
+  ? max_output_bytes: uint,
+}
+ExecResult = {
+  exit_code: int,
+  stdout: bytes,
+  stderr: bytes,
+  truncated: bool,
+  timed_out: bool,
+  duration_ms: uint,
+}
+
+ReadFileRequest = { environment: text, path: text, ? max_bytes: uint }
+FileContent = { path: text, body: bytes, size: uint, truncated: bool }
+WriteFileRequest = { environment: text, path: text, body: bytes, ? mode: uint }
+WriteFileResponse = { path: text, size: uint }
+FileEntry = { path: text, size: uint, dir: bool }
+ListFilesRequest = { environment: text, path: text, ? depth: uint, ? limit: uint }
+ListFilesResponse = { entries: [* FileEntry], truncated: bool }
+
+service ExecutionService {
+  create: CreateRequest -> Environment,
+  get: GetRequest -> Environment,
+  list: ListRequest -> ListResponse,
+  destroy: DestroyRequest -> Environment,
+  hold: HoldRequest -> Environment,
+  extend: ExtendRequest -> Environment,
+  exec: ExecRequest -> ExecResult,
+  read-file: ReadFileRequest -> FileContent,
+  write-file: WriteFileRequest -> WriteFileResponse,
+  list-files: ListFilesRequest -> ListFilesResponse,
+}

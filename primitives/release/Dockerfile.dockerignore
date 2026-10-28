@@ -1,0 +1,5 @@
+*
+!primitives/release/Cargo.toml
+!primitives/release/Cargo.lock
+!primitives/release/src/**
+!primitives/release/testdata/**

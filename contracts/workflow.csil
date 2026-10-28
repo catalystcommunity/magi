@@ -1,0 +1,139 @@
+options {
+  go_package: "workflowapi",
+}
+
+;;; One step of a definition. kind is "task" or "human".
+;;; A task step is offered to workers that claim from queue.
+;;; A human step waits for a decide call. prompt explains the decision.
+;;; next maps an outcome to the next step id. An outcome that is not in
+;;; next, or that maps to "", finishes the run. Outcome "fail" fails the run
+;;; unless next maps it. max_attempts limits retries of a task step that
+;;; returns outcome "retry" or whose claim lease expires.
+Step = {
+  id: text,
+  kind: text,
+  ? queue: text,
+  ? prompt: text,
+  ? outcomes: [* text],
+  next: { * text => text },
+  ? max_attempts: uint,
+}
+
+;;; A reusable workflow. revision increases on each put.
+Definition = {
+  name: text,
+  revision: uint,
+  ? description: text,
+  start: text,
+  steps: [* Step],
+}
+
+Progress = {
+  at_ms: uint,
+  note: text,
+  ? ref: text,
+}
+
+;;; status: "pending", "claimed", "waiting", "done", "failed", "cancelled".
+StepState = {
+  step: text,
+  attempt: uint,
+  status: text,
+  ? outcome: text,
+  ? worker: text,
+  ? comment: text,
+  ? decided_by: text,
+  progress: [* Progress],
+  started_ms: uint,
+  ? ended_ms: uint,
+}
+
+;;; status: "running", "waiting", "succeeded", "failed", "cancelled".
+;;; vars holds run data. Task outputs and human comments merge into vars.
+;;; history lists step states in order; the last one is the current step.
+Run = {
+  id: text,
+  definition: text,
+  revision: uint,
+  owner: text,
+  status: text,
+  current_step: text,
+  vars: { * text => text },
+  history: [* StepState],
+  ? error: text,
+  created_ms: uint,
+  updated_ms: uint,
+}
+
+GetDefinitionRequest = { name: text }
+
+;;; key makes start idempotent for one owner.
+StartRequest = {
+  definition: text,
+  ? vars: { * text => text },
+  ? owner: text,
+  ? key: text,
+}
+GetRunRequest = { id: text }
+ListRunsRequest = { ? status: text, ? definition: text, ? limit: uint }
+ListRunsResponse = { runs: [* Run] }
+
+;;; Returns the run when updated_ms is greater than after_ms, or waits up
+;;; to wait_ms for a change.
+WatchRunRequest = { id: text, after_ms: uint, ? wait_ms: uint }
+
+;;; Claims one pending task step from a queue. Waits up to wait_ms.
+ClaimRequest = {
+  queue: text,
+  worker: text,
+  ? wait_ms: uint,
+  ? lease_ms: uint,
+}
+Assignment = {
+  run: text,
+  step: text,
+  attempt: uint,
+  claim: text,
+  owner: text,
+  vars: { * text => text },
+}
+ClaimResponse = { ? assignment: Assignment }
+
+HeartbeatRequest = { run: text, step: text, claim: text, ? lease_ms: uint }
+ProgressRequest = { run: text, step: text, claim: text, note: text, ? ref: text }
+Ack = { ok: bool }
+
+;;; Finishes a claimed task step. outputs merge into run vars.
+CompleteRequest = {
+  run: text,
+  step: text,
+  claim: text,
+  outcome: text,
+  ? outputs: { * text => text },
+  ? error: text,
+}
+
+;;; Decides a waiting human step. The caller must own the run or hold
+;;; the "workflow:decide" scope.
+DecideRequest = {
+  run: text,
+  step: text,
+  outcome: text,
+  ? comment: text,
+}
+CancelRequest = { id: text, ? reason: text }
+
+service WorkflowService {
+  put-definition: Definition -> Definition,
+  get-definition: GetDefinitionRequest -> Definition,
+  start: StartRequest -> Run,
+  get-run: GetRunRequest -> Run,
+  list-runs: ListRunsRequest -> ListRunsResponse,
+  watch-run: WatchRunRequest -> Run,
+  claim: ClaimRequest -> ClaimResponse,
+  heartbeat: HeartbeatRequest -> Ack,
+  progress: ProgressRequest -> Ack,
+  complete: CompleteRequest -> Run,
+  decide: DecideRequest -> Run,
+  cancel: CancelRequest -> Run,
+}

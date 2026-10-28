@@ -1,5 +1,0 @@
-@wire-id(3)
-service Federation {
-    @wire-id(0)
-    deliver: SignedRecord -> DeliveryReceipt / ServiceError
-}

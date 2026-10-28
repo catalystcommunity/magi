@@ -1,5 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  "compilerOptions": { "rootDir": "generated/conversations/typescript", "outDir": ".build/conversations" },
-  "include": ["generated/conversations/typescript/*.ts"]
-}

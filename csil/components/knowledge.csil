@@ -1,5 +1,0 @@
-@wire-id(9)
-service Knowledge {
-    @wire-id(0)
-    query: KnowledgeQuery -> QueryResult / ServiceError
-}

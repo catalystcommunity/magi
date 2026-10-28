@@ -1,0 +1,88 @@
+options {
+  go_package: "linkkeys",
+}
+
+;;; Subset of the LinkKeys Rp service (linkkeys/csil/linkkeys.csil) that a
+;;; regular relying party needs for browser login. Field names and types
+;;; must match the upstream contract exactly. Regenerate with gen.sh.
+
+RequestedClaim = { claim_type: text, datatype: text }
+ClaimRequest = { required: [* RequestedClaim], optional: [* RequestedClaim] }
+AuthenticationRequirements = { minimum_factor_count: int }
+AuthFlowContext = { flow: text, ? prior_session: text, ? request_reason: text }
+
+RpSignRequest = {
+  callback_url: text,
+  nonce: text,
+  ? requested_claims: ClaimRequest,
+  ? authentication_requirements: AuthenticationRequirements,
+  ? flow_context: AuthFlowContext,
+}
+RpSignResponse = { signed_request: text }
+
+RpDecryptRequest = { encrypted_token: text }
+RpDecryptResponse = { signed_assertion: text }
+
+IdentityAssertion = {
+  user_id: text,
+  domain: text,
+  audience: text,
+  nonce: text,
+  issued_at: text,
+  expires_at: text,
+  authorized_claims: [* text],
+  ? display_name: text,
+}
+RpVerifyRequest = { signed_assertion: text, expected_domain: text }
+RpVerifyResponse = { assertion: IdentityAssertion, verified: bool }
+
+ClaimSignature = { domain: text, signed_by_key_id: text, signature: bytes }
+Claim = {
+  claim_id: text,
+  user_id: text,
+  claim_type: text,
+  claim_value: bytes,
+  signatures: [* ClaimSignature],
+  attested_at: text,
+  created_at: text,
+  ? expires_at: text,
+  ? revoked_at: text,
+}
+RpUserInfoRequest = { token: text, api_base: text, domain: text }
+UserInfo = { user_id: text, domain: text, display_name: text, claims: [* Claim] }
+
+DomainPublicKey = {
+  key_id: text,
+  public_key: bytes,
+  fingerprint: text,
+  algorithm: text,
+  key_usage: text,
+  created_at: text,
+  expires_at: text,
+  ? revoked_at: text,
+  ? signed_by_key_id: text,
+  ? key_signature: bytes,
+}
+RevocationCertificate = {
+  target_key_id: text,
+  target_fingerprint: text,
+  revoked_at: text,
+  signatures: [* ClaimSignature],
+}
+RpResolveDomainKeysRequest = { domain: text, ? max_cache_age_seconds: int }
+RpResolveDomainKeysResponse = {
+  domain: text,
+  keys: [* DomainPublicKey],
+  revocations: [* RevocationCertificate],
+  fetched_at: text,
+  revocations_checked_at: text,
+  cache_status: text,
+}
+
+service Rp {
+  sign-request: RpSignRequest -> RpSignResponse,
+  decrypt-token: RpDecryptRequest -> RpDecryptResponse,
+  verify-assertion: RpVerifyRequest -> RpVerifyResponse,
+  userinfo-fetch: RpUserInfoRequest -> UserInfo,
+  resolve-domain-keys: RpResolveDomainKeysRequest -> RpResolveDomainKeysResponse,
+}

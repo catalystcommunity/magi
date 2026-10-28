@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Magi</title>
+<link rel="stylesheet" href="style.css">
+<script type="module" src="js/magi/web/src/app.js"></script>
+</head>
+<body>
+<section id="login" hidden>
+  <h1>Magi, built by Magi</h1>
+  <form id="login-form">
+    <label for="identity">Your LinkKeys identity</label>
+    <input id="identity" placeholder="name@example.com" autocomplete="username" required>
+    <button>Sign in</button>
+  </form>
+  <p id="login-status"></p>
+</section>
+
+<div id="app" hidden>
+  <header>
+    <strong>Magi</strong>
+    <nav>
+      <button id="tab-chat" data-tab="chat">Chat</button>
+      <button id="tab-tasks" data-tab="tasks">Tasks</button>
+      <button id="tab-knowledge" data-tab="knowledge">Knowledge</button>
+    </nav>
+    <span id="me"></span>
+    <button id="signout" class="small">Sign out</button>
+  </header>
+  <main>
+    <aside>
+      <button id="new-chat">New chat</button>
+      <div id="chats"></div>
+    </aside>
+    <section data-view="chat">
+      <div id="messages"></div>
+      <form id="composer">
+        <textarea id="input" rows="2" placeholder="Message Magi"></textarea>
+        <button id="mic" type="button">Mic</button>
+        <button>Send</button>
+        <label class="speak"><input id="speak" type="checkbox"> Spoken replies</label>
+      </form>
+    </section>
+    <section data-view="tasks" hidden>
+      <h2>Tasks</h2>
+      <form id="task-form">
+        <input id="task-title" placeholder="Title">
+        <textarea id="task-instructions" rows="3" placeholder="Describe the change to the Magi repository" required></textarea>
+        <button>Start task</button>
+      </form>
+      <p id="task-status"></p>
+      <div id="task-list"></div>
+    </section>
+    <section data-view="task" hidden><div id="task"></div></section>
+    <section data-view="knowledge" hidden>
+      <form id="k-form"><input id="kq" placeholder="Search knowledge"><button>Search</button></form>
+      <div id="k-list"></div>
+    </section>
+  </main>
+</div>
+</body>
+</html>

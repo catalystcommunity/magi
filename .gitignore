@@ -1,20 +1,8 @@
-node_modules/
-.build/
-.local/
-dist/
-experiments/speech/results/**/*.wav
-experiments/speech/tts/__pycache__/
-harness/__pycache__/
-
-# Generated reports and private operator configuration are not public source.
+/.build/
+/.local/
 /test-results/
-/experiments/*/results/
 __pycache__/
 *.pyc
-/config/*.json
-!/config/*.example.json
-*.local.json
-*.private.json
-.env
-.env.*
-!.env.example
+/primitives/release/target/
+node_modules/
+/.playwright-mcp/

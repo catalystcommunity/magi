@@ -1,5 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  "compilerOptions": { "rootDir": "generated/workflows/typescript", "outDir": ".build/workflows" },
-  "include": ["generated/workflows/typescript/*.ts"]
-}

@@ -1,0 +1,80 @@
+options {
+  go_package: "sourceapi",
+}
+
+;;; A hosted Git repository. Clients clone and push with Git smart HTTP at
+;;; clone_path on the same server. Git HTTP uses Basic authentication with
+;;; any user name and a Magi bearer token as the password.
+Repository = {
+  name: text,
+  owner: text,
+  default_branch: text,
+  clone_path: text,
+  created_ms: uint,
+}
+
+Ref = { name: text, commit: text }
+
+;;; Creates an empty repository. If seed_bundle is set, it is a "git bundle"
+;;; whose refs are imported.
+CreateRepoRequest = {
+  name: text,
+  ? default_branch: text,
+  ? owner: text,
+  ? seed_bundle: bytes,
+}
+GetRepoRequest = { name: text }
+;;; owner selects the repositories of another subject; it needs
+;;; source:act-as or source:admin. An admin without owner sees all.
+ListReposRequest = { ? limit: uint, ? owner: text }
+ListReposResponse = { repositories: [* Repository] }
+ListRefsRequest = { repo: text }
+ListRefsResponse = { refs: [* Ref] }
+
+FileChange = { path: text, additions: uint, deletions: uint }
+
+;;; Shows changes from base to head. base and head are refs or commits.
+DiffRequest = { repo: text, base: text, head: text, ? max_bytes: uint }
+DiffResult = {
+  base_commit: text,
+  head_commit: text,
+  patch: text,
+  files: [* FileChange],
+  truncated: bool,
+}
+
+;;; Merges source into target. A conflict returns merged = false.
+MergeRequest = {
+  repo: text,
+  source: text,
+  target: text,
+  ? message: text,
+  ? fast_forward_only: bool,
+}
+MergeResult = { merged: bool, commit: text, ? message: text }
+
+DeleteBranchRequest = { repo: text, branch: text }
+DeleteBranchResponse = { deleted: bool }
+
+;;; Returns a bundle of refs, for backup or transfer. refs lists branch
+;;; names; empty or absent means all refs.
+BundleRequest = { repo: text, ? refs: [* text] }
+BundleResponse = { bundle: bytes }
+
+;;; Imports branch refs from a git bundle into an existing repository.
+;;; Only refs under refs/heads/ are imported. An update to the default branch
+;;; or a non-fast-forward update is refused unless force is true.
+PushBundleRequest = { repo: text, bundle: bytes, ? force: bool }
+PushBundleResponse = { updated: [* Ref] }
+
+service SourceService {
+  create-repo: CreateRepoRequest -> Repository,
+  get-repo: GetRepoRequest -> Repository,
+  list-repos: ListReposRequest -> ListReposResponse,
+  list-refs: ListRefsRequest -> ListRefsResponse,
+  diff: DiffRequest -> DiffResult,
+  merge: MergeRequest -> MergeResult,
+  delete-branch: DeleteBranchRequest -> DeleteBranchResponse,
+  bundle: BundleRequest -> BundleResponse,
+  push-bundle: PushBundleRequest -> PushBundleResponse,
+}

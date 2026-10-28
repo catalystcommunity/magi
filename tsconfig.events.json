@@ -1,5 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  "compilerOptions": { "rootDir": "generated/events/typescript", "outDir": ".build/events" },
-  "include": ["generated/events/typescript/*.ts"]
-}

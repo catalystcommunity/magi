@@ -1,0 +1,153 @@
+options {
+  go_package: "magiapi",
+}
+
+;;; The Magi API for human clients: command line, web, Android, and others.
+;;; Clients log in with IdentityService and send the token on each call.
+
+Ref = { kind: text, ref: text, ? title: text }
+
+Chat = {
+  id: text,
+  title: text,
+  created_ms: uint,
+  updated_ms: uint,
+  last_seq: uint,
+}
+
+;;; author_kind is "human", "persona", or "system".
+;;; audio is an artifact digest; read it with get-audio.
+Message = {
+  id: text,
+  chat: text,
+  seq: uint,
+  author: text,
+  author_kind: text,
+  modality: text,
+  text: text,
+  ? audio: text,
+  ? reply_to: text,
+  refs: [* Ref],
+  created_ms: uint,
+}
+
+;;; Sends text or audio. Without chat, a new chat starts.
+;;; speak_reply asks for a spoken reply in addition to text.
+SayRequest = {
+  ? chat: text,
+  ? text: text,
+  ? audio: bytes,
+  ? audio_type: text,
+  ? speak_reply: bool,
+  ? voice: text,
+}
+SayResponse = { chat: text, message: Message }
+
+ListChatsRequest = { ? limit: uint }
+ListChatsResponse = { chats: [* Chat] }
+
+;;; Returns messages after after_seq. Waits up to wait_ms when there are none.
+ReadRequest = {
+  chat: text,
+  ? after_seq: uint,
+  ? limit: uint,
+  ? wait_ms: uint,
+}
+ReadResponse = { messages: [* Message], last_seq: uint }
+
+GetAudioRequest = { digest: text }
+AudioResponse = { body: bytes, media_type: text }
+
+TaskStep = {
+  step: text,
+  status: text,
+  ? outcome: text,
+  notes: [* text],
+  started_ms: uint,
+  ? ended_ms: uint,
+}
+
+;;; A unit of work that Magi does for a person. waiting_for is the prompt
+;;; of a human decision that the task waits for.
+Task = {
+  id: text,
+  kind: text,
+  title: text,
+  status: text,
+  current_step: text,
+  ? waiting_for: text,
+  ? decisions: [* text],
+  ? chat: text,
+  ? branch: text,
+  ? repo: text,
+  steps: [* TaskStep],
+  refs: [* Ref],
+  ? error: text,
+  created_ms: uint,
+  updated_ms: uint,
+}
+
+;;; Starts a task directly, without interpretation of a message.
+;;; kind "code-change" changes a repository.
+StartTaskRequest = {
+  kind: text,
+  instructions: text,
+  ? title: text,
+  ? repo: text,
+  ? chat: text,
+}
+GetTaskRequest = { id: text }
+ListTasksRequest = { ? chat: text, ? status: text, ? limit: uint }
+ListTasksResponse = { tasks: [* Task] }
+
+FileChange = { path: text, additions: uint, deletions: uint }
+TaskDiff = { task: text, patch: text, files: [* FileChange], truncated: bool }
+GetTaskDiffRequest = { id: text }
+
+;;; Records a human decision on a waiting task, for example "approve" or
+;;; "reject". A chat message does not record a decision.
+DecideRequest = { task: text, outcome: text, ? comment: text }
+
+KnowledgeItem = {
+  id: text,
+  kind: text,
+  label: text,
+  summary: text,
+  properties: { * text => text },
+  ? system: text,
+  ? locator: text,
+  relations: [* text],
+}
+QueryKnowledgeRequest = { ? text: text, ? kind: text, ? limit: uint }
+QueryKnowledgeResponse = { items: [* KnowledgeItem] }
+
+;;; Records knowledge that the caller authored.
+RememberRequest = {
+  kind: text,
+  label: text,
+  ? summary: text,
+  ? properties: { * text => text },
+  ? system: text,
+  ? locator: text,
+  ? related_to: text,
+  ? relation: text,
+}
+
+VoiceInfo = { id: text, name: text, language: text }
+ListVoicesRequest = { ? language: text }
+ListVoicesResponse = { voices: [* VoiceInfo] }
+
+service MagiService {
+  say: SayRequest -> SayResponse,
+  list-chats: ListChatsRequest -> ListChatsResponse,
+  read: ReadRequest -> ReadResponse,
+  get-audio: GetAudioRequest -> AudioResponse,
+  start-task: StartTaskRequest -> Task,
+  get-task: GetTaskRequest -> Task,
+  list-tasks: ListTasksRequest -> ListTasksResponse,
+  get-task-diff: GetTaskDiffRequest -> TaskDiff,
+  decide: DecideRequest -> Task,
+  query-knowledge: QueryKnowledgeRequest -> QueryKnowledgeResponse,
+  remember: RememberRequest -> KnowledgeItem,
+  list-voices: ListVoicesRequest -> ListVoicesResponse,
+}

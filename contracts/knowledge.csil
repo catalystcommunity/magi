@@ -1,0 +1,120 @@
+options {
+  go_package: "knowledgeapi",
+}
+
+;;; A reference to a record in an external system. system is the id of a
+;;; knowledge node of kind "system", or a stable system name. locator is the
+;;; address of the record inside that system, such as a calendar URL.
+ExternalRef = {
+  system: text,
+  locator: text,
+  ? context: text,
+}
+
+;;; A thing that Magi knows about. Examples of kind: "person", "system",
+;;; "calendar", "repository", "fact", "preference". scope is a policy tag
+;;; such as "private", "household", or "public". authored_by is set when a
+;;; human wrote the content. confidence is from 0 to 1.
+Node = {
+  id: text,
+  kind: text,
+  label: text,
+  summary: text,
+  properties: { * text => text },
+  ? external: ExternalRef,
+  owner: text,
+  scope: text,
+  ? authored_by: text,
+  confidence: float,
+  created_ms: uint,
+  updated_ms: uint,
+}
+
+;;; A directed relation between two nodes, such as "owns", "member-of",
+;;; "located-in", or "uses".
+Edge = {
+  id: text,
+  from_node: text,
+  to_node: text,
+  relation: text,
+  properties: { * text => text },
+  owner: text,
+  confidence: float,
+  created_ms: uint,
+}
+
+;;; A link from a node or edge to the record that supports it.
+;;; ref_kind is "artifact", "utterance", "external", or "url".
+;;; stance is "supports", "contradicts", or "mentions".
+Evidence = {
+  id: text,
+  subject: text,
+  ref_kind: text,
+  ref: text,
+  stance: text,
+  ? note: text,
+  owner: text,
+  created_ms: uint,
+}
+
+;;; Creates or updates a node. Without id, a node that has the same owner
+;;; and external system and locator is updated. Otherwise a new node is made.
+PutNodeRequest = {
+  ? id: text,
+  kind: text,
+  label: text,
+  ? summary: text,
+  ? properties: { * text => text },
+  ? external: ExternalRef,
+  ? scope: text,
+  ? authored_by: text,
+  ? confidence: float,
+  ? owner: text,
+}
+GetNodeRequest = { id: text }
+NodeView = { node: Node, edges: [* Edge], evidence: [* Evidence] }
+
+;;; Creates or updates the edge with the same from_node, to_node, and relation.
+PutEdgeRequest = {
+  from_node: text,
+  to_node: text,
+  relation: text,
+  ? properties: { * text => text },
+  ? confidence: float,
+  ? owner: text,
+}
+
+LinkEvidenceRequest = {
+  subject: text,
+  ref_kind: text,
+  ref: text,
+  ? stance: text,
+  ? note: text,
+  ? owner: text,
+}
+
+;;; Finds nodes visible to the caller. text matches label, summary, and
+;;; property values. near returns nodes within depth edges of a node.
+;;; The response includes edges between the returned nodes. owner selects
+;;; the records of another subject; it needs knowledge:act-as or admin.
+QueryRequest = {
+  ? text: text,
+  ? owner: text,
+  ? kind: text,
+  ? near: text,
+  ? depth: uint,
+  ? limit: uint,
+}
+QueryResponse = { nodes: [* Node], edges: [* Edge] }
+
+DeleteRequest = { id: text }
+DeleteResponse = { deleted: bool }
+
+service KnowledgeService {
+  put-node: PutNodeRequest -> Node,
+  get-node: GetNodeRequest -> NodeView,
+  put-edge: PutEdgeRequest -> Edge,
+  link-evidence: LinkEvidenceRequest -> Evidence,
+  query: QueryRequest -> QueryResponse,
+  delete: DeleteRequest -> DeleteResponse,
+}
