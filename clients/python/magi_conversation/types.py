@@ -95,6 +95,7 @@ class Utterance:
     audio: Optional[str] = None
     transcript_confidence: Optional[float] = None
     reply_to: Optional[str] = None
+    generated_by: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -122,6 +123,8 @@ class Utterance:
             result['sessions'] = self.sessions
         if hasattr(self, 'attachments') and self.attachments is not None:
             result['attachments'] = self.attachments
+        if hasattr(self, 'generated_by') and self.generated_by is not None:
+            result['generated_by'] = self.generated_by
         if hasattr(self, 'created_ms') and self.created_ms is not None:
             result['created_ms'] = self.created_ms
         return result
@@ -129,7 +132,7 @@ class Utterance:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Utterance':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), conversation=data.get('conversation'), seq=data.get('seq'), author=data.get('author'), author_kind=data.get('author_kind'), modality=data.get('modality'), text=data.get('text'), audio=data.get('audio'), transcript_confidence=data.get('transcript_confidence'), reply_to=data.get('reply_to'), sessions=data.get('sessions'), attachments=data.get('attachments'), created_ms=data.get('created_ms'))
+        return cls(id=data.get('id'), conversation=data.get('conversation'), seq=data.get('seq'), author=data.get('author'), author_kind=data.get('author_kind'), modality=data.get('modality'), text=data.get('text'), audio=data.get('audio'), transcript_confidence=data.get('transcript_confidence'), reply_to=data.get('reply_to'), sessions=data.get('sessions'), attachments=data.get('attachments'), generated_by=data.get('generated_by'), created_ms=data.get('created_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -345,6 +348,7 @@ class PostRequest:
     reply_to: Optional[str] = None
     sessions: Optional[List[str]] = None
     attachments: Optional[List[Attachment]] = None
+    generated_by: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -368,12 +372,14 @@ class PostRequest:
             result['sessions'] = self.sessions
         if hasattr(self, 'attachments') and self.attachments is not None:
             result['attachments'] = self.attachments
+        if hasattr(self, 'generated_by') and self.generated_by is not None:
+            result['generated_by'] = self.generated_by
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'PostRequest':
         """Create instance from dictionary."""
-        return cls(conversation=data.get('conversation'), text=data.get('text'), author=data.get('author'), author_kind=data.get('author_kind'), modality=data.get('modality'), audio=data.get('audio'), transcript_confidence=data.get('transcript_confidence'), reply_to=data.get('reply_to'), sessions=data.get('sessions'), attachments=data.get('attachments'))
+        return cls(conversation=data.get('conversation'), text=data.get('text'), author=data.get('author'), author_kind=data.get('author_kind'), modality=data.get('modality'), audio=data.get('audio'), transcript_confidence=data.get('transcript_confidence'), reply_to=data.get('reply_to'), sessions=data.get('sessions'), attachments=data.get('attachments'), generated_by=data.get('generated_by'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

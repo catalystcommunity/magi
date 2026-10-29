@@ -649,7 +649,7 @@ func DecodeChat(csilData []byte) (Chat, error) {
 
 // csilEncMessage builds the canonical CBOR value tree for a Message.
 func csilEncMessage(csilV Message) cborValue {
-	csilEntries := make(cborMap, 0, 11)
+	csilEntries := make(cborMap, 0, 12)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("seq"), cborUint(csilV.Seq)})
 	csilEntries = append(csilEntries, cborEntry{cborText("chat"), cborText(csilV.Chat)})
@@ -665,6 +665,9 @@ func csilEncMessage(csilV Message) cborValue {
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("created_ms"), cborUint(csilV.CreatedMs)})
 	csilEntries = append(csilEntries, cborEntry{cborText("author_kind"), cborText(csilV.AuthorKind)})
+	if csilV.GeneratedBy != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("generated_by"), cborText((*csilV.GeneratedBy))})
+	}
 	return csilEntries
 }
 
@@ -772,6 +775,13 @@ func csilDecMessage(csilRoot cborValue) (Message, error) {
 			return csilOut, csilErr
 		}
 		csilOut.Refs = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "generated_by"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.GeneratedBy = &csilVal
 	}
 	{
 		csilField, csilErr := cborRequire(csilRoot, "created_ms")

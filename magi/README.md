@@ -65,6 +65,7 @@ magi chat                      # interactive
 magi say -speak -audio question.wav
 magi tasks; magi task RUN; magi diff RUN; magi decide RUN approve
 magi know calendar
+magi usage -days 7             # your Magi replies by model
 ```
 
 `login` opens a browser. After the sign in, the browser goes back to a
@@ -81,6 +82,24 @@ endpoints of each primitive, `MAGI_MODEL_BASE_URL`, `MAGI_MODEL_NAME`,
 `MAGI_MODEL_API_KEY_FILE`, `MAGI_REPO`, `MAGI_ENV_IMAGE`, `MAGI_CHECK_COMMAND`,
 `MAGI_RELEASE_URL`, `MAGI_IMAGE_REGISTRY`, `MAGI_IMAGE_PULL_REGISTRY`,
 `MAGI_IMAGE_CREDENTIALS_FILE`, `MAGI_IMAGE_BASE`, `MAGI_RELEASE_TARGET`.
+
+## Model check
+
+`TestLivePersonaTools` sends scripted messages to a model with the persona
+prompt and tools. It checks the first tool call: `recall` before an answer
+about the person's things, `remember` for new facts, `start_code_change`,
+`list_tasks`, and no tool for small talk. Use it before you put a model in
+`MAGI_PERSONA_MODELS`:
+
+```sh
+MAGI_TEST_PERSONA_URL=http://inference.example.local:8095/v1 \
+MAGI_TEST_PERSONA_MODEL=qwen3.5-9b \
+MAGI_TEST_PERSONA_KEY_FILE=/path/to/token \
+go test -count=1 -v -run LivePersona ./compose/
+```
+
+On 2026-10-28, Qwen3.5 9B (Q4_K_M, RTX 4080) passed all 7 cases in 3 of 3
+runs, with a mean of 0.6 s for each call.
 
 ## Limits
 

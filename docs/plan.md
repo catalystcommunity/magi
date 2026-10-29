@@ -82,6 +82,7 @@ Each slice must work through the API before the next one starts.
 
 - Try the Android client on a phone: sign in, text, voice, and a task
   decision (`android/README.md`).
-- Show the answering model (`reply.model` in the persona turn outputs) in
-  the clients, and measure how often the local host answers.
+- Measure how often the local inference host answers persona turns:
+  `magi usage -days 7`. Each reply shows its model in the clients
+  (`generated_by`).
 - Remove `../magi-old`. The web build uses tsgo now (`tools/build-web.sh`).

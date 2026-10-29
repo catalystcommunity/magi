@@ -133,8 +133,8 @@ func TestConversation(t *testing.T) {
 		wantCode(t, err, http.StatusNotFound)
 
 		p, err := persona.Post(ctx, api.PostRequest{Conversation: conv.Id, Text: "I can help.", Author: ptr("persona:magi"),
-			AuthorKind: ptr("persona"), Modality: ptr("voice"), Audio: ptr("sha256:abc"), TranscriptConfidence: ptr(0.75)})
-		if err != nil || p.Seq != 3 || p.Author != "persona:magi" || p.AuthorKind != "persona" || *p.TranscriptConfidence != 0.75 || *p.Audio != "sha256:abc" {
+			AuthorKind: ptr("persona"), Modality: ptr("voice"), Audio: ptr("sha256:abc"), TranscriptConfidence: ptr(0.75), GeneratedBy: ptr("model-x")})
+		if err != nil || p.Seq != 3 || p.Author != "persona:magi" || p.AuthorKind != "persona" || *p.TranscriptConfidence != 0.75 || *p.Audio != "sha256:abc" || p.GeneratedBy == nil || *p.GeneratedBy != "model-x" {
 			t.Fatalf("persona post = %+v, %v", p, err)
 		}
 	})

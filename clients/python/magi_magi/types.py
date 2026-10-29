@@ -87,6 +87,7 @@ class Message:
     created_ms: int
     audio: Optional[str] = None
     reply_to: Optional[str] = None
+    generated_by: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -110,6 +111,8 @@ class Message:
             result['reply_to'] = self.reply_to
         if hasattr(self, 'refs') and self.refs is not None:
             result['refs'] = self.refs
+        if hasattr(self, 'generated_by') and self.generated_by is not None:
+            result['generated_by'] = self.generated_by
         if hasattr(self, 'created_ms') and self.created_ms is not None:
             result['created_ms'] = self.created_ms
         return result
@@ -117,7 +120,7 @@ class Message:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Message':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), chat=data.get('chat'), seq=data.get('seq'), author=data.get('author'), author_kind=data.get('author_kind'), modality=data.get('modality'), text=data.get('text'), audio=data.get('audio'), reply_to=data.get('reply_to'), refs=data.get('refs'), created_ms=data.get('created_ms'))
+        return cls(id=data.get('id'), chat=data.get('chat'), seq=data.get('seq'), author=data.get('author'), author_kind=data.get('author_kind'), modality=data.get('modality'), text=data.get('text'), audio=data.get('audio'), reply_to=data.get('reply_to'), refs=data.get('refs'), generated_by=data.get('generated_by'), created_ms=data.get('created_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

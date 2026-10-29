@@ -35,6 +35,7 @@ type Utterance struct {
 	ReplyTo              *string      `json:"reply_to,omitempty" yaml:"reply_to,omitempty"`
 	Sessions             []string     `json:"sessions" yaml:"sessions"`
 	Attachments          []Attachment `json:"attachments" yaml:"attachments"`
+	GeneratedBy          *string      `json:"generated_by,omitempty" yaml:"generated_by,omitempty"`
 	CreatedMs            uint64       `json:"created_ms" yaml:"created_ms"`
 }
 
@@ -94,6 +95,7 @@ type PostRequest struct {
 	ReplyTo              *string      `json:"reply_to,omitempty" yaml:"reply_to,omitempty"`
 	Sessions             []string     `json:"sessions,omitempty" yaml:"sessions,omitempty"`
 	Attachments          []Attachment `json:"attachments,omitempty" yaml:"attachments,omitempty"`
+	GeneratedBy          *string      `json:"generated_by,omitempty" yaml:"generated_by,omitempty"`
 }
 
 // ListUtterancesRequest represents a structured data type

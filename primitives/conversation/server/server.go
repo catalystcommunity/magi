@@ -204,7 +204,7 @@ func (s *Service) Post(ctx context.Context, req api.PostRequest) (api.Utterance,
 	u := api.Utterance{
 		Id: newID("utt_"), Conversation: c.Id, Author: p.Subject, AuthorKind: defaultKind(p), Modality: "text",
 		Text: req.Text, Audio: req.Audio, TranscriptConfidence: req.TranscriptConfidence, ReplyTo: req.ReplyTo,
-		Sessions: req.Sessions, Attachments: req.Attachments, CreatedMs: uint64(s.now().UnixMilli()),
+		Sessions: req.Sessions, Attachments: req.Attachments, GeneratedBy: req.GeneratedBy, CreatedMs: uint64(s.now().UnixMilli()),
 	}
 	if req.Author != nil && *req.Author != "" {
 		u.Author = *req.Author

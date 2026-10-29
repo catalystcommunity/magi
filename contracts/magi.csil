@@ -17,6 +17,8 @@ Chat = {
 
 ;;; author_kind is "human", "persona", or "system".
 ;;; audio is an artifact digest; read it with get-audio.
+;;; generated_by names the model that wrote a persona reply, or the
+;;; transcriber of a voice message.
 Message = {
   id: text,
   chat: text,
@@ -28,6 +30,7 @@ Message = {
   ? audio: text,
   ? reply_to: text,
   refs: [* Ref],
+  ? generated_by: text,
   created_ms: uint,
 }
 

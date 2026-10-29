@@ -322,7 +322,10 @@ class MainActivity : Activity() {
             else -> m.author
         }
         val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, 12, 0, 12) }
-        box.addView(TextView(this).apply { text = who; setTypeface(typeface, Typeface.BOLD) })
+        box.addView(TextView(this).apply {
+            text = who + (m.generatedBy?.let { " · $it" } ?: "")
+            setTypeface(typeface, Typeface.BOLD)
+        })
         box.addView(TextView(this).apply { text = m.text; setTextIsSelectable(true) })
         val audio = m.audio
         if (audio != null) {

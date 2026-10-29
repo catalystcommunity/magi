@@ -22,7 +22,7 @@ def _float(name: str, default: float | None) -> float | None:
 
 @dataclass
 class ModelConfig:
-    base_url: str = "http://127.0.0.1:8080/v1"
+    base_url: str = ""
     name: str = "magi-coder"
     api_key: str | None = field(default=None, repr=False)
     timeout_s: float = 300.0
@@ -40,8 +40,11 @@ class ModelConfig:
             key = Path(key_file).read_text().strip() or None
         elif _env("MAGI_MODEL_API_KEY"):
             key = _env("MAGI_MODEL_API_KEY").strip()
+        base_url = _env("MAGI_MODEL_BASE_URL")
+        if not base_url:
+            raise ValueError("MAGI_MODEL_BASE_URL is required")
         return cls(
-            base_url=_env("MAGI_MODEL_BASE_URL", cls.base_url),
+            base_url=base_url,
             name=_env("MAGI_MODEL_NAME", cls.name),
             api_key=key,
             timeout_s=float(_env("MAGI_MODEL_TIMEOUT", "300")),

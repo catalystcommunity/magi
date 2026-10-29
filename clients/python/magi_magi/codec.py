@@ -429,6 +429,9 @@ def _encode_message_value(v: "Message") -> Dict[Any, Any]:
         csil_m["reply_to"] = csil_x
     csil_m["created_ms"] = v.created_ms
     csil_m["author_kind"] = v.author_kind
+    csil_x = v.generated_by
+    if csil_x is not None:
+        csil_m["generated_by"] = csil_x
     return csil_m
 
 def _decode_message_value(tree: Any) -> "Message":
@@ -444,6 +447,7 @@ def _decode_message_value(tree: Any) -> "Message":
         audio=(None if tree.get("audio") is None else _csil_expect_text(tree["audio"])),
         reply_to=(None if tree.get("reply_to") is None else _csil_expect_text(tree["reply_to"])),
         refs=[_decode_ref_value(csil_e) for csil_e in _csil_expect_array(tree["refs"])],
+        generated_by=(None if tree.get("generated_by") is None else _csil_expect_text(tree["generated_by"])),
         created_ms=_csil_expect_uint(tree["created_ms"]),
     )
 

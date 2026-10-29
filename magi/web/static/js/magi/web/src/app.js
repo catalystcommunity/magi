@@ -181,7 +181,7 @@ async function follow(gen) {
 function renderMessage(m) {
     const mine = m.authorKind === "human";
     const body = el("div", { class: "text" }, m.text);
-    const box = el("div", { class: "msg " + (mine ? "mine" : m.authorKind) }, el("div", { class: "meta" }, (mine ? "You" : "Magi") + " · " + time(m.createdMs) + (m.modality === "voice" ? " · voice" : "")), body);
+    const box = el("div", { class: "msg " + (mine ? "mine" : m.authorKind) }, el("div", { class: "meta" }, (mine ? "You" : "Magi") + " · " + time(m.createdMs) + (m.modality === "voice" ? " · voice" : "") + (m.generatedBy ? " · " + m.generatedBy : "")), body);
     if (m.audio) {
         const btn = el("button", { class: "small" }, "Play");
         btn.onclick = async () => {

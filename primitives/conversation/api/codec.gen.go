@@ -673,7 +673,7 @@ func DecodeAttachment(csilData []byte) (Attachment, error) {
 
 // csilEncUtterance builds the canonical CBOR value tree for a Utterance.
 func csilEncUtterance(csilV Utterance) cborValue {
-	csilEntries := make(cborMap, 0, 13)
+	csilEntries := make(cborMap, 0, 14)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("seq"), cborUint(csilV.Seq)})
 	csilEntries = append(csilEntries, cborEntry{cborText("text"), cborText(csilV.Text)})
@@ -690,6 +690,9 @@ func csilEncUtterance(csilV Utterance) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("attachments"), cborEncArray(csilV.Attachments, func(csilElem Attachment) cborValue { return csilEncAttachment(csilElem) })})
 	csilEntries = append(csilEntries, cborEntry{cborText("author_kind"), cborText(csilV.AuthorKind)})
 	csilEntries = append(csilEntries, cborEntry{cborText("conversation"), cborText(csilV.Conversation)})
+	if csilV.GeneratedBy != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("generated_by"), cborText((*csilV.GeneratedBy))})
+	}
 	if csilV.TranscriptConfidence != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("transcript_confidence"), cborFloat((*csilV.TranscriptConfidence))})
 	}
@@ -818,6 +821,13 @@ func csilDecUtterance(csilRoot cborValue) (Utterance, error) {
 			return csilOut, csilErr
 		}
 		csilOut.Attachments = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "generated_by"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.GeneratedBy = &csilVal
 	}
 	{
 		csilField, csilErr := cborRequire(csilRoot, "created_ms")
@@ -1242,7 +1252,7 @@ func DecodeListConversationsResponse(csilData []byte) (ListConversationsResponse
 
 // csilEncPostRequest builds the canonical CBOR value tree for a PostRequest.
 func csilEncPostRequest(csilV PostRequest) cborValue {
-	csilEntries := make(cborMap, 0, 10)
+	csilEntries := make(cborMap, 0, 11)
 	csilEntries = append(csilEntries, cborEntry{cborText("text"), cborText(csilV.Text)})
 	if csilV.Audio != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("audio"), cborText((*csilV.Audio))})
@@ -1266,6 +1276,9 @@ func csilEncPostRequest(csilV PostRequest) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("author_kind"), cborText((*csilV.AuthorKind))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("conversation"), cborText(csilV.Conversation)})
+	if csilV.GeneratedBy != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("generated_by"), cborText((*csilV.GeneratedBy))})
+	}
 	if csilV.TranscriptConfidence != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("transcript_confidence"), cborFloat((*csilV.TranscriptConfidence))})
 	}
@@ -1352,6 +1365,13 @@ func csilDecPostRequest(csilRoot cborValue) (PostRequest, error) {
 			return csilOut, csilErr
 		}
 		csilOut.Attachments = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "generated_by"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.GeneratedBy = &csilVal
 	}
 	return csilOut, nil
 }

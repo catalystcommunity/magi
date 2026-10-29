@@ -24,6 +24,8 @@ export interface Chat {
 /**
  * author_kind is "human", "persona", or "system".
  * audio is an artifact digest; read it with get-audio.
+ * generated_by names the model that wrote a persona reply, or the
+ * transcriber of a voice message.
  */
 export interface Message {
   id: string;
@@ -36,6 +38,7 @@ export interface Message {
   audio?: string;
   replyTo?: string;
   refs: Ref[];
+  generatedBy?: string;
   createdMs: number;
 }
 

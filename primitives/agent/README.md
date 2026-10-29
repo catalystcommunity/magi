@@ -104,7 +104,7 @@ and no check failed.
 
 | Variable | Default | Use |
 | --- | --- | --- |
-| `MAGI_MODEL_BASE_URL` | `http://127.0.0.1:8080/v1` | Chat Completions base URL |
+| `MAGI_MODEL_BASE_URL` | none (required) | Chat Completions base URL |
 | `MAGI_MODEL_NAME` | `magi-coder` | Model name |
 | `MAGI_MODEL_API_KEY_FILE` | none | File with the model API key |
 | `MAGI_MODEL_API_KEY` | none | Key value, if no key file is set |

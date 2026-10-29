@@ -434,6 +434,9 @@ def _encode_utterance_value(v: "Utterance") -> Dict[Any, Any]:
     csil_m["attachments"] = [_encode_attachment_value(csil_e) for csil_e in v.attachments]
     csil_m["author_kind"] = v.author_kind
     csil_m["conversation"] = v.conversation
+    csil_x = v.generated_by
+    if csil_x is not None:
+        csil_m["generated_by"] = csil_x
     csil_x = v.transcript_confidence
     if csil_x is not None:
         csil_m["transcript_confidence"] = csil_x
@@ -454,6 +457,7 @@ def _decode_utterance_value(tree: Any) -> "Utterance":
         reply_to=(None if tree.get("reply_to") is None else _csil_expect_text(tree["reply_to"])),
         sessions=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["sessions"])],
         attachments=[_decode_attachment_value(csil_e) for csil_e in _csil_expect_array(tree["attachments"])],
+        generated_by=(None if tree.get("generated_by") is None else _csil_expect_text(tree["generated_by"])),
         created_ms=_csil_expect_uint(tree["created_ms"]),
     )
 
@@ -670,6 +674,9 @@ def _encode_post_request_value(v: "PostRequest") -> Dict[Any, Any]:
     if csil_x is not None:
         csil_m["author_kind"] = csil_x
     csil_m["conversation"] = v.conversation
+    csil_x = v.generated_by
+    if csil_x is not None:
+        csil_m["generated_by"] = csil_x
     csil_x = v.transcript_confidence
     if csil_x is not None:
         csil_m["transcript_confidence"] = csil_x
@@ -688,6 +695,7 @@ def _decode_post_request_value(tree: Any) -> "PostRequest":
         reply_to=(None if tree.get("reply_to") is None else _csil_expect_text(tree["reply_to"])),
         sessions=(None if tree.get("sessions") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["sessions"])]),
         attachments=(None if tree.get("attachments") is None else [_decode_attachment_value(csil_e) for csil_e in _csil_expect_array(tree["attachments"])]),
+        generated_by=(None if tree.get("generated_by") is None else _csil_expect_text(tree["generated_by"])),
     )
 
 

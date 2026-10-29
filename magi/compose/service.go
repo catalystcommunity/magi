@@ -34,6 +34,7 @@ func (m *Service) Say(ctx context.Context, req magiapi.SayRequest) (magiapi.SayR
 	text, modality := strings.TrimSpace(deref(req.Text)), "text"
 	var audioDigest *string
 	var confidence *float64
+	var transcriber *string
 	if req.Audio != nil && len(*req.Audio) > 0 {
 		audio := *req.Audio
 		mt := deref(req.AudioType)
@@ -51,6 +52,7 @@ func (m *Service) Say(ctx context.Context, req magiapi.SayRequest) (magiapi.SayR
 		audioDigest, confidence, modality = &art.Digest, tr.Confidence, "voice"
 		if text == "" {
 			text = strings.TrimSpace(tr.Text)
+			transcriber = &tr.Engine
 		}
 	}
 	if text == "" {
@@ -70,6 +72,7 @@ func (m *Service) Say(ctx context.Context, req magiapi.SayRequest) (magiapi.SayR
 	}
 	u, err := s.Conversation.Post(uctx, conversationapi.PostRequest{
 		Conversation: chat, Text: text, Modality: ptr(modality), Audio: audioDigest, TranscriptConfidence: confidence,
+		GeneratedBy: transcriber,
 	})
 	if err != nil {
 		return magiapi.SayResponse{}, err
@@ -277,7 +280,7 @@ func (m *Service) ListVoices(ctx context.Context, req magiapi.ListVoicesRequest)
 
 func message(u conversationapi.Utterance) magiapi.Message {
 	m := magiapi.Message{Id: u.Id, Chat: u.Conversation, Seq: u.Seq, Author: u.Author, AuthorKind: u.AuthorKind,
-		Modality: u.Modality, Text: u.Text, Audio: u.Audio, ReplyTo: u.ReplyTo, CreatedMs: u.CreatedMs, Refs: []magiapi.Ref{}}
+		Modality: u.Modality, Text: u.Text, Audio: u.Audio, ReplyTo: u.ReplyTo, GeneratedBy: u.GeneratedBy, CreatedMs: u.CreatedMs, Refs: []magiapi.Ref{}}
 	for _, a := range u.Attachments {
 		m.Refs = append(m.Refs, magiapi.Ref{Kind: a.Kind, Ref: a.Ref, Title: a.Title})
 	}

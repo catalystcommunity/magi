@@ -36,6 +36,8 @@ data class Message(
     // wire key: reply_to
     val replyTo: String? = null,
     val refs: List<Ref>,
+    // wire key: generated_by
+    val generatedBy: String? = null,
     // wire key: created_ms
     val createdMs: ULong
 )

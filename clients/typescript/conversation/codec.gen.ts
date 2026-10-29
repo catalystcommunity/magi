@@ -410,6 +410,7 @@ export function toUtteranceCborValue(v: Utterance): CborValue {
   csilMap.set("attachments", v.attachments.map((csilE): CborValue => toAttachmentCborValue(csilE)));
   csilMap.set("author_kind", v.authorKind);
   csilMap.set("conversation", v.conversation);
+  if (v.generatedBy !== undefined) csilMap.set("generated_by", v.generatedBy);
   if (v.transcriptConfidence !== undefined) csilMap.set("transcript_confidence", v.transcriptConfidence);
   return csilMap;
 }
@@ -428,6 +429,7 @@ export function fromUtteranceCborValue(value: CborValue): Utterance {
     replyTo: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "reply_to")),
     sessions: asArray(requireKey(value, "sessions")).map((csilE) => asString(csilE)),
     attachments: asArray(requireKey(value, "attachments")).map((csilE) => fromAttachmentCborValue(csilE)),
+    generatedBy: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "generated_by")),
     createdMs: asNumber(requireKey(value, "created_ms")),
   };
 }
@@ -599,6 +601,7 @@ export function toPostRequestCborValue(v: PostRequest): CborValue {
   if (v.attachments !== undefined) csilMap.set("attachments", v.attachments.map((csilE): CborValue => toAttachmentCborValue(csilE)));
   if (v.authorKind !== undefined) csilMap.set("author_kind", v.authorKind);
   csilMap.set("conversation", v.conversation);
+  if (v.generatedBy !== undefined) csilMap.set("generated_by", v.generatedBy);
   if (v.transcriptConfidence !== undefined) csilMap.set("transcript_confidence", v.transcriptConfidence);
   return csilMap;
 }
@@ -615,6 +618,7 @@ export function fromPostRequestCborValue(value: CborValue): PostRequest {
     replyTo: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "reply_to")),
     sessions: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "sessions")),
     attachments: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => fromAttachmentCborValue(csilE)))(mapGet(value, "attachments")),
+    generatedBy: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "generated_by")),
   };
 }
 

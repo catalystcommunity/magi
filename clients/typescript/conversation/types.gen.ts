@@ -35,6 +35,8 @@ export interface Attachment {
  * One interaction. author_kind is "human", "persona", or "system".
  * modality is "text" or "voice". seq increases by one in each conversation.
  * sessions lists the activities that this utterance advances.
+ * generated_by names the model or engine that made text, for example the
+ * language model of a persona reply or the transcriber of a voice message.
  */
 export interface Utterance {
   id: string;
@@ -49,6 +51,7 @@ export interface Utterance {
   replyTo?: string;
   sessions: string[];
   attachments: Attachment[];
+  generatedBy?: string;
   createdMs: number;
 }
 
@@ -113,6 +116,7 @@ export interface PostRequest {
   replyTo?: string;
   sessions?: string[];
   attachments?: Attachment[];
+  generatedBy?: string;
 }
 
 /**

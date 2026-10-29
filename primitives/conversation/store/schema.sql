@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS utterances (
   UNIQUE (conversation, seq)
 );
 
+ALTER TABLE utterances ADD COLUMN IF NOT EXISTS generated_by text;
+
 CREATE TABLE IF NOT EXISTS sessions (
   id           text   PRIMARY KEY,
   conversation text   NOT NULL REFERENCES conversations (id),

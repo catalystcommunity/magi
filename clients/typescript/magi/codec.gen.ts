@@ -405,6 +405,7 @@ export function toMessageCborValue(v: Message): CborValue {
   if (v.replyTo !== undefined) csilMap.set("reply_to", v.replyTo);
   csilMap.set("created_ms", v.createdMs);
   csilMap.set("author_kind", v.authorKind);
+  if (v.generatedBy !== undefined) csilMap.set("generated_by", v.generatedBy);
   return csilMap;
 }
 
@@ -420,6 +421,7 @@ export function fromMessageCborValue(value: CborValue): Message {
     audio: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "audio")),
     replyTo: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "reply_to")),
     refs: asArray(requireKey(value, "refs")).map((csilE) => fromRefCborValue(csilE)),
+    generatedBy: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "generated_by")),
     createdMs: asNumber(requireKey(value, "created_ms")),
   };
 }

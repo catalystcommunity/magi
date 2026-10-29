@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -41,6 +42,7 @@ const usage = `usage: magi [--server URL] <command> [args]
   remember KIND LABEL [-summary S] [-system S] [-locator L] [-related R -relation N]
   audio DIGEST -o FILE       save the audio of a message
   voices                     list voices
+  usage [-days N]            count Magi replies by model (default 7 days)
 
 The server comes from --server, MAGI_SERVER, or the login profile.
 MAGI_TOKEN_FILE selects a token file instead of the login profile.`
@@ -154,6 +156,10 @@ func (c *cli) run(cmd string, args []string) error {
 		for _, ch := range res.Chats {
 			fmt.Printf("%s  %s  %s\n", ch.Id, time.UnixMilli(int64(ch.UpdatedMs)).Format("2006-01-02 15:04"), ch.Title)
 		}
+	case "usage":
+		days := fs.Int("days", 7, "days to count")
+		fs.Parse(args)
+		return c.usage(time.Now().Add(-time.Duration(*days) * 24 * time.Hour))
 	case "read":
 		follow := fs.Bool("follow", false, "wait for new messages")
 		fs.Parse(args)
@@ -422,6 +428,55 @@ func (c *cli) read(chat string, after uint64, follow bool, stop func(magiapi.Mes
 	}
 }
 
+// usage counts the persona replies since a time by the model that wrote
+// them. It reads through the API, so it sees only the caller's chats.
+func (c *cli) usage(since time.Time) error {
+	from := uint64(since.UnixMilli())
+	chats, err := c.magi.ListChats(c.ctx, magiapi.ListChatsRequest{Limit: ptr(uint64(1000))})
+	if err != nil {
+		return err
+	}
+	count, total := map[string]int{}, 0
+	for _, ch := range chats.Chats {
+		if ch.UpdatedMs < from {
+			continue
+		}
+		for after := uint64(0); ; {
+			res, err := c.magi.Read(c.ctx, magiapi.ReadRequest{Chat: ch.Id, AfterSeq: ptr(after), Limit: ptr(uint64(1000))})
+			if err != nil {
+				return err
+			}
+			for _, m := range res.Messages {
+				after = m.Seq
+				if m.AuthorKind == "persona" && m.CreatedMs >= from {
+					count[deref(m.GeneratedBy)]++
+					total++
+				}
+			}
+			if len(res.Messages) == 0 || after >= res.LastSeq {
+				break
+			}
+		}
+	}
+	if total == 0 {
+		fmt.Println("no replies since", since.Format("2006-01-02 15:04"))
+		return nil
+	}
+	models := make([]string, 0, len(count))
+	for m := range count {
+		models = append(models, m)
+	}
+	sort.Slice(models, func(i, j int) bool { return count[models[i]] > count[models[j]] })
+	for _, m := range models {
+		name := m
+		if name == "" {
+			name = "(not recorded)"
+		}
+		fmt.Printf("%-40s %6d %5.1f%%\n", name, count[m], 100*float64(count[m])/float64(total))
+	}
+	return nil
+}
+
 func (c *cli) chat(chat string) error {
 	in := bufio.NewScanner(os.Stdin)
 	if chat == "" {
@@ -453,8 +508,11 @@ func printMessage(m magiapi.Message) {
 		who = "Magi"
 	}
 	extra := ""
+	if m.GeneratedBy != nil {
+		extra = " (" + *m.GeneratedBy + ")"
+	}
 	if m.Audio != nil {
-		extra = " [audio " + *m.Audio + "]"
+		extra += " [audio " + *m.Audio + "]"
 	}
 	fmt.Printf("\n%s %s%s:\n%s\n", time.UnixMilli(int64(m.CreatedMs)).Format("15:04:05"), who, extra, m.Text)
 	for _, r := range m.Refs {

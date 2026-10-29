@@ -388,6 +388,7 @@ fun Message.toCborValue(): CborValue {
     this.replyTo?.let { csilV -> csilEntries.add(CborValue.CText("reply_to") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("created_ms") to CborValue.CUint(this.createdMs))
     csilEntries.add(CborValue.CText("author_kind") to CborValue.CText(this.authorKind))
+    this.generatedBy?.let { csilV -> csilEntries.add(CborValue.CText("generated_by") to CborValue.CText(csilV)) }
     return CborValue.CMap(csilEntries)
 }
 
@@ -406,8 +407,9 @@ fun messageFromCborValue(cbor: CborValue): Message {
     val audio = CsilCbor.mapGet(cbor, "audio")?.let { csilV -> CsilCbor.asText(csilV) }
     val replyTo = CsilCbor.mapGet(cbor, "reply_to")?.let { csilV -> CsilCbor.asText(csilV) }
     val refs = CsilCbor.asArray(CsilCbor.require(cbor, "refs")).map { csilE -> refFromCborValue(csilE) }
+    val generatedBy = CsilCbor.mapGet(cbor, "generated_by")?.let { csilV -> CsilCbor.asText(csilV) }
     val createdMs = CsilCbor.asULong(CsilCbor.require(cbor, "created_ms"))
-    return Message(id = id, chat = chat, seq = seq, author = author, authorKind = authorKind, modality = modality, text = text, audio = audio, replyTo = replyTo, refs = refs, createdMs = createdMs)
+    return Message(id = id, chat = chat, seq = seq, author = author, authorKind = authorKind, modality = modality, text = text, audio = audio, replyTo = replyTo, refs = refs, generatedBy = generatedBy, createdMs = createdMs)
 }
 
 /** Decode CSIL CBOR bytes into a Message. */

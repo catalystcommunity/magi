@@ -21,17 +21,18 @@ type Chat struct {
 
 // Message represents a structured data type
 type Message struct {
-	Id         string  `json:"id" yaml:"id"`
-	Chat       string  `json:"chat" yaml:"chat"`
-	Seq        uint64  `json:"seq" yaml:"seq"`
-	Author     string  `json:"author" yaml:"author"`
-	AuthorKind string  `json:"author_kind" yaml:"author_kind"`
-	Modality   string  `json:"modality" yaml:"modality"`
-	Text       string  `json:"text" yaml:"text"`
-	Audio      *string `json:"audio,omitempty" yaml:"audio,omitempty"`
-	ReplyTo    *string `json:"reply_to,omitempty" yaml:"reply_to,omitempty"`
-	Refs       []Ref   `json:"refs" yaml:"refs"`
-	CreatedMs  uint64  `json:"created_ms" yaml:"created_ms"`
+	Id          string  `json:"id" yaml:"id"`
+	Chat        string  `json:"chat" yaml:"chat"`
+	Seq         uint64  `json:"seq" yaml:"seq"`
+	Author      string  `json:"author" yaml:"author"`
+	AuthorKind  string  `json:"author_kind" yaml:"author_kind"`
+	Modality    string  `json:"modality" yaml:"modality"`
+	Text        string  `json:"text" yaml:"text"`
+	Audio       *string `json:"audio,omitempty" yaml:"audio,omitempty"`
+	ReplyTo     *string `json:"reply_to,omitempty" yaml:"reply_to,omitempty"`
+	Refs        []Ref   `json:"refs" yaml:"refs"`
+	GeneratedBy *string `json:"generated_by,omitempty" yaml:"generated_by,omitempty"`
+	CreatedMs   uint64  `json:"created_ms" yaml:"created_ms"`
 }
 
 // SayRequest represents a structured data type

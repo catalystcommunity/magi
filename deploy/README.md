@@ -90,6 +90,21 @@ Use `--only name,name` to render a subset. The public route sends `/login/`
 and `/rpc/IdentityService/` to identity and all other paths to `magi`.
 Every API call except login needs a token.
 
+## Model use
+
+Each persona reply records the model that wrote it (`generated_by`). With
+a local inference host first in `PERSONA_LOCAL_URL`, this shows how often
+the local model answers and how often the remote provider answers. The
+command uses the API with your sign-in, from any machine. It counts only
+your chats:
+
+```sh
+magi usage -days 7    # your replies by model in the last 7 days
+```
+
+The `persona turn` log line of `magi` also gives the time and the endpoints
+that were skipped, with the reason.
+
 ## Source repository
 
 Code changes use the repository named by `MAGI_REPO` (default `magi`) in the

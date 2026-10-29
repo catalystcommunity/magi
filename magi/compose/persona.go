@@ -171,7 +171,7 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 	}
 	post := conversationapi.PostRequest{
 		Conversation: chat, Text: reply, Author: ptr(Persona), AuthorKind: ptr("persona"),
-		ReplyTo: ptr(uttID), Attachments: refs, Modality: ptr("text"),
+		ReplyTo: ptr(uttID), Attachments: refs, Modality: ptr("text"), GeneratedBy: optional(served),
 	}
 	if a.Vars["speak"] == "true" {
 		if digest, err := s.speak(ctx, a.Owner, reply, a.Vars["voice"]); err != nil {

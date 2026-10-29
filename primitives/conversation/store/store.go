@@ -125,14 +125,14 @@ ORDER BY updated_ms DESC, id LIMIT $3`, subject, int64(beforeMs), limit)
 
 // Utterances
 
-const uttCols = "id, conversation, seq, author, author_kind, modality, text, audio, transcript_confidence, reply_to, sessions, attachments, created_ms"
+const uttCols = "id, conversation, seq, author, author_kind, modality, text, audio, transcript_confidence, reply_to, sessions, attachments, generated_by, created_ms"
 
 func scanUtt(r pgx.Row) (api.Utterance, error) {
 	var u api.Utterance
 	var seq, created int64
 	var att []byte
 	if err := r.Scan(&u.Id, &u.Conversation, &seq, &u.Author, &u.AuthorKind, &u.Modality, &u.Text,
-		&u.Audio, &u.TranscriptConfidence, &u.ReplyTo, &u.Sessions, &att, &created); err != nil {
+		&u.Audio, &u.TranscriptConfidence, &u.ReplyTo, &u.Sessions, &att, &u.GeneratedBy, &created); err != nil {
 		return u, err
 	}
 	u.Seq, u.CreatedMs = uint64(seq), uint64(created)
@@ -162,9 +162,9 @@ WHERE id = $1 RETURNING last_seq`, u.Conversation, int64(u.CreatedMs)).Scan(&seq
 			return err
 		}
 		u.Seq = uint64(seq)
-		if _, err := tx.Exec(ctx, `INSERT INTO utterances (`+uttCols+`) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+		if _, err := tx.Exec(ctx, `INSERT INTO utterances (`+uttCols+`) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
 			u.Id, u.Conversation, seq, u.Author, u.AuthorKind, u.Modality, u.Text, u.Audio, u.TranscriptConfidence,
-			u.ReplyTo, u.Sessions, refsJSON(u.Attachments), int64(u.CreatedMs)); err != nil {
+			u.ReplyTo, u.Sessions, refsJSON(u.Attachments), u.GeneratedBy, int64(u.CreatedMs)); err != nil {
 			return err
 		}
 		_, err = tx.Exec(ctx, `SELECT pg_notify($1, $2)`, Channel, u.Conversation)
