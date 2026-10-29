@@ -8,8 +8,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -20,7 +24,8 @@ import (
 
 const usage = `usage: magi [--server URL] <command> [args]
 
-  login USER@DOMAIN          sign in with LinkKeys
+  login [-paste] USER@DOMAIN sign in with LinkKeys in a browser; -paste
+                             when the browser is on another machine
   whoami                     show the signed-in identity
   chat [CHAT]                talk interactively (text); new chat if none
   say [-chat C] [-audio F] [-speak] [TEXT]
@@ -102,10 +107,12 @@ func (c *cli) run(cmd string, args []string) error {
 	fs := flag.NewFlagSet(cmd, flag.ExitOnError)
 	switch cmd {
 	case "login":
-		if len(args) != 1 {
-			return errors.New("login USER@DOMAIN")
+		paste := fs.Bool("paste", headless(), "paste the code from the browser (for a browser on another machine)")
+		fs.Parse(args)
+		if fs.NArg() != 1 {
+			return errors.New("login [-paste] USER@DOMAIN")
 		}
-		return c.login(args[0])
+		return c.login(fs.Arg(0), *paste)
 	case "whoami":
 		w, err := c.id.WhoAmI(c.ctx, identityapi.WhoAmIRequest{})
 		if err != nil {
@@ -258,36 +265,125 @@ func (c *cli) run(cmd string, args []string) error {
 	return nil
 }
 
-func (c *cli) login(identity string) error {
-	b, err := c.id.BeginLogin(c.ctx, identityapi.BeginLoginRequest{Identity: identity, Client: ptr("cli")})
-	if err != nil {
-		return err
-	}
-	fmt.Printf("Open this URL in a browser to sign in:\n\n  %s\n\nWaiting...\n", b.Url)
-	for time.Now().UnixMilli() < int64(b.ExpiresMs) {
-		r, err := c.id.PollLogin(c.ctx, identityapi.PollLoginRequest{LoginId: b.LoginId, WaitMs: ptr(uint64(25000))})
+// login signs in with a browser. By default the browser comes back to a
+// loopback address with the code (RFC 8252). With paste, the browser shows
+// the code and the person pastes it here.
+func (c *cli) login(identity string, paste bool) error {
+	req := identityapi.BeginLoginRequest{Identity: identity, Client: ptr("cli")}
+	codes := make(chan string, 1)
+	if !paste {
+		l, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
 			return err
 		}
-		switch r.Status {
-		case "pending":
-			continue
-		case "complete":
-			c.p.Token, c.p.Subject = deref(r.Token), deref(r.Subject)
-			if err := os.MkdirAll(filepath.Dir(profilePath()), 0o700); err != nil {
-				return err
+		defer l.Close()
+		go http.Serve(l, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			code := r.URL.Query().Get("code")
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			if code == "" {
+				fmt.Fprintf(w, loopbackPage, "Sign in failed", "See the terminal for the reason.")
+			} else {
+				fmt.Fprintf(w, loopbackPage, "Signed in", "You can close this tab and go back to the terminal.")
 			}
-			b, _ := json.Marshal(c.p)
-			if err := os.WriteFile(profilePath(), b, 0o600); err != nil {
-				return err
+			select {
+			case codes <- code:
+			default:
 			}
-			fmt.Printf("Signed in as %s.\n", c.p.Subject)
-			return nil
-		default:
+		}))
+		req.ReturnUrl = ptr("http://" + l.Addr().String() + "/done")
+	}
+	b, err := c.id.BeginLogin(c.ctx, req)
+	if err != nil {
+		return err
+	}
+	if paste || openBrowser(b.Url) != nil {
+		fmt.Printf("Open this URL in a browser to sign in:\n\n  %s\n\n", b.Url)
+	} else {
+		fmt.Printf("Sign in in your browser. If it did not open, open this URL:\n\n  %s\n\n", b.Url)
+	}
+	// Poll without the code to learn when the browser part ends or fails.
+	results := make(chan identityapi.PollLoginResponse, 1)
+	errs := make(chan error, 1)
+	go func() {
+		for time.Now().UnixMilli() < int64(b.ExpiresMs) {
+			r, err := c.id.PollLogin(c.ctx, identityapi.PollLoginRequest{LoginId: b.LoginId, WaitMs: ptr(uint64(25000))})
+			if err != nil {
+				errs <- err
+				return
+			}
+			if r.Status != "pending" {
+				results <- r
+				return
+			}
+		}
+		errs <- errors.New("login expired")
+	}()
+	var code string
+	select {
+	case code = <-codes:
+	case err := <-errs:
+		return err
+	case r := <-results:
+		if r.Status != "needs_code" {
 			return fmt.Errorf("login %s: %s", r.Status, deref(r.Message))
 		}
+		if paste {
+			fmt.Print("Paste the code from the browser: ")
+			line, err := bufio.NewReader(os.Stdin).ReadString('\n')
+			if err != nil {
+				return err
+			}
+			code = strings.TrimSpace(line)
+		} else {
+			select {
+			case code = <-codes:
+			case <-time.After(30 * time.Second):
+				return errors.New("the browser did not come back to this program; run magi login -paste")
+			}
+		}
 	}
-	return errors.New("login expired")
+	pr := identityapi.PollLoginRequest{LoginId: b.LoginId, WaitMs: ptr(uint64(25000))}
+	if code != "" { // without a code the poll reports why the sign in failed
+		pr.Code = &code
+	}
+	r, err := c.id.PollLogin(c.ctx, pr)
+	if err != nil {
+		return err
+	}
+	if r.Status != "complete" || r.Token == nil {
+		return fmt.Errorf("login %s: %s", r.Status, deref(r.Message))
+	}
+	c.p.Token, c.p.Subject = deref(r.Token), deref(r.Subject)
+	if err := os.MkdirAll(filepath.Dir(profilePath()), 0o700); err != nil {
+		return err
+	}
+	data, _ := json.Marshal(c.p)
+	if err := os.WriteFile(profilePath(), data, 0o600); err != nil {
+		return err
+	}
+	fmt.Printf("Signed in as %s.\n", c.p.Subject)
+	return nil
+}
+
+const loopbackPage = `<!doctype html><meta charset="utf-8"><title>Magi</title>` +
+	`<body style="font-family:system-ui,sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem"><h1>%s</h1><p>%s</p></body>`
+
+// headless reports whether no local browser is likely, for example in SSH.
+func headless() bool {
+	if os.Getenv("SSH_CONNECTION") != "" {
+		return true
+	}
+	return runtime.GOOS == "linux" && os.Getenv("DISPLAY") == "" && os.Getenv("WAYLAND_DISPLAY") == ""
+}
+
+func openBrowser(u string) error {
+	switch runtime.GOOS {
+	case "darwin":
+		return exec.Command("open", u).Start()
+	case "windows":
+		return exec.Command("rundll32", "url.dll,FileProtocolHandler", u).Start()
+	}
+	return exec.Command("xdg-open", u).Start()
 }
 
 // waitReply prints messages after sent until a persona reply to it arrives.

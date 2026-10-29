@@ -9,9 +9,12 @@ export interface ServiceError {
 
 /**
  * Starts a LinkKeys login. identity is "user@domain". Open url in a
- * browser, then poll with login_id until the status is final. Keep
- * login_id secret. return_url is a page on the Magi public origin. After
- * the sign in, the browser goes back to it in the same tab.
+ * browser, then poll with login_id. Keep login_id secret. return_url is a
+ * page on the Magi public origin, a loopback address (RFC 8252:
+ * http://127.0.0.1:PORT/... or http://[::1]:PORT/...), or a reverse-DNS
+ * app scheme (org.example.app:/path). After the sign in,
+ * the browser goes to return_url with the query parameter "code".
+ * Without return_url, the page shows the code for the person to paste.
  */
 export interface BeginLoginRequest {
   identity: string;
@@ -28,10 +31,14 @@ export interface BeginLoginResponse {
 /**
  * status: "pending", "complete", "failed", or "expired".
  * The token is returned once, on the first poll after completion.
+ * status is pending, needs_code, complete, or failed. needs_code: the
+ * browser sign in is complete; poll again with code. The token comes only
+ * with the correct code. A wrong code fails the login.
  */
 export interface PollLoginRequest {
   loginId: string;
   waitMs?: number;
+  code?: string;
 }
 
 export interface PollLoginResponse {

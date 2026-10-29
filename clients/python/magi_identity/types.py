@@ -72,6 +72,7 @@ class BeginLoginResponse:
 class PollLoginRequest:
     login_id: str
     wait_ms: Optional[int] = None
+    code: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -79,12 +80,14 @@ class PollLoginRequest:
             result['login_id'] = self.login_id
         if hasattr(self, 'wait_ms') and self.wait_ms is not None:
             result['wait_ms'] = self.wait_ms
+        if hasattr(self, 'code') and self.code is not None:
+            result['code'] = self.code
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'PollLoginRequest':
         """Create instance from dictionary."""
-        return cls(login_id=data.get('login_id'), wait_ms=data.get('wait_ms'))
+        return cls(login_id=data.get('login_id'), wait_ms=data.get('wait_ms'), code=data.get('code'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

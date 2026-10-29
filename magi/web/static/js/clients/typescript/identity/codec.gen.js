@@ -376,6 +376,8 @@ export function fromBeginLoginResponseCbor(bytes) {
 }
 export function toPollLoginRequestCborValue(v) {
     const csilMap = new Map();
+    if (v.code !== undefined)
+        csilMap.set("code", v.code);
     if (v.waitMs !== undefined)
         csilMap.set("wait_ms", v.waitMs);
     csilMap.set("login_id", v.loginId);
@@ -385,6 +387,7 @@ export function fromPollLoginRequestCborValue(value) {
     return {
         loginId: asString(requireKey(value, "login_id")),
         waitMs: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "wait_ms")),
+        code: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "code")),
     };
 }
 export function toPollLoginRequestCbor(v) {

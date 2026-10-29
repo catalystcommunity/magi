@@ -39,6 +39,16 @@ for csil in "$root"/contracts/*.csil; do
   rm -rf "$py" && "$csilgen" generate -q --no-schema -i "$csil" -t python-client -o "$py"
   ts="$root/clients/typescript/$name"
   rm -rf "$ts" && "$csilgen" generate -q --no-schema -i "$csil" -t typescript-client -o "$ts"
+  # Kotlin (Android) only for the public API. csilgen writes one fixed
+  # package, so each contract gets its own package here.
+  if [[ $name == identity || $name == magi ]]; then
+    kt="$root/clients/kotlin/community/catalyst/magi/client/$name"
+    rm -rf "$kt" "$tmp/kt" && "$csilgen" generate -q --no-schema -i "$csil" -t kotlin-client -o "$tmp/kt"
+    mkdir -p "$kt"
+    for f in "$tmp/kt/community/catalyst/csilgen/generated/"*.kt; do
+      sed "s/^package community\.catalyst\.csilgen\.generated$/package community.catalyst.magi.client.$name/" "$f" > "$kt/$(basename "$f")"
+    done
+  fi
 done
 
 # The release controller is a Rust server.

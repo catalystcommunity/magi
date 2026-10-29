@@ -623,7 +623,10 @@ func DecodeBeginLoginResponse(csilData []byte) (BeginLoginResponse, error) {
 
 // csilEncPollLoginRequest builds the canonical CBOR value tree for a PollLoginRequest.
 func csilEncPollLoginRequest(csilV PollLoginRequest) cborValue {
-	csilEntries := make(cborMap, 0, 2)
+	csilEntries := make(cborMap, 0, 3)
+	if csilV.Code != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("code"), cborText((*csilV.Code))})
+	}
 	if csilV.WaitMs != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("wait_ms"), cborUint((*csilV.WaitMs))})
 	}
@@ -651,6 +654,13 @@ func csilDecPollLoginRequest(csilRoot cborValue) (PollLoginRequest, error) {
 			return csilOut, csilErr
 		}
 		csilOut.WaitMs = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "code"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Code = &csilVal
 	}
 	return csilOut, nil
 }

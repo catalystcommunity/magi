@@ -28,6 +28,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -131,8 +132,8 @@ func (s *Service) BeginLogin(ctx context.Context, req api.BeginLoginRequest) (ap
 	returnURL := ""
 	if req.ReturnUrl != nil && *req.ReturnUrl != "" {
 		u, err := url.Parse(*req.ReturnUrl)
-		if err != nil || u.Scheme+"://"+u.Host != s.origin() || u.User != nil || u.Fragment != "" || len(*req.ReturnUrl) > 512 {
-			return api.BeginLoginResponse{}, rpc.Invalid("return_url must be a page on %s", s.origin())
+		if err != nil || !(u.Scheme+"://"+u.Host == s.origin() || loopback(u) || privateScheme(u)) || u.User != nil || u.Fragment != "" || len(*req.ReturnUrl) > 512 {
+			return api.BeginLoginResponse{}, rpc.Invalid("return_url must be a page on %s, a loopback address, or a reverse-DNS app scheme", s.origin())
 		}
 		returnURL = u.String()
 	}
@@ -162,6 +163,24 @@ func (s *Service) BeginLogin(ctx context.Context, req api.BeginLoginRequest) (ap
 	}, nil
 }
 
+// loopback reports whether u is a native-app loopback redirect (RFC 8252
+// section 7.3): http on 127.0.0.1 or [::1] with any port. The redirect holds
+// no secret; the program gets its session by polling with its login_id.
+func loopback(u *url.URL) bool {
+	h := u.Hostname()
+	return u.Scheme == "http" && (h == "127.0.0.1" || h == "::1") && u.Port() != ""
+}
+
+var schemeRE = regexp.MustCompile(`^[a-z][a-z0-9-]*(\.[a-z0-9-]+)+$`)
+
+// privateScheme reports whether u uses a reverse-DNS private-use scheme of a
+// native app (RFC 8252 section 7.1), for example "org.example.app:/done".
+// Another app that claims the scheme gets only the code, which is useless
+// without the login_id.
+func privateScheme(u *url.URL) bool {
+	return schemeRE.MatchString(u.Scheme) && u.Host == "" && u.Opaque == ""
+}
+
 func (s *Service) PollLogin(ctx context.Context, req api.PollLoginRequest) (api.PollLoginResponse, error) {
 	if !strings.HasPrefix(req.LoginId, "lgn_") {
 		return api.PollLoginResponse{}, rpc.NotFound("unknown login")
@@ -184,7 +203,7 @@ func (s *Service) PollLogin(ctx context.Context, req api.PollLoginRequest) (api.
 		if err != nil {
 			return api.PollLoginResponse{}, err
 		}
-		if resp, final, err := s.pollResult(ctx, l); final || err != nil {
+		if resp, final, err := s.pollResult(ctx, l, req.Code); final || err != nil {
 			return resp, err
 		}
 		if time.Now().After(deadline) {
@@ -198,14 +217,27 @@ func (s *Service) PollLogin(ctx context.Context, req api.PollLoginRequest) (api.
 	}
 }
 
-func (s *Service) pollResult(ctx context.Context, l store.Login) (api.PollLoginResponse, bool, error) {
+var codeRE = regexp.MustCompile(`^lcd_[A-Za-z0-9_-]{32}$`)
+
+func (s *Service) pollResult(ctx context.Context, l store.Login, code *string) (api.PollLoginResponse, bool, error) {
 	switch l.Status {
 	case store.Failed:
 		return api.PollLoginResponse{Status: "failed", Message: ptr(l.Message)}, true, nil
 	case store.Delivered:
 		return api.PollLoginResponse{Status: "complete", Subject: ptr(l.Subject), Message: ptr("the token was already returned")}, true, nil
 	case store.Complete:
-		d, err := s.DB.Deliver(ctx, l.LoginHash)
+		if code == nil || *code == "" {
+			return api.PollLoginResponse{Status: "needs_code", Subject: ptr(l.Subject), ExpiresMs: ptr(uint64(l.ExpiresMs)),
+				Message: ptr("the browser sign in is complete; poll again with the code from the browser")}, true, nil
+		}
+		if !codeRE.MatchString(*code) || !equal(store.Hash(*code), l.CodeHash) {
+			if err := s.DB.Reject(ctx, l.LoginHash, "wrong code"); err != nil {
+				return api.PollLoginResponse{}, true, err
+			}
+			s.log().Warn("login code mismatch", "subject", l.Subject)
+			return api.PollLoginResponse{Status: "failed", Message: ptr("wrong code; start the sign in again")}, true, nil
+		}
+		d, err := s.DB.Deliver(ctx, l.LoginHash, l.CodeHash)
 		if errors.Is(err, store.ErrNotFound) { // another poll took it
 			return api.PollLoginResponse{Status: "complete", Subject: ptr(l.Subject), Message: ptr("the token was already returned")}, true, nil
 		}

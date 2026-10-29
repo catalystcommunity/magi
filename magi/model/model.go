@@ -20,6 +20,11 @@ type Message struct {
 	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
 	ToolCallID string     `json:"tool_call_id,omitempty"`
 	Name       string     `json:"name,omitempty"`
+	// Served and Skipped are not sent. Served is the model that wrote the
+	// reply. Skipped has one "model: error" entry for each endpoint of a
+	// Chain that failed before it.
+	Served  string   `json:"-"`
+	Skipped []string `json:"-"`
 }
 
 type ToolCall struct {
@@ -61,6 +66,7 @@ func (c Chain) Chat(ctx context.Context, msgs []Message, tools []Tool, maxTokens
 	for _, m := range c {
 		out, err := m.Chat(ctx, msgs, tools, maxTokens)
 		if err == nil || ctx.Err() != nil {
+			out.Skipped = errs
 			return out, err
 		}
 		errs = append(errs, m.Model+": "+err.Error())
@@ -178,6 +184,7 @@ func (c *Client) Chat(ctx context.Context, msgs []Message, tools []Tool, maxToke
 		}
 		m, retry, err := c.once(ctx, body)
 		if err == nil {
+			m.Served = c.Model
 			return m, nil
 		}
 		last = err

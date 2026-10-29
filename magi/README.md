@@ -67,6 +67,13 @@ magi tasks; magi task RUN; magi diff RUN; magi decide RUN approve
 magi know calendar
 ```
 
+`login` opens a browser. After the sign in, the browser goes back to a
+loopback address of the client (RFC 8252) with a one-time code, and the
+client gets its token with the code. If the browser is on another machine
+(for example in SSH), use `login -paste`: the browser shows the code, and you
+paste it into the terminal. Without a display or in SSH, `-paste` is the
+default.
+
 ## Configuration
 
 `MAGI_LISTEN`, `MAGI_AUTH_KEYS`, `MAGI_SERVICE_TOKEN_FILE`, the `MAGI_*_URL`

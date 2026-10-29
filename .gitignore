@@ -6,3 +6,8 @@ __pycache__/
 /primitives/release/target/
 node_modules/
 /.playwright-mcp/
+/android/.gradle/
+/android/.kotlin/
+/android/build/
+/android/app/build/
+/android/local.properties

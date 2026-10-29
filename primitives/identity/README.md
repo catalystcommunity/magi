@@ -10,8 +10,8 @@ Contract: `contracts/identity.csil`, service `IdentityService`.
 
 | Operation | Token | Result |
 | --- | --- | --- |
-| `begin-login` | none | `login_id` (secret), `url`, `expires_ms` (10 minutes). Optional `return_url` on the Magi origin: after the sign in, the browser goes back to it in the same tab. |
-| `poll-login` | none | Waits up to `wait_ms` (default 25 s, maximum 30 s). Status `pending`, `complete`, `failed`, or `expired`. The token comes once, on the first poll after completion. |
+| `begin-login` | none | `login_id` (secret), `url`, `expires_ms` (10 minutes). Optional `return_url`: a page on the Magi origin, a loopback address (`http://127.0.0.1:PORT/...` or `http://[::1]:PORT/...`), or a reverse-DNS app scheme (`org.example.app:/path`) (RFC 8252). After the sign in, the browser goes there with the query parameter `code`. Without `return_url`, the page shows the code. |
+| `poll-login` | none | Waits up to `wait_ms` (default 25 s, maximum 30 s). Status `pending`, `needs_code`, `complete`, `failed`, or `expired`. `needs_code`: the browser part is complete; poll again with `code`. The token comes once, on the first poll with the correct code. A wrong code fails the login. |
 | `who-am-i` | any | Subject, kind, scopes, and expiry of the caller |
 | `refresh` | user | New user token for the same subject. The login session must be active (7 days from login). |
 | `issue-service-token` | `identity:admin` | Token for `service:<name>` with the given scopes |
@@ -30,7 +30,7 @@ HTTP routes on the same server:
 | --- | --- |
 | `GET /login/start?t=...` | Shows the identity, the program name, and a Continue button |
 | `POST /login/start` | Same origin only. Sets the browser binding cookie and redirects to the IDP |
-| `GET /login/callback` | LinkKeys returns here. Redirects to `return_url`, or shows "Signed in as ..." or an error |
+| `GET /login/callback` | LinkKeys returns here. Redirects to `return_url` with the code, or shows the code, or an error |
 | `GET /healthz` | Health check |
 
 ## Login flow and bindings
@@ -49,9 +49,10 @@ HTTP routes on the same server:
    Magi calls `Rp/decrypt-token`, `Rp/verify-assertion`, and
    `Rp/userinfo-fetch`. It checks the domain, the audience, the nonce, the
    times, and that every claim is about the same user and was authorized.
-   Then it checks the domain policy again. If the client gave `return_url`,
-   the browser goes back there in the same tab.
-5. `poll-login` returns the token one time.
+   Then it checks the domain policy again. It makes a one-time code and
+   keeps only its hash. If the client gave `return_url`, the browser goes
+   there with the code in the same tab. If not, the page shows the code.
+5. `poll-login` with the code returns the token one time.
 
 Why: the poller and the browser have different secrets. `login_id` does not
 go to the browser. `lk_state` and the cookie do not go to the poller. A
@@ -141,7 +142,8 @@ Live tests (real RP; they need `MAGI_TEST_LINKKEYS=1` and
   sign-out or session revocation operation yet.
 - The rate limit of `begin-login` is per process (burst 10, then 1 each
   second).
-- A person who opens a sign-in link that another person started, and then
-  signs in, gives that person a token (the device-flow phishing risk). A
-  loopback redirect for command-line clients (RFC 8252) is the fix.
+- The code stops the device-flow phishing risk. If a person signs in with a
+  link that another person started, the code goes to the browser of the
+  person who signed in, not to the poller. A web page or a loopback listener
+  gets the code automatically. Only `-paste` mode asks the person to copy it.
 - Each login makes five new TLS connections to the RP server.

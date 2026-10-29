@@ -81,15 +81,22 @@ async function login(ev: Event) {
   }
 }
 
-// finishLogin takes the token of a login that this tab started.
+// finishLogin takes the token of a login that this tab started. The
+// identity service adds ?code= to the return URL; the token needs it.
 async function finishLogin(p: { loginId: string; expiresMs: number }) {
   const status = $("#login-status");
   showLogin();
   status.textContent = "Finishing the sign in...";
+  const here = new URL(location.href);
+  const code = here.searchParams.get("code") ?? undefined;
+  if (code) {
+    here.searchParams.delete("code");
+    history.replaceState(null, "", here.pathname + here.search + here.hash);
+  }
   try {
     while (Date.now() < p.expiresMs) {
       let r;
-      try { r = await identity.pollLogin({ loginId: p.loginId, waitMs: 5000 }); }
+      try { r = await identity.pollLogin({ loginId: p.loginId, waitMs: 5000, code }); }
       catch { await new Promise((ok) => setTimeout(ok, 2000)); continue; }
       if (r.status === "pending") continue;
       session.set(null);

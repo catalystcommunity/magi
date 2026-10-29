@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 )
@@ -32,6 +33,9 @@ func TestChainFallsBack(t *testing.T) {
 	m, err := c.Chat(context.Background(), []Message{{Role: "user", Content: "hello"}}, nil, 10)
 	if err != nil || m.Content != "hi" {
 		t.Fatalf("chat = %+v, %v", m, err)
+	}
+	if m.Served != "remote" || len(m.Skipped) != 1 || !strings.HasPrefix(m.Skipped[0], "local: ") {
+		t.Fatalf("served %q, skipped %q", m.Served, m.Skipped)
 	}
 	if n := localCalls.Load(); n != 1 {
 		t.Fatalf("local tried %d times; one try is enough to fall back", n)

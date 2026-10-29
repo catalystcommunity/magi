@@ -78,7 +78,7 @@ ENV_IMAGE=localhost:30500/magi/dev-env:TAG
 ## Install or update
 
 ```sh
-tools/build-web.sh                       # when the web client changed (needs TypeScript)
+tools/build-web.sh                       # when the web client changed (builds tsgo with Go; no Node)
 tools/build-images.sh                    # builds and pushes; writes .build/images.env
 kubectl apply -f deploy/base/postgres.yaml
 kubectl apply -f primitives/execution/deploy/rbac.yaml

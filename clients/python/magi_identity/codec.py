@@ -412,6 +412,9 @@ BeginLoginResponse.from_cbor = staticmethod(_begin_login_response_from_cbor)
 
 def _encode_poll_login_request_value(v: "PollLoginRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
+    csil_x = v.code
+    if csil_x is not None:
+        csil_m["code"] = csil_x
     csil_x = v.wait_ms
     if csil_x is not None:
         csil_m["wait_ms"] = csil_x
@@ -423,6 +426,7 @@ def _decode_poll_login_request_value(tree: Any) -> "PollLoginRequest":
     return PollLoginRequest(
         login_id=_csil_expect_text(tree["login_id"]),
         wait_ms=(None if tree.get("wait_ms") is None else _csil_expect_uint(tree["wait_ms"])),
+        code=(None if tree.get("code") is None else _csil_expect_text(tree["code"])),
     )
 
 

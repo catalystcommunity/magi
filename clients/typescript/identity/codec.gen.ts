@@ -390,6 +390,7 @@ export function fromBeginLoginResponseCbor(bytes: Uint8Array): BeginLoginRespons
 
 export function toPollLoginRequestCborValue(v: PollLoginRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
+  if (v.code !== undefined) csilMap.set("code", v.code);
   if (v.waitMs !== undefined) csilMap.set("wait_ms", v.waitMs);
   csilMap.set("login_id", v.loginId);
   return csilMap;
@@ -399,6 +400,7 @@ export function fromPollLoginRequestCborValue(value: CborValue): PollLoginReques
   return {
     loginId: asString(requireKey(value, "login_id")),
     waitMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "wait_ms")),
+    code: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "code")),
   };
 }
 

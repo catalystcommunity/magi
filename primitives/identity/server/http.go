@@ -26,6 +26,7 @@ var page = template.Must(template.New("p").Parse(`<!doctype html>
 <title>Magi sign in</title><style>body{font-family:system-ui,sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem;line-height:1.5}
 button{font-size:1rem;padding:.5rem 1.5rem}</style></head><body>
 <h1>{{.Title}}</h1>{{if .Text}}<p>{{.Text}}</p>{{end}}
+{{if .Code}}<p><code style="font-size:1.1rem;user-select:all;word-break:break-all">{{.Code}}</code></p>{{end}}
 {{if .Start}}<p>Identity: <b>{{.Identity}}</b>{{if .Client}}<br>Program: <b>{{.Client}}</b>{{end}}</p>
 <p>Continue only if you started this sign-in.</p>
 <form method="post" action="start"><input type="hidden" name="t" value="{{.Start}}"><button type="submit">Continue</button></form>{{end}}
@@ -33,7 +34,7 @@ button{font-size:1rem;padding:.5rem 1.5rem}</style></head><body>
 </body></html>`))
 
 type view struct {
-	Title, Text, Start, Identity, Client, Back string
+	Title, Text, Start, Identity, Client, Back, Code string
 }
 
 func render(w http.ResponseWriter, code int, v view) {
@@ -135,7 +136,7 @@ func (s *Service) callback(w http.ResponseWriter, r *http.Request) {
 	}
 	finish := func(status int, msg string) {
 		// Finish must run even if the browser goes away.
-		if err := s.DB.Finish(context.WithoutCancel(ctx), l.LoginHash, store.Failed, msg, "", ""); err != nil {
+		if err := s.DB.Finish(context.WithoutCancel(ctx), l.LoginHash, store.Failed, msg, "", "", ""); err != nil {
 			s.log().Error("finish login", "err", err)
 		}
 		render(w, status, view{Title: "Sign in failed", Text: msg, Back: l.ReturnURL})
@@ -176,19 +177,28 @@ func (s *Service) callback(w http.ResponseWriter, r *http.Request) {
 		finish(http.StatusServiceUnavailable, "Magi could not save the sign in. Try again.")
 		return
 	}
-	if err := s.DB.Finish(ctx, l.LoginHash, store.Complete, "", subject, sess.ID); err != nil {
+	// The code goes only to this browser. The program that polls must show
+	// it, so a person who signs in with a link that someone else started
+	// does not give that person a token (RFC 8252 loopback, or pasted).
+	code := "lcd_" + token()
+	if err := s.DB.Finish(ctx, l.LoginHash, store.Complete, "", subject, sess.ID, store.Hash(code)); err != nil {
 		s.log().Error("finish login", "err", err)
 		render(w, http.StatusServiceUnavailable, view{Title: "Sign in failed", Text: "Try again."})
 		return
 	}
 	s.log().Info("login complete", "subject", subject, "user_id", v.UserID)
 	if l.ReturnURL != "" {
-		// Same tab: the client page polls with its login_id when it loads.
+		// Same tab: the client page polls with its login_id and the code.
+		u, _ := url.Parse(l.ReturnURL)
+		q := u.Query()
+		q.Set("code", code)
+		u.RawQuery = q.Encode()
 		w.Header().Set("Cache-Control", "no-store")
-		http.Redirect(w, r, l.ReturnURL, http.StatusSeeOther)
+		http.Redirect(w, r, u.String(), http.StatusSeeOther)
 		return
 	}
-	render(w, http.StatusOK, view{Title: "Signed in as " + firstNonEmpty(sess.Name, subject), Text: "You can close this tab."})
+	render(w, http.StatusOK, view{Title: "Signed in as " + firstNonEmpty(sess.Name, subject),
+		Text: "Paste this code into the program that started the sign in. Do not give it to anyone else.", Code: code})
 }
 
 var userIDRE = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)

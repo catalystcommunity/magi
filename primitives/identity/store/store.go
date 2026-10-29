@@ -43,7 +43,10 @@ type Login struct {
 	Nonce, APIBase, CallbackURL, IDPURL string
 	BindingHash, Status, Message        string
 	Subject, SessionID, ReturnURL       string
-	CreatedMs, ExpiresMs                int64
+	// CodeHash is the digest of the code that the callback gives to the
+	// browser. A poll must show the code to get the token.
+	CodeHash             string
+	CreatedMs, ExpiresMs int64
 }
 
 // Session is one login session.
@@ -80,12 +83,12 @@ func (db *DB) Close()                         { db.pool.Close() }
 func (db *DB) Ping(ctx context.Context) error { return db.pool.Ping(ctx) }
 
 const loginCols = `login_hash, start_hash, state_hash, identity, domain, client, nonce,
-  api_base, callback_url, idp_url, binding_hash, status, message, subject, session_id, return_url, created_ms, expires_ms`
+  api_base, callback_url, idp_url, binding_hash, status, message, subject, session_id, return_url, code_hash, created_ms, expires_ms`
 
 func scanLogin(row pgx.Row) (Login, error) {
 	var l Login
 	err := row.Scan(&l.LoginHash, &l.StartHash, &l.StateHash, &l.Identity, &l.Domain, &l.Client, &l.Nonce,
-		&l.APIBase, &l.CallbackURL, &l.IDPURL, &l.BindingHash, &l.Status, &l.Message, &l.Subject, &l.SessionID, &l.ReturnURL, &l.CreatedMs, &l.ExpiresMs)
+		&l.APIBase, &l.CallbackURL, &l.IDPURL, &l.BindingHash, &l.Status, &l.Message, &l.Subject, &l.SessionID, &l.ReturnURL, &l.CodeHash, &l.CreatedMs, &l.ExpiresMs)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return l, ErrNotFound
 	}
@@ -95,9 +98,9 @@ func scanLogin(row pgx.Row) (Login, error) {
 // CreateLogin inserts a pending login.
 func (db *DB) CreateLogin(ctx context.Context, l Login) error {
 	_, err := db.pool.Exec(ctx, `INSERT INTO identity_logins (`+loginCols+`)
-	  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+	  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
 		l.LoginHash, l.StartHash, l.StateHash, l.Identity, l.Domain, l.Client, l.Nonce,
-		l.APIBase, l.CallbackURL, l.IDPURL, l.BindingHash, l.Status, l.Message, l.Subject, l.SessionID, l.ReturnURL, l.CreatedMs, l.ExpiresMs)
+		l.APIBase, l.CallbackURL, l.IDPURL, l.BindingHash, l.Status, l.Message, l.Subject, l.SessionID, l.ReturnURL, l.CodeHash, l.CreatedMs, l.ExpiresMs)
 	return err
 }
 
@@ -130,16 +133,24 @@ func (db *DB) TakeCallback(ctx context.Context, stateHash string) (Login, error)
 }
 
 // Finish records the result of a completing login.
-func (db *DB) Finish(ctx context.Context, loginHash, status, message, subject, sessionID string) error {
-	_, err := db.pool.Exec(ctx, `UPDATE identity_logins SET status = $2, message = $3, subject = $4, session_id = $5
-	  WHERE login_hash = $1 AND status = $6`, loginHash, status, message, subject, sessionID, Completing)
+func (db *DB) Finish(ctx context.Context, loginHash, status, message, subject, sessionID, codeHash string) error {
+	_, err := db.pool.Exec(ctx, `UPDATE identity_logins SET status = $2, message = $3, subject = $4, session_id = $5, code_hash = $7
+	  WHERE login_hash = $1 AND status = $6`, loginHash, status, message, subject, sessionID, Completing, codeHash)
 	return err
 }
 
-// Deliver moves a complete login to delivered. It succeeds once.
-func (db *DB) Deliver(ctx context.Context, loginHash string) (Login, error) {
+// Deliver moves a complete login with the code codeHash to delivered. It
+// succeeds once.
+func (db *DB) Deliver(ctx context.Context, loginHash, codeHash string) (Login, error) {
 	return scanLogin(db.pool.QueryRow(ctx, `UPDATE identity_logins SET status = $2
-	  WHERE login_hash = $1 AND status = $3 RETURNING `+loginCols, loginHash, Delivered, Complete))
+	  WHERE login_hash = $1 AND status = $3 AND code_hash = $4 RETURNING `+loginCols, loginHash, Delivered, Complete, codeHash))
+}
+
+// Reject fails a complete login, for example after a wrong code.
+func (db *DB) Reject(ctx context.Context, loginHash, message string) error {
+	_, err := db.pool.Exec(ctx, `UPDATE identity_logins SET status = $2, message = $3
+	  WHERE login_hash = $1 AND status = $4`, loginHash, Failed, message, Complete)
+	return err
 }
 
 // CreateSession inserts a login session.

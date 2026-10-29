@@ -2,6 +2,7 @@ package server_test
 
 import (
 	"context"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -65,9 +66,25 @@ func TestLiveLogin(t *testing.T) {
 	go http.Serve(l, mux)
 	defer l.Close()
 
+	// The browser brings the code to a loopback address (RFC 8252).
+	codes := make(chan string, 1)
+	back, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer back.Close()
+	go http.Serve(back, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case codes <- r.URL.Query().Get("code"):
+		default:
+		}
+		io.WriteString(w, "signed in")
+	}))
+	returnURL := "http://" + back.Addr().String() + "/done"
+
 	c := api.NewIdentityClient(rpc.NewClient("http://"+listen, nil))
 	cl := "live-test"
-	r, err := c.BeginLogin(ctx, api.BeginLoginRequest{Identity: identity, Client: &cl})
+	r, err := c.BeginLogin(ctx, api.BeginLoginRequest{Identity: identity, Client: &cl, ReturnUrl: &returnURL})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,16 +94,16 @@ func TestLiveLogin(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	deadline := time.Now().Add(9 * time.Minute)
-	var p api.PollLoginResponse
-	for time.Now().Before(deadline) {
-		w := uint64(30000)
-		if p, err = c.PollLogin(ctx, api.PollLoginRequest{LoginId: r.LoginId, WaitMs: &w}); err != nil {
-			t.Fatal(err)
-		}
-		if p.Status != "pending" {
-			break
-		}
+	var code string
+	select {
+	case code = <-codes:
+	case <-time.After(9 * time.Minute):
+		t.Fatal("the browser did not come back")
+	}
+	w := uint64(30000)
+	p, err := c.PollLogin(ctx, api.PollLoginRequest{LoginId: r.LoginId, WaitMs: &w, Code: &code})
+	if err != nil {
+		t.Fatal(err)
 	}
 	if p.Status != "complete" || p.Token == nil {
 		t.Fatalf("login = %s %s", p.Status, str(p.Message))
@@ -96,7 +113,7 @@ func TestLiveLogin(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("signed in as %s (%s), token expires %s", who.Subject, who.Kind, time.UnixMilli(int64(who.ExpiresMs)).UTC().Format(time.RFC3339))
-	if again, _ := c.PollLogin(ctx, api.PollLoginRequest{LoginId: r.LoginId}); again.Token != nil {
+	if again, _ := c.PollLogin(ctx, api.PollLoginRequest{LoginId: r.LoginId, Code: &code}); again.Token != nil {
 		t.Fatal("token returned twice")
 	}
 }

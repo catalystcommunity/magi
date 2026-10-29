@@ -70,6 +70,16 @@ func personaTools() []model.Tool {
 type turnLog struct {
 	Calls []map[string]any `json:"calls"`
 	Reply string           `json:"reply"`
+	// Models has one entry for each model call: the model that answered,
+	// the endpoints skipped before it, and the time.
+	Models []modelCall `json:"models"`
+}
+
+type modelCall struct {
+	Served  string   `json:"served,omitempty"`
+	Skipped []string `json:"skipped,omitempty"`
+	Ms      int64    `json:"ms"`
+	Error   string   `json:"error,omitempty"`
 }
 
 func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note func(string)) (Result, error) {
@@ -101,7 +111,13 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 	var refs []conversationapi.Attachment
 	var reply string
 	for round := 0; round < 6; round++ {
+		start := time.Now()
 		m, err := s.Model.Chat(ctx, msgs, personaTools(), 1024)
+		call := modelCall{Served: m.Served, Skipped: m.Skipped, Ms: time.Since(start).Milliseconds()}
+		if err != nil {
+			call.Error = err.Error()
+		}
+		log.Models = append(log.Models, call)
 		if err != nil {
 			// Tell the person instead of leaving the message without a reply.
 			s.Log.Error("persona model", "run", a.Run, "err", err)
@@ -140,6 +156,14 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 		reply = "I could not finish my answer. Please ask again."
 	}
 	log.Reply = reply
+	served, ms := "", int64(0)
+	for _, c := range log.Models {
+		ms += c.Ms
+		if c.Served != "" {
+			served = c.Served
+		}
+	}
+	s.Log.Info("persona turn", "run", a.Run, "model", served, "model_ms", ms, "calls", len(log.Models), "models", log.Models)
 	if body, err := json.Marshal(log); err == nil {
 		if _, err := s.Conversation.Annotate(ctx, conversationapi.AnnotateRequest{Utterance: uttID, Kind: "interpretation", Body: string(body)}); err != nil {
 			s.Log.Warn("annotate", "err", err)
@@ -159,7 +183,8 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 	if _, err := s.Conversation.Post(ctx, post); err != nil {
 		return Result{}, fmt.Errorf("post reply: %w", err)
 	}
-	return Result{Outcome: "done", Outputs: map[string]string{"reply.tools": fmt.Sprint(len(log.Calls))}}, nil
+	return Result{Outcome: "done", Outputs: map[string]string{
+		"reply.tools": fmt.Sprint(len(log.Calls)), "reply.model": served, "reply.model_ms": fmt.Sprint(ms)}}, nil
 }
 
 func (s *System) speak(ctx context.Context, owner, text, voice string) (string, error) {

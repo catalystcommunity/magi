@@ -21,6 +21,7 @@ type BeginLoginResponse struct {
 type PollLoginRequest struct {
 	LoginId string  `json:"login_id" yaml:"login_id"`
 	WaitMs  *uint64 `json:"wait_ms,omitempty" yaml:"wait_ms,omitempty"`
+	Code    *string `json:"code,omitempty" yaml:"code,omitempty"`
 }
 
 // PollLoginResponse represents a structured data type

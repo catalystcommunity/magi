@@ -7,6 +7,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -127,12 +128,41 @@ func (e env) begin(identity string) api.BeginLoginResponse {
 }
 
 func (e env) poll(id string, waitMs uint64) api.PollLoginResponse {
+	return e.pollCode(id, waitMs, "")
+}
+
+func (e env) pollCode(id string, waitMs uint64, code string) api.PollLoginResponse {
 	e.t.Helper()
-	r, err := e.client("").PollLogin(context.Background(), api.PollLoginRequest{LoginId: id, WaitMs: &waitMs})
+	req := api.PollLoginRequest{LoginId: id, WaitMs: &waitMs}
+	if code != "" {
+		req.Code = &code
+	}
+	r, err := e.client("").PollLogin(context.Background(), req)
 	if err != nil {
 		e.t.Fatal(err)
 	}
 	return r
+}
+
+var pageCodeRE = regexp.MustCompile(`lcd_[A-Za-z0-9_-]{32}`)
+
+// redirectCode checks that location is back plus a code, and returns the code.
+func redirectCode(t *testing.T, location, back string) string {
+	t.Helper()
+	u, err := url.Parse(location)
+	code := ""
+	if err == nil {
+		code = u.Query().Get("code")
+		q := u.Query()
+		q.Del("code")
+		u.RawQuery = q.Encode()
+	}
+	b, _ := url.Parse(back)
+	b.RawQuery = b.Query().Encode()
+	if err != nil || u.String() != b.String() || !pageCodeRE.MatchString(code) {
+		t.Fatalf("redirect %q, want %q with a code", location, back)
+	}
+	return code
 }
 
 // login runs a complete browser login and returns the callback URL used.
@@ -182,11 +212,18 @@ func TestLoginSuccessAndTokenOnce(t *testing.T) {
 	if resp.StatusCode != 200 || !strings.Contains(page, "Signed in as Alice") {
 		t.Fatalf("callback %d: %s", resp.StatusCode, page)
 	}
-	p := <-got
+	if p := <-got; p.Status != "needs_code" || p.Token != nil {
+		t.Fatalf("poll without code = %+v", p)
+	}
+	code := pageCodeRE.FindString(page)
+	if code == "" {
+		t.Fatalf("no code on the page: %s", page)
+	}
+	p := e.pollCode(r.LoginId, 0, code)
 	if p.Status != "complete" || p.Token == nil || str(p.Subject) != "user:uid-alice@example.local" {
 		t.Fatalf("poll = %+v", p)
 	}
-	if again := e.poll(r.LoginId, 0); again.Status != "complete" || again.Token != nil {
+	if again := e.pollCode(r.LoginId, 0, code); again.Status != "complete" || again.Token != nil {
 		t.Fatalf("second poll = %+v", again)
 	}
 
@@ -359,7 +396,9 @@ func TestTokens(t *testing.T) {
 func TestReturnURLSameTab(t *testing.T) {
 	e := setup(t)
 	ctx := context.Background()
-	for _, bad := range []string{"https://evil.example/", "http://" + strings.TrimPrefix(public, "https://") + "/", public + "/#x"} {
+	for _, bad := range []string{"https://evil.example/", "http://" + strings.TrimPrefix(public, "https://") + "/", public + "/#x",
+		"http://localhost:8123/", "https://127.0.0.1:8123/", "http://127.0.0.1/", "http://127.0.0.2:8123/", "http://user@127.0.0.1:8123/",
+		"javascript:alert(1)", "data:text/html,x", "magi:/done", "org.example.app://host/done"} {
 		_, err := e.client("").BeginLogin(ctx, api.BeginLoginRequest{Identity: "alice@example.local", ReturnUrl: &bad})
 		if rpc.CodeOf(err) != 400 {
 			t.Errorf("return_url %s: err = %v", bad, err)
@@ -371,10 +410,48 @@ func TestReturnURLSameTab(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, resp, page := e.login(e.browser(), r, "Alice")
-	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != back {
+	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("callback %d %q: %s", resp.StatusCode, resp.Header.Get("Location"), page)
 	}
-	if p := e.poll(r.LoginId, 0); p.Status != "complete" || p.Token == nil {
+	code := redirectCode(t, resp.Header.Get("Location"), back)
+	if p := e.pollCode(r.LoginId, 0, code); p.Status != "complete" || p.Token == nil {
 		t.Fatalf("poll = %+v", p)
+	}
+}
+
+// The person who signs in gets the code, not the program that started the
+// login. Without the code, a sign-in link sent to another person is useless.
+func TestWrongCodeFailsLogin(t *testing.T) {
+	e := setup(t)
+	r := e.begin("alice@example.local")
+	_, _, page := e.login(e.browser(), r, "Alice")
+	code := pageCodeRE.FindString(page)
+	if p := e.poll(r.LoginId, 0); p.Status != "needs_code" || p.Token != nil {
+		t.Fatalf("poll without code = %+v", p)
+	}
+	if p := e.pollCode(r.LoginId, 0, "lcd_"+strings.Repeat("A", 32)); p.Status != "failed" || p.Token != nil {
+		t.Fatalf("wrong code = %+v", p)
+	}
+	if p := e.pollCode(r.LoginId, 0, code); p.Status != "failed" || p.Token != nil {
+		t.Fatalf("right code after a wrong one = %+v", p)
+	}
+}
+
+func TestReturnURLLoopback(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	for _, back := range []string{"http://127.0.0.1:49152/done", "http://[::1]:49152/done", "org.example.app:/done"} {
+		r, err := e.client("").BeginLogin(ctx, api.BeginLoginRequest{Identity: "alice@example.local", ReturnUrl: &back})
+		if err != nil {
+			t.Fatalf("%s: %v", back, err)
+		}
+		_, resp, page := e.login(e.browser(), r, "Alice")
+		if resp.StatusCode != http.StatusSeeOther {
+			t.Fatalf("callback %d %q: %s", resp.StatusCode, resp.Header.Get("Location"), page)
+		}
+		code := redirectCode(t, resp.Header.Get("Location"), back)
+		if p := e.pollCode(r.LoginId, 0, code); p.Status != "complete" || p.Token == nil {
+			t.Fatalf("poll = %+v", p)
+		}
 	}
 }

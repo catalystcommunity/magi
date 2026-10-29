@@ -74,14 +74,14 @@ Each slice must work through the API before the next one starts.
 | 4. Decision through the API, then merge | Works |
 | 5. Build and release with health check and rollback | Works; Magi released a change to itself; a bad image rolled back |
 | 6. Voice in and out on the same conversation | Works with generated test clips |
-| 7. Android client | Not started |
+| 7. Android client | Builds and passes its unit tests; not yet tried on a phone |
 
 `tools/demo-check.sh` repeats slices 1, 2, 3, and 6 against an installation.
 
 ## Next Actions
 
-- Record which model endpoint answered each persona turn, so that the
-  local-first fallback can be measured.
-- Add a loopback redirect (RFC 8252) for command-line login.
-- Add the Android client after the API is stable.
-- Remove `../magi-old` after the new system covers the demo.
+- Try the Android client on a phone: sign in, text, voice, and a task
+  decision (`android/README.md`).
+- Show the answering model (`reply.model` in the persona turn outputs) in
+  the clients, and measure how often the local host answers.
+- Remove `../magi-old`. The web build uses tsgo now (`tools/build-web.sh`).

@@ -35,3 +35,4 @@ CREATE TABLE IF NOT EXISTS identity_sessions (
 CREATE INDEX IF NOT EXISTS identity_sessions_subject ON identity_sessions (subject, expires_ms DESC);
 ALTER TABLE identity_sessions ADD COLUMN IF NOT EXISTS name text NOT NULL DEFAULT '';
 ALTER TABLE identity_logins ADD COLUMN IF NOT EXISTS return_url text NOT NULL DEFAULT '';
+ALTER TABLE identity_logins ADD COLUMN IF NOT EXISTS code_hash text NOT NULL DEFAULT '';
