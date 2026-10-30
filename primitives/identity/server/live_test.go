@@ -59,28 +59,22 @@ func TestLiveLogin(t *testing.T) {
 	server.Register(s, svc)
 	mux := rpc.Mux(s, nil)
 	svc.Routes(mux)
+	// The browser brings the code back to a page on the public origin.
+	codes := make(chan string, 1)
+	mux.HandleFunc("GET /live-done", func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case codes <- r.URL.Query().Get("code"):
+		default:
+		}
+		io.WriteString(w, "signed in")
+	})
+	returnURL := public + "/live-done"
 	l, err := net.Listen("tcp", listen)
 	if err != nil {
 		t.Fatal(err)
 	}
 	go http.Serve(l, mux)
 	defer l.Close()
-
-	// The browser brings the code to a loopback address (RFC 8252).
-	codes := make(chan string, 1)
-	back, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer back.Close()
-	go http.Serve(back, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		select {
-		case codes <- r.URL.Query().Get("code"):
-		default:
-		}
-		io.WriteString(w, "signed in")
-	}))
-	returnURL := "http://" + back.Addr().String() + "/done"
 
 	c := api.NewIdentityClient(rpc.NewClient("http://"+listen, nil))
 	cl := "live-test"

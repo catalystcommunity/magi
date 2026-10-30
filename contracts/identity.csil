@@ -4,9 +4,8 @@ options {
 
 ;;; Starts a LinkKeys login. identity is "user@domain". Open url in a
 ;;; browser, then poll with login_id. Keep login_id secret. return_url is a
-;;; page on the Magi public origin, a loopback address (RFC 8252:
-;;; http://127.0.0.1:PORT/... or http://[::1]:PORT/...), or a reverse-DNS
-;;; app scheme (org.example.app:/path). After the sign in,
+;;; page on the Magi public origin, or a reverse-DNS app scheme (RFC 8252:
+;;; org.example.app:/path). After the sign in,
 ;;; the browser goes to return_url with the query parameter "code".
 ;;; Without return_url, the page shows the code for the person to paste.
 BeginLoginRequest = {

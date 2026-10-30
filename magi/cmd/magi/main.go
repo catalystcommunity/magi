@@ -8,8 +8,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"net"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,12 +19,13 @@ import (
 	"github.com/catalystcommunity/magi/lib/rpc"
 	magiapi "github.com/catalystcommunity/magi/magi/api"
 	identityapi "github.com/catalystcommunity/magi/primitives/identity/api"
+	"golang.org/x/term"
 )
 
 const usage = `usage: magi [--server URL] <command> [args]
 
-  login [-paste] USER@DOMAIN sign in with LinkKeys in a browser; -paste
-                             when the browser is on another machine
+  login USER@DOMAIN          sign in with LinkKeys in a browser on any
+                             device, then paste the code it shows
   whoami                     show the signed-in identity
   chat [CHAT]                talk interactively (text); new chat if none
   say [-chat C] [-audio F] [-speak] [TEXT]
@@ -109,12 +108,10 @@ func (c *cli) run(cmd string, args []string) error {
 	fs := flag.NewFlagSet(cmd, flag.ExitOnError)
 	switch cmd {
 	case "login":
-		paste := fs.Bool("paste", headless(), "paste the code from the browser (for a browser on another machine)")
-		fs.Parse(args)
-		if fs.NArg() != 1 {
-			return errors.New("login [-paste] USER@DOMAIN")
+		if len(args) != 1 {
+			return errors.New("login USER@DOMAIN")
 		}
-		return c.login(fs.Arg(0), *paste)
+		return c.login(args[0])
 	case "whoami":
 		w, err := c.id.WhoAmI(c.ctx, identityapi.WhoAmIRequest{})
 		if err != nil {
@@ -271,88 +268,41 @@ func (c *cli) run(cmd string, args []string) error {
 	return nil
 }
 
-// login signs in with a browser. By default the browser comes back to a
-// loopback address with the code (RFC 8252). With paste, the browser shows
-// the code and the person pastes it here.
-func (c *cli) login(identity string, paste bool) error {
-	req := identityapi.BeginLoginRequest{Identity: identity, Client: ptr("cli")}
-	codes := make(chan string, 1)
-	if !paste {
-		l, err := net.Listen("tcp", "127.0.0.1:0")
-		if err != nil {
-			return err
-		}
-		defer l.Close()
-		go http.Serve(l, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			code := r.URL.Query().Get("code")
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			if code == "" {
-				fmt.Fprintf(w, loopbackPage, "Sign in failed", "See the terminal for the reason.")
-			} else {
-				fmt.Fprintf(w, loopbackPage, "Signed in", "You can close this tab and go back to the terminal.")
-			}
-			select {
-			case codes <- code:
-			default:
-			}
-		}))
-		req.ReturnUrl = ptr("http://" + l.Addr().String() + "/done")
-	}
-	b, err := c.id.BeginLogin(c.ctx, req)
+// login signs in with a browser on any machine. The browser shows a code
+// after the sign in, and the person pastes it here.
+func (c *cli) login(identity string) error {
+	b, err := c.id.BeginLogin(c.ctx, identityapi.BeginLoginRequest{Identity: identity, Client: ptr("cli")})
 	if err != nil {
 		return err
 	}
-	if paste || openBrowser(b.Url) != nil {
-		fmt.Printf("Open this URL in a browser to sign in:\n\n  %s\n\n", b.Url)
-	} else {
-		fmt.Printf("Sign in in your browser. If it did not open, open this URL:\n\n  %s\n\n", b.Url)
+	fmt.Printf("Open this URL in a browser on any device and sign in:\n\n  %s\n\n", b.Url)
+	if !headless() {
+		openBrowser(b.Url)
 	}
 	// Poll without the code to learn when the browser part ends or fails.
-	results := make(chan identityapi.PollLoginResponse, 1)
-	errs := make(chan error, 1)
-	go func() {
-		for time.Now().UnixMilli() < int64(b.ExpiresMs) {
-			r, err := c.id.PollLogin(c.ctx, identityapi.PollLoginRequest{LoginId: b.LoginId, WaitMs: ptr(uint64(25000))})
-			if err != nil {
-				errs <- err
-				return
-			}
-			if r.Status != "pending" {
-				results <- r
-				return
-			}
+	for {
+		if time.Now().UnixMilli() >= int64(b.ExpiresMs) {
+			return errors.New("login expired")
 		}
-		errs <- errors.New("login expired")
-	}()
-	var code string
-	select {
-	case code = <-codes:
-	case err := <-errs:
-		return err
-	case r := <-results:
-		if r.Status != "needs_code" {
+		r, err := c.id.PollLogin(c.ctx, identityapi.PollLoginRequest{LoginId: b.LoginId, WaitMs: ptr(uint64(25000))})
+		if err != nil {
+			return err
+		}
+		if r.Status == "needs_code" {
+			break
+		}
+		if r.Status != "pending" {
 			return fmt.Errorf("login %s: %s", r.Status, deref(r.Message))
 		}
-		if paste {
-			fmt.Print("Paste the code from the browser: ")
-			line, err := bufio.NewReader(os.Stdin).ReadString('\n')
-			if err != nil {
-				return err
-			}
-			code = strings.TrimSpace(line)
-		} else {
-			select {
-			case code = <-codes:
-			case <-time.After(30 * time.Second):
-				return errors.New("the browser did not come back to this program; run magi login -paste")
-			}
-		}
 	}
-	pr := identityapi.PollLoginRequest{LoginId: b.LoginId, WaitMs: ptr(uint64(25000))}
-	if code != "" { // without a code the poll reports why the sign in failed
-		pr.Code = &code
+	code, err := readSecret("Paste the code from the browser (it is not shown): ")
+	if err != nil {
+		return err
 	}
-	r, err := c.id.PollLogin(c.ctx, pr)
+	if n := len(code); n >= 6 {
+		fmt.Printf("Code ending in %s.\n", code[n-6:])
+	}
+	r, err := c.id.PollLogin(c.ctx, identityapi.PollLoginRequest{LoginId: b.LoginId, Code: &code})
 	if err != nil {
 		return err
 	}
@@ -371,10 +321,23 @@ func (c *cli) login(identity string, paste bool) error {
 	return nil
 }
 
-const loopbackPage = `<!doctype html><meta charset="utf-8"><title>Magi</title>` +
-	`<body style="font-family:system-ui,sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem"><h1>%s</h1><p>%s</p></body>`
+// readSecret reads one line without echo when stdin is a terminal.
+func readSecret(prompt string) (string, error) {
+	fmt.Print(prompt)
+	if fd := int(os.Stdin.Fd()); term.IsTerminal(fd) {
+		b, err := term.ReadPassword(fd)
+		fmt.Println()
+		return strings.TrimSpace(string(b)), err
+	}
+	line, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	if err != nil && line == "" {
+		return "", err
+	}
+	return strings.TrimSpace(line), nil
+}
 
 // headless reports whether no local browser is likely, for example in SSH.
+// Then the program does not try to open one.
 func headless() bool {
 	if os.Getenv("SSH_CONNECTION") != "" {
 		return true

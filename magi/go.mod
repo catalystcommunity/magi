@@ -47,6 +47,7 @@ require (
 require (
 	github.com/catalystcommunity/magi/primitives/release/goapi v0.0.0
 	github.com/google/go-containerregistry v0.20.2
+	golang.org/x/term v0.37.0
 )
 
 replace github.com/catalystcommunity/magi/primitives/release/goapi => ../primitives/release/goapi

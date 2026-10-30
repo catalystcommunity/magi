@@ -132,8 +132,8 @@ func (s *Service) BeginLogin(ctx context.Context, req api.BeginLoginRequest) (ap
 	returnURL := ""
 	if req.ReturnUrl != nil && *req.ReturnUrl != "" {
 		u, err := url.Parse(*req.ReturnUrl)
-		if err != nil || !(u.Scheme+"://"+u.Host == s.origin() || loopback(u) || privateScheme(u)) || u.User != nil || u.Fragment != "" || len(*req.ReturnUrl) > 512 {
-			return api.BeginLoginResponse{}, rpc.Invalid("return_url must be a page on %s, a loopback address, or a reverse-DNS app scheme", s.origin())
+		if err != nil || !(u.Scheme+"://"+u.Host == s.origin() || privateScheme(u)) || u.User != nil || u.Fragment != "" || len(*req.ReturnUrl) > 512 {
+			return api.BeginLoginResponse{}, rpc.Invalid("return_url must be a page on %s or a reverse-DNS app scheme", s.origin())
 		}
 		returnURL = u.String()
 	}
@@ -161,14 +161,6 @@ func (s *Service) BeginLogin(ctx context.Context, req api.BeginLoginRequest) (ap
 		LoginId: loginID, Url: s.PublicURL + "/login/start?t=" + start,
 		ExpiresMs: uint64(exp.UnixMilli()),
 	}, nil
-}
-
-// loopback reports whether u is a native-app loopback redirect (RFC 8252
-// section 7.3): http on 127.0.0.1 or [::1] with any port. The redirect holds
-// no secret; the program gets its session by polling with its login_id.
-func loopback(u *url.URL) bool {
-	h := u.Hostname()
-	return u.Scheme == "http" && (h == "127.0.0.1" || h == "::1") && u.Port() != ""
 }
 
 var schemeRE = regexp.MustCompile(`^[a-z][a-z0-9-]*(\.[a-z0-9-]+)+$`)

@@ -219,6 +219,14 @@ func TestLoginSuccessAndTokenOnce(t *testing.T) {
 	if code == "" {
 		t.Fatalf("no code on the page: %s", page)
 	}
+	// The page shows only the last 6 characters; the full code is only in
+	// the Copy button.
+	if strings.Count(page, code) != 1 || !strings.Contains(page, `data-code="`+code+`"`) || !strings.Contains(page, "••••••••"+code[len(code)-6:]) {
+		t.Fatalf("code is not masked: %s", page)
+	}
+	if csp := resp.Header.Get("Content-Security-Policy"); !strings.Contains(csp, "script-src 'nonce-") {
+		t.Fatalf("csp = %q", csp)
+	}
 	p := e.pollCode(r.LoginId, 0, code)
 	if p.Status != "complete" || p.Token == nil || str(p.Subject) != "user:uid-alice@example.local" {
 		t.Fatalf("poll = %+v", p)
@@ -397,7 +405,7 @@ func TestReturnURLSameTab(t *testing.T) {
 	e := setup(t)
 	ctx := context.Background()
 	for _, bad := range []string{"https://evil.example/", "http://" + strings.TrimPrefix(public, "https://") + "/", public + "/#x",
-		"http://localhost:8123/", "https://127.0.0.1:8123/", "http://127.0.0.1/", "http://127.0.0.2:8123/", "http://user@127.0.0.1:8123/",
+		"http://localhost:8123/", "http://127.0.0.1:8123/done", "http://[::1]:8123/done", "https://127.0.0.1:8123/", "http://user@127.0.0.1:8123/",
 		"javascript:alert(1)", "data:text/html,x", "magi:/done", "org.example.app://host/done"} {
 		_, err := e.client("").BeginLogin(ctx, api.BeginLoginRequest{Identity: "alice@example.local", ReturnUrl: &bad})
 		if rpc.CodeOf(err) != 400 {
@@ -437,10 +445,10 @@ func TestWrongCodeFailsLogin(t *testing.T) {
 	}
 }
 
-func TestReturnURLLoopback(t *testing.T) {
+func TestReturnURLAppScheme(t *testing.T) {
 	e := setup(t)
 	ctx := context.Background()
-	for _, back := range []string{"http://127.0.0.1:49152/done", "http://[::1]:49152/done", "org.example.app:/done"} {
+	for _, back := range []string{"org.example.app:/done"} {
 		r, err := e.client("").BeginLogin(ctx, api.BeginLoginRequest{Identity: "alice@example.local", ReturnUrl: &back})
 		if err != nil {
 			t.Fatalf("%s: %v", back, err)

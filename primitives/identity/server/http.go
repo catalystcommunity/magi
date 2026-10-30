@@ -26,7 +26,9 @@ var page = template.Must(template.New("p").Parse(`<!doctype html>
 <title>Magi sign in</title><style>body{font-family:system-ui,sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem;line-height:1.5}
 button{font-size:1rem;padding:.5rem 1.5rem}</style></head><body>
 <h1>{{.Title}}</h1>{{if .Text}}<p>{{.Text}}</p>{{end}}
-{{if .Code}}<p><code style="font-size:1.1rem;user-select:all;word-break:break-all">{{.Code}}</code></p>{{end}}
+{{if .Code}}<p><code style="font-size:1.1rem">{{.Masked}}</code></p>
+<p><button type="button" id="copy" data-code="{{.Code}}">Copy code</button></p>
+<script nonce="{{.Nonce}}">document.getElementById("copy").onclick=function(){var b=this;navigator.clipboard.writeText(b.dataset.code).then(function(){b.textContent="Copied"},function(){b.textContent="Copy failed"})}</script>{{end}}
 {{if .Start}}<p>Identity: <b>{{.Identity}}</b>{{if .Client}}<br>Program: <b>{{.Client}}</b>{{end}}</p>
 <p>Continue only if you started this sign-in.</p>
 <form method="post" action="start"><input type="hidden" name="t" value="{{.Start}}"><button type="submit">Continue</button></form>{{end}}
@@ -35,6 +37,7 @@ button{font-size:1rem;padding:.5rem 1.5rem}</style></head><body>
 
 type view struct {
 	Title, Text, Start, Identity, Client, Back, Code string
+	Masked, Nonce                                    string // set by render
 }
 
 func render(w http.ResponseWriter, code int, v view) {
@@ -46,7 +49,15 @@ func render(w http.ResponseWriter, code int, v view) {
 	// from other origins.
 	h.Set("Referrer-Policy", "same-origin")
 	h.Set("X-Frame-Options", "DENY")
-	h.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'self' https:; frame-ancestors 'none'")
+	csp := "default-src 'none'; style-src 'unsafe-inline'; form-action 'self' https:; frame-ancestors 'none'"
+	if v.Code != "" {
+		// The page shows only the end of the code. The Copy button needs
+		// the one inline script that has this nonce.
+		v.Nonce = token()
+		v.Masked = strings.Repeat("•", 8) + v.Code[max(0, len(v.Code)-6):]
+		csp += "; script-src 'nonce-" + v.Nonce + "'"
+	}
+	h.Set("Content-Security-Policy", csp)
 	w.WriteHeader(code)
 	page.Execute(w, v)
 }
@@ -179,7 +190,7 @@ func (s *Service) callback(w http.ResponseWriter, r *http.Request) {
 	}
 	// The code goes only to this browser. The program that polls must show
 	// it, so a person who signs in with a link that someone else started
-	// does not give that person a token (RFC 8252 loopback, or pasted).
+	// does not give that person a token (pasted, or an app scheme).
 	code := "lcd_" + token()
 	if err := s.DB.Finish(ctx, l.LoginHash, store.Complete, "", subject, sess.ID, store.Hash(code)); err != nil {
 		s.log().Error("finish login", "err", err)
@@ -198,7 +209,7 @@ func (s *Service) callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	render(w, http.StatusOK, view{Title: "Signed in as " + firstNonEmpty(sess.Name, subject),
-		Text: "Paste this code into the program that started the sign in. Do not give it to anyone else.", Code: code})
+		Text: "Copy this code and paste it into the program that started the sign in. Do not give it to anyone else. The program shows the same last 6 characters.", Code: code})
 }
 
 var userIDRE = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)

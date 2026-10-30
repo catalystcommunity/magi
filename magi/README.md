@@ -68,12 +68,11 @@ magi know calendar
 magi usage -days 7             # your Magi replies by model
 ```
 
-`login` opens a browser. After the sign in, the browser goes back to a
-loopback address of the client (RFC 8252) with a one-time code, and the
-client gets its token with the code. If the browser is on another machine
-(for example in SSH), use `login -paste`: the browser shows the code, and you
-paste it into the terminal. Without a display or in SSH, `-paste` is the
-default.
+`login` prints a sign-in URL. Open it in a browser on any device. On a
+desktop, the program also opens it. After the sign in, the browser shows a
+one-time code. Paste it into the terminal, and the client gets its token.
+The client does not listen on a local address, so the browser does not have
+to be on the same machine.
 
 ## Configuration
 

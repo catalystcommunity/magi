@@ -10,7 +10,7 @@ Contract: `contracts/identity.csil`, service `IdentityService`.
 
 | Operation | Token | Result |
 | --- | --- | --- |
-| `begin-login` | none | `login_id` (secret), `url`, `expires_ms` (10 minutes). Optional `return_url`: a page on the Magi origin, a loopback address (`http://127.0.0.1:PORT/...` or `http://[::1]:PORT/...`), or a reverse-DNS app scheme (`org.example.app:/path`) (RFC 8252). After the sign in, the browser goes there with the query parameter `code`. Without `return_url`, the page shows the code. |
+| `begin-login` | none | `login_id` (secret), `url`, `expires_ms` (10 minutes). Optional `return_url`: a page on the Magi origin, or a reverse-DNS app scheme (`org.example.app:/path`, RFC 8252). Loopback addresses are refused: the browser is often on another machine. After the sign in, the browser goes there with the query parameter `code`. Without `return_url`, the page shows the code. |
 | `poll-login` | none | Waits up to `wait_ms` (default 25 s, maximum 30 s). Status `pending`, `needs_code`, `complete`, `failed`, or `expired`. `needs_code`: the browser part is complete; poll again with `code`. The token comes once, on the first poll with the correct code. A wrong code fails the login. |
 | `who-am-i` | any | Subject, kind, scopes, and expiry of the caller |
 | `refresh` | user | New user token for the same subject. The login session must be active (7 days from login). |
@@ -144,6 +144,7 @@ Live tests (real RP; they need `MAGI_TEST_LINKKEYS=1` and
   second).
 - The code stops the device-flow phishing risk. If a person signs in with a
   link that another person started, the code goes to the browser of the
-  person who signed in, not to the poller. A web page or a loopback listener
-  gets the code automatically. Only `-paste` mode asks the person to copy it.
+  person who signed in, not to the poller. The web client and the Android
+  app get the code from their `return_url`. The command-line client asks the
+  person to paste it, so the browser can be on any machine.
 - Each login makes five new TLS connections to the RP server.
