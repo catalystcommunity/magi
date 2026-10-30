@@ -69,7 +69,9 @@ func TestSandbox(t *testing.T) {
 	if r := run(`touch ` + tools + `/new`); r.ExitCode == 0 {
 		t.Fatal("the sandbox wrote a read-only tool directory")
 	}
-	if home, _ := os.UserHomeDir(); home != "" {
+	// The sandbox binds its own work directory at /work, so a host home
+	// under /work is not the host directory and this check says nothing.
+	if home, _ := os.UserHomeDir(); home != "" && !strings.HasPrefix(home, "/work") {
 		if r := run(`ls ` + home); r.ExitCode == 0 {
 			t.Fatalf("the sandbox sees the home directory: %q", r.Stdout)
 		}

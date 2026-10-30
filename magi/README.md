@@ -98,6 +98,11 @@ systemctl --user enable --now magi-runner@magi.example.com
 Run `tools/install-runner.sh` again after a change to the runner or the
 agent harness, then restart the service.
 
+To see the log of a runner, run `journalctl --user -u magi-runner@<magi
+host>` as the runner user. For example, `journalctl --user -u
+magi-runner@magi.squizzlezig.com` shows the log of the runner for
+`magi.squizzlezig.com`.
+
 ## Authorization
 
 Calls for a person's own records use that person's token. Background work
