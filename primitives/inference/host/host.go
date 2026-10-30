@@ -102,7 +102,10 @@ func (h *Host) check(ctx context.Context) {
 	if h.cmd != nil && h.cmd.Process != nil {
 		pid = h.cmd.Process.Pid
 	}
-	running, active := h.cmd != nil, h.inFlight > 0
+	// GPU use is the engine's own while it loads, while it answers, and
+	// for a short time after an answer (the utilization sample lags).
+	running := h.cmd != nil
+	active := h.inFlight > 0 || (running && !h.ready) || (running && h.now().Sub(h.lastUsed) < ownUseGrace)
 	h.mu.Unlock()
 	s := h.sampler.Sample(ctx, pid)
 	why := h.cfg.Rules.busyReason(s, running, active)
@@ -332,6 +335,10 @@ type refusal struct {
 }
 
 func (r *refusal) Error() string { return r.msg }
+
+// ownUseGrace is how long after a request the GPU use still counts as the
+// engine's own.
+const ownUseGrace = 20 * time.Second
 
 // acquire counts a request in flight once the engine is ready.
 func (h *Host) acquire(ctx context.Context) error {

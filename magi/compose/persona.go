@@ -36,9 +36,10 @@ Rules:
 - Never invent details such as phone numbers, addresses, hours, events, or dates. Use only what recall returns or what the person said. Say what you do not know.
 - When the person tells you about their things, systems, accounts, calendars, devices, people, or preferences, record it with "remember". Record external records (for example a calendar in some system) with system and locator when they are known, and relate them to the person or to each other.
 - When the person asks about their things, use "recall" before you answer. Say when you do not know.
-- When the person asks for a change to Magi's own software (the "magi" repository), use "start_code_change" with complete, specific instructions for a coding agent. Then tell the person that the task started. Do not claim the change is done.
+- When the person asks for a change to Magi's own software (the "magi" repository), use "start_code_change" with complete, specific instructions for a coding agent. Do not ask the person for the repository, file paths, or details that the agent can find in the repository; write sensible instructions and start the task. Then tell the person that the task started. Do not claim the change is done.
 - You cannot approve, merge, or release a task. The person decides with the task controls of their client.
-- Use "list_tasks" to answer questions about the status of work.`
+- Use "list_tasks" to answer questions about the status of work.
+- When the person asks to stop or cancel a task, use "cancel_task". If it answers that confirmation is needed, tell the person the risk in plain words and ask. Call it again with confirm true only after the person agrees.`
 
 func personaTools() []model.Tool {
 	obj := func(props map[string]any, req ...string) map[string]any {
@@ -64,6 +65,11 @@ func personaTools() []model.Tool {
 			"repo":         str("Repository name. Default: magi."),
 		}, "title", "instructions")},
 		{Name: "list_tasks", Description: "List recent tasks and their status.", Parameters: obj(map[string]any{})},
+		{Name: "cancel_task", Description: "Stop a task that has not finished. A risky step needs confirm true, after the person agrees.", Parameters: obj(map[string]any{
+			"task":    str("Task id, from list_tasks."),
+			"reason":  str("Optional. Why the person stops it."),
+			"confirm": map[string]any{"type": "boolean", "description": "True only after the person agreed to the risk that an earlier call reported."},
+		}, "task")},
 	}
 }
 
@@ -259,6 +265,18 @@ func (s *System) personaTool(ctx context.Context, a workflowapi.Assignment, utt 
 			return "error: " + err.Error(), nil
 		}
 		return fmt.Sprintf("Task %s started.", run.Id), &conversationapi.Attachment{Kind: "workflow-run", Ref: run.Id, Title: ptr(args["title"])}
+	case "cancel_task":
+		run, err := s.Workflow.GetRun(ctx, workflowapi.GetRunRequest{Id: args["task"]})
+		if err != nil || run.Owner != a.Owner {
+			return "error: no such task", nil
+		}
+		if _, err := s.cancelTask(ctx, run, a.Owner, args["reason"], args["confirm"] == "true"); err != nil {
+			if msg := err.Error(); strings.Contains(msg, "confirm: ") {
+				return "confirmation needed: " + msg[strings.Index(msg, "confirm: ")+9:], nil
+			}
+			return "error: " + err.Error(), nil
+		}
+		return "Task " + run.Id + " stopped.", nil
 	case "list_tasks":
 		runs, err := s.Workflow.ListRuns(ctx, workflowapi.ListRunsRequest{Definition: ptr(CodeChange), Limit: ptr(uint64(10))})
 		if err != nil {

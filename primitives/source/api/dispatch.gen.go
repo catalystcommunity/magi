@@ -106,6 +106,28 @@ func SourceServiceOps(impl SourceService) map[string]func(context.Context, []byt
 			}
 			return EncodePushBundleResponse(resp), nil
 		},
+		"sync": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeSyncRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Sync(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeSyncResult(resp), nil
+		},
+		"publish": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodePublishRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Publish(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodePublishResult(resp), nil
+		},
 	}
 }
 

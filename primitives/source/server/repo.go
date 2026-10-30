@@ -26,6 +26,8 @@ type meta struct {
 	Owner         string `json:"owner"`
 	DefaultBranch string `json:"default_branch"`
 	CreatedMs     uint64 `json:"created_ms"`
+	// Upstream is the Git URL that sync and publish use, or "".
+	Upstream string `json:"upstream,omitempty"`
 }
 
 func validName(name string) error {

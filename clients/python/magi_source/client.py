@@ -67,3 +67,11 @@ class SourceClient:
         """push-bundle"""
         return PushBundleResponse.from_cbor(self._transport.call("SourceService", "push-bundle", req.to_cbor()))
 
+    def sync(self, req: SyncRequest) -> SyncResult:
+        """sync"""
+        return SyncResult.from_cbor(self._transport.call("SourceService", "sync", req.to_cbor()))
+
+    def publish(self, req: PublishRequest) -> PublishResult:
+        """publish"""
+        return PublishResult.from_cbor(self._transport.call("SourceService", "publish", req.to_cbor()))
+

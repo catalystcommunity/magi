@@ -27,13 +27,16 @@ export interface Ref {
 
 /**
  * Creates an empty repository. If seed_bundle is set, it is a "git bundle"
- * whose refs are imported.
+ * whose refs are imported. upstream is a Git URL (ssh://, https://, or
+ * user@host:path) that sync and publish use; it needs source:admin. With
+ * upstream and no seed_bundle, the default branch is fetched from it.
  */
 export interface CreateRepoRequest {
   name: string;
   defaultBranch?: string;
   owner?: string;
   seedBundle?: Uint8Array;
+  upstream?: string;
 }
 
 export interface GetRepoRequest {
@@ -137,5 +140,37 @@ export interface PushBundleRequest {
 
 export interface PushBundleResponse {
   updated: Ref[];
+}
+
+/**
+ * Fetches the default branch from the upstream and fast-forwards the
+ * local one. status: "updated", "current" (nothing new), "ahead" (local
+ * commits are not yet published), or "diverged" (both have new commits;
+ * nothing changes). The source service uses its own Git credentials for
+ * the upstream. Callers and environments never get them.
+ */
+export interface SyncRequest {
+  repo: string;
+}
+
+export interface SyncResult {
+  status: string;
+  commit: string;
+  upstreamCommit: string;
+}
+
+/**
+ * Pushes the default branch to the upstream, without force. pushed is
+ * false when the upstream has commits that the local branch does not
+ * have; sync, merge, and publish again.
+ */
+export interface PublishRequest {
+  repo: string;
+}
+
+export interface PublishResult {
+  pushed: boolean;
+  commit: string;
+  message?: string;
 }
 

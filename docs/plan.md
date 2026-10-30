@@ -78,11 +78,21 @@ Each slice must work through the API before the next one starts.
 
 `tools/demo-check.sh` repeats slices 1, 2, 3, and 6 against an installation.
 
+## Runners
+
+Code changes run on a runner: a program on a machine with the person's Git
+credentials. The runner connects to Magi and claims its steps; the cluster
+never connects to it. The cluster connects out only to APIs (model
+providers, the inference host, speech engines). See `magi/README.md`.
+
 ## Next Actions
 
+- Push the current work to GitHub, then start the runner service
+  (`magi-runner@<host>`). Tasks start from GitHub `main`; a task on an old
+  `main` releases old code.
+- Run one code change end to end on the runner: review, release to dev,
+  publish to GitHub.
 - Try the Android client on a phone: sign in, text, voice, and a task
   decision (`android/README.md`).
-- Measure how often the local inference host answers persona turns:
-  `magi usage -days 7`. Each reply shows its model in the clients
-  (`generated_by`).
-- Remove `../magi-old`. The web build uses tsgo now (`tools/build-web.sh`).
+- Production: an admin-only way to make runner tokens at install, or fleet
+  tokens.

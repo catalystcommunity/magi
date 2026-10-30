@@ -111,6 +111,12 @@ GetTaskDiffRequest = { id: text }
 ;;; "reject". A chat message does not record a decision.
 DecideRequest = { task: text, outcome: text, ? comment: text }
 
+;;; Stops a task that has not finished, and removes its environment. Most
+;;; steps stop safely. A step that is risky to stop (merge, release) is
+;;; refused with code 409 and a message that starts with "confirm:" and
+;;; tells the risk. Send confirm true to stop it after the person agrees.
+CancelTaskRequest = { task: text, ? reason: text, ? confirm: bool }
+
 KnowledgeItem = {
   id: text,
   kind: text,
@@ -150,7 +156,59 @@ service MagiService {
   list-tasks: ListTasksRequest -> ListTasksResponse,
   get-task-diff: GetTaskDiffRequest -> TaskDiff,
   decide: DecideRequest -> Task,
+  cancel-task: CancelTaskRequest -> Task,
   query-knowledge: QueryKnowledgeRequest -> QueryKnowledgeResponse,
   remember: RememberRequest -> KnowledgeItem,
   list-voices: ListVoicesRequest -> ListVoicesResponse,
+}
+
+;;; RunnerService is for runners: programs on other machines that connect
+;;; to Magi, claim workflow steps from their own queues, and run them there.
+;;; A runner never listens on the network. A runner token has the scope
+;;; "magi:runner" and the subject "runner:<name>". The runner can claim only
+;;; from queues that start with "runner.<name>.", and can act only on a step
+;;; that it holds a claim for.
+RunnerClaimRequest = { queue: text, ? wait_ms: uint }
+RunnerAssignment = {
+  run: text,
+  step: text,
+  attempt: uint,
+  claim: text,
+  owner: text,
+  vars: { * text => text },
+}
+RunnerClaimResponse = { ? assignment: RunnerAssignment }
+RunnerStep = { run: text, step: text, claim: text }
+RunnerProgressRequest = { step: RunnerStep, note: text, ? ref: text }
+RunnerCompleteRequest = {
+  step: RunnerStep,
+  outcome: text,
+  ? outputs: { * text => text },
+  ? error: text,
+}
+;;; Stores evidence of the step (a patch, check output, a transcript, or a
+;;; build) with the run owner as owner.
+RunnerPutArtifactRequest = {
+  step: RunnerStep,
+  media_type: text,
+  body: bytes,
+  ? labels: { * text => text },
+}
+RunnerPutArtifactResponse = { digest: text }
+;;; Writes a persona message into the chat of the run.
+RunnerPostRequest = { step: RunnerStep, text: text }
+;;; Status of a run whose steps this runner ran: the runner removes the
+;;; environments of finished runs.
+RunnerRunStatusRequest = { run: text }
+RunnerRunStatusResponse = { status: text }
+RunnerAck = { ok: bool }
+
+service RunnerService {
+  claim: RunnerClaimRequest -> RunnerClaimResponse,
+  heartbeat: RunnerStep -> RunnerAck,
+  progress: RunnerProgressRequest -> RunnerAck,
+  complete: RunnerCompleteRequest -> RunnerAck,
+  put-artifact: RunnerPutArtifactRequest -> RunnerPutArtifactResponse,
+  post: RunnerPostRequest -> RunnerAck,
+  run-status: RunnerRunStatusRequest -> RunnerRunStatusResponse,
 }

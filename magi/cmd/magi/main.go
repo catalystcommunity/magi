@@ -36,6 +36,7 @@ const usage = `usage: magi [--server URL] <command> [args]
   task ID                    show one task
   diff ID                    show the change of a task
   decide ID OUTCOME [-m TEXT]   approve, revise, or reject a waiting task
+  cancel ID [-m TEXT] [-yes]  stop a task; asks first when the step is risky
   start [-repo R] [-title T] INSTRUCTIONS   start a code change directly
   know [TEXT]                search your knowledge
   remember KIND LABEL [-summary S] [-system S] [-locator L] [-related R -relation N]
@@ -201,6 +202,27 @@ func (c *cli) run(cmd string, args []string) error {
 		}
 		fs.Parse(args[2:])
 		t, err := c.magi.Decide(c.ctx, magiapi.DecideRequest{Task: args[0], Outcome: args[1], Comment: optional(*comment)})
+		if err != nil {
+			return err
+		}
+		printTask(t)
+	case "cancel":
+		reason, yes := fs.String("m", "", "reason"), fs.Bool("yes", false, "accept the risk of a risky step without a question")
+		if len(args) < 1 {
+			return errors.New("cancel ID [-m TEXT] [-yes]")
+		}
+		fs.Parse(args[1:])
+		req := magiapi.CancelTaskRequest{Task: args[0], Reason: optional(*reason), Confirm: yes}
+		t, err := c.magi.CancelTask(c.ctx, req)
+		if msg, ok := strings.CutPrefix(rpcMessage(err), "confirm: "); ok && !*yes {
+			fmt.Printf("Stopping this task is risky: %s\nStop it anyway? [y/N] ", msg)
+			line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+			if a := strings.ToLower(strings.TrimSpace(line)); a != "y" && a != "yes" {
+				return errors.New("not stopped")
+			}
+			req.Confirm = ptr(true)
+			t, err = c.magi.CancelTask(c.ctx, req)
+		}
 		if err != nil {
 			return err
 		}
@@ -512,6 +534,15 @@ func audioType(path string) string {
 		return "audio/mpeg"
 	}
 	return "audio/wav"
+}
+
+// rpcMessage returns the message of an RPC error, or "".
+func rpcMessage(err error) string {
+	var e *rpc.Error
+	if errors.As(err, &e) {
+		return e.Message
+	}
+	return ""
 }
 
 func optional(s string) *string {

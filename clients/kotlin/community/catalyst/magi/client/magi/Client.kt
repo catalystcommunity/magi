@@ -53,6 +53,9 @@ class MagiClient(private val transport: Transport) {
     fun decide(request: DecideRequest): Task {
         return decode<Task>(transport.call("MagiService", "decide", encode(request)))
     }
+    fun cancelTask(request: CancelTaskRequest): Task {
+        return decode<Task>(transport.call("MagiService", "cancel-task", encode(request)))
+    }
     fun queryKnowledge(request: QueryKnowledgeRequest): QueryKnowledgeResponse {
         return decode<QueryKnowledgeResponse>(transport.call("MagiService", "query-knowledge", encode(request)))
     }
@@ -61,6 +64,32 @@ class MagiClient(private val transport: Transport) {
     }
     fun listVoices(request: ListVoicesRequest): ListVoicesResponse {
         return decode<ListVoicesResponse>(transport.call("MagiService", "list-voices", encode(request)))
+    }
+}
+
+/** Typed client for the RunnerService service. The client owns (de)serialization;
+ * the carrier only moves bytes. */
+class RunnerClient(private val transport: Transport) {
+    fun claim(request: RunnerClaimRequest): RunnerClaimResponse {
+        return decode<RunnerClaimResponse>(transport.call("RunnerService", "claim", encode(request)))
+    }
+    fun heartbeat(request: RunnerStep): RunnerAck {
+        return decode<RunnerAck>(transport.call("RunnerService", "heartbeat", encode(request)))
+    }
+    fun progress(request: RunnerProgressRequest): RunnerAck {
+        return decode<RunnerAck>(transport.call("RunnerService", "progress", encode(request)))
+    }
+    fun complete(request: RunnerCompleteRequest): RunnerAck {
+        return decode<RunnerAck>(transport.call("RunnerService", "complete", encode(request)))
+    }
+    fun putArtifact(request: RunnerPutArtifactRequest): RunnerPutArtifactResponse {
+        return decode<RunnerPutArtifactResponse>(transport.call("RunnerService", "put-artifact", encode(request)))
+    }
+    fun post(request: RunnerPostRequest): RunnerAck {
+        return decode<RunnerAck>(transport.call("RunnerService", "post", encode(request)))
+    }
+    fun runStatus(request: RunnerRunStatusRequest): RunnerRunStatusResponse {
+        return decode<RunnerRunStatusResponse>(transport.call("RunnerService", "run-status", encode(request)))
     }
 }
 

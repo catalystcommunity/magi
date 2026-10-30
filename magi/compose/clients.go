@@ -35,6 +35,9 @@ type Config struct {
 	Repo string
 	// EnvImage is the execution environment image for code changes.
 	EnvImage string
+	// Runner names the runner that runs code changes ("" runs them in the
+	// cluster). See RunnerService.
+	Runner string
 	// CheckCommand runs in the repository after the agent works.
 	CheckCommand string
 	// Release is the release controller endpoint; empty turns releases off.
@@ -61,6 +64,7 @@ func ConfigFromEnv() (Config, error) {
 		Workflow:     env("MAGI_WORKFLOW_URL", "http://workflow:8080"),
 		Repo:         env("MAGI_REPO", "magi"),
 		EnvImage:     env("MAGI_ENV_IMAGE", "golang:1.26-bookworm"),
+		Runner:       os.Getenv("MAGI_RUNNER"),
 		CheckCommand: env("MAGI_CHECK_COMMAND", "./tools/check.sh"),
 	}
 	c.Release = os.Getenv("MAGI_RELEASE_URL")

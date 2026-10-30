@@ -110,8 +110,10 @@ func mint(args []string) error {
 	kind := authn.KindService
 	if strings.HasPrefix(*subject, "user:") {
 		kind = authn.KindUser
-	} else if !strings.HasPrefix(*subject, "service:") {
-		return errors.New("subject must start with service: or user:")
+	} else if !strings.HasPrefix(*subject, "service:") && !strings.HasPrefix(*subject, "runner:") {
+		// A runner token is a service token for one machine (see the
+		// RunnerService in contracts/magi.csil).
+		return errors.New("subject must start with service:, runner:, or user:")
 	}
 	iss, err := authn.LoadIssuer(*key)
 	if err != nil {

@@ -2,6 +2,7 @@ package compose
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -158,7 +159,7 @@ func (s *System) startCodeChange(ctx context.Context, owner, chat, title, instru
 	if repo == "" {
 		repo = s.Cfg.Repo
 	}
-	vars := map[string]string{"title": title, "instructions": instructions, "repo": repo, "chat": chat, "check_command": s.Cfg.CheckCommand}
+	vars := map[string]string{"title": title, "instructions": instructions, "repo": repo, "chat": chat, "check_command": s.Cfg.CheckCommand, "runner": s.Cfg.Runner}
 	if chat != "" {
 		if sess, err := s.Conversation.OpenSession(ctx, conversationapi.OpenSessionRequest{Conversation: chat, Title: title, Status: ptr("open")}); err == nil {
 			vars["session"] = sess.Id
@@ -210,6 +211,19 @@ func (m *Service) GetTaskDiff(ctx context.Context, req magiapi.GetTaskDiffReques
 	if branch == "" || base == "" || run.Vars["head_commit"] == "" {
 		return magiapi.TaskDiff{}, rpc.Conflict("the task has no checked change yet")
 	}
+	if digest := run.Vars["patch"]; digest != "" {
+		// A runner uploaded the patch and its file list.
+		got, err := m.S.Artifacts.Get(m.S.AsService(ctx), artifactsapi.GetRequest{Digest: digest})
+		if err != nil {
+			return magiapi.TaskDiff{}, err
+		}
+		out := magiapi.TaskDiff{Task: run.Id, Patch: string(got.Body), Files: []magiapi.FileChange{}}
+		if len(out.Patch) > 1<<20 {
+			out.Patch, out.Truncated = out.Patch[:1<<20], true
+		}
+		json.Unmarshal([]byte(run.Vars["patch.files"]), &out.Files)
+		return out, nil
+	}
 	d, err := m.S.Source.Diff(m.S.AsService(ctx), sourceapi.DiffRequest{Repo: run.Vars["repo"], Base: base, Head: branch, MaxBytes: ptr(uint64(1 << 20))})
 	if err != nil {
 		return magiapi.TaskDiff{}, err
@@ -231,6 +245,24 @@ func (m *Service) Decide(ctx context.Context, req magiapi.DecideRequest) (magiap
 		return magiapi.Task{}, rpc.Conflict("the task is not waiting for a decision (status %s)", run.Status)
 	}
 	run, err = m.S.Workflow.Decide(uctx, workflowapi.DecideRequest{Run: run.Id, Step: run.CurrentStep, Outcome: req.Outcome, Comment: req.Comment})
+	if err != nil {
+		return magiapi.Task{}, err
+	}
+	return task(run), nil
+}
+
+func (m *Service) CancelTask(ctx context.Context, req magiapi.CancelTaskRequest) (magiapi.Task, error) {
+	caller, err := rpc.Caller(ctx)
+	if err != nil {
+		return magiapi.Task{}, err
+	}
+	// The caller's own token reads the run, so a person can stop only
+	// their own tasks.
+	run, err := m.S.Workflow.GetRun(AsCaller(ctx), workflowapi.GetRunRequest{Id: req.Task})
+	if err != nil {
+		return magiapi.Task{}, err
+	}
+	run, err = m.S.cancelTask(m.S.AsService(ctx), run, caller.Subject, deref(req.Reason), deref(req.Confirm))
 	if err != nil {
 		return magiapi.Task{}, err
 	}
@@ -295,8 +327,8 @@ func task(r workflowapi.Run) magiapi.Task {
 		t.Status = res
 	}
 	if r.Status == "waiting" {
-		t.WaitingFor = codeChangeDefinition().Steps[3].Prompt
-		t.Decisions = codeChangeDefinition().Steps[3].Outcomes
+		t.WaitingFor = codeChangeDefinition("").Steps[3].Prompt
+		t.Decisions = codeChangeDefinition("").Steps[3].Outcomes
 	}
 	for _, st := range r.History {
 		ts := magiapi.TaskStep{Step: st.Step, Status: st.Status, Outcome: st.Outcome, StartedMs: st.StartedMs, EndedMs: st.EndedMs, Notes: []string{}}

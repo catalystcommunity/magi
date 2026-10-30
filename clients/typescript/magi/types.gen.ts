@@ -176,6 +176,18 @@ export interface DecideRequest {
   comment?: string;
 }
 
+/**
+ * Stops a task that has not finished, and removes its environment. Most
+ * steps stop safely. A step that is risky to stop (merge, release) is
+ * refused with code 409 and a message that starts with "confirm:" and
+ * tells the risk. Send confirm true to stop it after the person agrees.
+ */
+export interface CancelTaskRequest {
+  task: string;
+  reason?: string;
+  confirm?: boolean;
+}
+
 export interface KnowledgeItem {
   id: string;
   kind: string;
@@ -223,5 +235,89 @@ export interface ListVoicesRequest {
 
 export interface ListVoicesResponse {
   voices: VoiceInfo[];
+}
+
+/**
+ * RunnerService is for runners: programs on other machines that connect
+ * to Magi, claim workflow steps from their own queues, and run them there.
+ * A runner never listens on the network. A runner token has the scope
+ * "magi:runner" and the subject "runner:<name>". The runner can claim only
+ * from queues that start with "runner.<name>.", and can act only on a step
+ * that it holds a claim for.
+ */
+export interface RunnerClaimRequest {
+  queue: string;
+  waitMs?: number;
+}
+
+export interface RunnerAssignment {
+  run: string;
+  step: string;
+  attempt: number;
+  claim: string;
+  owner: string;
+  vars: Record<string, string>;
+}
+
+export interface RunnerClaimResponse {
+  assignment?: RunnerAssignment;
+}
+
+export interface RunnerStep {
+  run: string;
+  step: string;
+  claim: string;
+}
+
+export interface RunnerProgressRequest {
+  step: RunnerStep;
+  note: string;
+  ref?: string;
+}
+
+export interface RunnerCompleteRequest {
+  step: RunnerStep;
+  outcome: string;
+  outputs?: Record<string, string>;
+  error?: string;
+}
+
+/**
+ * Stores evidence of the step (a patch, check output, a transcript, or a
+ * build) with the run owner as owner.
+ */
+export interface RunnerPutArtifactRequest {
+  step: RunnerStep;
+  mediaType: string;
+  body: Uint8Array;
+  labels?: Record<string, string>;
+}
+
+export interface RunnerPutArtifactResponse {
+  digest: string;
+}
+
+/**
+ * Writes a persona message into the chat of the run.
+ */
+export interface RunnerPostRequest {
+  step: RunnerStep;
+  text: string;
+}
+
+/**
+ * Status of a run whose steps this runner ran: the runner removes the
+ * environments of finished runs.
+ */
+export interface RunnerRunStatusRequest {
+  run: string;
+}
+
+export interface RunnerRunStatusResponse {
+  status: string;
+}
+
+export interface RunnerAck {
+  ok: boolean;
 }
 

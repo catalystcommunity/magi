@@ -168,6 +168,8 @@ def render(img, v):
         *model, *svc_token, *persona,
         *[{"name": f"MAGI_{k.upper()}_URL", "value": u} for k, u in urls.items()],
         {"name": "MAGI_ENV_IMAGE", "value": v["ENV_IMAGE"]},
+        # RUNNER: code changes run on this runner (RunnerService).
+        {"name": "MAGI_RUNNER", "value": v.get("RUNNER", "")},
         {"name": "MAGI_IMAGE_REGISTRY", "value": f"registry.{ns}.svc:5000"},
         {"name": "MAGI_IMAGE_CREDENTIALS_FILE", "value": "/etc/magi/registry/registry.json"}],
         secrets=[("magi-model", "/etc/magi/model"), ("magi-token-magi", "/etc/magi/token"), ("magi-registry-push", "/etc/magi/registry"), *persona_secrets], mem="512Mi")

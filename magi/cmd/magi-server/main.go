@@ -70,7 +70,10 @@ func run(listen, keys string, workers bool, log *slog.Logger) error {
 	}
 	srv := &rpc.Server{Verifier: ver, Log: log, MaxBody: 20 << 20}
 	srv.Register("MagiService", magiapi.MagiServiceOps(&compose.Service{S: sys}))
+	srv.Register("RunnerService", magiapi.RunnerServiceOps(&compose.Runners{S: sys}))
 	mux := rpc.Mux(srv, nil)
+	// Runners use the coding model through Magi, so they hold no provider key.
+	mux.Handle("/runner/v1/chat/completions", compose.ModelProxy(ver, m))
 	mux.Handle("/", web.Handler())
 	log.Info("listening", "addr", listen)
 	return rpc.ListenAndServe(ctx, listen, mux)

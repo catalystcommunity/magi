@@ -106,6 +106,17 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			}
 			return EncodeTask(resp), nil
 		},
+		"cancel-task": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeCancelTaskRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.CancelTask(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeTask(resp), nil
+		},
 		"query-knowledge": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeQueryKnowledgeRequest(b)
 			if err != nil {
@@ -138,6 +149,89 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 				return nil, err
 			}
 			return EncodeListVoicesResponse(resp), nil
+		},
+	}
+}
+
+// RunnerServiceOps returns the server dispatch table for RunnerService.
+func RunnerServiceOps(impl RunnerService) map[string]func(context.Context, []byte) ([]byte, error) {
+	return map[string]func(context.Context, []byte) ([]byte, error){
+		"claim": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeRunnerClaimRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Claim(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeRunnerClaimResponse(resp), nil
+		},
+		"heartbeat": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeRunnerStep(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Heartbeat(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeRunnerAck(resp), nil
+		},
+		"progress": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeRunnerProgressRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Progress(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeRunnerAck(resp), nil
+		},
+		"complete": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeRunnerCompleteRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Complete(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeRunnerAck(resp), nil
+		},
+		"put-artifact": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeRunnerPutArtifactRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.PutArtifact(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeRunnerPutArtifactResponse(resp), nil
+		},
+		"post": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeRunnerPostRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Post(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeRunnerAck(resp), nil
+		},
+		"run-status": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeRunnerRunStatusRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.RunStatus(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeRunnerRunStatusResponse(resp), nil
 		},
 	}
 }

@@ -8,6 +8,10 @@ import android.content.pm.PackageManager
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
+import android.view.ViewGroup.LayoutParams
+import android.view.WindowInsets
+import android.os.Build
+import android.widget.FrameLayout
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
@@ -22,6 +26,7 @@ import android.widget.TextView
 import community.catalyst.magi.client.identity.BeginLoginRequest
 import community.catalyst.magi.client.identity.PollLoginRequest
 import community.catalyst.magi.client.identity.RefreshRequest
+import community.catalyst.magi.client.magi.CancelTaskRequest
 import community.catalyst.magi.client.magi.DecideRequest
 import community.catalyst.magi.client.magi.GetAudioRequest
 import community.catalyst.magi.client.magi.GetTaskDiffRequest
@@ -118,17 +123,27 @@ class MainActivity : Activity() {
     // --- Sign in ------------------------------------------------------------
 
     private fun showLogin(message: String) {
-        val server = field("Magi server, for example https://magi.example.com", settings.server, InputType.TYPE_TEXT_VARIATION_URI)
-        val identity = field("Your LinkKeys identity, name@example.com", settings.identity, InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS)
+        val server = field("magi.example.com", settings.server, InputType.TYPE_TEXT_VARIATION_URI)
+        val identity = field("name@example.com", settings.identity, InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS)
         val status = TextView(this).apply { text = message }
         val go = Button(this).apply { text = "Sign in" }
         go.setOnClickListener {
-            val s = server.text.toString().trim().trimEnd('/')
+            var s = server.text.toString().trim().trimEnd('/')
+            if (s.isNotEmpty() && !s.contains("://")) s = "https://$s"
             val id = identity.text.toString().trim()
-            if (!s.startsWith("https://") || !id.contains("@")) {
-                status.text = "Enter an https server and an identity like name@example.com."
+            val problem = when {
+                s.isEmpty() -> "Enter the Magi server, for example magi.example.com."
+                !s.startsWith("https://") -> "The server must use https."
+                !id.contains("@") -> "Enter your identity like name@example.com."
+                else -> null
+            }
+            if (problem != null) {
+                status.text = problem
+                status.setTextColor(0xFFC92A2A.toInt())
                 return@setOnClickListener
             }
+            status.setTextColor(identity.currentTextColor)
+            server.setText(s)
             settings.server = s
             settings.identity = id
             rpc = null
@@ -139,7 +154,8 @@ class MainActivity : Activity() {
                 runOnUiThread { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(b.url))) }
             }
         }
-        setContentView(page(title("Magi"), server, identity, go, status))
+        // The status is above the button, so the keyboard does not hide it.
+        show(page(title("Magi"), label("Magi server"), server, label("Your LinkKeys identity"), identity, status, go, center = true))
     }
 
     /** Finishes a sign in when the browser comes back with the code. */
@@ -194,7 +210,7 @@ class MainActivity : Activity() {
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val status = TextView(this).apply { text = "Loading..." }
         val fresh = Button(this).apply { text = "New chat"; setOnClickListener { openChat(null) } }
-        setContentView(page(nav("Chats"), fresh, status, list))
+        show(page(nav("Chats"), fresh, status, list))
         background(status) {
             val chats = client().magi.listChats(ListChatsRequest(limit = 50UL)).chats
             runOnUiThread {
@@ -272,7 +288,7 @@ class MainActivity : Activity() {
             addView(speak)
             addView(bar)
         }
-        setContentView(root)
+        show(root)
         if (id != null) follow(id, readGen)
     }
 
@@ -349,7 +365,7 @@ class MainActivity : Activity() {
     private fun showTasks() {
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val status = TextView(this).apply { text = "Loading..." }
-        setContentView(page(nav("Tasks"), status, list))
+        show(page(nav("Tasks"), status, list))
         background(status) {
             val tasks = client().magi.listTasks(ListTasksRequest(limit = 30UL)).tasks
             runOnUiThread {
@@ -368,6 +384,9 @@ class MainActivity : Activity() {
                                 setOnClickListener { decide(t.id, outcome, status) }
                             })
                         }
+                    }
+                    if (t.status == "running" || t.status == "waiting") {
+                        row.addView(Button(this).apply { text = "Stop"; setOnClickListener { cancel(t.id, status) } })
                     }
                     box.addView(row)
                     list.addView(box)
@@ -405,7 +424,34 @@ class MainActivity : Activity() {
             .show()
     }
 
+    /** Stops a task. For a risky step the server tells the risk, and the person must agree. */
+    private fun cancel(id: String, status: TextView) {
+        fun send(confirm: Boolean): Unit = background(status) {
+            try {
+                client().magi.cancelTask(CancelTaskRequest(task = id, confirm = confirm))
+                runOnUiThread { showTasks() }
+            } catch (e: RpcException) {
+                val risk = e.message?.substringAfter("confirm: ", "")
+                if (e.code != 409 || risk.isNullOrEmpty() || confirm) throw e
+                runOnUiThread {
+                    AlertDialog.Builder(this)
+                        .setMessage("Stopping this task is risky: $risk\n\nStop it anyway?")
+                        .setPositiveButton("Stop") { _, _ -> send(true) }
+                        .setNegativeButton("Keep running", null)
+                        .show()
+                }
+            }
+        }
+        AlertDialog.Builder(this)
+            .setMessage("Stop this task?")
+            .setPositiveButton("Stop") { _, _ -> send(false) }
+            .setNegativeButton("Keep running", null)
+            .show()
+    }
+
     // --- Views --------------------------------------------------------------
+
+    private fun label(text: String) = TextView(this).apply { this.text = text; setPadding(0, 24, 0, 4); setTypeface(typeface, Typeface.BOLD) }
 
     private fun title(text: String) = TextView(this).apply { this.text = text; textSize = 24f; setPadding(0, 0, 0, 24) }
 
@@ -416,9 +462,34 @@ class MainActivity : Activity() {
         isSingleLine = true
     }
 
-    private fun page(vararg views: View): ScrollView {
-        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(24, 24, 24, 24) }
+    private fun page(vararg views: View, center: Boolean = false): ScrollView {
+        val col = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(24, 24, 24, 24)
+            if (center) gravity = Gravity.CENTER_VERTICAL
+        }
         views.forEach { col.addView(it) }
-        return ScrollView(this).apply { addView(col) }
+        return ScrollView(this).apply { isFillViewport = center; addView(col, LayoutParams(MATCH_PARENT, MATCH_PARENT)) }
+    }
+
+    /**
+     * Shows a page inside the system bars and above the keyboard. Since
+     * Android 15, apps draw behind the status bar unless they add this space.
+     */
+    private fun show(v: View) {
+        val frame = FrameLayout(this)
+        frame.addView(v, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+        frame.setOnApplyWindowInsetsListener { view, insets ->
+            if (Build.VERSION.SDK_INT >= 30) {
+                val b = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.ime() or WindowInsets.Type.displayCutout())
+                view.setPadding(b.left, b.top, b.right, b.bottom)
+            } else {
+                @Suppress("DEPRECATION")
+                view.setPadding(insets.systemWindowInsetLeft, insets.systemWindowInsetTop, insets.systemWindowInsetRight, insets.systemWindowInsetBottom)
+            }
+            insets
+        }
+        setContentView(frame)
+        frame.requestApplyInsets()
     }
 }

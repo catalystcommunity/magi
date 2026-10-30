@@ -1,0 +1,18 @@
+# One runner for each Magi installation. The instance name is the Magi host,
+# for example magi-runner@magi.example.com. Each instance has its own
+# configuration, token, and state:
+#   ~/.config/magi-runner/<host>.json
+#   ~/.config/magi-runner/<host>.token
+#   ~/.local/share/magi-runner/<host>/
+# The runner connects to Magi. It does not listen on the network.
+[Unit]
+Description=Magi runner for %i
+After=network-online.target
+
+[Service]
+ExecStart=%h/.local/bin/magi-runner -config %h/.config/magi-runner/%i.json
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

@@ -43,6 +43,7 @@ func TestLivePersonaTools(t *testing.T) {
 		{"Remember that my dentist is Dr. Rivera at Maple Street Dental.", "remember"},
 		{"My family calendar is in the household Nextcloud.", "remember"},
 		{"Please add a health endpoint summary to the Magi README.", "start_code_change"},
+		{"Please add a health endpoint summary to the Magi Readme.", "start_code_change"}, // as Parakeet transcribes it
 		{"How are my tasks going?", "list_tasks"},
 		{"Hello! How are you today?", ""},
 	}

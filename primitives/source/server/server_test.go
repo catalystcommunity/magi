@@ -46,6 +46,7 @@ type env struct {
 	dir                    string
 	tokens                 map[string]string
 	alice, bob, magi, anon *api.SourceClient
+	admin                  *api.SourceClient
 }
 
 func newEnv(t *testing.T) *env {
@@ -56,7 +57,7 @@ func newEnv(t *testing.T) *env {
 	iss := &authn.Issuer{Name: "test", KeyID: "k1", Key: priv}
 	s := &rpc.Server{Verifier: &authn.Verifier{Issuer: "test", Keys: map[string]ed25519.PublicKey{"k1": pub}}, MaxBody: MaxRequest}
 	e := &env{dir: t.TempDir(), tokens: map[string]string{}}
-	ts := httptest.NewServer(Handler(s, &Service{Dir: e.dir}))
+	ts := httptest.NewServer(Handler(s, &Service{Dir: e.dir, AllowFileUpstream: true}))
 	t.Cleanup(ts.Close)
 	e.url = ts.URL
 	client := func(p authn.Principal) *api.SourceClient {
@@ -70,6 +71,7 @@ func newEnv(t *testing.T) *env {
 	e.alice = client(authn.Principal{Subject: alice, Kind: authn.KindUser})
 	e.bob = client(authn.Principal{Subject: bob, Kind: authn.KindUser})
 	e.magi = client(authn.Principal{Subject: "service:magi", Kind: authn.KindService, Scopes: []string{ScopeActAs}})
+	e.admin = client(authn.Principal{Subject: "service:operator", Kind: authn.KindService, Scopes: []string{ScopeAdmin}})
 	e.anon = api.NewSourceClient(rpc.NewClient(ts.URL, nil))
 	return e
 }
@@ -400,5 +402,72 @@ func TestPushBundle(t *testing.T) {
 	code(t, err, 400)
 	if r := must(e.alice.ListRefs(ctx, api.ListRefsRequest{Repo: repo.Name})); len(r.Refs) != 2 {
 		t.Fatalf("import refs left behind: %+v", r.Refs)
+	}
+}
+
+// The upstream stands in for GitHub: create fetches from it, sync
+// fast-forwards, publish pushes without force.
+func TestUpstreamSyncAndPublish(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	up := t.TempDir()
+	gitOK(t, up, "init", "-q", "--bare", "--initial-branch=main", up)
+	work := t.TempDir()
+	gitOK(t, work, "clone", "-q", up, work)
+	commitFile(t, work, "a.txt", "one\n", "one")
+	gitOK(t, work, "push", "-q", "origin", "HEAD:main")
+	upURL := "file://" + up
+
+	if _, err := e.alice.CreateRepo(ctx, api.CreateRepoRequest{Name: "r", Upstream: &upURL}); rpc.CodeOf(err) != 403 {
+		t.Fatalf("upstream without admin: %v", err)
+	}
+	for _, bad := range []string{"/etc", "ext::sh -c x", "http://example.local/r.git", "-u x@y:z"} {
+		if _, err := e.admin.CreateRepo(ctx, api.CreateRepoRequest{Name: "bad", Upstream: &bad}); rpc.CodeOf(err) != 400 {
+			t.Fatalf("upstream %q: %v", bad, err)
+		}
+	}
+	repo := must(e.admin.CreateRepo(ctx, api.CreateRepoRequest{Name: "r", Owner: ptr(alice), Upstream: &upURL}))
+	head := gitOK(t, work, "rev-parse", "HEAD")
+	if r := must(e.alice.Sync(ctx, api.SyncRequest{Repo: "r"})); r.Status != "current" || r.Commit != head {
+		t.Fatalf("sync after create = %+v", r)
+	}
+
+	// New upstream commit: sync fast-forwards.
+	commitFile(t, work, "b.txt", "two\n", "two")
+	gitOK(t, work, "push", "-q", "origin", "HEAD:main")
+	head = gitOK(t, work, "rev-parse", "HEAD")
+	if r := must(e.alice.Sync(ctx, api.SyncRequest{Repo: "r"})); r.Status != "updated" || r.Commit != head {
+		t.Fatalf("sync = %+v", r)
+	}
+
+	// A local commit (a merged task): sync says ahead, publish pushes it.
+	local := t.TempDir()
+	gitOK(t, local, "clone", "-q", e.cloneURL(repo, alice), local)
+	commitFile(t, local, "c.txt", "three\n", "three")
+	gitOK(t, local, "push", "-q", "origin", "HEAD:refs/heads/task")
+	must(e.alice.Merge(ctx, api.MergeRequest{Repo: "r", Source: "task", Target: "main"}))
+	if r := must(e.alice.Sync(ctx, api.SyncRequest{Repo: "r"})); r.Status != "ahead" {
+		t.Fatalf("sync with local commit = %+v", r)
+	}
+	p := must(e.alice.Publish(ctx, api.PublishRequest{Repo: "r"}))
+	if !p.Pushed || gitOK(t, up, "rev-parse", "main") != p.Commit {
+		t.Fatalf("publish = %+v", p)
+	}
+
+	// Both move: sync changes nothing, publish refuses.
+	gitOK(t, work, "pull", "-q", "--ff-only", "origin", "main")
+	commitFile(t, work, "d.txt", "four\n", "four")
+	gitOK(t, work, "push", "-q", "origin", "HEAD:main")
+	commitFile(t, local, "e.txt", "five\n", "five")
+	gitOK(t, local, "push", "-q", "origin", "HEAD:refs/heads/task2")
+	must(e.alice.Merge(ctx, api.MergeRequest{Repo: "r", Source: "task2", Target: "main"}))
+	if r := must(e.alice.Sync(ctx, api.SyncRequest{Repo: "r"})); r.Status != "diverged" {
+		t.Fatalf("sync diverged = %+v", r)
+	}
+	if p := must(e.alice.Publish(ctx, api.PublishRequest{Repo: "r"})); p.Pushed {
+		t.Fatalf("publish over upstream commits = %+v", p)
+	}
+	if _, err := e.bob.Sync(ctx, api.SyncRequest{Repo: "r"}); rpc.CodeOf(err) != 404 {
+		t.Fatalf("bob sync: %v", err)
 	}
 }

@@ -18,4 +18,6 @@ type SourceService interface {
 	DeleteBranch(ctx context.Context, req DeleteBranchRequest) (DeleteBranchResponse, error)
 	Bundle(ctx context.Context, req BundleRequest) (BundleResponse, error)
 	PushBundle(ctx context.Context, req PushBundleRequest) (PushBundleResponse, error)
+	Sync(ctx context.Context, req SyncRequest) (SyncResult, error)
+	Publish(ctx context.Context, req PublishRequest) (PublishResult, error)
 }

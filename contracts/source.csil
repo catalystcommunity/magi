@@ -16,12 +16,15 @@ Repository = {
 Ref = { name: text, commit: text }
 
 ;;; Creates an empty repository. If seed_bundle is set, it is a "git bundle"
-;;; whose refs are imported.
+;;; whose refs are imported. upstream is a Git URL (ssh://, https://, or
+;;; user@host:path) that sync and publish use; it needs source:admin. With
+;;; upstream and no seed_bundle, the default branch is fetched from it.
 CreateRepoRequest = {
   name: text,
   ? default_branch: text,
   ? owner: text,
   ? seed_bundle: bytes,
+  ? upstream: text,
 }
 GetRepoRequest = { name: text }
 ;;; owner selects the repositories of another subject; it needs
@@ -67,6 +70,20 @@ BundleResponse = { bundle: bytes }
 PushBundleRequest = { repo: text, bundle: bytes, ? force: bool }
 PushBundleResponse = { updated: [* Ref] }
 
+;;; Fetches the default branch from the upstream and fast-forwards the
+;;; local one. status: "updated", "current" (nothing new), "ahead" (local
+;;; commits are not yet published), or "diverged" (both have new commits;
+;;; nothing changes). The source service uses its own Git credentials for
+;;; the upstream. Callers and environments never get them.
+SyncRequest = { repo: text }
+SyncResult = { status: text, commit: text, upstream_commit: text }
+
+;;; Pushes the default branch to the upstream, without force. pushed is
+;;; false when the upstream has commits that the local branch does not
+;;; have; sync, merge, and publish again.
+PublishRequest = { repo: text }
+PublishResult = { pushed: bool, commit: text, ? message: text }
+
 service SourceService {
   create-repo: CreateRepoRequest -> Repository,
   get-repo: GetRepoRequest -> Repository,
@@ -77,4 +94,6 @@ service SourceService {
   delete-branch: DeleteBranchRequest -> DeleteBranchResponse,
   bundle: BundleRequest -> BundleResponse,
   push-bundle: PushBundleRequest -> PushBundleResponse,
+  sync: SyncRequest -> SyncResult,
+  publish: PublishRequest -> PublishResult,
 }

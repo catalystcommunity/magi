@@ -24,6 +24,7 @@ type CreateRepoRequest struct {
 	DefaultBranch *string `json:"default_branch,omitempty" yaml:"default_branch,omitempty"`
 	Owner         *string `json:"owner,omitempty" yaml:"owner,omitempty"`
 	SeedBundle    *[]byte `json:"seed_bundle,omitempty" yaml:"seed_bundle,omitempty"`
+	Upstream      *string `json:"upstream,omitempty" yaml:"upstream,omitempty"`
 }
 
 // GetRepoRequest represents a structured data type
@@ -124,4 +125,28 @@ type PushBundleRequest struct {
 // PushBundleResponse represents a structured data type
 type PushBundleResponse struct {
 	Updated []Ref `json:"updated" yaml:"updated"`
+}
+
+// SyncRequest represents a structured data type
+type SyncRequest struct {
+	Repo string `json:"repo" yaml:"repo"`
+}
+
+// SyncResult represents a structured data type
+type SyncResult struct {
+	Status         string `json:"status" yaml:"status"`
+	Commit         string `json:"commit" yaml:"commit"`
+	UpstreamCommit string `json:"upstream_commit" yaml:"upstream_commit"`
+}
+
+// PublishRequest represents a structured data type
+type PublishRequest struct {
+	Repo string `json:"repo" yaml:"repo"`
+}
+
+// PublishResult represents a structured data type
+type PublishResult struct {
+	Pushed  bool    `json:"pushed" yaml:"pushed"`
+	Commit  string  `json:"commit" yaml:"commit"`
+	Message *string `json:"message,omitempty" yaml:"message,omitempty"`
 }

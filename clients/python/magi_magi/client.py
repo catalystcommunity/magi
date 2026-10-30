@@ -67,6 +67,10 @@ class MagiClient:
         """decide"""
         return Task.from_cbor(self._transport.call("MagiService", "decide", req.to_cbor()))
 
+    def cancel_task(self, req: CancelTaskRequest) -> Task:
+        """cancel-task"""
+        return Task.from_cbor(self._transport.call("MagiService", "cancel-task", req.to_cbor()))
+
     def query_knowledge(self, req: QueryKnowledgeRequest) -> QueryKnowledgeResponse:
         """query-knowledge"""
         return QueryKnowledgeResponse.from_cbor(self._transport.call("MagiService", "query-knowledge", req.to_cbor()))
@@ -78,4 +82,37 @@ class MagiClient:
     def list_voices(self, req: ListVoicesRequest) -> ListVoicesResponse:
         """list-voices"""
         return ListVoicesResponse.from_cbor(self._transport.call("MagiService", "list-voices", req.to_cbor()))
+
+class RunnerClient:
+    """Typed client for the RunnerService service."""
+    def __init__(self, transport: Transport):
+        self._transport = transport
+
+    def claim(self, req: RunnerClaimRequest) -> RunnerClaimResponse:
+        """claim"""
+        return RunnerClaimResponse.from_cbor(self._transport.call("RunnerService", "claim", req.to_cbor()))
+
+    def heartbeat(self, req: RunnerStep) -> RunnerAck:
+        """heartbeat"""
+        return RunnerAck.from_cbor(self._transport.call("RunnerService", "heartbeat", req.to_cbor()))
+
+    def progress(self, req: RunnerProgressRequest) -> RunnerAck:
+        """progress"""
+        return RunnerAck.from_cbor(self._transport.call("RunnerService", "progress", req.to_cbor()))
+
+    def complete(self, req: RunnerCompleteRequest) -> RunnerAck:
+        """complete"""
+        return RunnerAck.from_cbor(self._transport.call("RunnerService", "complete", req.to_cbor()))
+
+    def put_artifact(self, req: RunnerPutArtifactRequest) -> RunnerPutArtifactResponse:
+        """put-artifact"""
+        return RunnerPutArtifactResponse.from_cbor(self._transport.call("RunnerService", "put-artifact", req.to_cbor()))
+
+    def post(self, req: RunnerPostRequest) -> RunnerAck:
+        """post"""
+        return RunnerAck.from_cbor(self._transport.call("RunnerService", "post", req.to_cbor()))
+
+    def run_status(self, req: RunnerRunStatusRequest) -> RunnerRunStatusResponse:
+        """run-status"""
+        return RunnerRunStatusResponse.from_cbor(self._transport.call("RunnerService", "run-status", req.to_cbor()))
 

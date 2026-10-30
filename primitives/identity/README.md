@@ -93,6 +93,7 @@ the default. `fingerprints` are the SHA-256 pins of the RP TLS key.
 ```sh
 identity keygen --issuer magi --out key.json --public key.pub.json
 identity mint --key key.json --subject service:magi --scopes a,b --ttl 720h --out token.txt
+identity mint --key key.json --subject runner:NAME --scopes magi:runner --ttl 2160h --out runner.token
 ```
 
 Both commands make files with mode 600 and do not overwrite files. Give

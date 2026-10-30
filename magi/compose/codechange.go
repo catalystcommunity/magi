@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/catalystcommunity/magi/lib/rpc"
 	artifactsapi "github.com/catalystcommunity/magi/primitives/artifacts/api"
 	conversationapi "github.com/catalystcommunity/magi/primitives/conversation/api"
 	executionapi "github.com/catalystcommunity/magi/primitives/execution/api"
@@ -22,8 +23,14 @@ const CodeChange = "code-change"
 
 const maxCheckAttempts = 3
 
-func codeChangeDefinition() workflowapi.Definition {
+// codeChangeDefinition returns the code-change workflow. With a runner,
+// the steps that use the environment or the repository run on that runner
+// (queues runner.<name>.<step>); Magi keeps the review and the release.
+func codeChangeDefinition(runner string) workflowapi.Definition {
 	task := func(id, queue string, next map[string]string, attempts uint64) workflowapi.Step {
+		if runner != "" && id != "release" {
+			queue = RunnerQueue(runner, id)
+		}
 		return workflowapi.Step{Id: id, Kind: "task", Queue: ptr(queue), Next: next, MaxAttempts: ptr(attempts)}
 	}
 	return workflowapi.Definition{
@@ -36,8 +43,11 @@ func codeChangeDefinition() workflowapi.Definition {
 			task("check", "magi.check", map[string]string{"pass": "review", "fail-checks": "work", "give-up": "cleanup"}, 2),
 			{Id: "review", Kind: "human", Prompt: ptr("Read the change and the check results. Approve to merge, revise to send it back to the agent with a comment, or reject."),
 				Outcomes: []string{"approve", "revise", "reject"}, Next: map[string]string{"approve": "merge", "revise": "work", "reject": "cleanup"}},
-			task("merge", "magi.merge", map[string]string{"done": "release", "conflict": "cleanup"}, 2),
-			task("release", "magi.release", map[string]string{"done": "cleanup", "skipped": "cleanup", "build-failed": "cleanup", "rolled-back": "cleanup", "fail": "cleanup"}, 3),
+			task("merge", "magi.merge", map[string]string{"done": "release", "conflict": "cleanup", "build-failed": "cleanup"}, 2),
+			task("release", "magi.release", map[string]string{"done": "publish", "skipped": "publish", "build-failed": "cleanup", "rolled-back": "cleanup", "fail": "cleanup"}, 3),
+			// Only a change that released and stayed healthy (or that has
+			// no release) goes to the upstream.
+			task("publish", "magi.publish", map[string]string{"done": "cleanup", "skipped": "cleanup", "rejected": "cleanup"}, 3),
 			task("cleanup", "magi.cleanup", map[string]string{}, 3),
 		},
 	}
@@ -46,7 +56,7 @@ func codeChangeDefinition() workflowapi.Definition {
 // InstallDefinitions writes the workflow definitions that Magi uses.
 func (s *System) InstallDefinitions(ctx context.Context) error {
 	ctx = s.AsService(ctx)
-	for _, d := range []workflowapi.Definition{codeChangeDefinition(), personaTurnDefinition()} {
+	for _, d := range []workflowapi.Definition{codeChangeDefinition(s.Cfg.Runner), personaTurnDefinition()} {
 		if _, err := s.Workflow.PutDefinition(ctx, d); err != nil {
 			return fmt.Errorf("put definition %s: %w", d.Name, err)
 		}
@@ -61,6 +71,7 @@ func (s *System) RunWorkers(ctx context.Context) {
 	go s.Work(ctx, "magi.merge", s.merge)
 	go s.Work(ctx, "magi.cleanup", s.cleanup)
 	go s.Work(ctx, "magi.release", s.release)
+	go s.Work(ctx, "magi.publish", s.publish)
 	go s.Work(ctx, "magi.persona", s.personaTurn)
 }
 
@@ -79,6 +90,12 @@ func (s *System) prepare(ctx context.Context, a workflowapi.Assignment, note fun
 	repo, err := s.Source.GetRepo(ctx, sourceapi.GetRepoRequest{Name: repoName})
 	if err != nil {
 		return Result{}, fmt.Errorf("repository %s: %w", repoName, err)
+	}
+	if st, ok := s.syncUpstream(ctx, repoName); ok {
+		note("Upstream sync: " + st)
+		if st == "diverged" {
+			s.post(ctx, a, "The upstream and Magi's copy of "+repoName+" both have new commits. The task starts from Magi's copy; publish needs a manual merge.")
+		}
 	}
 	note("Creating the environment.")
 	envr, err := s.Execution.Create(ctx, executionapi.CreateRequest{
@@ -201,6 +218,10 @@ git rev-parse HEAD`, msg, a.Vars["base_commit"], branch)
 }
 
 func (s *System) merge(ctx context.Context, a workflowapi.Assignment, note func(string)) (Result, error) {
+	// Merge onto the newest upstream commit, so publish is a fast-forward.
+	if st, ok := s.syncUpstream(ctx, a.Vars["repo"]); ok {
+		note("Upstream sync: " + st)
+	}
 	m, err := s.Source.Merge(ctx, sourceapi.MergeRequest{
 		Repo: a.Vars["repo"], Source: a.Vars["branch"], Target: a.Vars["default_branch"],
 		Message: ptr(fmt.Sprintf("Merge %s: %s", a.Vars["branch"], a.Vars["title"])),
@@ -229,6 +250,89 @@ func (s *System) cleanup(ctx context.Context, a workflowapi.Assignment, note fun
 		s.post(ctx, a, "The change was rejected. I removed the environment. The branch stays for reference.")
 	}
 	return Result{Outcome: "done", Outputs: map[string]string{"task.result": result}}, nil
+}
+
+// syncUpstream updates the repository from its upstream. ok is false when
+// the repository has no upstream or the sync failed (the failure is logged).
+func (s *System) syncUpstream(ctx context.Context, repo string) (string, bool) {
+	r, err := s.Source.Sync(ctx, sourceapi.SyncRequest{Repo: repo})
+	if err != nil {
+		if rpc.CodeOf(err) != 412 {
+			s.Log.Warn("upstream sync", "repo", repo, "err", err)
+		}
+		return "", false
+	}
+	return r.Status, true
+}
+
+// publish pushes the merged default branch to the upstream with the source
+// service's own credentials.
+func (s *System) publish(ctx context.Context, a workflowapi.Assignment, note func(string)) (Result, error) {
+	p, err := s.Source.Publish(ctx, sourceapi.PublishRequest{Repo: a.Vars["repo"]})
+	if rpc.CodeOf(err) == 412 {
+		return Result{Outcome: "skipped"}, nil
+	}
+	if err != nil {
+		return Result{}, err
+	}
+	if !p.Pushed {
+		note("Not published: " + deref(p.Message))
+		if deref(p.Message) == "already published" {
+			return Result{Outcome: "done"}, nil
+		}
+		s.post(ctx, a, "I could not push the change to the upstream: "+deref(p.Message)+". It is merged in Magi's copy.")
+		return Result{Outcome: "rejected", Outputs: map[string]string{"publish.error": deref(p.Message)}}, nil
+	}
+	note("Published " + p.Commit)
+	s.post(ctx, a, fmt.Sprintf("The release stayed healthy, so I pushed commit %.12s to the upstream repository.", p.Commit))
+	return Result{Outcome: "done", Outputs: map[string]string{"publish.commit": p.Commit}}, nil
+}
+
+// cancelRisk tells why stopping a run at step is risky, or "" when it is
+// safe. The work and check steps stop at once and keep the branch.
+func cancelRisk(step string) string {
+	switch step {
+	case "merge":
+		return "the change is being merged. If you stop now, the merge can be done but not released."
+	case "publish":
+		return "the change is being pushed to the upstream repository. If you stop now, it can be pushed or not."
+	case "release":
+		return "a release is rolling out. Stopping the task does not stop the rollout: the release controller still finishes it or rolls it back, but the task does not report the result."
+	}
+	return ""
+}
+
+// cancelTask stops run for by, removes its environment, and tells the
+// chat. A risky step needs confirm.
+func (s *System) cancelTask(ctx context.Context, run workflowapi.Run, by, reason string, confirm bool) (workflowapi.Run, error) {
+	switch run.Status {
+	case "succeeded", "failed", "cancelled":
+		return run, rpc.Conflict("the task already ended (status %s)", run.Status)
+	}
+	if risk := cancelRisk(run.CurrentStep); risk != "" && !confirm {
+		return run, rpc.Conflict("confirm: %s", risk)
+	}
+	step, why := run.CurrentStep, "for "+by
+	if reason != "" {
+		why += ": " + reason
+	}
+	run, err := s.Workflow.Cancel(ctx, workflowapi.CancelRequest{Id: run.Id, Reason: &why})
+	if err != nil {
+		return run, err
+	}
+	// A runner removes its own environments when it sees the run ended.
+	if id := run.Vars["environment"]; id != "" && run.Vars["runner"] == "" {
+		if _, err := s.Execution.Destroy(ctx, executionapi.DestroyRequest{Id: id}); err != nil {
+			s.Log.Warn("destroy environment", "env", id, "err", err)
+		}
+	}
+	msg := "The task was stopped"
+	if reason != "" {
+		msg += ": " + reason
+	}
+	s.post(ctx, workflowapi.Assignment{Run: run.Id, Owner: run.Owner, Vars: run.Vars}, msg+". I removed its environment. The branch stays for reference.")
+	s.Log.Info("task cancelled", "run", run.Id, "by", by, "step", step)
+	return run, nil
 }
 
 // post writes a persona message into the chat that started the run.

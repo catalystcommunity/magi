@@ -69,7 +69,7 @@ One JSON file, given with `-config` or `MAGI_INFERENCE_CONFIG`:
     "model": "model-name"
   },
   "idle_stop": "15m",
-  "start_wait": "0s",
+  "start_wait": "10s",
   "engine_log": "/path/to/engine.log",
   "rules": {"cpu_load": 0.6, "gpu_util": 40, "need_mib": 7000, "quiet_for": "60s",
             "processes": ["cc1plus", "rustc", "gamescope"]}
@@ -80,8 +80,11 @@ One JSON file, given with `-config` or `MAGI_INFERENCE_CONFIG`:
   `127.0.0.1:<port>`. The host starts it in its own process group and
   stops the group.
 - `start_wait` is how long a request waits for a cold engine. With `0s`
-  (the default), the host refuses at once with `warming`. Use `0s` when the
-  caller has another provider.
+  (the default), the host refuses at once with `warming`. Set it to a little
+  more than the start time of the engine, also when the caller has another
+  provider. A 9B model on one GPU starts in about 2 s, and a hosted
+  provider can take 8 to 10 s to answer. Thus a short wait gives a faster
+  reply than the fallback.
 - `rules` replaces all default rules when it is given.
 
 ## Run as a user service

@@ -2,8 +2,8 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { AudioResponse, DecideRequest, GetAudioRequest, GetTaskDiffRequest, GetTaskRequest, KnowledgeItem, ListChatsRequest, ListChatsResponse, ListTasksRequest, ListTasksResponse, ListVoicesRequest, ListVoicesResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, RememberRequest, SayRequest, SayResponse, StartTaskRequest, Task, TaskDiff } from "./types.gen.ts";
-import { fromAudioResponseCbor, fromKnowledgeItemCbor, fromListChatsResponseCbor, fromListTasksResponseCbor, fromListVoicesResponseCbor, fromQueryKnowledgeResponseCbor, fromReadResponseCbor, fromSayResponseCbor, fromTaskCbor, fromTaskDiffCbor, toDecideRequestCbor, toGetAudioRequestCbor, toGetTaskDiffRequestCbor, toGetTaskRequestCbor, toListChatsRequestCbor, toListTasksRequestCbor, toListVoicesRequestCbor, toQueryKnowledgeRequestCbor, toReadRequestCbor, toRememberRequestCbor, toSayRequestCbor, toStartTaskRequestCbor } from "./codec.gen.ts";
+import type { AudioResponse, CancelTaskRequest, DecideRequest, GetAudioRequest, GetTaskDiffRequest, GetTaskRequest, KnowledgeItem, ListChatsRequest, ListChatsResponse, ListTasksRequest, ListTasksResponse, ListVoicesRequest, ListVoicesResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, RememberRequest, RunnerAck, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, SayRequest, SayResponse, StartTaskRequest, Task, TaskDiff } from "./types.gen.ts";
+import { fromAudioResponseCbor, fromKnowledgeItemCbor, fromListChatsResponseCbor, fromListTasksResponseCbor, fromListVoicesResponseCbor, fromQueryKnowledgeResponseCbor, fromReadResponseCbor, fromRunnerAckCbor, fromRunnerClaimResponseCbor, fromRunnerPutArtifactResponseCbor, fromRunnerRunStatusResponseCbor, fromSayResponseCbor, fromTaskCbor, fromTaskDiffCbor, toCancelTaskRequestCbor, toDecideRequestCbor, toGetAudioRequestCbor, toGetTaskDiffRequestCbor, toGetTaskRequestCbor, toListChatsRequestCbor, toListTasksRequestCbor, toListVoicesRequestCbor, toQueryKnowledgeRequestCbor, toReadRequestCbor, toRememberRequestCbor, toRunnerClaimRequestCbor, toRunnerCompleteRequestCbor, toRunnerPostRequestCbor, toRunnerProgressRequestCbor, toRunnerPutArtifactRequestCbor, toRunnerRunStatusRequestCbor, toRunnerStepCbor, toSayRequestCbor, toStartTaskRequestCbor } from "./codec.gen.ts";
 
 export interface ServiceTransport {
   call(service: string, op: string, req: Uint8Array): Uint8Array;
@@ -97,6 +97,15 @@ export class MagiClient {
    * @throws {ServiceError} when the API returns an error response
    * @throws transport errors (network, timeout) raised by the transport
    */
+  cancelTask(req: CancelTaskRequest): Task {
+    const csilResp = this.t.call("MagiService", "cancel-task", toCancelTaskRequestCbor(req));
+    return fromTaskCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
   queryKnowledge(req: QueryKnowledgeRequest): QueryKnowledgeResponse {
     const csilResp = this.t.call("MagiService", "query-knowledge", toQueryKnowledgeRequestCbor(req));
     return fromQueryKnowledgeResponseCbor(csilResp);
@@ -121,9 +130,78 @@ export class MagiClient {
   }
 }
 
+export class RunnerClient {
+  constructor(private readonly t: ServiceTransport) {}
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  claim(req: RunnerClaimRequest): RunnerClaimResponse {
+    const csilResp = this.t.call("RunnerService", "claim", toRunnerClaimRequestCbor(req));
+    return fromRunnerClaimResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  heartbeat(req: RunnerStep): RunnerAck {
+    const csilResp = this.t.call("RunnerService", "heartbeat", toRunnerStepCbor(req));
+    return fromRunnerAckCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  progress(req: RunnerProgressRequest): RunnerAck {
+    const csilResp = this.t.call("RunnerService", "progress", toRunnerProgressRequestCbor(req));
+    return fromRunnerAckCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  complete(req: RunnerCompleteRequest): RunnerAck {
+    const csilResp = this.t.call("RunnerService", "complete", toRunnerCompleteRequestCbor(req));
+    return fromRunnerAckCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  putArtifact(req: RunnerPutArtifactRequest): RunnerPutArtifactResponse {
+    const csilResp = this.t.call("RunnerService", "put-artifact", toRunnerPutArtifactRequestCbor(req));
+    return fromRunnerPutArtifactResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  post(req: RunnerPostRequest): RunnerAck {
+    const csilResp = this.t.call("RunnerService", "post", toRunnerPostRequestCbor(req));
+    return fromRunnerAckCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  runStatus(req: RunnerRunStatusRequest): RunnerRunStatusResponse {
+    const csilResp = this.t.call("RunnerService", "run-status", toRunnerRunStatusRequestCbor(req));
+    return fromRunnerRunStatusResponseCbor(csilResp);
+  }
+}
+
 export class ApiClient {
   readonly magi: MagiClient;
+  readonly runner: RunnerClient;
   constructor(t: ServiceTransport) {
     this.magi = new MagiClient(t);
+    this.runner = new RunnerClient(t);
   }
 }

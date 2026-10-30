@@ -59,7 +59,13 @@ start and the connection change. Callers and the API do not change.
     `cluster` and `egress` add no policy.
 - `local`: envd runs as a child process on the service host, in a directory
   below `MAGI_EXEC_LOCAL_ROOT`. It gives no isolation and ignores the image.
-  It is for tests. It is the model for a future `host` backend.
+  It is for tests.
+
+Package `sandbox` runs envd on one machine in a bubblewrap sandbox, without
+this service. A Magi runner uses it (see `magi/README.md`). The sandbox sees
+its work directory, read-only `/usr` and a few `/etc` files, and configured
+tool directories; it does not see the home directory of the user. envd
+listens on loopback only.
 
 ## API
 

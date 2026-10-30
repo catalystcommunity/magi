@@ -22,5 +22,16 @@ if [[ -d primitives/agent/tests ]]; then
   (cd primitives/agent && python3 -m unittest discover -s tests -q) || fail "primitives/agent"
 fi
 
+# The release controller keeps Magi up when it releases itself; its tests
+# (fake cluster: rollout failure, health failure, restore, restart) must pass.
+if [[ -f primitives/release/Cargo.toml ]]; then
+  step "rust: primitives/release"
+  if command -v cargo >/dev/null; then
+    (cd primitives/release && cargo test -q 2>&1 | tail -20; exit "${PIPESTATUS[0]}") || fail "primitives/release"
+  else
+    fail "primitives/release (cargo is not installed)"
+  fi
+fi
+
 if [[ $status -eq 0 ]]; then echo "ALL CHECKS PASSED"; else echo "CHECKS FAILED"; fi
 exit $status

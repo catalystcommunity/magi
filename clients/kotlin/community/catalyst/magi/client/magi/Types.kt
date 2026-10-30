@@ -223,6 +223,13 @@ data class DecideRequest(
     val comment: String? = null
 )
 
+/** CancelTaskRequest record. */
+data class CancelTaskRequest(
+    val task: String,
+    val reason: String? = null,
+    val confirm: Boolean? = null
+)
+
 /** KnowledgeItem record. */
 data class KnowledgeItem(
     val id: String,
@@ -275,5 +282,102 @@ data class ListVoicesRequest(
 /** ListVoicesResponse record. */
 data class ListVoicesResponse(
     val voices: List<VoiceInfo>
+)
+
+/** RunnerClaimRequest record. */
+data class RunnerClaimRequest(
+    val queue: String,
+    // wire key: wait_ms
+    val waitMs: ULong? = null
+)
+
+/** RunnerAssignment record. */
+data class RunnerAssignment(
+    val run: String,
+    val step: String,
+    val attempt: ULong,
+    val claim: String,
+    val owner: String,
+    val vars: Map<String, String>
+)
+
+/** RunnerClaimResponse record. */
+data class RunnerClaimResponse(
+    val assignment: RunnerAssignment? = null
+)
+
+/** RunnerStep record. */
+data class RunnerStep(
+    val run: String,
+    val step: String,
+    val claim: String
+)
+
+/** RunnerProgressRequest record. */
+data class RunnerProgressRequest(
+    val step: RunnerStep,
+    val note: String,
+    val ref: String? = null
+)
+
+/** RunnerCompleteRequest record. */
+data class RunnerCompleteRequest(
+    val step: RunnerStep,
+    val outcome: String,
+    val outputs: Map<String, String>? = null,
+    val error: String? = null
+)
+
+/** RunnerPutArtifactRequest record. */
+data class RunnerPutArtifactRequest(
+    val step: RunnerStep,
+    // wire key: media_type
+    val mediaType: String,
+    val body: ByteArray,
+    val labels: Map<String, String>? = null
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is RunnerPutArtifactRequest) return false
+        if (step != other.step) return false
+        if (mediaType != other.mediaType) return false
+        if (!body.contentEquals(other.body)) return false
+        if (labels != other.labels) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = step.hashCode()
+        result = 31 * result + mediaType.hashCode()
+        result = 31 * result + body.contentHashCode()
+        result = 31 * result + labels.hashCode()
+        return result
+    }
+}
+
+/** RunnerPutArtifactResponse record. */
+data class RunnerPutArtifactResponse(
+    val digest: String
+)
+
+/** RunnerPostRequest record. */
+data class RunnerPostRequest(
+    val step: RunnerStep,
+    val text: String
+)
+
+/** RunnerRunStatusRequest record. */
+data class RunnerRunStatusRequest(
+    val run: String
+)
+
+/** RunnerRunStatusResponse record. */
+data class RunnerRunStatusResponse(
+    val status: String
+)
+
+/** RunnerAck record. */
+data class RunnerAck(
+    val ok: Boolean
 )
 

@@ -18,7 +18,19 @@ type MagiService interface {
 	ListTasks(ctx context.Context, req ListTasksRequest) (ListTasksResponse, error)
 	GetTaskDiff(ctx context.Context, req GetTaskDiffRequest) (TaskDiff, error)
 	Decide(ctx context.Context, req DecideRequest) (Task, error)
+	CancelTask(ctx context.Context, req CancelTaskRequest) (Task, error)
 	QueryKnowledge(ctx context.Context, req QueryKnowledgeRequest) (QueryKnowledgeResponse, error)
 	Remember(ctx context.Context, req RememberRequest) (KnowledgeItem, error)
 	ListVoices(ctx context.Context, req ListVoicesRequest) (ListVoicesResponse, error)
+}
+
+// RunnerService defines the service interface
+type RunnerService interface {
+	Claim(ctx context.Context, req RunnerClaimRequest) (RunnerClaimResponse, error)
+	Heartbeat(ctx context.Context, req RunnerStep) (RunnerAck, error)
+	Progress(ctx context.Context, req RunnerProgressRequest) (RunnerAck, error)
+	Complete(ctx context.Context, req RunnerCompleteRequest) (RunnerAck, error)
+	PutArtifact(ctx context.Context, req RunnerPutArtifactRequest) (RunnerPutArtifactResponse, error)
+	Post(ctx context.Context, req RunnerPostRequest) (RunnerAck, error)
+	RunStatus(ctx context.Context, req RunnerRunStatusRequest) (RunnerRunStatusResponse, error)
 }

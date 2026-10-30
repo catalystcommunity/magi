@@ -77,6 +77,7 @@ class CreateRepoRequest:
     default_branch: Optional[str] = None
     owner: Optional[str] = None
     seed_bundle: Optional[bytes] = None
+    upstream: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -88,12 +89,14 @@ class CreateRepoRequest:
             result['owner'] = self.owner
         if hasattr(self, 'seed_bundle') and self.seed_bundle is not None:
             result['seed_bundle'] = self.seed_bundle
+        if hasattr(self, 'upstream') and self.upstream is not None:
+            result['upstream'] = self.upstream
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'CreateRepoRequest':
         """Create instance from dictionary."""
-        return cls(name=data.get('name'), default_branch=data.get('default_branch'), owner=data.get('owner'), seed_bundle=data.get('seed_bundle'))
+        return cls(name=data.get('name'), default_branch=data.get('default_branch'), owner=data.get('owner'), seed_bundle=data.get('seed_bundle'), upstream=data.get('upstream'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -561,6 +564,118 @@ class PushBundleResponse:
 
     @classmethod
     def from_json(cls, json_str: str) -> 'PushBundleResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class SyncRequest:
+    repo: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'repo') and self.repo is not None:
+            result['repo'] = self.repo
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'SyncRequest':
+        """Create instance from dictionary."""
+        return cls(repo=data.get('repo'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'SyncRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class SyncResult:
+    status: str
+    commit: str
+    upstream_commit: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'status') and self.status is not None:
+            result['status'] = self.status
+        if hasattr(self, 'commit') and self.commit is not None:
+            result['commit'] = self.commit
+        if hasattr(self, 'upstream_commit') and self.upstream_commit is not None:
+            result['upstream_commit'] = self.upstream_commit
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'SyncResult':
+        """Create instance from dictionary."""
+        return cls(status=data.get('status'), commit=data.get('commit'), upstream_commit=data.get('upstream_commit'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'SyncResult':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class PublishRequest:
+    repo: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'repo') and self.repo is not None:
+            result['repo'] = self.repo
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'PublishRequest':
+        """Create instance from dictionary."""
+        return cls(repo=data.get('repo'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'PublishRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class PublishResult:
+    pushed: bool
+    commit: str
+    message: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'pushed') and self.pushed is not None:
+            result['pushed'] = self.pushed
+        if hasattr(self, 'commit') and self.commit is not None:
+            result['commit'] = self.commit
+        if hasattr(self, 'message') and self.message is not None:
+            result['message'] = self.message
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'PublishResult':
+        """Create instance from dictionary."""
+        return cls(pushed=data.get('pushed'), commit=data.get('commit'), message=data.get('message'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'PublishResult':
         """Create instance from JSON string."""
         return cls.from_dict(json.loads(json_str))
 

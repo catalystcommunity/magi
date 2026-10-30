@@ -124,6 +124,15 @@ func (c *MagiClient) Decide(ctx context.Context, req DecideRequest) (Task, error
 	return DecodeTask(csilResp)
 }
 
+func (c *MagiClient) CancelTask(ctx context.Context, req CancelTaskRequest) (Task, error) {
+	var csilZero Task
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "cancel-task", EncodeCancelTaskRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeTask(csilResp)
+}
+
 func (c *MagiClient) QueryKnowledge(ctx context.Context, req QueryKnowledgeRequest) (QueryKnowledgeResponse, error) {
 	var csilZero QueryKnowledgeResponse
 	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "query-knowledge", EncodeQueryKnowledgeRequest(req))
@@ -149,4 +158,77 @@ func (c *MagiClient) ListVoices(ctx context.Context, req ListVoicesRequest) (Lis
 		return csilZero, csilErr
 	}
 	return DecodeListVoicesResponse(csilResp)
+}
+
+// RunnerClient is a typed client for the RunnerService service. The client owns
+// (de)serialization via the generated codec; the transport only moves bytes.
+type RunnerClient struct {
+	transport Transport
+}
+
+func NewRunnerClient(transport Transport) *RunnerClient {
+	return &RunnerClient{transport: transport}
+}
+
+func (c *RunnerClient) Claim(ctx context.Context, req RunnerClaimRequest) (RunnerClaimResponse, error) {
+	var csilZero RunnerClaimResponse
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "claim", EncodeRunnerClaimRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeRunnerClaimResponse(csilResp)
+}
+
+func (c *RunnerClient) Heartbeat(ctx context.Context, req RunnerStep) (RunnerAck, error) {
+	var csilZero RunnerAck
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "heartbeat", EncodeRunnerStep(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeRunnerAck(csilResp)
+}
+
+func (c *RunnerClient) Progress(ctx context.Context, req RunnerProgressRequest) (RunnerAck, error) {
+	var csilZero RunnerAck
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "progress", EncodeRunnerProgressRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeRunnerAck(csilResp)
+}
+
+func (c *RunnerClient) Complete(ctx context.Context, req RunnerCompleteRequest) (RunnerAck, error) {
+	var csilZero RunnerAck
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "complete", EncodeRunnerCompleteRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeRunnerAck(csilResp)
+}
+
+func (c *RunnerClient) PutArtifact(ctx context.Context, req RunnerPutArtifactRequest) (RunnerPutArtifactResponse, error) {
+	var csilZero RunnerPutArtifactResponse
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "put-artifact", EncodeRunnerPutArtifactRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeRunnerPutArtifactResponse(csilResp)
+}
+
+func (c *RunnerClient) Post(ctx context.Context, req RunnerPostRequest) (RunnerAck, error) {
+	var csilZero RunnerAck
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "post", EncodeRunnerPostRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeRunnerAck(csilResp)
+}
+
+func (c *RunnerClient) RunStatus(ctx context.Context, req RunnerRunStatusRequest) (RunnerRunStatusResponse, error) {
+	var csilZero RunnerRunStatusResponse
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "run-status", EncodeRunnerRunStatusRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeRunnerRunStatusResponse(csilResp)
 }

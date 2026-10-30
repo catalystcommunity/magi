@@ -16,6 +16,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 
+	artifactsapi "github.com/catalystcommunity/magi/primitives/artifacts/api"
 	executionapi "github.com/catalystcommunity/magi/primitives/execution/api"
 	releaseapi "github.com/catalystcommunity/magi/primitives/release/goapi"
 	workflowapi "github.com/catalystcommunity/magi/primitives/workflow/api"
@@ -48,24 +49,37 @@ func (s *System) release(ctx context.Context, a workflowapi.Assignment, note fun
 		note("Resuming release " + rel.Id)
 		return s.waitRelease(ctx, a, rel.Id, note)
 	}
-	envID, workdir := a.Vars["environment"], a.Vars["workdir"]
-	note("Building magi-server from the merged change.")
-	r, err := s.exec(ctx, envID, workdir, `set -e
-mkdir -p /work/out
-cd magi && GOWORK=off CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /work/out/app ./cmd/magi-server`, 15*60000)
-	if err != nil {
-		return Result{}, err
-	}
-	if r.ExitCode != 0 {
-		s.post(ctx, a, "The release build failed. Nothing was released.")
-		return Result{Outcome: "build-failed", Outputs: map[string]string{"release.output": tail(string(r.Stdout)+string(r.Stderr), 4000)}}, nil
-	}
-	bin, err := s.Execution.ReadFile(ctx, executionapi.ReadFileRequest{Environment: envID, Path: "/work/out/app", MaxBytes: ptr(uint64(64 << 20))})
-	if err != nil || bin.Truncated {
-		return Result{}, fmt.Errorf("read binary: %v (truncated %v)", err, bin.Truncated)
+	var body []byte
+	if a.Vars["runner"] != "" {
+		// The runner built magi-server from the merged change and uploaded it.
+		d := a.Vars["build.binary"]
+		if d == "" {
+			return Result{Outcome: "skipped"}, nil
+		}
+		got, err := s.Artifacts.Get(ctx, artifactsapi.GetRequest{Digest: d})
+		if err != nil {
+			return Result{}, fmt.Errorf("read build %s: %w", d, err)
+		}
+		body = got.Body
+	} else {
+		envID, workdir := a.Vars["environment"], a.Vars["workdir"]
+		note("Building magi-server from the merged change.")
+		r, err := s.exec(ctx, envID, workdir, BuildScript, 15*60000)
+		if err != nil {
+			return Result{}, err
+		}
+		if r.ExitCode != 0 {
+			s.post(ctx, a, "The release build failed. Nothing was released.")
+			return Result{Outcome: "build-failed", Outputs: map[string]string{"release.output": tail(string(r.Stdout)+string(r.Stderr), 4000)}}, nil
+		}
+		bin, err := s.Execution.ReadFile(ctx, executionapi.ReadFileRequest{Environment: envID, Path: "/work/out/app", MaxBytes: ptr(uint64(64 << 20))})
+		if err != nil || bin.Truncated {
+			return Result{}, fmt.Errorf("read binary: %v (truncated %v)", err, bin.Truncated)
+		}
+		body = bin.Body
 	}
 	tag := fmt.Sprintf("run-%s-%d", strings.TrimPrefix(a.Run, "run_"), time.Now().Unix())
-	digest, err := pushImage(ctx, rc, "magi/magi", tag, bin.Body)
+	digest, err := pushImage(ctx, rc, "magi/magi", tag, body)
 	if err != nil {
 		return Result{}, fmt.Errorf("push image: %w", err)
 	}
@@ -80,6 +94,12 @@ cd magi && GOWORK=off CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /work
 	s.post(ctx, a, fmt.Sprintf("I built the merged change and started release %s. If the new version fails its health check, the controller rolls it back.", rel.Id))
 	return s.waitRelease(ctx, a, rel.Id, note)
 }
+
+// BuildScript builds magi-server into /work/out/app from the repository in
+// the working directory. A runner uses the same script.
+const BuildScript = `set -e
+mkdir -p /work/out
+cd magi && GOWORK=off CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /work/out/app ./cmd/magi-server`
 
 func (s *System) findRelease(ctx context.Context, reason string) (releaseapi.Release, bool) {
 	res, err := s.Release.List(ctx, releaseapi.ListReleasesRequest{Limit: ptr(uint64(50))})

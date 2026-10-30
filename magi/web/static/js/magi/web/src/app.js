@@ -202,8 +202,12 @@ function renderMessage(m) {
             box.append(el("span", { class: "ref" }, "Knowledge: " + (r.title ?? r.ref)));
         }
     }
+    // Follow new messages, unless the person scrolled up to read.
+    const view = $("#messages").parentElement;
+    const atEnd = view.scrollHeight - view.scrollTop - view.clientHeight < 80;
     $("#messages").append(box);
-    box.scrollIntoView({ block: "end" });
+    if (atEnd || mine)
+        view.scrollTop = view.scrollHeight;
 }
 async function send(text, audio, audioType) {
     const speakReply = $("#speak").checked;
@@ -328,16 +332,81 @@ async function openTask(id) {
     };
     const refresh = el("button", {}, "Refresh");
     refresh.onclick = () => openTask(t.id);
-    parts.push(el("div", {}, diffBtn, " ", refresh), diffBox);
+    const controls = [diffBtn, " ", refresh];
+    if (t.status === "running" || t.status === "waiting") {
+        const stop = el("button", { class: "decide reject" }, "Stop task");
+        stop.onclick = () => cancelTask(t.id);
+        controls.push(" ", stop);
+    }
+    parts.push(el("div", {}, ...controls), diffBox);
     view.replaceChildren(...parts);
+}
+// cancelTask stops a task. For a risky step the server tells the risk
+// first, and the person must agree.
+async function cancelTask(id) {
+    try {
+        try {
+            await magi.cancelTask({ task: id });
+        }
+        catch (e) {
+            const risk = /confirm: (.*)/.exec(e.message)?.[1];
+            if (!risk)
+                throw e;
+            if (!confirm("Stopping this task is risky: " + risk + "\n\nStop it anyway?"))
+                return;
+            await magi.cancelTask({ task: id, confirm: true });
+        }
+    }
+    catch (e) {
+        alert(e.message);
+    }
+    openTask(id);
 }
 // --- Knowledge -----------------------------------------------------------
 async function searchKnowledge(ev) {
     ev?.preventDefault();
     show("knowledge");
     const q = $("#kq").value.trim();
-    const res = await magi.queryKnowledge({ text: q || undefined, limit: 50 });
-    $("#k-list").replaceChildren(...res.items.map((it) => el("div", { class: "kitem" }, el("b", {}, it.label), el("small", {}, ` ${it.kind}`), el("div", {}, it.summary), ...(it.system ? [el("div", { class: "note" }, `In ${it.system}: ${it.locator ?? ""}`)] : []), ...it.relations.map((r) => el("div", { class: "note" }, r)))));
+    const status = $("#k-status");
+    status.textContent = "Searching…";
+    status.className = "note";
+    try {
+        const res = await magi.queryKnowledge({ text: q || undefined, limit: 50 });
+        status.textContent = res.items.length ? "" : q
+            ? `Nothing matches "${q}".`
+            : "Magi knows nothing about you yet. Tell Magi a fact in a chat (for example \"Remember that my dentist is Dr. Rivera\"), or add one below.";
+        $("#k-list").replaceChildren(...res.items.map((it) => el("div", { class: "kitem" }, el("b", {}, it.label), el("small", {}, ` ${it.kind}`), el("div", {}, it.summary), ...(it.system ? [el("div", { class: "note" }, `In ${it.system}: ${it.locator ?? ""}`)] : []), ...it.relations.map((r) => relationLink(r)))));
+    }
+    catch (e) {
+        status.textContent = "Search failed: " + e.message;
+        status.className = "error";
+    }
+}
+// relationLink shows a relation such as "works-at Maple Street Dental" or
+// "← hosted-in Maple Street Dental". A click searches for the other item.
+function relationLink(r) {
+    const other = r.replace(/^← /, "").replace(/^\S+\s+/, "");
+    const b = el("button", { class: "ref" }, r);
+    b.onclick = () => { $("#kq").value = other; searchKnowledge(); };
+    return b;
+}
+async function addKnowledge(ev) {
+    ev.preventDefault();
+    const v = (id) => $(id).value.trim();
+    const status = $("#k-status");
+    try {
+        const it = await magi.remember({
+            kind: v("#ka-kind"), label: v("#ka-label"), summary: v("#ka-summary") || undefined,
+            relatedTo: v("#ka-related") || undefined, relation: v("#ka-relation") || undefined,
+        });
+        $("#k-add-form").reset();
+        $("#kq").value = it.label;
+        await searchKnowledge();
+    }
+    catch (e) {
+        status.textContent = "Could not remember: " + e.message;
+        status.className = "error";
+    }
 }
 // --- Start ---------------------------------------------------------------
 async function start() {
@@ -365,6 +434,7 @@ window.addEventListener("DOMContentLoaded", () => {
     $("#tab-chat").addEventListener("click", () => show("chat"));
     $("#tab-knowledge").addEventListener("click", () => searchKnowledge());
     $("#k-form").addEventListener("submit", searchKnowledge);
+    $("#k-add-form").addEventListener("submit", addKnowledge);
     $("#task-form").addEventListener("submit", startTask);
     $("#signout").addEventListener("click", signOut);
     const pending = session.get();

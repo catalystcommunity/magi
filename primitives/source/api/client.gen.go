@@ -123,3 +123,21 @@ func (c *SourceClient) PushBundle(ctx context.Context, req PushBundleRequest) (P
 	}
 	return DecodePushBundleResponse(csilResp)
 }
+
+func (c *SourceClient) Sync(ctx context.Context, req SyncRequest) (SyncResult, error) {
+	var csilZero SyncResult
+	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "sync", EncodeSyncRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeSyncResult(csilResp)
+}
+
+func (c *SourceClient) Publish(ctx context.Context, req PublishRequest) (PublishResult, error) {
+	var csilZero PublishResult
+	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "publish", EncodePublishRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodePublishResult(csilResp)
+}

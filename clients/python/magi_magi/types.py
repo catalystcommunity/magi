@@ -712,6 +712,37 @@ class DecideRequest:
 
 
 @dataclass
+class CancelTaskRequest:
+    task: str
+    reason: Optional[str] = None
+    confirm: Optional[bool] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'task') and self.task is not None:
+            result['task'] = self.task
+        if hasattr(self, 'reason') and self.reason is not None:
+            result['reason'] = self.reason
+        if hasattr(self, 'confirm') and self.confirm is not None:
+            result['confirm'] = self.confirm
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'CancelTaskRequest':
+        """Create instance from dictionary."""
+        return cls(task=data.get('task'), reason=data.get('reason'), confirm=data.get('confirm'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'CancelTaskRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
 class KnowledgeItem:
     id: str
     kind: str
@@ -936,6 +967,357 @@ class ListVoicesResponse:
 
     @classmethod
     def from_json(cls, json_str: str) -> 'ListVoicesResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class RunnerClaimRequest:
+    queue: str
+    wait_ms: Optional[int] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'queue') and self.queue is not None:
+            result['queue'] = self.queue
+        if hasattr(self, 'wait_ms') and self.wait_ms is not None:
+            result['wait_ms'] = self.wait_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'RunnerClaimRequest':
+        """Create instance from dictionary."""
+        return cls(queue=data.get('queue'), wait_ms=data.get('wait_ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'RunnerClaimRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class RunnerAssignment:
+    run: str
+    step: str
+    attempt: int
+    claim: str
+    owner: str
+    vars: Dict[str, str]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'run') and self.run is not None:
+            result['run'] = self.run
+        if hasattr(self, 'step') and self.step is not None:
+            result['step'] = self.step
+        if hasattr(self, 'attempt') and self.attempt is not None:
+            result['attempt'] = self.attempt
+        if hasattr(self, 'claim') and self.claim is not None:
+            result['claim'] = self.claim
+        if hasattr(self, 'owner') and self.owner is not None:
+            result['owner'] = self.owner
+        if hasattr(self, 'vars') and self.vars is not None:
+            result['vars'] = self.vars
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'RunnerAssignment':
+        """Create instance from dictionary."""
+        return cls(run=data.get('run'), step=data.get('step'), attempt=data.get('attempt'), claim=data.get('claim'), owner=data.get('owner'), vars=data.get('vars'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'RunnerAssignment':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class RunnerClaimResponse:
+    assignment: Optional[RunnerAssignment] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'assignment') and self.assignment is not None:
+            result['assignment'] = self.assignment
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'RunnerClaimResponse':
+        """Create instance from dictionary."""
+        return cls(assignment=data.get('assignment'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'RunnerClaimResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class RunnerStep:
+    run: str
+    step: str
+    claim: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'run') and self.run is not None:
+            result['run'] = self.run
+        if hasattr(self, 'step') and self.step is not None:
+            result['step'] = self.step
+        if hasattr(self, 'claim') and self.claim is not None:
+            result['claim'] = self.claim
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'RunnerStep':
+        """Create instance from dictionary."""
+        return cls(run=data.get('run'), step=data.get('step'), claim=data.get('claim'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'RunnerStep':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class RunnerProgressRequest:
+    step: RunnerStep
+    note: str
+    ref: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'step') and self.step is not None:
+            result['step'] = self.step
+        if hasattr(self, 'note') and self.note is not None:
+            result['note'] = self.note
+        if hasattr(self, 'ref') and self.ref is not None:
+            result['ref'] = self.ref
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'RunnerProgressRequest':
+        """Create instance from dictionary."""
+        return cls(step=data.get('step'), note=data.get('note'), ref=data.get('ref'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'RunnerProgressRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class RunnerCompleteRequest:
+    step: RunnerStep
+    outcome: str
+    outputs: Optional[Dict[str, str]] = None
+    error: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'step') and self.step is not None:
+            result['step'] = self.step
+        if hasattr(self, 'outcome') and self.outcome is not None:
+            result['outcome'] = self.outcome
+        if hasattr(self, 'outputs') and self.outputs is not None:
+            result['outputs'] = self.outputs
+        if hasattr(self, 'error') and self.error is not None:
+            result['error'] = self.error
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'RunnerCompleteRequest':
+        """Create instance from dictionary."""
+        return cls(step=data.get('step'), outcome=data.get('outcome'), outputs=data.get('outputs'), error=data.get('error'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'RunnerCompleteRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class RunnerPutArtifactRequest:
+    step: RunnerStep
+    media_type: str
+    body: bytes
+    labels: Optional[Dict[str, str]] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'step') and self.step is not None:
+            result['step'] = self.step
+        if hasattr(self, 'media_type') and self.media_type is not None:
+            result['media_type'] = self.media_type
+        if hasattr(self, 'body') and self.body is not None:
+            result['body'] = self.body
+        if hasattr(self, 'labels') and self.labels is not None:
+            result['labels'] = self.labels
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'RunnerPutArtifactRequest':
+        """Create instance from dictionary."""
+        return cls(step=data.get('step'), media_type=data.get('media_type'), body=data.get('body'), labels=data.get('labels'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'RunnerPutArtifactRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class RunnerPutArtifactResponse:
+    digest: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'digest') and self.digest is not None:
+            result['digest'] = self.digest
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'RunnerPutArtifactResponse':
+        """Create instance from dictionary."""
+        return cls(digest=data.get('digest'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'RunnerPutArtifactResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class RunnerPostRequest:
+    step: RunnerStep
+    text: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'step') and self.step is not None:
+            result['step'] = self.step
+        if hasattr(self, 'text') and self.text is not None:
+            result['text'] = self.text
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'RunnerPostRequest':
+        """Create instance from dictionary."""
+        return cls(step=data.get('step'), text=data.get('text'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'RunnerPostRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class RunnerRunStatusRequest:
+    run: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'run') and self.run is not None:
+            result['run'] = self.run
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'RunnerRunStatusRequest':
+        """Create instance from dictionary."""
+        return cls(run=data.get('run'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'RunnerRunStatusRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class RunnerRunStatusResponse:
+    status: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'status') and self.status is not None:
+            result['status'] = self.status
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'RunnerRunStatusResponse':
+        """Create instance from dictionary."""
+        return cls(status=data.get('status'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'RunnerRunStatusResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class RunnerAck:
+    ok: bool
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'ok') and self.ok is not None:
+            result['ok'] = self.ok
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'RunnerAck':
+        """Create instance from dictionary."""
+        return cls(ok=data.get('ok'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'RunnerAck':
         """Create instance from JSON string."""
         return cls.from_dict(json.loads(json_str))
 

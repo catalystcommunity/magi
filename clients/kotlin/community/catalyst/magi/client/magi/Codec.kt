@@ -843,6 +843,29 @@ fun decideRequestFromCborValue(cbor: CborValue): DecideRequest {
 /** Decode CSIL CBOR bytes into a DecideRequest. */
 fun decideRequestFromCbor(bytes: ByteArray): DecideRequest = decideRequestFromCborValue(CsilCbor.decode(bytes))
 
+/** The CBOR value tree for a CancelTaskRequest (deep, canonical key order). */
+fun CancelTaskRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("task") to CborValue.CText(this.task))
+    this.reason?.let { csilV -> csilEntries.add(CborValue.CText("reason") to CborValue.CText(csilV)) }
+    this.confirm?.let { csilV -> csilEntries.add(CborValue.CText("confirm") to CborValue.CBool(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a CancelTaskRequest to canonical CSIL CBOR bytes. */
+fun CancelTaskRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a CancelTaskRequest from a decoded CBOR value tree. */
+fun cancelTaskRequestFromCborValue(cbor: CborValue): CancelTaskRequest {
+    val task = CsilCbor.asText(CsilCbor.require(cbor, "task"))
+    val reason = CsilCbor.mapGet(cbor, "reason")?.let { csilV -> CsilCbor.asText(csilV) }
+    val confirm = CsilCbor.mapGet(cbor, "confirm")?.let { csilV -> CsilCbor.asBoolean(csilV) }
+    return CancelTaskRequest(task = task, reason = reason, confirm = confirm)
+}
+
+/** Decode CSIL CBOR bytes into a CancelTaskRequest. */
+fun cancelTaskRequestFromCbor(bytes: ByteArray): CancelTaskRequest = cancelTaskRequestFromCborValue(CsilCbor.decode(bytes))
+
 /** The CBOR value tree for a KnowledgeItem (deep, canonical key order). */
 fun KnowledgeItem.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
@@ -1012,6 +1035,268 @@ fun listVoicesResponseFromCborValue(cbor: CborValue): ListVoicesResponse {
 /** Decode CSIL CBOR bytes into a ListVoicesResponse. */
 fun listVoicesResponseFromCbor(bytes: ByteArray): ListVoicesResponse = listVoicesResponseFromCborValue(CsilCbor.decode(bytes))
 
+/** The CBOR value tree for a RunnerClaimRequest (deep, canonical key order). */
+fun RunnerClaimRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("queue") to CborValue.CText(this.queue))
+    this.waitMs?.let { csilV -> csilEntries.add(CborValue.CText("wait_ms") to CborValue.CUint(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerClaimRequest to canonical CSIL CBOR bytes. */
+fun RunnerClaimRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerClaimRequest from a decoded CBOR value tree. */
+fun runnerClaimRequestFromCborValue(cbor: CborValue): RunnerClaimRequest {
+    val queue = CsilCbor.asText(CsilCbor.require(cbor, "queue"))
+    val waitMs = CsilCbor.mapGet(cbor, "wait_ms")?.let { csilV -> CsilCbor.asULong(csilV) }
+    return RunnerClaimRequest(queue = queue, waitMs = waitMs)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerClaimRequest. */
+fun runnerClaimRequestFromCbor(bytes: ByteArray): RunnerClaimRequest = runnerClaimRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RunnerAssignment (deep, canonical key order). */
+fun RunnerAssignment.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("run") to CborValue.CText(this.run))
+    csilEntries.add(CborValue.CText("step") to CborValue.CText(this.step))
+    csilEntries.add(CborValue.CText("vars") to CborValue.CMap((this.vars).map { (csilK, csilV) -> CborValue.CText(csilK) to CborValue.CText(csilV) }))
+    csilEntries.add(CborValue.CText("claim") to CborValue.CText(this.claim))
+    csilEntries.add(CborValue.CText("owner") to CborValue.CText(this.owner))
+    csilEntries.add(CborValue.CText("attempt") to CborValue.CUint(this.attempt))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerAssignment to canonical CSIL CBOR bytes. */
+fun RunnerAssignment.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerAssignment from a decoded CBOR value tree. */
+fun runnerAssignmentFromCborValue(cbor: CborValue): RunnerAssignment {
+    val run = CsilCbor.asText(CsilCbor.require(cbor, "run"))
+    val step = CsilCbor.asText(CsilCbor.require(cbor, "step"))
+    val attempt = CsilCbor.asULong(CsilCbor.require(cbor, "attempt"))
+    val claim = CsilCbor.asText(CsilCbor.require(cbor, "claim"))
+    val owner = CsilCbor.asText(CsilCbor.require(cbor, "owner"))
+    val vars = CsilCbor.asMap(CsilCbor.require(cbor, "vars")).associate { (csilK, csilV) -> CsilCbor.asText(csilK) to CsilCbor.asText(csilV) }
+    return RunnerAssignment(run = run, step = step, attempt = attempt, claim = claim, owner = owner, vars = vars)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerAssignment. */
+fun runnerAssignmentFromCbor(bytes: ByteArray): RunnerAssignment = runnerAssignmentFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RunnerClaimResponse (deep, canonical key order). */
+fun RunnerClaimResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.assignment?.let { csilV -> csilEntries.add(CborValue.CText("assignment") to csilV.toCborValue()) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerClaimResponse to canonical CSIL CBOR bytes. */
+fun RunnerClaimResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerClaimResponse from a decoded CBOR value tree. */
+fun runnerClaimResponseFromCborValue(cbor: CborValue): RunnerClaimResponse {
+    val assignment = CsilCbor.mapGet(cbor, "assignment")?.let { csilV -> runnerAssignmentFromCborValue(csilV) }
+    return RunnerClaimResponse(assignment = assignment)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerClaimResponse. */
+fun runnerClaimResponseFromCbor(bytes: ByteArray): RunnerClaimResponse = runnerClaimResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RunnerStep (deep, canonical key order). */
+fun RunnerStep.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("run") to CborValue.CText(this.run))
+    csilEntries.add(CborValue.CText("step") to CborValue.CText(this.step))
+    csilEntries.add(CborValue.CText("claim") to CborValue.CText(this.claim))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerStep to canonical CSIL CBOR bytes. */
+fun RunnerStep.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerStep from a decoded CBOR value tree. */
+fun runnerStepFromCborValue(cbor: CborValue): RunnerStep {
+    val run = CsilCbor.asText(CsilCbor.require(cbor, "run"))
+    val step = CsilCbor.asText(CsilCbor.require(cbor, "step"))
+    val claim = CsilCbor.asText(CsilCbor.require(cbor, "claim"))
+    return RunnerStep(run = run, step = step, claim = claim)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerStep. */
+fun runnerStepFromCbor(bytes: ByteArray): RunnerStep = runnerStepFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RunnerProgressRequest (deep, canonical key order). */
+fun RunnerProgressRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.ref?.let { csilV -> csilEntries.add(CborValue.CText("ref") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("note") to CborValue.CText(this.note))
+    csilEntries.add(CborValue.CText("step") to this.step.toCborValue())
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerProgressRequest to canonical CSIL CBOR bytes. */
+fun RunnerProgressRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerProgressRequest from a decoded CBOR value tree. */
+fun runnerProgressRequestFromCborValue(cbor: CborValue): RunnerProgressRequest {
+    val step = runnerStepFromCborValue(CsilCbor.require(cbor, "step"))
+    val note = CsilCbor.asText(CsilCbor.require(cbor, "note"))
+    val ref = CsilCbor.mapGet(cbor, "ref")?.let { csilV -> CsilCbor.asText(csilV) }
+    return RunnerProgressRequest(step = step, note = note, ref = ref)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerProgressRequest. */
+fun runnerProgressRequestFromCbor(bytes: ByteArray): RunnerProgressRequest = runnerProgressRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RunnerCompleteRequest (deep, canonical key order). */
+fun RunnerCompleteRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("step") to this.step.toCborValue())
+    this.error?.let { csilV -> csilEntries.add(CborValue.CText("error") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("outcome") to CborValue.CText(this.outcome))
+    this.outputs?.let { csilV -> csilEntries.add(CborValue.CText("outputs") to CborValue.CMap((csilV).map { (csilK, csilV) -> CborValue.CText(csilK) to CborValue.CText(csilV) })) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerCompleteRequest to canonical CSIL CBOR bytes. */
+fun RunnerCompleteRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerCompleteRequest from a decoded CBOR value tree. */
+fun runnerCompleteRequestFromCborValue(cbor: CborValue): RunnerCompleteRequest {
+    val step = runnerStepFromCborValue(CsilCbor.require(cbor, "step"))
+    val outcome = CsilCbor.asText(CsilCbor.require(cbor, "outcome"))
+    val outputs = CsilCbor.mapGet(cbor, "outputs")?.let { csilV -> CsilCbor.asMap(csilV).associate { (csilK, csilV) -> CsilCbor.asText(csilK) to CsilCbor.asText(csilV) } }
+    val error = CsilCbor.mapGet(cbor, "error")?.let { csilV -> CsilCbor.asText(csilV) }
+    return RunnerCompleteRequest(step = step, outcome = outcome, outputs = outputs, error = error)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerCompleteRequest. */
+fun runnerCompleteRequestFromCbor(bytes: ByteArray): RunnerCompleteRequest = runnerCompleteRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RunnerPutArtifactRequest (deep, canonical key order). */
+fun RunnerPutArtifactRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("body") to CborValue.CBytes(this.body))
+    csilEntries.add(CborValue.CText("step") to this.step.toCborValue())
+    this.labels?.let { csilV -> csilEntries.add(CborValue.CText("labels") to CborValue.CMap((csilV).map { (csilK, csilV) -> CborValue.CText(csilK) to CborValue.CText(csilV) })) }
+    csilEntries.add(CborValue.CText("media_type") to CborValue.CText(this.mediaType))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerPutArtifactRequest to canonical CSIL CBOR bytes. */
+fun RunnerPutArtifactRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerPutArtifactRequest from a decoded CBOR value tree. */
+fun runnerPutArtifactRequestFromCborValue(cbor: CborValue): RunnerPutArtifactRequest {
+    val step = runnerStepFromCborValue(CsilCbor.require(cbor, "step"))
+    val mediaType = CsilCbor.asText(CsilCbor.require(cbor, "media_type"))
+    val body = CsilCbor.asBytes(CsilCbor.require(cbor, "body"))
+    val labels = CsilCbor.mapGet(cbor, "labels")?.let { csilV -> CsilCbor.asMap(csilV).associate { (csilK, csilV) -> CsilCbor.asText(csilK) to CsilCbor.asText(csilV) } }
+    return RunnerPutArtifactRequest(step = step, mediaType = mediaType, body = body, labels = labels)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerPutArtifactRequest. */
+fun runnerPutArtifactRequestFromCbor(bytes: ByteArray): RunnerPutArtifactRequest = runnerPutArtifactRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RunnerPutArtifactResponse (deep, canonical key order). */
+fun RunnerPutArtifactResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("digest") to CborValue.CText(this.digest))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerPutArtifactResponse to canonical CSIL CBOR bytes. */
+fun RunnerPutArtifactResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerPutArtifactResponse from a decoded CBOR value tree. */
+fun runnerPutArtifactResponseFromCborValue(cbor: CborValue): RunnerPutArtifactResponse {
+    val digest = CsilCbor.asText(CsilCbor.require(cbor, "digest"))
+    return RunnerPutArtifactResponse(digest = digest)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerPutArtifactResponse. */
+fun runnerPutArtifactResponseFromCbor(bytes: ByteArray): RunnerPutArtifactResponse = runnerPutArtifactResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RunnerPostRequest (deep, canonical key order). */
+fun RunnerPostRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("step") to this.step.toCborValue())
+    csilEntries.add(CborValue.CText("text") to CborValue.CText(this.text))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerPostRequest to canonical CSIL CBOR bytes. */
+fun RunnerPostRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerPostRequest from a decoded CBOR value tree. */
+fun runnerPostRequestFromCborValue(cbor: CborValue): RunnerPostRequest {
+    val step = runnerStepFromCborValue(CsilCbor.require(cbor, "step"))
+    val text = CsilCbor.asText(CsilCbor.require(cbor, "text"))
+    return RunnerPostRequest(step = step, text = text)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerPostRequest. */
+fun runnerPostRequestFromCbor(bytes: ByteArray): RunnerPostRequest = runnerPostRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RunnerRunStatusRequest (deep, canonical key order). */
+fun RunnerRunStatusRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("run") to CborValue.CText(this.run))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerRunStatusRequest to canonical CSIL CBOR bytes. */
+fun RunnerRunStatusRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerRunStatusRequest from a decoded CBOR value tree. */
+fun runnerRunStatusRequestFromCborValue(cbor: CborValue): RunnerRunStatusRequest {
+    val run = CsilCbor.asText(CsilCbor.require(cbor, "run"))
+    return RunnerRunStatusRequest(run = run)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerRunStatusRequest. */
+fun runnerRunStatusRequestFromCbor(bytes: ByteArray): RunnerRunStatusRequest = runnerRunStatusRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RunnerRunStatusResponse (deep, canonical key order). */
+fun RunnerRunStatusResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("status") to CborValue.CText(this.status))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerRunStatusResponse to canonical CSIL CBOR bytes. */
+fun RunnerRunStatusResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerRunStatusResponse from a decoded CBOR value tree. */
+fun runnerRunStatusResponseFromCborValue(cbor: CborValue): RunnerRunStatusResponse {
+    val status = CsilCbor.asText(CsilCbor.require(cbor, "status"))
+    return RunnerRunStatusResponse(status = status)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerRunStatusResponse. */
+fun runnerRunStatusResponseFromCbor(bytes: ByteArray): RunnerRunStatusResponse = runnerRunStatusResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RunnerAck (deep, canonical key order). */
+fun RunnerAck.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("ok") to CborValue.CBool(this.ok))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerAck to canonical CSIL CBOR bytes. */
+fun RunnerAck.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerAck from a decoded CBOR value tree. */
+fun runnerAckFromCborValue(cbor: CborValue): RunnerAck {
+    val ok = CsilCbor.asBoolean(CsilCbor.require(cbor, "ok"))
+    return RunnerAck(ok = ok)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerAck. */
+fun runnerAckFromCbor(bytes: ByteArray): RunnerAck = runnerAckFromCborValue(CsilCbor.decode(bytes))
+
 /** Encode a generated CSIL record to canonical CBOR bytes. */
 fun <T> encode(value: T): ByteArray = CsilCbor.encode(csilToCborValue(value))
 
@@ -1038,6 +1323,7 @@ private fun csilToCborValue(value: Any?): CborValue = when (value) {
     is TaskDiff -> value.toCborValue()
     is GetTaskDiffRequest -> value.toCborValue()
     is DecideRequest -> value.toCborValue()
+    is CancelTaskRequest -> value.toCborValue()
     is KnowledgeItem -> value.toCborValue()
     is QueryKnowledgeRequest -> value.toCborValue()
     is QueryKnowledgeResponse -> value.toCborValue()
@@ -1045,6 +1331,18 @@ private fun csilToCborValue(value: Any?): CborValue = when (value) {
     is VoiceInfo -> value.toCborValue()
     is ListVoicesRequest -> value.toCborValue()
     is ListVoicesResponse -> value.toCborValue()
+    is RunnerClaimRequest -> value.toCborValue()
+    is RunnerAssignment -> value.toCborValue()
+    is RunnerClaimResponse -> value.toCborValue()
+    is RunnerStep -> value.toCborValue()
+    is RunnerProgressRequest -> value.toCborValue()
+    is RunnerCompleteRequest -> value.toCborValue()
+    is RunnerPutArtifactRequest -> value.toCborValue()
+    is RunnerPutArtifactResponse -> value.toCborValue()
+    is RunnerPostRequest -> value.toCborValue()
+    is RunnerRunStatusRequest -> value.toCborValue()
+    is RunnerRunStatusResponse -> value.toCborValue()
+    is RunnerAck -> value.toCborValue()
     else -> throw CborError("no CSIL CBOR codec for ${value::class}")
 }
 
@@ -1074,6 +1372,7 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     TaskDiff::class -> taskDiffFromCborValue(cbor)
     GetTaskDiffRequest::class -> getTaskDiffRequestFromCborValue(cbor)
     DecideRequest::class -> decideRequestFromCborValue(cbor)
+    CancelTaskRequest::class -> cancelTaskRequestFromCborValue(cbor)
     KnowledgeItem::class -> knowledgeItemFromCborValue(cbor)
     QueryKnowledgeRequest::class -> queryKnowledgeRequestFromCborValue(cbor)
     QueryKnowledgeResponse::class -> queryKnowledgeResponseFromCborValue(cbor)
@@ -1081,5 +1380,17 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     VoiceInfo::class -> voiceInfoFromCborValue(cbor)
     ListVoicesRequest::class -> listVoicesRequestFromCborValue(cbor)
     ListVoicesResponse::class -> listVoicesResponseFromCborValue(cbor)
+    RunnerClaimRequest::class -> runnerClaimRequestFromCborValue(cbor)
+    RunnerAssignment::class -> runnerAssignmentFromCborValue(cbor)
+    RunnerClaimResponse::class -> runnerClaimResponseFromCborValue(cbor)
+    RunnerStep::class -> runnerStepFromCborValue(cbor)
+    RunnerProgressRequest::class -> runnerProgressRequestFromCborValue(cbor)
+    RunnerCompleteRequest::class -> runnerCompleteRequestFromCborValue(cbor)
+    RunnerPutArtifactRequest::class -> runnerPutArtifactRequestFromCborValue(cbor)
+    RunnerPutArtifactResponse::class -> runnerPutArtifactResponseFromCborValue(cbor)
+    RunnerPostRequest::class -> runnerPostRequestFromCborValue(cbor)
+    RunnerRunStatusRequest::class -> runnerRunStatusRequestFromCborValue(cbor)
+    RunnerRunStatusResponse::class -> runnerRunStatusResponseFromCborValue(cbor)
+    RunnerAck::class -> runnerAckFromCborValue(cbor)
     else -> throw CborError("no CSIL CBOR codec for $type")
 }

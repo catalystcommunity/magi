@@ -817,6 +817,28 @@ export function toDecideRequestCbor(v) {
 export function fromDecideRequestCbor(bytes) {
     return fromDecideRequestCborValue(decode(bytes));
 }
+export function toCancelTaskRequestCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("task", v.task);
+    if (v.reason !== undefined)
+        csilMap.set("reason", v.reason);
+    if (v.confirm !== undefined)
+        csilMap.set("confirm", v.confirm);
+    return csilMap;
+}
+export function fromCancelTaskRequestCborValue(value) {
+    return {
+        task: asString(requireKey(value, "task")),
+        reason: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "reason")),
+        confirm: ((csilV) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "confirm")),
+    };
+}
+export function toCancelTaskRequestCbor(v) {
+    return encodeValue(toCancelTaskRequestCborValue(v));
+}
+export function fromCancelTaskRequestCbor(bytes) {
+    return fromCancelTaskRequestCborValue(decode(bytes));
+}
 export function toKnowledgeItemCborValue(v) {
     const csilMap = new Map();
     csilMap.set("id", v.id);

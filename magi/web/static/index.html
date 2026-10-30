@@ -55,8 +55,20 @@
     </section>
     <section data-view="task" hidden><div id="task"></div></section>
     <section data-view="knowledge" hidden>
-      <form id="k-form"><input id="kq" placeholder="Search knowledge"><button>Search</button></form>
+      <form id="k-form"><input id="kq" placeholder="Search knowledge (empty shows all)"><button>Search</button></form>
+      <p id="k-status" class="note"></p>
       <div id="k-list"></div>
+      <details id="k-add">
+        <summary>Add a fact</summary>
+        <form id="k-add-form">
+          <select id="ka-kind"><option>person</option><option>place</option><option>system</option><option>calendar</option><option>thing</option><option>fact</option></select>
+          <input id="ka-label" placeholder="Name, for example Dr. Rivera" required>
+          <input id="ka-summary" placeholder="Summary, for example My dentist">
+          <input id="ka-related" placeholder="Related to (name of another item), optional">
+          <input id="ka-relation" placeholder="Relation, for example works-at, optional">
+          <button>Remember</button>
+        </form>
+      </details>
     </section>
   </main>
 </div>

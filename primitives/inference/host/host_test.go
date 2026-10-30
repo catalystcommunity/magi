@@ -200,6 +200,33 @@ func TestBusyMachineYields(t *testing.T) {
 	}
 }
 
+// The engine's own GPU use while it loads and just after an answer does not
+// make the machine busy. Other GPU use after that does.
+func TestOwnGPUUseIsNotBusy(t *testing.T) {
+	e := setup(t, 20*time.Second)
+	e.s.set(Sample{GPUUtil: 90, GPUUsedMiB: 9000, GPUTotalMiB: 16000})
+	e.h.mu.Lock()
+	e.h.startLocked()
+	e.h.mu.Unlock()
+	e.h.check(context.Background()) // loading
+	if st := e.state(); st == "busy" || st == "off" {
+		t.Fatalf("loading engine stopped: %s", st)
+	}
+	e.s.set(Sample{GPUUtil: 0, GPUUsedMiB: 9000, GPUTotalMiB: 16000})
+	if code, _, body := e.chat(t, e.tok(Scope)); code != 200 {
+		t.Fatalf("chat: %d %s", code, body)
+	}
+	e.s.set(Sample{GPUUtil: 90, GPUUsedMiB: 9000, GPUTotalMiB: 16000})
+	e.advance(5 * time.Second)
+	e.h.check(context.Background()) // just after the answer
+	if st := e.state(); st != "ready" {
+		t.Fatalf("after answer: %s", st)
+	}
+	e.advance(30 * time.Second)
+	e.h.check(context.Background()) // someone else uses the GPU
+	waitState(t, e, "busy")
+}
+
 func TestRules(t *testing.T) {
 	r := DefaultRules()
 	cases := []struct {

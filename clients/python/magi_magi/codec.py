@@ -1013,6 +1013,37 @@ def _decide_request_from_cbor(data: bytes) -> "DecideRequest":
 DecideRequest.to_cbor = _decide_request_to_cbor
 DecideRequest.from_cbor = staticmethod(_decide_request_from_cbor)
 
+def _encode_cancel_task_request_value(v: "CancelTaskRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["task"] = v.task
+    csil_x = v.reason
+    if csil_x is not None:
+        csil_m["reason"] = csil_x
+    csil_x = v.confirm
+    if csil_x is not None:
+        csil_m["confirm"] = csil_x
+    return csil_m
+
+def _decode_cancel_task_request_value(tree: Any) -> "CancelTaskRequest":
+    tree = _csil_expect_map(tree)
+    return CancelTaskRequest(
+        task=_csil_expect_text(tree["task"]),
+        reason=(None if tree.get("reason") is None else _csil_expect_text(tree["reason"])),
+        confirm=(None if tree.get("confirm") is None else _csil_expect_bool(tree["confirm"])),
+    )
+
+
+def _cancel_task_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_cancel_task_request_value(self))
+
+
+def _cancel_task_request_from_cbor(data: bytes) -> "CancelTaskRequest":
+    return _decode_cancel_task_request_value(cbor_decode(data))
+
+
+CancelTaskRequest.to_cbor = _cancel_task_request_to_cbor
+CancelTaskRequest.from_cbor = staticmethod(_cancel_task_request_from_cbor)
+
 def _encode_knowledge_item_value(v: "KnowledgeItem") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["id"] = v.id
@@ -1233,3 +1264,325 @@ def _list_voices_response_from_cbor(data: bytes) -> "ListVoicesResponse":
 
 ListVoicesResponse.to_cbor = _list_voices_response_to_cbor
 ListVoicesResponse.from_cbor = staticmethod(_list_voices_response_from_cbor)
+
+def _encode_runner_claim_request_value(v: "RunnerClaimRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["queue"] = v.queue
+    csil_x = v.wait_ms
+    if csil_x is not None:
+        csil_m["wait_ms"] = csil_x
+    return csil_m
+
+def _decode_runner_claim_request_value(tree: Any) -> "RunnerClaimRequest":
+    tree = _csil_expect_map(tree)
+    return RunnerClaimRequest(
+        queue=_csil_expect_text(tree["queue"]),
+        wait_ms=(None if tree.get("wait_ms") is None else _csil_expect_uint(tree["wait_ms"])),
+    )
+
+
+def _runner_claim_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_claim_request_value(self))
+
+
+def _runner_claim_request_from_cbor(data: bytes) -> "RunnerClaimRequest":
+    return _decode_runner_claim_request_value(cbor_decode(data))
+
+
+RunnerClaimRequest.to_cbor = _runner_claim_request_to_cbor
+RunnerClaimRequest.from_cbor = staticmethod(_runner_claim_request_from_cbor)
+
+def _encode_runner_assignment_value(v: "RunnerAssignment") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["run"] = v.run
+    csil_m["step"] = v.step
+    csil_m["vars"] = v.vars
+    csil_m["claim"] = v.claim
+    csil_m["owner"] = v.owner
+    csil_m["attempt"] = v.attempt
+    return csil_m
+
+def _decode_runner_assignment_value(tree: Any) -> "RunnerAssignment":
+    tree = _csil_expect_map(tree)
+    return RunnerAssignment(
+        run=_csil_expect_text(tree["run"]),
+        step=_csil_expect_text(tree["step"]),
+        attempt=_csil_expect_uint(tree["attempt"]),
+        claim=_csil_expect_text(tree["claim"]),
+        owner=_csil_expect_text(tree["owner"]),
+        vars={_csil_expect_text(csil_k): _csil_expect_text(csil_v) for csil_k, csil_v in _csil_expect_map(tree["vars"]).items()},
+    )
+
+
+def _runner_assignment_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_assignment_value(self))
+
+
+def _runner_assignment_from_cbor(data: bytes) -> "RunnerAssignment":
+    return _decode_runner_assignment_value(cbor_decode(data))
+
+
+RunnerAssignment.to_cbor = _runner_assignment_to_cbor
+RunnerAssignment.from_cbor = staticmethod(_runner_assignment_from_cbor)
+
+def _encode_runner_claim_response_value(v: "RunnerClaimResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.assignment
+    if csil_x is not None:
+        csil_m["assignment"] = _encode_runner_assignment_value(csil_x)
+    return csil_m
+
+def _decode_runner_claim_response_value(tree: Any) -> "RunnerClaimResponse":
+    tree = _csil_expect_map(tree)
+    return RunnerClaimResponse(
+        assignment=(None if tree.get("assignment") is None else _decode_runner_assignment_value(tree["assignment"])),
+    )
+
+
+def _runner_claim_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_claim_response_value(self))
+
+
+def _runner_claim_response_from_cbor(data: bytes) -> "RunnerClaimResponse":
+    return _decode_runner_claim_response_value(cbor_decode(data))
+
+
+RunnerClaimResponse.to_cbor = _runner_claim_response_to_cbor
+RunnerClaimResponse.from_cbor = staticmethod(_runner_claim_response_from_cbor)
+
+def _encode_runner_step_value(v: "RunnerStep") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["run"] = v.run
+    csil_m["step"] = v.step
+    csil_m["claim"] = v.claim
+    return csil_m
+
+def _decode_runner_step_value(tree: Any) -> "RunnerStep":
+    tree = _csil_expect_map(tree)
+    return RunnerStep(
+        run=_csil_expect_text(tree["run"]),
+        step=_csil_expect_text(tree["step"]),
+        claim=_csil_expect_text(tree["claim"]),
+    )
+
+
+def _runner_step_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_step_value(self))
+
+
+def _runner_step_from_cbor(data: bytes) -> "RunnerStep":
+    return _decode_runner_step_value(cbor_decode(data))
+
+
+RunnerStep.to_cbor = _runner_step_to_cbor
+RunnerStep.from_cbor = staticmethod(_runner_step_from_cbor)
+
+def _encode_runner_progress_request_value(v: "RunnerProgressRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.ref
+    if csil_x is not None:
+        csil_m["ref"] = csil_x
+    csil_m["note"] = v.note
+    csil_m["step"] = _encode_runner_step_value(v.step)
+    return csil_m
+
+def _decode_runner_progress_request_value(tree: Any) -> "RunnerProgressRequest":
+    tree = _csil_expect_map(tree)
+    return RunnerProgressRequest(
+        step=_decode_runner_step_value(tree["step"]),
+        note=_csil_expect_text(tree["note"]),
+        ref=(None if tree.get("ref") is None else _csil_expect_text(tree["ref"])),
+    )
+
+
+def _runner_progress_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_progress_request_value(self))
+
+
+def _runner_progress_request_from_cbor(data: bytes) -> "RunnerProgressRequest":
+    return _decode_runner_progress_request_value(cbor_decode(data))
+
+
+RunnerProgressRequest.to_cbor = _runner_progress_request_to_cbor
+RunnerProgressRequest.from_cbor = staticmethod(_runner_progress_request_from_cbor)
+
+def _encode_runner_complete_request_value(v: "RunnerCompleteRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["step"] = _encode_runner_step_value(v.step)
+    csil_x = v.error
+    if csil_x is not None:
+        csil_m["error"] = csil_x
+    csil_m["outcome"] = v.outcome
+    csil_x = v.outputs
+    if csil_x is not None:
+        csil_m["outputs"] = csil_x
+    return csil_m
+
+def _decode_runner_complete_request_value(tree: Any) -> "RunnerCompleteRequest":
+    tree = _csil_expect_map(tree)
+    return RunnerCompleteRequest(
+        step=_decode_runner_step_value(tree["step"]),
+        outcome=_csil_expect_text(tree["outcome"]),
+        outputs=(None if tree.get("outputs") is None else {_csil_expect_text(csil_k): _csil_expect_text(csil_v) for csil_k, csil_v in _csil_expect_map(tree["outputs"]).items()}),
+        error=(None if tree.get("error") is None else _csil_expect_text(tree["error"])),
+    )
+
+
+def _runner_complete_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_complete_request_value(self))
+
+
+def _runner_complete_request_from_cbor(data: bytes) -> "RunnerCompleteRequest":
+    return _decode_runner_complete_request_value(cbor_decode(data))
+
+
+RunnerCompleteRequest.to_cbor = _runner_complete_request_to_cbor
+RunnerCompleteRequest.from_cbor = staticmethod(_runner_complete_request_from_cbor)
+
+def _encode_runner_put_artifact_request_value(v: "RunnerPutArtifactRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["body"] = v.body
+    csil_m["step"] = _encode_runner_step_value(v.step)
+    csil_x = v.labels
+    if csil_x is not None:
+        csil_m["labels"] = csil_x
+    csil_m["media_type"] = v.media_type
+    return csil_m
+
+def _decode_runner_put_artifact_request_value(tree: Any) -> "RunnerPutArtifactRequest":
+    tree = _csil_expect_map(tree)
+    return RunnerPutArtifactRequest(
+        step=_decode_runner_step_value(tree["step"]),
+        media_type=_csil_expect_text(tree["media_type"]),
+        body=_csil_expect_bytes(tree["body"]),
+        labels=(None if tree.get("labels") is None else {_csil_expect_text(csil_k): _csil_expect_text(csil_v) for csil_k, csil_v in _csil_expect_map(tree["labels"]).items()}),
+    )
+
+
+def _runner_put_artifact_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_put_artifact_request_value(self))
+
+
+def _runner_put_artifact_request_from_cbor(data: bytes) -> "RunnerPutArtifactRequest":
+    return _decode_runner_put_artifact_request_value(cbor_decode(data))
+
+
+RunnerPutArtifactRequest.to_cbor = _runner_put_artifact_request_to_cbor
+RunnerPutArtifactRequest.from_cbor = staticmethod(_runner_put_artifact_request_from_cbor)
+
+def _encode_runner_put_artifact_response_value(v: "RunnerPutArtifactResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["digest"] = v.digest
+    return csil_m
+
+def _decode_runner_put_artifact_response_value(tree: Any) -> "RunnerPutArtifactResponse":
+    tree = _csil_expect_map(tree)
+    return RunnerPutArtifactResponse(
+        digest=_csil_expect_text(tree["digest"]),
+    )
+
+
+def _runner_put_artifact_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_put_artifact_response_value(self))
+
+
+def _runner_put_artifact_response_from_cbor(data: bytes) -> "RunnerPutArtifactResponse":
+    return _decode_runner_put_artifact_response_value(cbor_decode(data))
+
+
+RunnerPutArtifactResponse.to_cbor = _runner_put_artifact_response_to_cbor
+RunnerPutArtifactResponse.from_cbor = staticmethod(_runner_put_artifact_response_from_cbor)
+
+def _encode_runner_post_request_value(v: "RunnerPostRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["step"] = _encode_runner_step_value(v.step)
+    csil_m["text"] = v.text
+    return csil_m
+
+def _decode_runner_post_request_value(tree: Any) -> "RunnerPostRequest":
+    tree = _csil_expect_map(tree)
+    return RunnerPostRequest(
+        step=_decode_runner_step_value(tree["step"]),
+        text=_csil_expect_text(tree["text"]),
+    )
+
+
+def _runner_post_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_post_request_value(self))
+
+
+def _runner_post_request_from_cbor(data: bytes) -> "RunnerPostRequest":
+    return _decode_runner_post_request_value(cbor_decode(data))
+
+
+RunnerPostRequest.to_cbor = _runner_post_request_to_cbor
+RunnerPostRequest.from_cbor = staticmethod(_runner_post_request_from_cbor)
+
+def _encode_runner_run_status_request_value(v: "RunnerRunStatusRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["run"] = v.run
+    return csil_m
+
+def _decode_runner_run_status_request_value(tree: Any) -> "RunnerRunStatusRequest":
+    tree = _csil_expect_map(tree)
+    return RunnerRunStatusRequest(
+        run=_csil_expect_text(tree["run"]),
+    )
+
+
+def _runner_run_status_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_run_status_request_value(self))
+
+
+def _runner_run_status_request_from_cbor(data: bytes) -> "RunnerRunStatusRequest":
+    return _decode_runner_run_status_request_value(cbor_decode(data))
+
+
+RunnerRunStatusRequest.to_cbor = _runner_run_status_request_to_cbor
+RunnerRunStatusRequest.from_cbor = staticmethod(_runner_run_status_request_from_cbor)
+
+def _encode_runner_run_status_response_value(v: "RunnerRunStatusResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["status"] = v.status
+    return csil_m
+
+def _decode_runner_run_status_response_value(tree: Any) -> "RunnerRunStatusResponse":
+    tree = _csil_expect_map(tree)
+    return RunnerRunStatusResponse(
+        status=_csil_expect_text(tree["status"]),
+    )
+
+
+def _runner_run_status_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_run_status_response_value(self))
+
+
+def _runner_run_status_response_from_cbor(data: bytes) -> "RunnerRunStatusResponse":
+    return _decode_runner_run_status_response_value(cbor_decode(data))
+
+
+RunnerRunStatusResponse.to_cbor = _runner_run_status_response_to_cbor
+RunnerRunStatusResponse.from_cbor = staticmethod(_runner_run_status_response_from_cbor)
+
+def _encode_runner_ack_value(v: "RunnerAck") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["ok"] = v.ok
+    return csil_m
+
+def _decode_runner_ack_value(tree: Any) -> "RunnerAck":
+    tree = _csil_expect_map(tree)
+    return RunnerAck(
+        ok=_csil_expect_bool(tree["ok"]),
+    )
+
+
+def _runner_ack_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_ack_value(self))
+
+
+def _runner_ack_from_cbor(data: bytes) -> "RunnerAck":
+    return _decode_runner_ack_value(cbor_decode(data))
+
+
+RunnerAck.to_cbor = _runner_ack_to_cbor
+RunnerAck.from_cbor = staticmethod(_runner_ack_from_cbor)

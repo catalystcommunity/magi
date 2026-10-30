@@ -3,6 +3,7 @@ package authn
 import (
 	"crypto/ed25519"
 	"encoding/base64"
+	"strings"
 	"testing"
 	"time"
 )
@@ -25,8 +26,26 @@ func TestIssueVerify(t *testing.T) {
 	if err != nil || p.Subject != "service:agent" || !p.Has("workflow:decide") || p.Has("artifacts:read") {
 		t.Fatalf("verify: %+v %v", p, err)
 	}
-	if _, err := v.Verify(tok[:len(tok)-2] + "AA"); err == nil {
+	// Change one character in the middle of the signature. (A change of
+	// the last characters can keep the same bytes.)
+	i := strings.LastIndexByte(tok, '.') + 20
+	c := byte('A')
+	if tok[i] == 'A' {
+		c = 'B'
+	}
+	if _, err := v.Verify(tok[:i] + string(c) + tok[i+1:]); err == nil {
 		t.Fatal("tampered token accepted")
+	}
+	// Other spellings of the same signature (the unused low bits of the
+	// last character) are refused.
+	last := tok[len(tok)-1]
+	for _, alt := range "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_" {
+		if byte(alt) == last {
+			continue
+		}
+		if _, err := v.Verify(tok[:len(tok)-1] + string(alt)); err == nil {
+			t.Fatalf("token with last character %q accepted", alt)
+		}
 	}
 	v.Now = func() time.Time { return now.Add(2 * time.Minute) }
 	if _, err := v.Verify(tok); err != ErrExpired {

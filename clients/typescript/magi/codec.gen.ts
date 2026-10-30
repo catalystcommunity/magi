@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { AudioResponse, Chat, DecideRequest, FileChange, GetAudioRequest, GetTaskDiffRequest, GetTaskRequest, KnowledgeItem, ListChatsRequest, ListChatsResponse, ListTasksRequest, ListTasksResponse, ListVoicesRequest, ListVoicesResponse, Message, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, SayRequest, SayResponse, StartTaskRequest, Task, TaskDiff, TaskStep, VoiceInfo } from "./types.gen.ts";
+import type { AudioResponse, CancelTaskRequest, Chat, DecideRequest, FileChange, GetAudioRequest, GetTaskDiffRequest, GetTaskRequest, KnowledgeItem, ListChatsRequest, ListChatsResponse, ListTasksRequest, ListTasksResponse, ListVoicesRequest, ListVoicesResponse, Message, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, RunnerAck, RunnerAssignment, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, SayRequest, SayResponse, StartTaskRequest, Task, TaskDiff, TaskStep, VoiceInfo } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -880,6 +880,30 @@ export function fromDecideRequestCbor(bytes: Uint8Array): DecideRequest {
   return fromDecideRequestCborValue(decode(bytes));
 }
 
+export function toCancelTaskRequestCborValue(v: CancelTaskRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("task", v.task);
+  if (v.reason !== undefined) csilMap.set("reason", v.reason);
+  if (v.confirm !== undefined) csilMap.set("confirm", v.confirm);
+  return csilMap;
+}
+
+export function fromCancelTaskRequestCborValue(value: CborValue): CancelTaskRequest {
+  return {
+    task: asString(requireKey(value, "task")),
+    reason: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "reason")),
+    confirm: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "confirm")),
+  };
+}
+
+export function toCancelTaskRequestCbor(v: CancelTaskRequest): Uint8Array {
+  return encodeValue(toCancelTaskRequestCborValue(v));
+}
+
+export function fromCancelTaskRequestCbor(bytes: Uint8Array): CancelTaskRequest {
+  return fromCancelTaskRequestCborValue(decode(bytes));
+}
+
 export function toKnowledgeItemCborValue(v: KnowledgeItem): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("id", v.id);
@@ -1054,5 +1078,279 @@ export function toListVoicesResponseCbor(v: ListVoicesResponse): Uint8Array {
 
 export function fromListVoicesResponseCbor(bytes: Uint8Array): ListVoicesResponse {
   return fromListVoicesResponseCborValue(decode(bytes));
+}
+
+export function toRunnerClaimRequestCborValue(v: RunnerClaimRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("queue", v.queue);
+  if (v.waitMs !== undefined) csilMap.set("wait_ms", v.waitMs);
+  return csilMap;
+}
+
+export function fromRunnerClaimRequestCborValue(value: CborValue): RunnerClaimRequest {
+  return {
+    queue: asString(requireKey(value, "queue")),
+    waitMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "wait_ms")),
+  };
+}
+
+export function toRunnerClaimRequestCbor(v: RunnerClaimRequest): Uint8Array {
+  return encodeValue(toRunnerClaimRequestCborValue(v));
+}
+
+export function fromRunnerClaimRequestCbor(bytes: Uint8Array): RunnerClaimRequest {
+  return fromRunnerClaimRequestCborValue(decode(bytes));
+}
+
+export function toRunnerAssignmentCborValue(v: RunnerAssignment): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("run", v.run);
+  csilMap.set("step", v.step);
+  csilMap.set("vars", new Map<CborValue, CborValue>(Object.entries(v.vars).map(([csilK, csilV]): [CborValue, CborValue] => [csilK, csilV])));
+  csilMap.set("claim", v.claim);
+  csilMap.set("owner", v.owner);
+  csilMap.set("attempt", v.attempt);
+  return csilMap;
+}
+
+export function fromRunnerAssignmentCborValue(value: CborValue): RunnerAssignment {
+  return {
+    run: asString(requireKey(value, "run")),
+    step: asString(requireKey(value, "step")),
+    attempt: asNumber(requireKey(value, "attempt")),
+    claim: asString(requireKey(value, "claim")),
+    owner: asString(requireKey(value, "owner")),
+    vars: Object.fromEntries(Array.from(asMap(requireKey(value, "vars")), ([csilK, csilV]): [string, string] => [asString(csilK), asString(csilV)])),
+  };
+}
+
+export function toRunnerAssignmentCbor(v: RunnerAssignment): Uint8Array {
+  return encodeValue(toRunnerAssignmentCborValue(v));
+}
+
+export function fromRunnerAssignmentCbor(bytes: Uint8Array): RunnerAssignment {
+  return fromRunnerAssignmentCborValue(decode(bytes));
+}
+
+export function toRunnerClaimResponseCborValue(v: RunnerClaimResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.assignment !== undefined) csilMap.set("assignment", toRunnerAssignmentCborValue(v.assignment));
+  return csilMap;
+}
+
+export function fromRunnerClaimResponseCborValue(value: CborValue): RunnerClaimResponse {
+  return {
+    assignment: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromRunnerAssignmentCborValue(csilV))(mapGet(value, "assignment")),
+  };
+}
+
+export function toRunnerClaimResponseCbor(v: RunnerClaimResponse): Uint8Array {
+  return encodeValue(toRunnerClaimResponseCborValue(v));
+}
+
+export function fromRunnerClaimResponseCbor(bytes: Uint8Array): RunnerClaimResponse {
+  return fromRunnerClaimResponseCborValue(decode(bytes));
+}
+
+export function toRunnerStepCborValue(v: RunnerStep): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("run", v.run);
+  csilMap.set("step", v.step);
+  csilMap.set("claim", v.claim);
+  return csilMap;
+}
+
+export function fromRunnerStepCborValue(value: CborValue): RunnerStep {
+  return {
+    run: asString(requireKey(value, "run")),
+    step: asString(requireKey(value, "step")),
+    claim: asString(requireKey(value, "claim")),
+  };
+}
+
+export function toRunnerStepCbor(v: RunnerStep): Uint8Array {
+  return encodeValue(toRunnerStepCborValue(v));
+}
+
+export function fromRunnerStepCbor(bytes: Uint8Array): RunnerStep {
+  return fromRunnerStepCborValue(decode(bytes));
+}
+
+export function toRunnerProgressRequestCborValue(v: RunnerProgressRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.ref !== undefined) csilMap.set("ref", v.ref);
+  csilMap.set("note", v.note);
+  csilMap.set("step", toRunnerStepCborValue(v.step));
+  return csilMap;
+}
+
+export function fromRunnerProgressRequestCborValue(value: CborValue): RunnerProgressRequest {
+  return {
+    step: fromRunnerStepCborValue(requireKey(value, "step")),
+    note: asString(requireKey(value, "note")),
+    ref: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "ref")),
+  };
+}
+
+export function toRunnerProgressRequestCbor(v: RunnerProgressRequest): Uint8Array {
+  return encodeValue(toRunnerProgressRequestCborValue(v));
+}
+
+export function fromRunnerProgressRequestCbor(bytes: Uint8Array): RunnerProgressRequest {
+  return fromRunnerProgressRequestCborValue(decode(bytes));
+}
+
+export function toRunnerCompleteRequestCborValue(v: RunnerCompleteRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("step", toRunnerStepCborValue(v.step));
+  if (v.error !== undefined) csilMap.set("error", v.error);
+  csilMap.set("outcome", v.outcome);
+  if (v.outputs !== undefined) csilMap.set("outputs", new Map<CborValue, CborValue>(Object.entries(v.outputs).map(([csilK, csilV]): [CborValue, CborValue] => [csilK, csilV])));
+  return csilMap;
+}
+
+export function fromRunnerCompleteRequestCborValue(value: CborValue): RunnerCompleteRequest {
+  return {
+    step: fromRunnerStepCborValue(requireKey(value, "step")),
+    outcome: asString(requireKey(value, "outcome")),
+    outputs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : Object.fromEntries(Array.from(asMap(csilV), ([csilK, csilV]): [string, string] => [asString(csilK), asString(csilV)])))(mapGet(value, "outputs")),
+    error: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "error")),
+  };
+}
+
+export function toRunnerCompleteRequestCbor(v: RunnerCompleteRequest): Uint8Array {
+  return encodeValue(toRunnerCompleteRequestCborValue(v));
+}
+
+export function fromRunnerCompleteRequestCbor(bytes: Uint8Array): RunnerCompleteRequest {
+  return fromRunnerCompleteRequestCborValue(decode(bytes));
+}
+
+export function toRunnerPutArtifactRequestCborValue(v: RunnerPutArtifactRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("body", v.body);
+  csilMap.set("step", toRunnerStepCborValue(v.step));
+  if (v.labels !== undefined) csilMap.set("labels", new Map<CborValue, CborValue>(Object.entries(v.labels).map(([csilK, csilV]): [CborValue, CborValue] => [csilK, csilV])));
+  csilMap.set("media_type", v.mediaType);
+  return csilMap;
+}
+
+export function fromRunnerPutArtifactRequestCborValue(value: CborValue): RunnerPutArtifactRequest {
+  return {
+    step: fromRunnerStepCborValue(requireKey(value, "step")),
+    mediaType: asString(requireKey(value, "media_type")),
+    body: asBytes(requireKey(value, "body")),
+    labels: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : Object.fromEntries(Array.from(asMap(csilV), ([csilK, csilV]): [string, string] => [asString(csilK), asString(csilV)])))(mapGet(value, "labels")),
+  };
+}
+
+export function toRunnerPutArtifactRequestCbor(v: RunnerPutArtifactRequest): Uint8Array {
+  return encodeValue(toRunnerPutArtifactRequestCborValue(v));
+}
+
+export function fromRunnerPutArtifactRequestCbor(bytes: Uint8Array): RunnerPutArtifactRequest {
+  return fromRunnerPutArtifactRequestCborValue(decode(bytes));
+}
+
+export function toRunnerPutArtifactResponseCborValue(v: RunnerPutArtifactResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("digest", v.digest);
+  return csilMap;
+}
+
+export function fromRunnerPutArtifactResponseCborValue(value: CborValue): RunnerPutArtifactResponse {
+  return {
+    digest: asString(requireKey(value, "digest")),
+  };
+}
+
+export function toRunnerPutArtifactResponseCbor(v: RunnerPutArtifactResponse): Uint8Array {
+  return encodeValue(toRunnerPutArtifactResponseCborValue(v));
+}
+
+export function fromRunnerPutArtifactResponseCbor(bytes: Uint8Array): RunnerPutArtifactResponse {
+  return fromRunnerPutArtifactResponseCborValue(decode(bytes));
+}
+
+export function toRunnerPostRequestCborValue(v: RunnerPostRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("step", toRunnerStepCborValue(v.step));
+  csilMap.set("text", v.text);
+  return csilMap;
+}
+
+export function fromRunnerPostRequestCborValue(value: CborValue): RunnerPostRequest {
+  return {
+    step: fromRunnerStepCborValue(requireKey(value, "step")),
+    text: asString(requireKey(value, "text")),
+  };
+}
+
+export function toRunnerPostRequestCbor(v: RunnerPostRequest): Uint8Array {
+  return encodeValue(toRunnerPostRequestCborValue(v));
+}
+
+export function fromRunnerPostRequestCbor(bytes: Uint8Array): RunnerPostRequest {
+  return fromRunnerPostRequestCborValue(decode(bytes));
+}
+
+export function toRunnerRunStatusRequestCborValue(v: RunnerRunStatusRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("run", v.run);
+  return csilMap;
+}
+
+export function fromRunnerRunStatusRequestCborValue(value: CborValue): RunnerRunStatusRequest {
+  return {
+    run: asString(requireKey(value, "run")),
+  };
+}
+
+export function toRunnerRunStatusRequestCbor(v: RunnerRunStatusRequest): Uint8Array {
+  return encodeValue(toRunnerRunStatusRequestCborValue(v));
+}
+
+export function fromRunnerRunStatusRequestCbor(bytes: Uint8Array): RunnerRunStatusRequest {
+  return fromRunnerRunStatusRequestCborValue(decode(bytes));
+}
+
+export function toRunnerRunStatusResponseCborValue(v: RunnerRunStatusResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("status", v.status);
+  return csilMap;
+}
+
+export function fromRunnerRunStatusResponseCborValue(value: CborValue): RunnerRunStatusResponse {
+  return {
+    status: asString(requireKey(value, "status")),
+  };
+}
+
+export function toRunnerRunStatusResponseCbor(v: RunnerRunStatusResponse): Uint8Array {
+  return encodeValue(toRunnerRunStatusResponseCborValue(v));
+}
+
+export function fromRunnerRunStatusResponseCbor(bytes: Uint8Array): RunnerRunStatusResponse {
+  return fromRunnerRunStatusResponseCborValue(decode(bytes));
+}
+
+export function toRunnerAckCborValue(v: RunnerAck): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("ok", v.ok);
+  return csilMap;
+}
+
+export function fromRunnerAckCborValue(value: CborValue): RunnerAck {
+  return {
+    ok: asBool(requireKey(value, "ok")),
+  };
+}
+
+export function toRunnerAckCbor(v: RunnerAck): Uint8Array {
+  return encodeValue(toRunnerAckCborValue(v));
+}
+
+export function fromRunnerAckCbor(bytes: Uint8Array): RunnerAck {
+  return fromRunnerAckCborValue(decode(bytes));
 }
 

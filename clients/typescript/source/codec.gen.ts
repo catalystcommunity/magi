@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { BundleRequest, BundleResponse, CreateRepoRequest, DeleteBranchRequest, DeleteBranchResponse, DiffRequest, DiffResult, FileChange, GetRepoRequest, ListRefsRequest, ListRefsResponse, ListReposRequest, ListReposResponse, MergeRequest, MergeResult, PushBundleRequest, PushBundleResponse, Ref, Repository } from "./types.gen.ts";
+import type { BundleRequest, BundleResponse, CreateRepoRequest, DeleteBranchRequest, DeleteBranchResponse, DiffRequest, DiffResult, FileChange, GetRepoRequest, ListRefsRequest, ListRefsResponse, ListReposRequest, ListReposResponse, MergeRequest, MergeResult, PublishRequest, PublishResult, PushBundleRequest, PushBundleResponse, Ref, Repository, SyncRequest, SyncResult } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -394,6 +394,7 @@ export function toCreateRepoRequestCborValue(v: CreateRepoRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("name", v.name);
   if (v.owner !== undefined) csilMap.set("owner", v.owner);
+  if (v.upstream !== undefined) csilMap.set("upstream", v.upstream);
   if (v.seedBundle !== undefined) csilMap.set("seed_bundle", v.seedBundle);
   if (v.defaultBranch !== undefined) csilMap.set("default_branch", v.defaultBranch);
   return csilMap;
@@ -405,6 +406,7 @@ export function fromCreateRepoRequestCborValue(value: CborValue): CreateRepoRequ
     defaultBranch: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "default_branch")),
     owner: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "owner")),
     seedBundle: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBytes(csilV))(mapGet(value, "seed_bundle")),
+    upstream: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "upstream")),
   };
 }
 
@@ -774,5 +776,93 @@ export function toPushBundleResponseCbor(v: PushBundleResponse): Uint8Array {
 
 export function fromPushBundleResponseCbor(bytes: Uint8Array): PushBundleResponse {
   return fromPushBundleResponseCborValue(decode(bytes));
+}
+
+export function toSyncRequestCborValue(v: SyncRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("repo", v.repo);
+  return csilMap;
+}
+
+export function fromSyncRequestCborValue(value: CborValue): SyncRequest {
+  return {
+    repo: asString(requireKey(value, "repo")),
+  };
+}
+
+export function toSyncRequestCbor(v: SyncRequest): Uint8Array {
+  return encodeValue(toSyncRequestCborValue(v));
+}
+
+export function fromSyncRequestCbor(bytes: Uint8Array): SyncRequest {
+  return fromSyncRequestCborValue(decode(bytes));
+}
+
+export function toSyncResultCborValue(v: SyncResult): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("commit", v.commit);
+  csilMap.set("status", v.status);
+  csilMap.set("upstream_commit", v.upstreamCommit);
+  return csilMap;
+}
+
+export function fromSyncResultCborValue(value: CborValue): SyncResult {
+  return {
+    status: asString(requireKey(value, "status")),
+    commit: asString(requireKey(value, "commit")),
+    upstreamCommit: asString(requireKey(value, "upstream_commit")),
+  };
+}
+
+export function toSyncResultCbor(v: SyncResult): Uint8Array {
+  return encodeValue(toSyncResultCborValue(v));
+}
+
+export function fromSyncResultCbor(bytes: Uint8Array): SyncResult {
+  return fromSyncResultCborValue(decode(bytes));
+}
+
+export function toPublishRequestCborValue(v: PublishRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("repo", v.repo);
+  return csilMap;
+}
+
+export function fromPublishRequestCborValue(value: CborValue): PublishRequest {
+  return {
+    repo: asString(requireKey(value, "repo")),
+  };
+}
+
+export function toPublishRequestCbor(v: PublishRequest): Uint8Array {
+  return encodeValue(toPublishRequestCborValue(v));
+}
+
+export function fromPublishRequestCbor(bytes: Uint8Array): PublishRequest {
+  return fromPublishRequestCborValue(decode(bytes));
+}
+
+export function toPublishResultCborValue(v: PublishResult): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("commit", v.commit);
+  csilMap.set("pushed", v.pushed);
+  if (v.message !== undefined) csilMap.set("message", v.message);
+  return csilMap;
+}
+
+export function fromPublishResultCborValue(value: CborValue): PublishResult {
+  return {
+    pushed: asBool(requireKey(value, "pushed")),
+    commit: asString(requireKey(value, "commit")),
+    message: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "message")),
+  };
+}
+
+export function toPublishResultCbor(v: PublishResult): Uint8Array {
+  return encodeValue(toPublishResultCborValue(v));
+}
+
+export function fromPublishResultCbor(bytes: Uint8Array): PublishResult {
+  return fromPublishResultCborValue(decode(bytes));
 }
 

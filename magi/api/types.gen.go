@@ -168,6 +168,13 @@ type DecideRequest struct {
 	Comment *string `json:"comment,omitempty" yaml:"comment,omitempty"`
 }
 
+// CancelTaskRequest represents a structured data type
+type CancelTaskRequest struct {
+	Task    string  `json:"task" yaml:"task"`
+	Reason  *string `json:"reason,omitempty" yaml:"reason,omitempty"`
+	Confirm *bool   `json:"confirm,omitempty" yaml:"confirm,omitempty"`
+}
+
 // KnowledgeItem represents a structured data type
 type KnowledgeItem struct {
 	Id         string            `json:"id" yaml:"id"`
@@ -219,4 +226,81 @@ type ListVoicesRequest struct {
 // ListVoicesResponse represents a structured data type
 type ListVoicesResponse struct {
 	Voices []VoiceInfo `json:"voices" yaml:"voices"`
+}
+
+// RunnerClaimRequest represents a structured data type
+type RunnerClaimRequest struct {
+	Queue  string  `json:"queue" yaml:"queue"`
+	WaitMs *uint64 `json:"wait_ms,omitempty" yaml:"wait_ms,omitempty"`
+}
+
+// RunnerAssignment represents a structured data type
+type RunnerAssignment struct {
+	Run     string            `json:"run" yaml:"run"`
+	Step    string            `json:"step" yaml:"step"`
+	Attempt uint64            `json:"attempt" yaml:"attempt"`
+	Claim   string            `json:"claim" yaml:"claim"`
+	Owner   string            `json:"owner" yaml:"owner"`
+	Vars    map[string]string `json:"vars" yaml:",inline"`
+}
+
+// RunnerClaimResponse represents a structured data type
+type RunnerClaimResponse struct {
+	Assignment *RunnerAssignment `json:"assignment,omitempty" yaml:"assignment,omitempty"`
+}
+
+// RunnerStep represents a structured data type
+type RunnerStep struct {
+	Run   string `json:"run" yaml:"run"`
+	Step  string `json:"step" yaml:"step"`
+	Claim string `json:"claim" yaml:"claim"`
+}
+
+// RunnerProgressRequest represents a structured data type
+type RunnerProgressRequest struct {
+	Step RunnerStep `json:"step" yaml:"step"`
+	Note string     `json:"note" yaml:"note"`
+	Ref  *string    `json:"ref,omitempty" yaml:"ref,omitempty"`
+}
+
+// RunnerCompleteRequest represents a structured data type
+type RunnerCompleteRequest struct {
+	Step    RunnerStep        `json:"step" yaml:"step"`
+	Outcome string            `json:"outcome" yaml:"outcome"`
+	Outputs map[string]string `json:"outputs,omitempty" yaml:",inline"`
+	Error   *string           `json:"error,omitempty" yaml:"error,omitempty"`
+}
+
+// RunnerPutArtifactRequest represents a structured data type
+type RunnerPutArtifactRequest struct {
+	Step      RunnerStep        `json:"step" yaml:"step"`
+	MediaType string            `json:"media_type" yaml:"media_type"`
+	Body      []byte            `json:"body" yaml:"body"`
+	Labels    map[string]string `json:"labels,omitempty" yaml:",inline"`
+}
+
+// RunnerPutArtifactResponse represents a structured data type
+type RunnerPutArtifactResponse struct {
+	Digest string `json:"digest" yaml:"digest"`
+}
+
+// RunnerPostRequest represents a structured data type
+type RunnerPostRequest struct {
+	Step RunnerStep `json:"step" yaml:"step"`
+	Text string     `json:"text" yaml:"text"`
+}
+
+// RunnerRunStatusRequest represents a structured data type
+type RunnerRunStatusRequest struct {
+	Run string `json:"run" yaml:"run"`
+}
+
+// RunnerRunStatusResponse represents a structured data type
+type RunnerRunStatusResponse struct {
+	Status string `json:"status" yaml:"status"`
+}
+
+// RunnerAck represents a structured data type
+type RunnerAck struct {
+	Ok bool `json:"ok" yaml:"ok"`
 }

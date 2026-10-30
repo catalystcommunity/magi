@@ -73,6 +73,7 @@ SPEECH_STT_URL=http://speech.example.local:8092
 SPEECH_TTS_URL=http://speech.example.local:8093
 ALLOWED_DOMAINS=example.local
 ENV_IMAGE=localhost:30500/magi/dev-env:TAG
+RUNNER=                       # optional: code changes run on this runner
 ```
 
 ## Install or update
@@ -115,5 +116,9 @@ source service. Create it once from a Git bundle with `create-repo`.
 - One replica of each service. The source service and the release controller
   must stay at one replica.
 - All primitives use one PostgreSQL owner role, in separate databases.
-- The release controller is not yet deployed by `render.py`; see
-  `primitives/release/deploy/`.
+- Magi releases only its own `magi` Deployment. A merged change to a
+  primitive is not released; build and apply that image as above.
+- Without a runner, the hosted `magi` repository does not follow GitHub.
+  Update it with `tools/seed-repo.py --update` after you push, or a release
+  rebuilds old code. With a runner (`RUNNER` in the values file, see
+  `magi/README.md`), tasks start from the upstream and publish to it.

@@ -106,11 +106,13 @@ func (v *Verifier) Verify(token string) (Principal, error) {
 		return p, ErrInvalid
 	}
 	signed, sigText := token[:dot], token[dot+1:]
-	sig, err := base64.RawURLEncoding.DecodeString(sigText)
+	// Strict: one signature has only one spelling, so a token string
+	// cannot be changed and still verify.
+	sig, err := base64.RawURLEncoding.Strict().DecodeString(sigText)
 	if err != nil || len(sig) != ed25519.SignatureSize {
 		return p, ErrInvalid
 	}
-	body, err := base64.RawURLEncoding.DecodeString(signed[len(prefix):])
+	body, err := base64.RawURLEncoding.Strict().DecodeString(signed[len(prefix):])
 	if err != nil {
 		return p, ErrInvalid
 	}

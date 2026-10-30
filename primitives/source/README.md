@@ -18,6 +18,14 @@ Contract: `contracts/source.csil`, service `SourceService`.
 | `delete-branch` | Remove a branch. The default branch cannot be removed. |
 | `bundle` | Return `git bundle create` of the branches in `refs`, or of all refs. |
 | `push-bundle` | Import the `refs/heads/` refs of a bundle into an existing repository. An update to the default branch or a non-fast-forward update needs `force`. Creating the default branch in an empty repository does not need `force`. All updates apply in one transaction. |
+| `sync` | Fetch the default branch from the upstream and fast-forward the local one. Status `updated`, `current`, `ahead` (local commits not published), or `diverged` (nothing changes). |
+| `publish` | Push the default branch to the upstream, without force. `pushed` is false when the upstream has other commits. |
+
+An upstream is a Git URL (`ssh://`, `https://`, or `user@host:path`) that
+`create-repo` sets with `upstream`; it needs `source:admin`. The service uses
+its own Git credentials for it, with `ssh -o BatchMode=yes`. Callers and
+environments never get them. With `upstream` and no seed bundle,
+`create-repo` fetches the default branch from the upstream.
 
 ## Git smart HTTP
 

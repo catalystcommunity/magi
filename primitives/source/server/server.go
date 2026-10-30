@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -42,6 +43,9 @@ const (
 type Service struct {
 	Dir string
 	Now func() time.Time
+	// AllowFileUpstream permits file:// upstream URLs. Only tests set it:
+	// a file URL would let an admin read any repository on the host.
+	AllowFileUpstream bool
 
 	mu    sync.Mutex
 	locks map[string]*sync.Mutex
@@ -128,6 +132,16 @@ func (s *Service) CreateRepo(ctx context.Context, req api.CreateRepoRequest) (ap
 	if err := validBranch(ctx, branch); err != nil {
 		return api.Repository{}, err
 	}
+	upstream := ""
+	if req.Upstream != nil && *req.Upstream != "" {
+		if !p.Has(ScopeAdmin) {
+			return api.Repository{}, rpc.Denied("upstream needs %s", ScopeAdmin)
+		}
+		if !s.validUpstream(*req.Upstream) {
+			return api.Repository{}, rpc.Invalid("upstream must be an ssh://, https://, or user@host:path Git URL")
+		}
+		upstream = *req.Upstream
+	}
 	if _, err := os.Stat(s.repoDir(req.Name)); err == nil {
 		return api.Repository{}, rpc.Conflict("repository %s exists", req.Name)
 	}
@@ -153,8 +167,12 @@ func (s *Service) CreateRepo(ctx context.Context, req api.CreateRepoRequest) (ap
 			return api.Repository{}, rpc.Invalid("seed_bundle import failed: %v", err)
 		}
 		os.Remove(bundle)
+	} else if upstream != "" {
+		if _, err := git(ctx, tmp, upstreamEnv, nil, nil, "fetch", "--quiet", "--no-tags", upstream, "refs/heads/"+branch+":refs/heads/"+branch); err != nil {
+			return api.Repository{}, rpc.Unavailable("fetch from upstream failed: %v", err)
+		}
 	}
-	m := meta{Owner: owner, DefaultBranch: branch, CreatedMs: s.now()}
+	m := meta{Owner: owner, DefaultBranch: branch, CreatedMs: s.now(), Upstream: upstream}
 	if err := writeMeta(tmp, m); err != nil {
 		return api.Repository{}, err
 	}
@@ -475,4 +493,96 @@ func (s *Service) PushBundle(ctx context.Context, req api.PushBundleRequest) (ap
 		}
 	}
 	return api.PushBundleResponse{Updated: updated}, nil
+}
+
+// upstreamEnv makes Git fail instead of asking for a password or a host key.
+var upstreamEnv = []string{"GIT_SSH_COMMAND=ssh -o BatchMode=yes"}
+
+var scpRE = regexp.MustCompile(`^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+:[A-Za-z0-9._/~-]+$`)
+
+func (s *Service) validUpstream(u string) bool {
+	switch {
+	case strings.HasPrefix(u, "ssh://"), strings.HasPrefix(u, "https://"):
+		return !strings.ContainsAny(u, " \t\n") && !strings.Contains(u, "::")
+	case s.AllowFileUpstream && strings.HasPrefix(u, "file://"):
+		return true
+	}
+	return scpRE.MatchString(u)
+}
+
+// fetchUpstream fetches the upstream default branch to refs/upstream/<branch>
+// and returns the local and upstream commits.
+func (s *Service) fetchUpstream(ctx context.Context, name string, m meta) (local, up string, err error) {
+	if m.Upstream == "" {
+		return "", "", rpc.Errorf(412, "repository %s has no upstream", name)
+	}
+	dir := s.repoDir(name)
+	track := "refs/upstream/" + m.DefaultBranch
+	if _, err := git(ctx, dir, upstreamEnv, nil, nil, "fetch", "--quiet", "--no-tags", m.Upstream, "+refs/heads/"+m.DefaultBranch+":"+track); err != nil {
+		return "", "", rpc.Unavailable("fetch from upstream failed: %v", err)
+	}
+	if up, err = resolve(ctx, dir, track); err != nil {
+		return "", "", err
+	}
+	local, err = resolve(ctx, dir, "refs/heads/"+m.DefaultBranch)
+	return local, up, err
+}
+
+func (s *Service) Sync(ctx context.Context, req api.SyncRequest) (api.SyncResult, error) {
+	_, m, err := s.open(ctx, req.Repo)
+	if err != nil {
+		return api.SyncResult{}, err
+	}
+	defer s.lock(req.Repo)()
+	local, up, err := s.fetchUpstream(ctx, req.Repo, m)
+	if err != nil {
+		return api.SyncResult{}, err
+	}
+	dir := s.repoDir(req.Repo)
+	res := api.SyncResult{Commit: local, UpstreamCommit: up}
+	if local == up {
+		res.Status = "current"
+		return res, nil
+	}
+	if ok, err := isAncestor(ctx, dir, up, local); err != nil || ok {
+		res.Status = "ahead"
+		return res, err
+	}
+	ff, err := isAncestor(ctx, dir, local, up)
+	if err != nil {
+		return res, err
+	}
+	if !ff {
+		res.Status = "diverged"
+		return res, nil
+	}
+	if _, err := git(ctx, dir, nil, nil, nil, "update-ref", "refs/heads/"+m.DefaultBranch, up, local); err != nil {
+		return res, rpc.Conflict("branch %s moved during sync", m.DefaultBranch)
+	}
+	res.Status, res.Commit = "updated", up
+	return res, nil
+}
+
+func (s *Service) Publish(ctx context.Context, req api.PublishRequest) (api.PublishResult, error) {
+	_, m, err := s.open(ctx, req.Repo)
+	if err != nil {
+		return api.PublishResult{}, err
+	}
+	defer s.lock(req.Repo)()
+	local, up, err := s.fetchUpstream(ctx, req.Repo, m)
+	if err != nil {
+		return api.PublishResult{}, err
+	}
+	dir := s.repoDir(req.Repo)
+	msg := func(s string) *string { return &s }
+	if local == up {
+		return api.PublishResult{Pushed: false, Commit: local, Message: msg("already published")}, nil
+	}
+	if ok, err := isAncestor(ctx, dir, up, local); err != nil || !ok {
+		return api.PublishResult{Pushed: false, Commit: local, Message: msg("the upstream has commits that are not here; sync first")}, err
+	}
+	if _, err := git(ctx, dir, upstreamEnv, nil, nil, "push", "--quiet", "--no-verify", m.Upstream, local+":refs/heads/"+m.DefaultBranch); err != nil {
+		return api.PublishResult{Pushed: false, Commit: local, Message: msg(err.Error())}, nil
+	}
+	return api.PublishResult{Pushed: true, Commit: local}, nil
 }

@@ -414,6 +414,9 @@ def _encode_create_repo_request_value(v: "CreateRepoRequest") -> Dict[Any, Any]:
     csil_x = v.owner
     if csil_x is not None:
         csil_m["owner"] = csil_x
+    csil_x = v.upstream
+    if csil_x is not None:
+        csil_m["upstream"] = csil_x
     csil_x = v.seed_bundle
     if csil_x is not None:
         csil_m["seed_bundle"] = csil_x
@@ -429,6 +432,7 @@ def _decode_create_repo_request_value(tree: Any) -> "CreateRepoRequest":
         default_branch=(None if tree.get("default_branch") is None else _csil_expect_text(tree["default_branch"])),
         owner=(None if tree.get("owner") is None else _csil_expect_text(tree["owner"])),
         seed_bundle=(None if tree.get("seed_bundle") is None else _csil_expect_bytes(tree["seed_bundle"])),
+        upstream=(None if tree.get("upstream") is None else _csil_expect_text(tree["upstream"])),
     )
 
 
@@ -866,3 +870,105 @@ def _push_bundle_response_from_cbor(data: bytes) -> "PushBundleResponse":
 
 PushBundleResponse.to_cbor = _push_bundle_response_to_cbor
 PushBundleResponse.from_cbor = staticmethod(_push_bundle_response_from_cbor)
+
+def _encode_sync_request_value(v: "SyncRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["repo"] = v.repo
+    return csil_m
+
+def _decode_sync_request_value(tree: Any) -> "SyncRequest":
+    tree = _csil_expect_map(tree)
+    return SyncRequest(
+        repo=_csil_expect_text(tree["repo"]),
+    )
+
+
+def _sync_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_sync_request_value(self))
+
+
+def _sync_request_from_cbor(data: bytes) -> "SyncRequest":
+    return _decode_sync_request_value(cbor_decode(data))
+
+
+SyncRequest.to_cbor = _sync_request_to_cbor
+SyncRequest.from_cbor = staticmethod(_sync_request_from_cbor)
+
+def _encode_sync_result_value(v: "SyncResult") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["commit"] = v.commit
+    csil_m["status"] = v.status
+    csil_m["upstream_commit"] = v.upstream_commit
+    return csil_m
+
+def _decode_sync_result_value(tree: Any) -> "SyncResult":
+    tree = _csil_expect_map(tree)
+    return SyncResult(
+        status=_csil_expect_text(tree["status"]),
+        commit=_csil_expect_text(tree["commit"]),
+        upstream_commit=_csil_expect_text(tree["upstream_commit"]),
+    )
+
+
+def _sync_result_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_sync_result_value(self))
+
+
+def _sync_result_from_cbor(data: bytes) -> "SyncResult":
+    return _decode_sync_result_value(cbor_decode(data))
+
+
+SyncResult.to_cbor = _sync_result_to_cbor
+SyncResult.from_cbor = staticmethod(_sync_result_from_cbor)
+
+def _encode_publish_request_value(v: "PublishRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["repo"] = v.repo
+    return csil_m
+
+def _decode_publish_request_value(tree: Any) -> "PublishRequest":
+    tree = _csil_expect_map(tree)
+    return PublishRequest(
+        repo=_csil_expect_text(tree["repo"]),
+    )
+
+
+def _publish_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_publish_request_value(self))
+
+
+def _publish_request_from_cbor(data: bytes) -> "PublishRequest":
+    return _decode_publish_request_value(cbor_decode(data))
+
+
+PublishRequest.to_cbor = _publish_request_to_cbor
+PublishRequest.from_cbor = staticmethod(_publish_request_from_cbor)
+
+def _encode_publish_result_value(v: "PublishResult") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["commit"] = v.commit
+    csil_m["pushed"] = v.pushed
+    csil_x = v.message
+    if csil_x is not None:
+        csil_m["message"] = csil_x
+    return csil_m
+
+def _decode_publish_result_value(tree: Any) -> "PublishResult":
+    tree = _csil_expect_map(tree)
+    return PublishResult(
+        pushed=_csil_expect_bool(tree["pushed"]),
+        commit=_csil_expect_text(tree["commit"]),
+        message=(None if tree.get("message") is None else _csil_expect_text(tree["message"])),
+    )
+
+
+def _publish_result_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_publish_result_value(self))
+
+
+def _publish_result_from_cbor(data: bytes) -> "PublishResult":
+    return _decode_publish_result_value(cbor_decode(data))
+
+
+PublishResult.to_cbor = _publish_result_to_cbor
+PublishResult.from_cbor = staticmethod(_publish_result_from_cbor)

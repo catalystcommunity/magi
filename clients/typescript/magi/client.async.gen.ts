@@ -2,8 +2,8 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { AudioResponse, DecideRequest, GetAudioRequest, GetTaskDiffRequest, GetTaskRequest, KnowledgeItem, ListChatsRequest, ListChatsResponse, ListTasksRequest, ListTasksResponse, ListVoicesRequest, ListVoicesResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, RememberRequest, SayRequest, SayResponse, StartTaskRequest, Task, TaskDiff } from "./types.gen.ts";
-import { fromAudioResponseCbor, fromKnowledgeItemCbor, fromListChatsResponseCbor, fromListTasksResponseCbor, fromListVoicesResponseCbor, fromQueryKnowledgeResponseCbor, fromReadResponseCbor, fromSayResponseCbor, fromTaskCbor, fromTaskDiffCbor, toDecideRequestCbor, toGetAudioRequestCbor, toGetTaskDiffRequestCbor, toGetTaskRequestCbor, toListChatsRequestCbor, toListTasksRequestCbor, toListVoicesRequestCbor, toQueryKnowledgeRequestCbor, toReadRequestCbor, toRememberRequestCbor, toSayRequestCbor, toStartTaskRequestCbor } from "./codec.gen.ts";
+import type { AudioResponse, CancelTaskRequest, DecideRequest, GetAudioRequest, GetTaskDiffRequest, GetTaskRequest, KnowledgeItem, ListChatsRequest, ListChatsResponse, ListTasksRequest, ListTasksResponse, ListVoicesRequest, ListVoicesResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, RememberRequest, RunnerAck, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, SayRequest, SayResponse, StartTaskRequest, Task, TaskDiff } from "./types.gen.ts";
+import { fromAudioResponseCbor, fromKnowledgeItemCbor, fromListChatsResponseCbor, fromListTasksResponseCbor, fromListVoicesResponseCbor, fromQueryKnowledgeResponseCbor, fromReadResponseCbor, fromRunnerAckCbor, fromRunnerClaimResponseCbor, fromRunnerPutArtifactResponseCbor, fromRunnerRunStatusResponseCbor, fromSayResponseCbor, fromTaskCbor, fromTaskDiffCbor, toCancelTaskRequestCbor, toDecideRequestCbor, toGetAudioRequestCbor, toGetTaskDiffRequestCbor, toGetTaskRequestCbor, toListChatsRequestCbor, toListTasksRequestCbor, toListVoicesRequestCbor, toQueryKnowledgeRequestCbor, toReadRequestCbor, toRememberRequestCbor, toRunnerClaimRequestCbor, toRunnerCompleteRequestCbor, toRunnerPostRequestCbor, toRunnerProgressRequestCbor, toRunnerPutArtifactRequestCbor, toRunnerRunStatusRequestCbor, toRunnerStepCbor, toSayRequestCbor, toStartTaskRequestCbor } from "./codec.gen.ts";
 
 export interface AsyncServiceTransport {
   call(service: string, op: string, req: Uint8Array): Promise<Uint8Array>;
@@ -97,6 +97,15 @@ export class MagiAsyncClient {
    * @throws {ServiceError} when the API returns an error response
    * @throws transport errors (network, timeout) raised by the transport
    */
+  async cancelTask(req: CancelTaskRequest): Promise<Task> {
+    const csilResp = await this.t.call("MagiService", "cancel-task", toCancelTaskRequestCbor(req));
+    return fromTaskCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
   async queryKnowledge(req: QueryKnowledgeRequest): Promise<QueryKnowledgeResponse> {
     const csilResp = await this.t.call("MagiService", "query-knowledge", toQueryKnowledgeRequestCbor(req));
     return fromQueryKnowledgeResponseCbor(csilResp);
@@ -121,9 +130,78 @@ export class MagiAsyncClient {
   }
 }
 
+export class RunnerAsyncClient {
+  constructor(private readonly t: AsyncServiceTransport) {}
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async claim(req: RunnerClaimRequest): Promise<RunnerClaimResponse> {
+    const csilResp = await this.t.call("RunnerService", "claim", toRunnerClaimRequestCbor(req));
+    return fromRunnerClaimResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async heartbeat(req: RunnerStep): Promise<RunnerAck> {
+    const csilResp = await this.t.call("RunnerService", "heartbeat", toRunnerStepCbor(req));
+    return fromRunnerAckCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async progress(req: RunnerProgressRequest): Promise<RunnerAck> {
+    const csilResp = await this.t.call("RunnerService", "progress", toRunnerProgressRequestCbor(req));
+    return fromRunnerAckCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async complete(req: RunnerCompleteRequest): Promise<RunnerAck> {
+    const csilResp = await this.t.call("RunnerService", "complete", toRunnerCompleteRequestCbor(req));
+    return fromRunnerAckCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async putArtifact(req: RunnerPutArtifactRequest): Promise<RunnerPutArtifactResponse> {
+    const csilResp = await this.t.call("RunnerService", "put-artifact", toRunnerPutArtifactRequestCbor(req));
+    return fromRunnerPutArtifactResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async post(req: RunnerPostRequest): Promise<RunnerAck> {
+    const csilResp = await this.t.call("RunnerService", "post", toRunnerPostRequestCbor(req));
+    return fromRunnerAckCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async runStatus(req: RunnerRunStatusRequest): Promise<RunnerRunStatusResponse> {
+    const csilResp = await this.t.call("RunnerService", "run-status", toRunnerRunStatusRequestCbor(req));
+    return fromRunnerRunStatusResponseCbor(csilResp);
+  }
+}
+
 export class AsyncApiClient {
   readonly magi: MagiAsyncClient;
+  readonly runner: RunnerAsyncClient;
   constructor(t: AsyncServiceTransport) {
     this.magi = new MagiAsyncClient(t);
+    this.runner = new RunnerAsyncClient(t);
   }
 }

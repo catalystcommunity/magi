@@ -51,6 +51,53 @@ prepare -> work (agent) -> check --pass--> review (human) --approve--> merge -> 
 
 Environments never receive Git or registry credentials.
 
+## Runners
+
+A runner is a program on another machine that does the steps of code
+changes there. It connects to Magi; Magi never connects to it, and it does
+not listen on the network. Set `RUNNER` (`MAGI_RUNNER`) to the runner name
+to send code changes to it.
+
+```text
+prepare -> work -> check --> review --> merge (and build) -> release -> publish -> cleanup
+  runner   runner   runner    person       runner            Magi       runner     runner
+```
+
+- The runner claims steps from its own queues (`runner.<name>.<step>`)
+  through `RunnerService` with a runner token (subject `runner:<name>`,
+  scope `magi:runner`). It can act only on a step that it holds a claim for.
+- Each task gets a bubblewrap sandbox (`primitives/execution/sandbox`). The
+  sandbox sees its work directory and read-only system directories, not the
+  home directory of the runner user. The runner reads and writes sandbox
+  files only through envd, inside the sandbox.
+- The agent harness runs from a copy (not from a checkout that a task can
+  change). Its tools use the sandbox through an execution API on loopback.
+  Its model calls go to `/runner/v1/chat/completions` on Magi, which adds
+  Magi's provider key. The runner machine holds no provider key.
+- The runner keeps a mirror of each repository with an upstream. It syncs
+  before prepare and before merge. `merge` merges the reviewed branch onto
+  the newest upstream commit in the sandbox and builds `magi-server`; the
+  build goes to Magi as an artifact, and Magi releases it. `publish` pushes
+  to the upstream with the runner machine's Git credentials, only after the
+  release stayed healthy, and only as a fast-forward. If the release rolls
+  back, nothing is pushed.
+- The review diff is the patch that the runner uploads.
+- A runner removes the environments of runs that ended, also after a cancel.
+
+Install one runner for each Magi installation. Names come from the Magi
+host, so dev and production runners on one machine do not share files:
+
+```sh
+tools/install-runner.sh magi.example.com [RUNNER_NAME]
+# token: identity mint --subject runner:RUNNER_NAME --scopes magi:runner ...
+#   into ~/.config/magi-runner/magi.example.com.token (mode 600)
+cp deploy/runner/magi-runner@.service ~/.config/systemd/user/
+systemctl --user enable --now magi-runner@magi.example.com
+```
+
+Run `tools/install-runner.sh` again after a change to the runner or the
+agent harness, then restart the service.
+
 ## Authorization
 
 Calls for a person's own records use that person's token. Background work
@@ -64,6 +111,7 @@ magi --server https://magi.example.local login you@example.local
 magi chat                      # interactive
 magi say -speak -audio question.wav
 magi tasks; magi task RUN; magi diff RUN; magi decide RUN approve
+magi cancel RUN -m "not needed"   # stop a task; asks first at a risky step
 magi know calendar
 magi usage -days 7             # your Magi replies by model
 ```

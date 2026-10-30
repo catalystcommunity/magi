@@ -2,8 +2,8 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { BundleRequest, BundleResponse, CreateRepoRequest, DeleteBranchRequest, DeleteBranchResponse, DiffRequest, DiffResult, GetRepoRequest, ListRefsRequest, ListRefsResponse, ListReposRequest, ListReposResponse, MergeRequest, MergeResult, PushBundleRequest, PushBundleResponse, Repository } from "./types.gen.ts";
-import { fromBundleResponseCbor, fromDeleteBranchResponseCbor, fromDiffResultCbor, fromListRefsResponseCbor, fromListReposResponseCbor, fromMergeResultCbor, fromPushBundleResponseCbor, fromRepositoryCbor, toBundleRequestCbor, toCreateRepoRequestCbor, toDeleteBranchRequestCbor, toDiffRequestCbor, toGetRepoRequestCbor, toListRefsRequestCbor, toListReposRequestCbor, toMergeRequestCbor, toPushBundleRequestCbor } from "./codec.gen.ts";
+import type { BundleRequest, BundleResponse, CreateRepoRequest, DeleteBranchRequest, DeleteBranchResponse, DiffRequest, DiffResult, GetRepoRequest, ListRefsRequest, ListRefsResponse, ListReposRequest, ListReposResponse, MergeRequest, MergeResult, PublishRequest, PublishResult, PushBundleRequest, PushBundleResponse, Repository, SyncRequest, SyncResult } from "./types.gen.ts";
+import { fromBundleResponseCbor, fromDeleteBranchResponseCbor, fromDiffResultCbor, fromListRefsResponseCbor, fromListReposResponseCbor, fromMergeResultCbor, fromPublishResultCbor, fromPushBundleResponseCbor, fromRepositoryCbor, fromSyncResultCbor, toBundleRequestCbor, toCreateRepoRequestCbor, toDeleteBranchRequestCbor, toDiffRequestCbor, toGetRepoRequestCbor, toListRefsRequestCbor, toListReposRequestCbor, toMergeRequestCbor, toPublishRequestCbor, toPushBundleRequestCbor, toSyncRequestCbor } from "./codec.gen.ts";
 
 export interface ServiceTransport {
   call(service: string, op: string, req: Uint8Array): Uint8Array;
@@ -91,6 +91,24 @@ export class SourceClient {
   pushBundle(req: PushBundleRequest): PushBundleResponse {
     const csilResp = this.t.call("SourceService", "push-bundle", toPushBundleRequestCbor(req));
     return fromPushBundleResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  sync(req: SyncRequest): SyncResult {
+    const csilResp = this.t.call("SourceService", "sync", toSyncRequestCbor(req));
+    return fromSyncResultCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  publish(req: PublishRequest): PublishResult {
+    const csilResp = this.t.call("SourceService", "publish", toPublishRequestCbor(req));
+    return fromPublishResultCbor(csilResp);
   }
 }
 
