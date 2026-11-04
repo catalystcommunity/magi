@@ -5,9 +5,12 @@ package compose
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 
 	artifactsapi "github.com/catalystcommunity/magi/primitives/artifacts/api"
 	conversationapi "github.com/catalystcommunity/magi/primitives/conversation/api"
@@ -35,14 +38,36 @@ type Config struct {
 	Repo string
 	// EnvImage is the execution environment image for code changes.
 	EnvImage string
-	// Runner names the runner that runs code changes ("" runs them in the
-	// cluster). See RunnerService.
+	// EnvNetwork is the execution network for code changes: "proxy" when
+	// the egress proxy is set (Egress), else "egress".
+	EnvNetwork string
+	// Runner names the default runner for code changes ("" runs them in
+	// the cluster). See RunnerService.
 	Runner string
-	// CheckCommand runs in the repository after the agent works.
+	// Publisher names the runner that pushes merged changes upstream. ""
+	// uses a connected runner that publishes the repository.
+	Publisher string
+	// Admins are user subjects that can make operator calls.
+	Admins []string
+	// LexiconEditors are user subjects that can change the household
+	// lexicon. Empty means the admins.
+	LexiconEditors []string
+	// CheckCommand runs in the repository after the apprentice works.
 	CheckCommand string
 	// Release is the release controller endpoint; empty turns releases off.
 	Release    string
 	ReleaseCfg ReleaseConfig
+	// Egress is the API of the egress proxy. When it is set, code-change
+	// environments use network "proxy" (EnvNetwork).
+	Egress string
+	// EgressRules come from the file MAGI_EGRESS_RULES; nil reviews each
+	// flow that the magi-review plugin asks about.
+	EgressRules *EgressRules
+	// EgressProxy is the proxy route of runner sandboxes
+	// (MAGI_EGRESS_PROXY, MAGI_EGRESS_ENV_KEY_FILE, MAGI_EGRESS_CA, and
+	// MAGI_EGRESS_SSH_PUB for the SSH host key of the proxy); nil
+	// lets them use the network of the runner machine.
+	EgressProxy *EgressProxy
 }
 
 func env(name, def string) string {
@@ -50,6 +75,17 @@ func env(name, def string) string {
 		return v
 	}
 	return def
+}
+
+// list splits a comma-separated list and drops empty items.
+func list(v string) []string {
+	var out []string
+	for _, a := range strings.Split(v, ",") {
+		if a = strings.TrimSpace(a); a != "" {
+			out = append(out, a)
+		}
+	}
+	return out
 }
 
 // ConfigFromEnv reads MAGI_* variables.
@@ -65,9 +101,49 @@ func ConfigFromEnv() (Config, error) {
 		Repo:         env("MAGI_REPO", "magi"),
 		EnvImage:     env("MAGI_ENV_IMAGE", "golang:1.26-bookworm"),
 		Runner:       os.Getenv("MAGI_RUNNER"),
+		Publisher:    os.Getenv("MAGI_PUBLISHER"),
 		CheckCommand: env("MAGI_CHECK_COMMAND", "./tools/check.sh"),
 	}
+	c.Admins = list(os.Getenv("MAGI_ADMINS"))
+	c.LexiconEditors = list(os.Getenv("MAGI_LEXICON_EDITORS"))
 	c.Release = os.Getenv("MAGI_RELEASE_URL")
+	c.Egress = os.Getenv("MAGI_EGRESS_URL")
+	if addr := os.Getenv("MAGI_EGRESS_PROXY"); addr != "" {
+		key, err := os.ReadFile(os.Getenv("MAGI_EGRESS_ENV_KEY_FILE"))
+		if err != nil {
+			return c, fmt.Errorf("MAGI_EGRESS_ENV_KEY_FILE: %w", err)
+		}
+		ca, err := os.ReadFile(os.Getenv("MAGI_EGRESS_CA"))
+		if err != nil {
+			return c, fmt.Errorf("MAGI_EGRESS_CA: %w", err)
+		}
+		k := []byte(strings.TrimSpace(string(key)))
+		if len(k) < 32 {
+			return c, errors.New("MAGI_EGRESS_ENV_KEY_FILE: the key must have at least 32 bytes")
+		}
+		c.EgressProxy = &EgressProxy{Addr: addr, Key: k, CA: ca}
+		if f := os.Getenv("MAGI_EGRESS_SSH_PUB"); f != "" {
+			pub, err := os.ReadFile(f)
+			if err != nil {
+				return c, fmt.Errorf("MAGI_EGRESS_SSH_PUB: %w", err)
+			}
+			c.EgressProxy.SSHPub = strings.TrimSpace(string(pub))
+		}
+	}
+	c.EnvNetwork = os.Getenv("MAGI_ENV_NETWORK")
+	if c.EnvNetwork == "" {
+		c.EnvNetwork = "egress"
+		if c.Egress != "" {
+			c.EnvNetwork = "proxy"
+		}
+	}
+	if f := os.Getenv("MAGI_EGRESS_RULES"); f != "" {
+		r, err := LoadEgressRules(f)
+		if err != nil {
+			return c, err
+		}
+		c.EgressRules = r
+	}
 	c.ReleaseCfg = ReleaseConfig{
 		Registry:     os.Getenv("MAGI_IMAGE_REGISTRY"),
 		PullRegistry: env("MAGI_IMAGE_PULL_REGISTRY", "localhost:30500"),
@@ -97,18 +173,29 @@ func ConfigFromEnv() (Config, error) {
 
 // System holds the clients and settings that all parts of compose share.
 type System struct {
-	Cfg          Config
-	Log          *slog.Logger
-	Model        model.Chatter // the persona model; often a chain of local then remote
-	Artifacts    *artifactsapi.ArtifactClient
-	Conversation *conversationapi.ConversationClient
-	Execution    *executionapi.ExecutionClient
-	Knowledge    *knowledgeapi.KnowledgeClient
-	Source       *sourceapi.SourceClient
-	Speech       *speechapi.SpeechClient
-	Workflow     *workflowapi.WorkflowClient
-	Release      *releaseapi.ReleaseClient
-	ReleaseCfg   ReleaseConfig
+	Cfg   Config
+	Log   *slog.Logger
+	Model model.Chatter // the persona model; often a chain of local then remote
+	// LibrarianModel classifies utterances (see Librarian); nil turns the
+	// librarian off. A local model is best: the work is in the background.
+	LibrarianModel model.Chatter
+	// ReviewModel decides egress flows that no rule decides (EgressRules
+	// default "model"); nil sends them to review.
+	ReviewModel model.Chatter
+	EgressRules *EgressRules
+	EgressProxy *EgressProxy
+	// egressReviews caches decided egress reviews (egressreview.go).
+	egressReviews *egressReviews
+	Artifacts     *artifactsapi.ArtifactClient
+	Conversation  *conversationapi.ConversationClient
+	Execution     *executionapi.ExecutionClient
+	Knowledge     *knowledgeapi.KnowledgeClient
+	Source        *sourceapi.SourceClient
+	Speech        *speechapi.SpeechClient
+	Workflow      *workflowapi.WorkflowClient
+	Release       *releaseapi.ReleaseClient
+	ReleaseCfg    ReleaseConfig
+	fleet         fleet
 }
 
 // New creates clients. Each call uses the token in its context (see
@@ -128,6 +215,8 @@ func New(cfg Config, m model.Chatter, log *slog.Logger) *System {
 	if cfg.Release != "" {
 		sys.Release = releaseapi.NewReleaseClient(c(cfg.Release))
 	}
+	sys.EgressRules, sys.EgressProxy = cfg.EgressRules, cfg.EgressProxy
+	sys.egressReviews = &egressReviews{reported: map[string]time.Time{}}
 	return sys
 }
 

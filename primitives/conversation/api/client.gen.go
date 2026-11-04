@@ -43,31 +43,58 @@ func NewConversationClient(transport Transport) *ConversationClient {
 	return &ConversationClient{transport: transport}
 }
 
-func (c *ConversationClient) CreateConversation(ctx context.Context, req CreateConversationRequest) (Conversation, error) {
-	var csilZero Conversation
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "create-conversation", EncodeCreateConversationRequest(req))
+func (c *ConversationClient) PutPersona(ctx context.Context, req PutPersonaRequest) (Persona, error) {
+	var csilZero Persona
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "put-persona", EncodePutPersonaRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeConversation(csilResp)
+	return DecodePersona(csilResp)
 }
 
-func (c *ConversationClient) GetConversation(ctx context.Context, req GetConversationRequest) (Conversation, error) {
-	var csilZero Conversation
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "get-conversation", EncodeGetConversationRequest(req))
+func (c *ConversationClient) GetPersona(ctx context.Context, req GetPersonaRequest) (Persona, error) {
+	var csilZero Persona
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "get-persona", EncodeGetPersonaRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeConversation(csilResp)
+	return DecodePersona(csilResp)
 }
 
-func (c *ConversationClient) ListConversations(ctx context.Context, req ListConversationsRequest) (ListConversationsResponse, error) {
-	var csilZero ListConversationsResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-conversations", EncodeListConversationsRequest(req))
+func (c *ConversationClient) ListPersonas(ctx context.Context, req ListPersonasRequest) (ListPersonasResponse, error) {
+	var csilZero ListPersonasResponse
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-personas", EncodeListPersonasRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeListConversationsResponse(csilResp)
+	return DecodeListPersonasResponse(csilResp)
+}
+
+func (c *ConversationClient) OpenStream(ctx context.Context, req OpenStreamRequest) (Stream, error) {
+	var csilZero Stream
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "open-stream", EncodeOpenStreamRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeStream(csilResp)
+}
+
+func (c *ConversationClient) ListStreams(ctx context.Context, req ListStreamsRequest) (ListStreamsResponse, error) {
+	var csilZero ListStreamsResponse
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-streams", EncodeListStreamsRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListStreamsResponse(csilResp)
+}
+
+func (c *ConversationClient) GetStream(ctx context.Context, req GetStreamRequest) (Stream, error) {
+	var csilZero Stream
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "get-stream", EncodeGetStreamRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeStream(csilResp)
 }
 
 func (c *ConversationClient) Post(ctx context.Context, req PostRequest) (Utterance, error) {
@@ -97,31 +124,121 @@ func (c *ConversationClient) GetUtterance(ctx context.Context, req GetUtteranceR
 	return DecodeUtterance(csilResp)
 }
 
-func (c *ConversationClient) OpenSession(ctx context.Context, req OpenSessionRequest) (Session, error) {
-	var csilZero Session
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "open-session", EncodeOpenSessionRequest(req))
+func (c *ConversationClient) GetUtterances(ctx context.Context, req GetUtterancesRequest) (GetUtterancesResponse, error) {
+	var csilZero GetUtterancesResponse
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "get-utterances", EncodeGetUtterancesRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeSession(csilResp)
+	return DecodeGetUtterancesResponse(csilResp)
 }
 
-func (c *ConversationClient) UpdateSession(ctx context.Context, req UpdateSessionRequest) (Session, error) {
-	var csilZero Session
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "update-session", EncodeUpdateSessionRequest(req))
+func (c *ConversationClient) Search(ctx context.Context, req SearchRequest) (SearchResponse, error) {
+	var csilZero SearchResponse
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "search", EncodeSearchRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeSession(csilResp)
+	return DecodeSearchResponse(csilResp)
 }
 
-func (c *ConversationClient) ListSessions(ctx context.Context, req ListSessionsRequest) (ListSessionsResponse, error) {
-	var csilZero ListSessionsResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-sessions", EncodeListSessionsRequest(req))
+func (c *ConversationClient) Trace(ctx context.Context, req TraceRequest) (TraceResponse, error) {
+	var csilZero TraceResponse
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "trace", EncodeTraceRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeListSessionsResponse(csilResp)
+	return DecodeTraceResponse(csilResp)
+}
+
+func (c *ConversationClient) PutLink(ctx context.Context, req PutLinkRequest) (PutLinkResponse, error) {
+	var csilZero PutLinkResponse
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "put-link", EncodePutLinkRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodePutLinkResponse(csilResp)
+}
+
+func (c *ConversationClient) RetractLink(ctx context.Context, req RetractLinkRequest) (Link, error) {
+	var csilZero Link
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "retract-link", EncodeRetractLinkRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeLink(csilResp)
+}
+
+func (c *ConversationClient) ListLinks(ctx context.Context, req ListLinksRequest) (ListLinksResponse, error) {
+	var csilZero ListLinksResponse
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-links", EncodeListLinksRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListLinksResponse(csilResp)
+}
+
+func (c *ConversationClient) SetVisibility(ctx context.Context, req SetVisibilityRequest) (SetVisibilityResponse, error) {
+	var csilZero SetVisibilityResponse
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "set-visibility", EncodeSetVisibilityRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeSetVisibilityResponse(csilResp)
+}
+
+func (c *ConversationClient) ListReviews(ctx context.Context, req ListReviewsRequest) (ListReviewsResponse, error) {
+	var csilZero ListReviewsResponse
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-reviews", EncodeListReviewsRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListReviewsResponse(csilResp)
+}
+
+func (c *ConversationClient) AnswerReview(ctx context.Context, req AnswerReviewRequest) (Review, error) {
+	var csilZero Review
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "answer-review", EncodeAnswerReviewRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeReview(csilResp)
+}
+
+func (c *ConversationClient) ListExamples(ctx context.Context, req ListExamplesRequest) (ListExamplesResponse, error) {
+	var csilZero ListExamplesResponse
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-examples", EncodeListExamplesRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListExamplesResponse(csilResp)
+}
+
+func (c *ConversationClient) GetCalibration(ctx context.Context, req GetCalibrationRequest) (Calibration, error) {
+	var csilZero Calibration
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "get-calibration", EncodeGetCalibrationRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeCalibration(csilResp)
+}
+
+func (c *ConversationClient) ClaimUnclassified(ctx context.Context, req ClaimUnclassifiedRequest) (ClaimUnclassifiedResponse, error) {
+	var csilZero ClaimUnclassifiedResponse
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "claim-unclassified", EncodeClaimUnclassifiedRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeClaimUnclassifiedResponse(csilResp)
+}
+
+func (c *ConversationClient) MarkClassified(ctx context.Context, req MarkClassifiedRequest) (Utterance, error) {
+	var csilZero Utterance
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "mark-classified", EncodeMarkClassifiedRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeUtterance(csilResp)
 }
 
 func (c *ConversationClient) Annotate(ctx context.Context, req AnnotateRequest) (Annotation, error) {
@@ -140,4 +257,13 @@ func (c *ConversationClient) ListAnnotations(ctx context.Context, req ListAnnota
 		return csilZero, csilErr
 	}
 	return DecodeListAnnotationsResponse(csilResp)
+}
+
+func (c *ConversationClient) ImportLegacy(ctx context.Context, req ImportLegacyRequest) (ImportLegacyResponse, error) {
+	var csilZero ImportLegacyResponse
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "import-legacy", EncodeImportLegacyRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeImportLegacyResponse(csilResp)
 }

@@ -4,15 +4,18 @@
 #   ~/.config/magi-runner/<host>.json
 #   ~/.config/magi-runner/<host>.token
 #   ~/.local/share/magi-runner/<host>/
-# The runner connects to Magi. It does not listen on the network.
+# The launcher supervises the current release, which Magi updates; it
+# rolls back an update that fails. The runner connects to Magi. It does
+# not listen on the network.
 [Unit]
 Description=Magi runner for %i
 After=network-online.target
 
 [Service]
-ExecStart=%h/.local/bin/magi-runner -config %h/.config/magi-runner/%i.json
-Restart=on-failure
+ExecStart=%h/.local/bin/magi-runner supervise -config %h/.config/magi-runner/%i.json
+Restart=always
 RestartSec=10
+TimeoutStopSec=90
 
 [Install]
 WantedBy=default.target

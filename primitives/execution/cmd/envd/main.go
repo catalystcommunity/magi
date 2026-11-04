@@ -1,4 +1,4 @@
-// Command envd is the in-environment agent. A container entrypoint, a VM
+// Command envd is the in-environment daemon. A container entrypoint, a VM
 // init system, or a host service starts it. Build it static:
 //
 //	CGO_ENABLED=0 go build ./cmd/envd

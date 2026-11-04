@@ -10,8 +10,17 @@ import (
 // MagiService defines the service interface
 type MagiService interface {
 	Say(ctx context.Context, req SayRequest) (SayResponse, error)
-	ListChats(ctx context.Context, req ListChatsRequest) (ListChatsResponse, error)
 	Read(ctx context.Context, req ReadRequest) (ReadResponse, error)
+	Search(ctx context.Context, req SearchRequest) (SearchResponse, error)
+	Trace(ctx context.Context, req TraceRequest) (TraceResponse, error)
+	ListLinks(ctx context.Context, req ListLinksRequest) (ListLinksResponse, error)
+	Link(ctx context.Context, req LinkRequest) (MessageLink, error)
+	Unlink(ctx context.Context, req UnlinkRequest) (MessageLink, error)
+	SetVisibility(ctx context.Context, req SetVisibilityRequest) (Message, error)
+	ListReviews(ctx context.Context, req ListReviewsRequest) (ListReviewsResponse, error)
+	AnswerReview(ctx context.Context, req AnswerReviewRequest) (AnswerReviewResponse, error)
+	ListPersonas(ctx context.Context, req ListPersonasRequest) (ListPersonasResponse, error)
+	PutPersona(ctx context.Context, req PutPersonaRequest) (PersonaInfo, error)
 	GetAudio(ctx context.Context, req GetAudioRequest) (AudioResponse, error)
 	StartTask(ctx context.Context, req StartTaskRequest) (Task, error)
 	GetTask(ctx context.Context, req GetTaskRequest) (Task, error)
@@ -22,6 +31,18 @@ type MagiService interface {
 	QueryKnowledge(ctx context.Context, req QueryKnowledgeRequest) (QueryKnowledgeResponse, error)
 	Remember(ctx context.Context, req RememberRequest) (KnowledgeItem, error)
 	ListVoices(ctx context.Context, req ListVoicesRequest) (ListVoicesResponse, error)
+	ListLexicon(ctx context.Context, req ListLexiconRequest) (ListLexiconResponse, error)
+	PutLexiconWord(ctx context.Context, req PutLexiconWordRequest) (LexiconWord, error)
+	DeleteLexiconWord(ctx context.Context, req DeleteLexiconWordRequest) (DeleteLexiconWordResponse, error)
+	Speak(ctx context.Context, req SpeakRequest) (SpeakResponse, error)
+	ListRunners(ctx context.Context, req ListRunnersRequest) (ListRunnersResponse, error)
+	PutRunnerPackage(ctx context.Context, req PutRunnerPackageRequest) (PutRunnerPackageResponse, error)
+	SetRunnerRelease(ctx context.Context, req SetRunnerReleaseRequest) (SetRunnerReleaseResponse, error)
+	PutAppRelease(ctx context.Context, req PutAppReleaseRequest) (AppRelease, error)
+	GetAppRelease(ctx context.Context, req GetAppReleaseRequest) (GetAppReleaseResponse, error)
+	GetAppPackage(ctx context.Context, req GetAppPackageRequest) (GetAppPackageResponse, error)
+	ListEgressReviews(ctx context.Context, req ListEgressReviewsRequest) (ListEgressReviewsResponse, error)
+	DecideEgressReview(ctx context.Context, req DecideEgressReviewRequest) (DecideEgressReviewResponse, error)
 }
 
 // RunnerService defines the service interface
@@ -33,4 +54,17 @@ type RunnerService interface {
 	PutArtifact(ctx context.Context, req RunnerPutArtifactRequest) (RunnerPutArtifactResponse, error)
 	Post(ctx context.Context, req RunnerPostRequest) (RunnerAck, error)
 	RunStatus(ctx context.Context, req RunnerRunStatusRequest) (RunnerRunStatusResponse, error)
+	Hello(ctx context.Context, req RunnerHelloRequest) (RunnerHelloResponse, error)
+	GetPackage(ctx context.Context, req RunnerGetPackageRequest) (RunnerGetPackageResponse, error)
+	GetArtifact(ctx context.Context, req RunnerGetArtifactRequest) (RunnerGetArtifactResponse, error)
+	EgressAccess(ctx context.Context, req RunnerStep) (RunnerEgressAccessResponse, error)
+}
+
+// EgressAskService defines the service interface
+type EgressAskService interface {
+	Environment(ctx context.Context, req EgressEnvironmentRequest) (EgressEnvironmentResponse, error)
+	Destination(ctx context.Context, req EgressDestinationRequest) (EgressDestinationResponse, error)
+	Report(ctx context.Context, req EgressReportRequest) (EgressReportResponse, error)
+	Evaluate(ctx context.Context, req EgressEvaluateRequest) (EgressVerdict, error)
+	SecretRules(ctx context.Context, req EgressSecretRulesRequest) (EgressSecretRulesResponse, error)
 }

@@ -2,8 +2,8 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { Audio, ListVoicesRequest, ListVoicesResponse, SynthesizeRequest, TranscribeRequest, Transcript } from "./types.gen.ts";
-import { fromAudioCbor, fromListVoicesResponseCbor, fromTranscriptCbor, toListVoicesRequestCbor, toSynthesizeRequestCbor, toTranscribeRequestCbor } from "./codec.gen.ts";
+import type { Audio, DeleteLexiconEntryRequest, DeleteLexiconEntryResponse, LexiconEntry, ListLexiconRequest, ListLexiconResponse, ListVoicesRequest, ListVoicesResponse, PrepareTextRequest, PrepareTextResponse, PutLexiconEntryRequest, SynthesizeRequest, TranscribeRequest, Transcript } from "./types.gen.ts";
+import { fromAudioCbor, fromDeleteLexiconEntryResponseCbor, fromLexiconEntryCbor, fromListLexiconResponseCbor, fromListVoicesResponseCbor, fromPrepareTextResponseCbor, fromTranscriptCbor, toDeleteLexiconEntryRequestCbor, toListLexiconRequestCbor, toListVoicesRequestCbor, toPrepareTextRequestCbor, toPutLexiconEntryRequestCbor, toSynthesizeRequestCbor, toTranscribeRequestCbor } from "./codec.gen.ts";
 
 export interface ServiceTransport {
   call(service: string, op: string, req: Uint8Array): Uint8Array;
@@ -37,6 +37,42 @@ export class SpeechClient {
   listVoices(req: ListVoicesRequest): ListVoicesResponse {
     const csilResp = this.t.call("SpeechService", "list-voices", toListVoicesRequestCbor(req));
     return fromListVoicesResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  listLexicon(req: ListLexiconRequest): ListLexiconResponse {
+    const csilResp = this.t.call("SpeechService", "list-lexicon", toListLexiconRequestCbor(req));
+    return fromListLexiconResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  putLexiconEntry(req: PutLexiconEntryRequest): LexiconEntry {
+    const csilResp = this.t.call("SpeechService", "put-lexicon-entry", toPutLexiconEntryRequestCbor(req));
+    return fromLexiconEntryCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  deleteLexiconEntry(req: DeleteLexiconEntryRequest): DeleteLexiconEntryResponse {
+    const csilResp = this.t.call("SpeechService", "delete-lexicon-entry", toDeleteLexiconEntryRequestCbor(req));
+    return fromDeleteLexiconEntryResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  prepareText(req: PrepareTextRequest): PrepareTextResponse {
+    const csilResp = this.t.call("SpeechService", "prepare-text", toPrepareTextRequestCbor(req));
+    return fromPrepareTextResponseCbor(csilResp);
   }
 }
 

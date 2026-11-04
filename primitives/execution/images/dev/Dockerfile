@@ -1,4 +1,4 @@
-# Default development environment for Magi agents.
+# Default development environment for Magi apprentices.
 #   docker build -t magi-dev-env primitives/execution/images/dev
 # Login shells (bash -lc) read /etc/profile, which resets PATH; profile.d/go.sh
 # puts Go back. envd is not in this image. The execution service delivers it at start.

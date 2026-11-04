@@ -11,5 +11,12 @@ export ANDROID_HOME=${ANDROID_HOME:-$HOME/Android/Sdk}
 args=(-q -p "$root/android")
 [[ ${MAGI_GRADLE_OFFLINE:-} == 1 ]] && args+=(--offline)
 (( $# )) || set -- testDebugUnitTest assembleDebug
+# The version code is the minute of the build (since 2020), so each build
+# is newer than the last; the self-update needs that. The name has the commit.
+code=$(( ($(date -u +%s) - 1577836800) / 60 ))
+name="0.1.0-$(git -C "$root" rev-parse --short=12 HEAD)"
+[[ -z $(git -C "$root" status --porcelain) ]] || name+="-dev"
+args+=(-PmagiVersionCode="$code" -PmagiVersionName="$name")
+echo "version $code ($name)" >&2
 "$gradle" "${args[@]}" "$@"
 ls "$root"/android/app/build/outputs/apk/*/*.apk 2>/dev/null || true

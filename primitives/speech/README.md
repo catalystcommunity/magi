@@ -2,8 +2,9 @@
 
 ## Purpose
 
-The speech primitive changes speech to text and text to speech. It keeps no
-records. Any authenticated caller can use it.
+The speech primitive changes speech to text and text to speech. It keeps
+one kind of record: the household lexicon. Any authenticated caller can use
+the service and read the lexicon.
 
 The Go service (`cmd/speech`) implements `contracts/speech.csil`. It sends the
 work to two engine processes over HTTP. You can replace an engine with a
@@ -60,6 +61,36 @@ statuses are engine failures. The error does not contain the input text.
 - `synthesize`: text, optional `voice`, `speed` (0.5 to 2.0), and `format`
   (only `wav`) to `Audio`.
 - `list-voices`: optional `language` filter. `en` matches `en-US` and `en-GB`.
+- `list-lexicon`, `put-lexicon-entry`, `delete-lexicon-entry`: the household
+  lexicon. A change needs the scope `speech:lexicon`. Magi has this scope
+  and decides which people can make changes.
+- `prepare-text`: the spoken text that `synthesize` makes, with no audio.
+
+## Spoken text and the lexicon
+
+Before `synthesize` sends text to the engine, the service makes spoken text
+(`server/spoken.go`). `raw` turns this off. The result is in `Audio.spoken`.
+
+1. It removes Markdown: headings, list marks, emphasis, code marks, quote
+   marks. A link becomes its text.
+2. It says number ranges: `4-6` becomes `4 to 6`. The rule changes `N-M`
+   only when N is less than M, the numbers are not part of a longer token
+   (a date, a model number, a telephone number), and no score or version
+   word is next to it ("won 3-2", "version 1.2-3"). An en dash (`4–6`) is
+   always a range. An unclear case does not change.
+3. It applies the lexicon. Each entry has:
+   - `written`: the word in text. It matches a whole word, not
+     case-sensitive. A longer entry wins over a shorter one.
+   - `spoken`: text to say instead, for example `readme` for `README`.
+   - `ipa`: misaki phonemes, for example `kˈOkəɹO`. The engine gets
+     `[spoken or written](/ipa/)`, which Kokoro (misaki) says as given.
+   - `heard_as`: forms that speech to text writes for the word, for example
+     `Magei`. `transcribe` changes them to `written`, and `Transcript.heard`
+     keeps the engine text. Give only forms that are not other real words.
+
+Without a database (`MAGI_DATABASE_URL` not set), the lexicon is empty and
+cannot change. Steps 1 and 2 still apply. When the database fails, speech
+goes on without the lexicon and logs a warning.
 
 Errors:
 
@@ -78,6 +109,7 @@ Errors:
 | `-auth-keys` | `MAGI_AUTH_KEYS` | required |
 | `-stt-url` | `MAGI_SPEECH_STT_URL` | required, such as `http://speech.example.local:8092` |
 | `-tts-url` | `MAGI_SPEECH_TTS_URL` | required, such as `http://speech.example.local:8093` |
+| `-database-url` | `MAGI_DATABASE_URL` | optional: PostgreSQL for the lexicon |
 | `-engine-token-file` | `MAGI_SPEECH_ENGINE_TOKEN_FILE` | required |
 
 The service reads the engine token one time, at start.
@@ -147,6 +179,13 @@ client:
 
 ```sh
 cd primitives/speech && go vet ./... && go test ./...
+```
+
+The lexicon test needs PostgreSQL. It makes a database, owned by a new role,
+and drops both at the end. It skips when `MAGI_TEST_DATABASE_URL` is not set:
+
+```sh
+MAGI_TEST_DATABASE_URL='postgres://magi:magi-test@127.0.0.1:55432/postgres?sslmode=disable' go test ./...
 ```
 
 Live tests use the real engines. They synthesize a sentence, transcribe it,

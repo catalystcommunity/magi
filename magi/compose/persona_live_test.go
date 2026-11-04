@@ -47,7 +47,7 @@ func TestLivePersonaTools(t *testing.T) {
 		{"How are my tasks going?", "list_tasks"},
 		{"Hello! How are you today?", ""},
 	}
-	system := fmt.Sprintf(personaPrompt, "Alex", time.Now().Format("Monday 2 January 2006 15:04 MST"))
+	system := fmt.Sprintf(personaPrompt, "Magi", "Alex", time.Now().Format("Monday 2 January 2006 15:04 MST"))
 	failed := 0
 	for _, tc := range cases {
 		pass := 0

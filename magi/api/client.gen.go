@@ -52,15 +52,6 @@ func (c *MagiClient) Say(ctx context.Context, req SayRequest) (SayResponse, erro
 	return DecodeSayResponse(csilResp)
 }
 
-func (c *MagiClient) ListChats(ctx context.Context, req ListChatsRequest) (ListChatsResponse, error) {
-	var csilZero ListChatsResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-chats", EncodeListChatsRequest(req))
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return DecodeListChatsResponse(csilResp)
-}
-
 func (c *MagiClient) Read(ctx context.Context, req ReadRequest) (ReadResponse, error) {
 	var csilZero ReadResponse
 	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "read", EncodeReadRequest(req))
@@ -68,6 +59,96 @@ func (c *MagiClient) Read(ctx context.Context, req ReadRequest) (ReadResponse, e
 		return csilZero, csilErr
 	}
 	return DecodeReadResponse(csilResp)
+}
+
+func (c *MagiClient) Search(ctx context.Context, req SearchRequest) (SearchResponse, error) {
+	var csilZero SearchResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "search", EncodeSearchRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeSearchResponse(csilResp)
+}
+
+func (c *MagiClient) Trace(ctx context.Context, req TraceRequest) (TraceResponse, error) {
+	var csilZero TraceResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "trace", EncodeTraceRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeTraceResponse(csilResp)
+}
+
+func (c *MagiClient) ListLinks(ctx context.Context, req ListLinksRequest) (ListLinksResponse, error) {
+	var csilZero ListLinksResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-links", EncodeListLinksRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListLinksResponse(csilResp)
+}
+
+func (c *MagiClient) Link(ctx context.Context, req LinkRequest) (MessageLink, error) {
+	var csilZero MessageLink
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "link", EncodeLinkRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeMessageLink(csilResp)
+}
+
+func (c *MagiClient) Unlink(ctx context.Context, req UnlinkRequest) (MessageLink, error) {
+	var csilZero MessageLink
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "unlink", EncodeUnlinkRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeMessageLink(csilResp)
+}
+
+func (c *MagiClient) SetVisibility(ctx context.Context, req SetVisibilityRequest) (Message, error) {
+	var csilZero Message
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "set-visibility", EncodeSetVisibilityRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeMessage(csilResp)
+}
+
+func (c *MagiClient) ListReviews(ctx context.Context, req ListReviewsRequest) (ListReviewsResponse, error) {
+	var csilZero ListReviewsResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-reviews", EncodeListReviewsRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListReviewsResponse(csilResp)
+}
+
+func (c *MagiClient) AnswerReview(ctx context.Context, req AnswerReviewRequest) (AnswerReviewResponse, error) {
+	var csilZero AnswerReviewResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "answer-review", EncodeAnswerReviewRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeAnswerReviewResponse(csilResp)
+}
+
+func (c *MagiClient) ListPersonas(ctx context.Context, req ListPersonasRequest) (ListPersonasResponse, error) {
+	var csilZero ListPersonasResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-personas", EncodeListPersonasRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListPersonasResponse(csilResp)
+}
+
+func (c *MagiClient) PutPersona(ctx context.Context, req PutPersonaRequest) (PersonaInfo, error) {
+	var csilZero PersonaInfo
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "put-persona", EncodePutPersonaRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodePersonaInfo(csilResp)
 }
 
 func (c *MagiClient) GetAudio(ctx context.Context, req GetAudioRequest) (AudioResponse, error) {
@@ -160,6 +241,114 @@ func (c *MagiClient) ListVoices(ctx context.Context, req ListVoicesRequest) (Lis
 	return DecodeListVoicesResponse(csilResp)
 }
 
+func (c *MagiClient) ListLexicon(ctx context.Context, req ListLexiconRequest) (ListLexiconResponse, error) {
+	var csilZero ListLexiconResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-lexicon", EncodeListLexiconRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListLexiconResponse(csilResp)
+}
+
+func (c *MagiClient) PutLexiconWord(ctx context.Context, req PutLexiconWordRequest) (LexiconWord, error) {
+	var csilZero LexiconWord
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "put-lexicon-word", EncodePutLexiconWordRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeLexiconWord(csilResp)
+}
+
+func (c *MagiClient) DeleteLexiconWord(ctx context.Context, req DeleteLexiconWordRequest) (DeleteLexiconWordResponse, error) {
+	var csilZero DeleteLexiconWordResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "delete-lexicon-word", EncodeDeleteLexiconWordRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeDeleteLexiconWordResponse(csilResp)
+}
+
+func (c *MagiClient) Speak(ctx context.Context, req SpeakRequest) (SpeakResponse, error) {
+	var csilZero SpeakResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "speak", EncodeSpeakRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeSpeakResponse(csilResp)
+}
+
+func (c *MagiClient) ListRunners(ctx context.Context, req ListRunnersRequest) (ListRunnersResponse, error) {
+	var csilZero ListRunnersResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-runners", EncodeListRunnersRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListRunnersResponse(csilResp)
+}
+
+func (c *MagiClient) PutRunnerPackage(ctx context.Context, req PutRunnerPackageRequest) (PutRunnerPackageResponse, error) {
+	var csilZero PutRunnerPackageResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "put-runner-package", EncodePutRunnerPackageRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodePutRunnerPackageResponse(csilResp)
+}
+
+func (c *MagiClient) SetRunnerRelease(ctx context.Context, req SetRunnerReleaseRequest) (SetRunnerReleaseResponse, error) {
+	var csilZero SetRunnerReleaseResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "set-runner-release", EncodeSetRunnerReleaseRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeSetRunnerReleaseResponse(csilResp)
+}
+
+func (c *MagiClient) PutAppRelease(ctx context.Context, req PutAppReleaseRequest) (AppRelease, error) {
+	var csilZero AppRelease
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "put-app-release", EncodePutAppReleaseRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeAppRelease(csilResp)
+}
+
+func (c *MagiClient) GetAppRelease(ctx context.Context, req GetAppReleaseRequest) (GetAppReleaseResponse, error) {
+	var csilZero GetAppReleaseResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "get-app-release", EncodeGetAppReleaseRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeGetAppReleaseResponse(csilResp)
+}
+
+func (c *MagiClient) GetAppPackage(ctx context.Context, req GetAppPackageRequest) (GetAppPackageResponse, error) {
+	var csilZero GetAppPackageResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "get-app-package", EncodeGetAppPackageRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeGetAppPackageResponse(csilResp)
+}
+
+func (c *MagiClient) ListEgressReviews(ctx context.Context, req ListEgressReviewsRequest) (ListEgressReviewsResponse, error) {
+	var csilZero ListEgressReviewsResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-egress-reviews", EncodeListEgressReviewsRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListEgressReviewsResponse(csilResp)
+}
+
+func (c *MagiClient) DecideEgressReview(ctx context.Context, req DecideEgressReviewRequest) (DecideEgressReviewResponse, error) {
+	var csilZero DecideEgressReviewResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "decide-egress-review", EncodeDecideEgressReviewRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeDecideEgressReviewResponse(csilResp)
+}
+
 // RunnerClient is a typed client for the RunnerService service. The client owns
 // (de)serialization via the generated codec; the transport only moves bytes.
 type RunnerClient struct {
@@ -231,4 +420,95 @@ func (c *RunnerClient) RunStatus(ctx context.Context, req RunnerRunStatusRequest
 		return csilZero, csilErr
 	}
 	return DecodeRunnerRunStatusResponse(csilResp)
+}
+
+func (c *RunnerClient) Hello(ctx context.Context, req RunnerHelloRequest) (RunnerHelloResponse, error) {
+	var csilZero RunnerHelloResponse
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "hello", EncodeRunnerHelloRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeRunnerHelloResponse(csilResp)
+}
+
+func (c *RunnerClient) GetPackage(ctx context.Context, req RunnerGetPackageRequest) (RunnerGetPackageResponse, error) {
+	var csilZero RunnerGetPackageResponse
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "get-package", EncodeRunnerGetPackageRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeRunnerGetPackageResponse(csilResp)
+}
+
+func (c *RunnerClient) GetArtifact(ctx context.Context, req RunnerGetArtifactRequest) (RunnerGetArtifactResponse, error) {
+	var csilZero RunnerGetArtifactResponse
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "get-artifact", EncodeRunnerGetArtifactRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeRunnerGetArtifactResponse(csilResp)
+}
+
+func (c *RunnerClient) EgressAccess(ctx context.Context, req RunnerStep) (RunnerEgressAccessResponse, error) {
+	var csilZero RunnerEgressAccessResponse
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "egress-access", EncodeRunnerStep(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeRunnerEgressAccessResponse(csilResp)
+}
+
+// EgressAskClient is a typed client for the EgressAskService service. The client owns
+// (de)serialization via the generated codec; the transport only moves bytes.
+type EgressAskClient struct {
+	transport Transport
+}
+
+func NewEgressAskClient(transport Transport) *EgressAskClient {
+	return &EgressAskClient{transport: transport}
+}
+
+func (c *EgressAskClient) Environment(ctx context.Context, req EgressEnvironmentRequest) (EgressEnvironmentResponse, error) {
+	var csilZero EgressEnvironmentResponse
+	csilResp, csilErr := c.transport.Call(ctx, "EgressAskService", "environment", EncodeEgressEnvironmentRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeEgressEnvironmentResponse(csilResp)
+}
+
+func (c *EgressAskClient) Destination(ctx context.Context, req EgressDestinationRequest) (EgressDestinationResponse, error) {
+	var csilZero EgressDestinationResponse
+	csilResp, csilErr := c.transport.Call(ctx, "EgressAskService", "destination", EncodeEgressDestinationRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeEgressDestinationResponse(csilResp)
+}
+
+func (c *EgressAskClient) Report(ctx context.Context, req EgressReportRequest) (EgressReportResponse, error) {
+	var csilZero EgressReportResponse
+	csilResp, csilErr := c.transport.Call(ctx, "EgressAskService", "report", EncodeEgressReportRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeEgressReportResponse(csilResp)
+}
+
+func (c *EgressAskClient) Evaluate(ctx context.Context, req EgressEvaluateRequest) (EgressVerdict, error) {
+	var csilZero EgressVerdict
+	csilResp, csilErr := c.transport.Call(ctx, "EgressAskService", "evaluate", EncodeEgressEvaluateRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeEgressVerdict(csilResp)
+}
+
+func (c *EgressAskClient) SecretRules(ctx context.Context, req EgressSecretRulesRequest) (EgressSecretRulesResponse, error) {
+	var csilZero EgressSecretRulesResponse
+	csilResp, csilErr := c.transport.Call(ctx, "EgressAskService", "secret-rules", EncodeEgressSecretRulesRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeEgressSecretRulesResponse(csilResp)
 }

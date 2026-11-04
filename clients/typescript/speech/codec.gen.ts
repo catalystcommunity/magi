@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { Audio, ListVoicesRequest, ListVoicesResponse, SynthesizeRequest, TranscribeRequest, Transcript, Voice } from "./types.gen.ts";
+import type { Audio, DeleteLexiconEntryRequest, DeleteLexiconEntryResponse, LexiconEntry, ListLexiconRequest, ListLexiconResponse, ListVoicesRequest, ListVoicesResponse, PrepareTextRequest, PrepareTextResponse, PutLexiconEntryRequest, SynthesizeRequest, TranscribeRequest, Transcript, Voice } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -367,6 +367,7 @@ export function fromTranscribeRequestCbor(bytes: Uint8Array): TranscribeRequest 
 export function toTranscriptCborValue(v: Transcript): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("text", v.text);
+  if (v.heard !== undefined) csilMap.set("heard", v.heard);
   csilMap.set("engine", v.engine);
   csilMap.set("audio_ms", v.audioMs);
   if (v.confidence !== undefined) csilMap.set("confidence", v.confidence);
@@ -377,6 +378,7 @@ export function toTranscriptCborValue(v: Transcript): CborValue {
 export function fromTranscriptCborValue(value: CborValue): Transcript {
   return {
     text: asString(requireKey(value, "text")),
+    heard: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "heard")),
     confidence: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "confidence")),
     engine: asString(requireKey(value, "engine")),
     audioMs: asNumber(requireKey(value, "audio_ms")),
@@ -394,6 +396,7 @@ export function fromTranscriptCbor(bytes: Uint8Array): Transcript {
 
 export function toSynthesizeRequestCborValue(v: SynthesizeRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
+  if (v.raw !== undefined) csilMap.set("raw", v.raw);
   csilMap.set("text", v.text);
   if (v.speed !== undefined) csilMap.set("speed", v.speed);
   if (v.voice !== undefined) csilMap.set("voice", v.voice);
@@ -407,6 +410,7 @@ export function fromSynthesizeRequestCborValue(value: CborValue): SynthesizeRequ
     voice: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "voice")),
     format: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "format")),
     speed: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "speed")),
+    raw: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "raw")),
   };
 }
 
@@ -423,6 +427,7 @@ export function toAudioCborValue(v: Audio): CborValue {
   csilMap.set("body", v.body);
   csilMap.set("voice", v.voice);
   csilMap.set("engine", v.engine);
+  csilMap.set("spoken", v.spoken);
   csilMap.set("audio_ms", v.audioMs);
   csilMap.set("elapsed_ms", v.elapsedMs);
   csilMap.set("media_type", v.mediaType);
@@ -432,6 +437,7 @@ export function toAudioCborValue(v: Audio): CborValue {
 export function fromAudioCborValue(value: CborValue): Audio {
   return {
     body: asBytes(requireKey(value, "body")),
+    spoken: asString(requireKey(value, "spoken")),
     mediaType: asString(requireKey(value, "media_type")),
     voice: asString(requireKey(value, "voice")),
     engine: asString(requireKey(value, "engine")),
@@ -512,5 +518,185 @@ export function toListVoicesResponseCbor(v: ListVoicesResponse): Uint8Array {
 
 export function fromListVoicesResponseCbor(bytes: Uint8Array): ListVoicesResponse {
   return fromListVoicesResponseCborValue(decode(bytes));
+}
+
+export function toLexiconEntryCborValue(v: LexiconEntry): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.ipa !== undefined) csilMap.set("ipa", v.ipa);
+  if (v.note !== undefined) csilMap.set("note", v.note);
+  if (v.spoken !== undefined) csilMap.set("spoken", v.spoken);
+  csilMap.set("written", v.written);
+  csilMap.set("heard_as", v.heardAs);
+  csilMap.set("updated_by", v.updatedBy);
+  csilMap.set("updated_ms", v.updatedMs);
+  return csilMap;
+}
+
+export function fromLexiconEntryCborValue(value: CborValue): LexiconEntry {
+  return {
+    written: asString(requireKey(value, "written")),
+    spoken: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "spoken")),
+    ipa: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "ipa")),
+    heardAs: asArray(requireKey(value, "heard_as")).map((csilE) => asString(csilE)),
+    note: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "note")),
+    updatedBy: asString(requireKey(value, "updated_by")),
+    updatedMs: asNumber(requireKey(value, "updated_ms")),
+  };
+}
+
+export function toLexiconEntryCbor(v: LexiconEntry): Uint8Array {
+  return encodeValue(toLexiconEntryCborValue(v));
+}
+
+export function fromLexiconEntryCbor(bytes: Uint8Array): LexiconEntry {
+  return fromLexiconEntryCborValue(decode(bytes));
+}
+
+export function toListLexiconRequestCborValue(v: ListLexiconRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  return csilMap;
+}
+
+export function fromListLexiconRequestCborValue(value: CborValue): ListLexiconRequest {
+  void value;
+  return {} as ListLexiconRequest;
+}
+
+export function toListLexiconRequestCbor(v: ListLexiconRequest): Uint8Array {
+  return encodeValue(toListLexiconRequestCborValue(v));
+}
+
+export function fromListLexiconRequestCbor(bytes: Uint8Array): ListLexiconRequest {
+  return fromListLexiconRequestCborValue(decode(bytes));
+}
+
+export function toListLexiconResponseCborValue(v: ListLexiconResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("entries", v.entries.map((csilE): CborValue => toLexiconEntryCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromListLexiconResponseCborValue(value: CborValue): ListLexiconResponse {
+  return {
+    entries: asArray(requireKey(value, "entries")).map((csilE) => fromLexiconEntryCborValue(csilE)),
+  };
+}
+
+export function toListLexiconResponseCbor(v: ListLexiconResponse): Uint8Array {
+  return encodeValue(toListLexiconResponseCborValue(v));
+}
+
+export function fromListLexiconResponseCbor(bytes: Uint8Array): ListLexiconResponse {
+  return fromListLexiconResponseCborValue(decode(bytes));
+}
+
+export function toPutLexiconEntryRequestCborValue(v: PutLexiconEntryRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.by !== undefined) csilMap.set("by", v.by);
+  if (v.ipa !== undefined) csilMap.set("ipa", v.ipa);
+  if (v.note !== undefined) csilMap.set("note", v.note);
+  if (v.spoken !== undefined) csilMap.set("spoken", v.spoken);
+  csilMap.set("written", v.written);
+  if (v.heardAs !== undefined) csilMap.set("heard_as", v.heardAs);
+  return csilMap;
+}
+
+export function fromPutLexiconEntryRequestCborValue(value: CborValue): PutLexiconEntryRequest {
+  return {
+    written: asString(requireKey(value, "written")),
+    spoken: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "spoken")),
+    ipa: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "ipa")),
+    heardAs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "heard_as")),
+    note: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "note")),
+    by: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "by")),
+  };
+}
+
+export function toPutLexiconEntryRequestCbor(v: PutLexiconEntryRequest): Uint8Array {
+  return encodeValue(toPutLexiconEntryRequestCborValue(v));
+}
+
+export function fromPutLexiconEntryRequestCbor(bytes: Uint8Array): PutLexiconEntryRequest {
+  return fromPutLexiconEntryRequestCborValue(decode(bytes));
+}
+
+export function toDeleteLexiconEntryRequestCborValue(v: DeleteLexiconEntryRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("written", v.written);
+  return csilMap;
+}
+
+export function fromDeleteLexiconEntryRequestCborValue(value: CborValue): DeleteLexiconEntryRequest {
+  return {
+    written: asString(requireKey(value, "written")),
+  };
+}
+
+export function toDeleteLexiconEntryRequestCbor(v: DeleteLexiconEntryRequest): Uint8Array {
+  return encodeValue(toDeleteLexiconEntryRequestCborValue(v));
+}
+
+export function fromDeleteLexiconEntryRequestCbor(bytes: Uint8Array): DeleteLexiconEntryRequest {
+  return fromDeleteLexiconEntryRequestCborValue(decode(bytes));
+}
+
+export function toDeleteLexiconEntryResponseCborValue(v: DeleteLexiconEntryResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("deleted", v.deleted);
+  return csilMap;
+}
+
+export function fromDeleteLexiconEntryResponseCborValue(value: CborValue): DeleteLexiconEntryResponse {
+  return {
+    deleted: asBool(requireKey(value, "deleted")),
+  };
+}
+
+export function toDeleteLexiconEntryResponseCbor(v: DeleteLexiconEntryResponse): Uint8Array {
+  return encodeValue(toDeleteLexiconEntryResponseCborValue(v));
+}
+
+export function fromDeleteLexiconEntryResponseCbor(bytes: Uint8Array): DeleteLexiconEntryResponse {
+  return fromDeleteLexiconEntryResponseCborValue(decode(bytes));
+}
+
+export function toPrepareTextRequestCborValue(v: PrepareTextRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("text", v.text);
+  return csilMap;
+}
+
+export function fromPrepareTextRequestCborValue(value: CborValue): PrepareTextRequest {
+  return {
+    text: asString(requireKey(value, "text")),
+  };
+}
+
+export function toPrepareTextRequestCbor(v: PrepareTextRequest): Uint8Array {
+  return encodeValue(toPrepareTextRequestCborValue(v));
+}
+
+export function fromPrepareTextRequestCbor(bytes: Uint8Array): PrepareTextRequest {
+  return fromPrepareTextRequestCborValue(decode(bytes));
+}
+
+export function toPrepareTextResponseCborValue(v: PrepareTextResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("spoken", v.spoken);
+  return csilMap;
+}
+
+export function fromPrepareTextResponseCborValue(value: CborValue): PrepareTextResponse {
+  return {
+    spoken: asString(requireKey(value, "spoken")),
+  };
+}
+
+export function toPrepareTextResponseCbor(v: PrepareTextResponse): Uint8Array {
+  return encodeValue(toPrepareTextResponseCborValue(v));
+}
+
+export function fromPrepareTextResponseCbor(bytes: Uint8Array): PrepareTextResponse {
+  return fromPrepareTextResponseCborValue(decode(bytes));
 }
 

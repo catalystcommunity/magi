@@ -10,6 +10,11 @@ knowledge, and work. Clients (command line, web, Android) use the API.
 
 - [Plan](docs/plan.md): goal, primitives, and slices.
 - [Conventions](docs/conventions.md): layout, rules, transport, storage, tests.
+- [Conversations](docs/conversations.md): the conversation graph.
+- [Prompt injection](docs/prompt-injection.md): research and defense plan.
+- [Speech interaction](docs/speech-interaction.md): research and plan.
+- [Egress proxy](docs/egress-proxy.md): design of the outbound proxy with WASM plugins.
+- [Host setup](docs/host-setup.md): requirements for the tool that makes model and speech hosts.
 - Each primitive has a README in `primitives/<name>/`.
 
 ## Health endpoints
@@ -36,7 +41,7 @@ relative to the service's listen address (`MAGI_LISTEN`, default `:8080`).
 | Speech engine (STT/TTS) | `GET /health` | The engine process, device, and load. |
 | Inference engine | `GET /health` | The model engine behind the host. |
 
-The agent worker claims workflow tasks and serves no HTTP endpoint.
+The apprentice worker claims workflow tasks and serves no HTTP endpoint.
 
 ## Try it
 

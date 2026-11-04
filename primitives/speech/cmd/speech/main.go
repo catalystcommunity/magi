@@ -14,6 +14,7 @@ import (
 	"github.com/catalystcommunity/magi/lib/authn"
 	"github.com/catalystcommunity/magi/lib/rpc"
 	"github.com/catalystcommunity/magi/primitives/speech/server"
+	"github.com/catalystcommunity/magi/primitives/speech/store"
 )
 
 func env(name, def string) string {
@@ -29,16 +30,17 @@ func main() {
 	stt := flag.String("stt-url", env("MAGI_SPEECH_STT_URL", ""), "speech-to-text engine URL")
 	tts := flag.String("tts-url", env("MAGI_SPEECH_TTS_URL", ""), "text-to-speech engine URL")
 	tokenFile := flag.String("engine-token-file", env("MAGI_SPEECH_ENGINE_TOKEN_FILE", ""), "engine bearer token file")
+	dbURL := flag.String("database-url", env("MAGI_DATABASE_URL", ""), "PostgreSQL URL for the lexicon (optional)")
 	flag.Parse()
 
 	log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	if err := run(*listen, *keys, *stt, *tts, *tokenFile, log); err != nil {
+	if err := run(*listen, *keys, *stt, *tts, *tokenFile, *dbURL, log); err != nil {
 		log.Error("speech", "err", err)
 		os.Exit(1)
 	}
 }
 
-func run(listen, keys, stt, tts, tokenFile string, log *slog.Logger) error {
+func run(listen, keys, stt, tts, tokenFile, dbURL string, log *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	if keys == "" || stt == "" || tts == "" || tokenFile == "" {
@@ -53,7 +55,17 @@ func run(listen, keys, stt, tts, tokenFile string, log *slog.Logger) error {
 		return err
 	}
 	token := strings.TrimSpace(string(b))
-	svc := &server.Service{STT: server.NewEngine(stt, token), TTS: server.NewEngine(tts, token)}
+	svc := &server.Service{STT: server.NewEngine(stt, token), TTS: server.NewEngine(tts, token), Log: log}
+	if dbURL != "" {
+		db, err := store.Open(ctx, dbURL)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+		svc.Lexicon = db
+	} else {
+		log.Warn("no MAGI_DATABASE_URL: the lexicon is empty and cannot change")
+	}
 	s := &rpc.Server{Verifier: v, MaxBody: server.MaxRequest, Log: log}
 	server.Register(s, svc)
 	log.Info("speech listening", "addr", listen, "stt", stt, "tts", tts)

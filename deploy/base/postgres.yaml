@@ -23,3 +23,4 @@ spec:
         - CREATE DATABASE identity OWNER magi
         - CREATE DATABASE corndogs OWNER magi
         - CREATE DATABASE composer OWNER magi
+        - CREATE DATABASE speech OWNER magi

@@ -13,41 +13,89 @@ export interface Ref {
   title?: string;
 }
 
-export interface Chat {
+/**
+ * A link from a message to an earlier message, or to a record in
+ * another system. For a message target, snippet is the start of its text
+ * and target_ms its time. span_start and span_end are the part of the
+ * message that the link applies to; weight is the share (0 to 1). state
+ * is "current" or "tentative" (only in a trace with tentative, or in
+ * links with all).
+ */
+export interface MessageLink {
   id: string;
-  title: string;
-  createdMs: number;
-  updatedMs: number;
-  lastSeq: number;
+  kind: string;
+  target: Ref;
+  snippet?: string;
+  targetMs?: number;
+  spanStart?: number;
+  spanEnd?: number;
+  weight: number;
+  confidence: number;
+  author: string;
+  state: string;
 }
 
 /**
  * author_kind is "human", "persona", or "system".
  * audio is an artifact digest; read it with get-audio.
  * generated_by names the model that wrote a persona reply, or the
- * transcriber of a voice message.
+ * transcriber of a voice message. visibility is "private" (the person and
+ * the persona) or "shared" (also the audience of the persona).
+ * visibility_by is "" until the librarian or the person decides it.
  */
 export interface Message {
   id: string;
-  chat: string;
+  stream: string;
+  persona: string;
   seq: number;
   author: string;
   authorKind: string;
   modality: string;
   text: string;
   audio?: string;
-  replyTo?: string;
   refs: Ref[];
+  links: MessageLink[];
+  visibility: string;
+  visibilityBy: string;
   generatedBy?: string;
   createdMs: number;
 }
 
 /**
- * Sends text or audio. Without chat, a new chat starts.
+ * sharing: "never", "private" (private by default), or "public" (shared
+ * with the audience by default).
+ */
+export interface PersonaInfo {
+  id: string;
+  name: string;
+  sharing: string;
+  members: string[];
+}
+
+export interface ListPersonasRequest {
+}
+
+export interface ListPersonasResponse {
+  personas: PersonaInfo[];
+}
+
+/**
+ * Operator call.
+ */
+export interface PutPersonaRequest {
+  id: string;
+  name: string;
+  sharing: string;
+  members?: string[];
+}
+
+/**
+ * Says something to a persona (default "persona:magi"). There are no
+ * chats: each person has one stream with each persona.
  * speak_reply asks for a spoken reply in addition to text.
  */
 export interface SayRequest {
-  chat?: string;
+  persona?: string;
   text?: string;
   audio?: Uint8Array;
   audioType?: string;
@@ -56,24 +104,19 @@ export interface SayRequest {
 }
 
 export interface SayResponse {
-  chat: string;
   message: Message;
 }
 
-export interface ListChatsRequest {
-  limit?: number;
-}
-
-export interface ListChatsResponse {
-  chats: Chat[];
-}
-
 /**
- * Returns messages after after_seq. Waits up to wait_ms when there are none.
+ * Reads the stream of the caller with a persona (default
+ * "persona:magi"). Without before_seq, returns messages after after_seq
+ * and waits up to wait_ms when there are none. With before_seq, returns
+ * the newest messages before it (to scroll back).
  */
 export interface ReadRequest {
-  chat: string;
+  persona?: string;
   afterSeq?: number;
+  beforeSeq?: number;
   limit?: number;
   waitMs?: number;
 }
@@ -81,6 +124,108 @@ export interface ReadRequest {
 export interface ReadResponse {
   messages: Message[];
   lastSeq: number;
+  stream: string;
+}
+
+/**
+ * Finds messages that the caller can read, best match first.
+ */
+export interface SearchRequest {
+  text: string;
+  limit?: number;
+}
+
+export interface SearchResponse {
+  messages: Message[];
+}
+
+/**
+ * Follows the links of a message. direction: "back" (default),
+ * "forward", or "both".
+ */
+export interface TraceRequest {
+  message: string;
+  direction?: string;
+  depth?: number;
+  tentative?: boolean;
+}
+
+export interface TraceResponse {
+  messages: Message[];
+  links: MessageLink[];
+}
+
+/**
+ * Audit and correction. links returns the links of a message, with all
+ * states when all is true. A link or a visibility that the person sets
+ * is a correction; the librarian learns from it.
+ */
+export interface ListLinksRequest {
+  message: string;
+  all?: boolean;
+}
+
+export interface ListLinksResponse {
+  links: MessageLink[];
+}
+
+export interface LinkRequest {
+  message: string;
+  kind: string;
+  target: Ref;
+  replaces?: string;
+  spanStart?: number;
+  spanEnd?: number;
+  weight?: number;
+  note?: string;
+}
+
+export interface UnlinkRequest {
+  link: string;
+  note?: string;
+}
+
+export interface SetVisibilityRequest {
+  message: string;
+  visibility: string;
+  note?: string;
+}
+
+/**
+ * A question from the librarian about a classification with a low
+ * confidence. target is the earlier message of a link question.
+ */
+export interface ReviewItem {
+  id: string;
+  task: string;
+  question: string;
+  proposed: string;
+  choices: string[];
+  confidence: number;
+  message: Message;
+  target?: Message;
+  createdMs: number;
+}
+
+export interface ListReviewsRequest {
+  limit?: number;
+}
+
+export interface ListReviewsResponse {
+  reviews: ReviewItem[];
+}
+
+/**
+ * answer is one of the choices, another link kind, or "dismiss".
+ */
+export interface AnswerReviewRequest {
+  id: string;
+  answer: string;
+  note?: string;
+}
+
+export interface AnswerReviewResponse {
+  status: string;
 }
 
 export interface GetAudioRequest {
@@ -113,7 +258,6 @@ export interface Task {
   currentStep: string;
   waitingFor?: string;
   decisions?: string[];
-  chat?: string;
   branch?: string;
   repo?: string;
   steps: TaskStep[];
@@ -132,7 +276,7 @@ export interface StartTaskRequest {
   instructions: string;
   title?: string;
   repo?: string;
-  chat?: string;
+  runner?: string;
 }
 
 export interface GetTaskRequest {
@@ -140,7 +284,6 @@ export interface GetTaskRequest {
 }
 
 export interface ListTasksRequest {
-  chat?: string;
   status?: string;
   limit?: number;
 }
@@ -168,7 +311,7 @@ export interface GetTaskDiffRequest {
 
 /**
  * Records a human decision on a waiting task, for example "approve" or
- * "reject". A chat message does not record a decision.
+ * "reject". A message does not record a decision.
  */
 export interface DecideRequest {
   task: string;
@@ -238,6 +381,214 @@ export interface ListVoicesResponse {
 }
 
 /**
+ * The household lexicon: how Magi says words and how it corrects what
+ * speech to text hears (see the speech primitive). Anybody can read it.
+ * can_edit tells if the caller is a lexicon editor (MAGI_LEXICON_EDITORS,
+ * or the admins when that is empty). Only editors can change it.
+ */
+export interface LexiconWord {
+  written: string;
+  spoken?: string;
+  ipa?: string;
+  heardAs: string[];
+  note?: string;
+  updatedBy: string;
+  updatedMs: number;
+}
+
+export interface ListLexiconRequest {
+}
+
+export interface ListLexiconResponse {
+  words: LexiconWord[];
+  canEdit: boolean;
+}
+
+export interface PutLexiconWordRequest {
+  written: string;
+  spoken?: string;
+  ipa?: string;
+  heardAs?: string[];
+  note?: string;
+}
+
+export interface DeleteLexiconWordRequest {
+  written: string;
+}
+
+export interface DeleteLexiconWordResponse {
+  deleted: boolean;
+}
+
+/**
+ * Says text with the lexicon, to hear a pronunciation. spoken is the
+ * text that the engine got.
+ */
+export interface SpeakRequest {
+  text: string;
+  voice?: string;
+}
+
+export interface SpeakResponse {
+  spoken: string;
+  audio: Uint8Array;
+  mediaType: string;
+}
+
+/**
+ * A runner that said hello to Magi. version is the runner release it
+ * runs. update_error tells why the last update was rolled back.
+ */
+export interface RunnerInfo {
+  name: string;
+  version: string;
+  os: string;
+  arch: string;
+  repos: string[];
+  publishes: string[];
+  busy: boolean;
+  seenMs: number;
+  updateError?: string;
+}
+
+export interface ListRunnersRequest {
+}
+
+export interface ListRunnersResponse {
+  runners: RunnerInfo[];
+  release?: string;
+}
+
+/**
+ * Operator calls (scope "magi:operate", or a subject in MAGI_ADMINS).
+ * A runner package is a gzip tar file with magi-runner and apprentice/.
+ * set-runner-release tells runners to update to version; each runner
+ * tests the new release and goes back to the old one if it fails.
+ */
+export interface PutRunnerPackageRequest {
+  version: string;
+  os: string;
+  arch: string;
+  body: Uint8Array;
+}
+
+export interface PutRunnerPackageResponse {
+  digest: string;
+}
+
+export interface SetRunnerReleaseRequest {
+  version: string;
+}
+
+export interface SetRunnerReleaseResponse {
+  version: string;
+  packages: string[];
+}
+
+/**
+ * The newest Android app. version_code increases with each build.
+ */
+export interface AppRelease {
+  versionCode: number;
+  versionName: string;
+  digest: string;
+  size: number;
+}
+
+export interface PutAppReleaseRequest {
+  versionCode: number;
+  versionName: string;
+  body: Uint8Array;
+}
+
+export interface GetAppReleaseRequest {
+}
+
+export interface GetAppReleaseResponse {
+  release?: AppRelease;
+}
+
+export interface GetAppPackageRequest {
+  digest: string;
+}
+
+export interface GetAppPackageResponse {
+  body: Uint8Array;
+}
+
+/**
+ * Egress reviews (docs/egress-proxy.md). The egress proxy does not keep
+ * a request for a person: it blocks the request at once, and Magi adds a
+ * review for an admin. The decision changes the policy for the next
+ * requests. kind: "request" (a rule, a plugin, or the review model asked
+ * for a person) or "destination" (the host is not in the policy). One
+ * review collects the requests with the same kind, host, method, and
+ * path; count is their number. body is the start of the decoded body of
+ * the last request, with no real secret. state: "open" or "decided".
+ */
+export interface EgressReviewHeader {
+  name: string;
+  value: string;
+}
+
+export interface EgressReview {
+  id: string;
+  kind: string;
+  state: string;
+  owner: string;
+  environment: string;
+  destination: string;
+  method: string;
+  url: string;
+  headers: EgressReviewHeader[];
+  body: Uint8Array;
+  reason: string;
+  by: string;
+  count: number;
+  firstMs: number;
+  lastMs: number;
+  decision?: string;
+  decidedBy?: string;
+  note?: string;
+}
+
+/**
+ * Only admins see reviews. state defaults to "open".
+ */
+export interface ListEgressReviewsRequest {
+  state?: string;
+  limit?: number;
+}
+
+export interface ListEgressReviewsResponse {
+  reviews: EgressReview[];
+}
+
+/**
+ * decision:
+ * - "allow-host": pass requests with this method to this host (for a
+ * destination review: permit the host and port).
+ * - "allow-path": pass requests with this method to this host and path.
+ * - "allow-layer4": (a destination review only) permit the host and
+ * port at layer 4: the proxy copies the bytes and does not inspect
+ * them. Use it for protocols that the proxy does not end (linkkeys).
+ * - "block": block such requests at once, with no new review.
+ * - "dismiss": no rule; the next blocked request opens a review again.
+ * A rule applies to all environments of the installation.
+ */
+export interface DecideEgressReviewRequest {
+  id: string;
+  decision: string;
+  note?: string;
+}
+
+export interface DecideEgressReviewResponse {
+  id: string;
+  decision: string;
+  rule?: string;
+}
+
+/**
  * RunnerService is for runners: programs on other machines that connect
  * to Magi, claim workflow steps from their own queues, and run them there.
  * A runner never listens on the network. A runner token has the scope
@@ -298,7 +649,8 @@ export interface RunnerPutArtifactResponse {
 }
 
 /**
- * Writes a persona message into the chat of the run.
+ * Writes a persona message into the stream of the person who started
+ * the run.
  */
 export interface RunnerPostRequest {
   step: RunnerStep;
@@ -319,5 +671,190 @@ export interface RunnerRunStatusResponse {
 
 export interface RunnerAck {
   ok: boolean;
+}
+
+/**
+ * A runner says hello about once a minute and when it starts. Magi
+ * answers with the release that the runner must run, when it differs.
+ * publishes lists the repositories that the runner can push upstream.
+ */
+export interface RunnerHelloRequest {
+  version: string;
+  os: string;
+  arch: string;
+  repos: string[];
+  publishes: string[];
+  busy: boolean;
+  updateError?: string;
+}
+
+export interface RunnerUpdate {
+  version: string;
+  digest: string;
+  size: number;
+}
+
+export interface RunnerHelloResponse {
+  update?: RunnerUpdate;
+}
+
+export interface RunnerGetPackageRequest {
+  version: string;
+  os: string;
+  arch: string;
+}
+
+export interface RunnerGetPackageResponse {
+  digest: string;
+  body: Uint8Array;
+}
+
+/**
+ * Reads an artifact of the run of a step that the runner holds, for
+ * example the merge bundle that a publishing runner pushes.
+ */
+export interface RunnerGetArtifactRequest {
+  step: RunnerStep;
+  digest: string;
+}
+
+export interface RunnerGetArtifactResponse {
+  mediaType: string;
+  body: Uint8Array;
+}
+
+/**
+ * How the sandbox of a run reaches the egress proxy. Without proxy, the
+ * installation has no egress proxy for runners, and the sandbox uses the
+ * network of the host. environment is the proxy user name (the run id),
+ * credential the proxy password, and ca the proxy CA certificate (PEM).
+ * The runner sends each proxy connection through GET /runner/egress on
+ * Magi (an HTTP upgrade), so the runner machine connects only to Magi.
+ * ssh_known_hosts: the known_hosts line of the SSH host key of the
+ * proxy (all hosts), when the proxy ends SSH.
+ */
+export interface RunnerEgressProxy {
+  environment: string;
+  credential: string;
+  ca: Uint8Array;
+  sshKnownHosts?: string;
+}
+
+export interface RunnerEgressAccessResponse {
+  proxy?: RunnerEgressProxy;
+}
+
+/**
+ * EgressAskService is for the egress proxy and its plugins. A plugin
+ * asks Magi for information or for a decision about one flow. The proxy
+ * token has the subject "service:egress" and the scope "magi:egress".
+ * The proxy sets plugin and flow; a plugin cannot change them.
+ */
+export interface EgressFlowHeader {
+  name: string;
+  value: string;
+}
+
+/**
+ * body is at most the first 8 KiB of the decoded body, with no real
+ * secret.
+ */
+export interface EgressFlow {
+  id: string;
+  environment: string;
+  owner: string;
+  direction: string;
+  destination: string;
+  method: string;
+  url: string;
+  status: number;
+  headers: EgressFlowHeader[];
+  body: Uint8Array;
+}
+
+/**
+ * Who owns an environment, and what it does. The proxy asks once for each
+ * environment and keeps the answer for some minutes.
+ */
+export interface EgressEnvironmentRequest {
+  environment: string;
+}
+
+export interface EgressEnvironmentResponse {
+  owner: string;
+  task?: string;
+  goal?: string;
+  labels?: Record<string, string>;
+}
+
+/**
+ * Magi decides about one flow. verdict: "pass", "review" (block now, and
+ * an admin reviews it later), or "block".
+ * question is optional text from the plugin, for example what it found.
+ */
+export interface EgressEvaluateRequest {
+  plugin: string;
+  flow: EgressFlow;
+  question?: string;
+}
+
+export interface EgressVerdict {
+  verdict: string;
+  reason: string;
+  by: string;
+}
+
+/**
+ * The placeholder rules for the owner of the flow. hosts are host
+ * patterns ("api.example.local", "*.example.local"). path is an optional
+ * regular expression for the URL path. place: "header:<name>", "url",
+ * "body", or "any".
+ */
+export interface EgressSecretRulesRequest {
+  plugin: string;
+  flow: EgressFlow;
+}
+
+export interface EgressSecretRule {
+  placeholder: string;
+  secret: string;
+  hosts: string[];
+  path?: string;
+  place: string;
+}
+
+export interface EgressSecretRulesResponse {
+  rules: EgressSecretRule[];
+}
+
+/**
+ * The proxy blocked a flow for review (kind: "request" or "destination",
+ * see EgressReview). by names the plugin, or "policy" for a destination.
+ */
+export interface EgressReportRequest {
+  kind: string;
+  flow: EgressFlow;
+  reason: string;
+  by: string;
+}
+
+export interface EgressReportResponse {
+  review: string;
+}
+
+/**
+ * A destination (host:port) that the policy of the proxy does not
+ * permit. allowed is true when a decided review permits it; layer4 is
+ * true when the review permits it at layer 4 only. The proxy keeps the
+ * answer for a minute.
+ */
+export interface EgressDestinationRequest {
+  environment: string;
+  destination: string;
+}
+
+export interface EgressDestinationResponse {
+  allowed: boolean;
+  layer4?: boolean;
 }
 

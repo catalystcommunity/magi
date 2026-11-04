@@ -7,38 +7,71 @@ import "context"
 // ConversationServiceOps returns the server dispatch table for ConversationService.
 func ConversationServiceOps(impl ConversationService) map[string]func(context.Context, []byte) ([]byte, error) {
 	return map[string]func(context.Context, []byte) ([]byte, error){
-		"create-conversation": func(ctx context.Context, b []byte) ([]byte, error) {
-			req, err := DecodeCreateConversationRequest(b)
+		"put-persona": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodePutPersonaRequest(b)
 			if err != nil {
 				return nil, &DecodeError{Err: err}
 			}
-			resp, err := impl.CreateConversation(ctx, req)
+			resp, err := impl.PutPersona(ctx, req)
 			if err != nil {
 				return nil, err
 			}
-			return EncodeConversation(resp), nil
+			return EncodePersona(resp), nil
 		},
-		"get-conversation": func(ctx context.Context, b []byte) ([]byte, error) {
-			req, err := DecodeGetConversationRequest(b)
+		"get-persona": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeGetPersonaRequest(b)
 			if err != nil {
 				return nil, &DecodeError{Err: err}
 			}
-			resp, err := impl.GetConversation(ctx, req)
+			resp, err := impl.GetPersona(ctx, req)
 			if err != nil {
 				return nil, err
 			}
-			return EncodeConversation(resp), nil
+			return EncodePersona(resp), nil
 		},
-		"list-conversations": func(ctx context.Context, b []byte) ([]byte, error) {
-			req, err := DecodeListConversationsRequest(b)
+		"list-personas": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListPersonasRequest(b)
 			if err != nil {
 				return nil, &DecodeError{Err: err}
 			}
-			resp, err := impl.ListConversations(ctx, req)
+			resp, err := impl.ListPersonas(ctx, req)
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListConversationsResponse(resp), nil
+			return EncodeListPersonasResponse(resp), nil
+		},
+		"open-stream": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeOpenStreamRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.OpenStream(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeStream(resp), nil
+		},
+		"list-streams": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListStreamsRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListStreams(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListStreamsResponse(resp), nil
+		},
+		"get-stream": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeGetStreamRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.GetStream(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeStream(resp), nil
 		},
 		"post": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodePostRequest(b)
@@ -73,38 +106,148 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			}
 			return EncodeUtterance(resp), nil
 		},
-		"open-session": func(ctx context.Context, b []byte) ([]byte, error) {
-			req, err := DecodeOpenSessionRequest(b)
+		"get-utterances": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeGetUtterancesRequest(b)
 			if err != nil {
 				return nil, &DecodeError{Err: err}
 			}
-			resp, err := impl.OpenSession(ctx, req)
+			resp, err := impl.GetUtterances(ctx, req)
 			if err != nil {
 				return nil, err
 			}
-			return EncodeSession(resp), nil
+			return EncodeGetUtterancesResponse(resp), nil
 		},
-		"update-session": func(ctx context.Context, b []byte) ([]byte, error) {
-			req, err := DecodeUpdateSessionRequest(b)
+		"search": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeSearchRequest(b)
 			if err != nil {
 				return nil, &DecodeError{Err: err}
 			}
-			resp, err := impl.UpdateSession(ctx, req)
+			resp, err := impl.Search(ctx, req)
 			if err != nil {
 				return nil, err
 			}
-			return EncodeSession(resp), nil
+			return EncodeSearchResponse(resp), nil
 		},
-		"list-sessions": func(ctx context.Context, b []byte) ([]byte, error) {
-			req, err := DecodeListSessionsRequest(b)
+		"trace": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeTraceRequest(b)
 			if err != nil {
 				return nil, &DecodeError{Err: err}
 			}
-			resp, err := impl.ListSessions(ctx, req)
+			resp, err := impl.Trace(ctx, req)
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListSessionsResponse(resp), nil
+			return EncodeTraceResponse(resp), nil
+		},
+		"put-link": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodePutLinkRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.PutLink(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodePutLinkResponse(resp), nil
+		},
+		"retract-link": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeRetractLinkRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.RetractLink(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeLink(resp), nil
+		},
+		"list-links": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListLinksRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListLinks(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListLinksResponse(resp), nil
+		},
+		"set-visibility": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeSetVisibilityRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.SetVisibility(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeSetVisibilityResponse(resp), nil
+		},
+		"list-reviews": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListReviewsRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListReviews(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListReviewsResponse(resp), nil
+		},
+		"answer-review": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeAnswerReviewRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.AnswerReview(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeReview(resp), nil
+		},
+		"list-examples": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListExamplesRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListExamples(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListExamplesResponse(resp), nil
+		},
+		"get-calibration": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeGetCalibrationRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.GetCalibration(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeCalibration(resp), nil
+		},
+		"claim-unclassified": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeClaimUnclassifiedRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ClaimUnclassified(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeClaimUnclassifiedResponse(resp), nil
+		},
+		"mark-classified": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeMarkClassifiedRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.MarkClassified(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeUtterance(resp), nil
 		},
 		"annotate": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeAnnotateRequest(b)
@@ -127,6 +270,17 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 				return nil, err
 			}
 			return EncodeListAnnotationsResponse(resp), nil
+		},
+		"import-legacy": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeImportLegacyRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ImportLegacy(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeImportLegacyResponse(resp), nil
 		},
 	}
 }

@@ -13,7 +13,7 @@ primitives/<name>/           one Go module per primitive
   store/                     persistence (if the primitive has state)
   cmd/<name>/main.go         the process
   README.md                  purpose, API summary, configuration, tests
-primitives/agent/            Python harness (package magi_agent)
+primitives/apprentice/            Python harness (package magi_apprentice)
 primitives/release/          Rust release controller
 magi/                        composition layer and human-facing API
 clients/python, clients/typescript   generated clients and transports
@@ -35,7 +35,7 @@ Run `tools/gen.sh` after a contract change. It regenerates Go code,
   snake_case. Do not use CSIL unions or bare timestamps; use `uint` Unix
   milliseconds. `from`, `to`, and `service` are reserved words.
 - Do not run `git add`, `commit`, `push`, `stash`, `checkout`, `reset`, or
-  `clean`. Other agents work in this tree at the same time.
+  `clean`. Other apprentices work in this tree at the same time.
 - Do not store private values (hostnames, addresses, accounts, keys) in the
   repository. Use `example.local` names in examples.
 - Do not name anything "opal". There is no backwards compatibility.

@@ -1,7 +1,7 @@
 # Android client
 
 A small Android app for the Magi API. It uses only `IdentityService` (sign
-in) and `MagiService` (chats, voice, tasks). It is one replaceable client,
+in) and `MagiService` (conversation, voice, reviews, tasks). It is one replaceable client,
 like the web and command-line clients.
 
 - Kotlin, Android framework views. No AndroidX, no Google Play services, and
@@ -16,8 +16,9 @@ like the web and command-line clients.
 | Screen | Use |
 | --- | --- |
 | Sign in | Server URL and LinkKeys identity. The browser opens for LinkKeys and then comes back to the app. |
-| Chats | List of chats, and a new chat |
-| Chat | Text messages, and Talk/Stop to send a voice message. A reply to a voice message is spoken. "Speak replies" also speaks replies to text. |
+| Talk | One conversation with each persona; no chats. Text messages, and Talk/Stop to send a voice message. A reply to a voice message is spoken. "Speak replies" also speaks replies to text. A message that relates to an earlier one shows an "about" line; tap it to go to that message. Long-press a message to see its links and who can read it, and to correct them. |
+| Review | The questions of the librarian, when it is not sure how a message relates to an earlier one or who can read it |
+| Network | Admins only: requests of tasks that the egress proxy blocked for review. Each decision (allow the host, allow the path, block, or dismiss) is a rule for the next such requests. |
 | Tasks | Status of tasks, the diff, and the decisions of a waiting task (for example approve or reject) |
 
 ## Sign in
@@ -35,6 +36,30 @@ like the web and command-line clients.
 
 The code is useless without `login_id`. Thus another app that claims the
 same scheme cannot sign in as the person.
+
+## Updates
+
+Magi keeps the newest app build. The app checks for it when it opens and
+about once an hour in the background (a `JobScheduler` job, any network).
+A build with a higher version code is downloaded, checked against its
+SHA-256 digest, and installed with `PackageInstaller`.
+
+- Android asks you to confirm the first update. Install the first build
+  with the updater over USB (`adb install -r`), open the app, and confirm.
+  After that the app is the installer of record of itself, and updates
+  install without a question.
+- A confirmation that Android asks for while the app is in the background
+  waits until you open the app.
+- Updates keep the signing key: build on the same machine (the debug key in
+  `~/.android/debug.keystore`), or Android refuses the update.
+- Publish a build (operator, see `magi/README.md`):
+
+  ```sh
+  tools/build-android.sh            # prints "version CODE (NAME)" and the APK
+  magi app-release CODE NAME android/app/build/outputs/apk/debug/app-debug.apk
+  ```
+
+This app is not for an app store. Build it yourself.
 
 ## Build
 

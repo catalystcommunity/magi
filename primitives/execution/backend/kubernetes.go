@@ -16,6 +16,8 @@ import (
 	"time"
 
 	api "github.com/catalystcommunity/magi/primitives/execution/api"
+	"github.com/catalystcommunity/magi/primitives/execution/egressenv"
+	"github.com/catalystcommunity/magi/primitives/execution/envd"
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -49,14 +51,18 @@ const (
 )
 
 const (
-	initName   = "envd-init"
-	mainName   = "env"
-	envdDir    = "/magi"
-	secretDir  = "/magi-secret"
-	labelEnv   = "magi.environment"
-	labelPart  = "app.kubernetes.io/part-of"
-	defaultCPU = 1000
-	defaultMem = 2048
+	initName = "envd-init"
+	// netInitName sets up the firewall of a Pod with network "proxy".
+	netInitName = "envd-net"
+	// podProxyAddr is the proxy port of envd in a Pod with network "proxy".
+	podProxyAddr = "127.0.0.1:3128"
+	mainName     = "env"
+	envdDir      = "/magi"
+	secretDir    = "/magi-secret"
+	labelEnv     = "magi.environment"
+	labelPart    = "app.kubernetes.io/part-of"
+	defaultCPU   = 1000
+	defaultMem   = 2048
 )
 
 // Kubernetes runs each environment as a Pod in Namespace.
@@ -72,7 +78,10 @@ type Kubernetes struct {
 	// ControlNamespace is where the control plane runs. With network
 	// "none" and fetch delivery, Pods can reach only this namespace.
 	ControlNamespace string
-	Envd             *Binaries
+	// Egress is the egress proxy for network "proxy"; nil refuses that
+	// network.
+	Egress *EgressProxy
+	Envd   *Binaries
 
 	mu      sync.Mutex
 	pushing map[string]bool
@@ -129,8 +138,8 @@ func quantity(v *uint64, def uint64, unit string) resource.Quantity {
 	return resource.MustParse(strconv.FormatUint(n, 10) + unit)
 }
 
-// Objects returns the Secret, Pod, and (for network "none") NetworkPolicy
-// of an environment.
+// Objects returns the Secret, Pod, and (for network "none" and "proxy")
+// NetworkPolicy of an environment.
 func (k *Kubernetes) Objects(id string, spec api.EnvironmentSpec, token string) (*corev1.Secret, *corev1.Pod, *netv1.NetworkPolicy, error) {
 	name := PodName(id)
 	labels := map[string]string{labelPart: "magi", labelEnv: id, "app.kubernetes.io/component": "environment"}
@@ -148,6 +157,59 @@ func (k *Kubernetes) Objects(id string, spec api.EnvironmentSpec, token string) 
 		env = append(env, corev1.EnvVar{Name: kname, ValueFrom: &corev1.EnvVarSource{
 			SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: name}, Key: key},
 		}})
+	}
+
+	network := ""
+	if spec.Network != nil {
+		network = *spec.Network
+	}
+	secItems := []corev1.KeyToPath{{Key: "token", Path: "token"}}
+	small := corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m"), corev1.ResourceMemory: resource.MustParse("64Mi")}
+	envdCmd := []string{envdDir + "/envd", "-listen", fmt.Sprintf(":%d", EnvdPort), "-token-file", secretDir + "/token", "-dir", workdir}
+	var netInit []corev1.Container
+	if network == "proxy" {
+		if k.Egress == nil {
+			return nil, nil, nil, errors.New(`network "proxy" needs the egress proxy settings (MAGI_EXEC_EGRESS_PROXY)`)
+		}
+		// The transparent route: the init container envd-net sets up the
+		// firewall (it needs CAP_NET_ADMIN; the main container has no
+		// capability), and envd sends each TCP connection and each DNS
+		// query through the proxy. Tools with proxy settings use the
+		// proxy port of envd on loopback.
+		px, err := k.Egress.Addr()
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		envdCmd = append(envdCmd, "-forward", podProxyAddr+"=tcp:"+px, "-transparent", "tcp:"+px,
+			"-dns", fmt.Sprintf("127.0.0.1:%d", envd.PodDNSPort))
+		root, off := int64(0), false
+		netInit = append(netInit, corev1.Container{
+			Name: netInitName, Image: k.FetchImage, Command: []string{envdDir + "/envd", "podnet", "-exclude", px},
+			VolumeMounts: []corev1.VolumeMount{{Name: "envd", MountPath: envdDir, ReadOnly: true}},
+			SecurityContext: &corev1.SecurityContext{
+				RunAsUser: &root, RunAsNonRoot: &off, AllowPrivilegeEscalation: &off,
+				Capabilities:   &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}, Add: []corev1.Capability{"NET_ADMIN"}},
+				SeccompProfile: &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
+			},
+			Resources: corev1.ResourceRequirements{Requests: small, Limits: small},
+		})
+		if k.Egress.SSHPub != "" {
+			// The proxy ends SSH with its own host key (primitives/egress).
+			sec.Data["ssh_known_hosts"] = []byte("* " + k.Egress.SSHPub + "\n")
+			secItems = append(secItems, corev1.KeyToPath{Key: "ssh_known_hosts", Path: "ssh_known_hosts"})
+			env = append(env, corev1.EnvVar{Name: "GIT_SSH_COMMAND", Value: "ssh -o UserKnownHostsFile=" + secretDir + "/ssh_known_hosts"})
+		}
+		sec.Data["egress.url"] = []byte(egressenv.URL(podProxyAddr, id, k.Egress.Credential(id)))
+		sec.Data["egress-ca.pem"] = k.Egress.CA
+		secItems = append(secItems, corev1.KeyToPath{Key: "egress-ca.pem", Path: "egress-ca.pem"})
+		for _, n := range egressenv.ProxyVars {
+			env = append(env, corev1.EnvVar{Name: n, ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: name}, Key: "egress.url"},
+			}})
+		}
+		for _, n := range egressenv.CAVars {
+			env = append(env, corev1.EnvVar{Name: n, Value: secretDir + "/egress-ca.pem"})
+		}
 	}
 
 	script, initEnv, err := k.initScript()
@@ -170,7 +232,6 @@ func (k *Kubernetes) Objects(id string, spec api.EnvironmentSpec, token string) 
 		res[corev1.ResourceEphemeralStorage] = q
 		work.SizeLimit = &q
 	}
-	small := corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m"), corev1.ResourceMemory: resource.MustParse("64Mi")}
 	grace := int64(5)
 	mode := int32(0o444)
 	pod := &corev1.Pod{
@@ -180,15 +241,15 @@ func (k *Kubernetes) Objects(id string, spec api.EnvironmentSpec, token string) 
 			AutomountServiceAccountToken:  &no,
 			EnableServiceLinks:            &no,
 			TerminationGracePeriodSeconds: &grace,
-			InitContainers: []corev1.Container{{
+			InitContainers: append([]corev1.Container{{
 				Name: initName, Image: k.FetchImage, Command: []string{"sh", "-c", script}, Env: initEnv,
 				VolumeMounts:    []corev1.VolumeMount{{Name: "envd", MountPath: envdDir}},
 				SecurityContext: sc,
 				Resources:       corev1.ResourceRequirements{Requests: small, Limits: small},
-			}},
+			}}, netInit...),
 			Containers: []corev1.Container{{
 				Name: mainName, Image: spec.Image,
-				Command:    []string{envdDir + "/envd", "-listen", fmt.Sprintf(":%d", EnvdPort), "-token-file", secretDir + "/token", "-dir", workdir},
+				Command:    envdCmd,
 				WorkingDir: workdir,
 				Env:        env,
 				Ports:      []corev1.ContainerPort{{Name: "envd", ContainerPort: EnvdPort}},
@@ -208,7 +269,7 @@ func (k *Kubernetes) Objects(id string, spec api.EnvironmentSpec, token string) 
 				{Name: "envd", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
 				{Name: "work", VolumeSource: corev1.VolumeSource{EmptyDir: &work}},
 				{Name: "token", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{
-					SecretName: name, DefaultMode: &mode, Items: []corev1.KeyToPath{{Key: "token", Path: "token"}},
+					SecretName: name, DefaultMode: &mode, Items: secItems,
 				}}},
 			},
 		},
@@ -221,11 +282,17 @@ func (k *Kubernetes) Objects(id string, spec api.EnvironmentSpec, token string) 
 	}
 
 	var np *netv1.NetworkPolicy
-	if spec.Network != nil && *spec.Network == "none" {
+	if network == "none" || network == "proxy" {
 		np = &netv1.NetworkPolicy{ObjectMeta: meta, Spec: netv1.NetworkPolicySpec{
 			PodSelector: metav1.LabelSelector{MatchLabels: map[string]string{labelEnv: id}},
 			PolicyTypes: []netv1.PolicyType{netv1.PolicyTypeEgress},
 		}}
+		tcp, udp := corev1.ProtocolTCP, corev1.ProtocolUDP
+		dns := intstr.FromInt32(53)
+		ns := func(n string) []netv1.NetworkPolicyPeer {
+			return []netv1.NetworkPolicyPeer{{NamespaceSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"kubernetes.io/metadata.name": n}}}}
+		}
+		dnsRule := netv1.NetworkPolicyEgressRule{To: ns("kube-system"), Ports: []netv1.NetworkPolicyPort{{Protocol: &udp, Port: &dns}, {Protocol: &tcp, Port: &dns}}}
 		if k.Delivery == DeliverFetch {
 			// The init container must download envd. Allow DNS and the
 			// control plane namespace only.
@@ -233,16 +300,25 @@ func (k *Kubernetes) Objects(id string, spec api.EnvironmentSpec, token string) 
 			if err != nil {
 				return nil, nil, nil, err
 			}
-			tcp, udp := corev1.ProtocolTCP, corev1.ProtocolUDP
-			dns := intstr.FromInt32(53)
 			cp := intstr.FromInt32(port)
-			ns := func(n string) []netv1.NetworkPolicyPeer {
-				return []netv1.NetworkPolicyPeer{{NamespaceSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"kubernetes.io/metadata.name": n}}}}
-			}
 			np.Spec.Egress = []netv1.NetworkPolicyEgressRule{
-				{To: ns("kube-system"), Ports: []netv1.NetworkPolicyPort{{Protocol: &udp, Port: &dns}, {Protocol: &tcp, Port: &dns}}},
+				dnsRule,
 				{To: ns(k.ControlNamespace), Ports: []netv1.NetworkPolicyPort{{Protocol: &tcp, Port: &cp}}},
 			}
+		}
+		if network == "proxy" {
+			// DNS and the proxy port in the proxy namespace only.
+			pp := intstr.FromInt32(k.Egress.Port)
+			if len(np.Spec.Egress) == 0 {
+				np.Spec.Egress = []netv1.NetworkPolicyEgressRule{dnsRule}
+			}
+			np.Spec.Egress = append(np.Spec.Egress, netv1.NetworkPolicyEgressRule{
+				To: []netv1.NetworkPolicyPeer{{
+					NamespaceSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"kubernetes.io/metadata.name": k.Egress.Namespace}},
+					PodSelector:       &metav1.LabelSelector{MatchLabels: map[string]string{"app.kubernetes.io/name": "egress"}},
+				}},
+				Ports: []netv1.NetworkPolicyPort{{Protocol: &tcp, Port: &pp}},
+			})
 		}
 	}
 	return sec, pod, np, nil

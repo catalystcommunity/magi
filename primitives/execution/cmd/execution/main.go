@@ -43,6 +43,8 @@ type config struct {
 	listen, keys, dbURL              string
 	backends, envdDir, localRoot     string
 	namespace, controlNS, publicURL  string
+	egressProxy, egressNS            string
+	egressKey, egressCA, egressSSH   string
 	delivery, connect, fetchImage    string
 	pullSecret, defaultImage         string
 	kubeconfig, kubeContext          string
@@ -63,6 +65,11 @@ func main() {
 	flag.StringVar(&c.localRoot, "local-root", env("MAGI_EXEC_LOCAL_ROOT", filepath.Join(os.TempDir(), "magi-envs")), "local backend directory")
 	flag.StringVar(&c.namespace, "namespace", env("MAGI_EXEC_NAMESPACE", "magi-envs"), "Kubernetes namespace for environments")
 	flag.StringVar(&c.controlNS, "control-namespace", env("MAGI_EXEC_CONTROL_NAMESPACE", "magi"), "namespace of this service (network none + fetch)")
+	flag.StringVar(&c.egressProxy, "egress-proxy", env("MAGI_EXEC_EGRESS_PROXY", ""), "egress proxy host:port for network proxy, such as egress.magi.svc:3128")
+	flag.StringVar(&c.egressNS, "egress-namespace", env("MAGI_EXEC_EGRESS_NAMESPACE", ""), "namespace of the egress proxy (default: control namespace)")
+	flag.StringVar(&c.egressKey, "egress-env-key", env("MAGI_EXEC_EGRESS_ENV_KEY", ""), "environment key file of the egress proxy")
+	flag.StringVar(&c.egressCA, "egress-ca", env("MAGI_EXEC_EGRESS_CA", ""), "CA certificate file of the egress proxy")
+	flag.StringVar(&c.egressSSH, "egress-ssh-pub", env("MAGI_EXEC_EGRESS_SSH_PUB", ""), "SSH public host key file of the egress proxy (optional)")
 	flag.StringVar(&c.publicURL, "public-url", env("MAGI_EXEC_PUBLIC_URL", ""), "base URL of this service as seen from Pods (fetch delivery)")
 	flag.StringVar(&c.delivery, "envd-delivery", env("MAGI_EXEC_ENVD_DELIVERY", ""), "fetch or push (default: fetch in a cluster, push outside)")
 	flag.StringVar(&c.connect, "connect", env("MAGI_EXEC_CONNECT", ""), "direct or port-forward (default: direct in a cluster, port-forward outside)")
@@ -165,6 +172,15 @@ func kube(c config, bins *backend.Binaries) (*backend.Kubernetes, error) {
 	}
 	if k.Delivery == backend.DeliverFetch && k.PublicURL == "" {
 		return nil, errors.New("fetch delivery needs MAGI_EXEC_PUBLIC_URL")
+	}
+	if c.egressProxy != "" {
+		ns := c.egressNS
+		if ns == "" {
+			ns = c.controlNS
+		}
+		if k.Egress, err = backend.LoadEgressProxy(c.egressProxy, ns, c.egressKey, c.egressCA, c.egressSSH); err != nil {
+			return nil, err
+		}
 	}
 	return k, nil
 }

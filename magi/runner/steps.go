@@ -12,18 +12,18 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	magiapi "github.com/catalystcommunity/magi/magi/api"
 	"github.com/catalystcommunity/magi/magi/compose"
 	executionapi "github.com/catalystcommunity/magi/primitives/execution/api"
+	"github.com/catalystcommunity/magi/primitives/execution/sandbox"
 	sourceapi "github.com/catalystcommunity/magi/primitives/source/api"
 )
 
 const maxCheckAttempts = 3
 
 // The runner never opens files in a work directory from the host side: the
-// agent controls that directory and could put a symbolic link there. All
+// apprentice controls that directory and could put a symbolic link there. All
 // file access goes through envd, inside the sandbox.
 
 func (r *Runner) exec(ctx context.Context, env, cwd, script string, timeoutMs uint64) (executionapi.ExecResult, error) {
@@ -83,31 +83,51 @@ func (r *Runner) prepare(ctx context.Context, a magiapi.RunnerAssignment, st mag
 	}
 	env := a.Run
 	if r.Boxes.Exists(env) { // an earlier attempt
-		r.Boxes.Remove(env)
+		r.removeBox(env)
+	}
+	proxy, err := r.egressProxy(ctx, st)
+	if err != nil {
+		return Result{}, err
 	}
 	b := make([]byte, 24)
 	rand.Read(b)
-	if err := r.Boxes.Start(env, hex.EncodeToString(b), r.sandboxEnv()); err != nil {
+	if err := r.startBox(env, hex.EncodeToString(b), proxy); err != nil {
 		return Result{}, err
 	}
-	if _, err := r.Boxes.Wait(env, 30*time.Second); err != nil {
+	if _, err := r.Boxes.Wait(env, r.Boxes.StartTimeout()); err != nil {
 		return Result{}, err
+	}
+	if r.Boxes.Cfg.VM != nil && r.Boxes.Cfg.VM.Template != "" {
+		if proxy != nil {
+			r.note(ctx, st, "The environment is a macOS VM with no network card; tools reach the egress proxy at "+sandbox.ProxyAddr+".")
+		} else {
+			r.note(ctx, st, "The environment is a macOS VM with no network (no egress proxy).")
+		}
+	} else if r.Boxes.Cfg.VM != nil && proxy != nil {
+		r.note(ctx, st, "The environment is a VM with no network card; each TCP connection goes through the egress proxy.")
+	} else if r.Boxes.Cfg.VM != nil {
+		r.note(ctx, st, "The environment is a VM with no network (no egress proxy).")
+	} else if proxy != nil {
+		r.note(ctx, st, "The environment has no network; its traffic goes through the egress proxy.")
+	} else {
+		r.note(ctx, st, "The environment uses the network of the runner machine (no egress proxy).")
 	}
 	bundle, err := r.Source.Bundle(sourceCtx(ctx), sourceapi.BundleRequest{Repo: name, Refs: []string{repo.DefaultBranch}})
 	if err != nil {
 		return Result{}, err
 	}
-	if err := r.writeFile(ctx, env, "/work/repo.bundle", bundle.Bundle); err != nil {
+	w := r.Boxes.Work(env)
+	if err := r.writeFile(ctx, env, w+"/repo.bundle", bundle.Bundle); err != nil {
 		return Result{}, err
 	}
 	branch := "task/" + a.Run
-	res, err := r.exec(ctx, env, "/work", fmt.Sprintf(`set -e
-git clone -q -b %[1]s /work/repo.bundle /work/repo
-cd /work/repo
-git config user.name Magi
-git config user.email magi@example.local
+	res, err := r.exec(ctx, env, w, fmt.Sprintf(`set -e
+git clone -q -b %[1]s %[5]s/repo.bundle %[5]s/repo
+cd %[5]s/repo
+git config user.name %[3]s
+git config user.email %[4]s
 git checkout -q -b %[2]s
-git rev-parse HEAD`, repo.DefaultBranch, branch), 120000)
+git rev-parse HEAD`, repo.DefaultBranch, branch, shellQuote(r.Cfg.Author.Name), shellQuote(r.Cfg.Author.Email), shellQuote(w)), 120000)
 	if err != nil {
 		return Result{}, err
 	}
@@ -115,17 +135,17 @@ git rev-parse HEAD`, repo.DefaultBranch, branch), 120000)
 		return Result{}, fmt.Errorf("clone failed: %s", tail(string(res.Stderr), 2000))
 	}
 	r.note(ctx, st, fmt.Sprintf("Environment %s is ready on runner %s, branch %s.", env, r.Cfg.Name, branch))
-	r.post(ctx, st, fmt.Sprintf("I started work on %q on runner %s. The agent works on branch %s.", a.Vars["title"], r.Cfg.Name, branch))
+	r.post(ctx, st, fmt.Sprintf("I started work on %q on runner %s. The apprentice works on branch %s.", a.Vars["title"], r.Cfg.Name, branch))
 	return Result{Outcome: "done", Outputs: map[string]string{
-		"environment": env, "workdir": "/work/repo", "branch": branch, "base_commit": strings.TrimSpace(string(res.Stdout)),
+		"environment": env, "workdir": w + "/repo", "branch": branch, "base_commit": strings.TrimSpace(string(res.Stdout)),
 		"default_branch": repo.DefaultBranch,
 	}}, nil
 }
 
-// work runs the coding agent on this machine. Its tools use the sandbox
+// work runs the apprentice on this machine. Its tools use the sandbox
 // through the loopback execution API; its model calls go through Magi.
 func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiapi.RunnerStep) (Result, error) {
-	dir, err := os.MkdirTemp(r.Cfg.StateDir, "agent-")
+	dir, err := os.MkdirTemp(r.Cfg.StateDir, "apprentice-")
 	if err != nil {
 		return Result{}, err
 	}
@@ -135,7 +155,7 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 		return Result{}, err
 	}
 	transcript := filepath.Join(dir, "transcript.jsonl")
-	args := []string{"-m", "magi_agent", "run", "--environment", a.Vars["environment"], "--workdir", a.Vars["workdir"],
+	args := []string{"-m", "magi_apprentice", "run", "--environment", a.Vars["environment"], "--workdir", a.Vars["workdir"],
 		"--instructions", "@" + instr, "--transcript", transcript, "--no-upload"}
 	for flag, v := range map[string]string{"--check-command": a.Vars["check_command"], "--check-output": a.Vars["check_output"],
 		"--title": a.Vars["title"], "--review-comment": a.Vars["review.comment"], "--model": a.Vars["model"]} {
@@ -143,12 +163,12 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 			args = append(args, flag, v)
 		}
 	}
-	if r.Cfg.Agent.MaxSteps > 0 {
-		args = append(args, "--max-steps", strconv.Itoa(r.Cfg.Agent.MaxSteps))
+	if r.Cfg.Apprentice.MaxSteps > 0 {
+		args = append(args, "--max-steps", strconv.Itoa(r.Cfg.Apprentice.MaxSteps))
 	}
-	cmd := exec.CommandContext(ctx, r.Cfg.Agent.Python, args...)
+	cmd := exec.CommandContext(ctx, r.Cfg.Apprentice.Python, args...)
 	cmd.Env = []string{
-		"PATH=" + os.Getenv("PATH"), "HOME=" + dir, "PYTHONPATH=" + r.Cfg.Agent.Path,
+		"PATH=" + os.Getenv("PATH"), "HOME=" + dir, "PYTHONPATH=" + r.Cfg.Apprentice.Path,
 		"MAGI_EXECUTION_URL=" + r.execURL, "MAGI_TOKEN_FILE=" + r.execTokenFile,
 		"MAGI_MODEL_BASE_URL=" + strings.TrimRight(r.Cfg.Server, "/") + "/runner/v1",
 		"MAGI_MODEL_API_KEY_FILE=" + r.Cfg.TokenFile, "MAGI_MODEL_NAME=coder",
@@ -159,11 +179,11 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 	}
 	var stdout strings.Builder
 	cmd.Stdout = &stdout
-	r.post(ctx, st, "The coding agent started.")
+	r.post(ctx, st, "The apprentice started.")
 	if err := cmd.Start(); err != nil {
 		return Result{}, err
 	}
-	// The agent logs "progress: ..." lines; they become step notes.
+	// The apprentice logs "progress: ..." lines; they become step notes.
 	var last []string
 	sc := bufio.NewScanner(stderr)
 	sc.Buffer(make([]byte, 64<<10), 1<<20)
@@ -187,24 +207,24 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 		Error       string `json:"error"`
 	}
 	if err := json.Unmarshal([]byte(stdout.String()), &out); err != nil {
-		return Result{}, fmt.Errorf("agent failed (%v): %s", waitErr, tail(strings.Join(last, "\n"), 3000))
+		return Result{}, fmt.Errorf("apprentice failed (%v): %s", waitErr, tail(strings.Join(last, "\n"), 3000))
 	}
-	outputs := map[string]string{"agent.summary": out.Summary, "agent.steps": strconv.Itoa(out.Steps),
-		"agent.status": out.Status, "agent.tool_calls": strconv.Itoa(out.ToolCalls)}
+	outputs := map[string]string{"apprentice.summary": out.Summary, "apprentice.steps": strconv.Itoa(out.Steps),
+		"apprentice.status": out.Status, "apprentice.tool_calls": strconv.Itoa(out.ToolCalls)}
 	if out.CheckPassed != nil {
-		outputs["agent.check_passed"] = strconv.FormatBool(*out.CheckPassed)
+		outputs["apprentice.check_passed"] = strconv.FormatBool(*out.CheckPassed)
 	}
 	if b, err := os.ReadFile(transcript); err == nil {
 		if d, err := r.Magi.PutArtifact(ctx, magiapi.RunnerPutArtifactRequest{Step: st, MediaType: "application/x-ndjson", Body: b,
-			Labels: map[string]string{"kind": "agent-transcript"}}); err == nil {
-			outputs["agent.transcript"] = d.Digest
+			Labels: map[string]string{"kind": "apprentice-transcript"}}); err == nil {
+			outputs["apprentice.transcript"] = d.Digest
 		} else {
-			outputs["agent.transcript_error"] = tail(err.Error(), 500)
+			outputs["apprentice.transcript_error"] = tail(err.Error(), 500)
 		}
 	}
-	r.note(ctx, st, fmt.Sprintf("agent %s after %d steps, %d tool calls: %s", out.Status, out.Steps, out.ToolCalls, out.Summary))
+	r.note(ctx, st, fmt.Sprintf("apprentice %s after %d steps, %d tool calls: %s", out.Status, out.Steps, out.ToolCalls, out.Summary))
 	if out.Status == "error" {
-		return Result{}, fmt.Errorf("agent error: %s", firstNonEmpty(out.Error, out.Summary))
+		return Result{}, fmt.Errorf("apprentice error: %s", firstNonEmpty(out.Error, out.Summary))
 	}
 	return Result{Outcome: "done", Outputs: outputs}, nil
 }
@@ -233,24 +253,25 @@ func (r *Runner) check(ctx context.Context, a magiapi.RunnerAssignment, st magia
 			r.post(ctx, st, fmt.Sprintf("The checks failed %d times. I stopped the task. The last output is in artifact %s.", attempts, art.Digest))
 			return Result{Outcome: "give-up", Outputs: out}, nil
 		}
-		r.post(ctx, st, fmt.Sprintf("The checks failed (attempt %d of %d). I sent the output back to the agent.", attempts, maxCheckAttempts))
+		r.post(ctx, st, fmt.Sprintf("The checks failed (attempt %d of %d, %s). I sent the output back to the apprentice.", attempts, maxCheckAttempts, exitText(res)))
 		return Result{Outcome: "fail-checks", Outputs: out}, nil
 	}
 	if res.ExitCode != 0 || res.TimedOut {
 		return failed(tail(output, 6000))
 	}
 	msg := a.Vars["title"]
-	if sum := a.Vars["agent.summary"]; sum != "" {
+	if sum := a.Vars["apprentice.summary"]; sum != "" {
 		msg += "\n\n" + sum
 	}
-	if err := r.writeFile(ctx, env, "/work/commit-message", []byte(msg)); err != nil {
+	w := r.Boxes.Work(env)
+	if err := r.writeFile(ctx, env, w+"/commit-message", []byte(msg)); err != nil {
 		return Result{}, err
 	}
 	res, err = r.exec(ctx, env, workdir, fmt.Sprintf(`set -e
 git add -A
-if git diff --cached --quiet; then echo NO_CHANGES; else git commit -q -F /work/commit-message; fi
-git bundle create -q /work/out.bundle %s..%s 2>/dev/null || echo EMPTY_BUNDLE
-git rev-parse HEAD`, a.Vars["base_commit"], branch), 120000)
+if git diff --cached --quiet; then echo NO_CHANGES; else git commit -q -F %[3]s/commit-message; fi
+git bundle create -q %[3]s/out.bundle %[1]s..%[2]s 2>/dev/null || echo EMPTY_BUNDLE
+git rev-parse HEAD`, a.Vars["base_commit"], branch, shellQuote(w)), 120000)
 	if err != nil {
 		return Result{}, err
 	}
@@ -260,7 +281,7 @@ git rev-parse HEAD`, a.Vars["base_commit"], branch), 120000)
 	if strings.Contains(string(res.Stdout), "EMPTY_BUNDLE") {
 		return failed("The checks passed, but no files changed. Make the requested change.")
 	}
-	bundle, err := r.readFile(ctx, env, "/work/out.bundle", 64<<20)
+	bundle, err := r.readFile(ctx, env, w+"/out.bundle", 64<<20)
 	if err != nil {
 		return Result{}, err
 	}
@@ -302,14 +323,15 @@ func (r *Runner) merge(ctx context.Context, a magiapi.RunnerAssignment, st magia
 	if err != nil {
 		return Result{}, err
 	}
-	if err := r.writeFile(ctx, env, "/work/upstream.bundle", bundle.Bundle); err != nil {
+	w := r.Boxes.Work(env)
+	if err := r.writeFile(ctx, env, w+"/upstream.bundle", bundle.Bundle); err != nil {
 		return Result{}, err
 	}
 	res, err := r.exec(ctx, env, workdir, fmt.Sprintf(`set -e
-git fetch -q /work/upstream.bundle +refs/heads/%[1]s:refs/remotes/upstream/%[1]s
+git fetch -q %[5]s/upstream.bundle +refs/heads/%[1]s:refs/remotes/upstream/%[1]s
 git checkout -q -B %[4]s refs/remotes/upstream/%[1]s
 if ! git merge -q --no-edit -m "Merge %[2]s: %[3]s" %[2]s; then git merge --abort; echo MERGE_CONFLICT; exit 0; fi
-git rev-parse HEAD`, repo.DefaultBranch, branch, strings.NewReplacer(`"`, `'`, "`", "'", "$", "").Replace(a.Vars["title"]), candidate(a.Run)), 120000)
+git rev-parse HEAD`, repo.DefaultBranch, branch, strings.NewReplacer(`"`, `'`, "`", "'", "$", "").Replace(a.Vars["title"]), candidate(a.Run), shellQuote(w)), 120000)
 	if err != nil {
 		return Result{}, err
 	}
@@ -320,9 +342,26 @@ git rev-parse HEAD`, repo.DefaultBranch, branch, strings.NewReplacer(`"`, `'`, "
 	commit := lastLine(string(res.Stdout))
 	out := map[string]string{"merge.commit": commit}
 	r.note(ctx, st, "Merged as "+commit)
+	// The merge leaves as a bundle, so that any runner that can push
+	// publishes it.
+	res, err = r.exec(ctx, env, workdir, fmt.Sprintf("set -e\ngit bundle create -q %s/merged.bundle refs/remotes/upstream/%s..%s",
+		shellQuote(w), repo.DefaultBranch, candidate(a.Run)), 120000)
+	if err != nil || res.ExitCode != 0 {
+		return Result{}, fmt.Errorf("bundle merge: %v %s", err, tail(string(res.Stderr), 1000))
+	}
+	mb, err := r.readFile(ctx, env, w+"/merged.bundle", 64<<20)
+	if err != nil {
+		return Result{}, err
+	}
+	md, err := r.Magi.PutArtifact(ctx, magiapi.RunnerPutArtifactRequest{Step: st, MediaType: "application/x-git-bundle", Body: mb,
+		Labels: map[string]string{"kind": "merge-bundle", "commit": commit}})
+	if err != nil {
+		return Result{}, fmt.Errorf("upload merge: %w", err)
+	}
+	out["merge.bundle"] = md.Digest
 	if repo.Build {
 		r.note(ctx, st, "Building magi-server from the merged change.")
-		res, err := r.exec(ctx, env, workdir, compose.BuildScript, 20*60000)
+		res, err := r.exec(ctx, env, workdir, compose.BuildScript(w), 20*60000)
 		if err != nil {
 			return Result{}, err
 		}
@@ -332,7 +371,7 @@ git rev-parse HEAD`, repo.DefaultBranch, branch, strings.NewReplacer(`"`, `'`, "
 			out["task.result"] = "build-failed"
 			return Result{Outcome: "build-failed", Outputs: out}, nil
 		}
-		bin, err := r.readFile(ctx, env, "/work/out/app", 64<<20)
+		bin, err := r.readFile(ctx, env, w+"/out/app", 64<<20)
 		if err != nil {
 			return Result{}, err
 		}
@@ -342,6 +381,12 @@ git rev-parse HEAD`, repo.DefaultBranch, branch, strings.NewReplacer(`"`, `'`, "
 			return Result{}, fmt.Errorf("upload build: %w", err)
 		}
 		out["build.binary"] = d.Digest
+		if err := r.buildRunnerPackages(ctx, env, workdir, commit, st, out); err != nil {
+			r.post(ctx, st, "The runner package build failed. Nothing was released or published.")
+			out["release.output"] = tail(err.Error(), 4000)
+			out["task.result"] = "build-failed"
+			return Result{Outcome: "build-failed", Outputs: out}, nil
+		}
 	}
 	r.post(ctx, st, fmt.Sprintf("I merged %s onto the newest %s as %.12s.", branch, repo.DefaultBranch, commit))
 	out["task.result"] = "merged"
@@ -350,28 +395,28 @@ git rev-parse HEAD`, repo.DefaultBranch, branch, strings.NewReplacer(`"`, `'`, "
 
 // publish pushes the merged commit to the upstream with this machine's Git
 // credentials. It runs only after the release stayed healthy (or when
-// there is no release).
+// there is no release). It needs no environment: the merge comes as a
+// bundle, so this runner need not be the one that did the work.
 func (r *Runner) publish(ctx context.Context, a magiapi.RunnerAssignment, st magiapi.RunnerStep) (Result, error) {
-	env, workdir, name, commit := a.Vars["environment"], a.Vars["workdir"], a.Vars["repo"], a.Vars["merge.commit"]
+	name, commit := a.Vars["repo"], a.Vars["merge.commit"]
 	_, repo, err := r.repo(a)
 	if err != nil {
 		return Result{}, err
 	}
+	if !repo.Publish {
+		return Result{}, fmt.Errorf("runner %s does not publish %s", r.Cfg.Name, name)
+	}
 	if _, err := r.Source.Sync(sourceCtx(ctx), sourceapi.SyncRequest{Repo: name}); err != nil {
 		return Result{}, err
 	}
-	res, err := r.exec(ctx, env, workdir, fmt.Sprintf("set -e\ngit bundle create -q /work/merged.bundle refs/remotes/upstream/%s..%s", repo.DefaultBranch, candidate(a.Run)), 120000)
-	if err != nil || res.ExitCode != 0 {
-		return Result{}, fmt.Errorf("bundle merge: %v %s", err, tail(string(res.Stderr), 1000))
-	}
-	bundle, err := r.readFile(ctx, env, "/work/merged.bundle", 64<<20)
+	mb, err := r.Magi.GetArtifact(ctx, magiapi.RunnerGetArtifactRequest{Step: st, Digest: a.Vars["merge.bundle"]})
 	if err != nil {
-		return Result{}, err
+		return Result{}, fmt.Errorf("get merge bundle: %w", err)
 	}
 	// Store the merge as candidate/<run>, then fast-forward the default
 	// branch to it. If the upstream moved since the merge, the released
 	// commit is not the one to publish: stop and say so.
-	if _, err := r.Source.PushBundle(sourceCtx(ctx), sourceapi.PushBundleRequest{Repo: name, Bundle: bundle, Force: ptr(true)}); err != nil {
+	if _, err := r.Source.PushBundle(sourceCtx(ctx), sourceapi.PushBundleRequest{Repo: name, Bundle: mb.Body, Force: ptr(true)}); err != nil {
 		return Result{}, fmt.Errorf("store merge: %w", err)
 	}
 	m, err := r.Source.Merge(sourceCtx(ctx), sourceapi.MergeRequest{Repo: name, Source: commit, Target: repo.DefaultBranch, FastForwardOnly: ptr(true)})
@@ -390,13 +435,49 @@ func (r *Runner) publish(ctx context.Context, a magiapi.RunnerAssignment, st mag
 		r.post(ctx, st, "I could not push to the upstream: "+deref(p.Message))
 		return Result{Outcome: "rejected", Outputs: map[string]string{"publish.error": deref(p.Message)}}, nil
 	}
-	r.post(ctx, st, fmt.Sprintf("The release stayed healthy, so I pushed %.12s to the upstream %s.", p.Commit, repo.DefaultBranch))
+	r.post(ctx, st, fmt.Sprintf("The release stayed healthy, so runner %s pushed %.12s to the upstream %s.", r.Cfg.Name, p.Commit, repo.DefaultBranch))
 	return Result{Outcome: "done", Outputs: map[string]string{"publish.commit": p.Commit, "task.result": "published"}}, nil
+}
+
+// buildRunnerPackages builds the runner packages of the merged change in
+// the sandbox and uploads them. The rollout step makes them the runner
+// release after the change is published.
+func (r *Runner) buildRunnerPackages(ctx context.Context, env, workdir, commit string, st magiapi.RunnerStep, out map[string]string) error {
+	w := r.Boxes.Work(env)
+	r.note(ctx, st, "Building the runner packages.")
+	res, err := r.exec(ctx, env, workdir, fmt.Sprintf("set -e\ncd magi && GOWORK=off go run ./cmd/runner-package -src .. -out %s/out/runner", shellQuote(w)), 30*60000)
+	if err != nil {
+		return err
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("%s%s", res.Stdout, res.Stderr)
+	}
+	version := commit
+	if len(version) > 12 {
+		version = version[:12]
+	}
+	pk := map[string]string{}
+	for _, p := range Platforms {
+		goos, arch, _ := strings.Cut(p, "/")
+		b, err := r.readFile(ctx, env, fmt.Sprintf("%s/out/runner/magi-runner-%s-%s.tar.gz", w, goos, arch), 128<<20)
+		if err != nil {
+			return err
+		}
+		d, err := r.Magi.PutArtifact(ctx, magiapi.RunnerPutArtifactRequest{Step: st, MediaType: "application/gzip", Body: b,
+			Labels: map[string]string{"kind": "runner-package-build", "version": version, "os": goos, "arch": arch}})
+		if err != nil {
+			return fmt.Errorf("upload runner package %s: %w", p, err)
+		}
+		pk[p] = d.Digest
+	}
+	b, _ := json.Marshal(pk)
+	out["runner.version"], out["runner.packages"] = version, string(b)
+	return nil
 }
 
 func (r *Runner) cleanup(ctx context.Context, a magiapi.RunnerAssignment, st magiapi.RunnerStep) (Result, error) {
 	if env := a.Vars["environment"]; env != "" && r.Boxes.Exists(env) {
-		if err := r.Boxes.Remove(env); err != nil {
+		if err := r.removeBox(env); err != nil {
 			r.Log.Warn("remove environment", "env", env, "err", err)
 		}
 	}
@@ -409,6 +490,9 @@ func (r *Runner) cleanup(ctx context.Context, a magiapi.RunnerAssignment, st mag
 }
 
 // candidate is the branch that holds the merged, released change of a run.
+// shellQuote quotes s for sh.
+func shellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
+
 func candidate(run string) string { return "candidate/" + run }
 
 func lastLine(s string) string {
@@ -423,4 +507,12 @@ func firstNonEmpty(v ...string) string {
 		}
 	}
 	return ""
+}
+
+// exitText describes how a command ended.
+func exitText(r executionapi.ExecResult) string {
+	if r.TimedOut {
+		return "timed out"
+	}
+	return fmt.Sprintf("exit status %d", r.ExitCode)
 }

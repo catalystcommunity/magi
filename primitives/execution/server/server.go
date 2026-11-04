@@ -1,6 +1,6 @@
 // Package server implements ExecutionService. It keeps environment records,
 // starts environments through a backend, and sends commands and file
-// operations to the envd agent inside each environment.
+// operations to the envd daemon inside each environment.
 package server
 
 import (
@@ -123,9 +123,9 @@ func (s *Service) checkSpec(spec *api.EnvironmentSpec) (string, error) {
 	}
 	if spec.Network != nil {
 		switch *spec.Network {
-		case "", "none", "cluster", "egress":
+		case "", "none", "cluster", "egress", "proxy":
 		default:
-			return "", rpc.Invalid(`network must be "none", "cluster", or "egress"`)
+			return "", rpc.Invalid(`network must be "none", "cluster", "egress", or "proxy"`)
 		}
 	}
 	if spec.Workdir != nil && *spec.Workdir != "" {
@@ -412,8 +412,8 @@ func (s *Service) Extend(ctx context.Context, req api.ExtendRequest) (api.Enviro
 	return rec.Env, err
 }
 
-// agent returns the envd client of a ready environment.
-func (s *Service) agent(ctx context.Context, id string) (*envd.Client, store.Record, error) {
+// envdClient returns the envd client of a ready environment.
+func (s *Service) envdClient(ctx context.Context, id string) (*envd.Client, store.Record, error) {
 	rec, err := s.load(ctx, id)
 	if err != nil {
 		return nil, rec, err
@@ -466,7 +466,7 @@ func (s *Service) Exec(ctx context.Context, req api.ExecRequest) (api.ExecResult
 			return api.ExecResult{}, err
 		}
 	}
-	c, rec, err := s.agent(ctx, req.Environment)
+	c, rec, err := s.envdClient(ctx, req.Environment)
 	if err != nil {
 		return api.ExecResult{}, err
 	}
@@ -481,7 +481,7 @@ func (s *Service) ReadFile(ctx context.Context, req api.ReadFileRequest) (api.Fi
 	if err := checkPath(req.Path); err != nil {
 		return api.FileContent{}, err
 	}
-	c, rec, err := s.agent(ctx, req.Environment)
+	c, rec, err := s.envdClient(ctx, req.Environment)
 	if err != nil {
 		return api.FileContent{}, err
 	}
@@ -496,7 +496,7 @@ func (s *Service) WriteFile(ctx context.Context, req api.WriteFileRequest) (api.
 	if err := checkPath(req.Path); err != nil {
 		return api.WriteFileResponse{}, err
 	}
-	c, rec, err := s.agent(ctx, req.Environment)
+	c, rec, err := s.envdClient(ctx, req.Environment)
 	if err != nil {
 		return api.WriteFileResponse{}, err
 	}
@@ -511,7 +511,7 @@ func (s *Service) ListFiles(ctx context.Context, req api.ListFilesRequest) (api.
 	if err := checkPath(req.Path); err != nil {
 		return api.ListFilesResponse{}, err
 	}
-	c, rec, err := s.agent(ctx, req.Environment)
+	c, rec, err := s.envdClient(ctx, req.Environment)
 	if err != nil {
 		return api.ListFilesResponse{}, err
 	}

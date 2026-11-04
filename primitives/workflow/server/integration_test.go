@@ -167,7 +167,7 @@ func (e *env) as(t *testing.T, subject string, scopes ...string) *api.WorkflowCl
 
 func setup(t *testing.T, q Queue) (*env, *api.WorkflowClient, *api.WorkflowClient) {
 	e := newEnv(t, testDB(t), q)
-	return e, e.as(t, "user:alice@example.local"), e.as(t, "service:agent", ScopeWorker)
+	return e, e.as(t, "user:alice@example.local"), e.as(t, "service:apprentice", ScopeWorker)
 }
 
 func code(t *testing.T, err error, want int) {
@@ -427,7 +427,7 @@ func TestReplicas(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				w := replicas[i%2].as(t, "service:agent", ScopeWorker)
+				w := replicas[i%2].as(t, "service:apprentice", ScopeWorker)
 				for {
 					r, err := w.Claim(ctx, api.ClaimRequest{Queue: "q", Worker: fmt.Sprint("w", i), WaitMs: ptr(uint64(500))})
 					if err != nil {

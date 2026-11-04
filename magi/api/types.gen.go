@@ -10,34 +10,68 @@ type Ref struct {
 	Title *string `json:"title,omitempty" yaml:"title,omitempty"`
 }
 
-// Chat represents a structured data type
-type Chat struct {
-	Id        string `json:"id" yaml:"id"`
-	Title     string `json:"title" yaml:"title"`
-	CreatedMs uint64 `json:"created_ms" yaml:"created_ms"`
-	UpdatedMs uint64 `json:"updated_ms" yaml:"updated_ms"`
-	LastSeq   uint64 `json:"last_seq" yaml:"last_seq"`
+// MessageLink represents a structured data type
+type MessageLink struct {
+	Id         string  `json:"id" yaml:"id"`
+	Kind       string  `json:"kind" yaml:"kind"`
+	Target     Ref     `json:"target" yaml:"target"`
+	Snippet    *string `json:"snippet,omitempty" yaml:"snippet,omitempty"`
+	TargetMs   *uint64 `json:"target_ms,omitempty" yaml:"target_ms,omitempty"`
+	SpanStart  *uint64 `json:"span_start,omitempty" yaml:"span_start,omitempty"`
+	SpanEnd    *uint64 `json:"span_end,omitempty" yaml:"span_end,omitempty"`
+	Weight     float64 `json:"weight" yaml:"weight"`
+	Confidence float64 `json:"confidence" yaml:"confidence"`
+	Author     string  `json:"author" yaml:"author"`
+	State      string  `json:"state" yaml:"state"`
 }
 
 // Message represents a structured data type
 type Message struct {
-	Id          string  `json:"id" yaml:"id"`
-	Chat        string  `json:"chat" yaml:"chat"`
-	Seq         uint64  `json:"seq" yaml:"seq"`
-	Author      string  `json:"author" yaml:"author"`
-	AuthorKind  string  `json:"author_kind" yaml:"author_kind"`
-	Modality    string  `json:"modality" yaml:"modality"`
-	Text        string  `json:"text" yaml:"text"`
-	Audio       *string `json:"audio,omitempty" yaml:"audio,omitempty"`
-	ReplyTo     *string `json:"reply_to,omitempty" yaml:"reply_to,omitempty"`
-	Refs        []Ref   `json:"refs" yaml:"refs"`
-	GeneratedBy *string `json:"generated_by,omitempty" yaml:"generated_by,omitempty"`
-	CreatedMs   uint64  `json:"created_ms" yaml:"created_ms"`
+	Id           string        `json:"id" yaml:"id"`
+	Stream       string        `json:"stream" yaml:"stream"`
+	Persona      string        `json:"persona" yaml:"persona"`
+	Seq          uint64        `json:"seq" yaml:"seq"`
+	Author       string        `json:"author" yaml:"author"`
+	AuthorKind   string        `json:"author_kind" yaml:"author_kind"`
+	Modality     string        `json:"modality" yaml:"modality"`
+	Text         string        `json:"text" yaml:"text"`
+	Audio        *string       `json:"audio,omitempty" yaml:"audio,omitempty"`
+	Refs         []Ref         `json:"refs" yaml:"refs"`
+	Links        []MessageLink `json:"links" yaml:"links"`
+	Visibility   string        `json:"visibility" yaml:"visibility"`
+	VisibilityBy string        `json:"visibility_by" yaml:"visibility_by"`
+	GeneratedBy  *string       `json:"generated_by,omitempty" yaml:"generated_by,omitempty"`
+	CreatedMs    uint64        `json:"created_ms" yaml:"created_ms"`
+}
+
+// PersonaInfo represents a structured data type
+type PersonaInfo struct {
+	Id      string   `json:"id" yaml:"id"`
+	Name    string   `json:"name" yaml:"name"`
+	Sharing string   `json:"sharing" yaml:"sharing"`
+	Members []string `json:"members" yaml:"members"`
+}
+
+// ListPersonasRequest represents a structured data type
+type ListPersonasRequest struct {
+}
+
+// ListPersonasResponse represents a structured data type
+type ListPersonasResponse struct {
+	Personas []PersonaInfo `json:"personas" yaml:"personas"`
+}
+
+// PutPersonaRequest represents a structured data type
+type PutPersonaRequest struct {
+	Id      string   `json:"id" yaml:"id"`
+	Name    string   `json:"name" yaml:"name"`
+	Sharing string   `json:"sharing" yaml:"sharing"`
+	Members []string `json:"members,omitempty" yaml:"members,omitempty"`
 }
 
 // SayRequest represents a structured data type
 type SayRequest struct {
-	Chat       *string `json:"chat,omitempty" yaml:"chat,omitempty"`
+	Persona    *string `json:"persona,omitempty" yaml:"persona,omitempty"`
 	Text       *string `json:"text,omitempty" yaml:"text,omitempty"`
 	Audio      *[]byte `json:"audio,omitempty" yaml:"audio,omitempty"`
 	AudioType  *string `json:"audio_type,omitempty" yaml:"audio_type,omitempty"`
@@ -47,32 +81,119 @@ type SayRequest struct {
 
 // SayResponse represents a structured data type
 type SayResponse struct {
-	Chat    string  `json:"chat" yaml:"chat"`
 	Message Message `json:"message" yaml:"message"`
-}
-
-// ListChatsRequest represents a structured data type
-type ListChatsRequest struct {
-	Limit *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
-}
-
-// ListChatsResponse represents a structured data type
-type ListChatsResponse struct {
-	Chats []Chat `json:"chats" yaml:"chats"`
 }
 
 // ReadRequest represents a structured data type
 type ReadRequest struct {
-	Chat     string  `json:"chat" yaml:"chat"`
-	AfterSeq *uint64 `json:"after_seq,omitempty" yaml:"after_seq,omitempty"`
-	Limit    *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
-	WaitMs   *uint64 `json:"wait_ms,omitempty" yaml:"wait_ms,omitempty"`
+	Persona   *string `json:"persona,omitempty" yaml:"persona,omitempty"`
+	AfterSeq  *uint64 `json:"after_seq,omitempty" yaml:"after_seq,omitempty"`
+	BeforeSeq *uint64 `json:"before_seq,omitempty" yaml:"before_seq,omitempty"`
+	Limit     *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+	WaitMs    *uint64 `json:"wait_ms,omitempty" yaml:"wait_ms,omitempty"`
 }
 
 // ReadResponse represents a structured data type
 type ReadResponse struct {
 	Messages []Message `json:"messages" yaml:"messages"`
 	LastSeq  uint64    `json:"last_seq" yaml:"last_seq"`
+	Stream   string    `json:"stream" yaml:"stream"`
+}
+
+// SearchRequest represents a structured data type
+type SearchRequest struct {
+	Text  string  `json:"text" yaml:"text"`
+	Limit *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+}
+
+// SearchResponse represents a structured data type
+type SearchResponse struct {
+	Messages []Message `json:"messages" yaml:"messages"`
+}
+
+// TraceRequest represents a structured data type
+type TraceRequest struct {
+	Message   string  `json:"message" yaml:"message"`
+	Direction *string `json:"direction,omitempty" yaml:"direction,omitempty"`
+	Depth     *uint64 `json:"depth,omitempty" yaml:"depth,omitempty"`
+	Tentative *bool   `json:"tentative,omitempty" yaml:"tentative,omitempty"`
+}
+
+// TraceResponse represents a structured data type
+type TraceResponse struct {
+	Messages []Message     `json:"messages" yaml:"messages"`
+	Links    []MessageLink `json:"links" yaml:"links"`
+}
+
+// ListLinksRequest represents a structured data type
+type ListLinksRequest struct {
+	Message string `json:"message" yaml:"message"`
+	All     *bool  `json:"all,omitempty" yaml:"all,omitempty"`
+}
+
+// ListLinksResponse represents a structured data type
+type ListLinksResponse struct {
+	Links []MessageLink `json:"links" yaml:"links"`
+}
+
+// LinkRequest represents a structured data type
+type LinkRequest struct {
+	Message   string   `json:"message" yaml:"message"`
+	Kind      string   `json:"kind" yaml:"kind"`
+	Target    Ref      `json:"target" yaml:"target"`
+	Replaces  *string  `json:"replaces,omitempty" yaml:"replaces,omitempty"`
+	SpanStart *uint64  `json:"span_start,omitempty" yaml:"span_start,omitempty"`
+	SpanEnd   *uint64  `json:"span_end,omitempty" yaml:"span_end,omitempty"`
+	Weight    *float64 `json:"weight,omitempty" yaml:"weight,omitempty"`
+	Note      *string  `json:"note,omitempty" yaml:"note,omitempty"`
+}
+
+// UnlinkRequest represents a structured data type
+type UnlinkRequest struct {
+	Link string  `json:"link" yaml:"link"`
+	Note *string `json:"note,omitempty" yaml:"note,omitempty"`
+}
+
+// SetVisibilityRequest represents a structured data type
+type SetVisibilityRequest struct {
+	Message    string  `json:"message" yaml:"message"`
+	Visibility string  `json:"visibility" yaml:"visibility"`
+	Note       *string `json:"note,omitempty" yaml:"note,omitempty"`
+}
+
+// ReviewItem represents a structured data type
+type ReviewItem struct {
+	Id         string   `json:"id" yaml:"id"`
+	Task       string   `json:"task" yaml:"task"`
+	Question   string   `json:"question" yaml:"question"`
+	Proposed   string   `json:"proposed" yaml:"proposed"`
+	Choices    []string `json:"choices" yaml:"choices"`
+	Confidence float64  `json:"confidence" yaml:"confidence"`
+	Message    Message  `json:"message" yaml:"message"`
+	Target     *Message `json:"target,omitempty" yaml:"target,omitempty"`
+	CreatedMs  uint64   `json:"created_ms" yaml:"created_ms"`
+}
+
+// ListReviewsRequest represents a structured data type
+type ListReviewsRequest struct {
+	Limit *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+}
+
+// ListReviewsResponse represents a structured data type
+type ListReviewsResponse struct {
+	Reviews []ReviewItem `json:"reviews" yaml:"reviews"`
+}
+
+// AnswerReviewRequest represents a structured data type
+type AnswerReviewRequest struct {
+	Id     string  `json:"id" yaml:"id"`
+	Answer string  `json:"answer" yaml:"answer"`
+	Note   *string `json:"note,omitempty" yaml:"note,omitempty"`
+}
+
+// AnswerReviewResponse represents a structured data type
+type AnswerReviewResponse struct {
+	Status string `json:"status" yaml:"status"`
 }
 
 // GetAudioRequest represents a structured data type
@@ -105,7 +226,6 @@ type Task struct {
 	CurrentStep string     `json:"current_step" yaml:"current_step"`
 	WaitingFor  *string    `json:"waiting_for,omitempty" yaml:"waiting_for,omitempty"`
 	Decisions   []string   `json:"decisions,omitempty" yaml:"decisions,omitempty"`
-	Chat        *string    `json:"chat,omitempty" yaml:"chat,omitempty"`
 	Branch      *string    `json:"branch,omitempty" yaml:"branch,omitempty"`
 	Repo        *string    `json:"repo,omitempty" yaml:"repo,omitempty"`
 	Steps       []TaskStep `json:"steps" yaml:"steps"`
@@ -121,7 +241,7 @@ type StartTaskRequest struct {
 	Instructions string  `json:"instructions" yaml:"instructions"`
 	Title        *string `json:"title,omitempty" yaml:"title,omitempty"`
 	Repo         *string `json:"repo,omitempty" yaml:"repo,omitempty"`
-	Chat         *string `json:"chat,omitempty" yaml:"chat,omitempty"`
+	Runner       *string `json:"runner,omitempty" yaml:"runner,omitempty"`
 }
 
 // GetTaskRequest represents a structured data type
@@ -131,7 +251,6 @@ type GetTaskRequest struct {
 
 // ListTasksRequest represents a structured data type
 type ListTasksRequest struct {
-	Chat   *string `json:"chat,omitempty" yaml:"chat,omitempty"`
 	Status *string `json:"status,omitempty" yaml:"status,omitempty"`
 	Limit  *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
 }
@@ -228,6 +347,193 @@ type ListVoicesResponse struct {
 	Voices []VoiceInfo `json:"voices" yaml:"voices"`
 }
 
+// LexiconWord represents a structured data type
+type LexiconWord struct {
+	Written   string   `json:"written" yaml:"written"`
+	Spoken    *string  `json:"spoken,omitempty" yaml:"spoken,omitempty"`
+	Ipa       *string  `json:"ipa,omitempty" yaml:"ipa,omitempty"`
+	HeardAs   []string `json:"heard_as" yaml:"heard_as"`
+	Note      *string  `json:"note,omitempty" yaml:"note,omitempty"`
+	UpdatedBy string   `json:"updated_by" yaml:"updated_by"`
+	UpdatedMs uint64   `json:"updated_ms" yaml:"updated_ms"`
+}
+
+// ListLexiconRequest represents a structured data type
+type ListLexiconRequest struct {
+}
+
+// ListLexiconResponse represents a structured data type
+type ListLexiconResponse struct {
+	Words   []LexiconWord `json:"words" yaml:"words"`
+	CanEdit bool          `json:"can_edit" yaml:"can_edit"`
+}
+
+// PutLexiconWordRequest represents a structured data type
+type PutLexiconWordRequest struct {
+	Written string   `json:"written" yaml:"written"`
+	Spoken  *string  `json:"spoken,omitempty" yaml:"spoken,omitempty"`
+	Ipa     *string  `json:"ipa,omitempty" yaml:"ipa,omitempty"`
+	HeardAs []string `json:"heard_as,omitempty" yaml:"heard_as,omitempty"`
+	Note    *string  `json:"note,omitempty" yaml:"note,omitempty"`
+}
+
+// DeleteLexiconWordRequest represents a structured data type
+type DeleteLexiconWordRequest struct {
+	Written string `json:"written" yaml:"written"`
+}
+
+// DeleteLexiconWordResponse represents a structured data type
+type DeleteLexiconWordResponse struct {
+	Deleted bool `json:"deleted" yaml:"deleted"`
+}
+
+// SpeakRequest represents a structured data type
+type SpeakRequest struct {
+	Text  string  `json:"text" yaml:"text"`
+	Voice *string `json:"voice,omitempty" yaml:"voice,omitempty"`
+}
+
+// SpeakResponse represents a structured data type
+type SpeakResponse struct {
+	Spoken    string `json:"spoken" yaml:"spoken"`
+	Audio     []byte `json:"audio" yaml:"audio"`
+	MediaType string `json:"media_type" yaml:"media_type"`
+}
+
+// RunnerInfo represents a structured data type
+type RunnerInfo struct {
+	Name        string   `json:"name" yaml:"name"`
+	Version     string   `json:"version" yaml:"version"`
+	Os          string   `json:"os" yaml:"os"`
+	Arch        string   `json:"arch" yaml:"arch"`
+	Repos       []string `json:"repos" yaml:"repos"`
+	Publishes   []string `json:"publishes" yaml:"publishes"`
+	Busy        bool     `json:"busy" yaml:"busy"`
+	SeenMs      uint64   `json:"seen_ms" yaml:"seen_ms"`
+	UpdateError *string  `json:"update_error,omitempty" yaml:"update_error,omitempty"`
+}
+
+// ListRunnersRequest represents a structured data type
+type ListRunnersRequest struct {
+}
+
+// ListRunnersResponse represents a structured data type
+type ListRunnersResponse struct {
+	Runners []RunnerInfo `json:"runners" yaml:"runners"`
+	Release *string      `json:"release,omitempty" yaml:"release,omitempty"`
+}
+
+// PutRunnerPackageRequest represents a structured data type
+type PutRunnerPackageRequest struct {
+	Version string `json:"version" yaml:"version"`
+	Os      string `json:"os" yaml:"os"`
+	Arch    string `json:"arch" yaml:"arch"`
+	Body    []byte `json:"body" yaml:"body"`
+}
+
+// PutRunnerPackageResponse represents a structured data type
+type PutRunnerPackageResponse struct {
+	Digest string `json:"digest" yaml:"digest"`
+}
+
+// SetRunnerReleaseRequest represents a structured data type
+type SetRunnerReleaseRequest struct {
+	Version string `json:"version" yaml:"version"`
+}
+
+// SetRunnerReleaseResponse represents a structured data type
+type SetRunnerReleaseResponse struct {
+	Version  string   `json:"version" yaml:"version"`
+	Packages []string `json:"packages" yaml:"packages"`
+}
+
+// AppRelease represents a structured data type
+type AppRelease struct {
+	VersionCode uint64 `json:"version_code" yaml:"version_code"`
+	VersionName string `json:"version_name" yaml:"version_name"`
+	Digest      string `json:"digest" yaml:"digest"`
+	Size        uint64 `json:"size" yaml:"size"`
+}
+
+// PutAppReleaseRequest represents a structured data type
+type PutAppReleaseRequest struct {
+	VersionCode uint64 `json:"version_code" yaml:"version_code"`
+	VersionName string `json:"version_name" yaml:"version_name"`
+	Body        []byte `json:"body" yaml:"body"`
+}
+
+// GetAppReleaseRequest represents a structured data type
+type GetAppReleaseRequest struct {
+}
+
+// GetAppReleaseResponse represents a structured data type
+type GetAppReleaseResponse struct {
+	Release *AppRelease `json:"release,omitempty" yaml:"release,omitempty"`
+}
+
+// GetAppPackageRequest represents a structured data type
+type GetAppPackageRequest struct {
+	Digest string `json:"digest" yaml:"digest"`
+}
+
+// GetAppPackageResponse represents a structured data type
+type GetAppPackageResponse struct {
+	Body []byte `json:"body" yaml:"body"`
+}
+
+// EgressReviewHeader represents a structured data type
+type EgressReviewHeader struct {
+	Name  string `json:"name" yaml:"name"`
+	Value string `json:"value" yaml:"value"`
+}
+
+// EgressReview represents a structured data type
+type EgressReview struct {
+	Id          string               `json:"id" yaml:"id"`
+	Kind        string               `json:"kind" yaml:"kind"`
+	State       string               `json:"state" yaml:"state"`
+	Owner       string               `json:"owner" yaml:"owner"`
+	Environment string               `json:"environment" yaml:"environment"`
+	Destination string               `json:"destination" yaml:"destination"`
+	Method      string               `json:"method" yaml:"method"`
+	Url         string               `json:"url" yaml:"url"`
+	Headers     []EgressReviewHeader `json:"headers" yaml:"headers"`
+	Body        []byte               `json:"body" yaml:"body"`
+	Reason      string               `json:"reason" yaml:"reason"`
+	By          string               `json:"by" yaml:"by"`
+	Count       uint64               `json:"count" yaml:"count"`
+	FirstMs     uint64               `json:"first_ms" yaml:"first_ms"`
+	LastMs      uint64               `json:"last_ms" yaml:"last_ms"`
+	Decision    *string              `json:"decision,omitempty" yaml:"decision,omitempty"`
+	DecidedBy   *string              `json:"decided_by,omitempty" yaml:"decided_by,omitempty"`
+	Note        *string              `json:"note,omitempty" yaml:"note,omitempty"`
+}
+
+// ListEgressReviewsRequest represents a structured data type
+type ListEgressReviewsRequest struct {
+	State *string `json:"state,omitempty" yaml:"state,omitempty"`
+	Limit *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+}
+
+// ListEgressReviewsResponse represents a structured data type
+type ListEgressReviewsResponse struct {
+	Reviews []EgressReview `json:"reviews" yaml:"reviews"`
+}
+
+// DecideEgressReviewRequest represents a structured data type
+type DecideEgressReviewRequest struct {
+	Id       string  `json:"id" yaml:"id"`
+	Decision string  `json:"decision" yaml:"decision"`
+	Note     *string `json:"note,omitempty" yaml:"note,omitempty"`
+}
+
+// DecideEgressReviewResponse represents a structured data type
+type DecideEgressReviewResponse struct {
+	Id       string  `json:"id" yaml:"id"`
+	Decision string  `json:"decision" yaml:"decision"`
+	Rule     *string `json:"rule,omitempty" yaml:"rule,omitempty"`
+}
+
 // RunnerClaimRequest represents a structured data type
 type RunnerClaimRequest struct {
 	Queue  string  `json:"queue" yaml:"queue"`
@@ -303,4 +609,157 @@ type RunnerRunStatusResponse struct {
 // RunnerAck represents a structured data type
 type RunnerAck struct {
 	Ok bool `json:"ok" yaml:"ok"`
+}
+
+// RunnerHelloRequest represents a structured data type
+type RunnerHelloRequest struct {
+	Version     string   `json:"version" yaml:"version"`
+	Os          string   `json:"os" yaml:"os"`
+	Arch        string   `json:"arch" yaml:"arch"`
+	Repos       []string `json:"repos" yaml:"repos"`
+	Publishes   []string `json:"publishes" yaml:"publishes"`
+	Busy        bool     `json:"busy" yaml:"busy"`
+	UpdateError *string  `json:"update_error,omitempty" yaml:"update_error,omitempty"`
+}
+
+// RunnerUpdate represents a structured data type
+type RunnerUpdate struct {
+	Version string `json:"version" yaml:"version"`
+	Digest  string `json:"digest" yaml:"digest"`
+	Size    uint64 `json:"size" yaml:"size"`
+}
+
+// RunnerHelloResponse represents a structured data type
+type RunnerHelloResponse struct {
+	Update *RunnerUpdate `json:"update,omitempty" yaml:"update,omitempty"`
+}
+
+// RunnerGetPackageRequest represents a structured data type
+type RunnerGetPackageRequest struct {
+	Version string `json:"version" yaml:"version"`
+	Os      string `json:"os" yaml:"os"`
+	Arch    string `json:"arch" yaml:"arch"`
+}
+
+// RunnerGetPackageResponse represents a structured data type
+type RunnerGetPackageResponse struct {
+	Digest string `json:"digest" yaml:"digest"`
+	Body   []byte `json:"body" yaml:"body"`
+}
+
+// RunnerGetArtifactRequest represents a structured data type
+type RunnerGetArtifactRequest struct {
+	Step   RunnerStep `json:"step" yaml:"step"`
+	Digest string     `json:"digest" yaml:"digest"`
+}
+
+// RunnerGetArtifactResponse represents a structured data type
+type RunnerGetArtifactResponse struct {
+	MediaType string `json:"media_type" yaml:"media_type"`
+	Body      []byte `json:"body" yaml:"body"`
+}
+
+// RunnerEgressProxy represents a structured data type
+type RunnerEgressProxy struct {
+	Environment   string  `json:"environment" yaml:"environment"`
+	Credential    string  `json:"credential" yaml:"credential"`
+	Ca            []byte  `json:"ca" yaml:"ca"`
+	SshKnownHosts *string `json:"ssh_known_hosts,omitempty" yaml:"ssh_known_hosts,omitempty"`
+}
+
+// RunnerEgressAccessResponse represents a structured data type
+type RunnerEgressAccessResponse struct {
+	Proxy *RunnerEgressProxy `json:"proxy,omitempty" yaml:"proxy,omitempty"`
+}
+
+// EgressFlowHeader represents a structured data type
+type EgressFlowHeader struct {
+	Name  string `json:"name" yaml:"name"`
+	Value string `json:"value" yaml:"value"`
+}
+
+// EgressFlow represents a structured data type
+type EgressFlow struct {
+	Id          string             `json:"id" yaml:"id"`
+	Environment string             `json:"environment" yaml:"environment"`
+	Owner       string             `json:"owner" yaml:"owner"`
+	Direction   string             `json:"direction" yaml:"direction"`
+	Destination string             `json:"destination" yaml:"destination"`
+	Method      string             `json:"method" yaml:"method"`
+	Url         string             `json:"url" yaml:"url"`
+	Status      uint64             `json:"status" yaml:"status"`
+	Headers     []EgressFlowHeader `json:"headers" yaml:"headers"`
+	Body        []byte             `json:"body" yaml:"body"`
+}
+
+// EgressEnvironmentRequest represents a structured data type
+type EgressEnvironmentRequest struct {
+	Environment string `json:"environment" yaml:"environment"`
+}
+
+// EgressEnvironmentResponse represents a structured data type
+type EgressEnvironmentResponse struct {
+	Owner  string            `json:"owner" yaml:"owner"`
+	Task   *string           `json:"task,omitempty" yaml:"task,omitempty"`
+	Goal   *string           `json:"goal,omitempty" yaml:"goal,omitempty"`
+	Labels map[string]string `json:"labels,omitempty" yaml:",inline"`
+}
+
+// EgressEvaluateRequest represents a structured data type
+type EgressEvaluateRequest struct {
+	Plugin   string     `json:"plugin" yaml:"plugin"`
+	Flow     EgressFlow `json:"flow" yaml:"flow"`
+	Question *string    `json:"question,omitempty" yaml:"question,omitempty"`
+}
+
+// EgressVerdict represents a structured data type
+type EgressVerdict struct {
+	Verdict string `json:"verdict" yaml:"verdict"`
+	Reason  string `json:"reason" yaml:"reason"`
+	By      string `json:"by" yaml:"by"`
+}
+
+// EgressSecretRulesRequest represents a structured data type
+type EgressSecretRulesRequest struct {
+	Plugin string     `json:"plugin" yaml:"plugin"`
+	Flow   EgressFlow `json:"flow" yaml:"flow"`
+}
+
+// EgressSecretRule represents a structured data type
+type EgressSecretRule struct {
+	Placeholder string   `json:"placeholder" yaml:"placeholder"`
+	Secret      string   `json:"secret" yaml:"secret"`
+	Hosts       []string `json:"hosts" yaml:"hosts"`
+	Path        *string  `json:"path,omitempty" yaml:"path,omitempty"`
+	Place       string   `json:"place" yaml:"place"`
+}
+
+// EgressSecretRulesResponse represents a structured data type
+type EgressSecretRulesResponse struct {
+	Rules []EgressSecretRule `json:"rules" yaml:"rules"`
+}
+
+// EgressReportRequest represents a structured data type
+type EgressReportRequest struct {
+	Kind   string     `json:"kind" yaml:"kind"`
+	Flow   EgressFlow `json:"flow" yaml:"flow"`
+	Reason string     `json:"reason" yaml:"reason"`
+	By     string     `json:"by" yaml:"by"`
+}
+
+// EgressReportResponse represents a structured data type
+type EgressReportResponse struct {
+	Review string `json:"review" yaml:"review"`
+}
+
+// EgressDestinationRequest represents a structured data type
+type EgressDestinationRequest struct {
+	Environment string `json:"environment" yaml:"environment"`
+	Destination string `json:"destination" yaml:"destination"`
+}
+
+// EgressDestinationResponse represents a structured data type
+type EgressDestinationResponse struct {
+	Allowed bool  `json:"allowed" yaml:"allowed"`
+	Layer4  *bool `json:"layer4,omitempty" yaml:"layer4,omitempty"`
 }

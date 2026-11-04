@@ -64,7 +64,7 @@ func (s *System) release(ctx context.Context, a workflowapi.Assignment, note fun
 	} else {
 		envID, workdir := a.Vars["environment"], a.Vars["workdir"]
 		note("Building magi-server from the merged change.")
-		r, err := s.exec(ctx, envID, workdir, BuildScript, 15*60000)
+		r, err := s.exec(ctx, envID, workdir, BuildScript("/work"), 15*60000)
 		if err != nil {
 			return Result{}, err
 		}
@@ -95,11 +95,14 @@ func (s *System) release(ctx context.Context, a workflowapi.Assignment, note fun
 	return s.waitRelease(ctx, a, rel.Id, note)
 }
 
-// BuildScript builds magi-server into /work/out/app from the repository in
-// the working directory. A runner uses the same script.
-const BuildScript = `set -e
-mkdir -p /work/out
-cd magi && GOWORK=off CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /work/out/app ./cmd/magi-server`
+// BuildScript builds magi-server for the cluster (linux/amd64) into
+// <work>/out/app from the repository in the working directory. A runner
+// uses the same script, on any platform.
+func BuildScript(work string) string {
+	return fmt.Sprintf(`set -e
+mkdir -p %[1]s/out
+cd magi && GOWORK=off CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o %[1]s/out/app ./cmd/magi-server`, work)
+}
 
 func (s *System) findRelease(ctx context.Context, reason string) (releaseapi.Release, bool) {
 	res, err := s.Release.List(ctx, releaseapi.ListReleasesRequest{Limit: ptr(uint64(50))})

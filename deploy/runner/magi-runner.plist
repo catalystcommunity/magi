@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Magi runner for @HOST@ on macOS: a launchd daemon that runs as @USER@
+     at boot, without a login. tools/install-runner.sh fills the @ fields and
+     installs it in /Library/LaunchDaemons. The runner connects to Magi; it
+     does not listen on the network. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>@LABEL@</string>
+  <key>UserName</key><string>@USER@</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>@HOME@/.local/bin/magi-runner</string>
+    <string>supervise</string>
+    <string>-config</string>
+    <string>@HOME@/.config/magi-runner/@HOST@.json</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key><string>@HOME@</string>
+    <key>PATH</key><string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+  <key>WorkingDirectory</key><string>@HOME@</string>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>10</integer>
+  <key>ExitTimeOut</key><integer>90</integer>
+  <key>StandardOutPath</key><string>@HOME@/Library/Logs/magi-runner-@HOST@.log</string>
+  <key>StandardErrorPath</key><string>@HOME@/Library/Logs/magi-runner-@HOST@.log</string>
+</dict>
+</plist>

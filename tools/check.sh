@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Repository checks. The code-change workflow runs this after an agent works.
+# Repository checks. The code-change workflow runs this after an apprentice works.
 # It needs Go and Python 3. Integration tests skip without their test services.
 set -uo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -17,9 +17,9 @@ for mod in $(find lib primitives magi tools -name go.mod -not -path '*/node_modu
   (cd "$mod" && GOWORK=off go vet ./... && GOWORK=off go test -count=1 ./...) || fail "$mod"
 done
 
-if [[ -d primitives/agent/tests ]]; then
-  step "python: primitives/agent"
-  (cd primitives/agent && python3 -m unittest discover -s tests -q) || fail "primitives/agent"
+if [[ -d primitives/apprentice/tests ]]; then
+  step "python: primitives/apprentice"
+  (cd primitives/apprentice && python3 -m unittest discover -s tests -q) || fail "primitives/apprentice"
 fi
 
 # The release controller keeps Magi up when it releases itself; its tests
@@ -30,6 +30,17 @@ if [[ -f primitives/release/Cargo.toml ]]; then
     (cd primitives/release && cargo test -q 2>&1 | tail -20; exit "${PIPESTATUS[0]}") || fail "primitives/release"
   else
     fail "primitives/release (cargo is not installed)"
+  fi
+fi
+
+# The egress proxy keeps secrets in. Its tests build the WASM plugins
+# (target wasm32-wasip2) and send real traffic through the proxy with curl.
+if [[ -f primitives/egress/Cargo.toml ]]; then
+  step "rust: primitives/egress"
+  if command -v cargo >/dev/null; then
+    (cd primitives/egress && cargo test -q 2>&1 | tail -20; exit "${PIPESTATUS[0]}") || fail "primitives/egress"
+  else
+    fail "primitives/egress (cargo is not installed)"
   fi
 fi
 

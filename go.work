@@ -10,6 +10,7 @@ use (
 	./primitives/identity
 	./primitives/inference
 	./primitives/knowledge
+	./primitives/egress/goapi
 	./primitives/release/goapi
 	./primitives/source
 	./primitives/speech

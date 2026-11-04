@@ -11,8 +11,10 @@ android {
         applicationId = "community.catalyst.magi"
         minSdk = 29
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        // tools/build-android.sh sets these; each build needs a higher code
+        // for the self-update (Updater.kt).
+        versionCode = (findProperty("magiVersionCode") as String?)?.toInt() ?: 1
+        versionName = (findProperty("magiVersionName") as String?) ?: "0.1.0"
     }
     buildTypes {
         getByName("debug") { applicationIdSuffix = ".dev" }

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"strings"
 	"testing"
 
 	api "github.com/catalystcommunity/magi/primitives/workflow/api"
@@ -27,6 +28,8 @@ func TestValidate(t *testing.T) {
 		"no steps":     func(d *api.Definition) { d.Steps = nil },
 		"no name":      func(d *api.Definition) { d.Name = "" },
 		"empty stepid": func(d *api.Definition) { d.Steps[2].Id = "" },
+		"bad var":      func(d *api.Definition) { d.Steps[0].Queue = ptr("q.${bad name}") },
+		"open var":     func(d *api.Definition) { d.Steps[0].Queue = ptr("q.${runner") },
 	}
 	for name, mutate := range bad {
 		d := testDef()
@@ -69,5 +72,21 @@ func TestAdvance(t *testing.T) {
 	}
 	if advance(r, &d, "retry", "", 3) != nil || r.Status != RunFailed {
 		t.Fatalf("retry past max_attempts: %+v", r)
+	}
+}
+
+func TestQueueVariables(t *testing.T) {
+	d := testDef()
+	d.Steps[0].Queue = ptr("runner.${runner}.build")
+	if err := Validate(d); err != nil {
+		t.Fatal(err)
+	}
+	r := &api.Run{Id: "run_v", Vars: map[string]string{"runner": "pi"}}
+	if task := enter(r, &d, d.Start, 1, 1); task == nil || task.Queue != "runner.pi.build" {
+		t.Fatalf("expanded queue: %+v", task)
+	}
+	r = &api.Run{Id: "run_w", Vars: map[string]string{}}
+	if task := enter(r, &d, d.Start, 1, 1); task != nil || r.Status != RunFailed || !strings.Contains(*r.Error, "needs run variable runner") {
+		t.Fatalf("missing variable: %+v %+v", task, r)
 	}
 }

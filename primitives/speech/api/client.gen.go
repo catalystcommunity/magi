@@ -69,3 +69,39 @@ func (c *SpeechClient) ListVoices(ctx context.Context, req ListVoicesRequest) (L
 	}
 	return DecodeListVoicesResponse(csilResp)
 }
+
+func (c *SpeechClient) ListLexicon(ctx context.Context, req ListLexiconRequest) (ListLexiconResponse, error) {
+	var csilZero ListLexiconResponse
+	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "list-lexicon", EncodeListLexiconRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListLexiconResponse(csilResp)
+}
+
+func (c *SpeechClient) PutLexiconEntry(ctx context.Context, req PutLexiconEntryRequest) (LexiconEntry, error) {
+	var csilZero LexiconEntry
+	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "put-lexicon-entry", EncodePutLexiconEntryRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeLexiconEntry(csilResp)
+}
+
+func (c *SpeechClient) DeleteLexiconEntry(ctx context.Context, req DeleteLexiconEntryRequest) (DeleteLexiconEntryResponse, error) {
+	var csilZero DeleteLexiconEntryResponse
+	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "delete-lexicon-entry", EncodeDeleteLexiconEntryRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeDeleteLexiconEntryResponse(csilResp)
+}
+
+func (c *SpeechClient) PrepareText(ctx context.Context, req PrepareTextRequest) (PrepareTextResponse, error) {
+	var csilZero PrepareTextResponse
+	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "prepare-text", EncodePrepareTextRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodePrepareTextResponse(csilResp)
+}

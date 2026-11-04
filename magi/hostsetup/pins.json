@@ -1,0 +1,43 @@
+{
+  "comment": "Pinned engine builds and models for magi-host-setup. A download that does not match its sha256 stops. llama.cpp is MIT; the Qwen3.5 GGUF files are Apache-2.0.",
+  "helper": ["qwen3.5-9b-q4", "qwen3.5-4b-q4"],
+  "engines": [
+    {"name": "llama.cpp-cpu", "kind": "cpu", "arch": "x86_64", "version": "b12017", "license": "MIT",
+     "files": [{"url": "https://github.com/ggml-org/llama.cpp/releases/download/b12017/llama-b12017-bin-ubuntu-x64.tar.gz",
+                "sha256": "16fe348b1bc2e943bc4c220938ce46af789e88291138bca5bd68c0cc017769a5", "size": 22880375}]},
+    {"name": "llama.cpp-cpu", "kind": "cpu", "arch": "aarch64", "version": "b12017", "license": "MIT",
+     "files": [{"url": "https://github.com/ggml-org/llama.cpp/releases/download/b12017/llama-b12017-bin-ubuntu-arm64.tar.gz",
+                "sha256": "676e8f99db67fbecd7854b948ed50d0bf5d7db463613fc8fcd8f4491a7709bec", "size": 18571024}]},
+    {"name": "llama.cpp-cuda", "kind": "cuda", "arch": "x86_64", "version": "b12017", "license": "MIT",
+     "files": [{"url": "https://github.com/ggml-org/llama.cpp/releases/download/b12017/llama-b12017-bin-ubuntu-cuda-12.8-x64.tar.gz",
+                "sha256": "642fcc4d8682de2aa3790f9294a6236a2792e5701c27a3129d36c78c30219299", "size": 182779856},
+               {"url": "https://github.com/ggml-org/llama.cpp/releases/download/b12017/cudart-llama-b12017-bin-ubuntu-cuda-12.8-x64.tar.gz",
+                "sha256": "1fd1ce40b8992758f5819f3f0dfa6d970208a3c43c2c521e30b26daf5060fa53", "size": 594372371}]},
+    {"name": "llama.cpp-rocm", "kind": "rocm", "arch": "x86_64", "version": "b12017", "license": "MIT",
+     "files": [{"url": "https://github.com/ggml-org/llama.cpp/releases/download/b12017/llama-b12017-bin-ubuntu-rocm-10.0-x64.tar.gz",
+                "sha256": "758d44a95a5db42886d5792a80ed2e868aade6e11df2d99f896395e738358759", "size": 252643067}]},
+    {"name": "llama.cpp-vulkan", "kind": "vulkan", "arch": "x86_64", "version": "b12017", "license": "MIT",
+     "files": [{"url": "https://github.com/ggml-org/llama.cpp/releases/download/b12017/llama-b12017-bin-ubuntu-vulkan-x64.tar.gz",
+                "sha256": "e940a901831c2e157b6329b8738f6edd6b036889c07e4e39d4fc818831220f61", "size": 35665113}]},
+    {"name": "llama.cpp-vulkan", "kind": "vulkan", "arch": "aarch64", "version": "b12017", "license": "MIT",
+     "files": [{"url": "https://github.com/ggml-org/llama.cpp/releases/download/b12017/llama-b12017-bin-ubuntu-vulkan-arm64.tar.gz",
+                "sha256": "095da6719ba1ea85fbb528ca64b9834206c4bd61ad2944eff399c3257d47bb0e", "size": 28987180}]}
+  ],
+  "models": [
+    {"name": "qwen3.5-4b-q4", "license": "Apache-2.0",
+     "url": "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/e87f176479d0855a907a41277aca2f8ee7a09523/Qwen3.5-4B-Q4_K_M.gguf",
+     "sha256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4", "size": 2740937888},
+    {"name": "qwen3.5-9b-q4", "license": "Apache-2.0",
+     "url": "https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/resolve/3885219b6810b007914f3a7950a8d1b469d598a5/Qwen3.5-9B-Q4_K_M.gguf",
+     "sha256": "03b74727a860a56338e042c4420bb3f04b2fec5734175f4cb9fa853daf52b7e8", "size": 5680522464},
+    {"name": "qwen3.5-27b-q4", "license": "Apache-2.0",
+     "url": "https://huggingface.co/unsloth/Qwen3.5-27B-GGUF/resolve/3221f178a6b842d04f1fb42f1c413534adcc0a6a/Qwen3.5-27B-Q4_K_M.gguf",
+     "sha256": "84b5f7f112156d63836a01a69dc3f11a6ba63b10a23b8ca7a7efaf52d5a2d806", "size": 16740812704}
+  ],
+  "speech": {
+    "comment": "The speech host role is only in the live check now. Its engine install is primitives/speech/engine/install.sh.",
+    "engines": [{"name": "magi-speech", "needs": "Python 3.12 or later, and ffmpeg"}],
+    "models": [{"name": "parakeet-tdt-0.6b-v3-int8", "size": 700000000, "use": "speech to text"},
+               {"name": "kokoro-82m", "size": 400000000, "use": "text to speech"}]
+  }
+}

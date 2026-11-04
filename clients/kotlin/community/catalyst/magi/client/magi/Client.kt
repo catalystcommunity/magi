@@ -29,11 +29,38 @@ class MagiClient(private val transport: Transport) {
     fun say(request: SayRequest): SayResponse {
         return decode<SayResponse>(transport.call("MagiService", "say", encode(request)))
     }
-    fun listChats(request: ListChatsRequest): ListChatsResponse {
-        return decode<ListChatsResponse>(transport.call("MagiService", "list-chats", encode(request)))
-    }
     fun read(request: ReadRequest): ReadResponse {
         return decode<ReadResponse>(transport.call("MagiService", "read", encode(request)))
+    }
+    fun search(request: SearchRequest): SearchResponse {
+        return decode<SearchResponse>(transport.call("MagiService", "search", encode(request)))
+    }
+    fun trace(request: TraceRequest): TraceResponse {
+        return decode<TraceResponse>(transport.call("MagiService", "trace", encode(request)))
+    }
+    fun listLinks(request: ListLinksRequest): ListLinksResponse {
+        return decode<ListLinksResponse>(transport.call("MagiService", "list-links", encode(request)))
+    }
+    fun link(request: LinkRequest): MessageLink {
+        return decode<MessageLink>(transport.call("MagiService", "link", encode(request)))
+    }
+    fun unlink(request: UnlinkRequest): MessageLink {
+        return decode<MessageLink>(transport.call("MagiService", "unlink", encode(request)))
+    }
+    fun setVisibility(request: SetVisibilityRequest): Message {
+        return decode<Message>(transport.call("MagiService", "set-visibility", encode(request)))
+    }
+    fun listReviews(request: ListReviewsRequest): ListReviewsResponse {
+        return decode<ListReviewsResponse>(transport.call("MagiService", "list-reviews", encode(request)))
+    }
+    fun answerReview(request: AnswerReviewRequest): AnswerReviewResponse {
+        return decode<AnswerReviewResponse>(transport.call("MagiService", "answer-review", encode(request)))
+    }
+    fun listPersonas(request: ListPersonasRequest): ListPersonasResponse {
+        return decode<ListPersonasResponse>(transport.call("MagiService", "list-personas", encode(request)))
+    }
+    fun putPersona(request: PutPersonaRequest): PersonaInfo {
+        return decode<PersonaInfo>(transport.call("MagiService", "put-persona", encode(request)))
     }
     fun getAudio(request: GetAudioRequest): AudioResponse {
         return decode<AudioResponse>(transport.call("MagiService", "get-audio", encode(request)))
@@ -65,6 +92,42 @@ class MagiClient(private val transport: Transport) {
     fun listVoices(request: ListVoicesRequest): ListVoicesResponse {
         return decode<ListVoicesResponse>(transport.call("MagiService", "list-voices", encode(request)))
     }
+    fun listLexicon(request: ListLexiconRequest): ListLexiconResponse {
+        return decode<ListLexiconResponse>(transport.call("MagiService", "list-lexicon", encode(request)))
+    }
+    fun putLexiconWord(request: PutLexiconWordRequest): LexiconWord {
+        return decode<LexiconWord>(transport.call("MagiService", "put-lexicon-word", encode(request)))
+    }
+    fun deleteLexiconWord(request: DeleteLexiconWordRequest): DeleteLexiconWordResponse {
+        return decode<DeleteLexiconWordResponse>(transport.call("MagiService", "delete-lexicon-word", encode(request)))
+    }
+    fun speak(request: SpeakRequest): SpeakResponse {
+        return decode<SpeakResponse>(transport.call("MagiService", "speak", encode(request)))
+    }
+    fun listRunners(request: ListRunnersRequest): ListRunnersResponse {
+        return decode<ListRunnersResponse>(transport.call("MagiService", "list-runners", encode(request)))
+    }
+    fun putRunnerPackage(request: PutRunnerPackageRequest): PutRunnerPackageResponse {
+        return decode<PutRunnerPackageResponse>(transport.call("MagiService", "put-runner-package", encode(request)))
+    }
+    fun setRunnerRelease(request: SetRunnerReleaseRequest): SetRunnerReleaseResponse {
+        return decode<SetRunnerReleaseResponse>(transport.call("MagiService", "set-runner-release", encode(request)))
+    }
+    fun putAppRelease(request: PutAppReleaseRequest): AppRelease {
+        return decode<AppRelease>(transport.call("MagiService", "put-app-release", encode(request)))
+    }
+    fun getAppRelease(request: GetAppReleaseRequest): GetAppReleaseResponse {
+        return decode<GetAppReleaseResponse>(transport.call("MagiService", "get-app-release", encode(request)))
+    }
+    fun getAppPackage(request: GetAppPackageRequest): GetAppPackageResponse {
+        return decode<GetAppPackageResponse>(transport.call("MagiService", "get-app-package", encode(request)))
+    }
+    fun listEgressReviews(request: ListEgressReviewsRequest): ListEgressReviewsResponse {
+        return decode<ListEgressReviewsResponse>(transport.call("MagiService", "list-egress-reviews", encode(request)))
+    }
+    fun decideEgressReview(request: DecideEgressReviewRequest): DecideEgressReviewResponse {
+        return decode<DecideEgressReviewResponse>(transport.call("MagiService", "decide-egress-review", encode(request)))
+    }
 }
 
 /** Typed client for the RunnerService service. The client owns (de)serialization;
@@ -90,6 +153,38 @@ class RunnerClient(private val transport: Transport) {
     }
     fun runStatus(request: RunnerRunStatusRequest): RunnerRunStatusResponse {
         return decode<RunnerRunStatusResponse>(transport.call("RunnerService", "run-status", encode(request)))
+    }
+    fun hello(request: RunnerHelloRequest): RunnerHelloResponse {
+        return decode<RunnerHelloResponse>(transport.call("RunnerService", "hello", encode(request)))
+    }
+    fun getPackage(request: RunnerGetPackageRequest): RunnerGetPackageResponse {
+        return decode<RunnerGetPackageResponse>(transport.call("RunnerService", "get-package", encode(request)))
+    }
+    fun getArtifact(request: RunnerGetArtifactRequest): RunnerGetArtifactResponse {
+        return decode<RunnerGetArtifactResponse>(transport.call("RunnerService", "get-artifact", encode(request)))
+    }
+    fun egressAccess(request: RunnerStep): RunnerEgressAccessResponse {
+        return decode<RunnerEgressAccessResponse>(transport.call("RunnerService", "egress-access", encode(request)))
+    }
+}
+
+/** Typed client for the EgressAskService service. The client owns (de)serialization;
+ * the carrier only moves bytes. */
+class EgressAskClient(private val transport: Transport) {
+    fun environment(request: EgressEnvironmentRequest): EgressEnvironmentResponse {
+        return decode<EgressEnvironmentResponse>(transport.call("EgressAskService", "environment", encode(request)))
+    }
+    fun destination(request: EgressDestinationRequest): EgressDestinationResponse {
+        return decode<EgressDestinationResponse>(transport.call("EgressAskService", "destination", encode(request)))
+    }
+    fun report(request: EgressReportRequest): EgressReportResponse {
+        return decode<EgressReportResponse>(transport.call("EgressAskService", "report", encode(request)))
+    }
+    fun evaluate(request: EgressEvaluateRequest): EgressVerdict {
+        return decode<EgressVerdict>(transport.call("EgressAskService", "evaluate", encode(request)))
+    }
+    fun secretRules(request: EgressSecretRulesRequest): EgressSecretRulesResponse {
+        return decode<EgressSecretRulesResponse>(transport.call("EgressAskService", "secret-rules", encode(request)))
     }
 }
 

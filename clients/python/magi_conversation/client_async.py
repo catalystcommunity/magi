@@ -31,17 +31,29 @@ class ConversationAsyncClient:
     def __init__(self, transport: AsyncTransport):
         self._transport = transport
 
-    async def create_conversation(self, req: CreateConversationRequest) -> Conversation:
-        """create-conversation"""
-        return Conversation.from_cbor(await self._transport.call("ConversationService", "create-conversation", req.to_cbor()))
+    async def put_persona(self, req: PutPersonaRequest) -> Persona:
+        """put-persona"""
+        return Persona.from_cbor(await self._transport.call("ConversationService", "put-persona", req.to_cbor()))
 
-    async def get_conversation(self, req: GetConversationRequest) -> Conversation:
-        """get-conversation"""
-        return Conversation.from_cbor(await self._transport.call("ConversationService", "get-conversation", req.to_cbor()))
+    async def get_persona(self, req: GetPersonaRequest) -> Persona:
+        """get-persona"""
+        return Persona.from_cbor(await self._transport.call("ConversationService", "get-persona", req.to_cbor()))
 
-    async def list_conversations(self, req: ListConversationsRequest) -> ListConversationsResponse:
-        """list-conversations"""
-        return ListConversationsResponse.from_cbor(await self._transport.call("ConversationService", "list-conversations", req.to_cbor()))
+    async def list_personas(self, req: ListPersonasRequest) -> ListPersonasResponse:
+        """list-personas"""
+        return ListPersonasResponse.from_cbor(await self._transport.call("ConversationService", "list-personas", req.to_cbor()))
+
+    async def open_stream(self, req: OpenStreamRequest) -> Stream:
+        """open-stream"""
+        return Stream.from_cbor(await self._transport.call("ConversationService", "open-stream", req.to_cbor()))
+
+    async def list_streams(self, req: ListStreamsRequest) -> ListStreamsResponse:
+        """list-streams"""
+        return ListStreamsResponse.from_cbor(await self._transport.call("ConversationService", "list-streams", req.to_cbor()))
+
+    async def get_stream(self, req: GetStreamRequest) -> Stream:
+        """get-stream"""
+        return Stream.from_cbor(await self._transport.call("ConversationService", "get-stream", req.to_cbor()))
 
     async def post(self, req: PostRequest) -> Utterance:
         """post"""
@@ -55,17 +67,57 @@ class ConversationAsyncClient:
         """get-utterance"""
         return Utterance.from_cbor(await self._transport.call("ConversationService", "get-utterance", req.to_cbor()))
 
-    async def open_session(self, req: OpenSessionRequest) -> Session:
-        """open-session"""
-        return Session.from_cbor(await self._transport.call("ConversationService", "open-session", req.to_cbor()))
+    async def get_utterances(self, req: GetUtterancesRequest) -> GetUtterancesResponse:
+        """get-utterances"""
+        return GetUtterancesResponse.from_cbor(await self._transport.call("ConversationService", "get-utterances", req.to_cbor()))
 
-    async def update_session(self, req: UpdateSessionRequest) -> Session:
-        """update-session"""
-        return Session.from_cbor(await self._transport.call("ConversationService", "update-session", req.to_cbor()))
+    async def search(self, req: SearchRequest) -> SearchResponse:
+        """search"""
+        return SearchResponse.from_cbor(await self._transport.call("ConversationService", "search", req.to_cbor()))
 
-    async def list_sessions(self, req: ListSessionsRequest) -> ListSessionsResponse:
-        """list-sessions"""
-        return ListSessionsResponse.from_cbor(await self._transport.call("ConversationService", "list-sessions", req.to_cbor()))
+    async def trace(self, req: TraceRequest) -> TraceResponse:
+        """trace"""
+        return TraceResponse.from_cbor(await self._transport.call("ConversationService", "trace", req.to_cbor()))
+
+    async def put_link(self, req: PutLinkRequest) -> PutLinkResponse:
+        """put-link"""
+        return PutLinkResponse.from_cbor(await self._transport.call("ConversationService", "put-link", req.to_cbor()))
+
+    async def retract_link(self, req: RetractLinkRequest) -> Link:
+        """retract-link"""
+        return Link.from_cbor(await self._transport.call("ConversationService", "retract-link", req.to_cbor()))
+
+    async def list_links(self, req: ListLinksRequest) -> ListLinksResponse:
+        """list-links"""
+        return ListLinksResponse.from_cbor(await self._transport.call("ConversationService", "list-links", req.to_cbor()))
+
+    async def set_visibility(self, req: SetVisibilityRequest) -> SetVisibilityResponse:
+        """set-visibility"""
+        return SetVisibilityResponse.from_cbor(await self._transport.call("ConversationService", "set-visibility", req.to_cbor()))
+
+    async def list_reviews(self, req: ListReviewsRequest) -> ListReviewsResponse:
+        """list-reviews"""
+        return ListReviewsResponse.from_cbor(await self._transport.call("ConversationService", "list-reviews", req.to_cbor()))
+
+    async def answer_review(self, req: AnswerReviewRequest) -> Review:
+        """answer-review"""
+        return Review.from_cbor(await self._transport.call("ConversationService", "answer-review", req.to_cbor()))
+
+    async def list_examples(self, req: ListExamplesRequest) -> ListExamplesResponse:
+        """list-examples"""
+        return ListExamplesResponse.from_cbor(await self._transport.call("ConversationService", "list-examples", req.to_cbor()))
+
+    async def get_calibration(self, req: GetCalibrationRequest) -> Calibration:
+        """get-calibration"""
+        return Calibration.from_cbor(await self._transport.call("ConversationService", "get-calibration", req.to_cbor()))
+
+    async def claim_unclassified(self, req: ClaimUnclassifiedRequest) -> ClaimUnclassifiedResponse:
+        """claim-unclassified"""
+        return ClaimUnclassifiedResponse.from_cbor(await self._transport.call("ConversationService", "claim-unclassified", req.to_cbor()))
+
+    async def mark_classified(self, req: MarkClassifiedRequest) -> Utterance:
+        """mark-classified"""
+        return Utterance.from_cbor(await self._transport.call("ConversationService", "mark-classified", req.to_cbor()))
 
     async def annotate(self, req: AnnotateRequest) -> Annotation:
         """annotate"""
@@ -74,4 +126,8 @@ class ConversationAsyncClient:
     async def list_annotations(self, req: ListAnnotationsRequest) -> ListAnnotationsResponse:
         """list-annotations"""
         return ListAnnotationsResponse.from_cbor(await self._transport.call("ConversationService", "list-annotations", req.to_cbor()))
+
+    async def import_legacy(self, req: ImportLegacyRequest) -> ImportLegacyResponse:
+        """import-legacy"""
+        return ImportLegacyResponse.from_cbor(await self._transport.call("ConversationService", "import-legacy", req.to_cbor()))
 

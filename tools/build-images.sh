@@ -22,8 +22,9 @@ declare -A images=(
   [identity]="go primitives/identity identity"
   [magi]="go magi magi-server"
   [source]="file primitives/source/Dockerfile"
-  [agent]="file primitives/agent/Dockerfile"
+  [apprentice]="file primitives/apprentice/Dockerfile"
   [release]="file primitives/release/Dockerfile"
+  [egress]="file primitives/egress/Dockerfile"
 )
 names=("$@")
 [[ ${#names[@]} -eq 0 ]] && names=("${!images[@]}")

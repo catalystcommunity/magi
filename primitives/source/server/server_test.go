@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
@@ -93,11 +94,14 @@ func sh(t *testing.T, dir string, args ...string) (string, error) {
 	home := t.TempDir()
 	cmd.Env = append(os.Environ(), "HOME="+home, "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1", "GIT_TERMINAL_PROMPT=0",
 		"GIT_AUTHOR_NAME=Test", "GIT_AUTHOR_EMAIL=test@example.local", "GIT_COMMITTER_NAME=Test", "GIT_COMMITTER_EMAIL=test@example.local")
-	out, err := cmd.CombinedOutput()
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
 	if err != nil {
-		return string(out), &gitError{args: args, code: cmd.ProcessState.ExitCode(), stderr: string(out)}
+		return stdout.String(), &gitError{args: args, code: cmd.ProcessState.ExitCode(), stderr: stderr.String()}
 	}
-	return strings.TrimSpace(string(out)), nil
+	return strings.TrimSpace(stdout.String()), nil
 }
 
 func gitOK(t *testing.T, dir string, args ...string) string {

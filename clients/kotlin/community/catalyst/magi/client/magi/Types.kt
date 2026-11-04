@@ -10,22 +10,29 @@ data class Ref(
     val title: String? = null
 )
 
-/** Chat record. */
-data class Chat(
+/** MessageLink record. */
+data class MessageLink(
     val id: String,
-    val title: String,
-    // wire key: created_ms
-    val createdMs: ULong,
-    // wire key: updated_ms
-    val updatedMs: ULong,
-    // wire key: last_seq
-    val lastSeq: ULong
+    val kind: String,
+    val target: Ref,
+    val snippet: String? = null,
+    // wire key: target_ms
+    val targetMs: ULong? = null,
+    // wire key: span_start
+    val spanStart: ULong? = null,
+    // wire key: span_end
+    val spanEnd: ULong? = null,
+    val weight: Double,
+    val confidence: Double,
+    val author: String,
+    val state: String
 )
 
 /** Message record. */
 data class Message(
     val id: String,
-    val chat: String,
+    val stream: String,
+    val persona: String,
     val seq: ULong,
     val author: String,
     // wire key: author_kind
@@ -33,18 +40,44 @@ data class Message(
     val modality: String,
     val text: String,
     val audio: String? = null,
-    // wire key: reply_to
-    val replyTo: String? = null,
     val refs: List<Ref>,
+    val links: List<MessageLink>,
+    val visibility: String,
+    // wire key: visibility_by
+    val visibilityBy: String,
     // wire key: generated_by
     val generatedBy: String? = null,
     // wire key: created_ms
     val createdMs: ULong
 )
 
+/** PersonaInfo record. */
+data class PersonaInfo(
+    val id: String,
+    val name: String,
+    val sharing: String,
+    val members: List<String>
+)
+
+/** ListPersonasRequest record. */
+class ListPersonasRequest
+
+/** ListPersonasResponse record. */
+data class ListPersonasResponse(
+    val personas: List<PersonaInfo>
+)
+
+/** PutPersonaRequest record. */
+data class PutPersonaRequest(
+    val id: String,
+    val name: String,
+    val sharing: String,
+    val members: List<String>? = null
+)
+
 /** SayRequest record. */
 data class SayRequest(
-    val chat: String? = null,
+    val persona: String? = null,
     val text: String? = null,
     val audio: ByteArray? = null,
     // wire key: audio_type
@@ -56,7 +89,7 @@ data class SayRequest(
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is SayRequest) return false
-        if (chat != other.chat) return false
+        if (persona != other.persona) return false
         if (text != other.text) return false
         if (!(audio?.contentEquals(other.audio) ?: (other.audio == null))) return false
         if (audioType != other.audioType) return false
@@ -66,7 +99,7 @@ data class SayRequest(
     }
 
     override fun hashCode(): Int {
-        var result = chat.hashCode()
+        var result = persona.hashCode()
         result = 31 * result + text.hashCode()
         result = 31 * result + (audio?.contentHashCode() ?: 0)
         result = 31 * result + audioType.hashCode()
@@ -78,25 +111,16 @@ data class SayRequest(
 
 /** SayResponse record. */
 data class SayResponse(
-    val chat: String,
     val message: Message
-)
-
-/** ListChatsRequest record. */
-data class ListChatsRequest(
-    val limit: ULong? = null
-)
-
-/** ListChatsResponse record. */
-data class ListChatsResponse(
-    val chats: List<Chat>
 )
 
 /** ReadRequest record. */
 data class ReadRequest(
-    val chat: String,
+    val persona: String? = null,
     // wire key: after_seq
     val afterSeq: ULong? = null,
+    // wire key: before_seq
+    val beforeSeq: ULong? = null,
     val limit: ULong? = null,
     // wire key: wait_ms
     val waitMs: ULong? = null
@@ -106,7 +130,107 @@ data class ReadRequest(
 data class ReadResponse(
     val messages: List<Message>,
     // wire key: last_seq
-    val lastSeq: ULong
+    val lastSeq: ULong,
+    val stream: String
+)
+
+/** SearchRequest record. */
+data class SearchRequest(
+    val text: String,
+    val limit: ULong? = null
+)
+
+/** SearchResponse record. */
+data class SearchResponse(
+    val messages: List<Message>
+)
+
+/** TraceRequest record. */
+data class TraceRequest(
+    val message: String,
+    val direction: String? = null,
+    val depth: ULong? = null,
+    val tentative: Boolean? = null
+)
+
+/** TraceResponse record. */
+data class TraceResponse(
+    val messages: List<Message>,
+    val links: List<MessageLink>
+)
+
+/** ListLinksRequest record. */
+data class ListLinksRequest(
+    val message: String,
+    val all: Boolean? = null
+)
+
+/** ListLinksResponse record. */
+data class ListLinksResponse(
+    val links: List<MessageLink>
+)
+
+/** LinkRequest record. */
+data class LinkRequest(
+    val message: String,
+    val kind: String,
+    val target: Ref,
+    val replaces: String? = null,
+    // wire key: span_start
+    val spanStart: ULong? = null,
+    // wire key: span_end
+    val spanEnd: ULong? = null,
+    val weight: Double? = null,
+    val note: String? = null
+)
+
+/** UnlinkRequest record. */
+data class UnlinkRequest(
+    val link: String,
+    val note: String? = null
+)
+
+/** SetVisibilityRequest record. */
+data class SetVisibilityRequest(
+    val message: String,
+    val visibility: String,
+    val note: String? = null
+)
+
+/** ReviewItem record. */
+data class ReviewItem(
+    val id: String,
+    val task: String,
+    val question: String,
+    val proposed: String,
+    val choices: List<String>,
+    val confidence: Double,
+    val message: Message,
+    val target: Message? = null,
+    // wire key: created_ms
+    val createdMs: ULong
+)
+
+/** ListReviewsRequest record. */
+data class ListReviewsRequest(
+    val limit: ULong? = null
+)
+
+/** ListReviewsResponse record. */
+data class ListReviewsResponse(
+    val reviews: List<ReviewItem>
+)
+
+/** AnswerReviewRequest record. */
+data class AnswerReviewRequest(
+    val id: String,
+    val answer: String,
+    val note: String? = null
+)
+
+/** AnswerReviewResponse record. */
+data class AnswerReviewResponse(
+    val status: String
 )
 
 /** GetAudioRequest record. */
@@ -158,7 +282,6 @@ data class Task(
     // wire key: waiting_for
     val waitingFor: String? = null,
     val decisions: List<String>? = null,
-    val chat: String? = null,
     val branch: String? = null,
     val repo: String? = null,
     val steps: List<TaskStep>,
@@ -176,7 +299,7 @@ data class StartTaskRequest(
     val instructions: String,
     val title: String? = null,
     val repo: String? = null,
-    val chat: String? = null
+    val runner: String? = null
 )
 
 /** GetTaskRequest record. */
@@ -186,7 +309,6 @@ data class GetTaskRequest(
 
 /** ListTasksRequest record. */
 data class ListTasksRequest(
-    val chat: String? = null,
     val status: String? = null,
     val limit: ULong? = null
 )
@@ -284,6 +406,313 @@ data class ListVoicesResponse(
     val voices: List<VoiceInfo>
 )
 
+/** LexiconWord record. */
+data class LexiconWord(
+    val written: String,
+    val spoken: String? = null,
+    val ipa: String? = null,
+    // wire key: heard_as
+    val heardAs: List<String>,
+    val note: String? = null,
+    // wire key: updated_by
+    val updatedBy: String,
+    // wire key: updated_ms
+    val updatedMs: ULong
+)
+
+/** ListLexiconRequest record. */
+class ListLexiconRequest
+
+/** ListLexiconResponse record. */
+data class ListLexiconResponse(
+    val words: List<LexiconWord>,
+    // wire key: can_edit
+    val canEdit: Boolean
+)
+
+/** PutLexiconWordRequest record. */
+data class PutLexiconWordRequest(
+    val written: String,
+    val spoken: String? = null,
+    val ipa: String? = null,
+    // wire key: heard_as
+    val heardAs: List<String>? = null,
+    val note: String? = null
+)
+
+/** DeleteLexiconWordRequest record. */
+data class DeleteLexiconWordRequest(
+    val written: String
+)
+
+/** DeleteLexiconWordResponse record. */
+data class DeleteLexiconWordResponse(
+    val deleted: Boolean
+)
+
+/** SpeakRequest record. */
+data class SpeakRequest(
+    val text: String,
+    val voice: String? = null
+)
+
+/** SpeakResponse record. */
+data class SpeakResponse(
+    val spoken: String,
+    val audio: ByteArray,
+    // wire key: media_type
+    val mediaType: String
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is SpeakResponse) return false
+        if (spoken != other.spoken) return false
+        if (!audio.contentEquals(other.audio)) return false
+        if (mediaType != other.mediaType) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = spoken.hashCode()
+        result = 31 * result + audio.contentHashCode()
+        result = 31 * result + mediaType.hashCode()
+        return result
+    }
+}
+
+/** RunnerInfo record. */
+data class RunnerInfo(
+    val name: String,
+    val version: String,
+    val os: String,
+    val arch: String,
+    val repos: List<String>,
+    val publishes: List<String>,
+    val busy: Boolean,
+    // wire key: seen_ms
+    val seenMs: ULong,
+    // wire key: update_error
+    val updateError: String? = null
+)
+
+/** ListRunnersRequest record. */
+class ListRunnersRequest
+
+/** ListRunnersResponse record. */
+data class ListRunnersResponse(
+    val runners: List<RunnerInfo>,
+    val release: String? = null
+)
+
+/** PutRunnerPackageRequest record. */
+data class PutRunnerPackageRequest(
+    val version: String,
+    val os: String,
+    val arch: String,
+    val body: ByteArray
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is PutRunnerPackageRequest) return false
+        if (version != other.version) return false
+        if (os != other.os) return false
+        if (arch != other.arch) return false
+        if (!body.contentEquals(other.body)) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = version.hashCode()
+        result = 31 * result + os.hashCode()
+        result = 31 * result + arch.hashCode()
+        result = 31 * result + body.contentHashCode()
+        return result
+    }
+}
+
+/** PutRunnerPackageResponse record. */
+data class PutRunnerPackageResponse(
+    val digest: String
+)
+
+/** SetRunnerReleaseRequest record. */
+data class SetRunnerReleaseRequest(
+    val version: String
+)
+
+/** SetRunnerReleaseResponse record. */
+data class SetRunnerReleaseResponse(
+    val version: String,
+    val packages: List<String>
+)
+
+/** AppRelease record. */
+data class AppRelease(
+    // wire key: version_code
+    val versionCode: ULong,
+    // wire key: version_name
+    val versionName: String,
+    val digest: String,
+    val size: ULong
+)
+
+/** PutAppReleaseRequest record. */
+data class PutAppReleaseRequest(
+    // wire key: version_code
+    val versionCode: ULong,
+    // wire key: version_name
+    val versionName: String,
+    val body: ByteArray
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is PutAppReleaseRequest) return false
+        if (versionCode != other.versionCode) return false
+        if (versionName != other.versionName) return false
+        if (!body.contentEquals(other.body)) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = versionCode.hashCode()
+        result = 31 * result + versionName.hashCode()
+        result = 31 * result + body.contentHashCode()
+        return result
+    }
+}
+
+/** GetAppReleaseRequest record. */
+class GetAppReleaseRequest
+
+/** GetAppReleaseResponse record. */
+data class GetAppReleaseResponse(
+    val release: AppRelease? = null
+)
+
+/** GetAppPackageRequest record. */
+data class GetAppPackageRequest(
+    val digest: String
+)
+
+/** GetAppPackageResponse record. */
+data class GetAppPackageResponse(
+    val body: ByteArray
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is GetAppPackageResponse) return false
+        if (!body.contentEquals(other.body)) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = body.contentHashCode()
+        return result
+    }
+}
+
+/** EgressReviewHeader record. */
+data class EgressReviewHeader(
+    val name: String,
+    val value: String
+)
+
+/** EgressReview record. */
+data class EgressReview(
+    val id: String,
+    val kind: String,
+    val state: String,
+    val owner: String,
+    val environment: String,
+    val destination: String,
+    val method: String,
+    val url: String,
+    val headers: List<EgressReviewHeader>,
+    val body: ByteArray,
+    val reason: String,
+    val by: String,
+    val count: ULong,
+    // wire key: first_ms
+    val firstMs: ULong,
+    // wire key: last_ms
+    val lastMs: ULong,
+    val decision: String? = null,
+    // wire key: decided_by
+    val decidedBy: String? = null,
+    val note: String? = null
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is EgressReview) return false
+        if (id != other.id) return false
+        if (kind != other.kind) return false
+        if (state != other.state) return false
+        if (owner != other.owner) return false
+        if (environment != other.environment) return false
+        if (destination != other.destination) return false
+        if (method != other.method) return false
+        if (url != other.url) return false
+        if (headers != other.headers) return false
+        if (!body.contentEquals(other.body)) return false
+        if (reason != other.reason) return false
+        if (by != other.by) return false
+        if (count != other.count) return false
+        if (firstMs != other.firstMs) return false
+        if (lastMs != other.lastMs) return false
+        if (decision != other.decision) return false
+        if (decidedBy != other.decidedBy) return false
+        if (note != other.note) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = id.hashCode()
+        result = 31 * result + kind.hashCode()
+        result = 31 * result + state.hashCode()
+        result = 31 * result + owner.hashCode()
+        result = 31 * result + environment.hashCode()
+        result = 31 * result + destination.hashCode()
+        result = 31 * result + method.hashCode()
+        result = 31 * result + url.hashCode()
+        result = 31 * result + headers.hashCode()
+        result = 31 * result + body.contentHashCode()
+        result = 31 * result + reason.hashCode()
+        result = 31 * result + by.hashCode()
+        result = 31 * result + count.hashCode()
+        result = 31 * result + firstMs.hashCode()
+        result = 31 * result + lastMs.hashCode()
+        result = 31 * result + decision.hashCode()
+        result = 31 * result + decidedBy.hashCode()
+        result = 31 * result + note.hashCode()
+        return result
+    }
+}
+
+/** ListEgressReviewsRequest record. */
+data class ListEgressReviewsRequest(
+    val state: String? = null,
+    val limit: ULong? = null
+)
+
+/** ListEgressReviewsResponse record. */
+data class ListEgressReviewsResponse(
+    val reviews: List<EgressReview>
+)
+
+/** DecideEgressReviewRequest record. */
+data class DecideEgressReviewRequest(
+    val id: String,
+    val decision: String,
+    val note: String? = null
+)
+
+/** DecideEgressReviewResponse record. */
+data class DecideEgressReviewResponse(
+    val id: String,
+    val decision: String,
+    val rule: String? = null
+)
+
 /** RunnerClaimRequest record. */
 data class RunnerClaimRequest(
     val queue: String,
@@ -379,5 +808,237 @@ data class RunnerRunStatusResponse(
 /** RunnerAck record. */
 data class RunnerAck(
     val ok: Boolean
+)
+
+/** RunnerHelloRequest record. */
+data class RunnerHelloRequest(
+    val version: String,
+    val os: String,
+    val arch: String,
+    val repos: List<String>,
+    val publishes: List<String>,
+    val busy: Boolean,
+    // wire key: update_error
+    val updateError: String? = null
+)
+
+/** RunnerUpdate record. */
+data class RunnerUpdate(
+    val version: String,
+    val digest: String,
+    val size: ULong
+)
+
+/** RunnerHelloResponse record. */
+data class RunnerHelloResponse(
+    val update: RunnerUpdate? = null
+)
+
+/** RunnerGetPackageRequest record. */
+data class RunnerGetPackageRequest(
+    val version: String,
+    val os: String,
+    val arch: String
+)
+
+/** RunnerGetPackageResponse record. */
+data class RunnerGetPackageResponse(
+    val digest: String,
+    val body: ByteArray
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is RunnerGetPackageResponse) return false
+        if (digest != other.digest) return false
+        if (!body.contentEquals(other.body)) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = digest.hashCode()
+        result = 31 * result + body.contentHashCode()
+        return result
+    }
+}
+
+/** RunnerGetArtifactRequest record. */
+data class RunnerGetArtifactRequest(
+    val step: RunnerStep,
+    val digest: String
+)
+
+/** RunnerGetArtifactResponse record. */
+data class RunnerGetArtifactResponse(
+    // wire key: media_type
+    val mediaType: String,
+    val body: ByteArray
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is RunnerGetArtifactResponse) return false
+        if (mediaType != other.mediaType) return false
+        if (!body.contentEquals(other.body)) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = mediaType.hashCode()
+        result = 31 * result + body.contentHashCode()
+        return result
+    }
+}
+
+/** RunnerEgressProxy record. */
+data class RunnerEgressProxy(
+    val environment: String,
+    val credential: String,
+    val ca: ByteArray,
+    // wire key: ssh_known_hosts
+    val sshKnownHosts: String? = null
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is RunnerEgressProxy) return false
+        if (environment != other.environment) return false
+        if (credential != other.credential) return false
+        if (!ca.contentEquals(other.ca)) return false
+        if (sshKnownHosts != other.sshKnownHosts) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = environment.hashCode()
+        result = 31 * result + credential.hashCode()
+        result = 31 * result + ca.contentHashCode()
+        result = 31 * result + sshKnownHosts.hashCode()
+        return result
+    }
+}
+
+/** RunnerEgressAccessResponse record. */
+data class RunnerEgressAccessResponse(
+    val proxy: RunnerEgressProxy? = null
+)
+
+/** EgressFlowHeader record. */
+data class EgressFlowHeader(
+    val name: String,
+    val value: String
+)
+
+/** EgressFlow record. */
+data class EgressFlow(
+    val id: String,
+    val environment: String,
+    val owner: String,
+    val direction: String,
+    val destination: String,
+    val method: String,
+    val url: String,
+    val status: ULong,
+    val headers: List<EgressFlowHeader>,
+    val body: ByteArray
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is EgressFlow) return false
+        if (id != other.id) return false
+        if (environment != other.environment) return false
+        if (owner != other.owner) return false
+        if (direction != other.direction) return false
+        if (destination != other.destination) return false
+        if (method != other.method) return false
+        if (url != other.url) return false
+        if (status != other.status) return false
+        if (headers != other.headers) return false
+        if (!body.contentEquals(other.body)) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = id.hashCode()
+        result = 31 * result + environment.hashCode()
+        result = 31 * result + owner.hashCode()
+        result = 31 * result + direction.hashCode()
+        result = 31 * result + destination.hashCode()
+        result = 31 * result + method.hashCode()
+        result = 31 * result + url.hashCode()
+        result = 31 * result + status.hashCode()
+        result = 31 * result + headers.hashCode()
+        result = 31 * result + body.contentHashCode()
+        return result
+    }
+}
+
+/** EgressEnvironmentRequest record. */
+data class EgressEnvironmentRequest(
+    val environment: String
+)
+
+/** EgressEnvironmentResponse record. */
+data class EgressEnvironmentResponse(
+    val owner: String,
+    val task: String? = null,
+    val goal: String? = null,
+    val labels: Map<String, String>? = null
+)
+
+/** EgressEvaluateRequest record. */
+data class EgressEvaluateRequest(
+    val plugin: String,
+    val flow: EgressFlow,
+    val question: String? = null
+)
+
+/** EgressVerdict record. */
+data class EgressVerdict(
+    val verdict: String,
+    val reason: String,
+    val by: String
+)
+
+/** EgressSecretRulesRequest record. */
+data class EgressSecretRulesRequest(
+    val plugin: String,
+    val flow: EgressFlow
+)
+
+/** EgressSecretRule record. */
+data class EgressSecretRule(
+    val placeholder: String,
+    val secret: String,
+    val hosts: List<String>,
+    val path: String? = null,
+    val place: String
+)
+
+/** EgressSecretRulesResponse record. */
+data class EgressSecretRulesResponse(
+    val rules: List<EgressSecretRule>
+)
+
+/** EgressReportRequest record. */
+data class EgressReportRequest(
+    val kind: String,
+    val flow: EgressFlow,
+    val reason: String,
+    val by: String
+)
+
+/** EgressReportResponse record. */
+data class EgressReportResponse(
+    val review: String
+)
+
+/** EgressDestinationRequest record. */
+data class EgressDestinationRequest(
+    val environment: String,
+    val destination: String
+)
+
+/** EgressDestinationResponse record. */
+data class EgressDestinationResponse(
+    val allowed: Boolean,
+    val layer4: Boolean? = null
 )
 

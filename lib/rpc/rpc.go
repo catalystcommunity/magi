@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -249,17 +250,47 @@ func Mux(s *Server, ready func() error) *http.ServeMux {
 	return m
 }
 
-// ListenAndServe serves h until ctx ends.
+// DrainDelay is how long a stopping server continues to accept requests,
+// so that load balancers and kube-proxy can stop sending new requests to
+// it first.
+var DrainDelay = 5 * time.Second
+
+// DrainTimeout is how long a stopping server waits for open requests to
+// finish. It is longer than the longest long poll (25 s). The pod
+// termination grace period must be longer than DrainDelay + DrainTimeout.
+var DrainTimeout = 35 * time.Second
+
+// ListenAndServe serves h until ctx ends. Then it drains: responses close
+// their connections, so clients connect again (to another pod), and the
+// server accepts requests for DrainDelay. Then it stops accepting and waits
+// for open requests (long polls too) for up to DrainTimeout. A restart thus
+// drops no request. Kubernetes removes a stopping pod from the Service
+// endpoints, so /healthz stays 200 for clients outside the cluster.
 func ListenAndServe(ctx context.Context, addr string, h http.Handler) error {
-	srv := &http.Server{Addr: addr, Handler: h, ReadHeaderTimeout: 10 * time.Second}
+	l, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+	return Serve(ctx, l, h)
+}
+
+// Serve is ListenAndServe on a listener.
+func Serve(ctx context.Context, l net.Listener, h http.Handler) error {
+	srv := &http.Server{Handler: h, ReadHeaderTimeout: 10 * time.Second}
 	errc := make(chan error, 1)
-	go func() { errc <- srv.ListenAndServe() }()
+	go func() { errc <- srv.Serve(l) }()
 	select {
 	case err := <-errc:
 		return err
 	case <-ctx.Done():
-		sctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		return srv.Shutdown(sctx)
 	}
+	srv.SetKeepAlivesEnabled(false)
+	select {
+	case err := <-errc:
+		return err
+	case <-time.After(DrainDelay):
+	}
+	sctx, cancel := context.WithTimeout(context.Background(), DrainTimeout)
+	defer cancel()
+	return srv.Shutdown(sctx)
 }

@@ -1,11 +1,11 @@
-// Package envd is the in-environment agent and its client.
+// Package envd is the in-environment daemon and its client.
 //
 // envd runs inside an environment: a container, a VM, or a host. It serves
 // a small HTTP JSON API that runs commands and reads and writes files. Every
 // request except GET /healthz needs "Authorization: Bearer <token>", where the
 // token is the per-environment secret that the control plane made. Because
 // the API does not depend on how the environment runs, every backend uses the
-// same agent and the same client.
+// same daemon and the same client.
 package envd
 
 import (
@@ -55,7 +55,7 @@ const (
 	PathList   = "/v1/list-files"
 )
 
-// Server is the agent. Token must not be empty.
+// Server is the daemon. Token must not be empty.
 type Server struct {
 	Token string
 	// Dir resolves relative paths and is the default command directory.
@@ -256,6 +256,13 @@ func (s *Server) Exec(ctx context.Context, req api.ExecRequest) (api.ExecResult,
 		if ws, ok := exitErr.Sys().(syscall.WaitStatus); ok && ws.Signaled() {
 			res.ExitCode = 128 + int64(ws.Signal())
 		}
+	case errors.Is(err, exec.ErrWaitDelay) && !res.TimedOut && cmd.ProcessState != nil:
+		// The command exited, but a process that it started kept the
+		// output open. Report the exit status of the command, and stop the
+		// processes that are left.
+		res.ExitCode = int64(cmd.ProcessState.ExitCode())
+		syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		res.Stderr = append(res.Stderr, []byte("envd: the command exited, but a process that it started kept the output open; envd stopped that process\n")...)
 	case res.TimedOut || errors.Is(err, exec.ErrWaitDelay):
 		res.ExitCode = -1
 	default:

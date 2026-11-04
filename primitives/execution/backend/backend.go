@@ -1,5 +1,5 @@
 // Package backend runs environments. Each backend starts the same envd
-// agent inside the environment and reports where to reach it. A container,
+// daemon inside the environment and reports where to reach it. A container,
 // a VM, or a host backend differs only in how it starts envd and how the
 // control plane connects to it.
 package backend

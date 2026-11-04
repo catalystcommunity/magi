@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"log/slog"
 	"os"
@@ -51,6 +52,35 @@ func run(listen, keys string, workers bool, log *slog.Logger) error {
 		return err
 	}
 	sys := compose.New(cfg, persona, log)
+	// MAGI_LIBRARIAN_MODELS lists the librarian endpoints, usually only a
+	// local inference host; without it the librarian uses the persona chain.
+	if os.Getenv("MAGI_LIBRARIAN_MODELS") != "" {
+		if sys.LibrarianModel, err = model.ChainFromEnv("MAGI_LIBRARIAN_MODELS", m); err != nil {
+			return err
+		}
+	} else {
+		sys.LibrarianModel = persona
+	}
+	// The egress review is background work too: the local model first.
+	sys.ReviewModel = sys.LibrarianModel
+	// MAGI_MODEL_EGRESS=true: all model calls of Magi go through the egress
+	// proxy, as the proxy user svc_magi. Then the provider key can be a
+	// proxy secret, and Magi holds only its placeholder.
+	if os.Getenv("MAGI_MODEL_EGRESS") == "true" {
+		if cfg.EgressProxy == nil {
+			return errors.New("MAGI_MODEL_EGRESS needs MAGI_EGRESS_PROXY")
+		}
+		t, err := cfg.EgressProxy.Transport(compose.ServiceUser("magi"))
+		if err != nil {
+			return err
+		}
+		for _, c := range []model.Chatter{model.Chain{m}, persona, sys.LibrarianModel} {
+			if ch, ok := c.(model.Chain); ok {
+				ch.SetTransport(t)
+			}
+		}
+		log.Info("model calls go through the egress proxy", "proxy", cfg.EgressProxy.Addr)
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	if workers {
@@ -71,9 +101,12 @@ func run(listen, keys string, workers bool, log *slog.Logger) error {
 	srv := &rpc.Server{Verifier: ver, Log: log, MaxBody: 20 << 20}
 	srv.Register("MagiService", magiapi.MagiServiceOps(&compose.Service{S: sys}))
 	srv.Register("RunnerService", magiapi.RunnerServiceOps(&compose.Runners{S: sys}))
+	srv.Register("EgressAskService", magiapi.EgressAskServiceOps(&compose.Egress{S: sys}))
 	mux := rpc.Mux(srv, nil)
 	// Runners use the coding model through Magi, so they hold no provider key.
 	mux.Handle("/runner/v1/chat/completions", compose.ModelProxy(ver, m))
+	// Runner sandboxes reach the egress proxy through Magi.
+	mux.Handle("/runner/egress", compose.EgressTunnel(ver, sys.EgressProxy))
 	mux.Handle("/", web.Handler())
 	log.Info("listening", "addr", listen)
 	return rpc.ListenAndServe(ctx, listen, mux)

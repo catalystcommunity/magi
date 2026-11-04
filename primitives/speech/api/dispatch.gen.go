@@ -40,6 +40,50 @@ func SpeechServiceOps(impl SpeechService) map[string]func(context.Context, []byt
 			}
 			return EncodeListVoicesResponse(resp), nil
 		},
+		"list-lexicon": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListLexiconRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListLexicon(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListLexiconResponse(resp), nil
+		},
+		"put-lexicon-entry": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodePutLexiconEntryRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.PutLexiconEntry(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeLexiconEntry(resp), nil
+		},
+		"delete-lexicon-entry": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeDeleteLexiconEntryRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.DeleteLexiconEntry(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeDeleteLexiconEntryResponse(resp), nil
+		},
+		"prepare-text": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodePrepareTextRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.PrepareText(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodePrepareTextResponse(resp), nil
+		},
 	}
 }
 

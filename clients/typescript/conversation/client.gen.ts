@@ -2,8 +2,8 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { AnnotateRequest, Annotation, Conversation, CreateConversationRequest, GetConversationRequest, GetUtteranceRequest, ListAnnotationsRequest, ListAnnotationsResponse, ListConversationsRequest, ListConversationsResponse, ListSessionsRequest, ListSessionsResponse, ListUtterancesRequest, ListUtterancesResponse, OpenSessionRequest, PostRequest, Session, UpdateSessionRequest, Utterance } from "./types.gen.ts";
-import { fromAnnotationCbor, fromConversationCbor, fromListAnnotationsResponseCbor, fromListConversationsResponseCbor, fromListSessionsResponseCbor, fromListUtterancesResponseCbor, fromSessionCbor, fromUtteranceCbor, toAnnotateRequestCbor, toCreateConversationRequestCbor, toGetConversationRequestCbor, toGetUtteranceRequestCbor, toListAnnotationsRequestCbor, toListConversationsRequestCbor, toListSessionsRequestCbor, toListUtterancesRequestCbor, toOpenSessionRequestCbor, toPostRequestCbor, toUpdateSessionRequestCbor } from "./codec.gen.ts";
+import type { AnnotateRequest, Annotation, AnswerReviewRequest, Calibration, ClaimUnclassifiedRequest, ClaimUnclassifiedResponse, GetCalibrationRequest, GetPersonaRequest, GetStreamRequest, GetUtteranceRequest, GetUtterancesRequest, GetUtterancesResponse, ImportLegacyRequest, ImportLegacyResponse, Link, ListAnnotationsRequest, ListAnnotationsResponse, ListExamplesRequest, ListExamplesResponse, ListLinksRequest, ListLinksResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListStreamsRequest, ListStreamsResponse, ListUtterancesRequest, ListUtterancesResponse, MarkClassifiedRequest, OpenStreamRequest, Persona, PostRequest, PutLinkRequest, PutLinkResponse, PutPersonaRequest, RetractLinkRequest, Review, SearchRequest, SearchResponse, SetVisibilityRequest, SetVisibilityResponse, Stream, TraceRequest, TraceResponse, Utterance } from "./types.gen.ts";
+import { fromAnnotationCbor, fromCalibrationCbor, fromClaimUnclassifiedResponseCbor, fromGetUtterancesResponseCbor, fromImportLegacyResponseCbor, fromLinkCbor, fromListAnnotationsResponseCbor, fromListExamplesResponseCbor, fromListLinksResponseCbor, fromListPersonasResponseCbor, fromListReviewsResponseCbor, fromListStreamsResponseCbor, fromListUtterancesResponseCbor, fromPersonaCbor, fromPutLinkResponseCbor, fromReviewCbor, fromSearchResponseCbor, fromSetVisibilityResponseCbor, fromStreamCbor, fromTraceResponseCbor, fromUtteranceCbor, toAnnotateRequestCbor, toAnswerReviewRequestCbor, toClaimUnclassifiedRequestCbor, toGetCalibrationRequestCbor, toGetPersonaRequestCbor, toGetStreamRequestCbor, toGetUtteranceRequestCbor, toGetUtterancesRequestCbor, toImportLegacyRequestCbor, toListAnnotationsRequestCbor, toListExamplesRequestCbor, toListLinksRequestCbor, toListPersonasRequestCbor, toListReviewsRequestCbor, toListStreamsRequestCbor, toListUtterancesRequestCbor, toMarkClassifiedRequestCbor, toOpenStreamRequestCbor, toPostRequestCbor, toPutLinkRequestCbor, toPutPersonaRequestCbor, toRetractLinkRequestCbor, toSearchRequestCbor, toSetVisibilityRequestCbor, toTraceRequestCbor } from "./codec.gen.ts";
 
 export interface ServiceTransport {
   call(service: string, op: string, req: Uint8Array): Uint8Array;
@@ -16,27 +16,54 @@ export class ConversationClient {
    * @throws {ServiceError} when the API returns an error response
    * @throws transport errors (network, timeout) raised by the transport
    */
-  createConversation(req: CreateConversationRequest): Conversation {
-    const csilResp = this.t.call("ConversationService", "create-conversation", toCreateConversationRequestCbor(req));
-    return fromConversationCbor(csilResp);
+  putPersona(req: PutPersonaRequest): Persona {
+    const csilResp = this.t.call("ConversationService", "put-persona", toPutPersonaRequestCbor(req));
+    return fromPersonaCbor(csilResp);
   }
 
   /**
    * @throws {ServiceError} when the API returns an error response
    * @throws transport errors (network, timeout) raised by the transport
    */
-  getConversation(req: GetConversationRequest): Conversation {
-    const csilResp = this.t.call("ConversationService", "get-conversation", toGetConversationRequestCbor(req));
-    return fromConversationCbor(csilResp);
+  getPersona(req: GetPersonaRequest): Persona {
+    const csilResp = this.t.call("ConversationService", "get-persona", toGetPersonaRequestCbor(req));
+    return fromPersonaCbor(csilResp);
   }
 
   /**
    * @throws {ServiceError} when the API returns an error response
    * @throws transport errors (network, timeout) raised by the transport
    */
-  listConversations(req: ListConversationsRequest): ListConversationsResponse {
-    const csilResp = this.t.call("ConversationService", "list-conversations", toListConversationsRequestCbor(req));
-    return fromListConversationsResponseCbor(csilResp);
+  listPersonas(req: ListPersonasRequest): ListPersonasResponse {
+    const csilResp = this.t.call("ConversationService", "list-personas", toListPersonasRequestCbor(req));
+    return fromListPersonasResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  openStream(req: OpenStreamRequest): Stream {
+    const csilResp = this.t.call("ConversationService", "open-stream", toOpenStreamRequestCbor(req));
+    return fromStreamCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  listStreams(req: ListStreamsRequest): ListStreamsResponse {
+    const csilResp = this.t.call("ConversationService", "list-streams", toListStreamsRequestCbor(req));
+    return fromListStreamsResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  getStream(req: GetStreamRequest): Stream {
+    const csilResp = this.t.call("ConversationService", "get-stream", toGetStreamRequestCbor(req));
+    return fromStreamCbor(csilResp);
   }
 
   /**
@@ -70,27 +97,117 @@ export class ConversationClient {
    * @throws {ServiceError} when the API returns an error response
    * @throws transport errors (network, timeout) raised by the transport
    */
-  openSession(req: OpenSessionRequest): Session {
-    const csilResp = this.t.call("ConversationService", "open-session", toOpenSessionRequestCbor(req));
-    return fromSessionCbor(csilResp);
+  getUtterances(req: GetUtterancesRequest): GetUtterancesResponse {
+    const csilResp = this.t.call("ConversationService", "get-utterances", toGetUtterancesRequestCbor(req));
+    return fromGetUtterancesResponseCbor(csilResp);
   }
 
   /**
    * @throws {ServiceError} when the API returns an error response
    * @throws transport errors (network, timeout) raised by the transport
    */
-  updateSession(req: UpdateSessionRequest): Session {
-    const csilResp = this.t.call("ConversationService", "update-session", toUpdateSessionRequestCbor(req));
-    return fromSessionCbor(csilResp);
+  search(req: SearchRequest): SearchResponse {
+    const csilResp = this.t.call("ConversationService", "search", toSearchRequestCbor(req));
+    return fromSearchResponseCbor(csilResp);
   }
 
   /**
    * @throws {ServiceError} when the API returns an error response
    * @throws transport errors (network, timeout) raised by the transport
    */
-  listSessions(req: ListSessionsRequest): ListSessionsResponse {
-    const csilResp = this.t.call("ConversationService", "list-sessions", toListSessionsRequestCbor(req));
-    return fromListSessionsResponseCbor(csilResp);
+  trace(req: TraceRequest): TraceResponse {
+    const csilResp = this.t.call("ConversationService", "trace", toTraceRequestCbor(req));
+    return fromTraceResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  putLink(req: PutLinkRequest): PutLinkResponse {
+    const csilResp = this.t.call("ConversationService", "put-link", toPutLinkRequestCbor(req));
+    return fromPutLinkResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  retractLink(req: RetractLinkRequest): Link {
+    const csilResp = this.t.call("ConversationService", "retract-link", toRetractLinkRequestCbor(req));
+    return fromLinkCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  listLinks(req: ListLinksRequest): ListLinksResponse {
+    const csilResp = this.t.call("ConversationService", "list-links", toListLinksRequestCbor(req));
+    return fromListLinksResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  setVisibility(req: SetVisibilityRequest): SetVisibilityResponse {
+    const csilResp = this.t.call("ConversationService", "set-visibility", toSetVisibilityRequestCbor(req));
+    return fromSetVisibilityResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  listReviews(req: ListReviewsRequest): ListReviewsResponse {
+    const csilResp = this.t.call("ConversationService", "list-reviews", toListReviewsRequestCbor(req));
+    return fromListReviewsResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  answerReview(req: AnswerReviewRequest): Review {
+    const csilResp = this.t.call("ConversationService", "answer-review", toAnswerReviewRequestCbor(req));
+    return fromReviewCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  listExamples(req: ListExamplesRequest): ListExamplesResponse {
+    const csilResp = this.t.call("ConversationService", "list-examples", toListExamplesRequestCbor(req));
+    return fromListExamplesResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  getCalibration(req: GetCalibrationRequest): Calibration {
+    const csilResp = this.t.call("ConversationService", "get-calibration", toGetCalibrationRequestCbor(req));
+    return fromCalibrationCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  claimUnclassified(req: ClaimUnclassifiedRequest): ClaimUnclassifiedResponse {
+    const csilResp = this.t.call("ConversationService", "claim-unclassified", toClaimUnclassifiedRequestCbor(req));
+    return fromClaimUnclassifiedResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  markClassified(req: MarkClassifiedRequest): Utterance {
+    const csilResp = this.t.call("ConversationService", "mark-classified", toMarkClassifiedRequestCbor(req));
+    return fromUtteranceCbor(csilResp);
   }
 
   /**
@@ -109,6 +226,15 @@ export class ConversationClient {
   listAnnotations(req: ListAnnotationsRequest): ListAnnotationsResponse {
     const csilResp = this.t.call("ConversationService", "list-annotations", toListAnnotationsRequestCbor(req));
     return fromListAnnotationsResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  importLegacy(req: ImportLegacyRequest): ImportLegacyResponse {
+    const csilResp = this.t.call("ConversationService", "import-legacy", toImportLegacyRequestCbor(req));
+    return fromImportLegacyResponseCbor(csilResp);
   }
 }
 

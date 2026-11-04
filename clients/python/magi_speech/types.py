@@ -43,12 +43,15 @@ class Transcript:
     engine: str
     audio_ms: int
     elapsed_ms: int
+    heard: Optional[str] = None
     confidence: Optional[float] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'text') and self.text is not None:
             result['text'] = self.text
+        if hasattr(self, 'heard') and self.heard is not None:
+            result['heard'] = self.heard
         if hasattr(self, 'confidence') and self.confidence is not None:
             result['confidence'] = self.confidence
         if hasattr(self, 'engine') and self.engine is not None:
@@ -62,7 +65,7 @@ class Transcript:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Transcript':
         """Create instance from dictionary."""
-        return cls(text=data.get('text'), confidence=data.get('confidence'), engine=data.get('engine'), audio_ms=data.get('audio_ms'), elapsed_ms=data.get('elapsed_ms'))
+        return cls(text=data.get('text'), heard=data.get('heard'), confidence=data.get('confidence'), engine=data.get('engine'), audio_ms=data.get('audio_ms'), elapsed_ms=data.get('elapsed_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -80,6 +83,7 @@ class SynthesizeRequest:
     voice: Optional[str] = None
     format: Optional[str] = None
     speed: Optional[float] = None
+    raw: Optional[bool] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -91,12 +95,14 @@ class SynthesizeRequest:
             result['format'] = self.format
         if hasattr(self, 'speed') and self.speed is not None:
             result['speed'] = self.speed
+        if hasattr(self, 'raw') and self.raw is not None:
+            result['raw'] = self.raw
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'SynthesizeRequest':
         """Create instance from dictionary."""
-        return cls(text=data.get('text'), voice=data.get('voice'), format=data.get('format'), speed=data.get('speed'))
+        return cls(text=data.get('text'), voice=data.get('voice'), format=data.get('format'), speed=data.get('speed'), raw=data.get('raw'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -111,6 +117,7 @@ class SynthesizeRequest:
 @dataclass
 class Audio:
     body: bytes
+    spoken: str
     media_type: str
     voice: str
     engine: str
@@ -121,6 +128,8 @@ class Audio:
         result = {}
         if hasattr(self, 'body') and self.body is not None:
             result['body'] = self.body
+        if hasattr(self, 'spoken') and self.spoken is not None:
+            result['spoken'] = self.spoken
         if hasattr(self, 'media_type') and self.media_type is not None:
             result['media_type'] = self.media_type
         if hasattr(self, 'voice') and self.voice is not None:
@@ -136,7 +145,7 @@ class Audio:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Audio':
         """Create instance from dictionary."""
-        return cls(body=data.get('body'), media_type=data.get('media_type'), voice=data.get('voice'), engine=data.get('engine'), audio_ms=data.get('audio_ms'), elapsed_ms=data.get('elapsed_ms'))
+        return cls(body=data.get('body'), spoken=data.get('spoken'), media_type=data.get('media_type'), voice=data.get('voice'), engine=data.get('engine'), audio_ms=data.get('audio_ms'), elapsed_ms=data.get('elapsed_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -228,6 +237,218 @@ class ListVoicesResponse:
 
     @classmethod
     def from_json(cls, json_str: str) -> 'ListVoicesResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class LexiconEntry:
+    written: str
+    heard_as: List[str]
+    updated_by: str
+    updated_ms: int
+    spoken: Optional[str] = None
+    ipa: Optional[str] = None
+    note: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'written') and self.written is not None:
+            result['written'] = self.written
+        if hasattr(self, 'spoken') and self.spoken is not None:
+            result['spoken'] = self.spoken
+        if hasattr(self, 'ipa') and self.ipa is not None:
+            result['ipa'] = self.ipa
+        if hasattr(self, 'heard_as') and self.heard_as is not None:
+            result['heard_as'] = self.heard_as
+        if hasattr(self, 'note') and self.note is not None:
+            result['note'] = self.note
+        if hasattr(self, 'updated_by') and self.updated_by is not None:
+            result['updated_by'] = self.updated_by
+        if hasattr(self, 'updated_ms') and self.updated_ms is not None:
+            result['updated_ms'] = self.updated_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'LexiconEntry':
+        """Create instance from dictionary."""
+        return cls(written=data.get('written'), spoken=data.get('spoken'), ipa=data.get('ipa'), heard_as=data.get('heard_as'), note=data.get('note'), updated_by=data.get('updated_by'), updated_ms=data.get('updated_ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'LexiconEntry':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ListLexiconRequest:
+    pass
+
+@dataclass
+class ListLexiconResponse:
+    entries: List[LexiconEntry]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'entries') and self.entries is not None:
+            result['entries'] = self.entries
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ListLexiconResponse':
+        """Create instance from dictionary."""
+        return cls(entries=data.get('entries'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ListLexiconResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class PutLexiconEntryRequest:
+    written: str
+    spoken: Optional[str] = None
+    ipa: Optional[str] = None
+    heard_as: Optional[List[str]] = None
+    note: Optional[str] = None
+    by: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'written') and self.written is not None:
+            result['written'] = self.written
+        if hasattr(self, 'spoken') and self.spoken is not None:
+            result['spoken'] = self.spoken
+        if hasattr(self, 'ipa') and self.ipa is not None:
+            result['ipa'] = self.ipa
+        if hasattr(self, 'heard_as') and self.heard_as is not None:
+            result['heard_as'] = self.heard_as
+        if hasattr(self, 'note') and self.note is not None:
+            result['note'] = self.note
+        if hasattr(self, 'by') and self.by is not None:
+            result['by'] = self.by
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'PutLexiconEntryRequest':
+        """Create instance from dictionary."""
+        return cls(written=data.get('written'), spoken=data.get('spoken'), ipa=data.get('ipa'), heard_as=data.get('heard_as'), note=data.get('note'), by=data.get('by'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'PutLexiconEntryRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class DeleteLexiconEntryRequest:
+    written: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'written') and self.written is not None:
+            result['written'] = self.written
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'DeleteLexiconEntryRequest':
+        """Create instance from dictionary."""
+        return cls(written=data.get('written'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'DeleteLexiconEntryRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class DeleteLexiconEntryResponse:
+    deleted: bool
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'deleted') and self.deleted is not None:
+            result['deleted'] = self.deleted
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'DeleteLexiconEntryResponse':
+        """Create instance from dictionary."""
+        return cls(deleted=data.get('deleted'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'DeleteLexiconEntryResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class PrepareTextRequest:
+    text: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'text') and self.text is not None:
+            result['text'] = self.text
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'PrepareTextRequest':
+        """Create instance from dictionary."""
+        return cls(text=data.get('text'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'PrepareTextRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class PrepareTextResponse:
+    spoken: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'spoken') and self.spoken is not None:
+            result['spoken'] = self.spoken
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'PrepareTextResponse':
+        """Create instance from dictionary."""
+        return cls(spoken=data.get('spoken'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'PrepareTextResponse':
         """Create instance from JSON string."""
         return cls.from_dict(json.loads(json_str))
 

@@ -54,23 +54,15 @@ func (r *Runner) envd(id string) (*envd.Client, error) {
 		if !r.Boxes.Exists(id) {
 			return nil, rpc.NotFound("environment %s not found", id)
 		}
-		if err := r.Boxes.Resume(id, r.sandboxEnv()); err != nil {
+		if err := r.resumeBox(id); err != nil {
 			return nil, err
 		}
 	}
-	base, err := r.Boxes.Wait(id, 30*time.Second)
-	if err != nil {
-		return nil, err
-	}
-	tok, err := r.Boxes.Token(id)
-	if err != nil {
-		return nil, err
-	}
-	return &envd.Client{Base: base, Token: tok, HTTP: &http.Client{Timeout: 30 * time.Minute}}, nil
+	return r.Boxes.Client(id, r.Boxes.StartTimeout())
 }
 
-// startExec serves the execution API that the agent uses, on loopback,
-// with a token that only the agent gets.
+// startExec serves the execution API that the apprentice uses, on loopback,
+// with a token that only the apprentice gets.
 func (r *Runner) startExec() (func(), error) {
 	pub, priv, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -78,13 +70,13 @@ func (r *Runner) startExec() (func(), error) {
 	}
 	iss := &authn.Issuer{Name: "magi-runner-local", KeyID: "k1", Key: priv}
 	ver := &authn.Verifier{Issuer: iss.Name, Keys: map[string]ed25519.PublicKey{"k1": pub}}
-	tok, err := iss.Issue(authn.Principal{Subject: "service:agent", Kind: authn.KindService}, 10*365*24*time.Hour)
+	tok, err := iss.Issue(authn.Principal{Subject: "service:apprentice", Kind: authn.KindService}, 10*365*24*time.Hour)
 	if err != nil {
 		return nil, err
 	}
 	b := make([]byte, 8)
 	rand.Read(b)
-	r.execTokenFile = filepath.Join(r.Cfg.StateDir, "agent-token-"+hex.EncodeToString(b))
+	r.execTokenFile = filepath.Join(r.Cfg.StateDir, "apprentice-token-"+hex.EncodeToString(b))
 	if err := os.WriteFile(r.execTokenFile, []byte(tok), 0o600); err != nil {
 		return nil, err
 	}
@@ -101,7 +93,7 @@ func (r *Runner) startExec() (func(), error) {
 }
 
 // localExec is the execution API of the runner's sandboxes. It offers
-// only the operations that the agent uses.
+// only the operations that the apprentice uses.
 type localExec struct{ r *Runner }
 
 var _ executionapi.ExecutionService = (*localExec)(nil)

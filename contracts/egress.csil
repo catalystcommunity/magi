@@ -1,0 +1,38 @@
+options {
+  rust_crate: "egress_api",
+  go_package: "egressapi",
+}
+
+;;; The egress proxy. All network traffic of LLM tooling goes through it
+;;; (docs/egress-proxy.md). This API is for Magi and operators: the flow
+;;; records. The plugin interface is contracts/egress.wit.
+
+EgressHeader = { name: text, value: text }
+
+;;; One flow, without its body. outcome: "sent", "blocked", "review"
+;;; (blocked, and Magi has a review for an admin), or "failed". reasons
+;;; lists why the proxy changed or stopped the flow.
+FlowRecord = {
+  id: text,
+  environment: text,
+  owner: text,
+  destination: text,
+  ? method: text,
+  ? url: text,
+  ? status: uint,
+  outcome: text,
+  reasons: [* text],
+  plugins: [* text],
+  secrets_used: [* text],
+  redacted: uint,
+  created_ms: uint,
+  duration_ms: uint,
+}
+
+ListFlowsRequest = { ? environment: text, ? owner: text, ? limit: uint }
+ListFlowsResponse = { flows: [* FlowRecord] }
+
+;;; Scopes: "egress:read" for flows, "egress:admin" for all.
+service EgressService {
+  list-flows: ListFlowsRequest -> ListFlowsResponse,
+}

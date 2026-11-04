@@ -4,6 +4,67 @@ package magiapi
 
 import "context"
 
+// EgressAskServiceOps returns the server dispatch table for EgressAskService.
+func EgressAskServiceOps(impl EgressAskService) map[string]func(context.Context, []byte) ([]byte, error) {
+	return map[string]func(context.Context, []byte) ([]byte, error){
+		"environment": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeEgressEnvironmentRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Environment(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeEgressEnvironmentResponse(resp), nil
+		},
+		"destination": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeEgressDestinationRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Destination(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeEgressDestinationResponse(resp), nil
+		},
+		"report": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeEgressReportRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Report(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeEgressReportResponse(resp), nil
+		},
+		"evaluate": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeEgressEvaluateRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Evaluate(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeEgressVerdict(resp), nil
+		},
+		"secret-rules": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeEgressSecretRulesRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.SecretRules(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeEgressSecretRulesResponse(resp), nil
+		},
+	}
+}
+
 // MagiServiceOps returns the server dispatch table for MagiService.
 func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) ([]byte, error) {
 	return map[string]func(context.Context, []byte) ([]byte, error){
@@ -18,17 +79,6 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			}
 			return EncodeSayResponse(resp), nil
 		},
-		"list-chats": func(ctx context.Context, b []byte) ([]byte, error) {
-			req, err := DecodeListChatsRequest(b)
-			if err != nil {
-				return nil, &DecodeError{Err: err}
-			}
-			resp, err := impl.ListChats(ctx, req)
-			if err != nil {
-				return nil, err
-			}
-			return EncodeListChatsResponse(resp), nil
-		},
 		"read": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeReadRequest(b)
 			if err != nil {
@@ -39,6 +89,116 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 				return nil, err
 			}
 			return EncodeReadResponse(resp), nil
+		},
+		"search": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeSearchRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Search(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeSearchResponse(resp), nil
+		},
+		"trace": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeTraceRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Trace(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeTraceResponse(resp), nil
+		},
+		"list-links": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListLinksRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListLinks(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListLinksResponse(resp), nil
+		},
+		"link": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeLinkRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Link(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeMessageLink(resp), nil
+		},
+		"unlink": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeUnlinkRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Unlink(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeMessageLink(resp), nil
+		},
+		"set-visibility": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeSetVisibilityRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.SetVisibility(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeMessage(resp), nil
+		},
+		"list-reviews": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListReviewsRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListReviews(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListReviewsResponse(resp), nil
+		},
+		"answer-review": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeAnswerReviewRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.AnswerReview(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeAnswerReviewResponse(resp), nil
+		},
+		"list-personas": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListPersonasRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListPersonas(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListPersonasResponse(resp), nil
+		},
+		"put-persona": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodePutPersonaRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.PutPersona(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodePersonaInfo(resp), nil
 		},
 		"get-audio": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetAudioRequest(b)
@@ -150,6 +310,138 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			}
 			return EncodeListVoicesResponse(resp), nil
 		},
+		"list-lexicon": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListLexiconRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListLexicon(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListLexiconResponse(resp), nil
+		},
+		"put-lexicon-word": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodePutLexiconWordRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.PutLexiconWord(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeLexiconWord(resp), nil
+		},
+		"delete-lexicon-word": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeDeleteLexiconWordRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.DeleteLexiconWord(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeDeleteLexiconWordResponse(resp), nil
+		},
+		"speak": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeSpeakRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Speak(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeSpeakResponse(resp), nil
+		},
+		"list-runners": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListRunnersRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListRunners(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListRunnersResponse(resp), nil
+		},
+		"put-runner-package": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodePutRunnerPackageRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.PutRunnerPackage(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodePutRunnerPackageResponse(resp), nil
+		},
+		"set-runner-release": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeSetRunnerReleaseRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.SetRunnerRelease(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeSetRunnerReleaseResponse(resp), nil
+		},
+		"put-app-release": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodePutAppReleaseRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.PutAppRelease(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeAppRelease(resp), nil
+		},
+		"get-app-release": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeGetAppReleaseRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.GetAppRelease(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeGetAppReleaseResponse(resp), nil
+		},
+		"get-app-package": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeGetAppPackageRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.GetAppPackage(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeGetAppPackageResponse(resp), nil
+		},
+		"list-egress-reviews": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListEgressReviewsRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListEgressReviews(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListEgressReviewsResponse(resp), nil
+		},
+		"decide-egress-review": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeDecideEgressReviewRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.DecideEgressReview(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeDecideEgressReviewResponse(resp), nil
+		},
 	}
 }
 
@@ -232,6 +524,50 @@ func RunnerServiceOps(impl RunnerService) map[string]func(context.Context, []byt
 				return nil, err
 			}
 			return EncodeRunnerRunStatusResponse(resp), nil
+		},
+		"hello": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeRunnerHelloRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Hello(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeRunnerHelloResponse(resp), nil
+		},
+		"get-package": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeRunnerGetPackageRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.GetPackage(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeRunnerGetPackageResponse(resp), nil
+		},
+		"get-artifact": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeRunnerGetArtifactRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.GetArtifact(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeRunnerGetArtifactResponse(resp), nil
+		},
+		"egress-access": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeRunnerStep(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.EgressAccess(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeRunnerEgressAccessResponse(resp), nil
 		},
 	}
 }

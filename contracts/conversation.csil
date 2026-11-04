@@ -2,34 +2,53 @@ options {
   go_package: "conversationapi",
 }
 
-;;; Conversation graph records. This service stores interactions and their
-;;; links. It does not interpret them.
-Conversation = {
+;;; The conversation graph. Utterances are nodes; links are edges between
+;;; utterances, and from utterances to records in other systems. A stream
+;;; orders the utterances of one person and one persona.
+;;;
+;;; Access: every call uses the identity of its token. A call returns only
+;;; the records that the identity can read. A caller with the scope
+;;; "conversation:act-as" reads all records, or reads as one person
+;;; (`person`), optionally only through one persona (`persona`): then it
+;;; reads what that person can read and that persona is a reader of.
+
+;;; sharing: "never", "private" (private by default), or "public" (shared
+;;; with the audience by default). members is the audience: the subjects
+;;; that can read the utterances that are shared with this persona.
+Persona = {
   id: text,
-  title: text,
-  owner: text,
-  participants: [* text],
-  created_ms: uint,
+  name: text,
+  sharing: text,
+  members: [* text],
   updated_ms: uint,
-  last_seq: uint,
 }
 
-;;; A reference from an utterance to a record in another system.
-;;; kind examples: "artifact", "workflow-run", "knowledge-node", "url".
-Attachment = {
+Stream = {
+  id: text,
+  person: text,
+  persona: text,
+  last_seq: uint,
+  created_ms: uint,
+  updated_ms: uint,
+}
+
+;;; A reference to a record in another system, or to an utterance.
+;;; kind examples: "utterance", "artifact", "workflow-run", "knowledge-node",
+;;; "url".
+Ref = {
   kind: text,
   ref: text,
   ? title: text,
 }
 
-;;; One interaction. author_kind is "human", "persona", or "system".
-;;; modality is "text" or "voice". seq increases by one in each conversation.
-;;; sessions lists the activities that this utterance advances.
-;;; generated_by names the model or engine that made text, for example the
-;;; language model of a persona reply or the transcriber of a voice message.
+;;; One thing that someone said or did. author_kind is "human", "persona",
+;;; or "system". modality is "text" or "voice". seq increases by one in each
+;;; stream. visibility is "private" or "shared"; visibility_by is the
+;;; author of the last visibility decision ("" until it is classified).
+;;; generated_by names the model or engine that made the text.
 Utterance = {
   id: text,
-  conversation: text,
+  stream: text,
   seq: uint,
   author: text,
   author_kind: text,
@@ -37,27 +56,40 @@ Utterance = {
   text: text,
   ? audio: text,
   ? transcript_confidence: float,
-  ? reply_to: text,
-  sessions: [* text],
-  attachments: [* Attachment],
+  attachments: [* Ref],
   ? generated_by: text,
+  visibility: text,
+  visibility_by: text,
+  ? visibility_confidence: float,
   created_ms: uint,
 }
 
-;;; An activity inside a conversation, such as a task. status is free text,
-;;; for example "open", "waiting", or "closed".
-Session = {
+;;; A part of the text of an utterance, as character offsets [start, end).
+Span = { start: uint, end: uint }
+
+;;; A directed edge from an utterance. kind is open text, for example
+;;; "reply-to", "answers", "asks-about", "continues", "corrects",
+;;; "started", "reports-on", "about" (see docs/conversations.md). weight is
+;;; the part of the utterance that the link applies to (0 to 1, default 1).
+;;; state is "current", "tentative" (below the review threshold),
+;;; "replaced", or "retracted".
+Link = {
   id: text,
-  conversation: text,
-  title: text,
-  status: text,
-  refs: [* Attachment],
+  utterance: text,
+  ? span: Span,
+  weight: float,
+  target: Ref,
+  kind: text,
+  confidence: float,
+  author: text,
+  ? note: text,
+  state: text,
+  ? replaces: text,
   created_ms: uint,
-  updated_ms: uint,
 }
 
-;;; A later record about an utterance, such as an interpretation.
-;;; body is opaque to this service; producers usually store JSON.
+;;; A later record about an utterance, such as an interpretation log.
+;;; body is opaque to this service.
 Annotation = {
   id: text,
   utterance: text,
@@ -67,71 +99,212 @@ Annotation = {
   created_ms: uint,
 }
 
-CreateConversationRequest = {
-  ? title: text,
-  ? participants: [* text],
-  ? owner: text,
+;;; A question to a person about a classification with a low confidence.
+;;; task is "visibility" or "link". proposed is the proposal; choices are
+;;; the answers to choose from. status is "open", "answered", or
+;;; "dismissed".
+Review = {
+  id: text,
+  reviewer: text,
+  task: text,
+  utterance: text,
+  ? link: text,
+  question: text,
+  proposed: text,
+  choices: [* text],
+  confidence: float,
+  status: text,
+  ? answer: text,
+  ? note: text,
+  created_ms: uint,
+  ? answered_ms: uint,
 }
-GetConversationRequest = { id: text }
-ListConversationsRequest = { ? limit: uint, ? before_ms: uint }
-ListConversationsResponse = { conversations: [* Conversation] }
 
-;;; author defaults to the caller. Only a caller with the
-;;; "conversation:act-as" scope can name another author.
+;;; An answer or a correction that the classifier can learn from. label
+;;; is what the person decided; proposed is what the classifier said ("" for
+;;; a correction of a record that a person made).
+Example = {
+  task: text,
+  utterance: text,
+  proposed: text,
+  label: text,
+  ? note: text,
+  created_ms: uint,
+}
+
+;;; The review threshold of a person for a task. A proposal with a lower
+;;; confidence makes a review.
+Calibration = {
+  reviewer: text,
+  task: text,
+  threshold: float,
+  accepted: uint,
+  corrected: uint,
+}
+
+;;; Operator call (scope "conversation:admin").
+PutPersonaRequest = { id: text, name: text, sharing: text, ? members: [* text] }
+GetPersonaRequest = { id: text }
+ListPersonasRequest = { }
+ListPersonasResponse = { personas: [* Persona] }
+
+;;; Returns the stream of person and persona, and makes it when it is not
+;;; there. person defaults to the caller; another person needs act-as.
+OpenStreamRequest = { persona: text, ? person: text }
+ListStreamsRequest = { ? person: text }
+ListStreamsResponse = { streams: [* Stream] }
+
+;;; author defaults to the caller; another author needs act-as. links are
+;;; links from the new utterance, with confidence 1 when not set. A new
+;;; utterance is private and not classified, unless visibility is set by
+;;; an act-as caller.
+NewLink = {
+  target: Ref,
+  kind: text,
+  ? span: Span,
+  ? weight: float,
+  ? confidence: float,
+  ? note: text,
+}
 PostRequest = {
-  conversation: text,
+  stream: text,
   text: text,
   ? author: text,
   ? author_kind: text,
   ? modality: text,
   ? audio: text,
   ? transcript_confidence: float,
-  ? reply_to: text,
-  ? sessions: [* text],
-  ? attachments: [* Attachment],
+  ? attachments: [* Ref],
   ? generated_by: text,
+  ? links: [* NewLink],
+  ? visibility: text,
 }
 
-;;; Returns utterances with seq greater than after_seq, oldest first.
-;;; If there are none and wait_ms is set, waits up to wait_ms for new ones.
+;;; Returns utterances of a stream with seq greater than after_seq, oldest
+;;; first, with the current links from them. before_seq instead returns the
+;;; newest utterances before it (for scrolling back). If there are none and
+;;; wait_ms is set, waits up to wait_ms for new ones.
 ListUtterancesRequest = {
-  conversation: text,
+  stream: text,
   ? after_seq: uint,
+  ? before_seq: uint,
   ? limit: uint,
   ? wait_ms: uint,
+  ? person: text,
+  ? persona: text,
 }
-ListUtterancesResponse = { utterances: [* Utterance], last_seq: uint }
-GetUtteranceRequest = { id: text }
+ListUtterancesResponse = { utterances: [* Utterance], links: [* Link], last_seq: uint }
+GetUtteranceRequest = { id: text, ? person: text, ? persona: text }
+GetUtterancesRequest = { ids: [* text], ? person: text, ? persona: text }
+GetUtterancesResponse = { utterances: [* Utterance] }
 
-OpenSessionRequest = {
-  conversation: text,
-  title: text,
-  ? status: text,
-  ? refs: [* Attachment],
+;;; Words in the text of readable utterances, best match first.
+SearchRequest = {
+  text: text,
+  ? limit: uint,
+  ? before_ms: uint,
+  ? person: text,
+  ? persona: text,
 }
-UpdateSessionRequest = {
-  id: text,
-  ? title: text,
-  ? status: text,
-  ? add_refs: [* Attachment],
+SearchHit = { utterance: Utterance, rank: float }
+SearchResponse = { hits: [* SearchHit] }
+
+;;; Follows links from an utterance. direction is "back" (links from it,
+;;; the default), "forward" (links to it), or "both". depth is at most 4.
+;;; tentative includes tentative links.
+TraceRequest = {
+  utterance: text,
+  ? direction: text,
+  ? depth: uint,
+  ? kinds: [* text],
+  ? tentative: bool,
+  ? person: text,
+  ? persona: text,
 }
-ListSessionsRequest = { conversation: text }
-ListSessionsResponse = { sessions: [* Session] }
+TraceResponse = { utterances: [* Utterance], links: [* Link] }
+
+;;; Adds a link. A caller other than the person of the stream (for
+;;; example the librarian) gives a confidence; below the threshold of the
+;;; person the link is tentative and a review opens. replaces names a link
+;;; that this one replaces. A link by the person is a correction.
+PutLinkRequest = {
+  utterance: text,
+  link: NewLink,
+  ? replaces: text,
+  ? question: text,
+}
+PutLinkResponse = { link: Link, ? review: Review }
+RetractLinkRequest = { id: text, ? note: text }
+ListLinksRequest = { utterance: text, ? direction: text, ? all_states: bool, ? person: text, ? persona: text }
+ListLinksResponse = { links: [* Link] }
+
+;;; Sets the visibility ("private" or "shared"). From a classifier (a
+;;; caller other than the person), below the threshold the visibility does
+;;; not change and a review opens. From the person, it is a correction.
+SetVisibilityRequest = {
+  utterance: text,
+  visibility: text,
+  ? confidence: float,
+  ? question: text,
+  ? note: text,
+}
+SetVisibilityResponse = { utterance: Utterance, ? review: Review }
+
+;;; Reviews of the caller (or of `person`), oldest first.
+ListReviewsRequest = { ? status: text, ? limit: uint, ? person: text }
+ListReviewsResponse = { reviews: [* Review] }
+;;; answer is one of the choices, or "dismiss".
+AnswerReviewRequest = { id: text, answer: text, ? note: text }
+
+;;; Recent examples of reviewer (the caller, or `person`) for a task.
+ListExamplesRequest = { task: text, ? limit: uint, ? person: text }
+ListExamplesResponse = { examples: [* Example] }
+GetCalibrationRequest = { task: text, ? person: text }
+
+;;; Claims utterances that are not classified, oldest first, for lease_ms
+;;; (default 120000). A classifier marks each one when it is done; a claim
+;;; that is not marked returns to the queue when the lease ends. Thus
+;;; replicas of a classifier do not classify the same utterance.
+ClaimUnclassifiedRequest = { ? limit: uint, ? lease_ms: uint }
+ClaimUnclassifiedResponse = { utterances: [* Utterance] }
+;;; Marks an utterance as classified.
+MarkClassifiedRequest = { utterance: text }
+GetStreamRequest = { id: text }
 
 AnnotateRequest = { utterance: text, kind: text, body: text }
 ListAnnotationsRequest = { utterance: text }
 ListAnnotationsResponse = { annotations: [* Annotation] }
 
+;;; Operator call (scope "conversation:admin"). Copies the chats of the
+;;; earlier model into streams (see docs/conversations.md). It is safe to
+;;; run again: it copies only what is not there.
+ImportLegacyRequest = { persona: text }
+ImportLegacyResponse = { streams: uint, utterances: uint, links: uint }
+
 service ConversationService {
-  create-conversation: CreateConversationRequest -> Conversation,
-  get-conversation: GetConversationRequest -> Conversation,
-  list-conversations: ListConversationsRequest -> ListConversationsResponse,
+  put-persona: PutPersonaRequest -> Persona,
+  get-persona: GetPersonaRequest -> Persona,
+  list-personas: ListPersonasRequest -> ListPersonasResponse,
+  open-stream: OpenStreamRequest -> Stream,
+  list-streams: ListStreamsRequest -> ListStreamsResponse,
+  get-stream: GetStreamRequest -> Stream,
   post: PostRequest -> Utterance,
   list-utterances: ListUtterancesRequest -> ListUtterancesResponse,
   get-utterance: GetUtteranceRequest -> Utterance,
-  open-session: OpenSessionRequest -> Session,
-  update-session: UpdateSessionRequest -> Session,
-  list-sessions: ListSessionsRequest -> ListSessionsResponse,
+  get-utterances: GetUtterancesRequest -> GetUtterancesResponse,
+  search: SearchRequest -> SearchResponse,
+  trace: TraceRequest -> TraceResponse,
+  put-link: PutLinkRequest -> PutLinkResponse,
+  retract-link: RetractLinkRequest -> Link,
+  list-links: ListLinksRequest -> ListLinksResponse,
+  set-visibility: SetVisibilityRequest -> SetVisibilityResponse,
+  list-reviews: ListReviewsRequest -> ListReviewsResponse,
+  answer-review: AnswerReviewRequest -> Review,
+  list-examples: ListExamplesRequest -> ListExamplesResponse,
+  get-calibration: GetCalibrationRequest -> Calibration,
+  claim-unclassified: ClaimUnclassifiedRequest -> ClaimUnclassifiedResponse,
+  mark-classified: MarkClassifiedRequest -> Utterance,
   annotate: AnnotateRequest -> Annotation,
   list-annotations: ListAnnotationsRequest -> ListAnnotationsResponse,
+  import-legacy: ImportLegacyRequest -> ImportLegacyResponse,
 }

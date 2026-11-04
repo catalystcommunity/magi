@@ -381,72 +381,96 @@ def _ref_from_cbor(data: bytes) -> "Ref":
 Ref.to_cbor = _ref_to_cbor
 Ref.from_cbor = staticmethod(_ref_from_cbor)
 
-def _encode_chat_value(v: "Chat") -> Dict[Any, Any]:
+def _encode_message_link_value(v: "MessageLink") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["id"] = v.id
-    csil_m["title"] = v.title
-    csil_m["last_seq"] = v.last_seq
-    csil_m["created_ms"] = v.created_ms
-    csil_m["updated_ms"] = v.updated_ms
+    csil_m["kind"] = v.kind
+    csil_m["state"] = v.state
+    csil_m["author"] = v.author
+    csil_m["target"] = _encode_ref_value(v.target)
+    csil_m["weight"] = v.weight
+    csil_x = v.snippet
+    if csil_x is not None:
+        csil_m["snippet"] = csil_x
+    csil_x = v.span_end
+    if csil_x is not None:
+        csil_m["span_end"] = csil_x
+    csil_x = v.target_ms
+    if csil_x is not None:
+        csil_m["target_ms"] = csil_x
+    csil_m["confidence"] = v.confidence
+    csil_x = v.span_start
+    if csil_x is not None:
+        csil_m["span_start"] = csil_x
     return csil_m
 
-def _decode_chat_value(tree: Any) -> "Chat":
+def _decode_message_link_value(tree: Any) -> "MessageLink":
     tree = _csil_expect_map(tree)
-    return Chat(
+    return MessageLink(
         id=_csil_expect_text(tree["id"]),
-        title=_csil_expect_text(tree["title"]),
-        created_ms=_csil_expect_uint(tree["created_ms"]),
-        updated_ms=_csil_expect_uint(tree["updated_ms"]),
-        last_seq=_csil_expect_uint(tree["last_seq"]),
+        kind=_csil_expect_text(tree["kind"]),
+        target=_decode_ref_value(tree["target"]),
+        snippet=(None if tree.get("snippet") is None else _csil_expect_text(tree["snippet"])),
+        target_ms=(None if tree.get("target_ms") is None else _csil_expect_uint(tree["target_ms"])),
+        span_start=(None if tree.get("span_start") is None else _csil_expect_uint(tree["span_start"])),
+        span_end=(None if tree.get("span_end") is None else _csil_expect_uint(tree["span_end"])),
+        weight=_csil_expect_float(tree["weight"]),
+        confidence=_csil_expect_float(tree["confidence"]),
+        author=_csil_expect_text(tree["author"]),
+        state=_csil_expect_text(tree["state"]),
     )
 
 
-def _chat_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_chat_value(self))
+def _message_link_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_message_link_value(self))
 
 
-def _chat_from_cbor(data: bytes) -> "Chat":
-    return _decode_chat_value(cbor_decode(data))
+def _message_link_from_cbor(data: bytes) -> "MessageLink":
+    return _decode_message_link_value(cbor_decode(data))
 
 
-Chat.to_cbor = _chat_to_cbor
-Chat.from_cbor = staticmethod(_chat_from_cbor)
+MessageLink.to_cbor = _message_link_to_cbor
+MessageLink.from_cbor = staticmethod(_message_link_from_cbor)
 
 def _encode_message_value(v: "Message") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["id"] = v.id
     csil_m["seq"] = v.seq
-    csil_m["chat"] = v.chat
     csil_m["refs"] = [_encode_ref_value(csil_e) for csil_e in v.refs]
     csil_m["text"] = v.text
     csil_x = v.audio
     if csil_x is not None:
         csil_m["audio"] = csil_x
+    csil_m["links"] = [_encode_message_link_value(csil_e) for csil_e in v.links]
     csil_m["author"] = v.author
+    csil_m["stream"] = v.stream
+    csil_m["persona"] = v.persona
     csil_m["modality"] = v.modality
-    csil_x = v.reply_to
-    if csil_x is not None:
-        csil_m["reply_to"] = csil_x
     csil_m["created_ms"] = v.created_ms
+    csil_m["visibility"] = v.visibility
     csil_m["author_kind"] = v.author_kind
     csil_x = v.generated_by
     if csil_x is not None:
         csil_m["generated_by"] = csil_x
+    csil_m["visibility_by"] = v.visibility_by
     return csil_m
 
 def _decode_message_value(tree: Any) -> "Message":
     tree = _csil_expect_map(tree)
     return Message(
         id=_csil_expect_text(tree["id"]),
-        chat=_csil_expect_text(tree["chat"]),
+        stream=_csil_expect_text(tree["stream"]),
+        persona=_csil_expect_text(tree["persona"]),
         seq=_csil_expect_uint(tree["seq"]),
         author=_csil_expect_text(tree["author"]),
         author_kind=_csil_expect_text(tree["author_kind"]),
         modality=_csil_expect_text(tree["modality"]),
         text=_csil_expect_text(tree["text"]),
         audio=(None if tree.get("audio") is None else _csil_expect_text(tree["audio"])),
-        reply_to=(None if tree.get("reply_to") is None else _csil_expect_text(tree["reply_to"])),
         refs=[_decode_ref_value(csil_e) for csil_e in _csil_expect_array(tree["refs"])],
+        links=[_decode_message_link_value(csil_e) for csil_e in _csil_expect_array(tree["links"])],
+        visibility=_csil_expect_text(tree["visibility"]),
+        visibility_by=_csil_expect_text(tree["visibility_by"]),
         generated_by=(None if tree.get("generated_by") is None else _csil_expect_text(tree["generated_by"])),
         created_ms=_csil_expect_uint(tree["created_ms"]),
     )
@@ -463,11 +487,111 @@ def _message_from_cbor(data: bytes) -> "Message":
 Message.to_cbor = _message_to_cbor
 Message.from_cbor = staticmethod(_message_from_cbor)
 
+def _encode_persona_info_value(v: "PersonaInfo") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["name"] = v.name
+    csil_m["members"] = v.members
+    csil_m["sharing"] = v.sharing
+    return csil_m
+
+def _decode_persona_info_value(tree: Any) -> "PersonaInfo":
+    tree = _csil_expect_map(tree)
+    return PersonaInfo(
+        id=_csil_expect_text(tree["id"]),
+        name=_csil_expect_text(tree["name"]),
+        sharing=_csil_expect_text(tree["sharing"]),
+        members=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["members"])],
+    )
+
+
+def _persona_info_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_persona_info_value(self))
+
+
+def _persona_info_from_cbor(data: bytes) -> "PersonaInfo":
+    return _decode_persona_info_value(cbor_decode(data))
+
+
+PersonaInfo.to_cbor = _persona_info_to_cbor
+PersonaInfo.from_cbor = staticmethod(_persona_info_from_cbor)
+
+def _encode_list_personas_request_value(v: "ListPersonasRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    return csil_m
+
+def _decode_list_personas_request_value(tree: Any) -> "ListPersonasRequest":
+    tree = _csil_expect_map(tree)
+    return ListPersonasRequest()
+
+
+def _list_personas_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_personas_request_value(self))
+
+
+def _list_personas_request_from_cbor(data: bytes) -> "ListPersonasRequest":
+    return _decode_list_personas_request_value(cbor_decode(data))
+
+
+ListPersonasRequest.to_cbor = _list_personas_request_to_cbor
+ListPersonasRequest.from_cbor = staticmethod(_list_personas_request_from_cbor)
+
+def _encode_list_personas_response_value(v: "ListPersonasResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["personas"] = [_encode_persona_info_value(csil_e) for csil_e in v.personas]
+    return csil_m
+
+def _decode_list_personas_response_value(tree: Any) -> "ListPersonasResponse":
+    tree = _csil_expect_map(tree)
+    return ListPersonasResponse(
+        personas=[_decode_persona_info_value(csil_e) for csil_e in _csil_expect_array(tree["personas"])],
+    )
+
+
+def _list_personas_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_personas_response_value(self))
+
+
+def _list_personas_response_from_cbor(data: bytes) -> "ListPersonasResponse":
+    return _decode_list_personas_response_value(cbor_decode(data))
+
+
+ListPersonasResponse.to_cbor = _list_personas_response_to_cbor
+ListPersonasResponse.from_cbor = staticmethod(_list_personas_response_from_cbor)
+
+def _encode_put_persona_request_value(v: "PutPersonaRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["name"] = v.name
+    csil_x = v.members
+    if csil_x is not None:
+        csil_m["members"] = csil_x
+    csil_m["sharing"] = v.sharing
+    return csil_m
+
+def _decode_put_persona_request_value(tree: Any) -> "PutPersonaRequest":
+    tree = _csil_expect_map(tree)
+    return PutPersonaRequest(
+        id=_csil_expect_text(tree["id"]),
+        name=_csil_expect_text(tree["name"]),
+        sharing=_csil_expect_text(tree["sharing"]),
+        members=(None if tree.get("members") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["members"])]),
+    )
+
+
+def _put_persona_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_put_persona_request_value(self))
+
+
+def _put_persona_request_from_cbor(data: bytes) -> "PutPersonaRequest":
+    return _decode_put_persona_request_value(cbor_decode(data))
+
+
+PutPersonaRequest.to_cbor = _put_persona_request_to_cbor
+PutPersonaRequest.from_cbor = staticmethod(_put_persona_request_from_cbor)
+
 def _encode_say_request_value(v: "SayRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
-    csil_x = v.chat
-    if csil_x is not None:
-        csil_m["chat"] = csil_x
     csil_x = v.text
     if csil_x is not None:
         csil_m["text"] = csil_x
@@ -477,6 +601,9 @@ def _encode_say_request_value(v: "SayRequest") -> Dict[Any, Any]:
     csil_x = v.voice
     if csil_x is not None:
         csil_m["voice"] = csil_x
+    csil_x = v.persona
+    if csil_x is not None:
+        csil_m["persona"] = csil_x
     csil_x = v.audio_type
     if csil_x is not None:
         csil_m["audio_type"] = csil_x
@@ -488,7 +615,7 @@ def _encode_say_request_value(v: "SayRequest") -> Dict[Any, Any]:
 def _decode_say_request_value(tree: Any) -> "SayRequest":
     tree = _csil_expect_map(tree)
     return SayRequest(
-        chat=(None if tree.get("chat") is None else _csil_expect_text(tree["chat"])),
+        persona=(None if tree.get("persona") is None else _csil_expect_text(tree["persona"])),
         text=(None if tree.get("text") is None else _csil_expect_text(tree["text"])),
         audio=(None if tree.get("audio") is None else _csil_expect_bytes(tree["audio"])),
         audio_type=(None if tree.get("audio_type") is None else _csil_expect_text(tree["audio_type"])),
@@ -510,14 +637,12 @@ SayRequest.from_cbor = staticmethod(_say_request_from_cbor)
 
 def _encode_say_response_value(v: "SayResponse") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
-    csil_m["chat"] = v.chat
     csil_m["message"] = _encode_message_value(v.message)
     return csil_m
 
 def _decode_say_response_value(tree: Any) -> "SayResponse":
     tree = _csil_expect_map(tree)
     return SayResponse(
-        chat=_csil_expect_text(tree["chat"]),
         message=_decode_message_value(tree["message"]),
     )
 
@@ -533,73 +658,31 @@ def _say_response_from_cbor(data: bytes) -> "SayResponse":
 SayResponse.to_cbor = _say_response_to_cbor
 SayResponse.from_cbor = staticmethod(_say_response_from_cbor)
 
-def _encode_list_chats_request_value(v: "ListChatsRequest") -> Dict[Any, Any]:
-    csil_m: Dict[Any, Any] = {}
-    csil_x = v.limit
-    if csil_x is not None:
-        csil_m["limit"] = csil_x
-    return csil_m
-
-def _decode_list_chats_request_value(tree: Any) -> "ListChatsRequest":
-    tree = _csil_expect_map(tree)
-    return ListChatsRequest(
-        limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
-    )
-
-
-def _list_chats_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_list_chats_request_value(self))
-
-
-def _list_chats_request_from_cbor(data: bytes) -> "ListChatsRequest":
-    return _decode_list_chats_request_value(cbor_decode(data))
-
-
-ListChatsRequest.to_cbor = _list_chats_request_to_cbor
-ListChatsRequest.from_cbor = staticmethod(_list_chats_request_from_cbor)
-
-def _encode_list_chats_response_value(v: "ListChatsResponse") -> Dict[Any, Any]:
-    csil_m: Dict[Any, Any] = {}
-    csil_m["chats"] = [_encode_chat_value(csil_e) for csil_e in v.chats]
-    return csil_m
-
-def _decode_list_chats_response_value(tree: Any) -> "ListChatsResponse":
-    tree = _csil_expect_map(tree)
-    return ListChatsResponse(
-        chats=[_decode_chat_value(csil_e) for csil_e in _csil_expect_array(tree["chats"])],
-    )
-
-
-def _list_chats_response_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_list_chats_response_value(self))
-
-
-def _list_chats_response_from_cbor(data: bytes) -> "ListChatsResponse":
-    return _decode_list_chats_response_value(cbor_decode(data))
-
-
-ListChatsResponse.to_cbor = _list_chats_response_to_cbor
-ListChatsResponse.from_cbor = staticmethod(_list_chats_response_from_cbor)
-
 def _encode_read_request_value(v: "ReadRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
-    csil_m["chat"] = v.chat
     csil_x = v.limit
     if csil_x is not None:
         csil_m["limit"] = csil_x
+    csil_x = v.persona
+    if csil_x is not None:
+        csil_m["persona"] = csil_x
     csil_x = v.wait_ms
     if csil_x is not None:
         csil_m["wait_ms"] = csil_x
     csil_x = v.after_seq
     if csil_x is not None:
         csil_m["after_seq"] = csil_x
+    csil_x = v.before_seq
+    if csil_x is not None:
+        csil_m["before_seq"] = csil_x
     return csil_m
 
 def _decode_read_request_value(tree: Any) -> "ReadRequest":
     tree = _csil_expect_map(tree)
     return ReadRequest(
-        chat=_csil_expect_text(tree["chat"]),
+        persona=(None if tree.get("persona") is None else _csil_expect_text(tree["persona"])),
         after_seq=(None if tree.get("after_seq") is None else _csil_expect_uint(tree["after_seq"])),
+        before_seq=(None if tree.get("before_seq") is None else _csil_expect_uint(tree["before_seq"])),
         limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
         wait_ms=(None if tree.get("wait_ms") is None else _csil_expect_uint(tree["wait_ms"])),
     )
@@ -618,6 +701,7 @@ ReadRequest.from_cbor = staticmethod(_read_request_from_cbor)
 
 def _encode_read_response_value(v: "ReadResponse") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
+    csil_m["stream"] = v.stream
     csil_m["last_seq"] = v.last_seq
     csil_m["messages"] = [_encode_message_value(csil_e) for csil_e in v.messages]
     return csil_m
@@ -627,6 +711,7 @@ def _decode_read_response_value(tree: Any) -> "ReadResponse":
     return ReadResponse(
         messages=[_decode_message_value(csil_e) for csil_e in _csil_expect_array(tree["messages"])],
         last_seq=_csil_expect_uint(tree["last_seq"]),
+        stream=_csil_expect_text(tree["stream"]),
     )
 
 
@@ -640,6 +725,410 @@ def _read_response_from_cbor(data: bytes) -> "ReadResponse":
 
 ReadResponse.to_cbor = _read_response_to_cbor
 ReadResponse.from_cbor = staticmethod(_read_response_from_cbor)
+
+def _encode_search_request_value(v: "SearchRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["text"] = v.text
+    csil_x = v.limit
+    if csil_x is not None:
+        csil_m["limit"] = csil_x
+    return csil_m
+
+def _decode_search_request_value(tree: Any) -> "SearchRequest":
+    tree = _csil_expect_map(tree)
+    return SearchRequest(
+        text=_csil_expect_text(tree["text"]),
+        limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
+    )
+
+
+def _search_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_search_request_value(self))
+
+
+def _search_request_from_cbor(data: bytes) -> "SearchRequest":
+    return _decode_search_request_value(cbor_decode(data))
+
+
+SearchRequest.to_cbor = _search_request_to_cbor
+SearchRequest.from_cbor = staticmethod(_search_request_from_cbor)
+
+def _encode_search_response_value(v: "SearchResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["messages"] = [_encode_message_value(csil_e) for csil_e in v.messages]
+    return csil_m
+
+def _decode_search_response_value(tree: Any) -> "SearchResponse":
+    tree = _csil_expect_map(tree)
+    return SearchResponse(
+        messages=[_decode_message_value(csil_e) for csil_e in _csil_expect_array(tree["messages"])],
+    )
+
+
+def _search_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_search_response_value(self))
+
+
+def _search_response_from_cbor(data: bytes) -> "SearchResponse":
+    return _decode_search_response_value(cbor_decode(data))
+
+
+SearchResponse.to_cbor = _search_response_to_cbor
+SearchResponse.from_cbor = staticmethod(_search_response_from_cbor)
+
+def _encode_trace_request_value(v: "TraceRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.depth
+    if csil_x is not None:
+        csil_m["depth"] = csil_x
+    csil_m["message"] = v.message
+    csil_x = v.direction
+    if csil_x is not None:
+        csil_m["direction"] = csil_x
+    csil_x = v.tentative
+    if csil_x is not None:
+        csil_m["tentative"] = csil_x
+    return csil_m
+
+def _decode_trace_request_value(tree: Any) -> "TraceRequest":
+    tree = _csil_expect_map(tree)
+    return TraceRequest(
+        message=_csil_expect_text(tree["message"]),
+        direction=(None if tree.get("direction") is None else _csil_expect_text(tree["direction"])),
+        depth=(None if tree.get("depth") is None else _csil_expect_uint(tree["depth"])),
+        tentative=(None if tree.get("tentative") is None else _csil_expect_bool(tree["tentative"])),
+    )
+
+
+def _trace_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_trace_request_value(self))
+
+
+def _trace_request_from_cbor(data: bytes) -> "TraceRequest":
+    return _decode_trace_request_value(cbor_decode(data))
+
+
+TraceRequest.to_cbor = _trace_request_to_cbor
+TraceRequest.from_cbor = staticmethod(_trace_request_from_cbor)
+
+def _encode_trace_response_value(v: "TraceResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["links"] = [_encode_message_link_value(csil_e) for csil_e in v.links]
+    csil_m["messages"] = [_encode_message_value(csil_e) for csil_e in v.messages]
+    return csil_m
+
+def _decode_trace_response_value(tree: Any) -> "TraceResponse":
+    tree = _csil_expect_map(tree)
+    return TraceResponse(
+        messages=[_decode_message_value(csil_e) for csil_e in _csil_expect_array(tree["messages"])],
+        links=[_decode_message_link_value(csil_e) for csil_e in _csil_expect_array(tree["links"])],
+    )
+
+
+def _trace_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_trace_response_value(self))
+
+
+def _trace_response_from_cbor(data: bytes) -> "TraceResponse":
+    return _decode_trace_response_value(cbor_decode(data))
+
+
+TraceResponse.to_cbor = _trace_response_to_cbor
+TraceResponse.from_cbor = staticmethod(_trace_response_from_cbor)
+
+def _encode_list_links_request_value(v: "ListLinksRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.all
+    if csil_x is not None:
+        csil_m["all"] = csil_x
+    csil_m["message"] = v.message
+    return csil_m
+
+def _decode_list_links_request_value(tree: Any) -> "ListLinksRequest":
+    tree = _csil_expect_map(tree)
+    return ListLinksRequest(
+        message=_csil_expect_text(tree["message"]),
+        all=(None if tree.get("all") is None else _csil_expect_bool(tree["all"])),
+    )
+
+
+def _list_links_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_links_request_value(self))
+
+
+def _list_links_request_from_cbor(data: bytes) -> "ListLinksRequest":
+    return _decode_list_links_request_value(cbor_decode(data))
+
+
+ListLinksRequest.to_cbor = _list_links_request_to_cbor
+ListLinksRequest.from_cbor = staticmethod(_list_links_request_from_cbor)
+
+def _encode_list_links_response_value(v: "ListLinksResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["links"] = [_encode_message_link_value(csil_e) for csil_e in v.links]
+    return csil_m
+
+def _decode_list_links_response_value(tree: Any) -> "ListLinksResponse":
+    tree = _csil_expect_map(tree)
+    return ListLinksResponse(
+        links=[_decode_message_link_value(csil_e) for csil_e in _csil_expect_array(tree["links"])],
+    )
+
+
+def _list_links_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_links_response_value(self))
+
+
+def _list_links_response_from_cbor(data: bytes) -> "ListLinksResponse":
+    return _decode_list_links_response_value(cbor_decode(data))
+
+
+ListLinksResponse.to_cbor = _list_links_response_to_cbor
+ListLinksResponse.from_cbor = staticmethod(_list_links_response_from_cbor)
+
+def _encode_link_request_value(v: "LinkRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["kind"] = v.kind
+    csil_x = v.note
+    if csil_x is not None:
+        csil_m["note"] = csil_x
+    csil_m["target"] = _encode_ref_value(v.target)
+    csil_x = v.weight
+    if csil_x is not None:
+        csil_m["weight"] = csil_x
+    csil_m["message"] = v.message
+    csil_x = v.replaces
+    if csil_x is not None:
+        csil_m["replaces"] = csil_x
+    csil_x = v.span_end
+    if csil_x is not None:
+        csil_m["span_end"] = csil_x
+    csil_x = v.span_start
+    if csil_x is not None:
+        csil_m["span_start"] = csil_x
+    return csil_m
+
+def _decode_link_request_value(tree: Any) -> "LinkRequest":
+    tree = _csil_expect_map(tree)
+    return LinkRequest(
+        message=_csil_expect_text(tree["message"]),
+        kind=_csil_expect_text(tree["kind"]),
+        target=_decode_ref_value(tree["target"]),
+        replaces=(None if tree.get("replaces") is None else _csil_expect_text(tree["replaces"])),
+        span_start=(None if tree.get("span_start") is None else _csil_expect_uint(tree["span_start"])),
+        span_end=(None if tree.get("span_end") is None else _csil_expect_uint(tree["span_end"])),
+        weight=(None if tree.get("weight") is None else _csil_expect_float(tree["weight"])),
+        note=(None if tree.get("note") is None else _csil_expect_text(tree["note"])),
+    )
+
+
+def _link_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_link_request_value(self))
+
+
+def _link_request_from_cbor(data: bytes) -> "LinkRequest":
+    return _decode_link_request_value(cbor_decode(data))
+
+
+LinkRequest.to_cbor = _link_request_to_cbor
+LinkRequest.from_cbor = staticmethod(_link_request_from_cbor)
+
+def _encode_unlink_request_value(v: "UnlinkRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["link"] = v.link
+    csil_x = v.note
+    if csil_x is not None:
+        csil_m["note"] = csil_x
+    return csil_m
+
+def _decode_unlink_request_value(tree: Any) -> "UnlinkRequest":
+    tree = _csil_expect_map(tree)
+    return UnlinkRequest(
+        link=_csil_expect_text(tree["link"]),
+        note=(None if tree.get("note") is None else _csil_expect_text(tree["note"])),
+    )
+
+
+def _unlink_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_unlink_request_value(self))
+
+
+def _unlink_request_from_cbor(data: bytes) -> "UnlinkRequest":
+    return _decode_unlink_request_value(cbor_decode(data))
+
+
+UnlinkRequest.to_cbor = _unlink_request_to_cbor
+UnlinkRequest.from_cbor = staticmethod(_unlink_request_from_cbor)
+
+def _encode_set_visibility_request_value(v: "SetVisibilityRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.note
+    if csil_x is not None:
+        csil_m["note"] = csil_x
+    csil_m["message"] = v.message
+    csil_m["visibility"] = v.visibility
+    return csil_m
+
+def _decode_set_visibility_request_value(tree: Any) -> "SetVisibilityRequest":
+    tree = _csil_expect_map(tree)
+    return SetVisibilityRequest(
+        message=_csil_expect_text(tree["message"]),
+        visibility=_csil_expect_text(tree["visibility"]),
+        note=(None if tree.get("note") is None else _csil_expect_text(tree["note"])),
+    )
+
+
+def _set_visibility_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_set_visibility_request_value(self))
+
+
+def _set_visibility_request_from_cbor(data: bytes) -> "SetVisibilityRequest":
+    return _decode_set_visibility_request_value(cbor_decode(data))
+
+
+SetVisibilityRequest.to_cbor = _set_visibility_request_to_cbor
+SetVisibilityRequest.from_cbor = staticmethod(_set_visibility_request_from_cbor)
+
+def _encode_review_item_value(v: "ReviewItem") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["task"] = v.task
+    csil_x = v.target
+    if csil_x is not None:
+        csil_m["target"] = _encode_message_value(csil_x)
+    csil_m["choices"] = v.choices
+    csil_m["message"] = _encode_message_value(v.message)
+    csil_m["proposed"] = v.proposed
+    csil_m["question"] = v.question
+    csil_m["confidence"] = v.confidence
+    csil_m["created_ms"] = v.created_ms
+    return csil_m
+
+def _decode_review_item_value(tree: Any) -> "ReviewItem":
+    tree = _csil_expect_map(tree)
+    return ReviewItem(
+        id=_csil_expect_text(tree["id"]),
+        task=_csil_expect_text(tree["task"]),
+        question=_csil_expect_text(tree["question"]),
+        proposed=_csil_expect_text(tree["proposed"]),
+        choices=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["choices"])],
+        confidence=_csil_expect_float(tree["confidence"]),
+        message=_decode_message_value(tree["message"]),
+        target=(None if tree.get("target") is None else _decode_message_value(tree["target"])),
+        created_ms=_csil_expect_uint(tree["created_ms"]),
+    )
+
+
+def _review_item_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_review_item_value(self))
+
+
+def _review_item_from_cbor(data: bytes) -> "ReviewItem":
+    return _decode_review_item_value(cbor_decode(data))
+
+
+ReviewItem.to_cbor = _review_item_to_cbor
+ReviewItem.from_cbor = staticmethod(_review_item_from_cbor)
+
+def _encode_list_reviews_request_value(v: "ListReviewsRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.limit
+    if csil_x is not None:
+        csil_m["limit"] = csil_x
+    return csil_m
+
+def _decode_list_reviews_request_value(tree: Any) -> "ListReviewsRequest":
+    tree = _csil_expect_map(tree)
+    return ListReviewsRequest(
+        limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
+    )
+
+
+def _list_reviews_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_reviews_request_value(self))
+
+
+def _list_reviews_request_from_cbor(data: bytes) -> "ListReviewsRequest":
+    return _decode_list_reviews_request_value(cbor_decode(data))
+
+
+ListReviewsRequest.to_cbor = _list_reviews_request_to_cbor
+ListReviewsRequest.from_cbor = staticmethod(_list_reviews_request_from_cbor)
+
+def _encode_list_reviews_response_value(v: "ListReviewsResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["reviews"] = [_encode_review_item_value(csil_e) for csil_e in v.reviews]
+    return csil_m
+
+def _decode_list_reviews_response_value(tree: Any) -> "ListReviewsResponse":
+    tree = _csil_expect_map(tree)
+    return ListReviewsResponse(
+        reviews=[_decode_review_item_value(csil_e) for csil_e in _csil_expect_array(tree["reviews"])],
+    )
+
+
+def _list_reviews_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_reviews_response_value(self))
+
+
+def _list_reviews_response_from_cbor(data: bytes) -> "ListReviewsResponse":
+    return _decode_list_reviews_response_value(cbor_decode(data))
+
+
+ListReviewsResponse.to_cbor = _list_reviews_response_to_cbor
+ListReviewsResponse.from_cbor = staticmethod(_list_reviews_response_from_cbor)
+
+def _encode_answer_review_request_value(v: "AnswerReviewRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_x = v.note
+    if csil_x is not None:
+        csil_m["note"] = csil_x
+    csil_m["answer"] = v.answer
+    return csil_m
+
+def _decode_answer_review_request_value(tree: Any) -> "AnswerReviewRequest":
+    tree = _csil_expect_map(tree)
+    return AnswerReviewRequest(
+        id=_csil_expect_text(tree["id"]),
+        answer=_csil_expect_text(tree["answer"]),
+        note=(None if tree.get("note") is None else _csil_expect_text(tree["note"])),
+    )
+
+
+def _answer_review_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_answer_review_request_value(self))
+
+
+def _answer_review_request_from_cbor(data: bytes) -> "AnswerReviewRequest":
+    return _decode_answer_review_request_value(cbor_decode(data))
+
+
+AnswerReviewRequest.to_cbor = _answer_review_request_to_cbor
+AnswerReviewRequest.from_cbor = staticmethod(_answer_review_request_from_cbor)
+
+def _encode_answer_review_response_value(v: "AnswerReviewResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["status"] = v.status
+    return csil_m
+
+def _decode_answer_review_response_value(tree: Any) -> "AnswerReviewResponse":
+    tree = _csil_expect_map(tree)
+    return AnswerReviewResponse(
+        status=_csil_expect_text(tree["status"]),
+    )
+
+
+def _answer_review_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_answer_review_response_value(self))
+
+
+def _answer_review_response_from_cbor(data: bytes) -> "AnswerReviewResponse":
+    return _decode_answer_review_response_value(cbor_decode(data))
+
+
+AnswerReviewResponse.to_cbor = _answer_review_response_to_cbor
+AnswerReviewResponse.from_cbor = staticmethod(_answer_review_response_from_cbor)
 
 def _encode_get_audio_request_value(v: "GetAudioRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
@@ -729,9 +1218,6 @@ TaskStep.from_cbor = staticmethod(_task_step_from_cbor)
 def _encode_task_value(v: "Task") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["id"] = v.id
-    csil_x = v.chat
-    if csil_x is not None:
-        csil_m["chat"] = csil_x
     csil_m["kind"] = v.kind
     csil_m["refs"] = [_encode_ref_value(csil_e) for csil_e in v.refs]
     csil_x = v.repo
@@ -767,7 +1253,6 @@ def _decode_task_value(tree: Any) -> "Task":
         current_step=_csil_expect_text(tree["current_step"]),
         waiting_for=(None if tree.get("waiting_for") is None else _csil_expect_text(tree["waiting_for"])),
         decisions=(None if tree.get("decisions") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["decisions"])]),
-        chat=(None if tree.get("chat") is None else _csil_expect_text(tree["chat"])),
         branch=(None if tree.get("branch") is None else _csil_expect_text(tree["branch"])),
         repo=(None if tree.get("repo") is None else _csil_expect_text(tree["repo"])),
         steps=[_decode_task_step_value(csil_e) for csil_e in _csil_expect_array(tree["steps"])],
@@ -791,9 +1276,6 @@ Task.from_cbor = staticmethod(_task_from_cbor)
 
 def _encode_start_task_request_value(v: "StartTaskRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
-    csil_x = v.chat
-    if csil_x is not None:
-        csil_m["chat"] = csil_x
     csil_m["kind"] = v.kind
     csil_x = v.repo
     if csil_x is not None:
@@ -801,6 +1283,9 @@ def _encode_start_task_request_value(v: "StartTaskRequest") -> Dict[Any, Any]:
     csil_x = v.title
     if csil_x is not None:
         csil_m["title"] = csil_x
+    csil_x = v.runner
+    if csil_x is not None:
+        csil_m["runner"] = csil_x
     csil_m["instructions"] = v.instructions
     return csil_m
 
@@ -811,7 +1296,7 @@ def _decode_start_task_request_value(tree: Any) -> "StartTaskRequest":
         instructions=_csil_expect_text(tree["instructions"]),
         title=(None if tree.get("title") is None else _csil_expect_text(tree["title"])),
         repo=(None if tree.get("repo") is None else _csil_expect_text(tree["repo"])),
-        chat=(None if tree.get("chat") is None else _csil_expect_text(tree["chat"])),
+        runner=(None if tree.get("runner") is None else _csil_expect_text(tree["runner"])),
     )
 
 
@@ -851,9 +1336,6 @@ GetTaskRequest.from_cbor = staticmethod(_get_task_request_from_cbor)
 
 def _encode_list_tasks_request_value(v: "ListTasksRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
-    csil_x = v.chat
-    if csil_x is not None:
-        csil_m["chat"] = csil_x
     csil_x = v.limit
     if csil_x is not None:
         csil_m["limit"] = csil_x
@@ -865,7 +1347,6 @@ def _encode_list_tasks_request_value(v: "ListTasksRequest") -> Dict[Any, Any]:
 def _decode_list_tasks_request_value(tree: Any) -> "ListTasksRequest":
     tree = _csil_expect_map(tree)
     return ListTasksRequest(
-        chat=(None if tree.get("chat") is None else _csil_expect_text(tree["chat"])),
         status=(None if tree.get("status") is None else _csil_expect_text(tree["status"])),
         limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
     )
@@ -1265,6 +1746,764 @@ def _list_voices_response_from_cbor(data: bytes) -> "ListVoicesResponse":
 ListVoicesResponse.to_cbor = _list_voices_response_to_cbor
 ListVoicesResponse.from_cbor = staticmethod(_list_voices_response_from_cbor)
 
+def _encode_lexicon_word_value(v: "LexiconWord") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.ipa
+    if csil_x is not None:
+        csil_m["ipa"] = csil_x
+    csil_x = v.note
+    if csil_x is not None:
+        csil_m["note"] = csil_x
+    csil_x = v.spoken
+    if csil_x is not None:
+        csil_m["spoken"] = csil_x
+    csil_m["written"] = v.written
+    csil_m["heard_as"] = v.heard_as
+    csil_m["updated_by"] = v.updated_by
+    csil_m["updated_ms"] = v.updated_ms
+    return csil_m
+
+def _decode_lexicon_word_value(tree: Any) -> "LexiconWord":
+    tree = _csil_expect_map(tree)
+    return LexiconWord(
+        written=_csil_expect_text(tree["written"]),
+        spoken=(None if tree.get("spoken") is None else _csil_expect_text(tree["spoken"])),
+        ipa=(None if tree.get("ipa") is None else _csil_expect_text(tree["ipa"])),
+        heard_as=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["heard_as"])],
+        note=(None if tree.get("note") is None else _csil_expect_text(tree["note"])),
+        updated_by=_csil_expect_text(tree["updated_by"]),
+        updated_ms=_csil_expect_uint(tree["updated_ms"]),
+    )
+
+
+def _lexicon_word_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_lexicon_word_value(self))
+
+
+def _lexicon_word_from_cbor(data: bytes) -> "LexiconWord":
+    return _decode_lexicon_word_value(cbor_decode(data))
+
+
+LexiconWord.to_cbor = _lexicon_word_to_cbor
+LexiconWord.from_cbor = staticmethod(_lexicon_word_from_cbor)
+
+def _encode_list_lexicon_request_value(v: "ListLexiconRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    return csil_m
+
+def _decode_list_lexicon_request_value(tree: Any) -> "ListLexiconRequest":
+    tree = _csil_expect_map(tree)
+    return ListLexiconRequest()
+
+
+def _list_lexicon_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_lexicon_request_value(self))
+
+
+def _list_lexicon_request_from_cbor(data: bytes) -> "ListLexiconRequest":
+    return _decode_list_lexicon_request_value(cbor_decode(data))
+
+
+ListLexiconRequest.to_cbor = _list_lexicon_request_to_cbor
+ListLexiconRequest.from_cbor = staticmethod(_list_lexicon_request_from_cbor)
+
+def _encode_list_lexicon_response_value(v: "ListLexiconResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["words"] = [_encode_lexicon_word_value(csil_e) for csil_e in v.words]
+    csil_m["can_edit"] = v.can_edit
+    return csil_m
+
+def _decode_list_lexicon_response_value(tree: Any) -> "ListLexiconResponse":
+    tree = _csil_expect_map(tree)
+    return ListLexiconResponse(
+        words=[_decode_lexicon_word_value(csil_e) for csil_e in _csil_expect_array(tree["words"])],
+        can_edit=_csil_expect_bool(tree["can_edit"]),
+    )
+
+
+def _list_lexicon_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_lexicon_response_value(self))
+
+
+def _list_lexicon_response_from_cbor(data: bytes) -> "ListLexiconResponse":
+    return _decode_list_lexicon_response_value(cbor_decode(data))
+
+
+ListLexiconResponse.to_cbor = _list_lexicon_response_to_cbor
+ListLexiconResponse.from_cbor = staticmethod(_list_lexicon_response_from_cbor)
+
+def _encode_put_lexicon_word_request_value(v: "PutLexiconWordRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.ipa
+    if csil_x is not None:
+        csil_m["ipa"] = csil_x
+    csil_x = v.note
+    if csil_x is not None:
+        csil_m["note"] = csil_x
+    csil_x = v.spoken
+    if csil_x is not None:
+        csil_m["spoken"] = csil_x
+    csil_m["written"] = v.written
+    csil_x = v.heard_as
+    if csil_x is not None:
+        csil_m["heard_as"] = csil_x
+    return csil_m
+
+def _decode_put_lexicon_word_request_value(tree: Any) -> "PutLexiconWordRequest":
+    tree = _csil_expect_map(tree)
+    return PutLexiconWordRequest(
+        written=_csil_expect_text(tree["written"]),
+        spoken=(None if tree.get("spoken") is None else _csil_expect_text(tree["spoken"])),
+        ipa=(None if tree.get("ipa") is None else _csil_expect_text(tree["ipa"])),
+        heard_as=(None if tree.get("heard_as") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["heard_as"])]),
+        note=(None if tree.get("note") is None else _csil_expect_text(tree["note"])),
+    )
+
+
+def _put_lexicon_word_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_put_lexicon_word_request_value(self))
+
+
+def _put_lexicon_word_request_from_cbor(data: bytes) -> "PutLexiconWordRequest":
+    return _decode_put_lexicon_word_request_value(cbor_decode(data))
+
+
+PutLexiconWordRequest.to_cbor = _put_lexicon_word_request_to_cbor
+PutLexiconWordRequest.from_cbor = staticmethod(_put_lexicon_word_request_from_cbor)
+
+def _encode_delete_lexicon_word_request_value(v: "DeleteLexiconWordRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["written"] = v.written
+    return csil_m
+
+def _decode_delete_lexicon_word_request_value(tree: Any) -> "DeleteLexiconWordRequest":
+    tree = _csil_expect_map(tree)
+    return DeleteLexiconWordRequest(
+        written=_csil_expect_text(tree["written"]),
+    )
+
+
+def _delete_lexicon_word_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_delete_lexicon_word_request_value(self))
+
+
+def _delete_lexicon_word_request_from_cbor(data: bytes) -> "DeleteLexiconWordRequest":
+    return _decode_delete_lexicon_word_request_value(cbor_decode(data))
+
+
+DeleteLexiconWordRequest.to_cbor = _delete_lexicon_word_request_to_cbor
+DeleteLexiconWordRequest.from_cbor = staticmethod(_delete_lexicon_word_request_from_cbor)
+
+def _encode_delete_lexicon_word_response_value(v: "DeleteLexiconWordResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["deleted"] = v.deleted
+    return csil_m
+
+def _decode_delete_lexicon_word_response_value(tree: Any) -> "DeleteLexiconWordResponse":
+    tree = _csil_expect_map(tree)
+    return DeleteLexiconWordResponse(
+        deleted=_csil_expect_bool(tree["deleted"]),
+    )
+
+
+def _delete_lexicon_word_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_delete_lexicon_word_response_value(self))
+
+
+def _delete_lexicon_word_response_from_cbor(data: bytes) -> "DeleteLexiconWordResponse":
+    return _decode_delete_lexicon_word_response_value(cbor_decode(data))
+
+
+DeleteLexiconWordResponse.to_cbor = _delete_lexicon_word_response_to_cbor
+DeleteLexiconWordResponse.from_cbor = staticmethod(_delete_lexicon_word_response_from_cbor)
+
+def _encode_speak_request_value(v: "SpeakRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["text"] = v.text
+    csil_x = v.voice
+    if csil_x is not None:
+        csil_m["voice"] = csil_x
+    return csil_m
+
+def _decode_speak_request_value(tree: Any) -> "SpeakRequest":
+    tree = _csil_expect_map(tree)
+    return SpeakRequest(
+        text=_csil_expect_text(tree["text"]),
+        voice=(None if tree.get("voice") is None else _csil_expect_text(tree["voice"])),
+    )
+
+
+def _speak_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_speak_request_value(self))
+
+
+def _speak_request_from_cbor(data: bytes) -> "SpeakRequest":
+    return _decode_speak_request_value(cbor_decode(data))
+
+
+SpeakRequest.to_cbor = _speak_request_to_cbor
+SpeakRequest.from_cbor = staticmethod(_speak_request_from_cbor)
+
+def _encode_speak_response_value(v: "SpeakResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["audio"] = v.audio
+    csil_m["spoken"] = v.spoken
+    csil_m["media_type"] = v.media_type
+    return csil_m
+
+def _decode_speak_response_value(tree: Any) -> "SpeakResponse":
+    tree = _csil_expect_map(tree)
+    return SpeakResponse(
+        spoken=_csil_expect_text(tree["spoken"]),
+        audio=_csil_expect_bytes(tree["audio"]),
+        media_type=_csil_expect_text(tree["media_type"]),
+    )
+
+
+def _speak_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_speak_response_value(self))
+
+
+def _speak_response_from_cbor(data: bytes) -> "SpeakResponse":
+    return _decode_speak_response_value(cbor_decode(data))
+
+
+SpeakResponse.to_cbor = _speak_response_to_cbor
+SpeakResponse.from_cbor = staticmethod(_speak_response_from_cbor)
+
+def _encode_runner_info_value(v: "RunnerInfo") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["os"] = v.os
+    csil_m["arch"] = v.arch
+    csil_m["busy"] = v.busy
+    csil_m["name"] = v.name
+    csil_m["repos"] = v.repos
+    csil_m["seen_ms"] = v.seen_ms
+    csil_m["version"] = v.version
+    csil_m["publishes"] = v.publishes
+    csil_x = v.update_error
+    if csil_x is not None:
+        csil_m["update_error"] = csil_x
+    return csil_m
+
+def _decode_runner_info_value(tree: Any) -> "RunnerInfo":
+    tree = _csil_expect_map(tree)
+    return RunnerInfo(
+        name=_csil_expect_text(tree["name"]),
+        version=_csil_expect_text(tree["version"]),
+        os=_csil_expect_text(tree["os"]),
+        arch=_csil_expect_text(tree["arch"]),
+        repos=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["repos"])],
+        publishes=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["publishes"])],
+        busy=_csil_expect_bool(tree["busy"]),
+        seen_ms=_csil_expect_uint(tree["seen_ms"]),
+        update_error=(None if tree.get("update_error") is None else _csil_expect_text(tree["update_error"])),
+    )
+
+
+def _runner_info_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_info_value(self))
+
+
+def _runner_info_from_cbor(data: bytes) -> "RunnerInfo":
+    return _decode_runner_info_value(cbor_decode(data))
+
+
+RunnerInfo.to_cbor = _runner_info_to_cbor
+RunnerInfo.from_cbor = staticmethod(_runner_info_from_cbor)
+
+def _encode_list_runners_request_value(v: "ListRunnersRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    return csil_m
+
+def _decode_list_runners_request_value(tree: Any) -> "ListRunnersRequest":
+    tree = _csil_expect_map(tree)
+    return ListRunnersRequest()
+
+
+def _list_runners_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_runners_request_value(self))
+
+
+def _list_runners_request_from_cbor(data: bytes) -> "ListRunnersRequest":
+    return _decode_list_runners_request_value(cbor_decode(data))
+
+
+ListRunnersRequest.to_cbor = _list_runners_request_to_cbor
+ListRunnersRequest.from_cbor = staticmethod(_list_runners_request_from_cbor)
+
+def _encode_list_runners_response_value(v: "ListRunnersResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.release
+    if csil_x is not None:
+        csil_m["release"] = csil_x
+    csil_m["runners"] = [_encode_runner_info_value(csil_e) for csil_e in v.runners]
+    return csil_m
+
+def _decode_list_runners_response_value(tree: Any) -> "ListRunnersResponse":
+    tree = _csil_expect_map(tree)
+    return ListRunnersResponse(
+        runners=[_decode_runner_info_value(csil_e) for csil_e in _csil_expect_array(tree["runners"])],
+        release=(None if tree.get("release") is None else _csil_expect_text(tree["release"])),
+    )
+
+
+def _list_runners_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_runners_response_value(self))
+
+
+def _list_runners_response_from_cbor(data: bytes) -> "ListRunnersResponse":
+    return _decode_list_runners_response_value(cbor_decode(data))
+
+
+ListRunnersResponse.to_cbor = _list_runners_response_to_cbor
+ListRunnersResponse.from_cbor = staticmethod(_list_runners_response_from_cbor)
+
+def _encode_put_runner_package_request_value(v: "PutRunnerPackageRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["os"] = v.os
+    csil_m["arch"] = v.arch
+    csil_m["body"] = v.body
+    csil_m["version"] = v.version
+    return csil_m
+
+def _decode_put_runner_package_request_value(tree: Any) -> "PutRunnerPackageRequest":
+    tree = _csil_expect_map(tree)
+    return PutRunnerPackageRequest(
+        version=_csil_expect_text(tree["version"]),
+        os=_csil_expect_text(tree["os"]),
+        arch=_csil_expect_text(tree["arch"]),
+        body=_csil_expect_bytes(tree["body"]),
+    )
+
+
+def _put_runner_package_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_put_runner_package_request_value(self))
+
+
+def _put_runner_package_request_from_cbor(data: bytes) -> "PutRunnerPackageRequest":
+    return _decode_put_runner_package_request_value(cbor_decode(data))
+
+
+PutRunnerPackageRequest.to_cbor = _put_runner_package_request_to_cbor
+PutRunnerPackageRequest.from_cbor = staticmethod(_put_runner_package_request_from_cbor)
+
+def _encode_put_runner_package_response_value(v: "PutRunnerPackageResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["digest"] = v.digest
+    return csil_m
+
+def _decode_put_runner_package_response_value(tree: Any) -> "PutRunnerPackageResponse":
+    tree = _csil_expect_map(tree)
+    return PutRunnerPackageResponse(
+        digest=_csil_expect_text(tree["digest"]),
+    )
+
+
+def _put_runner_package_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_put_runner_package_response_value(self))
+
+
+def _put_runner_package_response_from_cbor(data: bytes) -> "PutRunnerPackageResponse":
+    return _decode_put_runner_package_response_value(cbor_decode(data))
+
+
+PutRunnerPackageResponse.to_cbor = _put_runner_package_response_to_cbor
+PutRunnerPackageResponse.from_cbor = staticmethod(_put_runner_package_response_from_cbor)
+
+def _encode_set_runner_release_request_value(v: "SetRunnerReleaseRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["version"] = v.version
+    return csil_m
+
+def _decode_set_runner_release_request_value(tree: Any) -> "SetRunnerReleaseRequest":
+    tree = _csil_expect_map(tree)
+    return SetRunnerReleaseRequest(
+        version=_csil_expect_text(tree["version"]),
+    )
+
+
+def _set_runner_release_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_set_runner_release_request_value(self))
+
+
+def _set_runner_release_request_from_cbor(data: bytes) -> "SetRunnerReleaseRequest":
+    return _decode_set_runner_release_request_value(cbor_decode(data))
+
+
+SetRunnerReleaseRequest.to_cbor = _set_runner_release_request_to_cbor
+SetRunnerReleaseRequest.from_cbor = staticmethod(_set_runner_release_request_from_cbor)
+
+def _encode_set_runner_release_response_value(v: "SetRunnerReleaseResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["version"] = v.version
+    csil_m["packages"] = v.packages
+    return csil_m
+
+def _decode_set_runner_release_response_value(tree: Any) -> "SetRunnerReleaseResponse":
+    tree = _csil_expect_map(tree)
+    return SetRunnerReleaseResponse(
+        version=_csil_expect_text(tree["version"]),
+        packages=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["packages"])],
+    )
+
+
+def _set_runner_release_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_set_runner_release_response_value(self))
+
+
+def _set_runner_release_response_from_cbor(data: bytes) -> "SetRunnerReleaseResponse":
+    return _decode_set_runner_release_response_value(cbor_decode(data))
+
+
+SetRunnerReleaseResponse.to_cbor = _set_runner_release_response_to_cbor
+SetRunnerReleaseResponse.from_cbor = staticmethod(_set_runner_release_response_from_cbor)
+
+def _encode_app_release_value(v: "AppRelease") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["size"] = v.size
+    csil_m["digest"] = v.digest
+    csil_m["version_code"] = v.version_code
+    csil_m["version_name"] = v.version_name
+    return csil_m
+
+def _decode_app_release_value(tree: Any) -> "AppRelease":
+    tree = _csil_expect_map(tree)
+    return AppRelease(
+        version_code=_csil_expect_uint(tree["version_code"]),
+        version_name=_csil_expect_text(tree["version_name"]),
+        digest=_csil_expect_text(tree["digest"]),
+        size=_csil_expect_uint(tree["size"]),
+    )
+
+
+def _app_release_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_app_release_value(self))
+
+
+def _app_release_from_cbor(data: bytes) -> "AppRelease":
+    return _decode_app_release_value(cbor_decode(data))
+
+
+AppRelease.to_cbor = _app_release_to_cbor
+AppRelease.from_cbor = staticmethod(_app_release_from_cbor)
+
+def _encode_put_app_release_request_value(v: "PutAppReleaseRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["body"] = v.body
+    csil_m["version_code"] = v.version_code
+    csil_m["version_name"] = v.version_name
+    return csil_m
+
+def _decode_put_app_release_request_value(tree: Any) -> "PutAppReleaseRequest":
+    tree = _csil_expect_map(tree)
+    return PutAppReleaseRequest(
+        version_code=_csil_expect_uint(tree["version_code"]),
+        version_name=_csil_expect_text(tree["version_name"]),
+        body=_csil_expect_bytes(tree["body"]),
+    )
+
+
+def _put_app_release_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_put_app_release_request_value(self))
+
+
+def _put_app_release_request_from_cbor(data: bytes) -> "PutAppReleaseRequest":
+    return _decode_put_app_release_request_value(cbor_decode(data))
+
+
+PutAppReleaseRequest.to_cbor = _put_app_release_request_to_cbor
+PutAppReleaseRequest.from_cbor = staticmethod(_put_app_release_request_from_cbor)
+
+def _encode_get_app_release_request_value(v: "GetAppReleaseRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    return csil_m
+
+def _decode_get_app_release_request_value(tree: Any) -> "GetAppReleaseRequest":
+    tree = _csil_expect_map(tree)
+    return GetAppReleaseRequest()
+
+
+def _get_app_release_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_get_app_release_request_value(self))
+
+
+def _get_app_release_request_from_cbor(data: bytes) -> "GetAppReleaseRequest":
+    return _decode_get_app_release_request_value(cbor_decode(data))
+
+
+GetAppReleaseRequest.to_cbor = _get_app_release_request_to_cbor
+GetAppReleaseRequest.from_cbor = staticmethod(_get_app_release_request_from_cbor)
+
+def _encode_get_app_release_response_value(v: "GetAppReleaseResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.release
+    if csil_x is not None:
+        csil_m["release"] = _encode_app_release_value(csil_x)
+    return csil_m
+
+def _decode_get_app_release_response_value(tree: Any) -> "GetAppReleaseResponse":
+    tree = _csil_expect_map(tree)
+    return GetAppReleaseResponse(
+        release=(None if tree.get("release") is None else _decode_app_release_value(tree["release"])),
+    )
+
+
+def _get_app_release_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_get_app_release_response_value(self))
+
+
+def _get_app_release_response_from_cbor(data: bytes) -> "GetAppReleaseResponse":
+    return _decode_get_app_release_response_value(cbor_decode(data))
+
+
+GetAppReleaseResponse.to_cbor = _get_app_release_response_to_cbor
+GetAppReleaseResponse.from_cbor = staticmethod(_get_app_release_response_from_cbor)
+
+def _encode_get_app_package_request_value(v: "GetAppPackageRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["digest"] = v.digest
+    return csil_m
+
+def _decode_get_app_package_request_value(tree: Any) -> "GetAppPackageRequest":
+    tree = _csil_expect_map(tree)
+    return GetAppPackageRequest(
+        digest=_csil_expect_text(tree["digest"]),
+    )
+
+
+def _get_app_package_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_get_app_package_request_value(self))
+
+
+def _get_app_package_request_from_cbor(data: bytes) -> "GetAppPackageRequest":
+    return _decode_get_app_package_request_value(cbor_decode(data))
+
+
+GetAppPackageRequest.to_cbor = _get_app_package_request_to_cbor
+GetAppPackageRequest.from_cbor = staticmethod(_get_app_package_request_from_cbor)
+
+def _encode_get_app_package_response_value(v: "GetAppPackageResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["body"] = v.body
+    return csil_m
+
+def _decode_get_app_package_response_value(tree: Any) -> "GetAppPackageResponse":
+    tree = _csil_expect_map(tree)
+    return GetAppPackageResponse(
+        body=_csil_expect_bytes(tree["body"]),
+    )
+
+
+def _get_app_package_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_get_app_package_response_value(self))
+
+
+def _get_app_package_response_from_cbor(data: bytes) -> "GetAppPackageResponse":
+    return _decode_get_app_package_response_value(cbor_decode(data))
+
+
+GetAppPackageResponse.to_cbor = _get_app_package_response_to_cbor
+GetAppPackageResponse.from_cbor = staticmethod(_get_app_package_response_from_cbor)
+
+def _encode_egress_review_header_value(v: "EgressReviewHeader") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["name"] = v.name
+    csil_m["value"] = v.value
+    return csil_m
+
+def _decode_egress_review_header_value(tree: Any) -> "EgressReviewHeader":
+    tree = _csil_expect_map(tree)
+    return EgressReviewHeader(
+        name=_csil_expect_text(tree["name"]),
+        value=_csil_expect_text(tree["value"]),
+    )
+
+
+def _egress_review_header_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_egress_review_header_value(self))
+
+
+def _egress_review_header_from_cbor(data: bytes) -> "EgressReviewHeader":
+    return _decode_egress_review_header_value(cbor_decode(data))
+
+
+EgressReviewHeader.to_cbor = _egress_review_header_to_cbor
+EgressReviewHeader.from_cbor = staticmethod(_egress_review_header_from_cbor)
+
+def _encode_egress_review_value(v: "EgressReview") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["by"] = v.by
+    csil_m["id"] = v.id
+    csil_m["url"] = v.url
+    csil_m["body"] = v.body
+    csil_m["kind"] = v.kind
+    csil_x = v.note
+    if csil_x is not None:
+        csil_m["note"] = csil_x
+    csil_m["count"] = v.count
+    csil_m["owner"] = v.owner
+    csil_m["state"] = v.state
+    csil_m["method"] = v.method
+    csil_m["reason"] = v.reason
+    csil_m["headers"] = [_encode_egress_review_header_value(csil_e) for csil_e in v.headers]
+    csil_m["last_ms"] = v.last_ms
+    csil_x = v.decision
+    if csil_x is not None:
+        csil_m["decision"] = csil_x
+    csil_m["first_ms"] = v.first_ms
+    csil_x = v.decided_by
+    if csil_x is not None:
+        csil_m["decided_by"] = csil_x
+    csil_m["destination"] = v.destination
+    csil_m["environment"] = v.environment
+    return csil_m
+
+def _decode_egress_review_value(tree: Any) -> "EgressReview":
+    tree = _csil_expect_map(tree)
+    return EgressReview(
+        id=_csil_expect_text(tree["id"]),
+        kind=_csil_expect_text(tree["kind"]),
+        state=_csil_expect_text(tree["state"]),
+        owner=_csil_expect_text(tree["owner"]),
+        environment=_csil_expect_text(tree["environment"]),
+        destination=_csil_expect_text(tree["destination"]),
+        method=_csil_expect_text(tree["method"]),
+        url=_csil_expect_text(tree["url"]),
+        headers=[_decode_egress_review_header_value(csil_e) for csil_e in _csil_expect_array(tree["headers"])],
+        body=_csil_expect_bytes(tree["body"]),
+        reason=_csil_expect_text(tree["reason"]),
+        by=_csil_expect_text(tree["by"]),
+        count=_csil_expect_uint(tree["count"]),
+        first_ms=_csil_expect_uint(tree["first_ms"]),
+        last_ms=_csil_expect_uint(tree["last_ms"]),
+        decision=(None if tree.get("decision") is None else _csil_expect_text(tree["decision"])),
+        decided_by=(None if tree.get("decided_by") is None else _csil_expect_text(tree["decided_by"])),
+        note=(None if tree.get("note") is None else _csil_expect_text(tree["note"])),
+    )
+
+
+def _egress_review_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_egress_review_value(self))
+
+
+def _egress_review_from_cbor(data: bytes) -> "EgressReview":
+    return _decode_egress_review_value(cbor_decode(data))
+
+
+EgressReview.to_cbor = _egress_review_to_cbor
+EgressReview.from_cbor = staticmethod(_egress_review_from_cbor)
+
+def _encode_list_egress_reviews_request_value(v: "ListEgressReviewsRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.limit
+    if csil_x is not None:
+        csil_m["limit"] = csil_x
+    csil_x = v.state
+    if csil_x is not None:
+        csil_m["state"] = csil_x
+    return csil_m
+
+def _decode_list_egress_reviews_request_value(tree: Any) -> "ListEgressReviewsRequest":
+    tree = _csil_expect_map(tree)
+    return ListEgressReviewsRequest(
+        state=(None if tree.get("state") is None else _csil_expect_text(tree["state"])),
+        limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
+    )
+
+
+def _list_egress_reviews_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_egress_reviews_request_value(self))
+
+
+def _list_egress_reviews_request_from_cbor(data: bytes) -> "ListEgressReviewsRequest":
+    return _decode_list_egress_reviews_request_value(cbor_decode(data))
+
+
+ListEgressReviewsRequest.to_cbor = _list_egress_reviews_request_to_cbor
+ListEgressReviewsRequest.from_cbor = staticmethod(_list_egress_reviews_request_from_cbor)
+
+def _encode_list_egress_reviews_response_value(v: "ListEgressReviewsResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["reviews"] = [_encode_egress_review_value(csil_e) for csil_e in v.reviews]
+    return csil_m
+
+def _decode_list_egress_reviews_response_value(tree: Any) -> "ListEgressReviewsResponse":
+    tree = _csil_expect_map(tree)
+    return ListEgressReviewsResponse(
+        reviews=[_decode_egress_review_value(csil_e) for csil_e in _csil_expect_array(tree["reviews"])],
+    )
+
+
+def _list_egress_reviews_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_egress_reviews_response_value(self))
+
+
+def _list_egress_reviews_response_from_cbor(data: bytes) -> "ListEgressReviewsResponse":
+    return _decode_list_egress_reviews_response_value(cbor_decode(data))
+
+
+ListEgressReviewsResponse.to_cbor = _list_egress_reviews_response_to_cbor
+ListEgressReviewsResponse.from_cbor = staticmethod(_list_egress_reviews_response_from_cbor)
+
+def _encode_decide_egress_review_request_value(v: "DecideEgressReviewRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_x = v.note
+    if csil_x is not None:
+        csil_m["note"] = csil_x
+    csil_m["decision"] = v.decision
+    return csil_m
+
+def _decode_decide_egress_review_request_value(tree: Any) -> "DecideEgressReviewRequest":
+    tree = _csil_expect_map(tree)
+    return DecideEgressReviewRequest(
+        id=_csil_expect_text(tree["id"]),
+        decision=_csil_expect_text(tree["decision"]),
+        note=(None if tree.get("note") is None else _csil_expect_text(tree["note"])),
+    )
+
+
+def _decide_egress_review_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_decide_egress_review_request_value(self))
+
+
+def _decide_egress_review_request_from_cbor(data: bytes) -> "DecideEgressReviewRequest":
+    return _decode_decide_egress_review_request_value(cbor_decode(data))
+
+
+DecideEgressReviewRequest.to_cbor = _decide_egress_review_request_to_cbor
+DecideEgressReviewRequest.from_cbor = staticmethod(_decide_egress_review_request_from_cbor)
+
+def _encode_decide_egress_review_response_value(v: "DecideEgressReviewResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_x = v.rule
+    if csil_x is not None:
+        csil_m["rule"] = csil_x
+    csil_m["decision"] = v.decision
+    return csil_m
+
+def _decode_decide_egress_review_response_value(tree: Any) -> "DecideEgressReviewResponse":
+    tree = _csil_expect_map(tree)
+    return DecideEgressReviewResponse(
+        id=_csil_expect_text(tree["id"]),
+        decision=_csil_expect_text(tree["decision"]),
+        rule=(None if tree.get("rule") is None else _csil_expect_text(tree["rule"])),
+    )
+
+
+def _decide_egress_review_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_decide_egress_review_response_value(self))
+
+
+def _decide_egress_review_response_from_cbor(data: bytes) -> "DecideEgressReviewResponse":
+    return _decode_decide_egress_review_response_value(cbor_decode(data))
+
+
+DecideEgressReviewResponse.to_cbor = _decide_egress_review_response_to_cbor
+DecideEgressReviewResponse.from_cbor = staticmethod(_decide_egress_review_response_from_cbor)
+
 def _encode_runner_claim_request_value(v: "RunnerClaimRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["queue"] = v.queue
@@ -1586,3 +2825,615 @@ def _runner_ack_from_cbor(data: bytes) -> "RunnerAck":
 
 RunnerAck.to_cbor = _runner_ack_to_cbor
 RunnerAck.from_cbor = staticmethod(_runner_ack_from_cbor)
+
+def _encode_runner_hello_request_value(v: "RunnerHelloRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["os"] = v.os
+    csil_m["arch"] = v.arch
+    csil_m["busy"] = v.busy
+    csil_m["repos"] = v.repos
+    csil_m["version"] = v.version
+    csil_m["publishes"] = v.publishes
+    csil_x = v.update_error
+    if csil_x is not None:
+        csil_m["update_error"] = csil_x
+    return csil_m
+
+def _decode_runner_hello_request_value(tree: Any) -> "RunnerHelloRequest":
+    tree = _csil_expect_map(tree)
+    return RunnerHelloRequest(
+        version=_csil_expect_text(tree["version"]),
+        os=_csil_expect_text(tree["os"]),
+        arch=_csil_expect_text(tree["arch"]),
+        repos=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["repos"])],
+        publishes=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["publishes"])],
+        busy=_csil_expect_bool(tree["busy"]),
+        update_error=(None if tree.get("update_error") is None else _csil_expect_text(tree["update_error"])),
+    )
+
+
+def _runner_hello_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_hello_request_value(self))
+
+
+def _runner_hello_request_from_cbor(data: bytes) -> "RunnerHelloRequest":
+    return _decode_runner_hello_request_value(cbor_decode(data))
+
+
+RunnerHelloRequest.to_cbor = _runner_hello_request_to_cbor
+RunnerHelloRequest.from_cbor = staticmethod(_runner_hello_request_from_cbor)
+
+def _encode_runner_update_value(v: "RunnerUpdate") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["size"] = v.size
+    csil_m["digest"] = v.digest
+    csil_m["version"] = v.version
+    return csil_m
+
+def _decode_runner_update_value(tree: Any) -> "RunnerUpdate":
+    tree = _csil_expect_map(tree)
+    return RunnerUpdate(
+        version=_csil_expect_text(tree["version"]),
+        digest=_csil_expect_text(tree["digest"]),
+        size=_csil_expect_uint(tree["size"]),
+    )
+
+
+def _runner_update_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_update_value(self))
+
+
+def _runner_update_from_cbor(data: bytes) -> "RunnerUpdate":
+    return _decode_runner_update_value(cbor_decode(data))
+
+
+RunnerUpdate.to_cbor = _runner_update_to_cbor
+RunnerUpdate.from_cbor = staticmethod(_runner_update_from_cbor)
+
+def _encode_runner_hello_response_value(v: "RunnerHelloResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.update
+    if csil_x is not None:
+        csil_m["update"] = _encode_runner_update_value(csil_x)
+    return csil_m
+
+def _decode_runner_hello_response_value(tree: Any) -> "RunnerHelloResponse":
+    tree = _csil_expect_map(tree)
+    return RunnerHelloResponse(
+        update=(None if tree.get("update") is None else _decode_runner_update_value(tree["update"])),
+    )
+
+
+def _runner_hello_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_hello_response_value(self))
+
+
+def _runner_hello_response_from_cbor(data: bytes) -> "RunnerHelloResponse":
+    return _decode_runner_hello_response_value(cbor_decode(data))
+
+
+RunnerHelloResponse.to_cbor = _runner_hello_response_to_cbor
+RunnerHelloResponse.from_cbor = staticmethod(_runner_hello_response_from_cbor)
+
+def _encode_runner_get_package_request_value(v: "RunnerGetPackageRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["os"] = v.os
+    csil_m["arch"] = v.arch
+    csil_m["version"] = v.version
+    return csil_m
+
+def _decode_runner_get_package_request_value(tree: Any) -> "RunnerGetPackageRequest":
+    tree = _csil_expect_map(tree)
+    return RunnerGetPackageRequest(
+        version=_csil_expect_text(tree["version"]),
+        os=_csil_expect_text(tree["os"]),
+        arch=_csil_expect_text(tree["arch"]),
+    )
+
+
+def _runner_get_package_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_get_package_request_value(self))
+
+
+def _runner_get_package_request_from_cbor(data: bytes) -> "RunnerGetPackageRequest":
+    return _decode_runner_get_package_request_value(cbor_decode(data))
+
+
+RunnerGetPackageRequest.to_cbor = _runner_get_package_request_to_cbor
+RunnerGetPackageRequest.from_cbor = staticmethod(_runner_get_package_request_from_cbor)
+
+def _encode_runner_get_package_response_value(v: "RunnerGetPackageResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["body"] = v.body
+    csil_m["digest"] = v.digest
+    return csil_m
+
+def _decode_runner_get_package_response_value(tree: Any) -> "RunnerGetPackageResponse":
+    tree = _csil_expect_map(tree)
+    return RunnerGetPackageResponse(
+        digest=_csil_expect_text(tree["digest"]),
+        body=_csil_expect_bytes(tree["body"]),
+    )
+
+
+def _runner_get_package_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_get_package_response_value(self))
+
+
+def _runner_get_package_response_from_cbor(data: bytes) -> "RunnerGetPackageResponse":
+    return _decode_runner_get_package_response_value(cbor_decode(data))
+
+
+RunnerGetPackageResponse.to_cbor = _runner_get_package_response_to_cbor
+RunnerGetPackageResponse.from_cbor = staticmethod(_runner_get_package_response_from_cbor)
+
+def _encode_runner_get_artifact_request_value(v: "RunnerGetArtifactRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["step"] = _encode_runner_step_value(v.step)
+    csil_m["digest"] = v.digest
+    return csil_m
+
+def _decode_runner_get_artifact_request_value(tree: Any) -> "RunnerGetArtifactRequest":
+    tree = _csil_expect_map(tree)
+    return RunnerGetArtifactRequest(
+        step=_decode_runner_step_value(tree["step"]),
+        digest=_csil_expect_text(tree["digest"]),
+    )
+
+
+def _runner_get_artifact_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_get_artifact_request_value(self))
+
+
+def _runner_get_artifact_request_from_cbor(data: bytes) -> "RunnerGetArtifactRequest":
+    return _decode_runner_get_artifact_request_value(cbor_decode(data))
+
+
+RunnerGetArtifactRequest.to_cbor = _runner_get_artifact_request_to_cbor
+RunnerGetArtifactRequest.from_cbor = staticmethod(_runner_get_artifact_request_from_cbor)
+
+def _encode_runner_get_artifact_response_value(v: "RunnerGetArtifactResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["body"] = v.body
+    csil_m["media_type"] = v.media_type
+    return csil_m
+
+def _decode_runner_get_artifact_response_value(tree: Any) -> "RunnerGetArtifactResponse":
+    tree = _csil_expect_map(tree)
+    return RunnerGetArtifactResponse(
+        media_type=_csil_expect_text(tree["media_type"]),
+        body=_csil_expect_bytes(tree["body"]),
+    )
+
+
+def _runner_get_artifact_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_get_artifact_response_value(self))
+
+
+def _runner_get_artifact_response_from_cbor(data: bytes) -> "RunnerGetArtifactResponse":
+    return _decode_runner_get_artifact_response_value(cbor_decode(data))
+
+
+RunnerGetArtifactResponse.to_cbor = _runner_get_artifact_response_to_cbor
+RunnerGetArtifactResponse.from_cbor = staticmethod(_runner_get_artifact_response_from_cbor)
+
+def _encode_runner_egress_proxy_value(v: "RunnerEgressProxy") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["ca"] = v.ca
+    csil_m["credential"] = v.credential
+    csil_m["environment"] = v.environment
+    csil_x = v.ssh_known_hosts
+    if csil_x is not None:
+        csil_m["ssh_known_hosts"] = csil_x
+    return csil_m
+
+def _decode_runner_egress_proxy_value(tree: Any) -> "RunnerEgressProxy":
+    tree = _csil_expect_map(tree)
+    return RunnerEgressProxy(
+        environment=_csil_expect_text(tree["environment"]),
+        credential=_csil_expect_text(tree["credential"]),
+        ca=_csil_expect_bytes(tree["ca"]),
+        ssh_known_hosts=(None if tree.get("ssh_known_hosts") is None else _csil_expect_text(tree["ssh_known_hosts"])),
+    )
+
+
+def _runner_egress_proxy_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_egress_proxy_value(self))
+
+
+def _runner_egress_proxy_from_cbor(data: bytes) -> "RunnerEgressProxy":
+    return _decode_runner_egress_proxy_value(cbor_decode(data))
+
+
+RunnerEgressProxy.to_cbor = _runner_egress_proxy_to_cbor
+RunnerEgressProxy.from_cbor = staticmethod(_runner_egress_proxy_from_cbor)
+
+def _encode_runner_egress_access_response_value(v: "RunnerEgressAccessResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.proxy
+    if csil_x is not None:
+        csil_m["proxy"] = _encode_runner_egress_proxy_value(csil_x)
+    return csil_m
+
+def _decode_runner_egress_access_response_value(tree: Any) -> "RunnerEgressAccessResponse":
+    tree = _csil_expect_map(tree)
+    return RunnerEgressAccessResponse(
+        proxy=(None if tree.get("proxy") is None else _decode_runner_egress_proxy_value(tree["proxy"])),
+    )
+
+
+def _runner_egress_access_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_egress_access_response_value(self))
+
+
+def _runner_egress_access_response_from_cbor(data: bytes) -> "RunnerEgressAccessResponse":
+    return _decode_runner_egress_access_response_value(cbor_decode(data))
+
+
+RunnerEgressAccessResponse.to_cbor = _runner_egress_access_response_to_cbor
+RunnerEgressAccessResponse.from_cbor = staticmethod(_runner_egress_access_response_from_cbor)
+
+def _encode_egress_flow_header_value(v: "EgressFlowHeader") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["name"] = v.name
+    csil_m["value"] = v.value
+    return csil_m
+
+def _decode_egress_flow_header_value(tree: Any) -> "EgressFlowHeader":
+    tree = _csil_expect_map(tree)
+    return EgressFlowHeader(
+        name=_csil_expect_text(tree["name"]),
+        value=_csil_expect_text(tree["value"]),
+    )
+
+
+def _egress_flow_header_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_egress_flow_header_value(self))
+
+
+def _egress_flow_header_from_cbor(data: bytes) -> "EgressFlowHeader":
+    return _decode_egress_flow_header_value(cbor_decode(data))
+
+
+EgressFlowHeader.to_cbor = _egress_flow_header_to_cbor
+EgressFlowHeader.from_cbor = staticmethod(_egress_flow_header_from_cbor)
+
+def _encode_egress_flow_value(v: "EgressFlow") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["url"] = v.url
+    csil_m["body"] = v.body
+    csil_m["owner"] = v.owner
+    csil_m["method"] = v.method
+    csil_m["status"] = v.status
+    csil_m["headers"] = [_encode_egress_flow_header_value(csil_e) for csil_e in v.headers]
+    csil_m["direction"] = v.direction
+    csil_m["destination"] = v.destination
+    csil_m["environment"] = v.environment
+    return csil_m
+
+def _decode_egress_flow_value(tree: Any) -> "EgressFlow":
+    tree = _csil_expect_map(tree)
+    return EgressFlow(
+        id=_csil_expect_text(tree["id"]),
+        environment=_csil_expect_text(tree["environment"]),
+        owner=_csil_expect_text(tree["owner"]),
+        direction=_csil_expect_text(tree["direction"]),
+        destination=_csil_expect_text(tree["destination"]),
+        method=_csil_expect_text(tree["method"]),
+        url=_csil_expect_text(tree["url"]),
+        status=_csil_expect_uint(tree["status"]),
+        headers=[_decode_egress_flow_header_value(csil_e) for csil_e in _csil_expect_array(tree["headers"])],
+        body=_csil_expect_bytes(tree["body"]),
+    )
+
+
+def _egress_flow_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_egress_flow_value(self))
+
+
+def _egress_flow_from_cbor(data: bytes) -> "EgressFlow":
+    return _decode_egress_flow_value(cbor_decode(data))
+
+
+EgressFlow.to_cbor = _egress_flow_to_cbor
+EgressFlow.from_cbor = staticmethod(_egress_flow_from_cbor)
+
+def _encode_egress_environment_request_value(v: "EgressEnvironmentRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["environment"] = v.environment
+    return csil_m
+
+def _decode_egress_environment_request_value(tree: Any) -> "EgressEnvironmentRequest":
+    tree = _csil_expect_map(tree)
+    return EgressEnvironmentRequest(
+        environment=_csil_expect_text(tree["environment"]),
+    )
+
+
+def _egress_environment_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_egress_environment_request_value(self))
+
+
+def _egress_environment_request_from_cbor(data: bytes) -> "EgressEnvironmentRequest":
+    return _decode_egress_environment_request_value(cbor_decode(data))
+
+
+EgressEnvironmentRequest.to_cbor = _egress_environment_request_to_cbor
+EgressEnvironmentRequest.from_cbor = staticmethod(_egress_environment_request_from_cbor)
+
+def _encode_egress_environment_response_value(v: "EgressEnvironmentResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.goal
+    if csil_x is not None:
+        csil_m["goal"] = csil_x
+    csil_x = v.task
+    if csil_x is not None:
+        csil_m["task"] = csil_x
+    csil_m["owner"] = v.owner
+    csil_x = v.labels
+    if csil_x is not None:
+        csil_m["labels"] = csil_x
+    return csil_m
+
+def _decode_egress_environment_response_value(tree: Any) -> "EgressEnvironmentResponse":
+    tree = _csil_expect_map(tree)
+    return EgressEnvironmentResponse(
+        owner=_csil_expect_text(tree["owner"]),
+        task=(None if tree.get("task") is None else _csil_expect_text(tree["task"])),
+        goal=(None if tree.get("goal") is None else _csil_expect_text(tree["goal"])),
+        labels=(None if tree.get("labels") is None else {_csil_expect_text(csil_k): _csil_expect_text(csil_v) for csil_k, csil_v in _csil_expect_map(tree["labels"]).items()}),
+    )
+
+
+def _egress_environment_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_egress_environment_response_value(self))
+
+
+def _egress_environment_response_from_cbor(data: bytes) -> "EgressEnvironmentResponse":
+    return _decode_egress_environment_response_value(cbor_decode(data))
+
+
+EgressEnvironmentResponse.to_cbor = _egress_environment_response_to_cbor
+EgressEnvironmentResponse.from_cbor = staticmethod(_egress_environment_response_from_cbor)
+
+def _encode_egress_evaluate_request_value(v: "EgressEvaluateRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["flow"] = _encode_egress_flow_value(v.flow)
+    csil_m["plugin"] = v.plugin
+    csil_x = v.question
+    if csil_x is not None:
+        csil_m["question"] = csil_x
+    return csil_m
+
+def _decode_egress_evaluate_request_value(tree: Any) -> "EgressEvaluateRequest":
+    tree = _csil_expect_map(tree)
+    return EgressEvaluateRequest(
+        plugin=_csil_expect_text(tree["plugin"]),
+        flow=_decode_egress_flow_value(tree["flow"]),
+        question=(None if tree.get("question") is None else _csil_expect_text(tree["question"])),
+    )
+
+
+def _egress_evaluate_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_egress_evaluate_request_value(self))
+
+
+def _egress_evaluate_request_from_cbor(data: bytes) -> "EgressEvaluateRequest":
+    return _decode_egress_evaluate_request_value(cbor_decode(data))
+
+
+EgressEvaluateRequest.to_cbor = _egress_evaluate_request_to_cbor
+EgressEvaluateRequest.from_cbor = staticmethod(_egress_evaluate_request_from_cbor)
+
+def _encode_egress_verdict_value(v: "EgressVerdict") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["by"] = v.by
+    csil_m["reason"] = v.reason
+    csil_m["verdict"] = v.verdict
+    return csil_m
+
+def _decode_egress_verdict_value(tree: Any) -> "EgressVerdict":
+    tree = _csil_expect_map(tree)
+    return EgressVerdict(
+        verdict=_csil_expect_text(tree["verdict"]),
+        reason=_csil_expect_text(tree["reason"]),
+        by=_csil_expect_text(tree["by"]),
+    )
+
+
+def _egress_verdict_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_egress_verdict_value(self))
+
+
+def _egress_verdict_from_cbor(data: bytes) -> "EgressVerdict":
+    return _decode_egress_verdict_value(cbor_decode(data))
+
+
+EgressVerdict.to_cbor = _egress_verdict_to_cbor
+EgressVerdict.from_cbor = staticmethod(_egress_verdict_from_cbor)
+
+def _encode_egress_secret_rules_request_value(v: "EgressSecretRulesRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["flow"] = _encode_egress_flow_value(v.flow)
+    csil_m["plugin"] = v.plugin
+    return csil_m
+
+def _decode_egress_secret_rules_request_value(tree: Any) -> "EgressSecretRulesRequest":
+    tree = _csil_expect_map(tree)
+    return EgressSecretRulesRequest(
+        plugin=_csil_expect_text(tree["plugin"]),
+        flow=_decode_egress_flow_value(tree["flow"]),
+    )
+
+
+def _egress_secret_rules_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_egress_secret_rules_request_value(self))
+
+
+def _egress_secret_rules_request_from_cbor(data: bytes) -> "EgressSecretRulesRequest":
+    return _decode_egress_secret_rules_request_value(cbor_decode(data))
+
+
+EgressSecretRulesRequest.to_cbor = _egress_secret_rules_request_to_cbor
+EgressSecretRulesRequest.from_cbor = staticmethod(_egress_secret_rules_request_from_cbor)
+
+def _encode_egress_secret_rule_value(v: "EgressSecretRule") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.path
+    if csil_x is not None:
+        csil_m["path"] = csil_x
+    csil_m["hosts"] = v.hosts
+    csil_m["place"] = v.place
+    csil_m["secret"] = v.secret
+    csil_m["placeholder"] = v.placeholder
+    return csil_m
+
+def _decode_egress_secret_rule_value(tree: Any) -> "EgressSecretRule":
+    tree = _csil_expect_map(tree)
+    return EgressSecretRule(
+        placeholder=_csil_expect_text(tree["placeholder"]),
+        secret=_csil_expect_text(tree["secret"]),
+        hosts=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["hosts"])],
+        path=(None if tree.get("path") is None else _csil_expect_text(tree["path"])),
+        place=_csil_expect_text(tree["place"]),
+    )
+
+
+def _egress_secret_rule_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_egress_secret_rule_value(self))
+
+
+def _egress_secret_rule_from_cbor(data: bytes) -> "EgressSecretRule":
+    return _decode_egress_secret_rule_value(cbor_decode(data))
+
+
+EgressSecretRule.to_cbor = _egress_secret_rule_to_cbor
+EgressSecretRule.from_cbor = staticmethod(_egress_secret_rule_from_cbor)
+
+def _encode_egress_secret_rules_response_value(v: "EgressSecretRulesResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["rules"] = [_encode_egress_secret_rule_value(csil_e) for csil_e in v.rules]
+    return csil_m
+
+def _decode_egress_secret_rules_response_value(tree: Any) -> "EgressSecretRulesResponse":
+    tree = _csil_expect_map(tree)
+    return EgressSecretRulesResponse(
+        rules=[_decode_egress_secret_rule_value(csil_e) for csil_e in _csil_expect_array(tree["rules"])],
+    )
+
+
+def _egress_secret_rules_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_egress_secret_rules_response_value(self))
+
+
+def _egress_secret_rules_response_from_cbor(data: bytes) -> "EgressSecretRulesResponse":
+    return _decode_egress_secret_rules_response_value(cbor_decode(data))
+
+
+EgressSecretRulesResponse.to_cbor = _egress_secret_rules_response_to_cbor
+EgressSecretRulesResponse.from_cbor = staticmethod(_egress_secret_rules_response_from_cbor)
+
+def _encode_egress_report_request_value(v: "EgressReportRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["by"] = v.by
+    csil_m["flow"] = _encode_egress_flow_value(v.flow)
+    csil_m["kind"] = v.kind
+    csil_m["reason"] = v.reason
+    return csil_m
+
+def _decode_egress_report_request_value(tree: Any) -> "EgressReportRequest":
+    tree = _csil_expect_map(tree)
+    return EgressReportRequest(
+        kind=_csil_expect_text(tree["kind"]),
+        flow=_decode_egress_flow_value(tree["flow"]),
+        reason=_csil_expect_text(tree["reason"]),
+        by=_csil_expect_text(tree["by"]),
+    )
+
+
+def _egress_report_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_egress_report_request_value(self))
+
+
+def _egress_report_request_from_cbor(data: bytes) -> "EgressReportRequest":
+    return _decode_egress_report_request_value(cbor_decode(data))
+
+
+EgressReportRequest.to_cbor = _egress_report_request_to_cbor
+EgressReportRequest.from_cbor = staticmethod(_egress_report_request_from_cbor)
+
+def _encode_egress_report_response_value(v: "EgressReportResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["review"] = v.review
+    return csil_m
+
+def _decode_egress_report_response_value(tree: Any) -> "EgressReportResponse":
+    tree = _csil_expect_map(tree)
+    return EgressReportResponse(
+        review=_csil_expect_text(tree["review"]),
+    )
+
+
+def _egress_report_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_egress_report_response_value(self))
+
+
+def _egress_report_response_from_cbor(data: bytes) -> "EgressReportResponse":
+    return _decode_egress_report_response_value(cbor_decode(data))
+
+
+EgressReportResponse.to_cbor = _egress_report_response_to_cbor
+EgressReportResponse.from_cbor = staticmethod(_egress_report_response_from_cbor)
+
+def _encode_egress_destination_request_value(v: "EgressDestinationRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["destination"] = v.destination
+    csil_m["environment"] = v.environment
+    return csil_m
+
+def _decode_egress_destination_request_value(tree: Any) -> "EgressDestinationRequest":
+    tree = _csil_expect_map(tree)
+    return EgressDestinationRequest(
+        environment=_csil_expect_text(tree["environment"]),
+        destination=_csil_expect_text(tree["destination"]),
+    )
+
+
+def _egress_destination_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_egress_destination_request_value(self))
+
+
+def _egress_destination_request_from_cbor(data: bytes) -> "EgressDestinationRequest":
+    return _decode_egress_destination_request_value(cbor_decode(data))
+
+
+EgressDestinationRequest.to_cbor = _egress_destination_request_to_cbor
+EgressDestinationRequest.from_cbor = staticmethod(_egress_destination_request_from_cbor)
+
+def _encode_egress_destination_response_value(v: "EgressDestinationResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.layer_4
+    if csil_x is not None:
+        csil_m["layer4"] = csil_x
+    csil_m["allowed"] = v.allowed
+    return csil_m
+
+def _decode_egress_destination_response_value(tree: Any) -> "EgressDestinationResponse":
+    tree = _csil_expect_map(tree)
+    return EgressDestinationResponse(
+        allowed=_csil_expect_bool(tree["allowed"]),
+        layer_4=(None if tree.get("layer4") is None else _csil_expect_bool(tree["layer4"])),
+    )
+
+
+def _egress_destination_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_egress_destination_response_value(self))
+
+
+def _egress_destination_response_from_cbor(data: bytes) -> "EgressDestinationResponse":
+    return _decode_egress_destination_response_value(cbor_decode(data))
+
+
+EgressDestinationResponse.to_cbor = _egress_destination_response_to_cbor
+EgressDestinationResponse.from_cbor = staticmethod(_egress_destination_response_from_cbor)

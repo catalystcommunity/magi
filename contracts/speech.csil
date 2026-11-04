@@ -3,6 +3,8 @@ options {
 }
 
 ;;; Speech to text. confidence is from 0 to 1, when the engine reports it.
+;;; The service replaces the heard_as forms of lexicon entries with the
+;;; written form. heard is the engine text when that changed the text.
 TranscribeRequest = {
   audio: bytes,
   media_type: text,
@@ -10,21 +12,27 @@ TranscribeRequest = {
 }
 Transcript = {
   text: text,
+  ? heard: text,
   ? confidence: float,
   engine: text,
   audio_ms: uint,
   elapsed_ms: uint,
 }
 
-;;; Text to speech. format is "wav" by default.
+;;; Text to speech. format is "wav" by default. The service makes spoken
+;;; text first: it removes Markdown, says number ranges ("4-6" is "4 to
+;;; 6"), and applies the lexicon. raw sends the text unchanged. spoken is
+;;; the text that the engine got.
 SynthesizeRequest = {
   text: text,
   ? voice: text,
   ? format: text,
   ? speed: float,
+  ? raw: bool,
 }
 Audio = {
   body: bytes,
+  spoken: text,
   media_type: text,
   voice: text,
   engine: text,
@@ -36,8 +44,43 @@ Voice = { id: text, name: text, language: text, ? description: text }
 ListVoicesRequest = { ? language: text }
 ListVoicesResponse = { voices: [* Voice] }
 
+;;; The household lexicon. written is the form in text (matched as a whole
+;;; word, not case-sensitive). The engine says spoken instead of written,
+;;; or ipa (misaki phonemes, such as "kˈOkəɹO") when it is set.
+;;; heard_as are forms that speech to text writes for the word; transcribe
+;;; changes them to written. Changes need the scope "speech:lexicon".
+;;; updated_by is the caller, or by when a caller with that scope gives it.
+LexiconEntry = {
+  written: text,
+  ? spoken: text,
+  ? ipa: text,
+  heard_as: [* text],
+  ? note: text,
+  updated_by: text,
+  updated_ms: uint,
+}
+ListLexiconRequest = { }
+ListLexiconResponse = { entries: [* LexiconEntry] }
+PutLexiconEntryRequest = {
+  written: text,
+  ? spoken: text,
+  ? ipa: text,
+  ? heard_as: [* text],
+  ? note: text,
+  ? by: text,
+}
+DeleteLexiconEntryRequest = { written: text }
+DeleteLexiconEntryResponse = { deleted: bool }
+;;; The spoken text that synthesize makes from text, with no audio.
+PrepareTextRequest = { text: text }
+PrepareTextResponse = { spoken: text }
+
 service SpeechService {
   transcribe: TranscribeRequest -> Transcript,
   synthesize: SynthesizeRequest -> Audio,
   list-voices: ListVoicesRequest -> ListVoicesResponse,
+  list-lexicon: ListLexiconRequest -> ListLexiconResponse,
+  put-lexicon-entry: PutLexiconEntryRequest -> LexiconEntry,
+  delete-lexicon-entry: DeleteLexiconEntryRequest -> DeleteLexiconEntryResponse,
+  prepare-text: PrepareTextRequest -> PrepareTextResponse,
 }

@@ -1,7 +1,7 @@
 # execution
 
 The execution primitive makes isolated environments. An environment runs
-commands and holds files. Agents and checks use environments to work on
+commands and holds files. Apprentices and checks use environments to work on
 source code.
 
 ## How it works
@@ -57,6 +57,27 @@ start and the connection change. Callers and the API do not change.
     delivery, it permits DNS and TCP to `MAGI_EXEC_CONTROL_NAMESPACE` on the
     public URL port, because the init container must download envd.
     `cluster` and `egress` add no policy.
+  - Network `proxy` sends all traffic through the Magi egress proxy
+    (`primitives/egress`). A NetworkPolicy permits DNS and the proxy port
+    (pods `app.kubernetes.io/name=egress` in `MAGI_EXEC_EGRESS_NAMESPACE`)
+    only. The Secret of the environment has the proxy URL with the
+    credential of the environment, and the CA certificate of the proxy.
+    `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY` (and the lower-case forms) come
+    from the Secret and point to the proxy port of envd, `127.0.0.1:3128`.
+    `SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE`,
+    `NODE_EXTRA_CA_CERTS`, `GIT_SSL_CAINFO`, and `PIP_CERT` point to the CA
+    file. Without `MAGI_EXEC_EGRESS_PROXY`, network `proxy` is refused.
+  - The transparent route: tools with no proxy setting also go through the
+    proxy. The init container `envd-net` runs `envd podnet -exclude IP:PORT`
+    as root with only `NET_ADMIN`. It adds a firewall: DNS (port 53) goes to
+    envd at `127.0.0.1:15053`, and each other TCP connection goes to envd at
+    port 15001, except loopback and the proxy. envd gives each name a fake
+    address (search-domain names get "no such name") and sends each
+    connection as `CONNECT name:port` to the proxy. The service resolves the
+    proxy host to its address when it makes the Pod, because the Pod cannot
+    resolve names itself. The main container has no capability.
+  - With `MAGI_EXEC_EGRESS_SSH_PUB` (the SSH host key of the proxy), the
+    Secret has `ssh_known_hosts` and `GIT_SSH_COMMAND` uses it.
 - `local`: envd runs as a child process on the service host, in a directory
   below `MAGI_EXEC_LOCAL_ROOT`. It gives no isolation and ignores the image.
   It is for tests.
@@ -64,8 +85,37 @@ start and the connection change. Callers and the API do not change.
 Package `sandbox` runs envd on one machine in a bubblewrap sandbox, without
 this service. A Magi runner uses it (see `magi/README.md`). The sandbox sees
 its work directory, read-only `/usr` and a few `/etc` files, and configured
-tool directories; it does not see the home directory of the user. envd
-listens on loopback only.
+tool directories; it does not see the home directory of the user. With
+bubblewrap, envd listens on a unix socket in the state directory of the
+sandbox (Seatbelt: loopback). A sandbox that starts with a `Proxy` has its
+own network namespace with no real interface; the caller serves a unix
+socket, the only route out. `envd netns` starts in a new user and network
+namespace (as root of it), sets up the network as in a task VM (below),
+and then starts bubblewrap with a user namespace of its own, so commands
+have no capability. envd copies each connection to `127.0.0.1:3128`
+(`-forward`) and each other TCP connection (`-transparent`) to the socket.
+The view has the resolv.conf of envd, the proxy CA in the system trust
+store, and the SSH known_hosts of the proxy. The host kernel needs
+nf_tables with NAT and redirect (modules load on demand).
+Package `egressenv` has the proxy credential and the proxy variables.
+
+With `Config.VM`, each environment is a Cloud Hypervisor VM (Linux, KVM).
+virtiofsd shares the bubblewrap view from inside bubblewrap as the guest
+root. envd is the guest init (`-vm`; its flags and environment are in
+`/run/magi/state/vm.json`) and listens on vsock port 1024. The guest has no
+network card. With a `Proxy`, envd (`-transparent`) sends each TCP
+connection of the guest as `CONNECT name:port` to host vsock port 3128,
+which the caller serves (`ListenProxy`). The guest DNS (`127.0.0.53`) gives
+each name an address in `198.18.0.0/15`. The kernel comes from
+`tools/vm/build-kernel.sh`; `tools/vm/build-kernel.sh --install
+[USER@HOST]` puts it where the runner configuration expects it. `MAGI_TEST_VM_KERNEL` turns on the VM tests.
+
+With `VM.Template` (a Mac), each environment is an APFS clone of a macOS
+template that `magi-vz` (`tools/vm/macos`) runs with no network card. The
+shares are at `/Volumes/My Shared Files`; a launchd daemon in the template
+starts envd from the share `magi`. vsock uses the same socket names as
+Cloud Hypervisor. At most two macOS VMs run at a time (the macOS licence).
+`MAGI_TEST_MAC_TEMPLATE` turns on `TestMacVM`.
 
 ## API
 
@@ -101,6 +151,11 @@ without a token.
 | `MAGI_EXEC_BACKEND` | `kubernetes` | Comma-separated backends: `kubernetes`, `local`. The first is the default |
 | `MAGI_EXEC_NAMESPACE` | `magi-envs` | Namespace for environments |
 | `MAGI_EXEC_CONTROL_NAMESPACE` | `magi` | Namespace of this service (network `none` with fetch) |
+| `MAGI_EXEC_EGRESS_PROXY` | none | Egress proxy `host:port` for network `proxy`, such as `egress.magi.svc:3128` |
+| `MAGI_EXEC_EGRESS_NAMESPACE` | control namespace | Namespace of the egress proxy |
+| `MAGI_EXEC_EGRESS_ENV_KEY` | none | Environment key file of the egress proxy |
+| `MAGI_EXEC_EGRESS_CA` | none | CA certificate file of the egress proxy |
+| `MAGI_EXEC_EGRESS_SSH_PUB` | none | SSH public host key file of the egress proxy, for the known_hosts of Pods |
 | `MAGI_EXEC_PUBLIC_URL` | (required for fetch) | This service as Pods see it, for example `http://execution.magi.svc:8080` |
 | `MAGI_EXEC_ENVD_DELIVERY` | `fetch` in a cluster, else `push` | envd delivery |
 | `MAGI_EXEC_CONNECT` | `direct` in a cluster, else `port-forward` | envd connection |

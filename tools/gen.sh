@@ -18,6 +18,7 @@ declare -A godir=(
   [speech]=primitives/speech
   [inference]=primitives/inference
   [release]=primitives/release/goapi
+  [egress]=primitives/egress/goapi
   [identity]=primitives/identity
   [magi]=magi
 )
@@ -25,7 +26,7 @@ declare -A godir=(
 for csil in "$root"/contracts/*.csil; do
   name=$(basename "$csil" .csil)
   if [[ -n "${godir[$name]:-}" ]]; then
-    out="$root/${godir[$name]}"; [[ $name != release ]] && out="$out/api"
+    out="$root/${godir[$name]}"; [[ $name != release && $name != egress ]] && out="$out/api"
     rm -rf "$tmp/go" "$tmp/goc"
     "$csilgen" generate -q --no-schema -i "$csil" -t go -o "$tmp/go"
     "$csilgen" generate -q --no-schema -i "$csil" -t go-client -o "$tmp/goc"
@@ -55,5 +56,10 @@ done
 if [[ -f "$root/contracts/release.csil" ]]; then
   rs="$root/primitives/release/src/api"
   rm -rf "$rs" && "$csilgen" generate -q --no-schema -i "$root/contracts/release.csil" -t rust -o "$rs"
+fi
+# The egress proxy is a Rust server.
+if [[ -f "$root/contracts/egress.csil" ]]; then
+  rs="$root/primitives/egress/src/api"
+  rm -rf "$rs" && "$csilgen" generate -q --no-schema -i "$root/contracts/egress.csil" -t rust -o "$rs"
 fi
 echo "generated"

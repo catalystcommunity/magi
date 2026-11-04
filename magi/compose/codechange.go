@@ -2,7 +2,9 @@ package compose
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 
@@ -23,31 +25,41 @@ const CodeChange = "code-change"
 
 const maxCheckAttempts = 3
 
-// codeChangeDefinition returns the code-change workflow. With a runner,
-// the steps that use the environment or the repository run on that runner
-// (queues runner.<name>.<step>); Magi keeps the review and the release.
-func codeChangeDefinition(runner string) workflowapi.Definition {
+// codeChangeDefinition returns the code-change workflow. With runners,
+// the steps that use the environment or the repository run on the runner
+// of the run (queues runner.${runner}.<step>), and publish runs on the
+// runner that can push (runner.${publisher}.publish). Magi keeps the
+// review, the release, and the rollout of new runner releases.
+func codeChangeDefinition(runners bool) workflowapi.Definition {
 	task := func(id, queue string, next map[string]string, attempts uint64) workflowapi.Step {
-		if runner != "" && id != "release" {
-			queue = RunnerQueue(runner, id)
+		if runners {
+			switch id {
+			case "release", "rollout":
+			case "publish":
+				queue = "runner.${publisher}.publish"
+			default:
+				queue = "runner.${runner}." + id
+			}
 		}
 		return workflowapi.Step{Id: id, Kind: "task", Queue: ptr(queue), Next: next, MaxAttempts: ptr(attempts)}
 	}
 	return workflowapi.Definition{
 		Name:        CodeChange,
-		Description: ptr("An agent changes a repository in an environment. Checks run, a person reviews, and Magi merges."),
+		Description: ptr("An apprentice changes a repository in an environment. Checks run, a person reviews, and Magi merges."),
 		Start:       "prepare",
 		Steps: []workflowapi.Step{
 			task("prepare", "magi.prepare", map[string]string{"done": "work"}, 2),
-			task("work", "agent", map[string]string{"done": "check"}, 2),
+			task("work", "apprentice", map[string]string{"done": "check"}, 2),
 			task("check", "magi.check", map[string]string{"pass": "review", "fail-checks": "work", "give-up": "cleanup"}, 2),
-			{Id: "review", Kind: "human", Prompt: ptr("Read the change and the check results. Approve to merge, revise to send it back to the agent with a comment, or reject."),
+			{Id: "review", Kind: "human", Prompt: ptr("Read the change and the check results. Approve to merge, revise to send it back to the apprentice with a comment, or reject."),
 				Outcomes: []string{"approve", "revise", "reject"}, Next: map[string]string{"approve": "merge", "revise": "work", "reject": "cleanup"}},
 			task("merge", "magi.merge", map[string]string{"done": "release", "conflict": "cleanup", "build-failed": "cleanup"}, 2),
 			task("release", "magi.release", map[string]string{"done": "publish", "skipped": "publish", "build-failed": "cleanup", "rolled-back": "cleanup", "fail": "cleanup"}, 3),
 			// Only a change that released and stayed healthy (or that has
 			// no release) goes to the upstream.
-			task("publish", "magi.publish", map[string]string{"done": "cleanup", "skipped": "cleanup", "rejected": "cleanup"}, 3),
+			task("publish", "magi.publish", map[string]string{"done": "rollout", "skipped": "cleanup", "rejected": "cleanup"}, 3),
+			// Runners update to a published change that built new packages.
+			task("rollout", "magi.rollout", map[string]string{"done": "cleanup", "skipped": "cleanup", "fail": "cleanup"}, 3),
 			task("cleanup", "magi.cleanup", map[string]string{}, 3),
 		},
 	}
@@ -56,15 +68,20 @@ func codeChangeDefinition(runner string) workflowapi.Definition {
 // InstallDefinitions writes the workflow definitions that Magi uses.
 func (s *System) InstallDefinitions(ctx context.Context) error {
 	ctx = s.AsService(ctx)
-	for _, d := range []workflowapi.Definition{codeChangeDefinition(s.Cfg.Runner), personaTurnDefinition()} {
+	for _, d := range []workflowapi.Definition{codeChangeDefinition(s.Cfg.Runner != ""), personaTurnDefinition()} {
 		if _, err := s.Workflow.PutDefinition(ctx, d); err != nil {
 			return fmt.Errorf("put definition %s: %w", d.Name, err)
 		}
 	}
+	// Without conversation:admin the persona must exist already (an
+	// operator makes it with put-persona); the workers run either way.
+	if err := s.EnsurePersonas(ctx); err != nil {
+		s.Log.Warn("personas", "err", err)
+	}
 	return nil
 }
 
-// RunWorkers starts the code-change step workers.
+// RunWorkers starts the step workers and the librarian.
 func (s *System) RunWorkers(ctx context.Context) {
 	go s.Work(ctx, "magi.prepare", s.prepare)
 	go s.Work(ctx, "magi.check", s.check)
@@ -72,7 +89,9 @@ func (s *System) RunWorkers(ctx context.Context) {
 	go s.Work(ctx, "magi.cleanup", s.cleanup)
 	go s.Work(ctx, "magi.release", s.release)
 	go s.Work(ctx, "magi.publish", s.publish)
+	go s.Work(ctx, "magi.rollout", s.rollout)
 	go s.Work(ctx, "magi.persona", s.personaTurn)
+	go s.Librarian(ctx)
 }
 
 func (s *System) exec(ctx context.Context, envID, cwd, script string, timeoutMs uint64) (executionapi.ExecResult, error) {
@@ -102,7 +121,7 @@ func (s *System) prepare(ctx context.Context, a workflowapi.Assignment, note fun
 		Owner: ptr(a.Owner), WaitReadyMs: ptr(uint64(300000)),
 		Spec: executionapi.EnvironmentSpec{
 			Image: s.Cfg.EnvImage, CpuMillis: ptr(uint64(2000)), MemoryMb: ptr(uint64(4096)), DiskMb: ptr(uint64(8192)),
-			Network: ptr("egress"), TtlSeconds: ptr(uint64(4 * 3600)), Workdir: ptr("/work"),
+			Network: ptr(s.Cfg.EnvNetwork), TtlSeconds: ptr(uint64(4 * 3600)), Workdir: ptr("/work"),
 			Labels: map[string]string{"magi.run": a.Run},
 			Env:    map[string]string{"GOFLAGS": "-mod=mod"},
 		},
@@ -137,7 +156,7 @@ git rev-parse HEAD`, repo.DefaultBranch, branch)
 	}
 	base := strings.TrimSpace(string(r.Stdout))
 	note(fmt.Sprintf("Environment %s is ready on branch %s.", envr.Id, branch))
-	s.post(ctx, a, fmt.Sprintf("I started work on %q. The agent works on branch %s.", a.Vars["title"], branch))
+	s.post(ctx, a, fmt.Sprintf("I started work on %q. The apprentice works on branch %s.", a.Vars["title"], branch))
 	return Result{Outcome: "done", Outputs: map[string]string{
 		"environment": envr.Id, "workdir": "/work/repo", "branch": branch, "base_commit": base,
 		"repo": repoName, "default_branch": repo.DefaultBranch,
@@ -169,12 +188,12 @@ func (s *System) check(ctx context.Context, a workflowapi.Assignment, note func(
 			s.post(ctx, a, fmt.Sprintf("The checks failed %d times. I stopped the task. The last output is in artifact %s.", attempts, art.Digest))
 			return Result{Outcome: "give-up", Outputs: out}, nil
 		}
-		note(fmt.Sprintf("Checks failed (attempt %d). The agent will try again.", attempts))
-		s.post(ctx, a, fmt.Sprintf("The checks failed (attempt %d of %d). I sent the output back to the agent.", attempts, maxCheckAttempts))
+		note(fmt.Sprintf("Checks failed (attempt %d). The apprentice will try again.", attempts))
+		s.post(ctx, a, fmt.Sprintf("The checks failed (attempt %d of %d). I sent the output back to the apprentice.", attempts, maxCheckAttempts))
 		return Result{Outcome: "fail-checks", Outputs: out}, nil
 	}
 	msg := a.Vars["title"]
-	if sum := a.Vars["agent.summary"]; sum != "" {
+	if sum := a.Vars["apprentice.summary"]; sum != "" {
 		msg += "\n\n" + sum
 	}
 	commit := fmt.Sprintf(`set -e
@@ -303,7 +322,7 @@ func cancelRisk(step string) string {
 }
 
 // cancelTask stops run for by, removes its environment, and tells the
-// chat. A risky step needs confirm.
+// person. A risky step needs confirm.
 func (s *System) cancelTask(ctx context.Context, run workflowapi.Run, by, reason string, confirm bool) (workflowapi.Run, error) {
 	switch run.Status {
 	case "succeeded", "failed", "cancelled":
@@ -335,21 +354,23 @@ func (s *System) cancelTask(ctx context.Context, run workflowapi.Run, by, reason
 	return run, nil
 }
 
-// post writes a persona message into the chat that started the run.
+// post writes a persona message into the stream of the person who
+// started the run, with a link to the run.
 func (s *System) post(ctx context.Context, a workflowapi.Assignment, text string) {
-	chat := a.Vars["chat"]
-	if chat == "" {
+	stream := a.Vars["stream"]
+	if stream == "" {
 		return
 	}
+	run := conversationapi.Ref{Kind: "workflow-run", Ref: a.Run, Title: optional(a.Vars["title"])}
 	req := conversationapi.PostRequest{
-		Conversation: chat, Text: text, Author: ptr(Persona), AuthorKind: ptr("persona"),
-		Attachments: []conversationapi.Attachment{{Kind: "workflow-run", Ref: a.Run, Title: ptr(a.Vars["title"])}},
+		Stream: stream, Text: text, Author: ptr(a.Vars["persona"]), AuthorKind: ptr("persona"),
+		Attachments: []conversationapi.Ref{run}, Links: []conversationapi.NewLink{{Target: run, Kind: "reports-on"}},
 	}
-	if sess := a.Vars["session"]; sess != "" {
-		req.Sessions = []string{sess}
+	if deref(req.Author) == "" {
+		req.Author = ptr(Persona)
 	}
 	if _, err := s.Conversation.Post(ctx, req); err != nil {
-		s.Log.Warn("post to chat", "chat", chat, "err", err)
+		s.Log.Warn("post to stream", "stream", stream, "err", err)
 	}
 }
 
@@ -363,4 +384,41 @@ func tail(s string, n int) string {
 func lastLine(s string) string {
 	lines := strings.Split(strings.TrimSpace(s), "\n")
 	return lines[len(lines)-1]
+}
+
+// rollout makes the runner packages that the merge built the runner
+// release, when they differ from the current release. Each runner tests
+// the new release and goes back to its old one if the test fails.
+func (s *System) rollout(ctx context.Context, a workflowapi.Assignment, note func(string)) (Result, error) {
+	version := a.Vars["runner.version"]
+	var built map[string]string
+	if version == "" || json.Unmarshal([]byte(a.Vars["runner.packages"]), &built) != nil || len(built) == 0 {
+		return Result{Outcome: "skipped"}, nil
+	}
+	// The runner stored the packages as evidence of the run. Magi keeps
+	// its own copies as fleet records.
+	pk := map[string]string{}
+	for p, d := range built {
+		goos, arch, _ := strings.Cut(p, "/")
+		g, err := s.Artifacts.Get(ctx, artifactsapi.GetRequest{Digest: d})
+		if err != nil {
+			return Result{}, fmt.Errorf("runner package %s: %w", p, err)
+		}
+		if pk[p], err = s.putRunnerPackage(ctx, version, goos, arch, g.Body); err != nil {
+			return Result{}, err
+		}
+	}
+	if cur, ok, err := s.runnerRelease(ctx); err != nil {
+		return Result{}, err
+	} else if ok && maps.Equal(cur.Packages, pk) {
+		note("The runner packages did not change.")
+		return Result{Outcome: "skipped"}, nil
+	}
+	rel, err := s.setRunnerRelease(ctx, version)
+	if err != nil {
+		return Result{}, err
+	}
+	note(fmt.Sprintf("Runner release %s: %d packages.", rel.Version, len(rel.Packages)))
+	s.post(ctx, a, fmt.Sprintf("The runner code changed, so runners update to %s when they are idle. A runner that fails its test goes back to its old release.", rel.Version))
+	return Result{Outcome: "done", Outputs: map[string]string{"rollout.version": rel.Version}}, nil
 }

@@ -3,9 +3,17 @@ package compose
 import (
 	"bytes"
 	"context"
+	"crypto/sha1"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -14,6 +22,8 @@ import (
 	magiapi "github.com/catalystcommunity/magi/magi/api"
 	"github.com/catalystcommunity/magi/magi/model"
 	artifactsapi "github.com/catalystcommunity/magi/primitives/artifacts/api"
+	"github.com/catalystcommunity/magi/primitives/execution/egressenv"
+	"github.com/catalystcommunity/magi/primitives/execution/envd"
 	workflowapi "github.com/catalystcommunity/magi/primitives/workflow/api"
 )
 
@@ -159,12 +169,80 @@ func (r *Runners) RunStatus(ctx context.Context, req magiapi.RunnerRunStatusRequ
 	return magiapi.RunnerRunStatusResponse{Status: run.Status}, nil
 }
 
+func (r *Runners) Hello(ctx context.Context, req magiapi.RunnerHelloRequest) (magiapi.RunnerHelloResponse, error) {
+	name, err := runnerName(ctx)
+	if err != nil {
+		return magiapi.RunnerHelloResponse{}, err
+	}
+	r.S.fleet.seen(magiapi.RunnerInfo{Name: name, Version: req.Version, Os: req.Os, Arch: req.Arch, Repos: nonNil(req.Repos),
+		Publishes: nonNil(req.Publishes), Busy: req.Busy, SeenMs: uint64(time.Now().UnixMilli()), UpdateError: req.UpdateError})
+	rel, ok, err := r.S.runnerRelease(ctx)
+	if err != nil || !ok || rel.Version == req.Version {
+		return magiapi.RunnerHelloResponse{}, err
+	}
+	// A runner that went back from this version does not get it again.
+	if e := deref(req.UpdateError); strings.Contains(e, rel.Version) {
+		return magiapi.RunnerHelloResponse{}, nil
+	}
+	d, ok := rel.Packages[req.Os+"/"+req.Arch]
+	if !ok {
+		return magiapi.RunnerHelloResponse{}, nil
+	}
+	a, err := r.S.Artifacts.Stat(r.S.AsService(ctx), artifactsapi.StatRequest{Digest: d})
+	if err != nil {
+		return magiapi.RunnerHelloResponse{}, err
+	}
+	return magiapi.RunnerHelloResponse{Update: &magiapi.RunnerUpdate{Version: rel.Version, Digest: d, Size: a.Size}}, nil
+}
+
+func (r *Runners) GetPackage(ctx context.Context, req magiapi.RunnerGetPackageRequest) (magiapi.RunnerGetPackageResponse, error) {
+	if _, err := runnerName(ctx); err != nil {
+		return magiapi.RunnerGetPackageResponse{}, err
+	}
+	pk, err := r.S.runnerPackages(ctx, req.Version)
+	if err != nil {
+		return magiapi.RunnerGetPackageResponse{}, err
+	}
+	d, ok := pk[req.Os+"/"+req.Arch]
+	if !ok {
+		return magiapi.RunnerGetPackageResponse{}, rpc.NotFound("runner release %s has no package for %s/%s", req.Version, req.Os, req.Arch)
+	}
+	b, err := r.S.fleetArtifact(ctx, d, kindRunnerPackage)
+	return magiapi.RunnerGetPackageResponse{Digest: d, Body: b}, err
+}
+
+func (r *Runners) GetArtifact(ctx context.Context, req magiapi.RunnerGetArtifactRequest) (magiapi.RunnerGetArtifactResponse, error) {
+	sctx, err := r.held(ctx, req.Step)
+	if err != nil {
+		return magiapi.RunnerGetArtifactResponse{}, err
+	}
+	g, err := r.S.Artifacts.Get(sctx, artifactsapi.GetRequest{Digest: req.Digest})
+	if err != nil {
+		return magiapi.RunnerGetArtifactResponse{}, err
+	}
+	// Only evidence of this run.
+	if g.Artifact.Labels["run"] != req.Step.Run {
+		return magiapi.RunnerGetArtifactResponse{}, rpc.NotFound("artifact %s not found", req.Digest)
+	}
+	return magiapi.RunnerGetArtifactResponse{MediaType: g.Artifact.MediaType, Body: g.Body}, nil
+}
+
+func nonNil(v []string) []string {
+	if v == nil {
+		return []string{}
+	}
+	return v
+}
+
 // ModelProxy serves an OpenAI-compatible Chat Completions endpoint for
 // runners at /runner/v1/chat/completions. It sends the request to the
 // coding model with Magi's own provider key, so a runner machine holds no
 // provider key. The model name in the request is replaced.
 func ModelProxy(ver *authn.Verifier, c *model.Client) http.Handler {
 	hc := &http.Client{Timeout: 10 * time.Minute}
+	if c.HTTP != nil {
+		hc.Transport = c.HTTP.Transport
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "use POST", http.StatusMethodNotAllowed)
@@ -207,5 +285,114 @@ func ModelProxy(ver *authn.Verifier, c *model.Client) http.Handler {
 		}
 		w.WriteHeader(resp.StatusCode)
 		io.Copy(w, resp.Body)
+	})
+}
+
+// EgressProxy is how runner sandboxes reach the egress proxy: through
+// GET /runner/egress on Magi (EgressTunnel) to Addr.
+type EgressProxy struct {
+	Addr string // host:port of the proxy port, such as egress.magi.svc:3128
+	Key  []byte // the environment key of the proxy
+	CA   []byte // the proxy CA certificate, PEM
+	// SSHPub is the OpenSSH public key of the SSH host key of the proxy;
+	// empty when the proxy does not end SSH.
+	SSHPub string
+}
+
+// ServiceUser is the proxy user of a Magi service: "svc_<name>". Magi
+// answers its owner as "service:<name>" (Egress.Environment).
+func ServiceUser(name string) string { return "svc_" + name }
+
+// Transport sends requests through the proxy as the proxy user user, and
+// trusts only the proxy CA: the proxy ends all TLS.
+func (p *EgressProxy) Transport(user string) (*http.Transport, error) {
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(p.CA) {
+		return nil, errors.New("the egress proxy CA is not PEM")
+	}
+	u, err := url.Parse(egressenv.URL(p.Addr, user, egressenv.Credential(p.Key, user)))
+	if err != nil {
+		return nil, err
+	}
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.Proxy = http.ProxyURL(u)
+	t.TLSClientConfig = &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}
+	return t, nil
+}
+
+// EgressAccess gives the sandbox of a run its proxy user. The environment
+// is the run; EgressService/environment then answers with the owner of the
+// run.
+func (r *Runners) EgressAccess(ctx context.Context, req magiapi.RunnerStep) (magiapi.RunnerEgressAccessResponse, error) {
+	if _, err := r.held(ctx, req); err != nil {
+		return magiapi.RunnerEgressAccessResponse{}, err
+	}
+	p := r.S.EgressProxy
+	if p == nil {
+		return magiapi.RunnerEgressAccessResponse{}, nil
+	}
+	out := &magiapi.RunnerEgressProxy{Environment: req.Run, Credential: egressenv.Credential(p.Key, req.Run), Ca: p.CA}
+	if p.SSHPub != "" {
+		// One line for all hosts: the proxy ends each SSH connection.
+		out.SshKnownHosts = ptr("* " + p.SSHPub)
+	}
+	return magiapi.RunnerEgressAccessResponse{Proxy: out}, nil
+}
+
+// EgressTunnel serves GET /runner/egress for runners: an HTTP upgrade
+// that becomes one TCP connection to the egress proxy. The upgrade has the
+// form of a WebSocket upgrade so that HTTP gateways pass it; after the 101
+// answer the bytes are the proxy protocol. The proxy checks the proxy user
+// of each request, so a runner reaches only the environments that Magi
+// gave it.
+func EgressTunnel(ver *authn.Verifier, p *EgressProxy) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if p == nil {
+			http.Error(w, "no egress proxy", http.StatusNotFound)
+			return
+		}
+		if r.Method != http.MethodGet || !strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+			http.Error(w, "expected an upgrade", http.StatusBadRequest)
+			return
+		}
+		tok, _ := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+		pr, err := ver.Verify(tok)
+		if err == nil {
+			_, err = runnerName(authn.With(r.Context(), pr))
+		}
+		if err != nil {
+			http.Error(w, "a runner token is required", http.StatusUnauthorized)
+			return
+		}
+		up, err := net.DialTimeout("tcp", p.Addr, 10*time.Second)
+		if err != nil {
+			http.Error(w, "the egress proxy is not available", http.StatusBadGateway)
+			return
+		}
+		defer up.Close()
+		hj, ok := w.(http.Hijacker)
+		if !ok {
+			http.Error(w, "no upgrade on this connection", http.StatusInternalServerError)
+			return
+		}
+		conn, brw, err := hj.Hijack()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		conn.SetDeadline(time.Time{})
+		sum := sha1.Sum([]byte(r.Header.Get("Sec-WebSocket-Key") + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"))
+		fmt.Fprintf(brw, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n\r\n",
+			base64.StdEncoding.EncodeToString(sum[:]))
+		if err := brw.Flush(); err != nil {
+			return
+		}
+		if n := brw.Reader.Buffered(); n > 0 {
+			b, _ := brw.Reader.Peek(n)
+			if _, err := up.Write(b); err != nil {
+				return
+			}
+		}
+		envd.Splice(conn, up)
 	})
 }

@@ -35,13 +35,49 @@ class MagiClient:
         """say"""
         return SayResponse.from_cbor(self._transport.call("MagiService", "say", req.to_cbor()))
 
-    def list_chats(self, req: ListChatsRequest) -> ListChatsResponse:
-        """list-chats"""
-        return ListChatsResponse.from_cbor(self._transport.call("MagiService", "list-chats", req.to_cbor()))
-
     def read(self, req: ReadRequest) -> ReadResponse:
         """read"""
         return ReadResponse.from_cbor(self._transport.call("MagiService", "read", req.to_cbor()))
+
+    def search(self, req: SearchRequest) -> SearchResponse:
+        """search"""
+        return SearchResponse.from_cbor(self._transport.call("MagiService", "search", req.to_cbor()))
+
+    def trace(self, req: TraceRequest) -> TraceResponse:
+        """trace"""
+        return TraceResponse.from_cbor(self._transport.call("MagiService", "trace", req.to_cbor()))
+
+    def list_links(self, req: ListLinksRequest) -> ListLinksResponse:
+        """list-links"""
+        return ListLinksResponse.from_cbor(self._transport.call("MagiService", "list-links", req.to_cbor()))
+
+    def link(self, req: LinkRequest) -> MessageLink:
+        """link"""
+        return MessageLink.from_cbor(self._transport.call("MagiService", "link", req.to_cbor()))
+
+    def unlink(self, req: UnlinkRequest) -> MessageLink:
+        """unlink"""
+        return MessageLink.from_cbor(self._transport.call("MagiService", "unlink", req.to_cbor()))
+
+    def set_visibility(self, req: SetVisibilityRequest) -> Message:
+        """set-visibility"""
+        return Message.from_cbor(self._transport.call("MagiService", "set-visibility", req.to_cbor()))
+
+    def list_reviews(self, req: ListReviewsRequest) -> ListReviewsResponse:
+        """list-reviews"""
+        return ListReviewsResponse.from_cbor(self._transport.call("MagiService", "list-reviews", req.to_cbor()))
+
+    def answer_review(self, req: AnswerReviewRequest) -> AnswerReviewResponse:
+        """answer-review"""
+        return AnswerReviewResponse.from_cbor(self._transport.call("MagiService", "answer-review", req.to_cbor()))
+
+    def list_personas(self, req: ListPersonasRequest) -> ListPersonasResponse:
+        """list-personas"""
+        return ListPersonasResponse.from_cbor(self._transport.call("MagiService", "list-personas", req.to_cbor()))
+
+    def put_persona(self, req: PutPersonaRequest) -> PersonaInfo:
+        """put-persona"""
+        return PersonaInfo.from_cbor(self._transport.call("MagiService", "put-persona", req.to_cbor()))
 
     def get_audio(self, req: GetAudioRequest) -> AudioResponse:
         """get-audio"""
@@ -83,6 +119,54 @@ class MagiClient:
         """list-voices"""
         return ListVoicesResponse.from_cbor(self._transport.call("MagiService", "list-voices", req.to_cbor()))
 
+    def list_lexicon(self, req: ListLexiconRequest) -> ListLexiconResponse:
+        """list-lexicon"""
+        return ListLexiconResponse.from_cbor(self._transport.call("MagiService", "list-lexicon", req.to_cbor()))
+
+    def put_lexicon_word(self, req: PutLexiconWordRequest) -> LexiconWord:
+        """put-lexicon-word"""
+        return LexiconWord.from_cbor(self._transport.call("MagiService", "put-lexicon-word", req.to_cbor()))
+
+    def delete_lexicon_word(self, req: DeleteLexiconWordRequest) -> DeleteLexiconWordResponse:
+        """delete-lexicon-word"""
+        return DeleteLexiconWordResponse.from_cbor(self._transport.call("MagiService", "delete-lexicon-word", req.to_cbor()))
+
+    def speak(self, req: SpeakRequest) -> SpeakResponse:
+        """speak"""
+        return SpeakResponse.from_cbor(self._transport.call("MagiService", "speak", req.to_cbor()))
+
+    def list_runners(self, req: ListRunnersRequest) -> ListRunnersResponse:
+        """list-runners"""
+        return ListRunnersResponse.from_cbor(self._transport.call("MagiService", "list-runners", req.to_cbor()))
+
+    def put_runner_package(self, req: PutRunnerPackageRequest) -> PutRunnerPackageResponse:
+        """put-runner-package"""
+        return PutRunnerPackageResponse.from_cbor(self._transport.call("MagiService", "put-runner-package", req.to_cbor()))
+
+    def set_runner_release(self, req: SetRunnerReleaseRequest) -> SetRunnerReleaseResponse:
+        """set-runner-release"""
+        return SetRunnerReleaseResponse.from_cbor(self._transport.call("MagiService", "set-runner-release", req.to_cbor()))
+
+    def put_app_release(self, req: PutAppReleaseRequest) -> AppRelease:
+        """put-app-release"""
+        return AppRelease.from_cbor(self._transport.call("MagiService", "put-app-release", req.to_cbor()))
+
+    def get_app_release(self, req: GetAppReleaseRequest) -> GetAppReleaseResponse:
+        """get-app-release"""
+        return GetAppReleaseResponse.from_cbor(self._transport.call("MagiService", "get-app-release", req.to_cbor()))
+
+    def get_app_package(self, req: GetAppPackageRequest) -> GetAppPackageResponse:
+        """get-app-package"""
+        return GetAppPackageResponse.from_cbor(self._transport.call("MagiService", "get-app-package", req.to_cbor()))
+
+    def list_egress_reviews(self, req: ListEgressReviewsRequest) -> ListEgressReviewsResponse:
+        """list-egress-reviews"""
+        return ListEgressReviewsResponse.from_cbor(self._transport.call("MagiService", "list-egress-reviews", req.to_cbor()))
+
+    def decide_egress_review(self, req: DecideEgressReviewRequest) -> DecideEgressReviewResponse:
+        """decide-egress-review"""
+        return DecideEgressReviewResponse.from_cbor(self._transport.call("MagiService", "decide-egress-review", req.to_cbor()))
+
 class RunnerClient:
     """Typed client for the RunnerService service."""
     def __init__(self, transport: Transport):
@@ -115,4 +199,45 @@ class RunnerClient:
     def run_status(self, req: RunnerRunStatusRequest) -> RunnerRunStatusResponse:
         """run-status"""
         return RunnerRunStatusResponse.from_cbor(self._transport.call("RunnerService", "run-status", req.to_cbor()))
+
+    def hello(self, req: RunnerHelloRequest) -> RunnerHelloResponse:
+        """hello"""
+        return RunnerHelloResponse.from_cbor(self._transport.call("RunnerService", "hello", req.to_cbor()))
+
+    def get_package(self, req: RunnerGetPackageRequest) -> RunnerGetPackageResponse:
+        """get-package"""
+        return RunnerGetPackageResponse.from_cbor(self._transport.call("RunnerService", "get-package", req.to_cbor()))
+
+    def get_artifact(self, req: RunnerGetArtifactRequest) -> RunnerGetArtifactResponse:
+        """get-artifact"""
+        return RunnerGetArtifactResponse.from_cbor(self._transport.call("RunnerService", "get-artifact", req.to_cbor()))
+
+    def egress_access(self, req: RunnerStep) -> RunnerEgressAccessResponse:
+        """egress-access"""
+        return RunnerEgressAccessResponse.from_cbor(self._transport.call("RunnerService", "egress-access", req.to_cbor()))
+
+class EgressAskClient:
+    """Typed client for the EgressAskService service."""
+    def __init__(self, transport: Transport):
+        self._transport = transport
+
+    def environment(self, req: EgressEnvironmentRequest) -> EgressEnvironmentResponse:
+        """environment"""
+        return EgressEnvironmentResponse.from_cbor(self._transport.call("EgressAskService", "environment", req.to_cbor()))
+
+    def destination(self, req: EgressDestinationRequest) -> EgressDestinationResponse:
+        """destination"""
+        return EgressDestinationResponse.from_cbor(self._transport.call("EgressAskService", "destination", req.to_cbor()))
+
+    def report(self, req: EgressReportRequest) -> EgressReportResponse:
+        """report"""
+        return EgressReportResponse.from_cbor(self._transport.call("EgressAskService", "report", req.to_cbor()))
+
+    def evaluate(self, req: EgressEvaluateRequest) -> EgressVerdict:
+        """evaluate"""
+        return EgressVerdict.from_cbor(self._transport.call("EgressAskService", "evaluate", req.to_cbor()))
+
+    def secret_rules(self, req: EgressSecretRulesRequest) -> EgressSecretRulesResponse:
+        """secret-rules"""
+        return EgressSecretRulesResponse.from_cbor(self._transport.call("EgressAskService", "secret-rules", req.to_cbor()))
 

@@ -2,8 +2,10 @@ package server
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/catalystcommunity/magi/lib/rpc"
 	api "github.com/catalystcommunity/magi/primitives/workflow/api"
@@ -43,6 +45,9 @@ func Validate(d api.Definition) error {
 		case "task":
 			if s.Queue == nil || *s.Queue == "" {
 				return rpc.Invalid("task step %q needs a queue", s.Id)
+			}
+			if strings.ContainsAny(queueVarRE.ReplaceAllString(*s.Queue, ""), "${}") {
+				return rpc.Invalid("task step %q: a queue may name run variables only as ${name}", s.Id)
 			}
 		case "human":
 		default:
@@ -106,10 +111,40 @@ func enter(r *api.Run, d *api.Definition, stepID string, attempt uint64, now uin
 		r.History = append(r.History, st)
 		return nil
 	}
+	queue, err := expandQueue(*s.Queue, r.Vars)
+	if err != nil {
+		st.Status = StepFailed
+		r.History = append(r.History, st)
+		fail(r, fmt.Sprintf("step %s: %v", stepID, err))
+		return nil
+	}
 	st.Status, r.Status = StepPending, RunRunning
 	r.History = append(r.History, st)
 	idx := len(r.History) - 1
-	return &store.Task{Key: r.Id + "/" + strconv.Itoa(idx), Run: r.Id, Index: idx, Step: stepID, Queue: *s.Queue, State: store.TaskSubmit}
+	return &store.Task{Key: r.Id + "/" + strconv.Itoa(idx), Run: r.Id, Index: idx, Step: stepID, Queue: queue, State: store.TaskSubmit}
+}
+
+var queueVarRE = regexp.MustCompile(`\$\{([A-Za-z0-9_.-]+)\}`)
+
+// expandQueue replaces each ${name} in a queue with the run variable name.
+// A variable that is not set is an error.
+func expandQueue(q string, vars map[string]string) (string, error) {
+	var missing []string
+	out := queueVarRE.ReplaceAllStringFunc(q, func(m string) string {
+		name := queueVarRE.FindStringSubmatch(m)[1]
+		v := vars[name]
+		if v == "" {
+			missing = append(missing, name)
+		}
+		return v
+	})
+	if len(missing) > 0 {
+		return "", fmt.Errorf("queue %q needs run variable %s", q, strings.Join(missing, ", "))
+	}
+	if strings.ContainsAny(out, "${}") {
+		return "", fmt.Errorf("queue %q has a bad variable reference", q)
+	}
+	return out, nil
 }
 
 // fail ends the run as failed.

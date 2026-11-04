@@ -17,7 +17,12 @@ const token = "0123456789abcdef0123456789abcdef"
 
 func setup(t *testing.T) (*Client, string) {
 	t.Helper()
-	dir := t.TempDir()
+	// The real path: on macOS the temp directory can be below a link
+	// (/tmp is /private/tmp), and $(pwd) in a command gives the real path.
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	srv := httptest.NewServer(&Server{Token: token, Dir: dir, Env: []string{"PATH=" + os.Getenv("PATH"), "BASE=1"}})
 	t.Cleanup(srv.Close)
 	return &Client{Base: srv.URL, Token: token}, dir
@@ -81,6 +86,18 @@ func TestExec(t *testing.T) {
 	r, err = c.Exec(ctx, api.ExecRequest{Argv: []string{"sh", "-c", "sleep 30 & echo started; sleep 30"}, TimeoutMs: u64(300)})
 	if err != nil || !r.TimedOut || string(r.Stdout) != "started\n" || time.Since(start) > 5*time.Second {
 		t.Fatalf("timeout: %+v %v after %v", r, err, time.Since(start))
+	}
+
+	// The command exits, but a background child keeps the output open: the
+	// exit status of the command counts, and the child is stopped.
+	start = time.Now()
+	r, err = c.Exec(ctx, api.ExecRequest{Argv: []string{"sh", "-c", "sleep 30 & echo left; exit 3"}})
+	if err != nil || r.TimedOut || r.ExitCode != 3 || string(r.Stdout) != "left\n" || time.Since(start) > 10*time.Second {
+		t.Fatalf("left child: %+v %v after %v", r, err, time.Since(start))
+	}
+	r, err = c.Exec(ctx, api.ExecRequest{Argv: []string{"sh", "-c", "sleep 30 & echo ok"}})
+	if err != nil || r.ExitCode != 0 || !strings.Contains(string(r.Stderr), "kept the output open") {
+		t.Fatalf("left child, exit 0: %+v %v", r, err)
 	}
 
 	r, err = c.Exec(ctx, api.ExecRequest{Argv: []string{"no-such-program-x"}})

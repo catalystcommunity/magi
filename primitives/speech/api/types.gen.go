@@ -13,6 +13,7 @@ type TranscribeRequest struct {
 // Transcript represents a structured data type
 type Transcript struct {
 	Text       string   `json:"text" yaml:"text"`
+	Heard      *string  `json:"heard,omitempty" yaml:"heard,omitempty"`
 	Confidence *float64 `json:"confidence,omitempty" yaml:"confidence,omitempty"`
 	Engine     string   `json:"engine" yaml:"engine"`
 	AudioMs    uint64   `json:"audio_ms" yaml:"audio_ms"`
@@ -25,11 +26,13 @@ type SynthesizeRequest struct {
 	Voice  *string  `json:"voice,omitempty" yaml:"voice,omitempty"`
 	Format *string  `json:"format,omitempty" yaml:"format,omitempty"`
 	Speed  *float64 `json:"speed,omitempty" yaml:"speed,omitempty"`
+	Raw    *bool    `json:"raw,omitempty" yaml:"raw,omitempty"`
 }
 
 // Audio represents a structured data type
 type Audio struct {
 	Body      []byte `json:"body" yaml:"body"`
+	Spoken    string `json:"spoken" yaml:"spoken"`
 	MediaType string `json:"media_type" yaml:"media_type"`
 	Voice     string `json:"voice" yaml:"voice"`
 	Engine    string `json:"engine" yaml:"engine"`
@@ -53,4 +56,54 @@ type ListVoicesRequest struct {
 // ListVoicesResponse represents a structured data type
 type ListVoicesResponse struct {
 	Voices []Voice `json:"voices" yaml:"voices"`
+}
+
+// LexiconEntry represents a structured data type
+type LexiconEntry struct {
+	Written   string   `json:"written" yaml:"written"`
+	Spoken    *string  `json:"spoken,omitempty" yaml:"spoken,omitempty"`
+	Ipa       *string  `json:"ipa,omitempty" yaml:"ipa,omitempty"`
+	HeardAs   []string `json:"heard_as" yaml:"heard_as"`
+	Note      *string  `json:"note,omitempty" yaml:"note,omitempty"`
+	UpdatedBy string   `json:"updated_by" yaml:"updated_by"`
+	UpdatedMs uint64   `json:"updated_ms" yaml:"updated_ms"`
+}
+
+// ListLexiconRequest represents a structured data type
+type ListLexiconRequest struct {
+}
+
+// ListLexiconResponse represents a structured data type
+type ListLexiconResponse struct {
+	Entries []LexiconEntry `json:"entries" yaml:"entries"`
+}
+
+// PutLexiconEntryRequest represents a structured data type
+type PutLexiconEntryRequest struct {
+	Written string   `json:"written" yaml:"written"`
+	Spoken  *string  `json:"spoken,omitempty" yaml:"spoken,omitempty"`
+	Ipa     *string  `json:"ipa,omitempty" yaml:"ipa,omitempty"`
+	HeardAs []string `json:"heard_as,omitempty" yaml:"heard_as,omitempty"`
+	Note    *string  `json:"note,omitempty" yaml:"note,omitempty"`
+	By      *string  `json:"by,omitempty" yaml:"by,omitempty"`
+}
+
+// DeleteLexiconEntryRequest represents a structured data type
+type DeleteLexiconEntryRequest struct {
+	Written string `json:"written" yaml:"written"`
+}
+
+// DeleteLexiconEntryResponse represents a structured data type
+type DeleteLexiconEntryResponse struct {
+	Deleted bool `json:"deleted" yaml:"deleted"`
+}
+
+// PrepareTextRequest represents a structured data type
+type PrepareTextRequest struct {
+	Text string `json:"text" yaml:"text"`
+}
+
+// PrepareTextResponse represents a structured data type
+type PrepareTextResponse struct {
+	Spoken string `json:"spoken" yaml:"spoken"`
 }

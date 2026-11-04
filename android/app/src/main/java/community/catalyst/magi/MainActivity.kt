@@ -27,19 +27,38 @@ import community.catalyst.magi.client.identity.BeginLoginRequest
 import community.catalyst.magi.client.identity.PollLoginRequest
 import community.catalyst.magi.client.identity.RefreshRequest
 import community.catalyst.magi.client.magi.CancelTaskRequest
+import community.catalyst.magi.client.magi.DecideEgressReviewRequest
 import community.catalyst.magi.client.magi.DecideRequest
+import community.catalyst.magi.client.magi.EgressReview
 import community.catalyst.magi.client.magi.GetAudioRequest
 import community.catalyst.magi.client.magi.GetTaskDiffRequest
-import community.catalyst.magi.client.magi.ListChatsRequest
+import community.catalyst.magi.client.magi.AnswerReviewRequest
+import community.catalyst.magi.client.magi.ListEgressReviewsRequest
+import community.catalyst.magi.client.magi.ListLinksRequest
+import community.catalyst.magi.client.magi.ListPersonasRequest
+import community.catalyst.magi.client.magi.ListReviewsRequest
 import community.catalyst.magi.client.magi.ListTasksRequest
 import community.catalyst.magi.client.magi.Message
+import community.catalyst.magi.client.magi.MessageLink
+import community.catalyst.magi.client.magi.PersonaInfo
 import community.catalyst.magi.client.magi.ReadRequest
+import community.catalyst.magi.client.magi.ReviewItem
 import community.catalyst.magi.client.magi.SayRequest
+import community.catalyst.magi.client.magi.SetVisibilityRequest
+import community.catalyst.magi.client.magi.TraceRequest
+import community.catalyst.magi.client.magi.UnlinkRequest
+import java.text.DateFormat
+import java.util.Date
 import java.util.concurrent.Executors
 
 /**
  * The Magi Android client. It uses only the public Magi API: IdentityService
- * to sign in, MagiService for chats, voice, and tasks.
+ * to sign in, MagiService for the conversation, voice, reviews, and tasks.
+ *
+ * There are no chats: the person has one stream with each persona. The
+ * librarian links messages to earlier ones; the view shows those links as
+ * "about" lines. A long press on a message shows its links and who can
+ * read it, for correction.
  *
  * Sign in: the browser goes to LinkKeys and then back to this app with
  * RETURN_URL and a one-time code. The app polls with its login_id and the
@@ -58,7 +77,9 @@ class MainActivity : Activity() {
     private val work = Executors.newCachedThreadPool()
     private var rpc: HttpCarrier? = null
 
-    private var chat: String? = null
+    private var persona = "persona:magi"
+    private var personas: List<PersonaInfo> = emptyList()
+    private val shown = HashMap<String, View>()
     @Volatile private var lastSeq = 0UL
     @Volatile private var readGen = 0
     @Volatile private var voiceTurn = false
@@ -70,7 +91,19 @@ class MainActivity : Activity() {
         settings = Settings(this)
         recorder = Recorder(this)
         player = Player(this)
+        Updater.schedule(this)
         if (!handleReturn(intent)) start()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Updater.foreground = this
+        work.execute { runCatching { Updater.check(applicationContext) } }
+    }
+
+    override fun onPause() {
+        if (Updater.foreground === this) Updater.foreground = null
+        super.onPause()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -110,13 +143,13 @@ class MainActivity : Activity() {
                     try {
                         val t = client().identity.refresh(RefreshRequest())
                         settings.saveToken(t.token, t.subject, t.expiresMs.toLong())
-                        runOnUiThread { showChats() }
+                        runOnUiThread { showConversation() }
                     } catch (e: Exception) {
                         runOnUiThread { signOut("Sign in again.") }
                     }
                 }
             }
-            else -> showChats()
+            else -> showConversation()
         }
     }
 
@@ -175,7 +208,7 @@ class MainActivity : Activity() {
                 val token = r.token
                 if (r.status != "complete" || token == null) throw RpcException(0, r.message ?: "The sign in is ${r.status}.")
                 settings.saveToken(token, r.subject ?: "", r.expiresMs?.toLong() ?: 0)
-                runOnUiThread { showChats() }
+                runOnUiThread { showConversation() }
             } catch (e: Exception) {
                 runOnUiThread { showLogin("The sign in failed: ${e.message}") }
             } finally {
@@ -191,11 +224,11 @@ class MainActivity : Activity() {
         showLogin(message)
     }
 
-    // --- Chats --------------------------------------------------------------
+    // --- Conversation -------------------------------------------------------
 
     private fun nav(current: String): LinearLayout {
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        for ((name, action) in listOf("Chats" to ::showChats, "Tasks" to ::showTasks)) {
+        for ((name, action) in listOf("Talk" to { showConversation() }, "Review" to ::showReviews, "Network" to ::showNetwork, "Tasks" to ::showTasks)) {
             row.addView(Button(this).apply {
                 text = name
                 isEnabled = name != current
@@ -206,31 +239,15 @@ class MainActivity : Activity() {
         return row
     }
 
-    private fun showChats() {
-        val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        val status = TextView(this).apply { text = "Loading..." }
-        val fresh = Button(this).apply { text = "New chat"; setOnClickListener { openChat(null) } }
-        show(page(nav("Chats"), fresh, status, list))
-        background(status) {
-            val chats = client().magi.listChats(ListChatsRequest(limit = 50UL)).chats
-            runOnUiThread {
-                status.text = if (chats.isEmpty()) "No chats yet." else ""
-                for (c in chats) {
-                    list.addView(Button(this).apply {
-                        text = c.title.ifEmpty { "Chat" }
-                        isAllCaps = false
-                        gravity = Gravity.START or Gravity.CENTER_VERTICAL
-                        setOnClickListener { openChat(c.id) }
-                    })
-                }
-            }
-        }
-    }
+    private fun personaName(id: String) = personas.firstOrNull { it.id == id }?.name ?: id.removePrefix("persona:")
 
-    private fun openChat(id: String?) {
+    private fun day(ms: ULong) = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(ms.toLong()))
+
+    private fun showConversation(id: String = persona) {
         readGen++
-        chat = id
+        persona = id
         lastSeq = 0UL
+        shown.clear()
         messages = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, 8, 0, 8) }
         scroll = ScrollView(this).apply { addView(messages) }
         val input = EditText(this).apply {
@@ -251,7 +268,7 @@ class MainActivity : Activity() {
             if (text.isEmpty()) return@setOnClickListener
             input.setText("")
             voiceTurn = false
-            say(SayRequest(chat = chat, text = text, speakReply = speak.isChecked), status)
+            say(SayRequest(persona = persona, text = text, speakReply = speak.isChecked), status)
         }
         mic.setOnClickListener {
             if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -275,51 +292,61 @@ class MainActivity : Activity() {
                     return@setOnClickListener
                 }
                 voiceTurn = true
-                say(SayRequest(chat = chat, audio = audio, audioType = "audio/ogg", speakReply = true), status)
+                say(SayRequest(persona = persona, audio = audio, audioType = "audio/ogg", speakReply = true), status)
             }
         }
+        val personaRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; addView(input); addView(send); addView(mic) }
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(24, 24, 24, 24)
-            addView(nav(""))
+            addView(nav("Talk"))
+            addView(personaRow)
             addView(scroll, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
             addView(status)
             addView(speak)
             addView(bar)
         }
         show(root)
-        if (id != null) follow(id, readGen)
+        val gen = readGen
+        background(status) {
+            personas = runCatching { client().magi.listPersonas(ListPersonasRequest()).personas }.getOrDefault(emptyList())
+            val first = client().magi.read(ReadRequest(persona = persona, beforeSeq = 1UL shl 52, limit = 50UL))
+            runOnUiThread {
+                if (gen != readGen) return@runOnUiThread
+                if (personas.size > 1) for (p in personas) personaRow.addView(Button(this).apply {
+                    text = p.name
+                    isAllCaps = false
+                    isEnabled = p.id != persona
+                    setOnClickListener { showConversation(p.id) }
+                })
+                input.hint = "Message " + personaName(persona)
+                first.messages.forEach { show(it, false) }
+                lastSeq = first.lastSeq
+                follow(gen)
+            }
+        }
     }
 
     private fun say(req: SayRequest, status: TextView) {
         status.text = "Sending..."
         background(status) {
-            val r = client().magi.say(req)
-            runOnUiThread {
-                status.text = ""
-                if (chat == null) {
-                    chat = r.chat
-                    follow(r.chat, readGen)
-                }
-            }
+            client().magi.say(req)
+            runOnUiThread { status.text = "" }
         }
     }
 
-    /** Long-polls the chat and shows new messages until the chat closes. */
-    private fun follow(id: String, gen: Int) {
+    /** Long-polls the stream and shows new messages until the view changes. */
+    private fun follow(gen: Int) {
         work.execute {
-            var history = true // the first read returns old messages; do not play them
             while (gen == readGen) {
                 try {
-                    val r = client().magi.read(ReadRequest(chat = id, afterSeq = lastSeq, limit = 100UL, waitMs = 25_000UL))
+                    val r = client().magi.read(ReadRequest(persona = persona, afterSeq = lastSeq, limit = 100UL, waitMs = 25_000UL))
                     if (gen != readGen) return@execute
                     if (r.messages.isNotEmpty()) {
                         lastSeq = r.messages.last().seq
-                        val live = !history
-                        runOnUiThread { if (gen == readGen) r.messages.forEach { show(it, live) } }
+                        runOnUiThread { if (gen == readGen) r.messages.forEach { show(it, true) } }
                     }
-                    history = false
                 } catch (e: Exception) {
                     if (e is RpcException && e.code == 401) {
                         runOnUiThread { signOut("Your sign in ended. Sign in again.") }
@@ -331,26 +358,204 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun show(m: Message, live: Boolean) {
+    private fun messageView(m: Message, compact: Boolean = false): LinearLayout {
         val who = when (m.authorKind) {
-            "human" -> "You"
-            "persona" -> "Magi"
+            "human" -> if (m.author == settings.subject) "You" else m.author.removePrefix("user:")
+            "persona" -> personaName(m.persona.ifEmpty { m.author })
             else -> m.author
         }
+        val meta = mutableListOf(who, day(m.createdMs))
+        if (!compact) m.generatedBy?.let { meta.add(it) }
+        if (m.visibility == "shared") meta.add("shared")
         val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, 12, 0, 12) }
-        box.addView(TextView(this).apply {
-            text = who + (m.generatedBy?.let { " · $it" } ?: "")
-            setTypeface(typeface, Typeface.BOLD)
-        })
-        box.addView(TextView(this).apply { text = m.text; setTextIsSelectable(true) })
+        box.addView(TextView(this).apply { text = meta.joinToString(" · "); setTypeface(typeface, Typeface.BOLD) })
+        box.addView(TextView(this).apply { text = m.text; setTextIsSelectable(!compact) })
+        for (l in m.links) {
+            if (l.kind == "reply-to" && shown.containsKey(l.target.ref)) continue
+            box.addView(aboutView(l))
+        }
+        if (!compact) box.setOnLongClickListener { audit(m); true }
+        return box
+    }
+
+    private fun aboutView(l: MessageLink): TextView {
+        val label = l.kind.replace('-', ' ')
+        val target = when {
+            l.target.kind == "utterance" -> "“${l.snippet ?: "earlier message"}”" + (l.targetMs?.let { " · " + day(it) } ?: "")
+            else -> "${l.target.kind.replace('-', ' ')} ${l.target.title ?: l.target.ref}"
+        }
+        return TextView(this).apply {
+            text = "$label: $target"
+            textSize = 12f
+            alpha = 0.7f
+            setPadding(16, 4, 0, 0)
+            if (l.target.kind == "utterance") setOnClickListener { goTo(l.target.ref) }
+        }
+    }
+
+    /** Shows an earlier message: in place when it is on the page, else with its trace. */
+    private fun goTo(id: String) {
+        shown[id]?.let { v -> scroll.post { scroll.smoothScrollTo(0, v.top) }; return }
+        background(null) {
+            val t = client().magi.trace(TraceRequest(message = id, direction = "both", depth = 2UL))
+            runOnUiThread {
+                val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(24, 24, 24, 24) }
+                t.messages.sortedBy { it.createdMs }.forEach { col.addView(messageView(it, true)) }
+                AlertDialog.Builder(this).setTitle("Context").setView(ScrollView(this).apply { addView(col) }).setPositiveButton("Close", null).show()
+            }
+        }
+    }
+
+    private fun show(m: Message, live: Boolean) {
+        if (shown.containsKey(m.id)) return
+        val box = messageView(m)
         val audio = m.audio
         if (audio != null) {
             box.addView(Button(this).apply { text = "Play"; setOnClickListener { playAudio(audio) } })
             // Speak a reply to a voice message, or when spoken replies are on.
             if (live && m.authorKind == "persona" && (voiceTurn || settings.speakReplies)) playAudio(audio)
         }
+        shown[m.id] = box
         messages.addView(box)
         scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
+    }
+
+    /** Shows the links of a message and who can read it, for correction. */
+    private fun audit(m: Message) {
+        background(null) {
+            val links = client().magi.listLinks(ListLinksRequest(message = m.id, all = true)).links
+            runOnUiThread {
+                val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(24, 24, 24, 24) }
+                lateinit var dialog: AlertDialog
+                if (links.isEmpty()) col.addView(TextView(this).apply { text = "No links." })
+                for (l in links) {
+                    col.addView(TextView(this).apply {
+                        text = "${l.kind} → ${l.snippet?.let { "“$it”" } ?: (l.target.title ?: l.target.ref)}\n${l.state}, by ${l.author.substringAfter(':')}, ${(l.confidence * 100).toInt()}%"
+                        setPadding(0, 12, 0, 4)
+                    })
+                    if (l.state == "current" || l.state == "tentative") col.addView(Button(this).apply {
+                        text = "Not related"
+                        setOnClickListener {
+                            background(null) { client().magi.unlink(UnlinkRequest(link = l.id)) }
+                            dialog.dismiss()
+                        }
+                    })
+                }
+                val p = personas.firstOrNull { it.id == m.persona.ifEmpty { persona } }
+                if (p != null && p.sharing != "never") {
+                    val other = if (m.visibility == "shared") "private" else "shared"
+                    col.addView(TextView(this).apply {
+                        text = "Visibility: ${m.visibility}" + if (m.visibilityBy.isEmpty()) " (not classified yet)" else " (by ${m.visibilityBy.substringAfter(':')})"
+                        setPadding(0, 24, 0, 4)
+                    })
+                    col.addView(Button(this).apply {
+                        text = if (other == "shared") "Share with the household" else "Make private"
+                        setOnClickListener {
+                            background(null) { client().magi.setVisibility(SetVisibilityRequest(message = m.id, visibility = other)) }
+                            dialog.dismiss()
+                        }
+                    })
+                }
+                dialog = AlertDialog.Builder(this).setTitle("Links").setView(ScrollView(this).apply { addView(col) }).setPositiveButton("Close", null).show()
+            }
+        }
+    }
+
+    // --- Review -------------------------------------------------------------
+
+    /**
+     * The questions of the librarian. It asks only when it is not sure; each
+     * answer becomes an example for it and moves the level at which it asks.
+     */
+    private fun showReviews() {
+        val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val status = TextView(this).apply { text = "Loading..." }
+        show(page(nav("Review"), status, list))
+        background(status) {
+            val reviews = client().magi.listReviews(ListReviewsRequest(limit = 50UL)).reviews
+            runOnUiThread {
+                status.text = if (reviews.isEmpty()) "Nothing to review. The librarian asks here when it is not sure how a message relates to an earlier one, or who can read it." else ""
+                for (r in reviews) list.addView(reviewView(r, list, status))
+            }
+        }
+    }
+
+    private fun reviewView(r: ReviewItem, list: LinearLayout, status: TextView): View {
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, 24, 0, 24) }
+        box.addView(TextView(this).apply { text = r.question + " (${(r.confidence * 100).toInt()}% sure)"; setTypeface(typeface, Typeface.BOLD) })
+        box.addView(messageView(r.message, true))
+        r.target?.let { box.addView(TextView(this).apply { text = "Earlier:"; alpha = 0.7f }); box.addView(messageView(it, true)) }
+        val note = EditText(this).apply { hint = "Why (optional)"; isSingleLine = true }
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        fun answer(a: String) = background(status) {
+            client().magi.answerReview(AnswerReviewRequest(id = r.id, answer = a, note = note.text.toString().ifBlank { null }))
+            runOnUiThread { list.removeView(box) }
+        }
+        for (c in r.choices) row.addView(Button(this).apply {
+            isAllCaps = false
+            text = when {
+                r.task == "visibility" -> if (c == "shared") "Household" else "Only me"
+                c == "unrelated" -> "Not related"
+                else -> "Yes"
+            }
+            setOnClickListener { answer(c) }
+        })
+        row.addView(Button(this).apply { text = "Skip"; isAllCaps = false; setOnClickListener { answer("dismiss") } })
+        box.addView(row)
+        box.addView(note)
+        return box
+    }
+
+    /**
+     * Requests that the egress proxy blocked for review. Only admins see
+     * them. A decision is a rule for the next such requests. Placeholders
+     * stand in for secrets, so a review never shows a secret.
+     */
+    private fun showNetwork() {
+        val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val status = TextView(this).apply { text = "Loading..." }
+        show(page(nav("Network"), title("Network reviews"), status, list))
+        background(status) {
+            val reviews = client().magi.listEgressReviews(ListEgressReviewsRequest(limit = 100UL)).reviews
+            runOnUiThread {
+                status.text = if (reviews.isEmpty()) "No open reviews." else "The egress proxy blocked these requests of tasks. Your decision is a rule for the next such requests."
+                for (r in reviews) list.addView(netReviewView(r, list, status))
+            }
+        }
+    }
+
+    private fun netReviewView(r: EgressReview, list: LinearLayout, status: TextView): View {
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, 24, 0, 24) }
+        val host = r.destination.removeSuffix(":443")
+        box.addView(TextView(this).apply {
+            text = if (r.kind == "destination") "Destination ${r.destination}" else "${r.method} ${r.url}"
+            setTypeface(typeface, Typeface.BOLD); setTextIsSelectable(true)
+        })
+        box.addView(TextView(this).apply { text = "${r.reason} (${r.by}; ${r.count} times, last ${day(r.lastMs)}; ${r.owner})" })
+        if (r.headers.isNotEmpty() || r.body.isNotEmpty()) {
+            val body = try {
+                Charsets.UTF_8.newDecoder().decode(java.nio.ByteBuffer.wrap(r.body)).toString()
+            } catch (e: java.nio.charset.CharacterCodingException) { "(binary body, ${r.body.size} bytes)" }
+            box.addView(TextView(this).apply {
+                text = (r.headers.map { "${it.name}: ${it.value}" } + listOf("", body)).joinToString("\n").trim()
+                typeface = Typeface.MONOSPACE; textSize = 12f; alpha = 0.8f; setTextIsSelectable(true)
+            })
+        }
+        val note = EditText(this).apply { hint = "Note (optional)"; isSingleLine = true }
+        fun decide(d: String) = background(status) {
+            val res = client().magi.decideEgressReview(DecideEgressReviewRequest(id = r.id, decision = d, note = note.text.toString().ifBlank { null }))
+            runOnUiThread {
+                list.removeView(box)
+                status.text = res.rule?.let { "Rule: $it." } ?: "Dismissed. The next blocked request opens a review again."
+            }
+        }
+        val choices = if (r.kind == "destination") listOf("Permit" to "allow-host", "Permit at layer 4" to "allow-layer4", "Block" to "block", "Dismiss" to "dismiss")
+            else listOf("Allow ${r.method} to $host" to "allow-host", "Allow this path" to "allow-path", "Block" to "block", "Dismiss" to "dismiss")
+        val row = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        for ((label, d) in choices) row.addView(Button(this).apply { text = label; isAllCaps = false; setOnClickListener { decide(d) } })
+        box.addView(row)
+        box.addView(note)
+        return box
     }
 
     private fun playAudio(digest: String) {
@@ -369,7 +574,7 @@ class MainActivity : Activity() {
         background(status) {
             val tasks = client().magi.listTasks(ListTasksRequest(limit = 30UL)).tasks
             runOnUiThread {
-                status.text = if (tasks.isEmpty()) "No tasks yet. Ask Magi in a chat to change something." else ""
+                status.text = if (tasks.isEmpty()) "No tasks yet. Ask Magi to change something." else ""
                 for (t in tasks) {
                     val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, 16, 0, 16) }
                     box.addView(TextView(this).apply { text = t.title; setTypeface(typeface, Typeface.BOLD) })

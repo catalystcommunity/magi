@@ -43,3 +43,19 @@ class SpeechClient:
         """list-voices"""
         return ListVoicesResponse.from_cbor(self._transport.call("SpeechService", "list-voices", req.to_cbor()))
 
+    def list_lexicon(self, req: ListLexiconRequest) -> ListLexiconResponse:
+        """list-lexicon"""
+        return ListLexiconResponse.from_cbor(self._transport.call("SpeechService", "list-lexicon", req.to_cbor()))
+
+    def put_lexicon_entry(self, req: PutLexiconEntryRequest) -> LexiconEntry:
+        """put-lexicon-entry"""
+        return LexiconEntry.from_cbor(self._transport.call("SpeechService", "put-lexicon-entry", req.to_cbor()))
+
+    def delete_lexicon_entry(self, req: DeleteLexiconEntryRequest) -> DeleteLexiconEntryResponse:
+        """delete-lexicon-entry"""
+        return DeleteLexiconEntryResponse.from_cbor(self._transport.call("SpeechService", "delete-lexicon-entry", req.to_cbor()))
+
+    def prepare_text(self, req: PrepareTextRequest) -> PrepareTextResponse:
+        """prepare-text"""
+        return PrepareTextResponse.from_cbor(self._transport.call("SpeechService", "prepare-text", req.to_cbor()))
+

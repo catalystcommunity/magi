@@ -1,9 +1,9 @@
 package server
 
 import (
+	"slices"
 	"testing"
 
-	"github.com/catalystcommunity/magi/lib/authn"
 	api "github.com/catalystcommunity/magi/primitives/conversation/api"
 )
 
@@ -30,21 +30,12 @@ func TestWaitSignal(t *testing.T) {
 	s.signal("none") // no waiters: no panic
 }
 
-func TestCanSee(t *testing.T) {
-	c := api.Conversation{Owner: "user:a", Participants: []string{"user:b"}}
-	for _, tc := range []struct {
-		p    authn.Principal
-		want bool
-	}{
-		{authn.Principal{Subject: "user:a"}, true},
-		{authn.Principal{Subject: "user:b"}, true},
-		{authn.Principal{Subject: "user:c"}, false},
-		{authn.Principal{Subject: "service:x", Scopes: []string{ScopeActAs}}, true},
-		{authn.Principal{Subject: "user:root", Scopes: []string{"conversation:*"}}, true},
-		{authn.Principal{Subject: "user:c", Scopes: []string{"artifacts:admin"}}, false},
-	} {
-		if canSee(tc.p, c) != tc.want {
-			t.Errorf("canSee(%v) = %v", tc.p, !tc.want)
-		}
+func TestReaders(t *testing.T) {
+	st := api.Stream{Person: "user:a", Persona: "persona:p"}
+	if r := readers(st, "private"); !slices.Equal(r, []string{"user:a", "persona:p"}) {
+		t.Fatalf("private readers = %v", r)
+	}
+	if r := readers(st, "shared"); !slices.Equal(r, []string{"user:a", "persona:p", "audience:persona:p"}) {
+		t.Fatalf("shared readers = %v", r)
 	}
 }

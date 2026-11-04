@@ -9,6 +9,8 @@ export interface ServiceError {
 
 /**
  * Speech to text. confidence is from 0 to 1, when the engine reports it.
+ * The service replaces the heard_as forms of lexicon entries with the
+ * written form. heard is the engine text when that changed the text.
  */
 export interface TranscribeRequest {
   audio: Uint8Array;
@@ -18,6 +20,7 @@ export interface TranscribeRequest {
 
 export interface Transcript {
   text: string;
+  heard?: string;
   confidence?: number;
   engine: string;
   audioMs: number;
@@ -25,17 +28,22 @@ export interface Transcript {
 }
 
 /**
- * Text to speech. format is "wav" by default.
+ * Text to speech. format is "wav" by default. The service makes spoken
+ * text first: it removes Markdown, says number ranges ("4-6" is "4 to
+ * 6"), and applies the lexicon. raw sends the text unchanged. spoken is
+ * the text that the engine got.
  */
 export interface SynthesizeRequest {
   text: string;
   voice?: string;
   format?: string;
   speed?: number;
+  raw?: boolean;
 }
 
 export interface Audio {
   body: Uint8Array;
+  spoken: string;
   mediaType: string;
   voice: string;
   engine: string;
@@ -56,5 +64,58 @@ export interface ListVoicesRequest {
 
 export interface ListVoicesResponse {
   voices: Voice[];
+}
+
+/**
+ * The household lexicon. written is the form in text (matched as a whole
+ * word, not case-sensitive). The engine says spoken instead of written,
+ * or ipa (misaki phonemes, such as "kˈOkəɹO") when it is set.
+ * heard_as are forms that speech to text writes for the word; transcribe
+ * changes them to written. Changes need the scope "speech:lexicon".
+ * updated_by is the caller, or by when a caller with that scope gives it.
+ */
+export interface LexiconEntry {
+  written: string;
+  spoken?: string;
+  ipa?: string;
+  heardAs: string[];
+  note?: string;
+  updatedBy: string;
+  updatedMs: number;
+}
+
+export interface ListLexiconRequest {
+}
+
+export interface ListLexiconResponse {
+  entries: LexiconEntry[];
+}
+
+export interface PutLexiconEntryRequest {
+  written: string;
+  spoken?: string;
+  ipa?: string;
+  heardAs?: string[];
+  note?: string;
+  by?: string;
+}
+
+export interface DeleteLexiconEntryRequest {
+  written: string;
+}
+
+export interface DeleteLexiconEntryResponse {
+  deleted: boolean;
+}
+
+/**
+ * The spoken text that synthesize makes from text, with no audio.
+ */
+export interface PrepareTextRequest {
+  text: string;
+}
+
+export interface PrepareTextResponse {
+  spoken: string;
 }
 

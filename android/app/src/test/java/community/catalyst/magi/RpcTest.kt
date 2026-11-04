@@ -61,10 +61,10 @@ class RpcTest {
                     seenAgent = headers["user-agent"]
                     val req = sayRequestFromCbor(body)
                     val out = SayResponse(
-                        chat = "cht_1",
                         message = Message(
-                            id = "m1", chat = "cht_1", seq = 7UL, author = "user:x@example.local", authorKind = "human",
-                            modality = if (req.audio != null) "voice" else "text", text = req.text ?: "", refs = emptyList(), createdMs = 1UL,
+                            id = "m1", stream = "str_1", persona = req.persona ?: "persona:magi", seq = 7UL, author = "user:x@example.local",
+                            authorKind = "human", modality = if (req.audio != null) "voice" else "text", text = req.text ?: "",
+                            refs = emptyList(), links = emptyList(), visibility = "private", visibilityBy = "", createdMs = 1UL,
                         ),
                     ).toCbor()
                     Triple(200, "application/cbor", out)
@@ -83,7 +83,8 @@ class RpcTest {
     fun callRoundTripsThroughTheGeneratedCodec() {
         val c = HttpCarrier(base()) { "tok" }
         val r = c.magi.say(SayRequest(text = "hello", audio = byteArrayOf(1, 2, 3), audioType = "audio/ogg"))
-        assertEquals("cht_1", r.chat)
+        assertEquals("str_1", r.message.stream)
+        assertEquals("persona:magi", r.message.persona)
         assertEquals("hello", r.message.text)
         assertEquals("voice", r.message.modality)
         assertEquals(7UL, r.message.seq)
@@ -95,7 +96,7 @@ class RpcTest {
     fun errorsCarryTheRpcCode() {
         val c = HttpCarrier(base()) { null }
         val e = assertFailsWith<RpcException> {
-            c.magi.read(community.catalyst.magi.client.magi.ReadRequest(chat = "cht_1"))
+            c.magi.read(community.catalyst.magi.client.magi.ReadRequest(persona = "persona:magi"))
         }
         assertEquals(401, e.code)
         assertEquals("token \"expired\"", e.message)

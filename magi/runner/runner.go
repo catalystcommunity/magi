@@ -4,7 +4,7 @@
 //
 // The runner keeps a mirror of each repository with an upstream (for
 // example GitHub) and uses this machine's Git credentials for it. Each task
-// gets a bubblewrap sandbox; the coding agent runs on this machine and uses
+// gets a bubblewrap sandbox; the apprentice runs on this machine and uses
 // the sandbox through a loopback execution API. Model calls go through
 // Magi, so the machine holds no provider key.
 package runner
@@ -14,9 +14,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/catalystcommunity/magi/lib/rpc"
@@ -29,8 +32,13 @@ import (
 type Repo struct {
 	Upstream      string `json:"upstream"`
 	DefaultBranch string `json:"default_branch"`
-	// Build makes the merge step build magi-server for the release.
+	// Build makes the merge step build magi-server for the release and the
+	// runner packages for a runner release.
 	Build bool `json:"build"`
+	// Publish lets this runner push merged changes to the upstream with
+	// this machine's Git credentials. Magi sends publish steps only to a
+	// runner that publishes the repository.
+	Publish bool `json:"publish"`
 }
 
 // Config is the runner configuration file.
@@ -42,15 +50,36 @@ type Config struct {
 	TokenFile string          `json:"token_file"`
 	StateDir  string          `json:"state_dir"`
 	Repos     map[string]Repo `json:"repos"`
-	Agent     struct {
-		Python   string `json:"python"`
-		Path     string `json:"path"` // PYTHONPATH with magi_agent and the Python clients
+	// Author is the Git author of the commits that the runner makes.
+	Author struct {
+		Name  string `json:"name"`
+		Email string `json:"email"`
+	} `json:"author"`
+	Apprentice struct {
+		Python string `json:"python"`
+		// Path is the PYTHONPATH with magi_apprentice and the Python
+		// clients. Default: apprentice/ next to the magi-runner binary.
+		Path     string `json:"path"`
 		MaxSteps int    `json:"max_steps"`
-	} `json:"agent"`
+	} `json:"apprentice"`
 	Sandbox struct {
 		ReadOnly []string          `json:"read_only"`
 		Shared   []string          `json:"shared"`
 		Env      map[string]string `json:"env"`
+		// VM makes each environment a task VM (Cloud Hypervisor, Linux)
+		// when Kernel is set. Hypervisor defaults to cloud-hypervisor in
+		// the runner tools (tools/install-runner-tools.sh), Virtiofsd to
+		// the virtiofsd of the distribution.
+		VM struct {
+			// Template is a macOS template directory (tools/vm/macos);
+			// on a Mac it makes each environment a macOS VM (magi-vz).
+			Template   string `json:"template"`
+			Kernel     string `json:"kernel"`
+			Hypervisor string `json:"hypervisor"`
+			Virtiofsd  string `json:"virtiofsd"`
+			CPUs       int    `json:"cpus"`
+			MemoryMB   int    `json:"memory_mb"`
+		} `json:"vm"`
 	} `json:"sandbox"`
 }
 
@@ -73,13 +102,17 @@ func LoadConfig(path string) (Config, error) {
 	}
 	fix(&c.TokenFile)
 	fix(&c.StateDir)
-	fix(&c.Agent.Path)
+	fix(&c.Apprentice.Path)
 	for i := range c.Sandbox.ReadOnly {
 		fix(&c.Sandbox.ReadOnly[i])
 	}
 	for i := range c.Sandbox.Shared {
 		fix(&c.Sandbox.Shared[i])
 	}
+	fix(&c.Sandbox.VM.Kernel)
+	fix(&c.Sandbox.VM.Template)
+	fix(&c.Sandbox.VM.Hypervisor)
+	fix(&c.Sandbox.VM.Virtiofsd)
 	for k, v := range c.Sandbox.Env {
 		fix(&v)
 		c.Sandbox.Env[k] = v
@@ -87,8 +120,28 @@ func LoadConfig(path string) (Config, error) {
 	if c.Server == "" || c.Name == "" || c.TokenFile == "" || c.StateDir == "" {
 		return c, fmt.Errorf("%s: server, name, token_file, and state_dir are required", path)
 	}
-	if c.Agent.Python == "" {
-		c.Agent.Python = "python3"
+	if c.Author.Name == "" {
+		c.Author.Name = "Magi"
+	}
+	if c.Author.Email == "" {
+		c.Author.Email = "magi@example.local"
+	}
+	if c.Apprentice.Python == "" {
+		c.Apprentice.Python = "python3"
+	}
+	fix(&c.Apprentice.Python)
+	if c.Apprentice.Path == "" {
+		// The apprentice of this release, or of the current release when
+		// the launcher runs without the supervisor.
+		c.Apprentice.Path = filepath.Join(c.StateDir, "current", "apprentice")
+		if exe, err := os.Executable(); err == nil {
+			if r, err := filepath.EvalSymlinks(exe); err == nil {
+				exe = r
+			}
+			if p := filepath.Join(filepath.Dir(exe), "apprentice"); dirExists(p) {
+				c.Apprentice.Path = p
+			}
+		}
 	}
 	for name, r := range c.Repos {
 		if r.DefaultBranch == "" {
@@ -111,8 +164,21 @@ type Runner struct {
 	Magi   *magiapi.RunnerClient
 	Boxes  *sandbox.Sandboxes
 	Source *sourceserver.Service
-	// exec is the loopback execution API for the agent.
+	// exec is the loopback execution API for the apprentice.
 	execURL, execTokenFile string
+	// cfgPath is the configuration file; a new release gets it too.
+	cfgPath  string
+	version  string
+	busy     atomic.Int64 // steps that run now
+	updating atomic.Bool  // no new claims during an update
+	// proxies are the proxy sockets of the environments (egress.go).
+	mu      sync.Mutex
+	proxies map[string]net.Listener
+}
+
+// New returns a runner for the configuration file at cfgPath.
+func New(cfgPath string, cfg Config, log *slog.Logger, m *magiapi.RunnerClient, boxes *sandbox.Sandboxes, src *sourceserver.Service) *Runner {
+	return &Runner{Cfg: cfg, Log: log, Magi: m, Boxes: boxes, Source: src, cfgPath: cfgPath, version: Version()}
 }
 
 // Result is the outcome of one step.
@@ -123,11 +189,19 @@ type Result struct {
 
 type handler func(ctx context.Context, a magiapi.RunnerAssignment, st magiapi.RunnerStep) (Result, error)
 
-// Run claims and runs steps until ctx ends.
+// Run claims and runs steps until ctx ends. It returns ErrRestart when an
+// update is installed and the supervisor must start the new release.
 func (r *Runner) Run(ctx context.Context) error {
+	if r.version == "" {
+		r.version = Version()
+	}
 	if err := r.ensureRepos(ctx); err != nil {
 		return err
 	}
+	ctx, stopAll := context.WithCancel(ctx)
+	defer stopAll()
+	restart := make(chan struct{})
+	go r.helloLoop(ctx, func() { close(restart) })
 	stopExec, err := r.startExec()
 	if err != nil {
 		return err
@@ -139,14 +213,22 @@ func (r *Runner) Run(ctx context.Context) error {
 		go r.loop(ctx, step, handlers[step])
 	}
 	go r.collect(ctx)
-	r.Log.Info("runner started", "server", r.Cfg.Server, "name", r.Cfg.Name)
-	<-ctx.Done()
-	return nil
+	r.Log.Info("runner started", "server", r.Cfg.Server, "name", r.Cfg.Name, "version", r.version)
+	select {
+	case <-ctx.Done():
+		return nil
+	case <-restart:
+		return ErrRestart
+	}
 }
 
 func (r *Runner) loop(ctx context.Context, step string, h handler) {
 	queue := "runner." + r.Cfg.Name + "." + step
 	for ctx.Err() == nil {
+		if r.updating.Load() {
+			sleep(ctx, 5*time.Second)
+			continue
+		}
 		res, err := r.Magi.Claim(ctx, magiapi.RunnerClaimRequest{Queue: queue, WaitMs: ptr(uint64(20000))})
 		if err != nil {
 			if ctx.Err() == nil {
@@ -164,6 +246,8 @@ func (r *Runner) loop(ctx context.Context, step string, h handler) {
 // handle runs one step with heartbeats. A lost claim (for example a
 // cancelled run) stops the step.
 func (r *Runner) handle(ctx context.Context, a magiapi.RunnerAssignment, h handler) {
+	r.busy.Add(1)
+	defer r.busy.Add(-1)
 	log := r.Log.With("run", a.Run, "step", a.Step, "attempt", a.Attempt)
 	st := magiapi.RunnerStep{Run: a.Run, Step: a.Step, Claim: a.Claim}
 	hctx, stop := context.WithCancel(ctx)
@@ -229,11 +313,11 @@ func (r *Runner) collect(ctx context.Context) {
 			switch {
 			case rpc.CodeOf(err) == 404, err == nil && (st.Status == "succeeded" || st.Status == "failed" || st.Status == "cancelled"):
 				r.Log.Info("removing environment of an ended run", "run", id)
-				r.Boxes.Remove(id)
+				r.removeBox(id)
 			case err == nil && !r.Boxes.Alive(id):
 				// The runner restarted while the run waits (for example
 				// for review): start envd again on the kept work.
-				if err := r.Boxes.Resume(id, r.sandboxEnv()); err != nil {
+				if err := r.resumeBox(id); err != nil {
 					r.Log.Warn("resume environment", "run", id, "err", err)
 				}
 			}
@@ -264,4 +348,16 @@ func tail(s string, n int) string {
 		return s
 	}
 	return s[len(s)-n:]
+}
+
+func nonNil(v []string) []string {
+	if v == nil {
+		return []string{}
+	}
+	return v
+}
+
+func dirExists(p string) bool {
+	st, err := os.Stat(p)
+	return err == nil && st.IsDir()
 }

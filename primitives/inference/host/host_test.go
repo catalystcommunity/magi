@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -46,13 +47,20 @@ func (f *fakeSampler) Sample(context.Context, int) Sample {
 
 func (f *fakeSampler) set(s Sample) { f.mu.Lock(); f.s = s; f.mu.Unlock() }
 
+// freePort returns a free port for the fake engine, below the ephemeral
+// range (32768 and up on Linux, 49152 and up on macOS). A port that the
+// kernel gave for ":0" can go to another test before the engine binds it,
+// which happens on a loaded machine.
 func freePort(t *testing.T) int {
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
+	for i := 0; i < 200; i++ {
+		port := 20000 + rand.IntN(12000)
+		if l, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port)); err == nil {
+			l.Close()
+			return port
+		}
 	}
-	defer l.Close()
-	return l.Addr().(*net.TCPAddr).Port
+	t.Fatal("no free port")
+	return 0
 }
 
 type env struct {
@@ -126,7 +134,7 @@ func (e *env) state() string {
 
 func waitState(t *testing.T, e *env, want string) {
 	t.Helper()
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 600; i++ { // 30 s: the fake engine starts slowly on a loaded machine
 		if e.state() == want {
 			return
 		}

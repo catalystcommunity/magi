@@ -12,4 +12,8 @@ type SpeechService interface {
 	Transcribe(ctx context.Context, req TranscribeRequest) (Transcript, error)
 	Synthesize(ctx context.Context, req SynthesizeRequest) (Audio, error)
 	ListVoices(ctx context.Context, req ListVoicesRequest) (ListVoicesResponse, error)
+	ListLexicon(ctx context.Context, req ListLexiconRequest) (ListLexiconResponse, error)
+	PutLexiconEntry(ctx context.Context, req PutLexiconEntryRequest) (LexiconEntry, error)
+	DeleteLexiconEntry(ctx context.Context, req DeleteLexiconEntryRequest) (DeleteLexiconEntryResponse, error)
+	PrepareText(ctx context.Context, req PrepareTextRequest) (PrepareTextResponse, error)
 }

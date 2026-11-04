@@ -2,11 +2,60 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { AudioResponse, CancelTaskRequest, DecideRequest, GetAudioRequest, GetTaskDiffRequest, GetTaskRequest, KnowledgeItem, ListChatsRequest, ListChatsResponse, ListTasksRequest, ListTasksResponse, ListVoicesRequest, ListVoicesResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, RememberRequest, RunnerAck, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, SayRequest, SayResponse, StartTaskRequest, Task, TaskDiff } from "./types.gen.ts";
-import { fromAudioResponseCbor, fromKnowledgeItemCbor, fromListChatsResponseCbor, fromListTasksResponseCbor, fromListVoicesResponseCbor, fromQueryKnowledgeResponseCbor, fromReadResponseCbor, fromRunnerAckCbor, fromRunnerClaimResponseCbor, fromRunnerPutArtifactResponseCbor, fromRunnerRunStatusResponseCbor, fromSayResponseCbor, fromTaskCbor, fromTaskDiffCbor, toCancelTaskRequestCbor, toDecideRequestCbor, toGetAudioRequestCbor, toGetTaskDiffRequestCbor, toGetTaskRequestCbor, toListChatsRequestCbor, toListTasksRequestCbor, toListVoicesRequestCbor, toQueryKnowledgeRequestCbor, toReadRequestCbor, toRememberRequestCbor, toRunnerClaimRequestCbor, toRunnerCompleteRequestCbor, toRunnerPostRequestCbor, toRunnerProgressRequestCbor, toRunnerPutArtifactRequestCbor, toRunnerRunStatusRequestCbor, toRunnerStepCbor, toSayRequestCbor, toStartTaskRequestCbor } from "./codec.gen.ts";
+import type { AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideRequest, DeleteLexiconWordRequest, DeleteLexiconWordResponse, EgressDestinationRequest, EgressDestinationResponse, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressReportRequest, EgressReportResponse, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetTaskDiffRequest, GetTaskRequest, KnowledgeItem, LexiconWord, LinkRequest, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListVoicesRequest, ListVoicesResponse, Message, MessageLink, PersonaInfo, PutAppReleaseRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, RememberRequest, RunnerAck, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, StartTaskRequest, Task, TaskDiff, TraceRequest, TraceResponse, UnlinkRequest } from "./types.gen.ts";
+import { fromAnswerReviewResponseCbor, fromAppReleaseCbor, fromAudioResponseCbor, fromDecideEgressReviewResponseCbor, fromDeleteLexiconWordResponseCbor, fromEgressDestinationResponseCbor, fromEgressEnvironmentResponseCbor, fromEgressReportResponseCbor, fromEgressSecretRulesResponseCbor, fromEgressVerdictCbor, fromGetAppPackageResponseCbor, fromGetAppReleaseResponseCbor, fromKnowledgeItemCbor, fromLexiconWordCbor, fromListEgressReviewsResponseCbor, fromListLexiconResponseCbor, fromListLinksResponseCbor, fromListPersonasResponseCbor, fromListReviewsResponseCbor, fromListRunnersResponseCbor, fromListTasksResponseCbor, fromListVoicesResponseCbor, fromMessageCbor, fromMessageLinkCbor, fromPersonaInfoCbor, fromPutRunnerPackageResponseCbor, fromQueryKnowledgeResponseCbor, fromReadResponseCbor, fromRunnerAckCbor, fromRunnerClaimResponseCbor, fromRunnerEgressAccessResponseCbor, fromRunnerGetArtifactResponseCbor, fromRunnerGetPackageResponseCbor, fromRunnerHelloResponseCbor, fromRunnerPutArtifactResponseCbor, fromRunnerRunStatusResponseCbor, fromSayResponseCbor, fromSearchResponseCbor, fromSetRunnerReleaseResponseCbor, fromSpeakResponseCbor, fromTaskCbor, fromTaskDiffCbor, fromTraceResponseCbor, toAnswerReviewRequestCbor, toCancelTaskRequestCbor, toDecideEgressReviewRequestCbor, toDecideRequestCbor, toDeleteLexiconWordRequestCbor, toEgressDestinationRequestCbor, toEgressEnvironmentRequestCbor, toEgressEvaluateRequestCbor, toEgressReportRequestCbor, toEgressSecretRulesRequestCbor, toGetAppPackageRequestCbor, toGetAppReleaseRequestCbor, toGetAudioRequestCbor, toGetTaskDiffRequestCbor, toGetTaskRequestCbor, toLinkRequestCbor, toListEgressReviewsRequestCbor, toListLexiconRequestCbor, toListLinksRequestCbor, toListPersonasRequestCbor, toListReviewsRequestCbor, toListRunnersRequestCbor, toListTasksRequestCbor, toListVoicesRequestCbor, toPutAppReleaseRequestCbor, toPutLexiconWordRequestCbor, toPutPersonaRequestCbor, toPutRunnerPackageRequestCbor, toQueryKnowledgeRequestCbor, toReadRequestCbor, toRememberRequestCbor, toRunnerClaimRequestCbor, toRunnerCompleteRequestCbor, toRunnerGetArtifactRequestCbor, toRunnerGetPackageRequestCbor, toRunnerHelloRequestCbor, toRunnerPostRequestCbor, toRunnerProgressRequestCbor, toRunnerPutArtifactRequestCbor, toRunnerRunStatusRequestCbor, toRunnerStepCbor, toSayRequestCbor, toSearchRequestCbor, toSetRunnerReleaseRequestCbor, toSetVisibilityRequestCbor, toSpeakRequestCbor, toStartTaskRequestCbor, toTraceRequestCbor, toUnlinkRequestCbor } from "./codec.gen.ts";
 
 export interface AsyncServiceTransport {
   call(service: string, op: string, req: Uint8Array): Promise<Uint8Array>;
+}
+
+export class EgressAskAsyncClient {
+  constructor(private readonly t: AsyncServiceTransport) {}
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async environment(req: EgressEnvironmentRequest): Promise<EgressEnvironmentResponse> {
+    const csilResp = await this.t.call("EgressAskService", "environment", toEgressEnvironmentRequestCbor(req));
+    return fromEgressEnvironmentResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async destination(req: EgressDestinationRequest): Promise<EgressDestinationResponse> {
+    const csilResp = await this.t.call("EgressAskService", "destination", toEgressDestinationRequestCbor(req));
+    return fromEgressDestinationResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async report(req: EgressReportRequest): Promise<EgressReportResponse> {
+    const csilResp = await this.t.call("EgressAskService", "report", toEgressReportRequestCbor(req));
+    return fromEgressReportResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async evaluate(req: EgressEvaluateRequest): Promise<EgressVerdict> {
+    const csilResp = await this.t.call("EgressAskService", "evaluate", toEgressEvaluateRequestCbor(req));
+    return fromEgressVerdictCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async secretRules(req: EgressSecretRulesRequest): Promise<EgressSecretRulesResponse> {
+    const csilResp = await this.t.call("EgressAskService", "secret-rules", toEgressSecretRulesRequestCbor(req));
+    return fromEgressSecretRulesResponseCbor(csilResp);
+  }
 }
 
 export class MagiAsyncClient {
@@ -25,18 +74,99 @@ export class MagiAsyncClient {
    * @throws {ServiceError} when the API returns an error response
    * @throws transport errors (network, timeout) raised by the transport
    */
-  async listChats(req: ListChatsRequest): Promise<ListChatsResponse> {
-    const csilResp = await this.t.call("MagiService", "list-chats", toListChatsRequestCbor(req));
-    return fromListChatsResponseCbor(csilResp);
+  async read(req: ReadRequest): Promise<ReadResponse> {
+    const csilResp = await this.t.call("MagiService", "read", toReadRequestCbor(req));
+    return fromReadResponseCbor(csilResp);
   }
 
   /**
    * @throws {ServiceError} when the API returns an error response
    * @throws transport errors (network, timeout) raised by the transport
    */
-  async read(req: ReadRequest): Promise<ReadResponse> {
-    const csilResp = await this.t.call("MagiService", "read", toReadRequestCbor(req));
-    return fromReadResponseCbor(csilResp);
+  async search(req: SearchRequest): Promise<SearchResponse> {
+    const csilResp = await this.t.call("MagiService", "search", toSearchRequestCbor(req));
+    return fromSearchResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async trace(req: TraceRequest): Promise<TraceResponse> {
+    const csilResp = await this.t.call("MagiService", "trace", toTraceRequestCbor(req));
+    return fromTraceResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async listLinks(req: ListLinksRequest): Promise<ListLinksResponse> {
+    const csilResp = await this.t.call("MagiService", "list-links", toListLinksRequestCbor(req));
+    return fromListLinksResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async link(req: LinkRequest): Promise<MessageLink> {
+    const csilResp = await this.t.call("MagiService", "link", toLinkRequestCbor(req));
+    return fromMessageLinkCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async unlink(req: UnlinkRequest): Promise<MessageLink> {
+    const csilResp = await this.t.call("MagiService", "unlink", toUnlinkRequestCbor(req));
+    return fromMessageLinkCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async setVisibility(req: SetVisibilityRequest): Promise<Message> {
+    const csilResp = await this.t.call("MagiService", "set-visibility", toSetVisibilityRequestCbor(req));
+    return fromMessageCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async listReviews(req: ListReviewsRequest): Promise<ListReviewsResponse> {
+    const csilResp = await this.t.call("MagiService", "list-reviews", toListReviewsRequestCbor(req));
+    return fromListReviewsResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async answerReview(req: AnswerReviewRequest): Promise<AnswerReviewResponse> {
+    const csilResp = await this.t.call("MagiService", "answer-review", toAnswerReviewRequestCbor(req));
+    return fromAnswerReviewResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async listPersonas(req: ListPersonasRequest): Promise<ListPersonasResponse> {
+    const csilResp = await this.t.call("MagiService", "list-personas", toListPersonasRequestCbor(req));
+    return fromListPersonasResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async putPersona(req: PutPersonaRequest): Promise<PersonaInfo> {
+    const csilResp = await this.t.call("MagiService", "put-persona", toPutPersonaRequestCbor(req));
+    return fromPersonaInfoCbor(csilResp);
   }
 
   /**
@@ -128,6 +258,114 @@ export class MagiAsyncClient {
     const csilResp = await this.t.call("MagiService", "list-voices", toListVoicesRequestCbor(req));
     return fromListVoicesResponseCbor(csilResp);
   }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async listLexicon(req: ListLexiconRequest): Promise<ListLexiconResponse> {
+    const csilResp = await this.t.call("MagiService", "list-lexicon", toListLexiconRequestCbor(req));
+    return fromListLexiconResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async putLexiconWord(req: PutLexiconWordRequest): Promise<LexiconWord> {
+    const csilResp = await this.t.call("MagiService", "put-lexicon-word", toPutLexiconWordRequestCbor(req));
+    return fromLexiconWordCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async deleteLexiconWord(req: DeleteLexiconWordRequest): Promise<DeleteLexiconWordResponse> {
+    const csilResp = await this.t.call("MagiService", "delete-lexicon-word", toDeleteLexiconWordRequestCbor(req));
+    return fromDeleteLexiconWordResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async speak(req: SpeakRequest): Promise<SpeakResponse> {
+    const csilResp = await this.t.call("MagiService", "speak", toSpeakRequestCbor(req));
+    return fromSpeakResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async listRunners(req: ListRunnersRequest): Promise<ListRunnersResponse> {
+    const csilResp = await this.t.call("MagiService", "list-runners", toListRunnersRequestCbor(req));
+    return fromListRunnersResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async putRunnerPackage(req: PutRunnerPackageRequest): Promise<PutRunnerPackageResponse> {
+    const csilResp = await this.t.call("MagiService", "put-runner-package", toPutRunnerPackageRequestCbor(req));
+    return fromPutRunnerPackageResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async setRunnerRelease(req: SetRunnerReleaseRequest): Promise<SetRunnerReleaseResponse> {
+    const csilResp = await this.t.call("MagiService", "set-runner-release", toSetRunnerReleaseRequestCbor(req));
+    return fromSetRunnerReleaseResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async putAppRelease(req: PutAppReleaseRequest): Promise<AppRelease> {
+    const csilResp = await this.t.call("MagiService", "put-app-release", toPutAppReleaseRequestCbor(req));
+    return fromAppReleaseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async getAppRelease(req: GetAppReleaseRequest): Promise<GetAppReleaseResponse> {
+    const csilResp = await this.t.call("MagiService", "get-app-release", toGetAppReleaseRequestCbor(req));
+    return fromGetAppReleaseResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async getAppPackage(req: GetAppPackageRequest): Promise<GetAppPackageResponse> {
+    const csilResp = await this.t.call("MagiService", "get-app-package", toGetAppPackageRequestCbor(req));
+    return fromGetAppPackageResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async listEgressReviews(req: ListEgressReviewsRequest): Promise<ListEgressReviewsResponse> {
+    const csilResp = await this.t.call("MagiService", "list-egress-reviews", toListEgressReviewsRequestCbor(req));
+    return fromListEgressReviewsResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async decideEgressReview(req: DecideEgressReviewRequest): Promise<DecideEgressReviewResponse> {
+    const csilResp = await this.t.call("MagiService", "decide-egress-review", toDecideEgressReviewRequestCbor(req));
+    return fromDecideEgressReviewResponseCbor(csilResp);
+  }
 }
 
 export class RunnerAsyncClient {
@@ -195,12 +433,50 @@ export class RunnerAsyncClient {
     const csilResp = await this.t.call("RunnerService", "run-status", toRunnerRunStatusRequestCbor(req));
     return fromRunnerRunStatusResponseCbor(csilResp);
   }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async hello(req: RunnerHelloRequest): Promise<RunnerHelloResponse> {
+    const csilResp = await this.t.call("RunnerService", "hello", toRunnerHelloRequestCbor(req));
+    return fromRunnerHelloResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async getPackage(req: RunnerGetPackageRequest): Promise<RunnerGetPackageResponse> {
+    const csilResp = await this.t.call("RunnerService", "get-package", toRunnerGetPackageRequestCbor(req));
+    return fromRunnerGetPackageResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async getArtifact(req: RunnerGetArtifactRequest): Promise<RunnerGetArtifactResponse> {
+    const csilResp = await this.t.call("RunnerService", "get-artifact", toRunnerGetArtifactRequestCbor(req));
+    return fromRunnerGetArtifactResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async egressAccess(req: RunnerStep): Promise<RunnerEgressAccessResponse> {
+    const csilResp = await this.t.call("RunnerService", "egress-access", toRunnerStepCbor(req));
+    return fromRunnerEgressAccessResponseCbor(csilResp);
+  }
 }
 
 export class AsyncApiClient {
+  readonly egressAsk: EgressAskAsyncClient;
   readonly magi: MagiAsyncClient;
   readonly runner: RunnerAsyncClient;
   constructor(t: AsyncServiceTransport) {
+    this.egressAsk = new EgressAskAsyncClient(t);
     this.magi = new MagiAsyncClient(t);
     this.runner = new RunnerAsyncClient(t);
   }

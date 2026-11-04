@@ -3,14 +3,12 @@ package compose
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/catalystcommunity/magi/lib/rpc"
 	magiapi "github.com/catalystcommunity/magi/magi/api"
 	artifactsapi "github.com/catalystcommunity/magi/primitives/artifacts/api"
-	conversationapi "github.com/catalystcommunity/magi/primitives/conversation/api"
 	knowledgeapi "github.com/catalystcommunity/magi/primitives/knowledge/api"
 	sourceapi "github.com/catalystcommunity/magi/primitives/source/api"
 	speechapi "github.com/catalystcommunity/magi/primitives/speech/api"
@@ -25,100 +23,6 @@ import (
 type Service struct{ S *System }
 
 var _ magiapi.MagiService = (*Service)(nil)
-
-func (m *Service) Say(ctx context.Context, req magiapi.SayRequest) (magiapi.SayResponse, error) {
-	caller, err := rpc.Caller(ctx)
-	if err != nil {
-		return magiapi.SayResponse{}, err
-	}
-	s, uctx := m.S, AsCaller(ctx)
-	text, modality := strings.TrimSpace(deref(req.Text)), "text"
-	var audioDigest *string
-	var confidence *float64
-	var transcriber *string
-	if req.Audio != nil && len(*req.Audio) > 0 {
-		audio := *req.Audio
-		mt := deref(req.AudioType)
-		if mt == "" {
-			mt = "audio/wav"
-		}
-		art, err := s.Artifacts.Put(uctx, artifactsapi.PutRequest{MediaType: mt, Body: audio, Labels: map[string]string{"kind": "voice-input"}})
-		if err != nil {
-			return magiapi.SayResponse{}, err
-		}
-		tr, err := s.Speech.Transcribe(uctx, speechapi.TranscribeRequest{Audio: audio, MediaType: mt})
-		if err != nil {
-			return magiapi.SayResponse{}, fmt.Errorf("transcribe: %w", err)
-		}
-		audioDigest, confidence, modality = &art.Digest, tr.Confidence, "voice"
-		if text == "" {
-			text = strings.TrimSpace(tr.Text)
-			transcriber = &tr.Engine
-		}
-	}
-	if text == "" {
-		return magiapi.SayResponse{}, rpc.Invalid("text or audio is required")
-	}
-	chat := deref(req.Chat)
-	if chat == "" {
-		title := text
-		if len(title) > 60 {
-			title = title[:60] + "..."
-		}
-		c, err := s.Conversation.CreateConversation(uctx, conversationapi.CreateConversationRequest{Title: ptr(title), Participants: []string{Persona}})
-		if err != nil {
-			return magiapi.SayResponse{}, err
-		}
-		chat = c.Id
-	}
-	u, err := s.Conversation.Post(uctx, conversationapi.PostRequest{
-		Conversation: chat, Text: text, Modality: ptr(modality), Audio: audioDigest, TranscriptConfidence: confidence,
-		GeneratedBy: transcriber,
-	})
-	if err != nil {
-		return magiapi.SayResponse{}, err
-	}
-	vars := map[string]string{"chat": chat, "utterance": u.Id}
-	if caller.Name != "" {
-		vars["owner_name"] = caller.Name
-	}
-	if deref(req.SpeakReply) {
-		vars["speak"] = "true"
-	}
-	if v := deref(req.Voice); v != "" {
-		vars["voice"] = v
-	}
-	if _, err := s.Workflow.Start(s.AsService(ctx), workflowapi.StartRequest{Definition: PersonaTurn, Vars: vars, Owner: ptr(caller.Subject), Key: ptr(u.Id)}); err != nil {
-		return magiapi.SayResponse{}, fmt.Errorf("start reply: %w", err)
-	}
-	return magiapi.SayResponse{Chat: chat, Message: message(u)}, nil
-}
-
-func (m *Service) ListChats(ctx context.Context, req magiapi.ListChatsRequest) (magiapi.ListChatsResponse, error) {
-	res, err := m.S.Conversation.ListConversations(AsCaller(ctx), conversationapi.ListConversationsRequest{Limit: req.Limit})
-	if err != nil {
-		return magiapi.ListChatsResponse{}, err
-	}
-	out := magiapi.ListChatsResponse{Chats: []magiapi.Chat{}}
-	for _, c := range res.Conversations {
-		out.Chats = append(out.Chats, magiapi.Chat{Id: c.Id, Title: c.Title, CreatedMs: c.CreatedMs, UpdatedMs: c.UpdatedMs, LastSeq: c.LastSeq})
-	}
-	return out, nil
-}
-
-func (m *Service) Read(ctx context.Context, req magiapi.ReadRequest) (magiapi.ReadResponse, error) {
-	res, err := m.S.Conversation.ListUtterances(AsCaller(ctx), conversationapi.ListUtterancesRequest{
-		Conversation: req.Chat, AfterSeq: req.AfterSeq, Limit: req.Limit, WaitMs: req.WaitMs,
-	})
-	if err != nil {
-		return magiapi.ReadResponse{}, err
-	}
-	out := magiapi.ReadResponse{Messages: []magiapi.Message{}, LastSeq: res.LastSeq}
-	for _, u := range res.Utterances {
-		out.Messages = append(out.Messages, message(u))
-	}
-	return out, nil
-}
 
 func (m *Service) GetAudio(ctx context.Context, req magiapi.GetAudioRequest) (magiapi.AudioResponse, error) {
 	a, err := m.S.Artifacts.Get(AsCaller(ctx), artifactsapi.GetRequest{Digest: req.Digest})
@@ -143,36 +47,32 @@ func (m *Service) StartTask(ctx context.Context, req magiapi.StartTaskRequest) (
 	if title == "" {
 		title = firstLine(req.Instructions, 60)
 	}
-	run, err := m.S.startCodeChange(m.S.AsService(ctx), caller.Subject, deref(req.Chat), title, req.Instructions, deref(req.Repo))
+	run, err := m.S.startCodeChange(m.S.AsService(ctx), caller.Subject, origin{}, title, req.Instructions, deref(req.Repo), deref(req.Runner))
 	if err != nil {
 		return magiapi.Task{}, err
 	}
 	return task(run), nil
 }
 
+// origin is the message that asked for a task, if any.
+type origin struct{ stream, utterance, persona string }
+
 // startCodeChange starts a code-change run owned by owner. ctx must carry
-// the service token.
-func (s *System) startCodeChange(ctx context.Context, owner, chat, title, instructions, repo string) (workflowapi.Run, error) {
+// the service token. The run reports to the stream of from.
+func (s *System) startCodeChange(ctx context.Context, owner string, from origin, title, instructions, repo, runner string) (workflowapi.Run, error) {
 	if strings.TrimSpace(instructions) == "" {
 		return workflowapi.Run{}, rpc.Invalid("instructions are required")
 	}
 	if repo == "" {
 		repo = s.Cfg.Repo
 	}
-	vars := map[string]string{"title": title, "instructions": instructions, "repo": repo, "chat": chat, "check_command": s.Cfg.CheckCommand, "runner": s.Cfg.Runner}
-	if chat != "" {
-		if sess, err := s.Conversation.OpenSession(ctx, conversationapi.OpenSessionRequest{Conversation: chat, Title: title, Status: ptr("open")}); err == nil {
-			vars["session"] = sess.Id
-		}
-	}
-	run, err := s.Workflow.Start(ctx, workflowapi.StartRequest{Definition: CodeChange, Vars: vars, Owner: ptr(owner)})
+	runner, publisher, err := s.chooseRunners(runner, repo)
 	if err != nil {
-		return run, err
+		return workflowapi.Run{}, err
 	}
-	if sess := vars["session"]; sess != "" {
-		s.Conversation.UpdateSession(ctx, conversationapi.UpdateSessionRequest{Id: sess, AddRefs: []conversationapi.Attachment{{Kind: "workflow-run", Ref: run.Id, Title: ptr(title)}}})
-	}
-	return run, nil
+	vars := map[string]string{"title": title, "instructions": instructions, "repo": repo, "check_command": s.Cfg.CheckCommand,
+		"runner": runner, "publisher": publisher, "stream": from.stream, "utterance": from.utterance, "persona": from.persona}
+	return s.Workflow.Start(ctx, workflowapi.StartRequest{Definition: CodeChange, Vars: vars, Owner: ptr(owner)})
 }
 
 func (m *Service) GetTask(ctx context.Context, req magiapi.GetTaskRequest) (magiapi.Task, error) {
@@ -193,9 +93,6 @@ func (m *Service) ListTasks(ctx context.Context, req magiapi.ListTasksRequest) (
 	}
 	out := magiapi.ListTasksResponse{Tasks: []magiapi.Task{}}
 	for _, r := range res.Runs {
-		if c := deref(req.Chat); c != "" && r.Vars["chat"] != c {
-			continue
-		}
 		out.Tasks = append(out.Tasks, task(r))
 	}
 	return out, nil
@@ -310,25 +207,16 @@ func (m *Service) ListVoices(ctx context.Context, req magiapi.ListVoicesRequest)
 	return out, nil
 }
 
-func message(u conversationapi.Utterance) magiapi.Message {
-	m := magiapi.Message{Id: u.Id, Chat: u.Conversation, Seq: u.Seq, Author: u.Author, AuthorKind: u.AuthorKind,
-		Modality: u.Modality, Text: u.Text, Audio: u.Audio, ReplyTo: u.ReplyTo, GeneratedBy: u.GeneratedBy, CreatedMs: u.CreatedMs, Refs: []magiapi.Ref{}}
-	for _, a := range u.Attachments {
-		m.Refs = append(m.Refs, magiapi.Ref{Kind: a.Kind, Ref: a.Ref, Title: a.Title})
-	}
-	return m
-}
-
 func task(r workflowapi.Run) magiapi.Task {
 	t := magiapi.Task{Id: r.Id, Kind: r.Definition, Title: r.Vars["title"], Status: r.Status, CurrentStep: r.CurrentStep,
-		Chat: optional(r.Vars["chat"]), Branch: optional(r.Vars["branch"]), Repo: optional(r.Vars["repo"]),
+		Branch: optional(r.Vars["branch"]), Repo: optional(r.Vars["repo"]),
 		Error: r.Error, CreatedMs: r.CreatedMs, UpdatedMs: r.UpdatedMs, Steps: []magiapi.TaskStep{}, Refs: []magiapi.Ref{}}
 	if res := r.Vars["task.result"]; res != "" && r.Status == "succeeded" {
 		t.Status = res
 	}
 	if r.Status == "waiting" {
-		t.WaitingFor = codeChangeDefinition("").Steps[3].Prompt
-		t.Decisions = codeChangeDefinition("").Steps[3].Outcomes
+		t.WaitingFor = codeChangeDefinition(false).Steps[3].Prompt
+		t.Decisions = codeChangeDefinition(false).Steps[3].Outcomes
 	}
 	for _, st := range r.History {
 		ts := magiapi.TaskStep{Step: st.Step, Status: st.Status, Outcome: st.Outcome, StartedMs: st.StartedMs, EndedMs: st.EndedMs, Notes: []string{}}
@@ -340,7 +228,7 @@ func task(r workflowapi.Run) magiapi.Task {
 		}
 		t.Steps = append(t.Steps, ts)
 	}
-	for _, k := range []string{"check.output", "agent.transcript"} {
+	for _, k := range []string{"check.output", "apprentice.transcript"} {
 		if v := r.Vars[k]; v != "" {
 			t.Refs = append(t.Refs, magiapi.Ref{Kind: "artifact", Ref: v, Title: ptr(k)})
 		}

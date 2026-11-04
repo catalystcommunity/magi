@@ -347,48 +347,63 @@ fun refFromCborValue(cbor: CborValue): Ref {
 /** Decode CSIL CBOR bytes into a Ref. */
 fun refFromCbor(bytes: ByteArray): Ref = refFromCborValue(CsilCbor.decode(bytes))
 
-/** The CBOR value tree for a Chat (deep, canonical key order). */
-fun Chat.toCborValue(): CborValue {
+/** The CBOR value tree for a MessageLink (deep, canonical key order). */
+fun MessageLink.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
     csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
-    csilEntries.add(CborValue.CText("title") to CborValue.CText(this.title))
-    csilEntries.add(CborValue.CText("last_seq") to CborValue.CUint(this.lastSeq))
-    csilEntries.add(CborValue.CText("created_ms") to CborValue.CUint(this.createdMs))
-    csilEntries.add(CborValue.CText("updated_ms") to CborValue.CUint(this.updatedMs))
+    csilEntries.add(CborValue.CText("kind") to CborValue.CText(this.kind))
+    csilEntries.add(CborValue.CText("state") to CborValue.CText(this.state))
+    csilEntries.add(CborValue.CText("author") to CborValue.CText(this.author))
+    csilEntries.add(CborValue.CText("target") to this.target.toCborValue())
+    csilEntries.add(CborValue.CText("weight") to CborValue.CFloat(this.weight))
+    this.snippet?.let { csilV -> csilEntries.add(CborValue.CText("snippet") to CborValue.CText(csilV)) }
+    this.spanEnd?.let { csilV -> csilEntries.add(CborValue.CText("span_end") to CborValue.CUint(csilV)) }
+    this.targetMs?.let { csilV -> csilEntries.add(CborValue.CText("target_ms") to CborValue.CUint(csilV)) }
+    csilEntries.add(CborValue.CText("confidence") to CborValue.CFloat(this.confidence))
+    this.spanStart?.let { csilV -> csilEntries.add(CborValue.CText("span_start") to CborValue.CUint(csilV)) }
     return CborValue.CMap(csilEntries)
 }
 
-/** Encode a Chat to canonical CSIL CBOR bytes. */
-fun Chat.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+/** Encode a MessageLink to canonical CSIL CBOR bytes. */
+fun MessageLink.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
 
-/** Reconstruct a Chat from a decoded CBOR value tree. */
-fun chatFromCborValue(cbor: CborValue): Chat {
+/** Reconstruct a MessageLink from a decoded CBOR value tree. */
+fun messageLinkFromCborValue(cbor: CborValue): MessageLink {
     val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
-    val title = CsilCbor.asText(CsilCbor.require(cbor, "title"))
-    val createdMs = CsilCbor.asULong(CsilCbor.require(cbor, "created_ms"))
-    val updatedMs = CsilCbor.asULong(CsilCbor.require(cbor, "updated_ms"))
-    val lastSeq = CsilCbor.asULong(CsilCbor.require(cbor, "last_seq"))
-    return Chat(id = id, title = title, createdMs = createdMs, updatedMs = updatedMs, lastSeq = lastSeq)
+    val kind = CsilCbor.asText(CsilCbor.require(cbor, "kind"))
+    val target = refFromCborValue(CsilCbor.require(cbor, "target"))
+    val snippet = CsilCbor.mapGet(cbor, "snippet")?.let { csilV -> CsilCbor.asText(csilV) }
+    val targetMs = CsilCbor.mapGet(cbor, "target_ms")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val spanStart = CsilCbor.mapGet(cbor, "span_start")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val spanEnd = CsilCbor.mapGet(cbor, "span_end")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val weight = CsilCbor.asDouble(CsilCbor.require(cbor, "weight"))
+    val confidence = CsilCbor.asDouble(CsilCbor.require(cbor, "confidence"))
+    val author = CsilCbor.asText(CsilCbor.require(cbor, "author"))
+    val state = CsilCbor.asText(CsilCbor.require(cbor, "state"))
+    return MessageLink(id = id, kind = kind, target = target, snippet = snippet, targetMs = targetMs, spanStart = spanStart, spanEnd = spanEnd, weight = weight, confidence = confidence, author = author, state = state)
 }
 
-/** Decode CSIL CBOR bytes into a Chat. */
-fun chatFromCbor(bytes: ByteArray): Chat = chatFromCborValue(CsilCbor.decode(bytes))
+/** Decode CSIL CBOR bytes into a MessageLink. */
+fun messageLinkFromCbor(bytes: ByteArray): MessageLink = messageLinkFromCborValue(CsilCbor.decode(bytes))
 
 /** The CBOR value tree for a Message (deep, canonical key order). */
 fun Message.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
     csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
     csilEntries.add(CborValue.CText("seq") to CborValue.CUint(this.seq))
-    csilEntries.add(CborValue.CText("chat") to CborValue.CText(this.chat))
     csilEntries.add(CborValue.CText("refs") to CborValue.CArray((this.refs).map { csilE -> csilE.toCborValue() }))
     csilEntries.add(CborValue.CText("text") to CborValue.CText(this.text))
     this.audio?.let { csilV -> csilEntries.add(CborValue.CText("audio") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("links") to CborValue.CArray((this.links).map { csilE -> csilE.toCborValue() }))
     csilEntries.add(CborValue.CText("author") to CborValue.CText(this.author))
+    csilEntries.add(CborValue.CText("stream") to CborValue.CText(this.stream))
+    csilEntries.add(CborValue.CText("persona") to CborValue.CText(this.persona))
     csilEntries.add(CborValue.CText("modality") to CborValue.CText(this.modality))
-    this.replyTo?.let { csilV -> csilEntries.add(CborValue.CText("reply_to") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("created_ms") to CborValue.CUint(this.createdMs))
+    csilEntries.add(CborValue.CText("visibility") to CborValue.CText(this.visibility))
     csilEntries.add(CborValue.CText("author_kind") to CborValue.CText(this.authorKind))
     this.generatedBy?.let { csilV -> csilEntries.add(CborValue.CText("generated_by") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("visibility_by") to CborValue.CText(this.visibilityBy))
     return CborValue.CMap(csilEntries)
 }
 
@@ -398,30 +413,119 @@ fun Message.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
 /** Reconstruct a Message from a decoded CBOR value tree. */
 fun messageFromCborValue(cbor: CborValue): Message {
     val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
-    val chat = CsilCbor.asText(CsilCbor.require(cbor, "chat"))
+    val stream = CsilCbor.asText(CsilCbor.require(cbor, "stream"))
+    val persona = CsilCbor.asText(CsilCbor.require(cbor, "persona"))
     val seq = CsilCbor.asULong(CsilCbor.require(cbor, "seq"))
     val author = CsilCbor.asText(CsilCbor.require(cbor, "author"))
     val authorKind = CsilCbor.asText(CsilCbor.require(cbor, "author_kind"))
     val modality = CsilCbor.asText(CsilCbor.require(cbor, "modality"))
     val text = CsilCbor.asText(CsilCbor.require(cbor, "text"))
     val audio = CsilCbor.mapGet(cbor, "audio")?.let { csilV -> CsilCbor.asText(csilV) }
-    val replyTo = CsilCbor.mapGet(cbor, "reply_to")?.let { csilV -> CsilCbor.asText(csilV) }
     val refs = CsilCbor.asArray(CsilCbor.require(cbor, "refs")).map { csilE -> refFromCborValue(csilE) }
+    val links = CsilCbor.asArray(CsilCbor.require(cbor, "links")).map { csilE -> messageLinkFromCborValue(csilE) }
+    val visibility = CsilCbor.asText(CsilCbor.require(cbor, "visibility"))
+    val visibilityBy = CsilCbor.asText(CsilCbor.require(cbor, "visibility_by"))
     val generatedBy = CsilCbor.mapGet(cbor, "generated_by")?.let { csilV -> CsilCbor.asText(csilV) }
     val createdMs = CsilCbor.asULong(CsilCbor.require(cbor, "created_ms"))
-    return Message(id = id, chat = chat, seq = seq, author = author, authorKind = authorKind, modality = modality, text = text, audio = audio, replyTo = replyTo, refs = refs, generatedBy = generatedBy, createdMs = createdMs)
+    return Message(id = id, stream = stream, persona = persona, seq = seq, author = author, authorKind = authorKind, modality = modality, text = text, audio = audio, refs = refs, links = links, visibility = visibility, visibilityBy = visibilityBy, generatedBy = generatedBy, createdMs = createdMs)
 }
 
 /** Decode CSIL CBOR bytes into a Message. */
 fun messageFromCbor(bytes: ByteArray): Message = messageFromCborValue(CsilCbor.decode(bytes))
 
+/** The CBOR value tree for a PersonaInfo (deep, canonical key order). */
+fun PersonaInfo.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    csilEntries.add(CborValue.CText("name") to CborValue.CText(this.name))
+    csilEntries.add(CborValue.CText("members") to CborValue.CArray((this.members).map { csilE -> CborValue.CText(csilE) }))
+    csilEntries.add(CborValue.CText("sharing") to CborValue.CText(this.sharing))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a PersonaInfo to canonical CSIL CBOR bytes. */
+fun PersonaInfo.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a PersonaInfo from a decoded CBOR value tree. */
+fun personaInfoFromCborValue(cbor: CborValue): PersonaInfo {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val name = CsilCbor.asText(CsilCbor.require(cbor, "name"))
+    val sharing = CsilCbor.asText(CsilCbor.require(cbor, "sharing"))
+    val members = CsilCbor.asArray(CsilCbor.require(cbor, "members")).map { csilE -> CsilCbor.asText(csilE) }
+    return PersonaInfo(id = id, name = name, sharing = sharing, members = members)
+}
+
+/** Decode CSIL CBOR bytes into a PersonaInfo. */
+fun personaInfoFromCbor(bytes: ByteArray): PersonaInfo = personaInfoFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListPersonasRequest (deep, canonical key order). */
+fun ListPersonasRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListPersonasRequest to canonical CSIL CBOR bytes. */
+fun ListPersonasRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListPersonasRequest from a decoded CBOR value tree. */
+fun listPersonasRequestFromCborValue(cbor: CborValue): ListPersonasRequest {
+    return ListPersonasRequest()
+}
+
+/** Decode CSIL CBOR bytes into a ListPersonasRequest. */
+fun listPersonasRequestFromCbor(bytes: ByteArray): ListPersonasRequest = listPersonasRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListPersonasResponse (deep, canonical key order). */
+fun ListPersonasResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("personas") to CborValue.CArray((this.personas).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListPersonasResponse to canonical CSIL CBOR bytes. */
+fun ListPersonasResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListPersonasResponse from a decoded CBOR value tree. */
+fun listPersonasResponseFromCborValue(cbor: CborValue): ListPersonasResponse {
+    val personas = CsilCbor.asArray(CsilCbor.require(cbor, "personas")).map { csilE -> personaInfoFromCborValue(csilE) }
+    return ListPersonasResponse(personas = personas)
+}
+
+/** Decode CSIL CBOR bytes into a ListPersonasResponse. */
+fun listPersonasResponseFromCbor(bytes: ByteArray): ListPersonasResponse = listPersonasResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a PutPersonaRequest (deep, canonical key order). */
+fun PutPersonaRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    csilEntries.add(CborValue.CText("name") to CborValue.CText(this.name))
+    this.members?.let { csilV -> csilEntries.add(CborValue.CText("members") to CborValue.CArray((csilV).map { csilE -> CborValue.CText(csilE) })) }
+    csilEntries.add(CborValue.CText("sharing") to CborValue.CText(this.sharing))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a PutPersonaRequest to canonical CSIL CBOR bytes. */
+fun PutPersonaRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a PutPersonaRequest from a decoded CBOR value tree. */
+fun putPersonaRequestFromCborValue(cbor: CborValue): PutPersonaRequest {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val name = CsilCbor.asText(CsilCbor.require(cbor, "name"))
+    val sharing = CsilCbor.asText(CsilCbor.require(cbor, "sharing"))
+    val members = CsilCbor.mapGet(cbor, "members")?.let { csilV -> CsilCbor.asArray(csilV).map { csilE -> CsilCbor.asText(csilE) } }
+    return PutPersonaRequest(id = id, name = name, sharing = sharing, members = members)
+}
+
+/** Decode CSIL CBOR bytes into a PutPersonaRequest. */
+fun putPersonaRequestFromCbor(bytes: ByteArray): PutPersonaRequest = putPersonaRequestFromCborValue(CsilCbor.decode(bytes))
+
 /** The CBOR value tree for a SayRequest (deep, canonical key order). */
 fun SayRequest.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
-    this.chat?.let { csilV -> csilEntries.add(CborValue.CText("chat") to CborValue.CText(csilV)) }
     this.text?.let { csilV -> csilEntries.add(CborValue.CText("text") to CborValue.CText(csilV)) }
     this.audio?.let { csilV -> csilEntries.add(CborValue.CText("audio") to CborValue.CBytes(csilV)) }
     this.voice?.let { csilV -> csilEntries.add(CborValue.CText("voice") to CborValue.CText(csilV)) }
+    this.persona?.let { csilV -> csilEntries.add(CborValue.CText("persona") to CborValue.CText(csilV)) }
     this.audioType?.let { csilV -> csilEntries.add(CborValue.CText("audio_type") to CborValue.CText(csilV)) }
     this.speakReply?.let { csilV -> csilEntries.add(CborValue.CText("speak_reply") to CborValue.CBool(csilV)) }
     return CborValue.CMap(csilEntries)
@@ -432,13 +536,13 @@ fun SayRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
 
 /** Reconstruct a SayRequest from a decoded CBOR value tree. */
 fun sayRequestFromCborValue(cbor: CborValue): SayRequest {
-    val chat = CsilCbor.mapGet(cbor, "chat")?.let { csilV -> CsilCbor.asText(csilV) }
+    val persona = CsilCbor.mapGet(cbor, "persona")?.let { csilV -> CsilCbor.asText(csilV) }
     val text = CsilCbor.mapGet(cbor, "text")?.let { csilV -> CsilCbor.asText(csilV) }
     val audio = CsilCbor.mapGet(cbor, "audio")?.let { csilV -> CsilCbor.asBytes(csilV) }
     val audioType = CsilCbor.mapGet(cbor, "audio_type")?.let { csilV -> CsilCbor.asText(csilV) }
     val speakReply = CsilCbor.mapGet(cbor, "speak_reply")?.let { csilV -> CsilCbor.asBoolean(csilV) }
     val voice = CsilCbor.mapGet(cbor, "voice")?.let { csilV -> CsilCbor.asText(csilV) }
-    return SayRequest(chat = chat, text = text, audio = audio, audioType = audioType, speakReply = speakReply, voice = voice)
+    return SayRequest(persona = persona, text = text, audio = audio, audioType = audioType, speakReply = speakReply, voice = voice)
 }
 
 /** Decode CSIL CBOR bytes into a SayRequest. */
@@ -447,7 +551,6 @@ fun sayRequestFromCbor(bytes: ByteArray): SayRequest = sayRequestFromCborValue(C
 /** The CBOR value tree for a SayResponse (deep, canonical key order). */
 fun SayResponse.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
-    csilEntries.add(CborValue.CText("chat") to CborValue.CText(this.chat))
     csilEntries.add(CborValue.CText("message") to this.message.toCborValue())
     return CborValue.CMap(csilEntries)
 }
@@ -457,59 +560,21 @@ fun SayResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
 
 /** Reconstruct a SayResponse from a decoded CBOR value tree. */
 fun sayResponseFromCborValue(cbor: CborValue): SayResponse {
-    val chat = CsilCbor.asText(CsilCbor.require(cbor, "chat"))
     val message = messageFromCborValue(CsilCbor.require(cbor, "message"))
-    return SayResponse(chat = chat, message = message)
+    return SayResponse(message = message)
 }
 
 /** Decode CSIL CBOR bytes into a SayResponse. */
 fun sayResponseFromCbor(bytes: ByteArray): SayResponse = sayResponseFromCborValue(CsilCbor.decode(bytes))
 
-/** The CBOR value tree for a ListChatsRequest (deep, canonical key order). */
-fun ListChatsRequest.toCborValue(): CborValue {
-    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
-    this.limit?.let { csilV -> csilEntries.add(CborValue.CText("limit") to CborValue.CUint(csilV)) }
-    return CborValue.CMap(csilEntries)
-}
-
-/** Encode a ListChatsRequest to canonical CSIL CBOR bytes. */
-fun ListChatsRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
-
-/** Reconstruct a ListChatsRequest from a decoded CBOR value tree. */
-fun listChatsRequestFromCborValue(cbor: CborValue): ListChatsRequest {
-    val limit = CsilCbor.mapGet(cbor, "limit")?.let { csilV -> CsilCbor.asULong(csilV) }
-    return ListChatsRequest(limit = limit)
-}
-
-/** Decode CSIL CBOR bytes into a ListChatsRequest. */
-fun listChatsRequestFromCbor(bytes: ByteArray): ListChatsRequest = listChatsRequestFromCborValue(CsilCbor.decode(bytes))
-
-/** The CBOR value tree for a ListChatsResponse (deep, canonical key order). */
-fun ListChatsResponse.toCborValue(): CborValue {
-    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
-    csilEntries.add(CborValue.CText("chats") to CborValue.CArray((this.chats).map { csilE -> csilE.toCborValue() }))
-    return CborValue.CMap(csilEntries)
-}
-
-/** Encode a ListChatsResponse to canonical CSIL CBOR bytes. */
-fun ListChatsResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
-
-/** Reconstruct a ListChatsResponse from a decoded CBOR value tree. */
-fun listChatsResponseFromCborValue(cbor: CborValue): ListChatsResponse {
-    val chats = CsilCbor.asArray(CsilCbor.require(cbor, "chats")).map { csilE -> chatFromCborValue(csilE) }
-    return ListChatsResponse(chats = chats)
-}
-
-/** Decode CSIL CBOR bytes into a ListChatsResponse. */
-fun listChatsResponseFromCbor(bytes: ByteArray): ListChatsResponse = listChatsResponseFromCborValue(CsilCbor.decode(bytes))
-
 /** The CBOR value tree for a ReadRequest (deep, canonical key order). */
 fun ReadRequest.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
-    csilEntries.add(CborValue.CText("chat") to CborValue.CText(this.chat))
     this.limit?.let { csilV -> csilEntries.add(CborValue.CText("limit") to CborValue.CUint(csilV)) }
+    this.persona?.let { csilV -> csilEntries.add(CborValue.CText("persona") to CborValue.CText(csilV)) }
     this.waitMs?.let { csilV -> csilEntries.add(CborValue.CText("wait_ms") to CborValue.CUint(csilV)) }
     this.afterSeq?.let { csilV -> csilEntries.add(CborValue.CText("after_seq") to CborValue.CUint(csilV)) }
+    this.beforeSeq?.let { csilV -> csilEntries.add(CborValue.CText("before_seq") to CborValue.CUint(csilV)) }
     return CborValue.CMap(csilEntries)
 }
 
@@ -518,11 +583,12 @@ fun ReadRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
 
 /** Reconstruct a ReadRequest from a decoded CBOR value tree. */
 fun readRequestFromCborValue(cbor: CborValue): ReadRequest {
-    val chat = CsilCbor.asText(CsilCbor.require(cbor, "chat"))
+    val persona = CsilCbor.mapGet(cbor, "persona")?.let { csilV -> CsilCbor.asText(csilV) }
     val afterSeq = CsilCbor.mapGet(cbor, "after_seq")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val beforeSeq = CsilCbor.mapGet(cbor, "before_seq")?.let { csilV -> CsilCbor.asULong(csilV) }
     val limit = CsilCbor.mapGet(cbor, "limit")?.let { csilV -> CsilCbor.asULong(csilV) }
     val waitMs = CsilCbor.mapGet(cbor, "wait_ms")?.let { csilV -> CsilCbor.asULong(csilV) }
-    return ReadRequest(chat = chat, afterSeq = afterSeq, limit = limit, waitMs = waitMs)
+    return ReadRequest(persona = persona, afterSeq = afterSeq, beforeSeq = beforeSeq, limit = limit, waitMs = waitMs)
 }
 
 /** Decode CSIL CBOR bytes into a ReadRequest. */
@@ -531,6 +597,7 @@ fun readRequestFromCbor(bytes: ByteArray): ReadRequest = readRequestFromCborValu
 /** The CBOR value tree for a ReadResponse (deep, canonical key order). */
 fun ReadResponse.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("stream") to CborValue.CText(this.stream))
     csilEntries.add(CborValue.CText("last_seq") to CborValue.CUint(this.lastSeq))
     csilEntries.add(CborValue.CText("messages") to CborValue.CArray((this.messages).map { csilE -> csilE.toCborValue() }))
     return CborValue.CMap(csilEntries)
@@ -543,11 +610,330 @@ fun ReadResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
 fun readResponseFromCborValue(cbor: CborValue): ReadResponse {
     val messages = CsilCbor.asArray(CsilCbor.require(cbor, "messages")).map { csilE -> messageFromCborValue(csilE) }
     val lastSeq = CsilCbor.asULong(CsilCbor.require(cbor, "last_seq"))
-    return ReadResponse(messages = messages, lastSeq = lastSeq)
+    val stream = CsilCbor.asText(CsilCbor.require(cbor, "stream"))
+    return ReadResponse(messages = messages, lastSeq = lastSeq, stream = stream)
 }
 
 /** Decode CSIL CBOR bytes into a ReadResponse. */
 fun readResponseFromCbor(bytes: ByteArray): ReadResponse = readResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a SearchRequest (deep, canonical key order). */
+fun SearchRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("text") to CborValue.CText(this.text))
+    this.limit?.let { csilV -> csilEntries.add(CborValue.CText("limit") to CborValue.CUint(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a SearchRequest to canonical CSIL CBOR bytes. */
+fun SearchRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a SearchRequest from a decoded CBOR value tree. */
+fun searchRequestFromCborValue(cbor: CborValue): SearchRequest {
+    val text = CsilCbor.asText(CsilCbor.require(cbor, "text"))
+    val limit = CsilCbor.mapGet(cbor, "limit")?.let { csilV -> CsilCbor.asULong(csilV) }
+    return SearchRequest(text = text, limit = limit)
+}
+
+/** Decode CSIL CBOR bytes into a SearchRequest. */
+fun searchRequestFromCbor(bytes: ByteArray): SearchRequest = searchRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a SearchResponse (deep, canonical key order). */
+fun SearchResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("messages") to CborValue.CArray((this.messages).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a SearchResponse to canonical CSIL CBOR bytes. */
+fun SearchResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a SearchResponse from a decoded CBOR value tree. */
+fun searchResponseFromCborValue(cbor: CborValue): SearchResponse {
+    val messages = CsilCbor.asArray(CsilCbor.require(cbor, "messages")).map { csilE -> messageFromCborValue(csilE) }
+    return SearchResponse(messages = messages)
+}
+
+/** Decode CSIL CBOR bytes into a SearchResponse. */
+fun searchResponseFromCbor(bytes: ByteArray): SearchResponse = searchResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a TraceRequest (deep, canonical key order). */
+fun TraceRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.depth?.let { csilV -> csilEntries.add(CborValue.CText("depth") to CborValue.CUint(csilV)) }
+    csilEntries.add(CborValue.CText("message") to CborValue.CText(this.message))
+    this.direction?.let { csilV -> csilEntries.add(CborValue.CText("direction") to CborValue.CText(csilV)) }
+    this.tentative?.let { csilV -> csilEntries.add(CborValue.CText("tentative") to CborValue.CBool(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a TraceRequest to canonical CSIL CBOR bytes. */
+fun TraceRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a TraceRequest from a decoded CBOR value tree. */
+fun traceRequestFromCborValue(cbor: CborValue): TraceRequest {
+    val message = CsilCbor.asText(CsilCbor.require(cbor, "message"))
+    val direction = CsilCbor.mapGet(cbor, "direction")?.let { csilV -> CsilCbor.asText(csilV) }
+    val depth = CsilCbor.mapGet(cbor, "depth")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val tentative = CsilCbor.mapGet(cbor, "tentative")?.let { csilV -> CsilCbor.asBoolean(csilV) }
+    return TraceRequest(message = message, direction = direction, depth = depth, tentative = tentative)
+}
+
+/** Decode CSIL CBOR bytes into a TraceRequest. */
+fun traceRequestFromCbor(bytes: ByteArray): TraceRequest = traceRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a TraceResponse (deep, canonical key order). */
+fun TraceResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("links") to CborValue.CArray((this.links).map { csilE -> csilE.toCborValue() }))
+    csilEntries.add(CborValue.CText("messages") to CborValue.CArray((this.messages).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a TraceResponse to canonical CSIL CBOR bytes. */
+fun TraceResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a TraceResponse from a decoded CBOR value tree. */
+fun traceResponseFromCborValue(cbor: CborValue): TraceResponse {
+    val messages = CsilCbor.asArray(CsilCbor.require(cbor, "messages")).map { csilE -> messageFromCborValue(csilE) }
+    val links = CsilCbor.asArray(CsilCbor.require(cbor, "links")).map { csilE -> messageLinkFromCborValue(csilE) }
+    return TraceResponse(messages = messages, links = links)
+}
+
+/** Decode CSIL CBOR bytes into a TraceResponse. */
+fun traceResponseFromCbor(bytes: ByteArray): TraceResponse = traceResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListLinksRequest (deep, canonical key order). */
+fun ListLinksRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.all?.let { csilV -> csilEntries.add(CborValue.CText("all") to CborValue.CBool(csilV)) }
+    csilEntries.add(CborValue.CText("message") to CborValue.CText(this.message))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListLinksRequest to canonical CSIL CBOR bytes. */
+fun ListLinksRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListLinksRequest from a decoded CBOR value tree. */
+fun listLinksRequestFromCborValue(cbor: CborValue): ListLinksRequest {
+    val message = CsilCbor.asText(CsilCbor.require(cbor, "message"))
+    val all = CsilCbor.mapGet(cbor, "all")?.let { csilV -> CsilCbor.asBoolean(csilV) }
+    return ListLinksRequest(message = message, all = all)
+}
+
+/** Decode CSIL CBOR bytes into a ListLinksRequest. */
+fun listLinksRequestFromCbor(bytes: ByteArray): ListLinksRequest = listLinksRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListLinksResponse (deep, canonical key order). */
+fun ListLinksResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("links") to CborValue.CArray((this.links).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListLinksResponse to canonical CSIL CBOR bytes. */
+fun ListLinksResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListLinksResponse from a decoded CBOR value tree. */
+fun listLinksResponseFromCborValue(cbor: CborValue): ListLinksResponse {
+    val links = CsilCbor.asArray(CsilCbor.require(cbor, "links")).map { csilE -> messageLinkFromCborValue(csilE) }
+    return ListLinksResponse(links = links)
+}
+
+/** Decode CSIL CBOR bytes into a ListLinksResponse. */
+fun listLinksResponseFromCbor(bytes: ByteArray): ListLinksResponse = listLinksResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a LinkRequest (deep, canonical key order). */
+fun LinkRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("kind") to CborValue.CText(this.kind))
+    this.note?.let { csilV -> csilEntries.add(CborValue.CText("note") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("target") to this.target.toCborValue())
+    this.weight?.let { csilV -> csilEntries.add(CborValue.CText("weight") to CborValue.CFloat(csilV)) }
+    csilEntries.add(CborValue.CText("message") to CborValue.CText(this.message))
+    this.replaces?.let { csilV -> csilEntries.add(CborValue.CText("replaces") to CborValue.CText(csilV)) }
+    this.spanEnd?.let { csilV -> csilEntries.add(CborValue.CText("span_end") to CborValue.CUint(csilV)) }
+    this.spanStart?.let { csilV -> csilEntries.add(CborValue.CText("span_start") to CborValue.CUint(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a LinkRequest to canonical CSIL CBOR bytes. */
+fun LinkRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a LinkRequest from a decoded CBOR value tree. */
+fun linkRequestFromCborValue(cbor: CborValue): LinkRequest {
+    val message = CsilCbor.asText(CsilCbor.require(cbor, "message"))
+    val kind = CsilCbor.asText(CsilCbor.require(cbor, "kind"))
+    val target = refFromCborValue(CsilCbor.require(cbor, "target"))
+    val replaces = CsilCbor.mapGet(cbor, "replaces")?.let { csilV -> CsilCbor.asText(csilV) }
+    val spanStart = CsilCbor.mapGet(cbor, "span_start")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val spanEnd = CsilCbor.mapGet(cbor, "span_end")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val weight = CsilCbor.mapGet(cbor, "weight")?.let { csilV -> CsilCbor.asDouble(csilV) }
+    val note = CsilCbor.mapGet(cbor, "note")?.let { csilV -> CsilCbor.asText(csilV) }
+    return LinkRequest(message = message, kind = kind, target = target, replaces = replaces, spanStart = spanStart, spanEnd = spanEnd, weight = weight, note = note)
+}
+
+/** Decode CSIL CBOR bytes into a LinkRequest. */
+fun linkRequestFromCbor(bytes: ByteArray): LinkRequest = linkRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a UnlinkRequest (deep, canonical key order). */
+fun UnlinkRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("link") to CborValue.CText(this.link))
+    this.note?.let { csilV -> csilEntries.add(CborValue.CText("note") to CborValue.CText(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a UnlinkRequest to canonical CSIL CBOR bytes. */
+fun UnlinkRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a UnlinkRequest from a decoded CBOR value tree. */
+fun unlinkRequestFromCborValue(cbor: CborValue): UnlinkRequest {
+    val link = CsilCbor.asText(CsilCbor.require(cbor, "link"))
+    val note = CsilCbor.mapGet(cbor, "note")?.let { csilV -> CsilCbor.asText(csilV) }
+    return UnlinkRequest(link = link, note = note)
+}
+
+/** Decode CSIL CBOR bytes into a UnlinkRequest. */
+fun unlinkRequestFromCbor(bytes: ByteArray): UnlinkRequest = unlinkRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a SetVisibilityRequest (deep, canonical key order). */
+fun SetVisibilityRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.note?.let { csilV -> csilEntries.add(CborValue.CText("note") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("message") to CborValue.CText(this.message))
+    csilEntries.add(CborValue.CText("visibility") to CborValue.CText(this.visibility))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a SetVisibilityRequest to canonical CSIL CBOR bytes. */
+fun SetVisibilityRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a SetVisibilityRequest from a decoded CBOR value tree. */
+fun setVisibilityRequestFromCborValue(cbor: CborValue): SetVisibilityRequest {
+    val message = CsilCbor.asText(CsilCbor.require(cbor, "message"))
+    val visibility = CsilCbor.asText(CsilCbor.require(cbor, "visibility"))
+    val note = CsilCbor.mapGet(cbor, "note")?.let { csilV -> CsilCbor.asText(csilV) }
+    return SetVisibilityRequest(message = message, visibility = visibility, note = note)
+}
+
+/** Decode CSIL CBOR bytes into a SetVisibilityRequest. */
+fun setVisibilityRequestFromCbor(bytes: ByteArray): SetVisibilityRequest = setVisibilityRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ReviewItem (deep, canonical key order). */
+fun ReviewItem.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    csilEntries.add(CborValue.CText("task") to CborValue.CText(this.task))
+    this.target?.let { csilV -> csilEntries.add(CborValue.CText("target") to csilV.toCborValue()) }
+    csilEntries.add(CborValue.CText("choices") to CborValue.CArray((this.choices).map { csilE -> CborValue.CText(csilE) }))
+    csilEntries.add(CborValue.CText("message") to this.message.toCborValue())
+    csilEntries.add(CborValue.CText("proposed") to CborValue.CText(this.proposed))
+    csilEntries.add(CborValue.CText("question") to CborValue.CText(this.question))
+    csilEntries.add(CborValue.CText("confidence") to CborValue.CFloat(this.confidence))
+    csilEntries.add(CborValue.CText("created_ms") to CborValue.CUint(this.createdMs))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ReviewItem to canonical CSIL CBOR bytes. */
+fun ReviewItem.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ReviewItem from a decoded CBOR value tree. */
+fun reviewItemFromCborValue(cbor: CborValue): ReviewItem {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val task = CsilCbor.asText(CsilCbor.require(cbor, "task"))
+    val question = CsilCbor.asText(CsilCbor.require(cbor, "question"))
+    val proposed = CsilCbor.asText(CsilCbor.require(cbor, "proposed"))
+    val choices = CsilCbor.asArray(CsilCbor.require(cbor, "choices")).map { csilE -> CsilCbor.asText(csilE) }
+    val confidence = CsilCbor.asDouble(CsilCbor.require(cbor, "confidence"))
+    val message = messageFromCborValue(CsilCbor.require(cbor, "message"))
+    val target = CsilCbor.mapGet(cbor, "target")?.let { csilV -> messageFromCborValue(csilV) }
+    val createdMs = CsilCbor.asULong(CsilCbor.require(cbor, "created_ms"))
+    return ReviewItem(id = id, task = task, question = question, proposed = proposed, choices = choices, confidence = confidence, message = message, target = target, createdMs = createdMs)
+}
+
+/** Decode CSIL CBOR bytes into a ReviewItem. */
+fun reviewItemFromCbor(bytes: ByteArray): ReviewItem = reviewItemFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListReviewsRequest (deep, canonical key order). */
+fun ListReviewsRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.limit?.let { csilV -> csilEntries.add(CborValue.CText("limit") to CborValue.CUint(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListReviewsRequest to canonical CSIL CBOR bytes. */
+fun ListReviewsRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListReviewsRequest from a decoded CBOR value tree. */
+fun listReviewsRequestFromCborValue(cbor: CborValue): ListReviewsRequest {
+    val limit = CsilCbor.mapGet(cbor, "limit")?.let { csilV -> CsilCbor.asULong(csilV) }
+    return ListReviewsRequest(limit = limit)
+}
+
+/** Decode CSIL CBOR bytes into a ListReviewsRequest. */
+fun listReviewsRequestFromCbor(bytes: ByteArray): ListReviewsRequest = listReviewsRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListReviewsResponse (deep, canonical key order). */
+fun ListReviewsResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("reviews") to CborValue.CArray((this.reviews).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListReviewsResponse to canonical CSIL CBOR bytes. */
+fun ListReviewsResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListReviewsResponse from a decoded CBOR value tree. */
+fun listReviewsResponseFromCborValue(cbor: CborValue): ListReviewsResponse {
+    val reviews = CsilCbor.asArray(CsilCbor.require(cbor, "reviews")).map { csilE -> reviewItemFromCborValue(csilE) }
+    return ListReviewsResponse(reviews = reviews)
+}
+
+/** Decode CSIL CBOR bytes into a ListReviewsResponse. */
+fun listReviewsResponseFromCbor(bytes: ByteArray): ListReviewsResponse = listReviewsResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a AnswerReviewRequest (deep, canonical key order). */
+fun AnswerReviewRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    this.note?.let { csilV -> csilEntries.add(CborValue.CText("note") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("answer") to CborValue.CText(this.answer))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a AnswerReviewRequest to canonical CSIL CBOR bytes. */
+fun AnswerReviewRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a AnswerReviewRequest from a decoded CBOR value tree. */
+fun answerReviewRequestFromCborValue(cbor: CborValue): AnswerReviewRequest {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val answer = CsilCbor.asText(CsilCbor.require(cbor, "answer"))
+    val note = CsilCbor.mapGet(cbor, "note")?.let { csilV -> CsilCbor.asText(csilV) }
+    return AnswerReviewRequest(id = id, answer = answer, note = note)
+}
+
+/** Decode CSIL CBOR bytes into a AnswerReviewRequest. */
+fun answerReviewRequestFromCbor(bytes: ByteArray): AnswerReviewRequest = answerReviewRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a AnswerReviewResponse (deep, canonical key order). */
+fun AnswerReviewResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("status") to CborValue.CText(this.status))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a AnswerReviewResponse to canonical CSIL CBOR bytes. */
+fun AnswerReviewResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a AnswerReviewResponse from a decoded CBOR value tree. */
+fun answerReviewResponseFromCborValue(cbor: CborValue): AnswerReviewResponse {
+    val status = CsilCbor.asText(CsilCbor.require(cbor, "status"))
+    return AnswerReviewResponse(status = status)
+}
+
+/** Decode CSIL CBOR bytes into a AnswerReviewResponse. */
+fun answerReviewResponseFromCbor(bytes: ByteArray): AnswerReviewResponse = answerReviewResponseFromCborValue(CsilCbor.decode(bytes))
 
 /** The CBOR value tree for a GetAudioRequest (deep, canonical key order). */
 fun GetAudioRequest.toCborValue(): CborValue {
@@ -622,7 +1008,6 @@ fun taskStepFromCbor(bytes: ByteArray): TaskStep = taskStepFromCborValue(CsilCbo
 fun Task.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
     csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
-    this.chat?.let { csilV -> csilEntries.add(CborValue.CText("chat") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("kind") to CborValue.CText(this.kind))
     csilEntries.add(CborValue.CText("refs") to CborValue.CArray((this.refs).map { csilE -> csilE.toCborValue() }))
     this.repo?.let { csilV -> csilEntries.add(CborValue.CText("repo") to CborValue.CText(csilV)) }
@@ -651,7 +1036,6 @@ fun taskFromCborValue(cbor: CborValue): Task {
     val currentStep = CsilCbor.asText(CsilCbor.require(cbor, "current_step"))
     val waitingFor = CsilCbor.mapGet(cbor, "waiting_for")?.let { csilV -> CsilCbor.asText(csilV) }
     val decisions = CsilCbor.mapGet(cbor, "decisions")?.let { csilV -> CsilCbor.asArray(csilV).map { csilE -> CsilCbor.asText(csilE) } }
-    val chat = CsilCbor.mapGet(cbor, "chat")?.let { csilV -> CsilCbor.asText(csilV) }
     val branch = CsilCbor.mapGet(cbor, "branch")?.let { csilV -> CsilCbor.asText(csilV) }
     val repo = CsilCbor.mapGet(cbor, "repo")?.let { csilV -> CsilCbor.asText(csilV) }
     val steps = CsilCbor.asArray(CsilCbor.require(cbor, "steps")).map { csilE -> taskStepFromCborValue(csilE) }
@@ -659,7 +1043,7 @@ fun taskFromCborValue(cbor: CborValue): Task {
     val error = CsilCbor.mapGet(cbor, "error")?.let { csilV -> CsilCbor.asText(csilV) }
     val createdMs = CsilCbor.asULong(CsilCbor.require(cbor, "created_ms"))
     val updatedMs = CsilCbor.asULong(CsilCbor.require(cbor, "updated_ms"))
-    return Task(id = id, kind = kind, title = title, status = status, currentStep = currentStep, waitingFor = waitingFor, decisions = decisions, chat = chat, branch = branch, repo = repo, steps = steps, refs = refs, error = error, createdMs = createdMs, updatedMs = updatedMs)
+    return Task(id = id, kind = kind, title = title, status = status, currentStep = currentStep, waitingFor = waitingFor, decisions = decisions, branch = branch, repo = repo, steps = steps, refs = refs, error = error, createdMs = createdMs, updatedMs = updatedMs)
 }
 
 /** Decode CSIL CBOR bytes into a Task. */
@@ -668,10 +1052,10 @@ fun taskFromCbor(bytes: ByteArray): Task = taskFromCborValue(CsilCbor.decode(byt
 /** The CBOR value tree for a StartTaskRequest (deep, canonical key order). */
 fun StartTaskRequest.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
-    this.chat?.let { csilV -> csilEntries.add(CborValue.CText("chat") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("kind") to CborValue.CText(this.kind))
     this.repo?.let { csilV -> csilEntries.add(CborValue.CText("repo") to CborValue.CText(csilV)) }
     this.title?.let { csilV -> csilEntries.add(CborValue.CText("title") to CborValue.CText(csilV)) }
+    this.runner?.let { csilV -> csilEntries.add(CborValue.CText("runner") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("instructions") to CborValue.CText(this.instructions))
     return CborValue.CMap(csilEntries)
 }
@@ -685,8 +1069,8 @@ fun startTaskRequestFromCborValue(cbor: CborValue): StartTaskRequest {
     val instructions = CsilCbor.asText(CsilCbor.require(cbor, "instructions"))
     val title = CsilCbor.mapGet(cbor, "title")?.let { csilV -> CsilCbor.asText(csilV) }
     val repo = CsilCbor.mapGet(cbor, "repo")?.let { csilV -> CsilCbor.asText(csilV) }
-    val chat = CsilCbor.mapGet(cbor, "chat")?.let { csilV -> CsilCbor.asText(csilV) }
-    return StartTaskRequest(kind = kind, instructions = instructions, title = title, repo = repo, chat = chat)
+    val runner = CsilCbor.mapGet(cbor, "runner")?.let { csilV -> CsilCbor.asText(csilV) }
+    return StartTaskRequest(kind = kind, instructions = instructions, title = title, repo = repo, runner = runner)
 }
 
 /** Decode CSIL CBOR bytes into a StartTaskRequest. */
@@ -714,7 +1098,6 @@ fun getTaskRequestFromCbor(bytes: ByteArray): GetTaskRequest = getTaskRequestFro
 /** The CBOR value tree for a ListTasksRequest (deep, canonical key order). */
 fun ListTasksRequest.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
-    this.chat?.let { csilV -> csilEntries.add(CborValue.CText("chat") to CborValue.CText(csilV)) }
     this.limit?.let { csilV -> csilEntries.add(CborValue.CText("limit") to CborValue.CUint(csilV)) }
     this.status?.let { csilV -> csilEntries.add(CborValue.CText("status") to CborValue.CText(csilV)) }
     return CborValue.CMap(csilEntries)
@@ -725,10 +1108,9 @@ fun ListTasksRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
 
 /** Reconstruct a ListTasksRequest from a decoded CBOR value tree. */
 fun listTasksRequestFromCborValue(cbor: CborValue): ListTasksRequest {
-    val chat = CsilCbor.mapGet(cbor, "chat")?.let { csilV -> CsilCbor.asText(csilV) }
     val status = CsilCbor.mapGet(cbor, "status")?.let { csilV -> CsilCbor.asText(csilV) }
     val limit = CsilCbor.mapGet(cbor, "limit")?.let { csilV -> CsilCbor.asULong(csilV) }
-    return ListTasksRequest(chat = chat, status = status, limit = limit)
+    return ListTasksRequest(status = status, limit = limit)
 }
 
 /** Decode CSIL CBOR bytes into a ListTasksRequest. */
@@ -1035,6 +1417,623 @@ fun listVoicesResponseFromCborValue(cbor: CborValue): ListVoicesResponse {
 /** Decode CSIL CBOR bytes into a ListVoicesResponse. */
 fun listVoicesResponseFromCbor(bytes: ByteArray): ListVoicesResponse = listVoicesResponseFromCborValue(CsilCbor.decode(bytes))
 
+/** The CBOR value tree for a LexiconWord (deep, canonical key order). */
+fun LexiconWord.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.ipa?.let { csilV -> csilEntries.add(CborValue.CText("ipa") to CborValue.CText(csilV)) }
+    this.note?.let { csilV -> csilEntries.add(CborValue.CText("note") to CborValue.CText(csilV)) }
+    this.spoken?.let { csilV -> csilEntries.add(CborValue.CText("spoken") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("written") to CborValue.CText(this.written))
+    csilEntries.add(CborValue.CText("heard_as") to CborValue.CArray((this.heardAs).map { csilE -> CborValue.CText(csilE) }))
+    csilEntries.add(CborValue.CText("updated_by") to CborValue.CText(this.updatedBy))
+    csilEntries.add(CborValue.CText("updated_ms") to CborValue.CUint(this.updatedMs))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a LexiconWord to canonical CSIL CBOR bytes. */
+fun LexiconWord.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a LexiconWord from a decoded CBOR value tree. */
+fun lexiconWordFromCborValue(cbor: CborValue): LexiconWord {
+    val written = CsilCbor.asText(CsilCbor.require(cbor, "written"))
+    val spoken = CsilCbor.mapGet(cbor, "spoken")?.let { csilV -> CsilCbor.asText(csilV) }
+    val ipa = CsilCbor.mapGet(cbor, "ipa")?.let { csilV -> CsilCbor.asText(csilV) }
+    val heardAs = CsilCbor.asArray(CsilCbor.require(cbor, "heard_as")).map { csilE -> CsilCbor.asText(csilE) }
+    val note = CsilCbor.mapGet(cbor, "note")?.let { csilV -> CsilCbor.asText(csilV) }
+    val updatedBy = CsilCbor.asText(CsilCbor.require(cbor, "updated_by"))
+    val updatedMs = CsilCbor.asULong(CsilCbor.require(cbor, "updated_ms"))
+    return LexiconWord(written = written, spoken = spoken, ipa = ipa, heardAs = heardAs, note = note, updatedBy = updatedBy, updatedMs = updatedMs)
+}
+
+/** Decode CSIL CBOR bytes into a LexiconWord. */
+fun lexiconWordFromCbor(bytes: ByteArray): LexiconWord = lexiconWordFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListLexiconRequest (deep, canonical key order). */
+fun ListLexiconRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListLexiconRequest to canonical CSIL CBOR bytes. */
+fun ListLexiconRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListLexiconRequest from a decoded CBOR value tree. */
+fun listLexiconRequestFromCborValue(cbor: CborValue): ListLexiconRequest {
+    return ListLexiconRequest()
+}
+
+/** Decode CSIL CBOR bytes into a ListLexiconRequest. */
+fun listLexiconRequestFromCbor(bytes: ByteArray): ListLexiconRequest = listLexiconRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListLexiconResponse (deep, canonical key order). */
+fun ListLexiconResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("words") to CborValue.CArray((this.words).map { csilE -> csilE.toCborValue() }))
+    csilEntries.add(CborValue.CText("can_edit") to CborValue.CBool(this.canEdit))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListLexiconResponse to canonical CSIL CBOR bytes. */
+fun ListLexiconResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListLexiconResponse from a decoded CBOR value tree. */
+fun listLexiconResponseFromCborValue(cbor: CborValue): ListLexiconResponse {
+    val words = CsilCbor.asArray(CsilCbor.require(cbor, "words")).map { csilE -> lexiconWordFromCborValue(csilE) }
+    val canEdit = CsilCbor.asBoolean(CsilCbor.require(cbor, "can_edit"))
+    return ListLexiconResponse(words = words, canEdit = canEdit)
+}
+
+/** Decode CSIL CBOR bytes into a ListLexiconResponse. */
+fun listLexiconResponseFromCbor(bytes: ByteArray): ListLexiconResponse = listLexiconResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a PutLexiconWordRequest (deep, canonical key order). */
+fun PutLexiconWordRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.ipa?.let { csilV -> csilEntries.add(CborValue.CText("ipa") to CborValue.CText(csilV)) }
+    this.note?.let { csilV -> csilEntries.add(CborValue.CText("note") to CborValue.CText(csilV)) }
+    this.spoken?.let { csilV -> csilEntries.add(CborValue.CText("spoken") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("written") to CborValue.CText(this.written))
+    this.heardAs?.let { csilV -> csilEntries.add(CborValue.CText("heard_as") to CborValue.CArray((csilV).map { csilE -> CborValue.CText(csilE) })) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a PutLexiconWordRequest to canonical CSIL CBOR bytes. */
+fun PutLexiconWordRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a PutLexiconWordRequest from a decoded CBOR value tree. */
+fun putLexiconWordRequestFromCborValue(cbor: CborValue): PutLexiconWordRequest {
+    val written = CsilCbor.asText(CsilCbor.require(cbor, "written"))
+    val spoken = CsilCbor.mapGet(cbor, "spoken")?.let { csilV -> CsilCbor.asText(csilV) }
+    val ipa = CsilCbor.mapGet(cbor, "ipa")?.let { csilV -> CsilCbor.asText(csilV) }
+    val heardAs = CsilCbor.mapGet(cbor, "heard_as")?.let { csilV -> CsilCbor.asArray(csilV).map { csilE -> CsilCbor.asText(csilE) } }
+    val note = CsilCbor.mapGet(cbor, "note")?.let { csilV -> CsilCbor.asText(csilV) }
+    return PutLexiconWordRequest(written = written, spoken = spoken, ipa = ipa, heardAs = heardAs, note = note)
+}
+
+/** Decode CSIL CBOR bytes into a PutLexiconWordRequest. */
+fun putLexiconWordRequestFromCbor(bytes: ByteArray): PutLexiconWordRequest = putLexiconWordRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a DeleteLexiconWordRequest (deep, canonical key order). */
+fun DeleteLexiconWordRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("written") to CborValue.CText(this.written))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a DeleteLexiconWordRequest to canonical CSIL CBOR bytes. */
+fun DeleteLexiconWordRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a DeleteLexiconWordRequest from a decoded CBOR value tree. */
+fun deleteLexiconWordRequestFromCborValue(cbor: CborValue): DeleteLexiconWordRequest {
+    val written = CsilCbor.asText(CsilCbor.require(cbor, "written"))
+    return DeleteLexiconWordRequest(written = written)
+}
+
+/** Decode CSIL CBOR bytes into a DeleteLexiconWordRequest. */
+fun deleteLexiconWordRequestFromCbor(bytes: ByteArray): DeleteLexiconWordRequest = deleteLexiconWordRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a DeleteLexiconWordResponse (deep, canonical key order). */
+fun DeleteLexiconWordResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("deleted") to CborValue.CBool(this.deleted))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a DeleteLexiconWordResponse to canonical CSIL CBOR bytes. */
+fun DeleteLexiconWordResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a DeleteLexiconWordResponse from a decoded CBOR value tree. */
+fun deleteLexiconWordResponseFromCborValue(cbor: CborValue): DeleteLexiconWordResponse {
+    val deleted = CsilCbor.asBoolean(CsilCbor.require(cbor, "deleted"))
+    return DeleteLexiconWordResponse(deleted = deleted)
+}
+
+/** Decode CSIL CBOR bytes into a DeleteLexiconWordResponse. */
+fun deleteLexiconWordResponseFromCbor(bytes: ByteArray): DeleteLexiconWordResponse = deleteLexiconWordResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a SpeakRequest (deep, canonical key order). */
+fun SpeakRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("text") to CborValue.CText(this.text))
+    this.voice?.let { csilV -> csilEntries.add(CborValue.CText("voice") to CborValue.CText(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a SpeakRequest to canonical CSIL CBOR bytes. */
+fun SpeakRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a SpeakRequest from a decoded CBOR value tree. */
+fun speakRequestFromCborValue(cbor: CborValue): SpeakRequest {
+    val text = CsilCbor.asText(CsilCbor.require(cbor, "text"))
+    val voice = CsilCbor.mapGet(cbor, "voice")?.let { csilV -> CsilCbor.asText(csilV) }
+    return SpeakRequest(text = text, voice = voice)
+}
+
+/** Decode CSIL CBOR bytes into a SpeakRequest. */
+fun speakRequestFromCbor(bytes: ByteArray): SpeakRequest = speakRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a SpeakResponse (deep, canonical key order). */
+fun SpeakResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("audio") to CborValue.CBytes(this.audio))
+    csilEntries.add(CborValue.CText("spoken") to CborValue.CText(this.spoken))
+    csilEntries.add(CborValue.CText("media_type") to CborValue.CText(this.mediaType))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a SpeakResponse to canonical CSIL CBOR bytes. */
+fun SpeakResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a SpeakResponse from a decoded CBOR value tree. */
+fun speakResponseFromCborValue(cbor: CborValue): SpeakResponse {
+    val spoken = CsilCbor.asText(CsilCbor.require(cbor, "spoken"))
+    val audio = CsilCbor.asBytes(CsilCbor.require(cbor, "audio"))
+    val mediaType = CsilCbor.asText(CsilCbor.require(cbor, "media_type"))
+    return SpeakResponse(spoken = spoken, audio = audio, mediaType = mediaType)
+}
+
+/** Decode CSIL CBOR bytes into a SpeakResponse. */
+fun speakResponseFromCbor(bytes: ByteArray): SpeakResponse = speakResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RunnerInfo (deep, canonical key order). */
+fun RunnerInfo.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("os") to CborValue.CText(this.os))
+    csilEntries.add(CborValue.CText("arch") to CborValue.CText(this.arch))
+    csilEntries.add(CborValue.CText("busy") to CborValue.CBool(this.busy))
+    csilEntries.add(CborValue.CText("name") to CborValue.CText(this.name))
+    csilEntries.add(CborValue.CText("repos") to CborValue.CArray((this.repos).map { csilE -> CborValue.CText(csilE) }))
+    csilEntries.add(CborValue.CText("seen_ms") to CborValue.CUint(this.seenMs))
+    csilEntries.add(CborValue.CText("version") to CborValue.CText(this.version))
+    csilEntries.add(CborValue.CText("publishes") to CborValue.CArray((this.publishes).map { csilE -> CborValue.CText(csilE) }))
+    this.updateError?.let { csilV -> csilEntries.add(CborValue.CText("update_error") to CborValue.CText(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerInfo to canonical CSIL CBOR bytes. */
+fun RunnerInfo.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerInfo from a decoded CBOR value tree. */
+fun runnerInfoFromCborValue(cbor: CborValue): RunnerInfo {
+    val name = CsilCbor.asText(CsilCbor.require(cbor, "name"))
+    val version = CsilCbor.asText(CsilCbor.require(cbor, "version"))
+    val os = CsilCbor.asText(CsilCbor.require(cbor, "os"))
+    val arch = CsilCbor.asText(CsilCbor.require(cbor, "arch"))
+    val repos = CsilCbor.asArray(CsilCbor.require(cbor, "repos")).map { csilE -> CsilCbor.asText(csilE) }
+    val publishes = CsilCbor.asArray(CsilCbor.require(cbor, "publishes")).map { csilE -> CsilCbor.asText(csilE) }
+    val busy = CsilCbor.asBoolean(CsilCbor.require(cbor, "busy"))
+    val seenMs = CsilCbor.asULong(CsilCbor.require(cbor, "seen_ms"))
+    val updateError = CsilCbor.mapGet(cbor, "update_error")?.let { csilV -> CsilCbor.asText(csilV) }
+    return RunnerInfo(name = name, version = version, os = os, arch = arch, repos = repos, publishes = publishes, busy = busy, seenMs = seenMs, updateError = updateError)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerInfo. */
+fun runnerInfoFromCbor(bytes: ByteArray): RunnerInfo = runnerInfoFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListRunnersRequest (deep, canonical key order). */
+fun ListRunnersRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListRunnersRequest to canonical CSIL CBOR bytes. */
+fun ListRunnersRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListRunnersRequest from a decoded CBOR value tree. */
+fun listRunnersRequestFromCborValue(cbor: CborValue): ListRunnersRequest {
+    return ListRunnersRequest()
+}
+
+/** Decode CSIL CBOR bytes into a ListRunnersRequest. */
+fun listRunnersRequestFromCbor(bytes: ByteArray): ListRunnersRequest = listRunnersRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListRunnersResponse (deep, canonical key order). */
+fun ListRunnersResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.release?.let { csilV -> csilEntries.add(CborValue.CText("release") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("runners") to CborValue.CArray((this.runners).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListRunnersResponse to canonical CSIL CBOR bytes. */
+fun ListRunnersResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListRunnersResponse from a decoded CBOR value tree. */
+fun listRunnersResponseFromCborValue(cbor: CborValue): ListRunnersResponse {
+    val runners = CsilCbor.asArray(CsilCbor.require(cbor, "runners")).map { csilE -> runnerInfoFromCborValue(csilE) }
+    val release = CsilCbor.mapGet(cbor, "release")?.let { csilV -> CsilCbor.asText(csilV) }
+    return ListRunnersResponse(runners = runners, release = release)
+}
+
+/** Decode CSIL CBOR bytes into a ListRunnersResponse. */
+fun listRunnersResponseFromCbor(bytes: ByteArray): ListRunnersResponse = listRunnersResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a PutRunnerPackageRequest (deep, canonical key order). */
+fun PutRunnerPackageRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("os") to CborValue.CText(this.os))
+    csilEntries.add(CborValue.CText("arch") to CborValue.CText(this.arch))
+    csilEntries.add(CborValue.CText("body") to CborValue.CBytes(this.body))
+    csilEntries.add(CborValue.CText("version") to CborValue.CText(this.version))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a PutRunnerPackageRequest to canonical CSIL CBOR bytes. */
+fun PutRunnerPackageRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a PutRunnerPackageRequest from a decoded CBOR value tree. */
+fun putRunnerPackageRequestFromCborValue(cbor: CborValue): PutRunnerPackageRequest {
+    val version = CsilCbor.asText(CsilCbor.require(cbor, "version"))
+    val os = CsilCbor.asText(CsilCbor.require(cbor, "os"))
+    val arch = CsilCbor.asText(CsilCbor.require(cbor, "arch"))
+    val body = CsilCbor.asBytes(CsilCbor.require(cbor, "body"))
+    return PutRunnerPackageRequest(version = version, os = os, arch = arch, body = body)
+}
+
+/** Decode CSIL CBOR bytes into a PutRunnerPackageRequest. */
+fun putRunnerPackageRequestFromCbor(bytes: ByteArray): PutRunnerPackageRequest = putRunnerPackageRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a PutRunnerPackageResponse (deep, canonical key order). */
+fun PutRunnerPackageResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("digest") to CborValue.CText(this.digest))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a PutRunnerPackageResponse to canonical CSIL CBOR bytes. */
+fun PutRunnerPackageResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a PutRunnerPackageResponse from a decoded CBOR value tree. */
+fun putRunnerPackageResponseFromCborValue(cbor: CborValue): PutRunnerPackageResponse {
+    val digest = CsilCbor.asText(CsilCbor.require(cbor, "digest"))
+    return PutRunnerPackageResponse(digest = digest)
+}
+
+/** Decode CSIL CBOR bytes into a PutRunnerPackageResponse. */
+fun putRunnerPackageResponseFromCbor(bytes: ByteArray): PutRunnerPackageResponse = putRunnerPackageResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a SetRunnerReleaseRequest (deep, canonical key order). */
+fun SetRunnerReleaseRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("version") to CborValue.CText(this.version))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a SetRunnerReleaseRequest to canonical CSIL CBOR bytes. */
+fun SetRunnerReleaseRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a SetRunnerReleaseRequest from a decoded CBOR value tree. */
+fun setRunnerReleaseRequestFromCborValue(cbor: CborValue): SetRunnerReleaseRequest {
+    val version = CsilCbor.asText(CsilCbor.require(cbor, "version"))
+    return SetRunnerReleaseRequest(version = version)
+}
+
+/** Decode CSIL CBOR bytes into a SetRunnerReleaseRequest. */
+fun setRunnerReleaseRequestFromCbor(bytes: ByteArray): SetRunnerReleaseRequest = setRunnerReleaseRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a SetRunnerReleaseResponse (deep, canonical key order). */
+fun SetRunnerReleaseResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("version") to CborValue.CText(this.version))
+    csilEntries.add(CborValue.CText("packages") to CborValue.CArray((this.packages).map { csilE -> CborValue.CText(csilE) }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a SetRunnerReleaseResponse to canonical CSIL CBOR bytes. */
+fun SetRunnerReleaseResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a SetRunnerReleaseResponse from a decoded CBOR value tree. */
+fun setRunnerReleaseResponseFromCborValue(cbor: CborValue): SetRunnerReleaseResponse {
+    val version = CsilCbor.asText(CsilCbor.require(cbor, "version"))
+    val packages = CsilCbor.asArray(CsilCbor.require(cbor, "packages")).map { csilE -> CsilCbor.asText(csilE) }
+    return SetRunnerReleaseResponse(version = version, packages = packages)
+}
+
+/** Decode CSIL CBOR bytes into a SetRunnerReleaseResponse. */
+fun setRunnerReleaseResponseFromCbor(bytes: ByteArray): SetRunnerReleaseResponse = setRunnerReleaseResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a AppRelease (deep, canonical key order). */
+fun AppRelease.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("size") to CborValue.CUint(this.size))
+    csilEntries.add(CborValue.CText("digest") to CborValue.CText(this.digest))
+    csilEntries.add(CborValue.CText("version_code") to CborValue.CUint(this.versionCode))
+    csilEntries.add(CborValue.CText("version_name") to CborValue.CText(this.versionName))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a AppRelease to canonical CSIL CBOR bytes. */
+fun AppRelease.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a AppRelease from a decoded CBOR value tree. */
+fun appReleaseFromCborValue(cbor: CborValue): AppRelease {
+    val versionCode = CsilCbor.asULong(CsilCbor.require(cbor, "version_code"))
+    val versionName = CsilCbor.asText(CsilCbor.require(cbor, "version_name"))
+    val digest = CsilCbor.asText(CsilCbor.require(cbor, "digest"))
+    val size = CsilCbor.asULong(CsilCbor.require(cbor, "size"))
+    return AppRelease(versionCode = versionCode, versionName = versionName, digest = digest, size = size)
+}
+
+/** Decode CSIL CBOR bytes into a AppRelease. */
+fun appReleaseFromCbor(bytes: ByteArray): AppRelease = appReleaseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a PutAppReleaseRequest (deep, canonical key order). */
+fun PutAppReleaseRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("body") to CborValue.CBytes(this.body))
+    csilEntries.add(CborValue.CText("version_code") to CborValue.CUint(this.versionCode))
+    csilEntries.add(CborValue.CText("version_name") to CborValue.CText(this.versionName))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a PutAppReleaseRequest to canonical CSIL CBOR bytes. */
+fun PutAppReleaseRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a PutAppReleaseRequest from a decoded CBOR value tree. */
+fun putAppReleaseRequestFromCborValue(cbor: CborValue): PutAppReleaseRequest {
+    val versionCode = CsilCbor.asULong(CsilCbor.require(cbor, "version_code"))
+    val versionName = CsilCbor.asText(CsilCbor.require(cbor, "version_name"))
+    val body = CsilCbor.asBytes(CsilCbor.require(cbor, "body"))
+    return PutAppReleaseRequest(versionCode = versionCode, versionName = versionName, body = body)
+}
+
+/** Decode CSIL CBOR bytes into a PutAppReleaseRequest. */
+fun putAppReleaseRequestFromCbor(bytes: ByteArray): PutAppReleaseRequest = putAppReleaseRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a GetAppReleaseRequest (deep, canonical key order). */
+fun GetAppReleaseRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a GetAppReleaseRequest to canonical CSIL CBOR bytes. */
+fun GetAppReleaseRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a GetAppReleaseRequest from a decoded CBOR value tree. */
+fun getAppReleaseRequestFromCborValue(cbor: CborValue): GetAppReleaseRequest {
+    return GetAppReleaseRequest()
+}
+
+/** Decode CSIL CBOR bytes into a GetAppReleaseRequest. */
+fun getAppReleaseRequestFromCbor(bytes: ByteArray): GetAppReleaseRequest = getAppReleaseRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a GetAppReleaseResponse (deep, canonical key order). */
+fun GetAppReleaseResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.release?.let { csilV -> csilEntries.add(CborValue.CText("release") to csilV.toCborValue()) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a GetAppReleaseResponse to canonical CSIL CBOR bytes. */
+fun GetAppReleaseResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a GetAppReleaseResponse from a decoded CBOR value tree. */
+fun getAppReleaseResponseFromCborValue(cbor: CborValue): GetAppReleaseResponse {
+    val release = CsilCbor.mapGet(cbor, "release")?.let { csilV -> appReleaseFromCborValue(csilV) }
+    return GetAppReleaseResponse(release = release)
+}
+
+/** Decode CSIL CBOR bytes into a GetAppReleaseResponse. */
+fun getAppReleaseResponseFromCbor(bytes: ByteArray): GetAppReleaseResponse = getAppReleaseResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a GetAppPackageRequest (deep, canonical key order). */
+fun GetAppPackageRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("digest") to CborValue.CText(this.digest))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a GetAppPackageRequest to canonical CSIL CBOR bytes. */
+fun GetAppPackageRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a GetAppPackageRequest from a decoded CBOR value tree. */
+fun getAppPackageRequestFromCborValue(cbor: CborValue): GetAppPackageRequest {
+    val digest = CsilCbor.asText(CsilCbor.require(cbor, "digest"))
+    return GetAppPackageRequest(digest = digest)
+}
+
+/** Decode CSIL CBOR bytes into a GetAppPackageRequest. */
+fun getAppPackageRequestFromCbor(bytes: ByteArray): GetAppPackageRequest = getAppPackageRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a GetAppPackageResponse (deep, canonical key order). */
+fun GetAppPackageResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("body") to CborValue.CBytes(this.body))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a GetAppPackageResponse to canonical CSIL CBOR bytes. */
+fun GetAppPackageResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a GetAppPackageResponse from a decoded CBOR value tree. */
+fun getAppPackageResponseFromCborValue(cbor: CborValue): GetAppPackageResponse {
+    val body = CsilCbor.asBytes(CsilCbor.require(cbor, "body"))
+    return GetAppPackageResponse(body = body)
+}
+
+/** Decode CSIL CBOR bytes into a GetAppPackageResponse. */
+fun getAppPackageResponseFromCbor(bytes: ByteArray): GetAppPackageResponse = getAppPackageResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a EgressReviewHeader (deep, canonical key order). */
+fun EgressReviewHeader.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("name") to CborValue.CText(this.name))
+    csilEntries.add(CborValue.CText("value") to CborValue.CText(this.value))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a EgressReviewHeader to canonical CSIL CBOR bytes. */
+fun EgressReviewHeader.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a EgressReviewHeader from a decoded CBOR value tree. */
+fun egressReviewHeaderFromCborValue(cbor: CborValue): EgressReviewHeader {
+    val name = CsilCbor.asText(CsilCbor.require(cbor, "name"))
+    val value = CsilCbor.asText(CsilCbor.require(cbor, "value"))
+    return EgressReviewHeader(name = name, value = value)
+}
+
+/** Decode CSIL CBOR bytes into a EgressReviewHeader. */
+fun egressReviewHeaderFromCbor(bytes: ByteArray): EgressReviewHeader = egressReviewHeaderFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a EgressReview (deep, canonical key order). */
+fun EgressReview.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("by") to CborValue.CText(this.by))
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    csilEntries.add(CborValue.CText("url") to CborValue.CText(this.url))
+    csilEntries.add(CborValue.CText("body") to CborValue.CBytes(this.body))
+    csilEntries.add(CborValue.CText("kind") to CborValue.CText(this.kind))
+    this.note?.let { csilV -> csilEntries.add(CborValue.CText("note") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("count") to CborValue.CUint(this.count))
+    csilEntries.add(CborValue.CText("owner") to CborValue.CText(this.owner))
+    csilEntries.add(CborValue.CText("state") to CborValue.CText(this.state))
+    csilEntries.add(CborValue.CText("method") to CborValue.CText(this.method))
+    csilEntries.add(CborValue.CText("reason") to CborValue.CText(this.reason))
+    csilEntries.add(CborValue.CText("headers") to CborValue.CArray((this.headers).map { csilE -> csilE.toCborValue() }))
+    csilEntries.add(CborValue.CText("last_ms") to CborValue.CUint(this.lastMs))
+    this.decision?.let { csilV -> csilEntries.add(CborValue.CText("decision") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("first_ms") to CborValue.CUint(this.firstMs))
+    this.decidedBy?.let { csilV -> csilEntries.add(CborValue.CText("decided_by") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("destination") to CborValue.CText(this.destination))
+    csilEntries.add(CborValue.CText("environment") to CborValue.CText(this.environment))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a EgressReview to canonical CSIL CBOR bytes. */
+fun EgressReview.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a EgressReview from a decoded CBOR value tree. */
+fun egressReviewFromCborValue(cbor: CborValue): EgressReview {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val kind = CsilCbor.asText(CsilCbor.require(cbor, "kind"))
+    val state = CsilCbor.asText(CsilCbor.require(cbor, "state"))
+    val owner = CsilCbor.asText(CsilCbor.require(cbor, "owner"))
+    val environment = CsilCbor.asText(CsilCbor.require(cbor, "environment"))
+    val destination = CsilCbor.asText(CsilCbor.require(cbor, "destination"))
+    val method = CsilCbor.asText(CsilCbor.require(cbor, "method"))
+    val url = CsilCbor.asText(CsilCbor.require(cbor, "url"))
+    val headers = CsilCbor.asArray(CsilCbor.require(cbor, "headers")).map { csilE -> egressReviewHeaderFromCborValue(csilE) }
+    val body = CsilCbor.asBytes(CsilCbor.require(cbor, "body"))
+    val reason = CsilCbor.asText(CsilCbor.require(cbor, "reason"))
+    val by = CsilCbor.asText(CsilCbor.require(cbor, "by"))
+    val count = CsilCbor.asULong(CsilCbor.require(cbor, "count"))
+    val firstMs = CsilCbor.asULong(CsilCbor.require(cbor, "first_ms"))
+    val lastMs = CsilCbor.asULong(CsilCbor.require(cbor, "last_ms"))
+    val decision = CsilCbor.mapGet(cbor, "decision")?.let { csilV -> CsilCbor.asText(csilV) }
+    val decidedBy = CsilCbor.mapGet(cbor, "decided_by")?.let { csilV -> CsilCbor.asText(csilV) }
+    val note = CsilCbor.mapGet(cbor, "note")?.let { csilV -> CsilCbor.asText(csilV) }
+    return EgressReview(id = id, kind = kind, state = state, owner = owner, environment = environment, destination = destination, method = method, url = url, headers = headers, body = body, reason = reason, by = by, count = count, firstMs = firstMs, lastMs = lastMs, decision = decision, decidedBy = decidedBy, note = note)
+}
+
+/** Decode CSIL CBOR bytes into a EgressReview. */
+fun egressReviewFromCbor(bytes: ByteArray): EgressReview = egressReviewFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListEgressReviewsRequest (deep, canonical key order). */
+fun ListEgressReviewsRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.limit?.let { csilV -> csilEntries.add(CborValue.CText("limit") to CborValue.CUint(csilV)) }
+    this.state?.let { csilV -> csilEntries.add(CborValue.CText("state") to CborValue.CText(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListEgressReviewsRequest to canonical CSIL CBOR bytes. */
+fun ListEgressReviewsRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListEgressReviewsRequest from a decoded CBOR value tree. */
+fun listEgressReviewsRequestFromCborValue(cbor: CborValue): ListEgressReviewsRequest {
+    val state = CsilCbor.mapGet(cbor, "state")?.let { csilV -> CsilCbor.asText(csilV) }
+    val limit = CsilCbor.mapGet(cbor, "limit")?.let { csilV -> CsilCbor.asULong(csilV) }
+    return ListEgressReviewsRequest(state = state, limit = limit)
+}
+
+/** Decode CSIL CBOR bytes into a ListEgressReviewsRequest. */
+fun listEgressReviewsRequestFromCbor(bytes: ByteArray): ListEgressReviewsRequest = listEgressReviewsRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListEgressReviewsResponse (deep, canonical key order). */
+fun ListEgressReviewsResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("reviews") to CborValue.CArray((this.reviews).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListEgressReviewsResponse to canonical CSIL CBOR bytes. */
+fun ListEgressReviewsResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListEgressReviewsResponse from a decoded CBOR value tree. */
+fun listEgressReviewsResponseFromCborValue(cbor: CborValue): ListEgressReviewsResponse {
+    val reviews = CsilCbor.asArray(CsilCbor.require(cbor, "reviews")).map { csilE -> egressReviewFromCborValue(csilE) }
+    return ListEgressReviewsResponse(reviews = reviews)
+}
+
+/** Decode CSIL CBOR bytes into a ListEgressReviewsResponse. */
+fun listEgressReviewsResponseFromCbor(bytes: ByteArray): ListEgressReviewsResponse = listEgressReviewsResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a DecideEgressReviewRequest (deep, canonical key order). */
+fun DecideEgressReviewRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    this.note?.let { csilV -> csilEntries.add(CborValue.CText("note") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("decision") to CborValue.CText(this.decision))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a DecideEgressReviewRequest to canonical CSIL CBOR bytes. */
+fun DecideEgressReviewRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a DecideEgressReviewRequest from a decoded CBOR value tree. */
+fun decideEgressReviewRequestFromCborValue(cbor: CborValue): DecideEgressReviewRequest {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val decision = CsilCbor.asText(CsilCbor.require(cbor, "decision"))
+    val note = CsilCbor.mapGet(cbor, "note")?.let { csilV -> CsilCbor.asText(csilV) }
+    return DecideEgressReviewRequest(id = id, decision = decision, note = note)
+}
+
+/** Decode CSIL CBOR bytes into a DecideEgressReviewRequest. */
+fun decideEgressReviewRequestFromCbor(bytes: ByteArray): DecideEgressReviewRequest = decideEgressReviewRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a DecideEgressReviewResponse (deep, canonical key order). */
+fun DecideEgressReviewResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    this.rule?.let { csilV -> csilEntries.add(CborValue.CText("rule") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("decision") to CborValue.CText(this.decision))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a DecideEgressReviewResponse to canonical CSIL CBOR bytes. */
+fun DecideEgressReviewResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a DecideEgressReviewResponse from a decoded CBOR value tree. */
+fun decideEgressReviewResponseFromCborValue(cbor: CborValue): DecideEgressReviewResponse {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val decision = CsilCbor.asText(CsilCbor.require(cbor, "decision"))
+    val rule = CsilCbor.mapGet(cbor, "rule")?.let { csilV -> CsilCbor.asText(csilV) }
+    return DecideEgressReviewResponse(id = id, decision = decision, rule = rule)
+}
+
+/** Decode CSIL CBOR bytes into a DecideEgressReviewResponse. */
+fun decideEgressReviewResponseFromCbor(bytes: ByteArray): DecideEgressReviewResponse = decideEgressReviewResponseFromCborValue(CsilCbor.decode(bytes))
+
 /** The CBOR value tree for a RunnerClaimRequest (deep, canonical key order). */
 fun RunnerClaimRequest.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
@@ -1297,20 +2296,540 @@ fun runnerAckFromCborValue(cbor: CborValue): RunnerAck {
 /** Decode CSIL CBOR bytes into a RunnerAck. */
 fun runnerAckFromCbor(bytes: ByteArray): RunnerAck = runnerAckFromCborValue(CsilCbor.decode(bytes))
 
+/** The CBOR value tree for a RunnerHelloRequest (deep, canonical key order). */
+fun RunnerHelloRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("os") to CborValue.CText(this.os))
+    csilEntries.add(CborValue.CText("arch") to CborValue.CText(this.arch))
+    csilEntries.add(CborValue.CText("busy") to CborValue.CBool(this.busy))
+    csilEntries.add(CborValue.CText("repos") to CborValue.CArray((this.repos).map { csilE -> CborValue.CText(csilE) }))
+    csilEntries.add(CborValue.CText("version") to CborValue.CText(this.version))
+    csilEntries.add(CborValue.CText("publishes") to CborValue.CArray((this.publishes).map { csilE -> CborValue.CText(csilE) }))
+    this.updateError?.let { csilV -> csilEntries.add(CborValue.CText("update_error") to CborValue.CText(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerHelloRequest to canonical CSIL CBOR bytes. */
+fun RunnerHelloRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerHelloRequest from a decoded CBOR value tree. */
+fun runnerHelloRequestFromCborValue(cbor: CborValue): RunnerHelloRequest {
+    val version = CsilCbor.asText(CsilCbor.require(cbor, "version"))
+    val os = CsilCbor.asText(CsilCbor.require(cbor, "os"))
+    val arch = CsilCbor.asText(CsilCbor.require(cbor, "arch"))
+    val repos = CsilCbor.asArray(CsilCbor.require(cbor, "repos")).map { csilE -> CsilCbor.asText(csilE) }
+    val publishes = CsilCbor.asArray(CsilCbor.require(cbor, "publishes")).map { csilE -> CsilCbor.asText(csilE) }
+    val busy = CsilCbor.asBoolean(CsilCbor.require(cbor, "busy"))
+    val updateError = CsilCbor.mapGet(cbor, "update_error")?.let { csilV -> CsilCbor.asText(csilV) }
+    return RunnerHelloRequest(version = version, os = os, arch = arch, repos = repos, publishes = publishes, busy = busy, updateError = updateError)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerHelloRequest. */
+fun runnerHelloRequestFromCbor(bytes: ByteArray): RunnerHelloRequest = runnerHelloRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RunnerUpdate (deep, canonical key order). */
+fun RunnerUpdate.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("size") to CborValue.CUint(this.size))
+    csilEntries.add(CborValue.CText("digest") to CborValue.CText(this.digest))
+    csilEntries.add(CborValue.CText("version") to CborValue.CText(this.version))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerUpdate to canonical CSIL CBOR bytes. */
+fun RunnerUpdate.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerUpdate from a decoded CBOR value tree. */
+fun runnerUpdateFromCborValue(cbor: CborValue): RunnerUpdate {
+    val version = CsilCbor.asText(CsilCbor.require(cbor, "version"))
+    val digest = CsilCbor.asText(CsilCbor.require(cbor, "digest"))
+    val size = CsilCbor.asULong(CsilCbor.require(cbor, "size"))
+    return RunnerUpdate(version = version, digest = digest, size = size)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerUpdate. */
+fun runnerUpdateFromCbor(bytes: ByteArray): RunnerUpdate = runnerUpdateFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RunnerHelloResponse (deep, canonical key order). */
+fun RunnerHelloResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.update?.let { csilV -> csilEntries.add(CborValue.CText("update") to csilV.toCborValue()) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerHelloResponse to canonical CSIL CBOR bytes. */
+fun RunnerHelloResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerHelloResponse from a decoded CBOR value tree. */
+fun runnerHelloResponseFromCborValue(cbor: CborValue): RunnerHelloResponse {
+    val update = CsilCbor.mapGet(cbor, "update")?.let { csilV -> runnerUpdateFromCborValue(csilV) }
+    return RunnerHelloResponse(update = update)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerHelloResponse. */
+fun runnerHelloResponseFromCbor(bytes: ByteArray): RunnerHelloResponse = runnerHelloResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RunnerGetPackageRequest (deep, canonical key order). */
+fun RunnerGetPackageRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("os") to CborValue.CText(this.os))
+    csilEntries.add(CborValue.CText("arch") to CborValue.CText(this.arch))
+    csilEntries.add(CborValue.CText("version") to CborValue.CText(this.version))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerGetPackageRequest to canonical CSIL CBOR bytes. */
+fun RunnerGetPackageRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerGetPackageRequest from a decoded CBOR value tree. */
+fun runnerGetPackageRequestFromCborValue(cbor: CborValue): RunnerGetPackageRequest {
+    val version = CsilCbor.asText(CsilCbor.require(cbor, "version"))
+    val os = CsilCbor.asText(CsilCbor.require(cbor, "os"))
+    val arch = CsilCbor.asText(CsilCbor.require(cbor, "arch"))
+    return RunnerGetPackageRequest(version = version, os = os, arch = arch)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerGetPackageRequest. */
+fun runnerGetPackageRequestFromCbor(bytes: ByteArray): RunnerGetPackageRequest = runnerGetPackageRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RunnerGetPackageResponse (deep, canonical key order). */
+fun RunnerGetPackageResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("body") to CborValue.CBytes(this.body))
+    csilEntries.add(CborValue.CText("digest") to CborValue.CText(this.digest))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerGetPackageResponse to canonical CSIL CBOR bytes. */
+fun RunnerGetPackageResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerGetPackageResponse from a decoded CBOR value tree. */
+fun runnerGetPackageResponseFromCborValue(cbor: CborValue): RunnerGetPackageResponse {
+    val digest = CsilCbor.asText(CsilCbor.require(cbor, "digest"))
+    val body = CsilCbor.asBytes(CsilCbor.require(cbor, "body"))
+    return RunnerGetPackageResponse(digest = digest, body = body)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerGetPackageResponse. */
+fun runnerGetPackageResponseFromCbor(bytes: ByteArray): RunnerGetPackageResponse = runnerGetPackageResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RunnerGetArtifactRequest (deep, canonical key order). */
+fun RunnerGetArtifactRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("step") to this.step.toCborValue())
+    csilEntries.add(CborValue.CText("digest") to CborValue.CText(this.digest))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerGetArtifactRequest to canonical CSIL CBOR bytes. */
+fun RunnerGetArtifactRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerGetArtifactRequest from a decoded CBOR value tree. */
+fun runnerGetArtifactRequestFromCborValue(cbor: CborValue): RunnerGetArtifactRequest {
+    val step = runnerStepFromCborValue(CsilCbor.require(cbor, "step"))
+    val digest = CsilCbor.asText(CsilCbor.require(cbor, "digest"))
+    return RunnerGetArtifactRequest(step = step, digest = digest)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerGetArtifactRequest. */
+fun runnerGetArtifactRequestFromCbor(bytes: ByteArray): RunnerGetArtifactRequest = runnerGetArtifactRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RunnerGetArtifactResponse (deep, canonical key order). */
+fun RunnerGetArtifactResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("body") to CborValue.CBytes(this.body))
+    csilEntries.add(CborValue.CText("media_type") to CborValue.CText(this.mediaType))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerGetArtifactResponse to canonical CSIL CBOR bytes. */
+fun RunnerGetArtifactResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerGetArtifactResponse from a decoded CBOR value tree. */
+fun runnerGetArtifactResponseFromCborValue(cbor: CborValue): RunnerGetArtifactResponse {
+    val mediaType = CsilCbor.asText(CsilCbor.require(cbor, "media_type"))
+    val body = CsilCbor.asBytes(CsilCbor.require(cbor, "body"))
+    return RunnerGetArtifactResponse(mediaType = mediaType, body = body)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerGetArtifactResponse. */
+fun runnerGetArtifactResponseFromCbor(bytes: ByteArray): RunnerGetArtifactResponse = runnerGetArtifactResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RunnerEgressProxy (deep, canonical key order). */
+fun RunnerEgressProxy.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("ca") to CborValue.CBytes(this.ca))
+    csilEntries.add(CborValue.CText("credential") to CborValue.CText(this.credential))
+    csilEntries.add(CborValue.CText("environment") to CborValue.CText(this.environment))
+    this.sshKnownHosts?.let { csilV -> csilEntries.add(CborValue.CText("ssh_known_hosts") to CborValue.CText(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerEgressProxy to canonical CSIL CBOR bytes. */
+fun RunnerEgressProxy.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerEgressProxy from a decoded CBOR value tree. */
+fun runnerEgressProxyFromCborValue(cbor: CborValue): RunnerEgressProxy {
+    val environment = CsilCbor.asText(CsilCbor.require(cbor, "environment"))
+    val credential = CsilCbor.asText(CsilCbor.require(cbor, "credential"))
+    val ca = CsilCbor.asBytes(CsilCbor.require(cbor, "ca"))
+    val sshKnownHosts = CsilCbor.mapGet(cbor, "ssh_known_hosts")?.let { csilV -> CsilCbor.asText(csilV) }
+    return RunnerEgressProxy(environment = environment, credential = credential, ca = ca, sshKnownHosts = sshKnownHosts)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerEgressProxy. */
+fun runnerEgressProxyFromCbor(bytes: ByteArray): RunnerEgressProxy = runnerEgressProxyFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RunnerEgressAccessResponse (deep, canonical key order). */
+fun RunnerEgressAccessResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.proxy?.let { csilV -> csilEntries.add(CborValue.CText("proxy") to csilV.toCborValue()) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerEgressAccessResponse to canonical CSIL CBOR bytes. */
+fun RunnerEgressAccessResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerEgressAccessResponse from a decoded CBOR value tree. */
+fun runnerEgressAccessResponseFromCborValue(cbor: CborValue): RunnerEgressAccessResponse {
+    val proxy = CsilCbor.mapGet(cbor, "proxy")?.let { csilV -> runnerEgressProxyFromCborValue(csilV) }
+    return RunnerEgressAccessResponse(proxy = proxy)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerEgressAccessResponse. */
+fun runnerEgressAccessResponseFromCbor(bytes: ByteArray): RunnerEgressAccessResponse = runnerEgressAccessResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a EgressFlowHeader (deep, canonical key order). */
+fun EgressFlowHeader.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("name") to CborValue.CText(this.name))
+    csilEntries.add(CborValue.CText("value") to CborValue.CText(this.value))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a EgressFlowHeader to canonical CSIL CBOR bytes. */
+fun EgressFlowHeader.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a EgressFlowHeader from a decoded CBOR value tree. */
+fun egressFlowHeaderFromCborValue(cbor: CborValue): EgressFlowHeader {
+    val name = CsilCbor.asText(CsilCbor.require(cbor, "name"))
+    val value = CsilCbor.asText(CsilCbor.require(cbor, "value"))
+    return EgressFlowHeader(name = name, value = value)
+}
+
+/** Decode CSIL CBOR bytes into a EgressFlowHeader. */
+fun egressFlowHeaderFromCbor(bytes: ByteArray): EgressFlowHeader = egressFlowHeaderFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a EgressFlow (deep, canonical key order). */
+fun EgressFlow.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    csilEntries.add(CborValue.CText("url") to CborValue.CText(this.url))
+    csilEntries.add(CborValue.CText("body") to CborValue.CBytes(this.body))
+    csilEntries.add(CborValue.CText("owner") to CborValue.CText(this.owner))
+    csilEntries.add(CborValue.CText("method") to CborValue.CText(this.method))
+    csilEntries.add(CborValue.CText("status") to CborValue.CUint(this.status))
+    csilEntries.add(CborValue.CText("headers") to CborValue.CArray((this.headers).map { csilE -> csilE.toCborValue() }))
+    csilEntries.add(CborValue.CText("direction") to CborValue.CText(this.direction))
+    csilEntries.add(CborValue.CText("destination") to CborValue.CText(this.destination))
+    csilEntries.add(CborValue.CText("environment") to CborValue.CText(this.environment))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a EgressFlow to canonical CSIL CBOR bytes. */
+fun EgressFlow.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a EgressFlow from a decoded CBOR value tree. */
+fun egressFlowFromCborValue(cbor: CborValue): EgressFlow {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val environment = CsilCbor.asText(CsilCbor.require(cbor, "environment"))
+    val owner = CsilCbor.asText(CsilCbor.require(cbor, "owner"))
+    val direction = CsilCbor.asText(CsilCbor.require(cbor, "direction"))
+    val destination = CsilCbor.asText(CsilCbor.require(cbor, "destination"))
+    val method = CsilCbor.asText(CsilCbor.require(cbor, "method"))
+    val url = CsilCbor.asText(CsilCbor.require(cbor, "url"))
+    val status = CsilCbor.asULong(CsilCbor.require(cbor, "status"))
+    val headers = CsilCbor.asArray(CsilCbor.require(cbor, "headers")).map { csilE -> egressFlowHeaderFromCborValue(csilE) }
+    val body = CsilCbor.asBytes(CsilCbor.require(cbor, "body"))
+    return EgressFlow(id = id, environment = environment, owner = owner, direction = direction, destination = destination, method = method, url = url, status = status, headers = headers, body = body)
+}
+
+/** Decode CSIL CBOR bytes into a EgressFlow. */
+fun egressFlowFromCbor(bytes: ByteArray): EgressFlow = egressFlowFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a EgressEnvironmentRequest (deep, canonical key order). */
+fun EgressEnvironmentRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("environment") to CborValue.CText(this.environment))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a EgressEnvironmentRequest to canonical CSIL CBOR bytes. */
+fun EgressEnvironmentRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a EgressEnvironmentRequest from a decoded CBOR value tree. */
+fun egressEnvironmentRequestFromCborValue(cbor: CborValue): EgressEnvironmentRequest {
+    val environment = CsilCbor.asText(CsilCbor.require(cbor, "environment"))
+    return EgressEnvironmentRequest(environment = environment)
+}
+
+/** Decode CSIL CBOR bytes into a EgressEnvironmentRequest. */
+fun egressEnvironmentRequestFromCbor(bytes: ByteArray): EgressEnvironmentRequest = egressEnvironmentRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a EgressEnvironmentResponse (deep, canonical key order). */
+fun EgressEnvironmentResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.goal?.let { csilV -> csilEntries.add(CborValue.CText("goal") to CborValue.CText(csilV)) }
+    this.task?.let { csilV -> csilEntries.add(CborValue.CText("task") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("owner") to CborValue.CText(this.owner))
+    this.labels?.let { csilV -> csilEntries.add(CborValue.CText("labels") to CborValue.CMap((csilV).map { (csilK, csilV) -> CborValue.CText(csilK) to CborValue.CText(csilV) })) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a EgressEnvironmentResponse to canonical CSIL CBOR bytes. */
+fun EgressEnvironmentResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a EgressEnvironmentResponse from a decoded CBOR value tree. */
+fun egressEnvironmentResponseFromCborValue(cbor: CborValue): EgressEnvironmentResponse {
+    val owner = CsilCbor.asText(CsilCbor.require(cbor, "owner"))
+    val task = CsilCbor.mapGet(cbor, "task")?.let { csilV -> CsilCbor.asText(csilV) }
+    val goal = CsilCbor.mapGet(cbor, "goal")?.let { csilV -> CsilCbor.asText(csilV) }
+    val labels = CsilCbor.mapGet(cbor, "labels")?.let { csilV -> CsilCbor.asMap(csilV).associate { (csilK, csilV) -> CsilCbor.asText(csilK) to CsilCbor.asText(csilV) } }
+    return EgressEnvironmentResponse(owner = owner, task = task, goal = goal, labels = labels)
+}
+
+/** Decode CSIL CBOR bytes into a EgressEnvironmentResponse. */
+fun egressEnvironmentResponseFromCbor(bytes: ByteArray): EgressEnvironmentResponse = egressEnvironmentResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a EgressEvaluateRequest (deep, canonical key order). */
+fun EgressEvaluateRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("flow") to this.flow.toCborValue())
+    csilEntries.add(CborValue.CText("plugin") to CborValue.CText(this.plugin))
+    this.question?.let { csilV -> csilEntries.add(CborValue.CText("question") to CborValue.CText(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a EgressEvaluateRequest to canonical CSIL CBOR bytes. */
+fun EgressEvaluateRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a EgressEvaluateRequest from a decoded CBOR value tree. */
+fun egressEvaluateRequestFromCborValue(cbor: CborValue): EgressEvaluateRequest {
+    val plugin = CsilCbor.asText(CsilCbor.require(cbor, "plugin"))
+    val flow = egressFlowFromCborValue(CsilCbor.require(cbor, "flow"))
+    val question = CsilCbor.mapGet(cbor, "question")?.let { csilV -> CsilCbor.asText(csilV) }
+    return EgressEvaluateRequest(plugin = plugin, flow = flow, question = question)
+}
+
+/** Decode CSIL CBOR bytes into a EgressEvaluateRequest. */
+fun egressEvaluateRequestFromCbor(bytes: ByteArray): EgressEvaluateRequest = egressEvaluateRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a EgressVerdict (deep, canonical key order). */
+fun EgressVerdict.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("by") to CborValue.CText(this.by))
+    csilEntries.add(CborValue.CText("reason") to CborValue.CText(this.reason))
+    csilEntries.add(CborValue.CText("verdict") to CborValue.CText(this.verdict))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a EgressVerdict to canonical CSIL CBOR bytes. */
+fun EgressVerdict.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a EgressVerdict from a decoded CBOR value tree. */
+fun egressVerdictFromCborValue(cbor: CborValue): EgressVerdict {
+    val verdict = CsilCbor.asText(CsilCbor.require(cbor, "verdict"))
+    val reason = CsilCbor.asText(CsilCbor.require(cbor, "reason"))
+    val by = CsilCbor.asText(CsilCbor.require(cbor, "by"))
+    return EgressVerdict(verdict = verdict, reason = reason, by = by)
+}
+
+/** Decode CSIL CBOR bytes into a EgressVerdict. */
+fun egressVerdictFromCbor(bytes: ByteArray): EgressVerdict = egressVerdictFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a EgressSecretRulesRequest (deep, canonical key order). */
+fun EgressSecretRulesRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("flow") to this.flow.toCborValue())
+    csilEntries.add(CborValue.CText("plugin") to CborValue.CText(this.plugin))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a EgressSecretRulesRequest to canonical CSIL CBOR bytes. */
+fun EgressSecretRulesRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a EgressSecretRulesRequest from a decoded CBOR value tree. */
+fun egressSecretRulesRequestFromCborValue(cbor: CborValue): EgressSecretRulesRequest {
+    val plugin = CsilCbor.asText(CsilCbor.require(cbor, "plugin"))
+    val flow = egressFlowFromCborValue(CsilCbor.require(cbor, "flow"))
+    return EgressSecretRulesRequest(plugin = plugin, flow = flow)
+}
+
+/** Decode CSIL CBOR bytes into a EgressSecretRulesRequest. */
+fun egressSecretRulesRequestFromCbor(bytes: ByteArray): EgressSecretRulesRequest = egressSecretRulesRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a EgressSecretRule (deep, canonical key order). */
+fun EgressSecretRule.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.path?.let { csilV -> csilEntries.add(CborValue.CText("path") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("hosts") to CborValue.CArray((this.hosts).map { csilE -> CborValue.CText(csilE) }))
+    csilEntries.add(CborValue.CText("place") to CborValue.CText(this.place))
+    csilEntries.add(CborValue.CText("secret") to CborValue.CText(this.secret))
+    csilEntries.add(CborValue.CText("placeholder") to CborValue.CText(this.placeholder))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a EgressSecretRule to canonical CSIL CBOR bytes. */
+fun EgressSecretRule.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a EgressSecretRule from a decoded CBOR value tree. */
+fun egressSecretRuleFromCborValue(cbor: CborValue): EgressSecretRule {
+    val placeholder = CsilCbor.asText(CsilCbor.require(cbor, "placeholder"))
+    val secret = CsilCbor.asText(CsilCbor.require(cbor, "secret"))
+    val hosts = CsilCbor.asArray(CsilCbor.require(cbor, "hosts")).map { csilE -> CsilCbor.asText(csilE) }
+    val path = CsilCbor.mapGet(cbor, "path")?.let { csilV -> CsilCbor.asText(csilV) }
+    val place = CsilCbor.asText(CsilCbor.require(cbor, "place"))
+    return EgressSecretRule(placeholder = placeholder, secret = secret, hosts = hosts, path = path, place = place)
+}
+
+/** Decode CSIL CBOR bytes into a EgressSecretRule. */
+fun egressSecretRuleFromCbor(bytes: ByteArray): EgressSecretRule = egressSecretRuleFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a EgressSecretRulesResponse (deep, canonical key order). */
+fun EgressSecretRulesResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("rules") to CborValue.CArray((this.rules).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a EgressSecretRulesResponse to canonical CSIL CBOR bytes. */
+fun EgressSecretRulesResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a EgressSecretRulesResponse from a decoded CBOR value tree. */
+fun egressSecretRulesResponseFromCborValue(cbor: CborValue): EgressSecretRulesResponse {
+    val rules = CsilCbor.asArray(CsilCbor.require(cbor, "rules")).map { csilE -> egressSecretRuleFromCborValue(csilE) }
+    return EgressSecretRulesResponse(rules = rules)
+}
+
+/** Decode CSIL CBOR bytes into a EgressSecretRulesResponse. */
+fun egressSecretRulesResponseFromCbor(bytes: ByteArray): EgressSecretRulesResponse = egressSecretRulesResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a EgressReportRequest (deep, canonical key order). */
+fun EgressReportRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("by") to CborValue.CText(this.by))
+    csilEntries.add(CborValue.CText("flow") to this.flow.toCborValue())
+    csilEntries.add(CborValue.CText("kind") to CborValue.CText(this.kind))
+    csilEntries.add(CborValue.CText("reason") to CborValue.CText(this.reason))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a EgressReportRequest to canonical CSIL CBOR bytes. */
+fun EgressReportRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a EgressReportRequest from a decoded CBOR value tree. */
+fun egressReportRequestFromCborValue(cbor: CborValue): EgressReportRequest {
+    val kind = CsilCbor.asText(CsilCbor.require(cbor, "kind"))
+    val flow = egressFlowFromCborValue(CsilCbor.require(cbor, "flow"))
+    val reason = CsilCbor.asText(CsilCbor.require(cbor, "reason"))
+    val by = CsilCbor.asText(CsilCbor.require(cbor, "by"))
+    return EgressReportRequest(kind = kind, flow = flow, reason = reason, by = by)
+}
+
+/** Decode CSIL CBOR bytes into a EgressReportRequest. */
+fun egressReportRequestFromCbor(bytes: ByteArray): EgressReportRequest = egressReportRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a EgressReportResponse (deep, canonical key order). */
+fun EgressReportResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("review") to CborValue.CText(this.review))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a EgressReportResponse to canonical CSIL CBOR bytes. */
+fun EgressReportResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a EgressReportResponse from a decoded CBOR value tree. */
+fun egressReportResponseFromCborValue(cbor: CborValue): EgressReportResponse {
+    val review = CsilCbor.asText(CsilCbor.require(cbor, "review"))
+    return EgressReportResponse(review = review)
+}
+
+/** Decode CSIL CBOR bytes into a EgressReportResponse. */
+fun egressReportResponseFromCbor(bytes: ByteArray): EgressReportResponse = egressReportResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a EgressDestinationRequest (deep, canonical key order). */
+fun EgressDestinationRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("destination") to CborValue.CText(this.destination))
+    csilEntries.add(CborValue.CText("environment") to CborValue.CText(this.environment))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a EgressDestinationRequest to canonical CSIL CBOR bytes. */
+fun EgressDestinationRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a EgressDestinationRequest from a decoded CBOR value tree. */
+fun egressDestinationRequestFromCborValue(cbor: CborValue): EgressDestinationRequest {
+    val environment = CsilCbor.asText(CsilCbor.require(cbor, "environment"))
+    val destination = CsilCbor.asText(CsilCbor.require(cbor, "destination"))
+    return EgressDestinationRequest(environment = environment, destination = destination)
+}
+
+/** Decode CSIL CBOR bytes into a EgressDestinationRequest. */
+fun egressDestinationRequestFromCbor(bytes: ByteArray): EgressDestinationRequest = egressDestinationRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a EgressDestinationResponse (deep, canonical key order). */
+fun EgressDestinationResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.layer4?.let { csilV -> csilEntries.add(CborValue.CText("layer4") to CborValue.CBool(csilV)) }
+    csilEntries.add(CborValue.CText("allowed") to CborValue.CBool(this.allowed))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a EgressDestinationResponse to canonical CSIL CBOR bytes. */
+fun EgressDestinationResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a EgressDestinationResponse from a decoded CBOR value tree. */
+fun egressDestinationResponseFromCborValue(cbor: CborValue): EgressDestinationResponse {
+    val allowed = CsilCbor.asBoolean(CsilCbor.require(cbor, "allowed"))
+    val layer4 = CsilCbor.mapGet(cbor, "layer4")?.let { csilV -> CsilCbor.asBoolean(csilV) }
+    return EgressDestinationResponse(allowed = allowed, layer4 = layer4)
+}
+
+/** Decode CSIL CBOR bytes into a EgressDestinationResponse. */
+fun egressDestinationResponseFromCbor(bytes: ByteArray): EgressDestinationResponse = egressDestinationResponseFromCborValue(CsilCbor.decode(bytes))
+
 /** Encode a generated CSIL record to canonical CBOR bytes. */
 fun <T> encode(value: T): ByteArray = CsilCbor.encode(csilToCborValue(value))
 
 private fun csilToCborValue(value: Any?): CborValue = when (value) {
     null -> CborValue.CNull
     is Ref -> value.toCborValue()
-    is Chat -> value.toCborValue()
+    is MessageLink -> value.toCborValue()
     is Message -> value.toCborValue()
+    is PersonaInfo -> value.toCborValue()
+    is ListPersonasRequest -> value.toCborValue()
+    is ListPersonasResponse -> value.toCborValue()
+    is PutPersonaRequest -> value.toCborValue()
     is SayRequest -> value.toCborValue()
     is SayResponse -> value.toCborValue()
-    is ListChatsRequest -> value.toCborValue()
-    is ListChatsResponse -> value.toCborValue()
     is ReadRequest -> value.toCborValue()
     is ReadResponse -> value.toCborValue()
+    is SearchRequest -> value.toCborValue()
+    is SearchResponse -> value.toCborValue()
+    is TraceRequest -> value.toCborValue()
+    is TraceResponse -> value.toCborValue()
+    is ListLinksRequest -> value.toCborValue()
+    is ListLinksResponse -> value.toCborValue()
+    is LinkRequest -> value.toCborValue()
+    is UnlinkRequest -> value.toCborValue()
+    is SetVisibilityRequest -> value.toCborValue()
+    is ReviewItem -> value.toCborValue()
+    is ListReviewsRequest -> value.toCborValue()
+    is ListReviewsResponse -> value.toCborValue()
+    is AnswerReviewRequest -> value.toCborValue()
+    is AnswerReviewResponse -> value.toCborValue()
     is GetAudioRequest -> value.toCborValue()
     is AudioResponse -> value.toCborValue()
     is TaskStep -> value.toCborValue()
@@ -1331,6 +2850,33 @@ private fun csilToCborValue(value: Any?): CborValue = when (value) {
     is VoiceInfo -> value.toCborValue()
     is ListVoicesRequest -> value.toCborValue()
     is ListVoicesResponse -> value.toCborValue()
+    is LexiconWord -> value.toCborValue()
+    is ListLexiconRequest -> value.toCborValue()
+    is ListLexiconResponse -> value.toCborValue()
+    is PutLexiconWordRequest -> value.toCborValue()
+    is DeleteLexiconWordRequest -> value.toCborValue()
+    is DeleteLexiconWordResponse -> value.toCborValue()
+    is SpeakRequest -> value.toCborValue()
+    is SpeakResponse -> value.toCborValue()
+    is RunnerInfo -> value.toCborValue()
+    is ListRunnersRequest -> value.toCborValue()
+    is ListRunnersResponse -> value.toCborValue()
+    is PutRunnerPackageRequest -> value.toCborValue()
+    is PutRunnerPackageResponse -> value.toCborValue()
+    is SetRunnerReleaseRequest -> value.toCborValue()
+    is SetRunnerReleaseResponse -> value.toCborValue()
+    is AppRelease -> value.toCborValue()
+    is PutAppReleaseRequest -> value.toCborValue()
+    is GetAppReleaseRequest -> value.toCborValue()
+    is GetAppReleaseResponse -> value.toCborValue()
+    is GetAppPackageRequest -> value.toCborValue()
+    is GetAppPackageResponse -> value.toCborValue()
+    is EgressReviewHeader -> value.toCborValue()
+    is EgressReview -> value.toCborValue()
+    is ListEgressReviewsRequest -> value.toCborValue()
+    is ListEgressReviewsResponse -> value.toCborValue()
+    is DecideEgressReviewRequest -> value.toCborValue()
+    is DecideEgressReviewResponse -> value.toCborValue()
     is RunnerClaimRequest -> value.toCborValue()
     is RunnerAssignment -> value.toCborValue()
     is RunnerClaimResponse -> value.toCborValue()
@@ -1343,6 +2889,28 @@ private fun csilToCborValue(value: Any?): CborValue = when (value) {
     is RunnerRunStatusRequest -> value.toCborValue()
     is RunnerRunStatusResponse -> value.toCborValue()
     is RunnerAck -> value.toCborValue()
+    is RunnerHelloRequest -> value.toCborValue()
+    is RunnerUpdate -> value.toCborValue()
+    is RunnerHelloResponse -> value.toCborValue()
+    is RunnerGetPackageRequest -> value.toCborValue()
+    is RunnerGetPackageResponse -> value.toCborValue()
+    is RunnerGetArtifactRequest -> value.toCborValue()
+    is RunnerGetArtifactResponse -> value.toCborValue()
+    is RunnerEgressProxy -> value.toCborValue()
+    is RunnerEgressAccessResponse -> value.toCborValue()
+    is EgressFlowHeader -> value.toCborValue()
+    is EgressFlow -> value.toCborValue()
+    is EgressEnvironmentRequest -> value.toCborValue()
+    is EgressEnvironmentResponse -> value.toCborValue()
+    is EgressEvaluateRequest -> value.toCborValue()
+    is EgressVerdict -> value.toCborValue()
+    is EgressSecretRulesRequest -> value.toCborValue()
+    is EgressSecretRule -> value.toCborValue()
+    is EgressSecretRulesResponse -> value.toCborValue()
+    is EgressReportRequest -> value.toCborValue()
+    is EgressReportResponse -> value.toCborValue()
+    is EgressDestinationRequest -> value.toCborValue()
+    is EgressDestinationResponse -> value.toCborValue()
     else -> throw CborError("no CSIL CBOR codec for ${value::class}")
 }
 
@@ -1352,14 +2920,30 @@ inline fun <reified T> decode(bytes: ByteArray): T =
 
 fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = when (type) {
     Ref::class -> refFromCborValue(cbor)
-    Chat::class -> chatFromCborValue(cbor)
+    MessageLink::class -> messageLinkFromCborValue(cbor)
     Message::class -> messageFromCborValue(cbor)
+    PersonaInfo::class -> personaInfoFromCborValue(cbor)
+    ListPersonasRequest::class -> listPersonasRequestFromCborValue(cbor)
+    ListPersonasResponse::class -> listPersonasResponseFromCborValue(cbor)
+    PutPersonaRequest::class -> putPersonaRequestFromCborValue(cbor)
     SayRequest::class -> sayRequestFromCborValue(cbor)
     SayResponse::class -> sayResponseFromCborValue(cbor)
-    ListChatsRequest::class -> listChatsRequestFromCborValue(cbor)
-    ListChatsResponse::class -> listChatsResponseFromCborValue(cbor)
     ReadRequest::class -> readRequestFromCborValue(cbor)
     ReadResponse::class -> readResponseFromCborValue(cbor)
+    SearchRequest::class -> searchRequestFromCborValue(cbor)
+    SearchResponse::class -> searchResponseFromCborValue(cbor)
+    TraceRequest::class -> traceRequestFromCborValue(cbor)
+    TraceResponse::class -> traceResponseFromCborValue(cbor)
+    ListLinksRequest::class -> listLinksRequestFromCborValue(cbor)
+    ListLinksResponse::class -> listLinksResponseFromCborValue(cbor)
+    LinkRequest::class -> linkRequestFromCborValue(cbor)
+    UnlinkRequest::class -> unlinkRequestFromCborValue(cbor)
+    SetVisibilityRequest::class -> setVisibilityRequestFromCborValue(cbor)
+    ReviewItem::class -> reviewItemFromCborValue(cbor)
+    ListReviewsRequest::class -> listReviewsRequestFromCborValue(cbor)
+    ListReviewsResponse::class -> listReviewsResponseFromCborValue(cbor)
+    AnswerReviewRequest::class -> answerReviewRequestFromCborValue(cbor)
+    AnswerReviewResponse::class -> answerReviewResponseFromCborValue(cbor)
     GetAudioRequest::class -> getAudioRequestFromCborValue(cbor)
     AudioResponse::class -> audioResponseFromCborValue(cbor)
     TaskStep::class -> taskStepFromCborValue(cbor)
@@ -1380,6 +2964,33 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     VoiceInfo::class -> voiceInfoFromCborValue(cbor)
     ListVoicesRequest::class -> listVoicesRequestFromCborValue(cbor)
     ListVoicesResponse::class -> listVoicesResponseFromCborValue(cbor)
+    LexiconWord::class -> lexiconWordFromCborValue(cbor)
+    ListLexiconRequest::class -> listLexiconRequestFromCborValue(cbor)
+    ListLexiconResponse::class -> listLexiconResponseFromCborValue(cbor)
+    PutLexiconWordRequest::class -> putLexiconWordRequestFromCborValue(cbor)
+    DeleteLexiconWordRequest::class -> deleteLexiconWordRequestFromCborValue(cbor)
+    DeleteLexiconWordResponse::class -> deleteLexiconWordResponseFromCborValue(cbor)
+    SpeakRequest::class -> speakRequestFromCborValue(cbor)
+    SpeakResponse::class -> speakResponseFromCborValue(cbor)
+    RunnerInfo::class -> runnerInfoFromCborValue(cbor)
+    ListRunnersRequest::class -> listRunnersRequestFromCborValue(cbor)
+    ListRunnersResponse::class -> listRunnersResponseFromCborValue(cbor)
+    PutRunnerPackageRequest::class -> putRunnerPackageRequestFromCborValue(cbor)
+    PutRunnerPackageResponse::class -> putRunnerPackageResponseFromCborValue(cbor)
+    SetRunnerReleaseRequest::class -> setRunnerReleaseRequestFromCborValue(cbor)
+    SetRunnerReleaseResponse::class -> setRunnerReleaseResponseFromCborValue(cbor)
+    AppRelease::class -> appReleaseFromCborValue(cbor)
+    PutAppReleaseRequest::class -> putAppReleaseRequestFromCborValue(cbor)
+    GetAppReleaseRequest::class -> getAppReleaseRequestFromCborValue(cbor)
+    GetAppReleaseResponse::class -> getAppReleaseResponseFromCborValue(cbor)
+    GetAppPackageRequest::class -> getAppPackageRequestFromCborValue(cbor)
+    GetAppPackageResponse::class -> getAppPackageResponseFromCborValue(cbor)
+    EgressReviewHeader::class -> egressReviewHeaderFromCborValue(cbor)
+    EgressReview::class -> egressReviewFromCborValue(cbor)
+    ListEgressReviewsRequest::class -> listEgressReviewsRequestFromCborValue(cbor)
+    ListEgressReviewsResponse::class -> listEgressReviewsResponseFromCborValue(cbor)
+    DecideEgressReviewRequest::class -> decideEgressReviewRequestFromCborValue(cbor)
+    DecideEgressReviewResponse::class -> decideEgressReviewResponseFromCborValue(cbor)
     RunnerClaimRequest::class -> runnerClaimRequestFromCborValue(cbor)
     RunnerAssignment::class -> runnerAssignmentFromCborValue(cbor)
     RunnerClaimResponse::class -> runnerClaimResponseFromCborValue(cbor)
@@ -1392,5 +3003,27 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     RunnerRunStatusRequest::class -> runnerRunStatusRequestFromCborValue(cbor)
     RunnerRunStatusResponse::class -> runnerRunStatusResponseFromCborValue(cbor)
     RunnerAck::class -> runnerAckFromCborValue(cbor)
+    RunnerHelloRequest::class -> runnerHelloRequestFromCborValue(cbor)
+    RunnerUpdate::class -> runnerUpdateFromCborValue(cbor)
+    RunnerHelloResponse::class -> runnerHelloResponseFromCborValue(cbor)
+    RunnerGetPackageRequest::class -> runnerGetPackageRequestFromCborValue(cbor)
+    RunnerGetPackageResponse::class -> runnerGetPackageResponseFromCborValue(cbor)
+    RunnerGetArtifactRequest::class -> runnerGetArtifactRequestFromCborValue(cbor)
+    RunnerGetArtifactResponse::class -> runnerGetArtifactResponseFromCborValue(cbor)
+    RunnerEgressProxy::class -> runnerEgressProxyFromCborValue(cbor)
+    RunnerEgressAccessResponse::class -> runnerEgressAccessResponseFromCborValue(cbor)
+    EgressFlowHeader::class -> egressFlowHeaderFromCborValue(cbor)
+    EgressFlow::class -> egressFlowFromCborValue(cbor)
+    EgressEnvironmentRequest::class -> egressEnvironmentRequestFromCborValue(cbor)
+    EgressEnvironmentResponse::class -> egressEnvironmentResponseFromCborValue(cbor)
+    EgressEvaluateRequest::class -> egressEvaluateRequestFromCborValue(cbor)
+    EgressVerdict::class -> egressVerdictFromCborValue(cbor)
+    EgressSecretRulesRequest::class -> egressSecretRulesRequestFromCborValue(cbor)
+    EgressSecretRule::class -> egressSecretRuleFromCborValue(cbor)
+    EgressSecretRulesResponse::class -> egressSecretRulesResponseFromCborValue(cbor)
+    EgressReportRequest::class -> egressReportRequestFromCborValue(cbor)
+    EgressReportResponse::class -> egressReportResponseFromCborValue(cbor)
+    EgressDestinationRequest::class -> egressDestinationRequestFromCborValue(cbor)
+    EgressDestinationResponse::class -> egressDestinationResponseFromCborValue(cbor)
     else -> throw CborError("no CSIL CBOR codec for $type")
 }

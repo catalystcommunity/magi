@@ -8,39 +8,48 @@ export interface ServiceError {
 }
 
 /**
- * Conversation graph records. This service stores interactions and their
- * links. It does not interpret them.
+ * sharing: "never", "private" (private by default), or "public" (shared
+ * with the audience by default). members is the audience: the subjects
+ * that can read the utterances that are shared with this persona.
  */
-export interface Conversation {
+export interface Persona {
   id: string;
-  title: string;
-  owner: string;
-  participants: string[];
+  name: string;
+  sharing: string;
+  members: string[];
+  updatedMs: number;
+}
+
+export interface Stream {
+  id: string;
+  person: string;
+  persona: string;
+  lastSeq: number;
   createdMs: number;
   updatedMs: number;
-  lastSeq: number;
 }
 
 /**
- * A reference from an utterance to a record in another system.
- * kind examples: "artifact", "workflow-run", "knowledge-node", "url".
+ * A reference to a record in another system, or to an utterance.
+ * kind examples: "utterance", "artifact", "workflow-run", "knowledge-node",
+ * "url".
  */
-export interface Attachment {
+export interface Ref {
   kind: string;
   ref: string;
   title?: string;
 }
 
 /**
- * One interaction. author_kind is "human", "persona", or "system".
- * modality is "text" or "voice". seq increases by one in each conversation.
- * sessions lists the activities that this utterance advances.
- * generated_by names the model or engine that made text, for example the
- * language model of a persona reply or the transcriber of a voice message.
+ * One thing that someone said or did. author_kind is "human", "persona",
+ * or "system". modality is "text" or "voice". seq increases by one in each
+ * stream. visibility is "private" or "shared"; visibility_by is the
+ * author of the last visibility decision ("" until it is classified).
+ * generated_by names the model or engine that made the text.
  */
 export interface Utterance {
   id: string;
-  conversation: string;
+  stream: string;
   seq: number;
   author: string;
   authorKind: string;
@@ -48,30 +57,48 @@ export interface Utterance {
   text: string;
   audio?: string;
   transcriptConfidence?: number;
-  replyTo?: string;
-  sessions: string[];
-  attachments: Attachment[];
+  attachments: Ref[];
   generatedBy?: string;
+  visibility: string;
+  visibilityBy: string;
+  visibilityConfidence?: number;
   createdMs: number;
 }
 
 /**
- * An activity inside a conversation, such as a task. status is free text,
- * for example "open", "waiting", or "closed".
+ * A part of the text of an utterance, as character offsets [start, end).
  */
-export interface Session {
-  id: string;
-  conversation: string;
-  title: string;
-  status: string;
-  refs: Attachment[];
-  createdMs: number;
-  updatedMs: number;
+export interface Span {
+  start: number;
+  end: number;
 }
 
 /**
- * A later record about an utterance, such as an interpretation.
- * body is opaque to this service; producers usually store JSON.
+ * A directed edge from an utterance. kind is open text, for example
+ * "reply-to", "answers", "asks-about", "continues", "corrects",
+ * "started", "reports-on", "about" (see docs/conversations.md). weight is
+ * the part of the utterance that the link applies to (0 to 1, default 1).
+ * state is "current", "tentative" (below the review threshold),
+ * "replaced", or "retracted".
+ */
+export interface Link {
+  id: string;
+  utterance: string;
+  span?: Span;
+  weight: number;
+  target: Ref;
+  kind: string;
+  confidence: number;
+  author: string;
+  note?: string;
+  state: string;
+  replaces?: string;
+  createdMs: number;
+}
+
+/**
+ * A later record about an utterance, such as an interpretation log.
+ * body is opaque to this service.
  */
 export interface Annotation {
   id: string;
@@ -82,83 +109,317 @@ export interface Annotation {
   createdMs: number;
 }
 
-export interface CreateConversationRequest {
-  title?: string;
-  participants?: string[];
-  owner?: string;
-}
-
-export interface GetConversationRequest {
+/**
+ * A question to a person about a classification with a low confidence.
+ * task is "visibility" or "link". proposed is the proposal; choices are
+ * the answers to choose from. status is "open", "answered", or
+ * "dismissed".
+ */
+export interface Review {
   id: string;
-}
-
-export interface ListConversationsRequest {
-  limit?: number;
-  beforeMs?: number;
-}
-
-export interface ListConversationsResponse {
-  conversations: Conversation[];
+  reviewer: string;
+  task: string;
+  utterance: string;
+  link?: string;
+  question: string;
+  proposed: string;
+  choices: string[];
+  confidence: number;
+  status: string;
+  answer?: string;
+  note?: string;
+  createdMs: number;
+  answeredMs?: number;
 }
 
 /**
- * author defaults to the caller. Only a caller with the
- * "conversation:act-as" scope can name another author.
+ * An answer or a correction that the classifier can learn from. label
+ * is what the person decided; proposed is what the classifier said ("" for
+ * a correction of a record that a person made).
  */
+export interface Example {
+  task: string;
+  utterance: string;
+  proposed: string;
+  label: string;
+  note?: string;
+  createdMs: number;
+}
+
+/**
+ * The review threshold of a person for a task. A proposal with a lower
+ * confidence makes a review.
+ */
+export interface Calibration {
+  reviewer: string;
+  task: string;
+  threshold: number;
+  accepted: number;
+  corrected: number;
+}
+
+/**
+ * Operator call (scope "conversation:admin").
+ */
+export interface PutPersonaRequest {
+  id: string;
+  name: string;
+  sharing: string;
+  members?: string[];
+}
+
+export interface GetPersonaRequest {
+  id: string;
+}
+
+export interface ListPersonasRequest {
+}
+
+export interface ListPersonasResponse {
+  personas: Persona[];
+}
+
+/**
+ * Returns the stream of person and persona, and makes it when it is not
+ * there. person defaults to the caller; another person needs act-as.
+ */
+export interface OpenStreamRequest {
+  persona: string;
+  person?: string;
+}
+
+export interface ListStreamsRequest {
+  person?: string;
+}
+
+export interface ListStreamsResponse {
+  streams: Stream[];
+}
+
+/**
+ * author defaults to the caller; another author needs act-as. links are
+ * links from the new utterance, with confidence 1 when not set. A new
+ * utterance is private and not classified, unless visibility is set by
+ * an act-as caller.
+ */
+export interface NewLink {
+  target: Ref;
+  kind: string;
+  span?: Span;
+  weight?: number;
+  confidence?: number;
+  note?: string;
+}
+
 export interface PostRequest {
-  conversation: string;
+  stream: string;
   text: string;
   author?: string;
   authorKind?: string;
   modality?: string;
   audio?: string;
   transcriptConfidence?: number;
-  replyTo?: string;
-  sessions?: string[];
-  attachments?: Attachment[];
+  attachments?: Ref[];
   generatedBy?: string;
+  links?: NewLink[];
+  visibility?: string;
 }
 
 /**
- * Returns utterances with seq greater than after_seq, oldest first.
- * If there are none and wait_ms is set, waits up to wait_ms for new ones.
+ * Returns utterances of a stream with seq greater than after_seq, oldest
+ * first, with the current links from them. before_seq instead returns the
+ * newest utterances before it (for scrolling back). If there are none and
+ * wait_ms is set, waits up to wait_ms for new ones.
  */
 export interface ListUtterancesRequest {
-  conversation: string;
+  stream: string;
   afterSeq?: number;
+  beforeSeq?: number;
   limit?: number;
   waitMs?: number;
+  person?: string;
+  persona?: string;
 }
 
 export interface ListUtterancesResponse {
   utterances: Utterance[];
+  links: Link[];
   lastSeq: number;
 }
 
 export interface GetUtteranceRequest {
   id: string;
+  person?: string;
+  persona?: string;
 }
 
-export interface OpenSessionRequest {
-  conversation: string;
-  title: string;
-  status?: string;
-  refs?: Attachment[];
+export interface GetUtterancesRequest {
+  ids: string[];
+  person?: string;
+  persona?: string;
 }
 
-export interface UpdateSessionRequest {
+export interface GetUtterancesResponse {
+  utterances: Utterance[];
+}
+
+/**
+ * Words in the text of readable utterances, best match first.
+ */
+export interface SearchRequest {
+  text: string;
+  limit?: number;
+  beforeMs?: number;
+  person?: string;
+  persona?: string;
+}
+
+export interface SearchHit {
+  utterance: Utterance;
+  rank: number;
+}
+
+export interface SearchResponse {
+  hits: SearchHit[];
+}
+
+/**
+ * Follows links from an utterance. direction is "back" (links from it,
+ * the default), "forward" (links to it), or "both". depth is at most 4.
+ * tentative includes tentative links.
+ */
+export interface TraceRequest {
+  utterance: string;
+  direction?: string;
+  depth?: number;
+  kinds?: string[];
+  tentative?: boolean;
+  person?: string;
+  persona?: string;
+}
+
+export interface TraceResponse {
+  utterances: Utterance[];
+  links: Link[];
+}
+
+/**
+ * Adds a link. A caller other than the person of the stream (for
+ * example the librarian) gives a confidence; below the threshold of the
+ * person the link is tentative and a review opens. replaces names a link
+ * that this one replaces. A link by the person is a correction.
+ */
+export interface PutLinkRequest {
+  utterance: string;
+  link: NewLink;
+  replaces?: string;
+  question?: string;
+}
+
+export interface PutLinkResponse {
+  link: Link;
+  review?: Review;
+}
+
+export interface RetractLinkRequest {
   id: string;
-  title?: string;
+  note?: string;
+}
+
+export interface ListLinksRequest {
+  utterance: string;
+  direction?: string;
+  allStates?: boolean;
+  person?: string;
+  persona?: string;
+}
+
+export interface ListLinksResponse {
+  links: Link[];
+}
+
+/**
+ * Sets the visibility ("private" or "shared"). From a classifier (a
+ * caller other than the person), below the threshold the visibility does
+ * not change and a review opens. From the person, it is a correction.
+ */
+export interface SetVisibilityRequest {
+  utterance: string;
+  visibility: string;
+  confidence?: number;
+  question?: string;
+  note?: string;
+}
+
+export interface SetVisibilityResponse {
+  utterance: Utterance;
+  review?: Review;
+}
+
+/**
+ * Reviews of the caller (or of `person`), oldest first.
+ */
+export interface ListReviewsRequest {
   status?: string;
-  addRefs?: Attachment[];
+  limit?: number;
+  person?: string;
 }
 
-export interface ListSessionsRequest {
-  conversation: string;
+export interface ListReviewsResponse {
+  reviews: Review[];
 }
 
-export interface ListSessionsResponse {
-  sessions: Session[];
+/**
+ * answer is one of the choices, or "dismiss".
+ */
+export interface AnswerReviewRequest {
+  id: string;
+  answer: string;
+  note?: string;
+}
+
+/**
+ * Recent examples of reviewer (the caller, or `person`) for a task.
+ */
+export interface ListExamplesRequest {
+  task: string;
+  limit?: number;
+  person?: string;
+}
+
+export interface ListExamplesResponse {
+  examples: Example[];
+}
+
+export interface GetCalibrationRequest {
+  task: string;
+  person?: string;
+}
+
+/**
+ * Claims utterances that are not classified, oldest first, for lease_ms
+ * (default 120000). A classifier marks each one when it is done; a claim
+ * that is not marked returns to the queue when the lease ends. Thus
+ * replicas of a classifier do not classify the same utterance.
+ */
+export interface ClaimUnclassifiedRequest {
+  limit?: number;
+  leaseMs?: number;
+}
+
+export interface ClaimUnclassifiedResponse {
+  utterances: Utterance[];
+}
+
+/**
+ * Marks an utterance as classified.
+ */
+export interface MarkClassifiedRequest {
+  utterance: string;
+}
+
+export interface GetStreamRequest {
+  id: string;
 }
 
 export interface AnnotateRequest {
@@ -173,5 +434,20 @@ export interface ListAnnotationsRequest {
 
 export interface ListAnnotationsResponse {
   annotations: Annotation[];
+}
+
+/**
+ * Operator call (scope "conversation:admin"). Copies the chats of the
+ * earlier model into streams (see docs/conversations.md). It is safe to
+ * run again: it copies only what is not there.
+ */
+export interface ImportLegacyRequest {
+  persona: string;
+}
+
+export interface ImportLegacyResponse {
+  streams: number;
+  utterances: number;
+  links: number;
 }
 

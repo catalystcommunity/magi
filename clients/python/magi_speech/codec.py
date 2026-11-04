@@ -384,6 +384,9 @@ TranscribeRequest.from_cbor = staticmethod(_transcribe_request_from_cbor)
 def _encode_transcript_value(v: "Transcript") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["text"] = v.text
+    csil_x = v.heard
+    if csil_x is not None:
+        csil_m["heard"] = csil_x
     csil_m["engine"] = v.engine
     csil_m["audio_ms"] = v.audio_ms
     csil_x = v.confidence
@@ -396,6 +399,7 @@ def _decode_transcript_value(tree: Any) -> "Transcript":
     tree = _csil_expect_map(tree)
     return Transcript(
         text=_csil_expect_text(tree["text"]),
+        heard=(None if tree.get("heard") is None else _csil_expect_text(tree["heard"])),
         confidence=(None if tree.get("confidence") is None else _csil_expect_float(tree["confidence"])),
         engine=_csil_expect_text(tree["engine"]),
         audio_ms=_csil_expect_uint(tree["audio_ms"]),
@@ -416,6 +420,9 @@ Transcript.from_cbor = staticmethod(_transcript_from_cbor)
 
 def _encode_synthesize_request_value(v: "SynthesizeRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
+    csil_x = v.raw
+    if csil_x is not None:
+        csil_m["raw"] = csil_x
     csil_m["text"] = v.text
     csil_x = v.speed
     if csil_x is not None:
@@ -435,6 +442,7 @@ def _decode_synthesize_request_value(tree: Any) -> "SynthesizeRequest":
         voice=(None if tree.get("voice") is None else _csil_expect_text(tree["voice"])),
         format=(None if tree.get("format") is None else _csil_expect_text(tree["format"])),
         speed=(None if tree.get("speed") is None else _csil_expect_float(tree["speed"])),
+        raw=(None if tree.get("raw") is None else _csil_expect_bool(tree["raw"])),
     )
 
 
@@ -454,6 +462,7 @@ def _encode_audio_value(v: "Audio") -> Dict[Any, Any]:
     csil_m["body"] = v.body
     csil_m["voice"] = v.voice
     csil_m["engine"] = v.engine
+    csil_m["spoken"] = v.spoken
     csil_m["audio_ms"] = v.audio_ms
     csil_m["elapsed_ms"] = v.elapsed_ms
     csil_m["media_type"] = v.media_type
@@ -463,6 +472,7 @@ def _decode_audio_value(tree: Any) -> "Audio":
     tree = _csil_expect_map(tree)
     return Audio(
         body=_csil_expect_bytes(tree["body"]),
+        spoken=_csil_expect_text(tree["spoken"]),
         media_type=_csil_expect_text(tree["media_type"]),
         voice=_csil_expect_text(tree["voice"]),
         engine=_csil_expect_text(tree["engine"]),
@@ -560,3 +570,222 @@ def _list_voices_response_from_cbor(data: bytes) -> "ListVoicesResponse":
 
 ListVoicesResponse.to_cbor = _list_voices_response_to_cbor
 ListVoicesResponse.from_cbor = staticmethod(_list_voices_response_from_cbor)
+
+def _encode_lexicon_entry_value(v: "LexiconEntry") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.ipa
+    if csil_x is not None:
+        csil_m["ipa"] = csil_x
+    csil_x = v.note
+    if csil_x is not None:
+        csil_m["note"] = csil_x
+    csil_x = v.spoken
+    if csil_x is not None:
+        csil_m["spoken"] = csil_x
+    csil_m["written"] = v.written
+    csil_m["heard_as"] = v.heard_as
+    csil_m["updated_by"] = v.updated_by
+    csil_m["updated_ms"] = v.updated_ms
+    return csil_m
+
+def _decode_lexicon_entry_value(tree: Any) -> "LexiconEntry":
+    tree = _csil_expect_map(tree)
+    return LexiconEntry(
+        written=_csil_expect_text(tree["written"]),
+        spoken=(None if tree.get("spoken") is None else _csil_expect_text(tree["spoken"])),
+        ipa=(None if tree.get("ipa") is None else _csil_expect_text(tree["ipa"])),
+        heard_as=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["heard_as"])],
+        note=(None if tree.get("note") is None else _csil_expect_text(tree["note"])),
+        updated_by=_csil_expect_text(tree["updated_by"]),
+        updated_ms=_csil_expect_uint(tree["updated_ms"]),
+    )
+
+
+def _lexicon_entry_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_lexicon_entry_value(self))
+
+
+def _lexicon_entry_from_cbor(data: bytes) -> "LexiconEntry":
+    return _decode_lexicon_entry_value(cbor_decode(data))
+
+
+LexiconEntry.to_cbor = _lexicon_entry_to_cbor
+LexiconEntry.from_cbor = staticmethod(_lexicon_entry_from_cbor)
+
+def _encode_list_lexicon_request_value(v: "ListLexiconRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    return csil_m
+
+def _decode_list_lexicon_request_value(tree: Any) -> "ListLexiconRequest":
+    tree = _csil_expect_map(tree)
+    return ListLexiconRequest()
+
+
+def _list_lexicon_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_lexicon_request_value(self))
+
+
+def _list_lexicon_request_from_cbor(data: bytes) -> "ListLexiconRequest":
+    return _decode_list_lexicon_request_value(cbor_decode(data))
+
+
+ListLexiconRequest.to_cbor = _list_lexicon_request_to_cbor
+ListLexiconRequest.from_cbor = staticmethod(_list_lexicon_request_from_cbor)
+
+def _encode_list_lexicon_response_value(v: "ListLexiconResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["entries"] = [_encode_lexicon_entry_value(csil_e) for csil_e in v.entries]
+    return csil_m
+
+def _decode_list_lexicon_response_value(tree: Any) -> "ListLexiconResponse":
+    tree = _csil_expect_map(tree)
+    return ListLexiconResponse(
+        entries=[_decode_lexicon_entry_value(csil_e) for csil_e in _csil_expect_array(tree["entries"])],
+    )
+
+
+def _list_lexicon_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_lexicon_response_value(self))
+
+
+def _list_lexicon_response_from_cbor(data: bytes) -> "ListLexiconResponse":
+    return _decode_list_lexicon_response_value(cbor_decode(data))
+
+
+ListLexiconResponse.to_cbor = _list_lexicon_response_to_cbor
+ListLexiconResponse.from_cbor = staticmethod(_list_lexicon_response_from_cbor)
+
+def _encode_put_lexicon_entry_request_value(v: "PutLexiconEntryRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.by
+    if csil_x is not None:
+        csil_m["by"] = csil_x
+    csil_x = v.ipa
+    if csil_x is not None:
+        csil_m["ipa"] = csil_x
+    csil_x = v.note
+    if csil_x is not None:
+        csil_m["note"] = csil_x
+    csil_x = v.spoken
+    if csil_x is not None:
+        csil_m["spoken"] = csil_x
+    csil_m["written"] = v.written
+    csil_x = v.heard_as
+    if csil_x is not None:
+        csil_m["heard_as"] = csil_x
+    return csil_m
+
+def _decode_put_lexicon_entry_request_value(tree: Any) -> "PutLexiconEntryRequest":
+    tree = _csil_expect_map(tree)
+    return PutLexiconEntryRequest(
+        written=_csil_expect_text(tree["written"]),
+        spoken=(None if tree.get("spoken") is None else _csil_expect_text(tree["spoken"])),
+        ipa=(None if tree.get("ipa") is None else _csil_expect_text(tree["ipa"])),
+        heard_as=(None if tree.get("heard_as") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["heard_as"])]),
+        note=(None if tree.get("note") is None else _csil_expect_text(tree["note"])),
+        by=(None if tree.get("by") is None else _csil_expect_text(tree["by"])),
+    )
+
+
+def _put_lexicon_entry_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_put_lexicon_entry_request_value(self))
+
+
+def _put_lexicon_entry_request_from_cbor(data: bytes) -> "PutLexiconEntryRequest":
+    return _decode_put_lexicon_entry_request_value(cbor_decode(data))
+
+
+PutLexiconEntryRequest.to_cbor = _put_lexicon_entry_request_to_cbor
+PutLexiconEntryRequest.from_cbor = staticmethod(_put_lexicon_entry_request_from_cbor)
+
+def _encode_delete_lexicon_entry_request_value(v: "DeleteLexiconEntryRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["written"] = v.written
+    return csil_m
+
+def _decode_delete_lexicon_entry_request_value(tree: Any) -> "DeleteLexiconEntryRequest":
+    tree = _csil_expect_map(tree)
+    return DeleteLexiconEntryRequest(
+        written=_csil_expect_text(tree["written"]),
+    )
+
+
+def _delete_lexicon_entry_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_delete_lexicon_entry_request_value(self))
+
+
+def _delete_lexicon_entry_request_from_cbor(data: bytes) -> "DeleteLexiconEntryRequest":
+    return _decode_delete_lexicon_entry_request_value(cbor_decode(data))
+
+
+DeleteLexiconEntryRequest.to_cbor = _delete_lexicon_entry_request_to_cbor
+DeleteLexiconEntryRequest.from_cbor = staticmethod(_delete_lexicon_entry_request_from_cbor)
+
+def _encode_delete_lexicon_entry_response_value(v: "DeleteLexiconEntryResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["deleted"] = v.deleted
+    return csil_m
+
+def _decode_delete_lexicon_entry_response_value(tree: Any) -> "DeleteLexiconEntryResponse":
+    tree = _csil_expect_map(tree)
+    return DeleteLexiconEntryResponse(
+        deleted=_csil_expect_bool(tree["deleted"]),
+    )
+
+
+def _delete_lexicon_entry_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_delete_lexicon_entry_response_value(self))
+
+
+def _delete_lexicon_entry_response_from_cbor(data: bytes) -> "DeleteLexiconEntryResponse":
+    return _decode_delete_lexicon_entry_response_value(cbor_decode(data))
+
+
+DeleteLexiconEntryResponse.to_cbor = _delete_lexicon_entry_response_to_cbor
+DeleteLexiconEntryResponse.from_cbor = staticmethod(_delete_lexicon_entry_response_from_cbor)
+
+def _encode_prepare_text_request_value(v: "PrepareTextRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["text"] = v.text
+    return csil_m
+
+def _decode_prepare_text_request_value(tree: Any) -> "PrepareTextRequest":
+    tree = _csil_expect_map(tree)
+    return PrepareTextRequest(
+        text=_csil_expect_text(tree["text"]),
+    )
+
+
+def _prepare_text_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_prepare_text_request_value(self))
+
+
+def _prepare_text_request_from_cbor(data: bytes) -> "PrepareTextRequest":
+    return _decode_prepare_text_request_value(cbor_decode(data))
+
+
+PrepareTextRequest.to_cbor = _prepare_text_request_to_cbor
+PrepareTextRequest.from_cbor = staticmethod(_prepare_text_request_from_cbor)
+
+def _encode_prepare_text_response_value(v: "PrepareTextResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["spoken"] = v.spoken
+    return csil_m
+
+def _decode_prepare_text_response_value(tree: Any) -> "PrepareTextResponse":
+    tree = _csil_expect_map(tree)
+    return PrepareTextResponse(
+        spoken=_csil_expect_text(tree["spoken"]),
+    )
+
+
+def _prepare_text_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_prepare_text_response_value(self))
+
+
+def _prepare_text_response_from_cbor(data: bytes) -> "PrepareTextResponse":
+    return _decode_prepare_text_response_value(cbor_decode(data))
+
+
+PrepareTextResponse.to_cbor = _prepare_text_response_to_cbor
+PrepareTextResponse.from_cbor = staticmethod(_prepare_text_response_from_cbor)

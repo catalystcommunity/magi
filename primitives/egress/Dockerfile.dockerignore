@@ -1,0 +1,9 @@
+*
+!contracts/egress.wit
+!primitives/egress/Cargo.toml
+!primitives/egress/Cargo.lock
+!primitives/egress/src/**
+!primitives/egress/plugins/Cargo.toml
+!primitives/egress/plugins/Cargo.lock
+!primitives/egress/plugins/*/Cargo.toml
+!primitives/egress/plugins/*/src/**

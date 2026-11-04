@@ -4,6 +4,8 @@
 __pycache__/
 *.pyc
 /primitives/release/target/
+/primitives/egress/target/
+/primitives/egress/plugins/target/
 node_modules/
 /.playwright-mcp/
 /android/.gradle/
@@ -12,3 +14,5 @@ node_modules/
 /android/app/build/
 /android/local.properties
 magi/magi
+magi/magi-host-setup
+core.[0-9]*

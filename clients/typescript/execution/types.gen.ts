@@ -9,9 +9,10 @@ export interface ServiceError {
 
 /**
  * What an environment needs. backend selects how it runs: "kubernetes"
- * (container), "vm", or "host". The same in-environment agent runs in
+ * (container), "vm", or "host". The same in-environment daemon runs in
  * every backend, so callers do not depend on the backend.
- * network is "none", "cluster", or "egress".
+ * network is "none", "cluster", "egress", or "proxy" (only through the
+ * Magi egress proxy).
  * env can carry short-lived credentials admitted for this environment.
  */
 export interface EnvironmentSpec {
