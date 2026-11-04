@@ -22,8 +22,9 @@ func Handler() http.Handler {
 	sub, _ := fs.Sub(static, "static")
 	prefix := "/s/" + contentHash(sub) + "/"
 	index, _ := fs.ReadFile(sub, "index.html")
-	page := strings.NewReplacer(`href="style.css"`, `href="`+prefix+`style.css"`,
-		`src="js/`, `src="`+prefix+`js/`).Replace(string(index))
+	// index.html names each file as /s/@/<path>: in links, in scripts,
+	// and in the import map.
+	page := strings.ReplaceAll(string(index), "/s/@/", prefix)
 	files := http.StripPrefix(prefix, http.FileServer(http.FS(sub)))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {

@@ -3,13 +3,22 @@
     "target": "es2022",
     "module": "es2022",
     "moduleResolution": "bundler",
-    "lib": ["es2022", "dom"],
+    "lib": ["es2022", "dom", "dom.iterable"],
     "strict": true,
     "allowImportingTsExtensions": true,
     "rewriteRelativeImportExtensions": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "solid-js/h",
+    "paths": {
+      "solid-js": ["./types/solid-js/types/index.d.ts"],
+      "solid-js/web": ["./types/solid-js/web/types/index.d.ts"],
+      "solid-js/h": ["./types/solid-js/h/types/index.d.ts"],
+      "solid-js/h/jsx-runtime": ["./types/solid-js/h/jsx-runtime/types/index.d.ts"],
+      "csstype": ["./types/csstype/index.d.ts"]
+    },
     "rootDir": "../..",
     "outDir": "static/js",
     "skipLibCheck": true
   },
-  "include": ["src/*.ts"]
+  "include": ["src/*.ts", "src/*.tsx"]
 }
