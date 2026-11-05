@@ -612,6 +612,9 @@ def _encode_say_request_value(v: "SayRequest") -> Dict[Any, Any]:
     csil_x = v.persona
     if csil_x is not None:
         csil_m["persona"] = csil_x
+    csil_x = v.wake_word
+    if csil_x is not None:
+        csil_m["wake_word"] = csil_x
     csil_x = v.audio_type
     if csil_x is not None:
         csil_m["audio_type"] = csil_x
@@ -629,6 +632,7 @@ def _decode_say_request_value(tree: Any) -> "SayRequest":
         audio_type=(None if tree.get("audio_type") is None else _csil_expect_text(tree["audio_type"])),
         speak_reply=(None if tree.get("speak_reply") is None else _csil_expect_bool(tree["speak_reply"])),
         voice=(None if tree.get("voice") is None else _csil_expect_text(tree["voice"])),
+        wake_word=(None if tree.get("wake_word") is None else _csil_expect_bool(tree["wake_word"])),
     )
 
 
@@ -645,6 +649,9 @@ SayRequest.from_cbor = staticmethod(_say_request_from_cbor)
 
 def _encode_say_response_value(v: "SayResponse") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
+    csil_x = v.ignored
+    if csil_x is not None:
+        csil_m["ignored"] = csil_x
     csil_m["message"] = _encode_message_value(v.message)
     return csil_m
 
@@ -652,6 +659,7 @@ def _decode_say_response_value(tree: Any) -> "SayResponse":
     tree = _csil_expect_map(tree)
     return SayResponse(
         message=_decode_message_value(tree["message"]),
+        ignored=(None if tree.get("ignored") is None else _csil_expect_bool(tree["ignored"])),
     )
 
 

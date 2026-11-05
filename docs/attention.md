@@ -111,6 +111,16 @@ name of any persona calls that persona. The reply of `say` has the
 persona, and the clients then show that conversation. "computer science is
 hard" calls nobody, because no comma follows the name.
 
+### 5.1 Wake word
+
+In hands-free talk, the microphone hears all talk in the room. With the
+option "Wake word", the client sends each turn with `wake_word` true. Magi
+then takes only a turn that starts with the name of a persona ("Computer,
+...", "Engineering, ..."). For other turns, Magi keeps nothing: it does not
+store the audio or the text, and the response has `ignored` true. In the 8
+seconds after a spoken reply ends, the client sends the turn without
+`wake_word`, so the person can answer without the name.
+
 ## 6. Status
 
 Done: devices and notices in the conversation service and the Magi API,
@@ -118,6 +128,6 @@ the tools `send_notice` and `list_devices`, task notices, the engineering
 manager, and the web client (hello, notice loop, chime, tray, system
 notifications), the Android client (system notifications from a
 foreground service, notices said after a tone while the app is open), and
-calling a persona by name. While hands-free talk is on, the Android
+calling a persona by name, with an optional wake word. While hands-free talk is on, the Android
 notice service also has the foreground type `microphone`, so the
-microphone works with the screen off. Not done: a wake word.
+microphone works with the screen off. Not done: a wake word on the device (today the server decides after STT, so the audio of each turn goes to Magi and Magi drops it).

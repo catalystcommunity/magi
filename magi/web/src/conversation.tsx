@@ -1,7 +1,7 @@
 // The conversation. There are no chats: the person has one stream with
 // each persona. The librarian links each message to the earlier messages it
 // relates to, and the view shows those links under the message.
-import { createSignal } from "solid-js";
+import { createSignal, createEffect, createRoot } from "solid-js";
 import { For, Show, aria } from "./flow.ts";
 import type { Message, MessageLink } from "../../../clients/typescript/magi/types.gen.ts";
 import { magi, me, persona, setPersona, personas, personaName, loadPersonas, refreshCounts, go, store, fail, errText, time, day, shortDay, who } from "./api.ts";
@@ -13,6 +13,13 @@ const [hasEarlier, setHasEarlier] = createSignal(false);
 const [loadError, setLoadError] = createSignal("");
 const [speakReplies, setSpeakReplies] = createSignal(store.get("magi.speak") === "1");
 const [clipPlaying, setClipPlaying] = createSignal(false);
+// Wake word: in hands-free talk, Magi takes only speech that starts with
+// the name of a persona ("Computer, ..."), and the answer to a reply in
+// the 8 s after the reply ends. Other talk in the room is not kept.
+const [wakeWord, setWakeWord] = createSignal(store.get("magi.wake") === "1");
+const followUpMs = 8000;
+let lastReplyEnd = 0;
+createRoot(() => createEffect((was: string | null) => { const now = speaking(); if (was && !now) lastReplyEnd = Date.now(); return now; }, null));
 export const playing = () => clipPlaying() || speaking() !== null;
 // The orb listens while hands-free talk is on.
 export const recording = () => handsFree();
@@ -106,8 +113,9 @@ async function play(digest: string) {
 
 // A message that names another persona ("Engineering, ...") goes to that
 // persona; the view follows it.
-async function send(text: string | undefined, audioBody?: Uint8Array, audioType?: string) {
-  const r = await magi.say({ persona: persona(), text, audio: audioBody, audioType, speakReply: speakReplies() || !!audioBody });
+async function send(text: string | undefined, audioBody?: Uint8Array, audioType?: string, wake = false) {
+  const r = await magi.say({ persona: persona(), text, audio: audioBody, audioType, speakReply: speakReplies() || !!audioBody, wakeWord: wake || undefined });
+  if (r.ignored) return;
   if (r.message.persona && r.message.persona !== persona()) openStream(r.message.persona);
 }
 
@@ -117,7 +125,7 @@ async function send(text: string | undefined, audioBody?: Uint8Array, audioType?
 async function toggleMic() {
   if (handsFree()) { stopListening(); return; }
   try {
-    await startListening((wav) => send(undefined, wav, "audio/wav").catch(fail("Could not send what you said")));
+    await startListening((wav) => send(undefined, wav, "audio/wav", wakeWord() && Date.now() - lastReplyEnd > followUpMs).catch(fail("Could not send what you said")));
     if (!speakReplies()) { setSpeakReplies(true); store.set("magi.speak", "1"); }
   } catch (e) { fail("Magi cannot use the microphone")(e); }
 }
@@ -320,6 +328,12 @@ export function Conversation() {
           {() => (handsFree() ? (hearing() ? "Hearing you" : "Listening") : "Talk")}
         </button>
         <button class="send">Send</button>
+        <Show when={handsFree}>
+          <label class="speak-toggle" title="Magi takes only what starts with a name, such as “Computer, …”">
+            <input type="checkbox" checked={wakeWord()} onChange={(e: Event) => { const v = (e.target as HTMLInputElement).checked; setWakeWord(v); store.set("magi.wake", v ? "1" : "0"); }} />
+            Wake word
+          </label>
+        </Show>
         <label class="speak-toggle">
           <input type="checkbox" checked={speakReplies()} onChange={(e: Event) => { const v = (e.target as HTMLInputElement).checked; unlock(); setSpeakReplies(v); store.set("magi.speak", v ? "1" : "0"); }} />
           Speak replies

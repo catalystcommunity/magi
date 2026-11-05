@@ -20,6 +20,10 @@ class Settings(context: Context) {
     var askedNotify: Boolean
         get() = p.getBoolean("asked_notify", false)
         set(v) = p.edit().putBoolean("asked_notify", v).apply()
+    /** Hands-free talk takes only speech that starts with a persona name ("Computer, ..."). */
+    var wakeWord: Boolean
+        get() = p.getBoolean("wake_word", false)
+        set(v) = p.edit().putBoolean("wake_word", v).apply()
     var speakReplies: Boolean
         get() = p.getBoolean("speak", true)
         set(v) = p.edit().putBoolean("speak", v).apply()

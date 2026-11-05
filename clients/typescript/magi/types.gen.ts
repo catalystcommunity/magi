@@ -96,7 +96,13 @@ export interface PutPersonaRequest {
 /**
  * Says something to a persona (default "persona:magi"). There are no
  * chats: each person has one stream with each persona.
- * speak_reply asks for a spoken reply in addition to text.
+ * speak_reply asks for a spoken reply in addition to text. A message
+ * that starts with the name of a persona and a comma ("Computer, ...",
+ * "Engineering, ...") goes to that persona (docs/attention.md).
+ * wake_word: Magi takes the message only when it starts with the name of
+ * a persona; else Magi keeps nothing of it (no text, no audio) and the
+ * response has ignored true and an empty message. Hands-free clients use
+ * it so that talk in the room that is not for Magi stays private.
  */
 export interface SayRequest {
   persona?: string;
@@ -105,10 +111,12 @@ export interface SayRequest {
   audioType?: string;
   speakReply?: boolean;
   voice?: string;
+  wakeWord?: boolean;
 }
 
 export interface SayResponse {
   message: Message;
+  ignored?: boolean;
 }
 
 /**

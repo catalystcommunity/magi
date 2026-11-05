@@ -65,7 +65,13 @@ PutPersonaRequest = { id: text, name: text, sharing: text, ? members: [* text] }
 
 ;;; Says something to a persona (default "persona:magi"). There are no
 ;;; chats: each person has one stream with each persona.
-;;; speak_reply asks for a spoken reply in addition to text.
+;;; speak_reply asks for a spoken reply in addition to text. A message
+;;; that starts with the name of a persona and a comma ("Computer, ...",
+;;; "Engineering, ...") goes to that persona (docs/attention.md).
+;;; wake_word: Magi takes the message only when it starts with the name of
+;;; a persona; else Magi keeps nothing of it (no text, no audio) and the
+;;; response has ignored true and an empty message. Hands-free clients use
+;;; it so that talk in the room that is not for Magi stays private.
 SayRequest = {
   ? persona: text,
   ? text: text,
@@ -73,8 +79,9 @@ SayRequest = {
   ? audio_type: text,
   ? speak_reply: bool,
   ? voice: text,
+  ? wake_word: bool,
 }
-SayResponse = { message: Message }
+SayResponse = { message: Message, ? ignored: bool }
 
 ;;; Reads the stream of the caller with a persona (default
 ;;; "persona:magi"). Without before_seq, returns messages after after_seq

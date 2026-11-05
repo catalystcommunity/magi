@@ -530,6 +530,7 @@ fun SayRequest.toCborValue(): CborValue {
     this.audio?.let { csilV -> csilEntries.add(CborValue.CText("audio") to CborValue.CBytes(csilV)) }
     this.voice?.let { csilV -> csilEntries.add(CborValue.CText("voice") to CborValue.CText(csilV)) }
     this.persona?.let { csilV -> csilEntries.add(CborValue.CText("persona") to CborValue.CText(csilV)) }
+    this.wakeWord?.let { csilV -> csilEntries.add(CborValue.CText("wake_word") to CborValue.CBool(csilV)) }
     this.audioType?.let { csilV -> csilEntries.add(CborValue.CText("audio_type") to CborValue.CText(csilV)) }
     this.speakReply?.let { csilV -> csilEntries.add(CborValue.CText("speak_reply") to CborValue.CBool(csilV)) }
     return CborValue.CMap(csilEntries)
@@ -546,7 +547,8 @@ fun sayRequestFromCborValue(cbor: CborValue): SayRequest {
     val audioType = CsilCbor.mapGet(cbor, "audio_type")?.let { csilV -> CsilCbor.asText(csilV) }
     val speakReply = CsilCbor.mapGet(cbor, "speak_reply")?.let { csilV -> CsilCbor.asBoolean(csilV) }
     val voice = CsilCbor.mapGet(cbor, "voice")?.let { csilV -> CsilCbor.asText(csilV) }
-    return SayRequest(persona = persona, text = text, audio = audio, audioType = audioType, speakReply = speakReply, voice = voice)
+    val wakeWord = CsilCbor.mapGet(cbor, "wake_word")?.let { csilV -> CsilCbor.asBoolean(csilV) }
+    return SayRequest(persona = persona, text = text, audio = audio, audioType = audioType, speakReply = speakReply, voice = voice, wakeWord = wakeWord)
 }
 
 /** Decode CSIL CBOR bytes into a SayRequest. */
@@ -555,6 +557,7 @@ fun sayRequestFromCbor(bytes: ByteArray): SayRequest = sayRequestFromCborValue(C
 /** The CBOR value tree for a SayResponse (deep, canonical key order). */
 fun SayResponse.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.ignored?.let { csilV -> csilEntries.add(CborValue.CText("ignored") to CborValue.CBool(csilV)) }
     csilEntries.add(CborValue.CText("message") to this.message.toCborValue())
     return CborValue.CMap(csilEntries)
 }
@@ -565,7 +568,8 @@ fun SayResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
 /** Reconstruct a SayResponse from a decoded CBOR value tree. */
 fun sayResponseFromCborValue(cbor: CborValue): SayResponse {
     val message = messageFromCborValue(CsilCbor.require(cbor, "message"))
-    return SayResponse(message = message)
+    val ignored = CsilCbor.mapGet(cbor, "ignored")?.let { csilV -> CsilCbor.asBoolean(csilV) }
+    return SayResponse(message = message, ignored = ignored)
 }
 
 /** Decode CSIL CBOR bytes into a SayResponse. */

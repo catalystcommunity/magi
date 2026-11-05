@@ -270,6 +270,7 @@ class SayRequest:
     audio_type: Optional[str] = None
     speak_reply: Optional[bool] = None
     voice: Optional[str] = None
+    wake_word: Optional[bool] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -285,12 +286,14 @@ class SayRequest:
             result['speak_reply'] = self.speak_reply
         if hasattr(self, 'voice') and self.voice is not None:
             result['voice'] = self.voice
+        if hasattr(self, 'wake_word') and self.wake_word is not None:
+            result['wake_word'] = self.wake_word
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'SayRequest':
         """Create instance from dictionary."""
-        return cls(persona=data.get('persona'), text=data.get('text'), audio=data.get('audio'), audio_type=data.get('audio_type'), speak_reply=data.get('speak_reply'), voice=data.get('voice'))
+        return cls(persona=data.get('persona'), text=data.get('text'), audio=data.get('audio'), audio_type=data.get('audio_type'), speak_reply=data.get('speak_reply'), voice=data.get('voice'), wake_word=data.get('wake_word'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -305,17 +308,20 @@ class SayRequest:
 @dataclass
 class SayResponse:
     message: Message
+    ignored: Optional[bool] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'message') and self.message is not None:
             result['message'] = self.message
+        if hasattr(self, 'ignored') and self.ignored is not None:
+            result['ignored'] = self.ignored
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'SayResponse':
         """Create instance from dictionary."""
-        return cls(message=data.get('message'))
+        return cls(message=data.get('message'), ignored=data.get('ignored'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

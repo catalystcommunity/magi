@@ -530,6 +530,8 @@ export function toSayRequestCborValue(v) {
         csilMap.set("voice", v.voice);
     if (v.persona !== undefined)
         csilMap.set("persona", v.persona);
+    if (v.wakeWord !== undefined)
+        csilMap.set("wake_word", v.wakeWord);
     if (v.audioType !== undefined)
         csilMap.set("audio_type", v.audioType);
     if (v.speakReply !== undefined)
@@ -544,6 +546,7 @@ export function fromSayRequestCborValue(value) {
         audioType: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "audio_type")),
         speakReply: ((csilV) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "speak_reply")),
         voice: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "voice")),
+        wakeWord: ((csilV) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "wake_word")),
     };
 }
 export function toSayRequestCbor(v) {
@@ -554,12 +557,15 @@ export function fromSayRequestCbor(bytes) {
 }
 export function toSayResponseCborValue(v) {
     const csilMap = new Map();
+    if (v.ignored !== undefined)
+        csilMap.set("ignored", v.ignored);
     csilMap.set("message", toMessageCborValue(v.message));
     return csilMap;
 }
 export function fromSayResponseCborValue(value) {
     return {
         message: fromMessageCborValue(requireKey(value, "message")),
+        ignored: ((csilV) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "ignored")),
     };
 }
 export function toSayResponseCbor(v) {

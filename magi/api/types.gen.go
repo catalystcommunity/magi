@@ -79,11 +79,13 @@ type SayRequest struct {
 	AudioType  *string `json:"audio_type,omitempty" yaml:"audio_type,omitempty"`
 	SpeakReply *bool   `json:"speak_reply,omitempty" yaml:"speak_reply,omitempty"`
 	Voice      *string `json:"voice,omitempty" yaml:"voice,omitempty"`
+	WakeWord   *bool   `json:"wake_word,omitempty" yaml:"wake_word,omitempty"`
 }
 
 // SayResponse represents a structured data type
 type SayResponse struct {
 	Message Message `json:"message" yaml:"message"`
+	Ignored *bool   `json:"ignored,omitempty" yaml:"ignored,omitempty"`
 }
 
 // ReadRequest represents a structured data type

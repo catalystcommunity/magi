@@ -88,7 +88,9 @@ data class SayRequest(
     val audioType: String? = null,
     // wire key: speak_reply
     val speakReply: Boolean? = null,
-    val voice: String? = null
+    val voice: String? = null,
+    // wire key: wake_word
+    val wakeWord: Boolean? = null
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -99,6 +101,7 @@ data class SayRequest(
         if (audioType != other.audioType) return false
         if (speakReply != other.speakReply) return false
         if (voice != other.voice) return false
+        if (wakeWord != other.wakeWord) return false
         return true
     }
 
@@ -109,13 +112,15 @@ data class SayRequest(
         result = 31 * result + audioType.hashCode()
         result = 31 * result + speakReply.hashCode()
         result = 31 * result + voice.hashCode()
+        result = 31 * result + wakeWord.hashCode()
         return result
     }
 }
 
 /** SayResponse record. */
 data class SayResponse(
-    val message: Message
+    val message: Message,
+    val ignored: Boolean? = null
 )
 
 /** ReadRequest record. */

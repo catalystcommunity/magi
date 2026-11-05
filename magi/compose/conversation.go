@@ -54,15 +54,11 @@ func (m *Service) Say(ctx context.Context, req magiapi.SayRequest) (magiapi.SayR
 		if mt == "" {
 			mt = "audio/wav"
 		}
-		art, err := s.Artifacts.Put(uctx, artifactsapi.PutRequest{MediaType: mt, Body: audio, Labels: map[string]string{"kind": "voice-input"}})
-		if err != nil {
-			return magiapi.SayResponse{}, err
-		}
 		tr, err := s.Speech.Transcribe(uctx, speechapi.TranscribeRequest{Audio: audio, MediaType: mt})
 		if err != nil {
 			return magiapi.SayResponse{}, fmt.Errorf("transcribe: %w", err)
 		}
-		audioDigest, confidence, modality = &art.Digest, tr.Confidence, "voice"
+		confidence, modality = tr.Confidence, "voice"
 		if text == "" {
 			text = strings.TrimSpace(tr.Text)
 			transcriber = &tr.Engine
@@ -74,8 +70,20 @@ func (m *Service) Say(ctx context.Context, req magiapi.SayRequest) (magiapi.SayR
 	persona := personaOr(req.Persona)
 	// "Computer, ..." and "Engineering, ...": the person names the persona
 	// that they talk to, as on the bridge of a starship.
-	if p := s.addressed(uctx, text); p != "" {
+	p := s.addressed(uctx, text)
+	if p != "" {
 		persona = p
+	} else if deref(req.WakeWord) {
+		// Not for Magi: keep nothing of it.
+		return magiapi.SayResponse{Ignored: ptr(true), Message: magiapi.Message{Refs: []magiapi.Ref{}, Links: []magiapi.MessageLink{}}}, nil
+	}
+	if req.Audio != nil && len(*req.Audio) > 0 {
+		mt := firstNonEmpty(deref(req.AudioType), "audio/wav")
+		art, err := s.Artifacts.Put(uctx, artifactsapi.PutRequest{MediaType: mt, Body: *req.Audio, Labels: map[string]string{"kind": "voice-input"}})
+		if err != nil {
+			return magiapi.SayResponse{}, err
+		}
+		audioDigest = &art.Digest
 	}
 	st, err := s.Conversation.OpenStream(uctx, conversationapi.OpenStreamRequest{Persona: persona})
 	if err != nil {

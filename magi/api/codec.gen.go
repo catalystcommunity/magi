@@ -1150,7 +1150,7 @@ func DecodePutPersonaRequest(csilData []byte) (PutPersonaRequest, error) {
 
 // csilEncSayRequest builds the canonical CBOR value tree for a SayRequest.
 func csilEncSayRequest(csilV SayRequest) cborValue {
-	csilEntries := make(cborMap, 0, 6)
+	csilEntries := make(cborMap, 0, 7)
 	if csilV.Text != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("text"), cborText((*csilV.Text))})
 	}
@@ -1162,6 +1162,9 @@ func csilEncSayRequest(csilV SayRequest) cborValue {
 	}
 	if csilV.Persona != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("persona"), cborText((*csilV.Persona))})
+	}
+	if csilV.WakeWord != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("wake_word"), cborBool((*csilV.WakeWord))})
 	}
 	if csilV.AudioType != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("audio_type"), cborText((*csilV.AudioType))})
@@ -1217,6 +1220,13 @@ func csilDecSayRequest(csilRoot cborValue) (SayRequest, error) {
 		}
 		csilOut.Voice = &csilVal
 	}
+	if csilField, csilOk := cborMapGet(csilRoot, "wake_word"); csilOk {
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.WakeWord = &csilVal
+	}
 	return csilOut, nil
 }
 
@@ -1237,7 +1247,10 @@ func DecodeSayRequest(csilData []byte) (SayRequest, error) {
 
 // csilEncSayResponse builds the canonical CBOR value tree for a SayResponse.
 func csilEncSayResponse(csilV SayResponse) cborValue {
-	csilEntries := make(cborMap, 0, 1)
+	csilEntries := make(cborMap, 0, 2)
+	if csilV.Ignored != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("ignored"), cborBool((*csilV.Ignored))})
+	}
 	csilEntries = append(csilEntries, cborEntry{cborText("message"), csilEncMessage(csilV.Message)})
 	return csilEntries
 }
@@ -1255,6 +1268,13 @@ func csilDecSayResponse(csilRoot cborValue) (SayResponse, error) {
 			return csilOut, csilErr
 		}
 		csilOut.Message = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "ignored"); csilOk {
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Ignored = &csilVal
 	}
 	return csilOut, nil
 }

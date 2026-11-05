@@ -292,6 +292,11 @@ class MainActivity : Activity() {
             isChecked = settings.speakReplies
             setOnCheckedChangeListener { _, on -> settings.speakReplies = on }
         }
+        val wake = CheckBox(this).apply {
+            text = "Wake word (hands-free takes only \u201cComputer, \u2026\u201d)"
+            isChecked = settings.wakeWord
+            setOnCheckedChangeListener { _, on -> settings.wakeWord = on }
+        }
         send.setOnClickListener {
             val text = input.text.toString().trim()
             if (text.isEmpty()) return@setOnClickListener
@@ -341,6 +346,7 @@ class MainActivity : Activity() {
             addView(scroll, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
             addView(status)
             addView(speak)
+            addView(wake)
             addView(bar)
         }
         show(root)
@@ -373,6 +379,7 @@ class MainActivity : Activity() {
         status.text = "Sending..."
         background(status) {
             val r = client().magi.say(req)
+            if (r.ignored == true) { runOnUiThread { status.text = "" }; return@background }
             // A message that names another persona ("Engineering, ...") went to that persona.
             val p = r.message.persona
             runOnUiThread { status.text = ""; if (p.isNotEmpty() && p != persona) showConversation(p) }
@@ -644,8 +651,11 @@ class MainActivity : Activity() {
     }
 
     /** The spoken message ended: played to the end ("done") or stopped. Main thread. */
+    private var lastReplyEnd = 0L
+
     private fun speechEnded(reason: String) {
         val id = speakingId ?: return
+        lastReplyEnd = System.currentTimeMillis()
         val heard = if (reason == "done") speakingText.codePointCount(0, speakingText.length) else heardUntil()
         speakingId = null
         val done = speakingDone
@@ -693,7 +703,9 @@ class MainActivity : Activity() {
             main.post {
                 voiceTurn = true
                 val status = TextView(this@MainActivity)
-                say(SayRequest(persona = persona, audio = wav, audioType = "audio/wav", speakReply = true), status)
+                // The answer to a reply in the 8 s after it needs no name.
+                val needName = settings.wakeWord && System.currentTimeMillis() - lastReplyEnd > 8_000
+                say(SayRequest(persona = persona, audio = wav, audioType = "audio/wav", speakReply = true, wakeWord = if (needName) true else null), status)
             }
         }
         override fun hearing(on: Boolean) {
