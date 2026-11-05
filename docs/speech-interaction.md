@@ -105,10 +105,12 @@ Silero yet) lowers the volume of the persona to 25 % at an onset (120 ms
 of speech), stops it after 700 ms of speech, and restores the volume after
 shorter speech (a backchannel). A turn ends after 800 ms of silence and
 goes to Magi as a WAV file. `magi/web/browser_test.go` tests the VAD and the
-whole microphone path with the fake microphone of Chromium. Not done: a
-check with real devices that the echo canceller removes the persona voice
-from Web Audio playback (without it the persona can stop itself), STT
-words for the step 2 decision, Silero VAD, and the same on Android.
+whole microphone path with the fake microphone of Chromium. A test on a
+laptop with speakers (no headset, 2026-11-04) showed that the echo
+canceller of the browser removes the persona voice from Web Audio
+playback: the persona did not stop itself, and a real interruption
+mid-answer stopped it and the conversation continued correctly. Not done:
+STT words for the step 2 decision, Silero VAD, and the same on Android.
 
 **What is necessary first:**
 
