@@ -56,6 +56,20 @@ func TestFakeDNS(t *testing.T) {
 	if m := query(t, f, "_linkkeys.example.org.", dnsmessage.TypeTXT); m.RCode != dnsmessage.RCodeRefused {
 		t.Fatalf("TXT: %+v", m)
 	}
+	// localhost is loopback, not a destination (a test server in the task).
+	for _, n := range []string{"localhost.", "api.localhost."} {
+		m := query(t, f, n, dnsmessage.TypeA)
+		if len(m.Answers) != 1 || m.Answers[0].Body.(*dnsmessage.AResource).A != [4]byte{127, 0, 0, 1} {
+			t.Fatalf("%s A: %+v", n, m)
+		}
+		m = query(t, f, n, dnsmessage.TypeAAAA)
+		if len(m.Answers) != 1 || m.Answers[0].Body.(*dnsmessage.AAAAResource).AAAA != netip.IPv6Loopback().As16() {
+			t.Fatalf("%s AAAA: %+v", n, m)
+		}
+		if m := query(t, f, n, dnsmessage.TypeTXT); m.RCode != dnsmessage.RCodeSuccess || len(m.Answers) != 0 {
+			t.Fatalf("%s TXT: %+v", n, m)
+		}
+	}
 	// In a Pod the resolver tries the cluster search domains first.
 	dir := t.TempDir()
 	rc := filepath.Join(dir, "resolv.conf")

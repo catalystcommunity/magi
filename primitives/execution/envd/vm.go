@@ -170,6 +170,21 @@ func (f *fakeDNS) answer(q []byte) ([]byte, error) {
 			return b.Finish()
 		}
 	}
+	// "localhost" and names below it are this machine (RFC 6761, 6.3):
+	// loopback, never a destination through the proxy.
+	local := name == "localhost" || strings.HasSuffix(name, ".localhost")
+	switch {
+	case local && qq.Type == dnsmessage.TypeA:
+		b.AResource(dnsmessage.ResourceHeader{Name: qq.Name, Class: dnsmessage.ClassINET, TTL: 600},
+			dnsmessage.AResource{A: [4]byte{127, 0, 0, 1}})
+		return b.Finish()
+	case local && qq.Type == dnsmessage.TypeAAAA:
+		b.AAAAResource(dnsmessage.ResourceHeader{Name: qq.Name, Class: dnsmessage.ClassINET, TTL: 600},
+			dnsmessage.AAAAResource{AAAA: netip.IPv6Loopback().As16()})
+		return b.Finish()
+	case local:
+		return b.Finish() // no other records
+	}
 	switch qq.Type {
 	case dnsmessage.TypeA:
 		if a, ok := f.addr(name); ok {

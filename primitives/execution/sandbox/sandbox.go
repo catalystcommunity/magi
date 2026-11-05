@@ -153,7 +153,10 @@ func (s *Sandboxes) environ(id string, env map[string]string) map[string]string 
 // args returns the bubblewrap arguments for one environment.
 func (s *Sandboxes) args(d string, env map[string]string) []string {
 	a := []string{"--die-with-parent", "--new-session", "--unshare-pid", "--unshare-ipc", "--unshare-uts", "--unshare-cgroup-try",
-		"--clearenv"}
+		"--clearenv",
+		// No capabilities, also when the caller is root (in a task VM the
+		// commands run as root): root in a new user namespace keeps them.
+		"--cap-drop", "ALL"}
 	proxied := isFile(filepath.Join(d, "egress", "ca.pem"))
 	if proxied {
 		// "envd netns" made the network namespace (see bwrapCommand). A
