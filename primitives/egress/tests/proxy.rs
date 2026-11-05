@@ -271,6 +271,10 @@ impl World {
 
     async fn curl_as(&self, env: Option<&str>, host: &str, path: &str, args: &[&str]) -> Out {
         let mut c = Command::new("curl");
+        // curl applies NO_PROXY also with -x; a task environment sets it for localhost.
+        for v in ["NO_PROXY", "no_proxy", "HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"] {
+            c.env_remove(v);
+        }
         c.args(["-sS", "--max-time", "30", "-x", &format!("http://{}", self.proxy_addr), "--cacert"]).arg(&self.ca_file);
         if let Some(e) = env {
             c.args(["--proxy-user", &format!("{e}:{}", proxy::credential(ENV_KEY, e))]);
