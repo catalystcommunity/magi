@@ -31,8 +31,10 @@ var usage = `usage: magi [--server URL] <command> [args]
   chat [-persona P]          talk interactively (text). There are no chats:
                              each person has one stream with each persona
                              (default persona:magi)
-  say [-persona P] [-audio F] [-speak] [TEXT]
-                             send one message and wait for the reply
+  say [-persona P] [-audio F] [-speak] [-wake] [TEXT]
+                             send one message and wait for the reply; -wake:
+                             only when it starts with a persona name
+                             ("Computer, ...")
   read [-persona P] [-n N] [-follow]   print the newest N messages (default 20)
   search TEXT                find messages that you can read
   trace ID [-forward] [-depth N]   follow the links of a message
@@ -159,8 +161,9 @@ func (c *cli) run(cmd string, args []string) error {
 		return c.chat(personaID(*persona))
 	case "say":
 		persona, audio, speak := fs.String("persona", "", "persona"), fs.String("audio", "", "audio file to send"), fs.Bool("speak", false, "ask for a spoken reply")
+		wake := fs.Bool("wake", false, "only when the message starts with a persona name")
 		fs.Parse(args)
-		req := magiapi.SayRequest{Persona: optional(personaID(*persona)), SpeakReply: speak}
+		req := magiapi.SayRequest{Persona: optional(personaID(*persona)), SpeakReply: speak, WakeWord: wake}
 		if t := strings.Join(fs.Args(), " "); t != "" {
 			req.Text = &t
 		}
@@ -174,6 +177,10 @@ func (c *cli) run(cmd string, args []string) error {
 		res, err := c.magi.Say(c.ctx, req)
 		if err != nil {
 			return err
+		}
+		if deref(res.Ignored) {
+			fmt.Println("(not for Magi: nothing was kept)")
+			return nil
 		}
 		printMessage(res.Message)
 		// A message that names a persona ("Engineering, ...") goes to it.
