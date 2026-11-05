@@ -1,15 +1,17 @@
 // The JSX runtime of the web client (the import map gives it the name
-// "solid-js/h/jsx-runtime"). It is Solid's h runtime with one change: an
-// element makes its child elements when it is made itself, as Solid's
-// compiler does.
+// "solid-js/h/jsx-runtime"). It is Solid's h runtime with two changes, so
+// that it acts as Solid's compiler:
 //
-// h returns each element as a function that makes it later. When an element
-// has a list of children with a dynamic one in it, h makes the later
-// children inside the render effect of that list. When the effect runs
-// again (for example a sibling <Show> changes), Solid disposes what the
-// effect owns: the DOM of the later children stays, but their reactive code
-// (a <For>) is dead and the view stops updating. Elements stay lazy, so
-// <Show> still makes its children only when it shows them.
+// 1. An element makes its child elements when it is made itself. h makes
+//    the later children inside the render effect of the list of children.
+//    When the effect ran again (for example a sibling <Show> changed),
+//    Solid disposed the reactive code of those children: the DOM stayed,
+//    but a <For> in it never updated again.
+// 2. Each call of a lazy element makes a new one. h keeps the first result
+//    of each element. A <Show> that hid its children and then showed them
+//    again got the old, disposed nodes: a list stayed on its first state.
+//
+// Elements stay lazy, so <Show> makes its children only when it shows them.
 import h from "solid-js/h";
 // The mark of h's lazy elements (a private symbol of h).
 const mark = Object.getOwnPropertySymbols(h("template")).find((s) => s.description === "hyper-element");
@@ -21,17 +23,23 @@ function make(c) {
         c = c();
     return c;
 }
+// h changes the props object and its lists, so each call gets copies.
+const copy = (props) => {
+    const p = { ...props };
+    if (Array.isArray(p.children))
+        p.children = [...p.children];
+    return p;
+};
 export function jsx(type, props) {
-    if (typeof type !== "string" || !props || !("children" in props))
-        return h(type, props);
-    let made;
-    const el = () => {
-        if (made === undefined) {
-            props.children = make(props.children);
-            made = h(type, props)();
+    props ??= {};
+    const el = typeof type === "string"
+        ? () => {
+            const p = copy(props);
+            if ("children" in p)
+                p.children = make(p.children);
+            return h(type, p)();
         }
-        return made;
-    };
+        : () => h(type, copy(props))();
     return Object.assign(el, { [mark]: true });
 }
 export { jsx as jsxs, jsx as jsxDEV };

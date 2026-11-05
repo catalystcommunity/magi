@@ -43,11 +43,18 @@ Without the Solid compiler, a reactive value must be a function:
 - h makes each function prop with no parameters on a component a getter. A
   callback prop of a component must have a parameter, for example
   `close={(_: unknown) => ...}`, or h calls it when the component reads it.
-- `src/jsx-runtime.ts` makes the children of an element when it makes the
-  element. Solid's own h runtime makes them later, inside the render effect
-  of the parent. When that effect ran again (for example because a sibling
-  `<Show>` changed), Solid disposed the reactive code of the children and
-  the conversation stopped showing new messages. Keep this runtime.
+- `src/jsx-runtime.ts` replaces Solid's h runtime. Keep it. It fixes two
+  bugs of h that the client had:
+  1. h makes the children of an element later, inside the render effect of
+     the parent. When that effect ran again (a sibling `<Show>` changed),
+     Solid disposed their reactive code: the conversation stopped showing
+     new messages. The runtime makes the children with the element.
+  2. h keeps the first result of each element. A `<Show>` that hid its
+     children and showed them again got the old, disposed nodes: the
+     decided network reviews never showed. The runtime makes new nodes on
+     each call.
+- `browser_test.go` runs these cases in headless Chromium or Chrome
+  (`MAGI_TEST_BROWSER`, or one on the PATH; skipped when there is none).
 
 ## Design
 

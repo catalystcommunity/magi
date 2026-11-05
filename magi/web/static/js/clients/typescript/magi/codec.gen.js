@@ -2622,6 +2622,26 @@ export function toEgressVerdictCbor(v) {
 export function fromEgressVerdictCbor(bytes) {
     return fromEgressVerdictCborValue(decode(bytes));
 }
+export function toEgressDetectRequestCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("flow", toEgressFlowCborValue(v.flow));
+    csilMap.set("texts", v.texts);
+    csilMap.set("plugin", v.plugin);
+    return csilMap;
+}
+export function fromEgressDetectRequestCborValue(value) {
+    return {
+        plugin: asString(requireKey(value, "plugin")),
+        flow: fromEgressFlowCborValue(requireKey(value, "flow")),
+        texts: asArray(requireKey(value, "texts")).map((csilE) => asString(csilE)),
+    };
+}
+export function toEgressDetectRequestCbor(v) {
+    return encodeValue(toEgressDetectRequestCborValue(v));
+}
+export function fromEgressDetectRequestCbor(bytes) {
+    return fromEgressDetectRequestCborValue(decode(bytes));
+}
 export function toEgressSecretRulesRequestCborValue(v) {
     const csilMap = new Map();
     csilMap.set("flow", toEgressFlowCborValue(v.flow));
