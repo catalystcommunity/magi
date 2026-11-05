@@ -18,6 +18,8 @@ like the web and command-line clients.
   `remoteMessaging` with a quiet notification ("Ready for notices"). It
   waits for notices with a long poll that connects out to Magi, and it
   refreshes the sign in. It starts with the app and after the phone starts.
+  While hands-free talk is on, it also has the type `microphone` (started
+  from the open app), so the microphone works with the screen off.
 
 ## Features
 

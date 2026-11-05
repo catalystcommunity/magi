@@ -51,8 +51,16 @@ object Attention {
             can = listOf("speak", "notify", "show"), active = foreground != null, handsFree = handsFree))
     }
 
-    fun start(context: Context) {
-        val i = Intent(context, NoticeService::class.java)
+    const val EXTRA_MIC = "community.catalyst.magi.MIC"
+
+    /**
+     * Starts the notice service. mic: hands-free talk is on; then the
+     * service also has the microphone type, so that Android lets the app
+     * use the microphone with the screen off. Call it with mic true only
+     * while the app is in the foreground.
+     */
+    fun start(context: Context, mic: Boolean = handsFree) {
+        val i = Intent(context, NoticeService::class.java).putExtra(EXTRA_MIC, mic)
         runCatching { context.startForegroundService(i) }.onFailure { Log.w(TAG, "start: $it") }
     }
 
@@ -107,15 +115,18 @@ class NoticeService : Service() {
         val nm = getSystemService(NotificationManager::class.java)
         Attention.channels(nm)
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+        val mic = intent?.getBooleanExtra(Attention.EXTRA_MIC, false) == true
         val note = Notification.Builder(this, "service")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("Magi")
-            .setContentText("Ready for notices")
+            .setContentText(if (mic) "Hands-free: listening" else "Ready for notices")
             .setContentIntent(open)
             .setOngoing(true)
             .build()
-        if (Build.VERSION.SDK_INT >= 34) startForeground(1, note, ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING)
-        else startForeground(1, note)
+        var type = 0
+        if (Build.VERSION.SDK_INT >= 34) type = ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING
+        if (mic && Build.VERSION.SDK_INT >= 30) type = type or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+        if (type != 0) startForeground(1, note, type) else startForeground(1, note)
         if (!running) {
             running = true
             Thread({ loop() }, "magi-notices").start()

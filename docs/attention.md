@@ -118,6 +118,6 @@ the tools `send_notice` and `list_devices`, task notices, the engineering
 manager, and the web client (hello, notice loop, chime, tray, system
 notifications), the Android client (system notifications from a
 foreground service, notices said after a tone while the app is open), and
-calling a persona by name. Not done: hands-free talk on Android while the
-screen is off (Android gives silence to a microphone in the background; it
-needs a foreground service of type microphone), and a wake word.
+calling a persona by name. While hands-free talk is on, the Android
+notice service also has the foreground type `microphone`, so the
+microphone works with the screen off. Not done: a wake word.

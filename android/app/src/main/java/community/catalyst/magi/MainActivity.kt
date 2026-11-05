@@ -311,12 +311,14 @@ class MainActivity : Activity() {
                 player.communication = false
                 Attention.handsFree = false
                 mic.text = "Talk"
+                Attention.start(this, mic = false)
                 status.text = ""
             } else {
                 try {
                     player.communication = true
                     handsFree.start()
                     Attention.handsFree = true
+                    Attention.start(this, mic = true)
                     mic.text = "Listening"
                     status.text = "Hands-free: talk at any time. Talk over Magi to stop it."
                 } catch (e: Exception) {
