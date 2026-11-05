@@ -50,6 +50,8 @@ class MessageLink:
     target_ms: Optional[int] = None
     span_start: Optional[int] = None
     span_end: Optional[int] = None
+    target_start: Optional[int] = None
+    target_end: Optional[int] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -67,6 +69,10 @@ class MessageLink:
             result['span_start'] = self.span_start
         if hasattr(self, 'span_end') and self.span_end is not None:
             result['span_end'] = self.span_end
+        if hasattr(self, 'target_start') and self.target_start is not None:
+            result['target_start'] = self.target_start
+        if hasattr(self, 'target_end') and self.target_end is not None:
+            result['target_end'] = self.target_end
         if hasattr(self, 'weight') and self.weight is not None:
             result['weight'] = self.weight
         if hasattr(self, 'confidence') and self.confidence is not None:
@@ -80,7 +86,7 @@ class MessageLink:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'MessageLink':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), kind=data.get('kind'), target=data.get('target'), snippet=data.get('snippet'), target_ms=data.get('target_ms'), span_start=data.get('span_start'), span_end=data.get('span_end'), weight=data.get('weight'), confidence=data.get('confidence'), author=data.get('author'), state=data.get('state'))
+        return cls(id=data.get('id'), kind=data.get('kind'), target=data.get('target'), snippet=data.get('snippet'), target_ms=data.get('target_ms'), span_start=data.get('span_start'), span_end=data.get('span_end'), target_start=data.get('target_start'), target_end=data.get('target_end'), weight=data.get('weight'), confidence=data.get('confidence'), author=data.get('author'), state=data.get('state'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

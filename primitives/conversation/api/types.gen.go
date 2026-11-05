@@ -59,6 +59,7 @@ type Link struct {
 	Id         string  `json:"id" yaml:"id"`
 	Utterance  string  `json:"utterance" yaml:"utterance"`
 	Span       *Span   `json:"span,omitempty" yaml:"span,omitempty"`
+	TargetSpan *Span   `json:"target_span,omitempty" yaml:"target_span,omitempty"`
 	Weight     float64 `json:"weight" yaml:"weight"`
 	Target     Ref     `json:"target" yaml:"target"`
 	Kind       string  `json:"kind" yaml:"kind"`
@@ -160,6 +161,7 @@ type NewLink struct {
 	Target     Ref      `json:"target" yaml:"target"`
 	Kind       string   `json:"kind" yaml:"kind"`
 	Span       *Span    `json:"span,omitempty" yaml:"span,omitempty"`
+	TargetSpan *Span    `json:"target_span,omitempty" yaml:"target_span,omitempty"`
 	Weight     *float64 `json:"weight,omitempty" yaml:"weight,omitempty"`
 	Confidence *float64 `json:"confidence,omitempty" yaml:"confidence,omitempty"`
 	Note       *string  `json:"note,omitempty" yaml:"note,omitempty"`

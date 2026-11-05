@@ -506,6 +506,7 @@ export function toLinkCborValue(v: Link): CborValue {
   csilMap.set("utterance", v.utterance);
   csilMap.set("confidence", v.confidence);
   csilMap.set("created_ms", v.createdMs);
+  if (v.targetSpan !== undefined) csilMap.set("target_span", toSpanCborValue(v.targetSpan));
   return csilMap;
 }
 
@@ -514,6 +515,7 @@ export function fromLinkCborValue(value: CborValue): Link {
     id: asString(requireKey(value, "id")),
     utterance: asString(requireKey(value, "utterance")),
     span: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromSpanCborValue(csilV))(mapGet(value, "span")),
+    targetSpan: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromSpanCborValue(csilV))(mapGet(value, "target_span")),
     weight: asNumber(requireKey(value, "weight")),
     target: fromRefCborValue(requireKey(value, "target")),
     kind: asString(requireKey(value, "kind")),
@@ -822,6 +824,7 @@ export function toNewLinkCborValue(v: NewLink): CborValue {
   csilMap.set("target", toRefCborValue(v.target));
   if (v.weight !== undefined) csilMap.set("weight", v.weight);
   if (v.confidence !== undefined) csilMap.set("confidence", v.confidence);
+  if (v.targetSpan !== undefined) csilMap.set("target_span", toSpanCborValue(v.targetSpan));
   return csilMap;
 }
 
@@ -830,6 +833,7 @@ export function fromNewLinkCborValue(value: CborValue): NewLink {
     target: fromRefCborValue(requireKey(value, "target")),
     kind: asString(requireKey(value, "kind")),
     span: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromSpanCborValue(csilV))(mapGet(value, "span")),
+    targetSpan: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromSpanCborValue(csilV))(mapGet(value, "target_span")),
     weight: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "weight")),
     confidence: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "confidence")),
     note: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "note")),

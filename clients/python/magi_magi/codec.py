@@ -402,6 +402,12 @@ def _encode_message_link_value(v: "MessageLink") -> Dict[Any, Any]:
     csil_x = v.span_start
     if csil_x is not None:
         csil_m["span_start"] = csil_x
+    csil_x = v.target_end
+    if csil_x is not None:
+        csil_m["target_end"] = csil_x
+    csil_x = v.target_start
+    if csil_x is not None:
+        csil_m["target_start"] = csil_x
     return csil_m
 
 def _decode_message_link_value(tree: Any) -> "MessageLink":
@@ -414,6 +420,8 @@ def _decode_message_link_value(tree: Any) -> "MessageLink":
         target_ms=(None if tree.get("target_ms") is None else _csil_expect_uint(tree["target_ms"])),
         span_start=(None if tree.get("span_start") is None else _csil_expect_uint(tree["span_start"])),
         span_end=(None if tree.get("span_end") is None else _csil_expect_uint(tree["span_end"])),
+        target_start=(None if tree.get("target_start") is None else _csil_expect_uint(tree["target_start"])),
+        target_end=(None if tree.get("target_end") is None else _csil_expect_uint(tree["target_end"])),
         weight=_csil_expect_float(tree["weight"]),
         confidence=_csil_expect_float(tree["confidence"]),
         author=_csil_expect_text(tree["author"]),

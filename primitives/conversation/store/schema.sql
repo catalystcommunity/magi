@@ -83,6 +83,8 @@ CREATE TABLE IF NOT EXISTS links (
   replaces    text,
   created_ms  bigint NOT NULL
 );
+ALTER TABLE links ADD COLUMN IF NOT EXISTS target_start bigint;
+ALTER TABLE links ADD COLUMN IF NOT EXISTS target_end bigint;
 CREATE INDEX IF NOT EXISTS links_utterance ON links (utterance);
 CREATE INDEX IF NOT EXISTS links_target ON links (target_kind, target_ref);
 

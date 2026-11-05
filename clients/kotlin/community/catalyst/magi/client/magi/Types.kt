@@ -22,6 +22,10 @@ data class MessageLink(
     val spanStart: ULong? = null,
     // wire key: span_end
     val spanEnd: ULong? = null,
+    // wire key: target_start
+    val targetStart: ULong? = null,
+    // wire key: target_end
+    val targetEnd: ULong? = null,
     val weight: Double,
     val confidence: Double,
     val author: String,

@@ -60,9 +60,30 @@ The kind is open text (`^[a-z][a-z-]{1,39}$`). These are the usual kinds:
 | Stance | `agrees-with`, `disagrees-with`, `contradicts`, `confirms`, `corrects`, `contrasts-with` |
 | Action | `requests`, `started`, `reports-on`, `decides`, `fulfills`, `cancels` |
 | Knowledge | `about`, `mentions`, `evidence-for` |
+| Speech | `interrupts`, `reads-ahead`, `cuts-off` (see below) |
 
 A link target is an utterance, or a reference to another system:
-`workflow-run`, `knowledge-node`, `artifact`, `url`.
+`workflow-run`, `knowledge-node`, `artifact`, `url`. A link to an utterance
+can have a `target_span`: the part of the target text (code point offsets)
+that it points at.
+
+### Interruptions of spoken replies
+
+When a person stops a spoken reply and then says something, the persona
+turn links the new message to the reply (`magi/compose/interrupt.go`):
+
+| Kind | When | `target_span` |
+| --- | --- | --- |
+| `interrupts` | The message answers a sentence that the person heard | That sentence |
+| `reads-ahead` | It answers a later sentence, and the text was on the screen long enough to read it (4 words a second) | That sentence |
+| `cuts-off` | It answers nothing in the reply | The word where playback stopped |
+
+The data comes from the `delivery` annotation of the client
+(`report-delivery`: `spoken_until`, `shown_ms`, `stopped_ms`, `reason`).
+The local model picks the sentence (a schema permits only the sentence
+numbers and -1). The note of the link has the heard length. The persona
+then sees its reply as the person got it: the heard part and a note that
+the person stopped it, or all of it after `reads-ahead`.
 
 ## Access
 

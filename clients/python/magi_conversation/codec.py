@@ -549,6 +549,9 @@ def _encode_link_value(v: "Link") -> Dict[Any, Any]:
     csil_m["utterance"] = v.utterance
     csil_m["confidence"] = v.confidence
     csil_m["created_ms"] = v.created_ms
+    csil_x = v.target_span
+    if csil_x is not None:
+        csil_m["target_span"] = _encode_span_value(csil_x)
     return csil_m
 
 def _decode_link_value(tree: Any) -> "Link":
@@ -557,6 +560,7 @@ def _decode_link_value(tree: Any) -> "Link":
         id=_csil_expect_text(tree["id"]),
         utterance=_csil_expect_text(tree["utterance"]),
         span=(None if tree.get("span") is None else _decode_span_value(tree["span"])),
+        target_span=(None if tree.get("target_span") is None else _decode_span_value(tree["target_span"])),
         weight=_csil_expect_float(tree["weight"]),
         target=_decode_ref_value(tree["target"]),
         kind=_csil_expect_text(tree["kind"]),
@@ -924,6 +928,9 @@ def _encode_new_link_value(v: "NewLink") -> Dict[Any, Any]:
     csil_x = v.confidence
     if csil_x is not None:
         csil_m["confidence"] = csil_x
+    csil_x = v.target_span
+    if csil_x is not None:
+        csil_m["target_span"] = _encode_span_value(csil_x)
     return csil_m
 
 def _decode_new_link_value(tree: Any) -> "NewLink":
@@ -932,6 +939,7 @@ def _decode_new_link_value(tree: Any) -> "NewLink":
         target=_decode_ref_value(tree["target"]),
         kind=_csil_expect_text(tree["kind"]),
         span=(None if tree.get("span") is None else _decode_span_value(tree["span"])),
+        target_span=(None if tree.get("target_span") is None else _decode_span_value(tree["target_span"])),
         weight=(None if tree.get("weight") is None else _csil_expect_float(tree["weight"])),
         confidence=(None if tree.get("confidence") is None else _csil_expect_float(tree["confidence"])),
         note=(None if tree.get("note") is None else _csil_expect_text(tree["note"])),

@@ -12,17 +12,19 @@ type Ref struct {
 
 // MessageLink represents a structured data type
 type MessageLink struct {
-	Id         string  `json:"id" yaml:"id"`
-	Kind       string  `json:"kind" yaml:"kind"`
-	Target     Ref     `json:"target" yaml:"target"`
-	Snippet    *string `json:"snippet,omitempty" yaml:"snippet,omitempty"`
-	TargetMs   *uint64 `json:"target_ms,omitempty" yaml:"target_ms,omitempty"`
-	SpanStart  *uint64 `json:"span_start,omitempty" yaml:"span_start,omitempty"`
-	SpanEnd    *uint64 `json:"span_end,omitempty" yaml:"span_end,omitempty"`
-	Weight     float64 `json:"weight" yaml:"weight"`
-	Confidence float64 `json:"confidence" yaml:"confidence"`
-	Author     string  `json:"author" yaml:"author"`
-	State      string  `json:"state" yaml:"state"`
+	Id          string  `json:"id" yaml:"id"`
+	Kind        string  `json:"kind" yaml:"kind"`
+	Target      Ref     `json:"target" yaml:"target"`
+	Snippet     *string `json:"snippet,omitempty" yaml:"snippet,omitempty"`
+	TargetMs    *uint64 `json:"target_ms,omitempty" yaml:"target_ms,omitempty"`
+	SpanStart   *uint64 `json:"span_start,omitempty" yaml:"span_start,omitempty"`
+	SpanEnd     *uint64 `json:"span_end,omitempty" yaml:"span_end,omitempty"`
+	TargetStart *uint64 `json:"target_start,omitempty" yaml:"target_start,omitempty"`
+	TargetEnd   *uint64 `json:"target_end,omitempty" yaml:"target_end,omitempty"`
+	Weight      float64 `json:"weight" yaml:"weight"`
+	Confidence  float64 `json:"confidence" yaml:"confidence"`
+	Author      string  `json:"author" yaml:"author"`
+	State       string  `json:"state" yaml:"state"`
 }
 
 // Message represents a structured data type

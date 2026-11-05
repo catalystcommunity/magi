@@ -95,8 +95,11 @@ knowledge analysis.
 replies come in parts with word times (`listen`), the web client marks the
 word that the person hears, and a client reports the delivery
 (`report-delivery`, with `spoken_until`). Typing or the microphone button
-stops the speech now. Not done: microphone frames in the session, VAD on
-the device, the step 2 decision, and the step 3 analysis.
+stops the speech now. Step 3 is done: the persona turn records
+`interrupts`, `reads-ahead`, or `cuts-off` with the target span
+(`docs/conversations.md`), and the persona sees only what the person
+heard. Not done: microphone frames in the session, VAD on the device, and
+the step 2 decision (backchannel and echo).
 
 **What is necessary first:**
 

@@ -78,6 +78,8 @@ export interface Span {
  * "reply-to", "answers", "asks-about", "continues", "corrects",
  * "started", "reports-on", "about" (see docs/conversations.md). weight is
  * the part of the utterance that the link applies to (0 to 1, default 1).
+ * target_span is the part of a target utterance that the link points
+ * at, for example where a person interrupted a spoken reply.
  * state is "current", "tentative" (below the review threshold),
  * "replaced", or "retracted".
  */
@@ -85,6 +87,7 @@ export interface Link {
   id: string;
   utterance: string;
   span?: Span;
+  targetSpan?: Span;
   weight: number;
   target: Ref;
   kind: string;
@@ -206,6 +209,7 @@ export interface NewLink {
   target: Ref;
   kind: string;
   span?: Span;
+  targetSpan?: Span;
   weight?: number;
   confidence?: number;
   note?: string;

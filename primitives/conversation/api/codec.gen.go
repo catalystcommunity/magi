@@ -998,7 +998,7 @@ func DecodeSpan(csilData []byte) (Span, error) {
 
 // csilEncLink builds the canonical CBOR value tree for a Link.
 func csilEncLink(csilV Link) cborValue {
-	csilEntries := make(cborMap, 0, 12)
+	csilEntries := make(cborMap, 0, 13)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
 	if csilV.Note != nil {
@@ -1017,6 +1017,9 @@ func csilEncLink(csilV Link) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("utterance"), cborText(csilV.Utterance)})
 	csilEntries = append(csilEntries, cborEntry{cborText("confidence"), cborFloat(csilV.Confidence)})
 	csilEntries = append(csilEntries, cborEntry{cborText("created_ms"), cborUint(csilV.CreatedMs)})
+	if csilV.TargetSpan != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("target_span"), csilEncSpan((*csilV.TargetSpan))})
+	}
 	return csilEntries
 }
 
@@ -1051,6 +1054,13 @@ func csilDecLink(csilRoot cborValue) (Link, error) {
 			return csilOut, csilErr
 		}
 		csilOut.Span = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "target_span"); csilOk {
+		csilVal, csilErr := (csilDecSpan)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.TargetSpan = &csilVal
 	}
 	{
 		csilField, csilErr := cborRequire(csilRoot, "weight")
@@ -1936,7 +1946,7 @@ func DecodeListStreamsResponse(csilData []byte) (ListStreamsResponse, error) {
 
 // csilEncNewLink builds the canonical CBOR value tree for a NewLink.
 func csilEncNewLink(csilV NewLink) cborValue {
-	csilEntries := make(cborMap, 0, 6)
+	csilEntries := make(cborMap, 0, 7)
 	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
 	if csilV.Note != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("note"), cborText((*csilV.Note))})
@@ -1950,6 +1960,9 @@ func csilEncNewLink(csilV NewLink) cborValue {
 	}
 	if csilV.Confidence != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("confidence"), cborFloat((*csilV.Confidence))})
+	}
+	if csilV.TargetSpan != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("target_span"), csilEncSpan((*csilV.TargetSpan))})
 	}
 	return csilEntries
 }
@@ -1985,6 +1998,13 @@ func csilDecNewLink(csilRoot cborValue) (NewLink, error) {
 			return csilOut, csilErr
 		}
 		csilOut.Span = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "target_span"); csilOk {
+		csilVal, csilErr := (csilDecSpan)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.TargetSpan = &csilVal
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "weight"); csilOk {
 		csilVal, csilErr := (cborAsF64)(csilField)

@@ -221,6 +221,7 @@ class Link:
     state: str
     created_ms: int
     span: Optional[Span] = None
+    target_span: Optional[Span] = None
     note: Optional[str] = None
     replaces: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
@@ -232,6 +233,8 @@ class Link:
             result['utterance'] = self.utterance
         if hasattr(self, 'span') and self.span is not None:
             result['span'] = self.span
+        if hasattr(self, 'target_span') and self.target_span is not None:
+            result['target_span'] = self.target_span
         if hasattr(self, 'weight') and self.weight is not None:
             result['weight'] = self.weight
         if hasattr(self, 'target') and self.target is not None:
@@ -255,7 +258,7 @@ class Link:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Link':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), utterance=data.get('utterance'), span=data.get('span'), weight=data.get('weight'), target=data.get('target'), kind=data.get('kind'), confidence=data.get('confidence'), author=data.get('author'), note=data.get('note'), state=data.get('state'), replaces=data.get('replaces'), created_ms=data.get('created_ms'))
+        return cls(id=data.get('id'), utterance=data.get('utterance'), span=data.get('span'), target_span=data.get('target_span'), weight=data.get('weight'), target=data.get('target'), kind=data.get('kind'), confidence=data.get('confidence'), author=data.get('author'), note=data.get('note'), state=data.get('state'), replaces=data.get('replaces'), created_ms=data.get('created_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -619,6 +622,7 @@ class NewLink:
     target: Ref
     kind: str
     span: Optional[Span] = None
+    target_span: Optional[Span] = None
     weight: Optional[float] = None
     confidence: Optional[float] = None
     note: Optional[str] = None
@@ -631,6 +635,8 @@ class NewLink:
             result['kind'] = self.kind
         if hasattr(self, 'span') and self.span is not None:
             result['span'] = self.span
+        if hasattr(self, 'target_span') and self.target_span is not None:
+            result['target_span'] = self.target_span
         if hasattr(self, 'weight') and self.weight is not None:
             result['weight'] = self.weight
         if hasattr(self, 'confidence') and self.confidence is not None:
@@ -642,7 +648,7 @@ class NewLink:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'NewLink':
         """Create instance from dictionary."""
-        return cls(target=data.get('target'), kind=data.get('kind'), span=data.get('span'), weight=data.get('weight'), confidence=data.get('confidence'), note=data.get('note'))
+        return cls(target=data.get('target'), kind=data.get('kind'), span=data.get('span'), target_span=data.get('target_span'), weight=data.get('weight'), confidence=data.get('confidence'), note=data.get('note'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

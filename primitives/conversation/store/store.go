@@ -411,30 +411,38 @@ func (db *DB) MarkClassified(ctx context.Context, id string) (api.Utterance, err
 
 // Links
 
-const linkCols = "id, utterance, span_start, span_end, weight, target_kind, target_ref, target_title, kind, confidence, author, note, state, replaces, created_ms"
+const linkCols = "id, utterance, span_start, span_end, weight, target_kind, target_ref, target_title, kind, confidence, author, note, state, replaces, created_ms, target_start, target_end"
 
 func scanLink(r pgx.Row) (api.Link, error) {
 	var l api.Link
-	var start, end *int64
+	var start, end, tstart, tend *int64
 	var created int64
 	err := r.Scan(&l.Id, &l.Utterance, &start, &end, &l.Weight, &l.Target.Kind, &l.Target.Ref, &l.Target.Title, &l.Kind,
-		&l.Confidence, &l.Author, &l.Note, &l.State, &l.Replaces, &created)
+		&l.Confidence, &l.Author, &l.Note, &l.State, &l.Replaces, &created, &tstart, &tend)
 	if start != nil && end != nil {
 		l.Span = &api.Span{Start: uint64(*start), End: uint64(*end)}
+	}
+	if tstart != nil && tend != nil {
+		l.TargetSpan = &api.Span{Start: uint64(*tstart), End: uint64(*tend)}
 	}
 	l.CreatedMs = uint64(created)
 	return l, err
 }
 
-func insertLink(ctx context.Context, tx pgx.Tx, l api.Link) error {
-	var start, end *int64
-	if l.Span != nil {
-		s, e := int64(l.Span.Start), int64(l.Span.End)
-		start, end = &s, &e
+func spanCols(sp *api.Span) (*int64, *int64) {
+	if sp == nil {
+		return nil, nil
 	}
-	_, err := tx.Exec(ctx, `INSERT INTO links (`+linkCols+`) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+	s, e := int64(sp.Start), int64(sp.End)
+	return &s, &e
+}
+
+func insertLink(ctx context.Context, tx pgx.Tx, l api.Link) error {
+	start, end := spanCols(l.Span)
+	tstart, tend := spanCols(l.TargetSpan)
+	_, err := tx.Exec(ctx, `INSERT INTO links (`+linkCols+`) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
 		l.Id, l.Utterance, start, end, l.Weight, l.Target.Kind, l.Target.Ref, l.Target.Title, l.Kind, l.Confidence, l.Author, l.Note,
-		l.State, l.Replaces, int64(l.CreatedMs))
+		l.State, l.Replaces, int64(l.CreatedMs), tstart, tend)
 	return err
 }
 

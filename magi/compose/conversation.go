@@ -331,6 +331,12 @@ func (s *System) messageLinks(ctx context.Context, links []conversationapi.Link,
 		}
 		if t, ok := known[l.Target.Ref]; ok && l.Target.Kind == "utterance" {
 			ml.Snippet, ml.TargetMs = ptr(snippet(t.Text, 80)), ptr(t.CreatedMs)
+			if ts := l.TargetSpan; ts != nil {
+				ml.TargetStart, ml.TargetEnd = ptr(ts.Start), ptr(ts.End)
+				if rs := []rune(t.Text); ts.End <= uint64(len(rs)) {
+					ml.Snippet = ptr(snippet(string(rs[ts.Start:ts.End]), 80))
+				}
+			}
 		}
 		out[i] = ml
 	}

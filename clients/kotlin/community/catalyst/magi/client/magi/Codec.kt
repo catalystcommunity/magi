@@ -361,6 +361,8 @@ fun MessageLink.toCborValue(): CborValue {
     this.targetMs?.let { csilV -> csilEntries.add(CborValue.CText("target_ms") to CborValue.CUint(csilV)) }
     csilEntries.add(CborValue.CText("confidence") to CborValue.CFloat(this.confidence))
     this.spanStart?.let { csilV -> csilEntries.add(CborValue.CText("span_start") to CborValue.CUint(csilV)) }
+    this.targetEnd?.let { csilV -> csilEntries.add(CborValue.CText("target_end") to CborValue.CUint(csilV)) }
+    this.targetStart?.let { csilV -> csilEntries.add(CborValue.CText("target_start") to CborValue.CUint(csilV)) }
     return CborValue.CMap(csilEntries)
 }
 
@@ -376,11 +378,13 @@ fun messageLinkFromCborValue(cbor: CborValue): MessageLink {
     val targetMs = CsilCbor.mapGet(cbor, "target_ms")?.let { csilV -> CsilCbor.asULong(csilV) }
     val spanStart = CsilCbor.mapGet(cbor, "span_start")?.let { csilV -> CsilCbor.asULong(csilV) }
     val spanEnd = CsilCbor.mapGet(cbor, "span_end")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val targetStart = CsilCbor.mapGet(cbor, "target_start")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val targetEnd = CsilCbor.mapGet(cbor, "target_end")?.let { csilV -> CsilCbor.asULong(csilV) }
     val weight = CsilCbor.asDouble(CsilCbor.require(cbor, "weight"))
     val confidence = CsilCbor.asDouble(CsilCbor.require(cbor, "confidence"))
     val author = CsilCbor.asText(CsilCbor.require(cbor, "author"))
     val state = CsilCbor.asText(CsilCbor.require(cbor, "state"))
-    return MessageLink(id = id, kind = kind, target = target, snippet = snippet, targetMs = targetMs, spanStart = spanStart, spanEnd = spanEnd, weight = weight, confidence = confidence, author = author, state = state)
+    return MessageLink(id = id, kind = kind, target = target, snippet = snippet, targetMs = targetMs, spanStart = spanStart, spanEnd = spanEnd, targetStart = targetStart, targetEnd = targetEnd, weight = weight, confidence = confidence, author = author, state = state)
 }
 
 /** Decode CSIL CBOR bytes into a MessageLink. */

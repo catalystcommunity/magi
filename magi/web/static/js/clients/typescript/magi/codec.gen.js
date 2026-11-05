@@ -370,6 +370,10 @@ export function toMessageLinkCborValue(v) {
     csilMap.set("confidence", v.confidence);
     if (v.spanStart !== undefined)
         csilMap.set("span_start", v.spanStart);
+    if (v.targetEnd !== undefined)
+        csilMap.set("target_end", v.targetEnd);
+    if (v.targetStart !== undefined)
+        csilMap.set("target_start", v.targetStart);
     return csilMap;
 }
 export function fromMessageLinkCborValue(value) {
@@ -381,6 +385,8 @@ export function fromMessageLinkCborValue(value) {
         targetMs: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "target_ms")),
         spanStart: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "span_start")),
         spanEnd: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "span_end")),
+        targetStart: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "target_start")),
+        targetEnd: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "target_end")),
         weight: asNumber(requireKey(value, "weight")),
         confidence: asNumber(requireKey(value, "confidence")),
         author: asString(requireKey(value, "author")),

@@ -11,6 +11,7 @@ import (
 	"slices"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/catalystcommunity/magi/lib/authn"
 	"github.com/catalystcommunity/magi/lib/rpc"
@@ -286,15 +287,22 @@ func (s *Service) newLink(ctx context.Context, acc store.Access, utterance strin
 	if l.Target.Kind == "" || l.Target.Ref == "" {
 		return api.Link{}, rpc.Invalid("link target kind and ref are required")
 	}
+	if l.TargetSpan != nil && l.Target.Kind != "utterance" {
+		return api.Link{}, rpc.Invalid("target_span needs an utterance target")
+	}
 	if l.Target.Kind == "utterance" {
 		if l.Target.Ref == utterance {
 			return api.Link{}, rpc.Invalid("a link cannot go to its own utterance")
 		}
-		if _, err := s.DB.GetUtterance(ctx, acc, l.Target.Ref); err != nil {
+		t, err := s.DB.GetUtterance(ctx, acc, l.Target.Ref)
+		if err != nil {
 			if errors.Is(err, store.ErrNotFound) {
 				return api.Link{}, rpc.Invalid("link target %s is not a readable utterance", l.Target.Ref)
 			}
 			return api.Link{}, err
+		}
+		if ts := l.TargetSpan; ts != nil && (ts.End <= ts.Start || ts.End > uint64(utf8.RuneCountInString(t.Text))) {
+			return api.Link{}, rpc.Invalid("target_span must be a part of the target text")
 		}
 	}
 	w := 1.0
@@ -311,7 +319,7 @@ func (s *Service) newLink(ctx context.Context, acc store.Access, utterance strin
 	if l.Span != nil && l.Span.End <= l.Span.Start {
 		return api.Link{}, rpc.Invalid("span end must be after start")
 	}
-	return api.Link{Id: newID("lnk_"), Utterance: utterance, Span: l.Span, Weight: w, Target: l.Target, Kind: l.Kind,
+	return api.Link{Id: newID("lnk_"), Utterance: utterance, Span: l.Span, TargetSpan: l.TargetSpan, Weight: w, Target: l.Target, Kind: l.Kind,
 		Confidence: conf, Author: author, Note: l.Note, State: state, CreatedMs: s.nowMs()}, nil
 }
 

@@ -284,6 +284,33 @@ func TestGraph(t *testing.T) {
 			t.Fatalf("through butler: %+v", s.Hits)
 		}
 	})
+
+	t.Run("target span", func(t *testing.T) {
+		// started.Text is "I started a task to fix it."; "a task" is 10 to 16.
+		res := must[api.PutLinkResponse](t)(w.librarian.PutLink(ctx, api.PutLinkRequest{Utterance: pi.Id, Link: api.NewLink{
+			Target: api.Ref{Kind: "utterance", Ref: started.Id}, Kind: "interrupts", TargetSpan: &api.Span{Start: 10, End: 16}, Confidence: ptr(0.99)}}))
+		if ts := res.Link.TargetSpan; ts == nil || ts.Start != 10 || ts.End != 16 {
+			t.Fatalf("target span = %+v", res.Link)
+		}
+		links := must[api.ListLinksResponse](t)(w.alice.ListLinks(ctx, api.ListLinksRequest{Utterance: pi.Id}))
+		found := false
+		for _, l := range links.Links {
+			found = found || (l.Kind == "interrupts" && l.TargetSpan != nil && l.TargetSpan.End == 16)
+		}
+		if !found {
+			t.Fatalf("read back: %+v", links.Links)
+		}
+		for _, sp := range []api.Span{{Start: 5, End: 5}, {Start: 0, End: 500}} {
+			if _, err := w.librarian.PutLink(ctx, api.PutLinkRequest{Utterance: pi.Id, Link: api.NewLink{
+				Target: api.Ref{Kind: "utterance", Ref: started.Id}, Kind: "interrupts", TargetSpan: &sp}}); err == nil {
+				t.Fatalf("bad target span %+v", sp)
+			}
+		}
+		if _, err := w.librarian.PutLink(ctx, api.PutLinkRequest{Utterance: pi.Id, Link: api.NewLink{
+			Target: api.Ref{Kind: "workflow-run", Ref: "run_x"}, Kind: "about", TargetSpan: &api.Span{Start: 0, End: 1}}}); err == nil {
+			t.Fatal("target span on a run")
+		}
+	})
 }
 
 func TestSharingAndReviews(t *testing.T) {

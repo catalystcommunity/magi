@@ -17,7 +17,9 @@ export interface Ref {
  * A link from a message to an earlier message, or to a record in
  * another system. For a message target, snippet is the start of its text
  * and target_ms its time. span_start and span_end are the part of the
- * message that the link applies to; weight is the share (0 to 1). state
+ * message that the link applies to; weight is the share (0 to 1).
+ * target_start and target_end are the part of the target message that the
+ * link points at; then snippet is that part. state
  * is "current" or "tentative" (only in a trace with tentative, or in
  * links with all).
  */
@@ -29,6 +31,8 @@ export interface MessageLink {
   targetMs?: number;
   spanStart?: number;
   spanEnd?: number;
+  targetStart?: number;
+  targetEnd?: number;
   weight: number;
   confidence: number;
   author: string;

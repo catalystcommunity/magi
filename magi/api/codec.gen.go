@@ -562,7 +562,7 @@ func DecodeRef(csilData []byte) (Ref, error) {
 
 // csilEncMessageLink builds the canonical CBOR value tree for a MessageLink.
 func csilEncMessageLink(csilV MessageLink) cborValue {
-	csilEntries := make(cborMap, 0, 11)
+	csilEntries := make(cborMap, 0, 13)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
 	csilEntries = append(csilEntries, cborEntry{cborText("state"), cborText(csilV.State)})
@@ -581,6 +581,12 @@ func csilEncMessageLink(csilV MessageLink) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("confidence"), cborFloat(csilV.Confidence)})
 	if csilV.SpanStart != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("span_start"), cborUint((*csilV.SpanStart))})
+	}
+	if csilV.TargetEnd != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("target_end"), cborUint((*csilV.TargetEnd))})
+	}
+	if csilV.TargetStart != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("target_start"), cborUint((*csilV.TargetStart))})
 	}
 	return csilEntries
 }
@@ -648,6 +654,20 @@ func csilDecMessageLink(csilRoot cborValue) (MessageLink, error) {
 			return csilOut, csilErr
 		}
 		csilOut.SpanEnd = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "target_start"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.TargetStart = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "target_end"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.TargetEnd = &csilVal
 	}
 	{
 		csilField, csilErr := cborRequire(csilRoot, "weight")
