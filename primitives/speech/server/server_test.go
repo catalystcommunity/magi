@@ -78,9 +78,68 @@ func fakeEngine(t *testing.T) *httptest.Server {
 		w.Header().Set("X-Engine", "fake-tts")
 		w.Write([]byte("RIFF" + in.Text))
 	}))
+	mux.HandleFunc("POST /vad", auth(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		if string(b) == "noise" {
+			w.Write([]byte(`{"speech_ms":0,"audio_ms":900,"segments":[],"engine":"fake-turn","elapsed_ms":3}`))
+			return
+		}
+		w.Write([]byte(`{"speech_ms":640,"audio_ms":900,"segments":[[96,736]],"engine":"fake-turn","elapsed_ms":3}`))
+	}))
+	mux.HandleFunc("POST /turn", auth(func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			Items []struct{ Context, Text string }
+		}
+		json.NewDecoder(r.Body).Decode(&in)
+		var res []map[string]float64
+		for _, it := range in.Items {
+			if strings.HasPrefix(it.Text, "wait") {
+				res = append(res, map[string]float64{"ack": 0.01, "turn": 0.98, "unclear": 0.01})
+			} else {
+				res = append(res, map[string]float64{"ack": 0.97, "turn": 0.02, "unclear": 0.01})
+			}
+		}
+		json.NewEncoder(w).Encode(map[string]any{"results": res, "engine": "fake-turn", "elapsed_ms": 2})
+	}))
 	s := httptest.NewServer(mux)
 	t.Cleanup(s.Close)
 	return s
+}
+
+func TestTurn(t *testing.T) {
+	eng := fakeEngine(t)
+	ctx := context.Background()
+	c := harness(t, &Service{STT: NewEngine(eng.URL, engineToken), TTS: NewEngine(eng.URL, engineToken), Turn: NewEngine(eng.URL, engineToken)})
+	d, err := c.DetectSpeech(ctx, api.DetectSpeechRequest{Audio: []byte("RIFF")})
+	if err != nil || d.SpeechMs != 640 || len(d.Segments) != 1 || d.Segments[0].EndMs != 736 || d.Engine != "fake-turn" {
+		t.Fatalf("detect speech = %+v, %v", d, err)
+	}
+	d, err = c.DetectSpeech(ctx, api.DetectSpeechRequest{Audio: []byte("noise"), MediaType: ptr("audio/webm")})
+	if err != nil || d.SpeechMs != 0 || d.Segments == nil || len(d.Segments) != 0 {
+		t.Fatalf("detect noise = %+v, %v", d, err)
+	}
+	r, err := c.ClassifyTurn(ctx, api.ClassifyTurnRequest{Items: []api.TurnText{
+		{Context: "the oven should be at three fifty", Text: "mm hmm"}, {Context: "", Text: "wait what"}}})
+	if err != nil || len(r.Results) != 2 || r.Results[0].Ack < 0.9 || r.Results[1].Turn < 0.9 {
+		t.Fatalf("classify turn = %+v, %v", r, err)
+	}
+	for name, req := range map[string]api.ClassifyTurnRequest{
+		"no items":   {},
+		"empty text": {Items: []api.TurnText{{Context: "x", Text: " "}}},
+		"long":       {Items: []api.TurnText{{Text: strings.Repeat("a", MaxTurnText+1)}}},
+	} {
+		if _, err := c.ClassifyTurn(ctx, req); rpc.CodeOf(err) != 400 {
+			t.Errorf("%s: err = %v, want 400", name, err)
+		}
+	}
+	if _, err := c.DetectSpeech(ctx, api.DetectSpeechRequest{Audio: []byte("x"), MediaType: ptr("text/plain")}); rpc.CodeOf(err) != 400 {
+		t.Errorf("text media type: %v", err)
+	}
+	// Without the engine, the operations are unavailable.
+	c = harness(t, &Service{STT: NewEngine(eng.URL, engineToken), TTS: NewEngine(eng.URL, engineToken)})
+	if _, err := c.ClassifyTurn(ctx, api.ClassifyTurnRequest{Items: []api.TurnText{{Text: "okay"}}}); rpc.CodeOf(err) != 503 {
+		t.Errorf("no turn engine: %v", err)
+	}
 }
 
 // harness starts SpeechService behind the real rpc server and returns a

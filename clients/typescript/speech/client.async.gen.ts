@@ -2,8 +2,8 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { Audio, DeleteLexiconEntryRequest, DeleteLexiconEntryResponse, LexiconEntry, ListLexiconRequest, ListLexiconResponse, ListVoicesRequest, ListVoicesResponse, PrepareTextRequest, PrepareTextResponse, PutLexiconEntryRequest, SynthesizeRequest, TranscribeRequest, Transcript } from "./types.gen.ts";
-import { fromAudioCbor, fromDeleteLexiconEntryResponseCbor, fromLexiconEntryCbor, fromListLexiconResponseCbor, fromListVoicesResponseCbor, fromPrepareTextResponseCbor, fromTranscriptCbor, toDeleteLexiconEntryRequestCbor, toListLexiconRequestCbor, toListVoicesRequestCbor, toPrepareTextRequestCbor, toPutLexiconEntryRequestCbor, toSynthesizeRequestCbor, toTranscribeRequestCbor } from "./codec.gen.ts";
+import type { Audio, ClassifyTurnRequest, ClassifyTurnResponse, DeleteLexiconEntryRequest, DeleteLexiconEntryResponse, DetectSpeechRequest, DetectSpeechResponse, LexiconEntry, ListLexiconRequest, ListLexiconResponse, ListVoicesRequest, ListVoicesResponse, PrepareTextRequest, PrepareTextResponse, PutLexiconEntryRequest, SynthesizeRequest, TranscribeRequest, Transcript } from "./types.gen.ts";
+import { fromAudioCbor, fromClassifyTurnResponseCbor, fromDeleteLexiconEntryResponseCbor, fromDetectSpeechResponseCbor, fromLexiconEntryCbor, fromListLexiconResponseCbor, fromListVoicesResponseCbor, fromPrepareTextResponseCbor, fromTranscriptCbor, toClassifyTurnRequestCbor, toDeleteLexiconEntryRequestCbor, toDetectSpeechRequestCbor, toListLexiconRequestCbor, toListVoicesRequestCbor, toPrepareTextRequestCbor, toPutLexiconEntryRequestCbor, toSynthesizeRequestCbor, toTranscribeRequestCbor } from "./codec.gen.ts";
 
 export interface AsyncServiceTransport {
   call(service: string, op: string, req: Uint8Array): Promise<Uint8Array>;
@@ -73,6 +73,24 @@ export class SpeechAsyncClient {
   async prepareText(req: PrepareTextRequest): Promise<PrepareTextResponse> {
     const csilResp = await this.t.call("SpeechService", "prepare-text", toPrepareTextRequestCbor(req));
     return fromPrepareTextResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async detectSpeech(req: DetectSpeechRequest): Promise<DetectSpeechResponse> {
+    const csilResp = await this.t.call("SpeechService", "detect-speech", toDetectSpeechRequestCbor(req));
+    return fromDetectSpeechResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async classifyTurn(req: ClassifyTurnRequest): Promise<ClassifyTurnResponse> {
+    const csilResp = await this.t.call("SpeechService", "classify-turn", toClassifyTurnRequestCbor(req));
+    return fromClassifyTurnResponseCbor(csilResp);
   }
 }
 

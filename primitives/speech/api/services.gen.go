@@ -16,4 +16,6 @@ type SpeechService interface {
 	PutLexiconEntry(ctx context.Context, req PutLexiconEntryRequest) (LexiconEntry, error)
 	DeleteLexiconEntry(ctx context.Context, req DeleteLexiconEntryRequest) (DeleteLexiconEntryResponse, error)
 	PrepareText(ctx context.Context, req PrepareTextRequest) (PrepareTextResponse, error)
+	DetectSpeech(ctx context.Context, req DetectSpeechRequest) (DetectSpeechResponse, error)
+	ClassifyTurn(ctx context.Context, req ClassifyTurnRequest) (ClassifyTurnResponse, error)
 }

@@ -44,5 +44,25 @@
       "model.onnx": "f0ea7f239f765aedbde7c9e163a7cb38a79c5b8853d3f76db5152172047b228c",
       "tokenizer.json": "752fe5f0d5678ad563e1bd2ecc1ddf7a3ba7e2024d0ac1dba1a72975e26dff2f"
     }
+  },
+  "silero-vad": {
+    "repo": "snakers4/silero-vad",
+    "revision": "v5.1.2",
+    "files": "src/silero_vad/data/",
+    "license": "MIT",
+    "sha256": {
+      "silero_vad.onnx": "2623a2953f6ff3d2c1e61740c6cdb7168133479b267dfef114a4a3cc5bdd788f"
+    }
+  },
+  "turn": {
+    "name": "magi-turn-minilm-l12-v1",
+    "source": "primitives/speech/engine/turn/train.py, base sentence-transformers/all-MiniLM-L12-v2, file model-int8.onnx",
+    "license": "Apache-2.0 (base model)",
+    "files": "turn/",
+    "sha256": {
+      "model.onnx": "ccddedcb4ef7cfb152a7cc51f43ef0654b474bd954bcde57a1cccfaaad87a9d2",
+      "tokenizer.json": "eb8ee7009446e9ba9f610d5ebc0065713b448a44cbc6ed9054181bcf20435a89",
+      "config.json": "f1cddb4b4bf14502c1082832e00864c75d5d47a028616efe939e1f65b6eb85be"
+    }
   }
 }

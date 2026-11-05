@@ -59,3 +59,11 @@ class SpeechClient:
         """prepare-text"""
         return PrepareTextResponse.from_cbor(self._transport.call("SpeechService", "prepare-text", req.to_cbor()))
 
+    def detect_speech(self, req: DetectSpeechRequest) -> DetectSpeechResponse:
+        """detect-speech"""
+        return DetectSpeechResponse.from_cbor(self._transport.call("SpeechService", "detect-speech", req.to_cbor()))
+
+    def classify_turn(self, req: ClassifyTurnRequest) -> ClassifyTurnResponse:
+        """classify-turn"""
+        return ClassifyTurnResponse.from_cbor(self._transport.call("SpeechService", "classify-turn", req.to_cbor()))
+

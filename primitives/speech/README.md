@@ -16,6 +16,7 @@ different process that serves the same engine API.
 | --- | --- | --- | --- | --- | --- |
 | STT | Parakeet TDT 0.6B v3 INT8 (sherpa-onnx) | CC-BY-4.0 (NVIDIA); sherpa-onnx is Apache-2.0 | 8092 | 2 | CPU |
 | TTS | Kokoro 82M | Apache-2.0 | 8093 | 3 | GPU if torch sees one, else CPU |
+| turn | Silero VAD 5.1.2 and the turn classifier (MiniLM-L12, fine-tuned, int8) | MIT (Silero), Apache-2.0 (MiniLM) | 8095 | 2 | CPU |
 
 CC-BY-4.0 lets you use, change, and share the model, also for commercial
 work. You must give attribution to NVIDIA when you distribute the model.
@@ -27,8 +28,8 @@ own process. `engine/server.py --engine stt|tts` is the program for both.
 - The engine loads the model one time. It checks the model files against
   `engine/model-pins.json` before it loads them.
 - One lock in each engine lets only one inference run at a time.
-- The STT engine uses `ffmpeg` to decode the audio. It accepts WAV, WebM,
-  Ogg, MP3, FLAC, and other formats that `ffmpeg` can read.
+- The engines read 16 kHz 16-bit mono WAV directly. For other audio, they
+  use `ffmpeg`. They accept WAV, WebM, Ogg, MP3, FLAC, and other formats that `ffmpeg` can read.
 - The TTS engine makes 24 kHz mono 16-bit WAV.
 - The engines run with `nice 10`.
 
@@ -49,6 +50,8 @@ All requests, except `/health`, need `Authorization: Bearer <token>`.
 | `POST /synthesize` | TTS | `{"text", ..., "timings": true}` | `{"audio" (base64 WAV), "media_type", "words": [[word, start_ms, end_ms]], "audio_ms", ...}` |
 | `GET /voices` | TTS | none | `{"voices": [{"id", "name", "language", "description"}]}` |
 | `POST /detect` | detect | `{"texts": [...]}` (at most 64 texts, 256 KiB) | `{"scores": [...], "windows", "engine", "elapsed_ms"}` |
+| `POST /vad` | turn | audio bytes | `{"speech_ms", "audio_ms", "segments": [[start_ms, end_ms]], "engine", "elapsed_ms"}` |
+| `POST /turn` | turn | `{"items": [{"context", "text"}]}` (at most 32) | `{"results": [{"ack", "turn", "unclear"}], "engine", "elapsed_ms"}` |
 
 The engine `detect` is not speech. It is the prompt injection detector of
 Magi (ProtectAI deberta v3 v2, Apache-2.0, ONNX on the CPU; pins in
@@ -59,6 +62,62 @@ the speech service does not use it. Environment: Python 3.13 with
 onnxruntime 1.31.0 (MIT), tokenizers 0.23.3 (Apache-2.0), and numpy 2.5.4,
 in `~/.local/share/magi/speech/installs/detect/venv`; the model is in
 `.../detect/models/protectai-v2`.
+
+### Turn engine
+
+The engine `turn` helps Magi decide what to do when the person speaks while
+the persona speaks (`docs/speech-interaction.md`, 2.3.1, step 2).
+
+- `/vad` finds speech in a short clip with Silero VAD (32 ms chunks at
+  16 kHz). Speech starts at probability 0.5 and stops after 100 ms below
+  0.35. A segment shorter than 90 ms is noise. Thus a click, a cough, a
+  fan, or music gives no speech, but a TV voice is speech.
+- `/turn` classifies the transcript of the person's speech (`text`, often
+  only the first words) with the last words of the persona (`context`):
+  - `ack`: a backchannel or a reaction ("mm-hm", "wow okay", "oh no").
+    The persona continues.
+  - `turn`: the person takes the turn: a stop, a question, a correction,
+    a new topic, or an answer to a question that the persona asked
+    ("yes" after "shall I send it?"). The persona stops.
+  - `unclear`: too few words ("so", "um"). Wait for more words.
+
+  The engine makes the text lower case and removes punctuation, as in
+  training.
+
+The classifier is our own model: `engine/turn/` has the data generator
+(`data.py`), a separate held-out set with other words and topics
+(`heldout.py`), and the training script (`train.py`). The model files are
+not in the repository. Make them again with `train.py` (a GPU is useful,
+not necessary). `model-pins.json` has the hashes of the files that the
+engine uses. Put them on the host:
+
+```text
+~/.local/share/magi/speech/installs/turn/models/silero_vad.onnx
+~/.local/share/magi/speech/installs/turn/models/turn/{model.onnx,tokenizer.json,config.json}
+```
+
+Results of `magi-turn-minilm-l12-v1` (int8), 2026-11-04. "Turn as ack" is
+the bad error (the persona does not stop for a real turn); "ack as turn" only
+stops the persona:
+
+| Set | Items | Turn as ack | Ack as turn | Accuracy |
+| --- | --- | --- | --- | --- |
+| `heldout.py` (written before training) | 144 | 0 of 74 | 6 of 54 | 95.8 % |
+| `heldout2.py` (written after the first model; three of its error kinds then went into `data.py` as ideas, not phrases) | 161 | 0 of 96 | 4 of 50 | 96.9 % |
+
+With a decision of "ack" at P(ack) >= 0.85 and "turn" at P(turn) >= 0.5.
+The probabilities do not go above about 0.94 because training uses label
+smoothing 0.1. deberta-v3-xsmall with the same data took 1 to 2 turns as
+acks on each set. Time: 2.6 ms median for one item on the engine host (2
+threads, HTTP included); `/vad` 6 ms for a 2 s clip of 16 kHz 16-bit mono WAV
+(other formats go through ffmpeg, about 40 ms).
+
+To evaluate a running engine: `python3 -I engine/turn/eval_engine.py URL
+TOKEN_FILE [--set 2]`.
+
+Silero VAD comes from github.com/snakers4/silero-vad, tag v5.1.2,
+`src/silero_vad/data/silero_vad.onnx`. The engine uses the Python
+environment of `detect` (onnxruntime, tokenizers, numpy).
 
 An error is JSON `{"error": "..."}`. Status 400 or 413 is a bad input. Other
 statuses are engine failures. The error does not contain the input text.
@@ -82,6 +141,12 @@ statuses are engine failures. The error does not contain the input text.
   lexicon. A change needs the scope `speech:lexicon`. Magi has this scope
   and decides which people can make changes.
 - `prepare-text`: the spoken text that `synthesize` makes, with no audio.
+- `detect-speech`: audio (`media_type` is `audio/wav` by default) to the
+  speech segments (engine `turn`, `/vad`).
+- `classify-turn`: at most 32 items of `context` and `text` (each at most
+  2000 characters) to the class probabilities (engine `turn`, `/turn`).
+  Without `MAGI_SPEECH_TURN_URL`, these two operations return
+  `rpc.Unavailable`. `/healthz` does not check this engine.
 
 ## Spoken text and the lexicon
 
@@ -126,6 +191,7 @@ Errors:
 | `-auth-keys` | `MAGI_AUTH_KEYS` | required |
 | `-stt-url` | `MAGI_SPEECH_STT_URL` | required, such as `http://speech.example.local:8092` |
 | `-tts-url` | `MAGI_SPEECH_TTS_URL` | required, such as `http://speech.example.local:8093` |
+| `-turn-url` | `MAGI_SPEECH_TURN_URL` | optional, such as `http://speech.example.local:8095` |
 | `-database-url` | `MAGI_DATABASE_URL` | optional: PostgreSQL for the lexicon |
 | `-engine-token-file` | `MAGI_SPEECH_ENGINE_TOKEN_FILE` | required |
 

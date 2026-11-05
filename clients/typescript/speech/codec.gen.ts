@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { Audio, DeleteLexiconEntryRequest, DeleteLexiconEntryResponse, LexiconEntry, ListLexiconRequest, ListLexiconResponse, ListVoicesRequest, ListVoicesResponse, PrepareTextRequest, PrepareTextResponse, PutLexiconEntryRequest, SynthesizeRequest, TranscribeRequest, Transcript, Voice, WordTime } from "./types.gen.ts";
+import type { Audio, ClassifyTurnRequest, ClassifyTurnResponse, DeleteLexiconEntryRequest, DeleteLexiconEntryResponse, DetectSpeechRequest, DetectSpeechResponse, LexiconEntry, ListLexiconRequest, ListLexiconResponse, ListVoicesRequest, ListVoicesResponse, PrepareTextRequest, PrepareTextResponse, PutLexiconEntryRequest, SpeechSegment, SynthesizeRequest, TranscribeRequest, Transcript, TurnClass, TurnText, Voice, WordTime } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -730,5 +730,167 @@ export function toPrepareTextResponseCbor(v: PrepareTextResponse): Uint8Array {
 
 export function fromPrepareTextResponseCbor(bytes: Uint8Array): PrepareTextResponse {
   return fromPrepareTextResponseCborValue(decode(bytes));
+}
+
+export function toDetectSpeechRequestCborValue(v: DetectSpeechRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("audio", v.audio);
+  if (v.mediaType !== undefined) csilMap.set("media_type", v.mediaType);
+  return csilMap;
+}
+
+export function fromDetectSpeechRequestCborValue(value: CborValue): DetectSpeechRequest {
+  return {
+    audio: asBytes(requireKey(value, "audio")),
+    mediaType: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "media_type")),
+  };
+}
+
+export function toDetectSpeechRequestCbor(v: DetectSpeechRequest): Uint8Array {
+  return encodeValue(toDetectSpeechRequestCborValue(v));
+}
+
+export function fromDetectSpeechRequestCbor(bytes: Uint8Array): DetectSpeechRequest {
+  return fromDetectSpeechRequestCborValue(decode(bytes));
+}
+
+export function toSpeechSegmentCborValue(v: SpeechSegment): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("end_ms", v.endMs);
+  csilMap.set("start_ms", v.startMs);
+  return csilMap;
+}
+
+export function fromSpeechSegmentCborValue(value: CborValue): SpeechSegment {
+  return {
+    startMs: asNumber(requireKey(value, "start_ms")),
+    endMs: asNumber(requireKey(value, "end_ms")),
+  };
+}
+
+export function toSpeechSegmentCbor(v: SpeechSegment): Uint8Array {
+  return encodeValue(toSpeechSegmentCborValue(v));
+}
+
+export function fromSpeechSegmentCbor(bytes: Uint8Array): SpeechSegment {
+  return fromSpeechSegmentCborValue(decode(bytes));
+}
+
+export function toDetectSpeechResponseCborValue(v: DetectSpeechResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("engine", v.engine);
+  csilMap.set("audio_ms", v.audioMs);
+  csilMap.set("segments", v.segments.map((csilE): CborValue => toSpeechSegmentCborValue(csilE)));
+  csilMap.set("speech_ms", v.speechMs);
+  csilMap.set("elapsed_ms", v.elapsedMs);
+  return csilMap;
+}
+
+export function fromDetectSpeechResponseCborValue(value: CborValue): DetectSpeechResponse {
+  return {
+    speechMs: asNumber(requireKey(value, "speech_ms")),
+    audioMs: asNumber(requireKey(value, "audio_ms")),
+    segments: asArray(requireKey(value, "segments")).map((csilE) => fromSpeechSegmentCborValue(csilE)),
+    engine: asString(requireKey(value, "engine")),
+    elapsedMs: asNumber(requireKey(value, "elapsed_ms")),
+  };
+}
+
+export function toDetectSpeechResponseCbor(v: DetectSpeechResponse): Uint8Array {
+  return encodeValue(toDetectSpeechResponseCborValue(v));
+}
+
+export function fromDetectSpeechResponseCbor(bytes: Uint8Array): DetectSpeechResponse {
+  return fromDetectSpeechResponseCborValue(decode(bytes));
+}
+
+export function toTurnTextCborValue(v: TurnText): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("text", v.text);
+  csilMap.set("context", v.context);
+  return csilMap;
+}
+
+export function fromTurnTextCborValue(value: CborValue): TurnText {
+  return {
+    context: asString(requireKey(value, "context")),
+    text: asString(requireKey(value, "text")),
+  };
+}
+
+export function toTurnTextCbor(v: TurnText): Uint8Array {
+  return encodeValue(toTurnTextCborValue(v));
+}
+
+export function fromTurnTextCbor(bytes: Uint8Array): TurnText {
+  return fromTurnTextCborValue(decode(bytes));
+}
+
+export function toClassifyTurnRequestCborValue(v: ClassifyTurnRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("items", v.items.map((csilE): CborValue => toTurnTextCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromClassifyTurnRequestCborValue(value: CborValue): ClassifyTurnRequest {
+  return {
+    items: asArray(requireKey(value, "items")).map((csilE) => fromTurnTextCborValue(csilE)),
+  };
+}
+
+export function toClassifyTurnRequestCbor(v: ClassifyTurnRequest): Uint8Array {
+  return encodeValue(toClassifyTurnRequestCborValue(v));
+}
+
+export function fromClassifyTurnRequestCbor(bytes: Uint8Array): ClassifyTurnRequest {
+  return fromClassifyTurnRequestCborValue(decode(bytes));
+}
+
+export function toTurnClassCborValue(v: TurnClass): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("ack", v.ack);
+  csilMap.set("turn", v.turn);
+  csilMap.set("unclear", v.unclear);
+  return csilMap;
+}
+
+export function fromTurnClassCborValue(value: CborValue): TurnClass {
+  return {
+    ack: asNumber(requireKey(value, "ack")),
+    turn: asNumber(requireKey(value, "turn")),
+    unclear: asNumber(requireKey(value, "unclear")),
+  };
+}
+
+export function toTurnClassCbor(v: TurnClass): Uint8Array {
+  return encodeValue(toTurnClassCborValue(v));
+}
+
+export function fromTurnClassCbor(bytes: Uint8Array): TurnClass {
+  return fromTurnClassCborValue(decode(bytes));
+}
+
+export function toClassifyTurnResponseCborValue(v: ClassifyTurnResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("engine", v.engine);
+  csilMap.set("results", v.results.map((csilE): CborValue => toTurnClassCborValue(csilE)));
+  csilMap.set("elapsed_ms", v.elapsedMs);
+  return csilMap;
+}
+
+export function fromClassifyTurnResponseCborValue(value: CborValue): ClassifyTurnResponse {
+  return {
+    results: asArray(requireKey(value, "results")).map((csilE) => fromTurnClassCborValue(csilE)),
+    engine: asString(requireKey(value, "engine")),
+    elapsedMs: asNumber(requireKey(value, "elapsed_ms")),
+  };
+}
+
+export function toClassifyTurnResponseCbor(v: ClassifyTurnResponse): Uint8Array {
+  return encodeValue(toClassifyTurnResponseCborValue(v));
+}
+
+export function fromClassifyTurnResponseCbor(bytes: Uint8Array): ClassifyTurnResponse {
+  return fromClassifyTurnResponseCborValue(decode(bytes));
 }
 

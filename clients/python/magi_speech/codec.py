@@ -828,3 +828,188 @@ def _prepare_text_response_from_cbor(data: bytes) -> "PrepareTextResponse":
 
 PrepareTextResponse.to_cbor = _prepare_text_response_to_cbor
 PrepareTextResponse.from_cbor = staticmethod(_prepare_text_response_from_cbor)
+
+def _encode_detect_speech_request_value(v: "DetectSpeechRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["audio"] = v.audio
+    csil_x = v.media_type
+    if csil_x is not None:
+        csil_m["media_type"] = csil_x
+    return csil_m
+
+def _decode_detect_speech_request_value(tree: Any) -> "DetectSpeechRequest":
+    tree = _csil_expect_map(tree)
+    return DetectSpeechRequest(
+        audio=_csil_expect_bytes(tree["audio"]),
+        media_type=(None if tree.get("media_type") is None else _csil_expect_text(tree["media_type"])),
+    )
+
+
+def _detect_speech_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_detect_speech_request_value(self))
+
+
+def _detect_speech_request_from_cbor(data: bytes) -> "DetectSpeechRequest":
+    return _decode_detect_speech_request_value(cbor_decode(data))
+
+
+DetectSpeechRequest.to_cbor = _detect_speech_request_to_cbor
+DetectSpeechRequest.from_cbor = staticmethod(_detect_speech_request_from_cbor)
+
+def _encode_speech_segment_value(v: "SpeechSegment") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["end_ms"] = v.end_ms
+    csil_m["start_ms"] = v.start_ms
+    return csil_m
+
+def _decode_speech_segment_value(tree: Any) -> "SpeechSegment":
+    tree = _csil_expect_map(tree)
+    return SpeechSegment(
+        start_ms=_csil_expect_uint(tree["start_ms"]),
+        end_ms=_csil_expect_uint(tree["end_ms"]),
+    )
+
+
+def _speech_segment_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_speech_segment_value(self))
+
+
+def _speech_segment_from_cbor(data: bytes) -> "SpeechSegment":
+    return _decode_speech_segment_value(cbor_decode(data))
+
+
+SpeechSegment.to_cbor = _speech_segment_to_cbor
+SpeechSegment.from_cbor = staticmethod(_speech_segment_from_cbor)
+
+def _encode_detect_speech_response_value(v: "DetectSpeechResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["engine"] = v.engine
+    csil_m["audio_ms"] = v.audio_ms
+    csil_m["segments"] = [_encode_speech_segment_value(csil_e) for csil_e in v.segments]
+    csil_m["speech_ms"] = v.speech_ms
+    csil_m["elapsed_ms"] = v.elapsed_ms
+    return csil_m
+
+def _decode_detect_speech_response_value(tree: Any) -> "DetectSpeechResponse":
+    tree = _csil_expect_map(tree)
+    return DetectSpeechResponse(
+        speech_ms=_csil_expect_uint(tree["speech_ms"]),
+        audio_ms=_csil_expect_uint(tree["audio_ms"]),
+        segments=[_decode_speech_segment_value(csil_e) for csil_e in _csil_expect_array(tree["segments"])],
+        engine=_csil_expect_text(tree["engine"]),
+        elapsed_ms=_csil_expect_uint(tree["elapsed_ms"]),
+    )
+
+
+def _detect_speech_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_detect_speech_response_value(self))
+
+
+def _detect_speech_response_from_cbor(data: bytes) -> "DetectSpeechResponse":
+    return _decode_detect_speech_response_value(cbor_decode(data))
+
+
+DetectSpeechResponse.to_cbor = _detect_speech_response_to_cbor
+DetectSpeechResponse.from_cbor = staticmethod(_detect_speech_response_from_cbor)
+
+def _encode_turn_text_value(v: "TurnText") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["text"] = v.text
+    csil_m["context"] = v.context
+    return csil_m
+
+def _decode_turn_text_value(tree: Any) -> "TurnText":
+    tree = _csil_expect_map(tree)
+    return TurnText(
+        context=_csil_expect_text(tree["context"]),
+        text=_csil_expect_text(tree["text"]),
+    )
+
+
+def _turn_text_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_turn_text_value(self))
+
+
+def _turn_text_from_cbor(data: bytes) -> "TurnText":
+    return _decode_turn_text_value(cbor_decode(data))
+
+
+TurnText.to_cbor = _turn_text_to_cbor
+TurnText.from_cbor = staticmethod(_turn_text_from_cbor)
+
+def _encode_classify_turn_request_value(v: "ClassifyTurnRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["items"] = [_encode_turn_text_value(csil_e) for csil_e in v.items]
+    return csil_m
+
+def _decode_classify_turn_request_value(tree: Any) -> "ClassifyTurnRequest":
+    tree = _csil_expect_map(tree)
+    return ClassifyTurnRequest(
+        items=[_decode_turn_text_value(csil_e) for csil_e in _csil_expect_array(tree["items"])],
+    )
+
+
+def _classify_turn_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_classify_turn_request_value(self))
+
+
+def _classify_turn_request_from_cbor(data: bytes) -> "ClassifyTurnRequest":
+    return _decode_classify_turn_request_value(cbor_decode(data))
+
+
+ClassifyTurnRequest.to_cbor = _classify_turn_request_to_cbor
+ClassifyTurnRequest.from_cbor = staticmethod(_classify_turn_request_from_cbor)
+
+def _encode_turn_class_value(v: "TurnClass") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["ack"] = v.ack
+    csil_m["turn"] = v.turn
+    csil_m["unclear"] = v.unclear
+    return csil_m
+
+def _decode_turn_class_value(tree: Any) -> "TurnClass":
+    tree = _csil_expect_map(tree)
+    return TurnClass(
+        ack=_csil_expect_float(tree["ack"]),
+        turn=_csil_expect_float(tree["turn"]),
+        unclear=_csil_expect_float(tree["unclear"]),
+    )
+
+
+def _turn_class_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_turn_class_value(self))
+
+
+def _turn_class_from_cbor(data: bytes) -> "TurnClass":
+    return _decode_turn_class_value(cbor_decode(data))
+
+
+TurnClass.to_cbor = _turn_class_to_cbor
+TurnClass.from_cbor = staticmethod(_turn_class_from_cbor)
+
+def _encode_classify_turn_response_value(v: "ClassifyTurnResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["engine"] = v.engine
+    csil_m["results"] = [_encode_turn_class_value(csil_e) for csil_e in v.results]
+    csil_m["elapsed_ms"] = v.elapsed_ms
+    return csil_m
+
+def _decode_classify_turn_response_value(tree: Any) -> "ClassifyTurnResponse":
+    tree = _csil_expect_map(tree)
+    return ClassifyTurnResponse(
+        results=[_decode_turn_class_value(csil_e) for csil_e in _csil_expect_array(tree["results"])],
+        engine=_csil_expect_text(tree["engine"]),
+        elapsed_ms=_csil_expect_uint(tree["elapsed_ms"]),
+    )
+
+
+def _classify_turn_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_classify_turn_response_value(self))
+
+
+def _classify_turn_response_from_cbor(data: bytes) -> "ClassifyTurnResponse":
+    return _decode_classify_turn_response_value(cbor_decode(data))
+
+
+ClassifyTurnResponse.to_cbor = _classify_turn_response_to_cbor
+ClassifyTurnResponse.from_cbor = staticmethod(_classify_turn_response_from_cbor)

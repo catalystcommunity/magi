@@ -42,13 +42,21 @@ type Lexicon interface {
 }
 
 // Service implements api.SpeechService. STT serves transcribe; TTS serves
-// synthesize and list-voices. Without Lexicon, the lexicon is empty and
-// cannot change.
+// synthesize and list-voices; Turn serves detect-speech and classify-turn
+// (optional: without it they are unavailable). Without Lexicon, the
+// lexicon is empty and cannot change.
 type Service struct {
-	STT, TTS *Engine
-	Lexicon  Lexicon
-	Log      *slog.Logger
+	STT, TTS, Turn *Engine
+	Lexicon        Lexicon
+	Log            *slog.Logger
 }
+
+// MaxTurnItems is the largest classify-turn batch; MaxTurnText is the
+// largest context or text of one item, in characters.
+const (
+	MaxTurnItems = 32
+	MaxTurnText  = 2000
+)
 
 var _ api.SpeechService = (*Service)(nil)
 
@@ -351,4 +359,71 @@ func audioType(t string) bool {
 	t = strings.ToLower(strings.TrimSpace(strings.SplitN(t, ";", 2)[0]))
 	return strings.HasPrefix(t, "audio/") || t == "video/webm" || t == "video/ogg" ||
 		t == "application/ogg" || t == "application/octet-stream"
+}
+
+func deref(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
+}
+
+func (s *Service) DetectSpeech(ctx context.Context, req api.DetectSpeechRequest) (api.DetectSpeechResponse, error) {
+	if _, err := rpc.Caller(ctx); err != nil {
+		return api.DetectSpeechResponse{}, err
+	}
+	mt := cmp.Or(deref(req.MediaType), "audio/wav")
+	switch {
+	case len(req.Audio) == 0:
+		return api.DetectSpeechResponse{}, rpc.Invalid("audio is required")
+	case len(req.Audio) > MaxAudio:
+		return api.DetectSpeechResponse{}, rpc.Invalid("audio is larger than %d bytes", MaxAudio)
+	case !audioType(mt):
+		return api.DetectSpeechResponse{}, rpc.Invalid("media_type %q is not audio", mt)
+	}
+	r, err := s.Turn.do(ctx, http.MethodPost, "/vad", mt, req.Audio)
+	if err != nil {
+		return api.DetectSpeechResponse{}, err
+	}
+	var out struct {
+		SpeechMs  uint64      `json:"speech_ms"`
+		AudioMs   uint64      `json:"audio_ms"`
+		Segments  [][2]uint64 `json:"segments"`
+		Engine    string      `json:"engine"`
+		ElapsedMs uint64      `json:"elapsed_ms"`
+	}
+	if err := json.Unmarshal(r.Body, &out); err != nil {
+		return api.DetectSpeechResponse{}, rpc.Unavailable("speech engine /vad: bad reply")
+	}
+	res := api.DetectSpeechResponse{SpeechMs: out.SpeechMs, AudioMs: out.AudioMs, Engine: out.Engine, ElapsedMs: out.ElapsedMs,
+		Segments: []api.SpeechSegment{}}
+	for _, sg := range out.Segments {
+		res.Segments = append(res.Segments, api.SpeechSegment{StartMs: sg[0], EndMs: sg[1]})
+	}
+	return res, nil
+}
+
+func (s *Service) ClassifyTurn(ctx context.Context, req api.ClassifyTurnRequest) (api.ClassifyTurnResponse, error) {
+	if _, err := rpc.Caller(ctx); err != nil {
+		return api.ClassifyTurnResponse{}, err
+	}
+	if len(req.Items) == 0 || len(req.Items) > MaxTurnItems {
+		return api.ClassifyTurnResponse{}, rpc.Invalid("items must have 1 to %d items", MaxTurnItems)
+	}
+	for _, it := range req.Items {
+		if utf8.RuneCountInString(it.Context) > MaxTurnText || utf8.RuneCountInString(it.Text) > MaxTurnText {
+			return api.ClassifyTurnResponse{}, rpc.Invalid("context and text must have at most %d characters", MaxTurnText)
+		}
+		if strings.TrimSpace(it.Text) == "" {
+			return api.ClassifyTurnResponse{}, rpc.Invalid("text is required")
+		}
+	}
+	var out api.ClassifyTurnResponse
+	if err := s.Turn.json(ctx, http.MethodPost, "/turn", map[string]any{"items": req.Items}, &out); err != nil {
+		return api.ClassifyTurnResponse{}, err
+	}
+	if len(out.Results) != len(req.Items) {
+		return api.ClassifyTurnResponse{}, rpc.Unavailable("speech engine /turn: %d results for %d items", len(out.Results), len(req.Items))
+	}
+	return out, nil
 }

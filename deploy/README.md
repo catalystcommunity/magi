@@ -72,6 +72,7 @@ MODEL_BASE_URL=http://model.example.local:8091/v1
 MODEL_NAME=magi-coder
 SPEECH_STT_URL=http://speech.example.local:8092
 SPEECH_TTS_URL=http://speech.example.local:8093
+SPEECH_TURN_URL=              # optional: speech detection and turn classifier engine (speech engine host, port 8095)
 ALLOWED_DOMAINS=example.local
 ENV_IMAGE=localhost:30500/magi/dev-env:TAG
 RUNNER=                       # optional: default runner for code changes

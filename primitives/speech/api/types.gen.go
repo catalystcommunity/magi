@@ -118,3 +118,49 @@ type PrepareTextRequest struct {
 type PrepareTextResponse struct {
 	Spoken string `json:"spoken" yaml:"spoken"`
 }
+
+// DetectSpeechRequest represents a structured data type
+type DetectSpeechRequest struct {
+	Audio     []byte  `json:"audio" yaml:"audio"`
+	MediaType *string `json:"media_type,omitempty" yaml:"media_type,omitempty"`
+}
+
+// SpeechSegment represents a structured data type
+type SpeechSegment struct {
+	StartMs uint64 `json:"start_ms" yaml:"start_ms"`
+	EndMs   uint64 `json:"end_ms" yaml:"end_ms"`
+}
+
+// DetectSpeechResponse represents a structured data type
+type DetectSpeechResponse struct {
+	SpeechMs  uint64          `json:"speech_ms" yaml:"speech_ms"`
+	AudioMs   uint64          `json:"audio_ms" yaml:"audio_ms"`
+	Segments  []SpeechSegment `json:"segments" yaml:"segments"`
+	Engine    string          `json:"engine" yaml:"engine"`
+	ElapsedMs uint64          `json:"elapsed_ms" yaml:"elapsed_ms"`
+}
+
+// TurnText represents a structured data type
+type TurnText struct {
+	Context string `json:"context" yaml:"context"`
+	Text    string `json:"text" yaml:"text"`
+}
+
+// ClassifyTurnRequest represents a structured data type
+type ClassifyTurnRequest struct {
+	Items []TurnText `json:"items" yaml:"items"`
+}
+
+// TurnClass represents a structured data type
+type TurnClass struct {
+	Ack     float64 `json:"ack" yaml:"ack"`
+	Turn    float64 `json:"turn" yaml:"turn"`
+	Unclear float64 `json:"unclear" yaml:"unclear"`
+}
+
+// ClassifyTurnResponse represents a structured data type
+type ClassifyTurnResponse struct {
+	Results   []TurnClass `json:"results" yaml:"results"`
+	Engine    string      `json:"engine" yaml:"engine"`
+	ElapsedMs uint64      `json:"elapsed_ms" yaml:"elapsed_ms"`
+}

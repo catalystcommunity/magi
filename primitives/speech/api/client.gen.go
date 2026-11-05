@@ -105,3 +105,21 @@ func (c *SpeechClient) PrepareText(ctx context.Context, req PrepareTextRequest) 
 	}
 	return DecodePrepareTextResponse(csilResp)
 }
+
+func (c *SpeechClient) DetectSpeech(ctx context.Context, req DetectSpeechRequest) (DetectSpeechResponse, error) {
+	var csilZero DetectSpeechResponse
+	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "detect-speech", EncodeDetectSpeechRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeDetectSpeechResponse(csilResp)
+}
+
+func (c *SpeechClient) ClassifyTurn(ctx context.Context, req ClassifyTurnRequest) (ClassifyTurnResponse, error) {
+	var csilZero ClassifyTurnResponse
+	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "classify-turn", EncodeClassifyTurnRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeClassifyTurnResponse(csilResp)
+}

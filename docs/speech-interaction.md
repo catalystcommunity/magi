@@ -109,8 +109,36 @@ whole microphone path with the fake microphone of Chromium. A test on a
 laptop with speakers (no headset, 2026-11-04) showed that the echo
 canceller of the browser removes the persona voice from Web Audio
 playback: the persona did not stop itself, and a real interruption
-mid-answer stopped it and the conversation continued correctly. Not done:
-STT words for the step 2 decision, Silero VAD, and the same on Android.
+mid-answer stopped it and the conversation continued correctly.
+
+The server part of step 2 is done (2026-11-04): the speech service has
+`detect-speech` (Silero VAD 5.1.2: is there speech in the clip, or only
+noise, music, or a click) and `classify-turn` (our own small classifier:
+is the speech a backchannel, a turn, or too short to tell). The classifier
+uses the idea, not a list of words: it is MiniLM-L12 (33M parameters),
+fine-tuned on generated data, and tested on two separate held-out sets with
+other words and topics. On both sets (170 real turns), it took no turn as a
+backchannel; it took 10 of 104 unusual backchannels ("copy that", "cool
+beans") as a turn, which only stops the persona. Time on the engine host:
+VAD 6 ms, classifier 3 ms, STT of a 2 s clip 100 ms. Details:
+`primitives/speech/README.md`, "Turn engine". Not done: the decision in
+Magi and the clients (see the policy below), and Android.
+
+**Decision policy for step 2 (recommended).** The client sends the audio
+from the onset, at about 500 ms and then each 300 ms, until a decision.
+Magi runs STT and `detect-speech` on the clip, then `classify-turn` with
+the last 20 spoken words as the context:
+
+| Result | Decision |
+| --- | --- |
+| No speech in the clip (`speech_ms` < 150) | Noise. Restore the volume. |
+| `turn` >= 0.5 | Stop now. |
+| `ack` >= 0.85, and the speech ended | Backchannel. Restore the volume; record it at the cursor. |
+| Else (`unclear`, or no words yet) | Wait for the next clip. |
+| Speech longer than 2.5 s with no decision | Stop: a long overlap is a turn. |
+
+The probabilities do not go above about 0.94 (label smoothing in
+training), so 0.85 is a high-confidence backchannel.
 
 **What is necessary first:**
 

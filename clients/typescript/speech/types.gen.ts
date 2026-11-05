@@ -137,3 +137,61 @@ export interface PrepareTextResponse {
   spoken: string;
 }
 
+/**
+ * Speech in a short clip (Silero VAD): the parts of the audio that are
+ * speech, in ms from the start. A noise, music, or a click has no
+ * segments. media_type is "audio/wav" by default.
+ */
+export interface DetectSpeechRequest {
+  audio: Uint8Array;
+  mediaType?: string;
+}
+
+export interface SpeechSegment {
+  startMs: number;
+  endMs: number;
+}
+
+export interface DetectSpeechResponse {
+  speechMs: number;
+  audioMs: number;
+  segments: SpeechSegment[];
+  engine: string;
+  elapsedMs: number;
+}
+
+/**
+ * Is speech of the person over the persona a backchannel or a turn?
+ * context is what the persona said last (about 20 words); text is the
+ * transcript of the person's speech so far, often only the first words.
+ * Each result has the probability of three classes (the sum is 1):
+ * ack:     a backchannel or a reaction ("mm-hm", "wow okay"): the
+ * persona continues;
+ * turn:    the person takes the turn (a stop, a question, a
+ * correction, an answer to a question of the persona): the
+ * persona stops;
+ * unclear: too few words to know ("so", "um"): wait for more words.
+ * The model is small and runs in some ms; it uses the idea, not a list
+ * of words (primitives/speech/engine/turn/).
+ */
+export interface TurnText {
+  context: string;
+  text: string;
+}
+
+export interface ClassifyTurnRequest {
+  items: TurnText[];
+}
+
+export interface TurnClass {
+  ack: number;
+  turn: number;
+  unclear: number;
+}
+
+export interface ClassifyTurnResponse {
+  results: TurnClass[];
+  engine: string;
+  elapsedMs: number;
+}
+

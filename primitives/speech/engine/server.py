@@ -4,6 +4,8 @@
   server.py --engine tts --model-dir DIR   Kokoro 82M
   server.py --engine detect --model-dir DIR   prompt injection detector
                                               (ProtectAI deberta v3 v2, ONNX)
+  server.py --engine turn --model-dir DIR     Silero VAD and the turn
+                                              classifier (turn/, ONNX)
 
 --device auto (the default) runs Kokoro on a GPU when torch sees one (CUDA or
 ROCm), else on the CPU. Parakeet always runs on the CPU; it is fast enough.
@@ -18,6 +20,11 @@ Endpoints (all except /health need "Authorization: Bearer <token>"):
   POST /detect      JSON {texts: [...]} -> {scores: [...], ...} (detect)
                     The score of a text is the probability of a prompt
                     injection in its worst window of 512 tokens.
+  POST /vad         audio bytes, any ffmpeg format -> JSON {speech_ms,
+                    audio_ms, segments: [[start_ms, end_ms], ...]} (turn)
+  POST /turn        JSON {items: [{context, text}, ...]} -> {results:
+                    [{ack, turn, unclear}, ...]} (turn). context is what the
+                    persona said last, text what the person said over it.
 
 Results carry audio_ms and elapsed_ms (JSON fields, or X-Audio-Ms and
 X-Elapsed-Ms headers for audio). The model stays loaded. One lock serializes
@@ -79,9 +86,22 @@ def verify(directory, pins):
 
 
 def decode_audio(data):
-    """Convert any ffmpeg-readable audio to 16 kHz mono float32 samples."""
+    """Convert any ffmpeg-readable audio to 16 kHz mono float32 samples.
+    16 kHz 16-bit mono WAV (what the clients send) needs no ffmpeg: that
+    saves about 30 ms for each short clip."""
     import numpy as np
 
+    if data[:4] == b"RIFF" and data[8:12] == b"WAVE":
+        try:
+            with wave.open(io.BytesIO(data)) as w:
+                if (w.getframerate(), w.getnchannels(), w.getsampwidth(), w.getcomptype()) == (STT_RATE, 1, 2, "NONE"):
+                    if w.getnframes() > MAX_SECONDS * STT_RATE:
+                        raise Fail(413, f"audio is longer than {MAX_SECONDS} seconds")
+                    if w.getnframes() == 0:
+                        raise Fail(400, "audio has no samples")
+                    return np.frombuffer(w.readframes(w.getnframes()), dtype="<i2").astype(np.float32) / 32768
+        except (wave.Error, EOFError):
+            pass  # ffmpeg can read more forms of WAV
     try:
         p = subprocess.run(
             ["ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-i", "pipe:0",
@@ -149,6 +169,87 @@ def load_detect(directory, threads):
             count += len(ws)
         return scores, count
     return detect
+
+
+MAX_TURN_ITEMS = 32
+VAD_CHUNK = 512  # samples at 16 kHz: 32 ms
+
+
+def norm_words(s):
+    """Lower case letters, digits, and apostrophes: speech-to-text gives
+    casing and punctuation that the classifier does not need."""
+    import re
+    s = s.lower().replace("\u2019", "'")
+    return " ".join(re.sub(r"[^a-z0-9' ]+", " ", s).split())
+
+
+def load_turn(directory, threads):
+    """Silero VAD (speech segments in short clips) and the turn classifier
+    (turn/: is speech over the persona a backchannel, a turn, or too short
+    to tell). Both run on the CPU."""
+    import numpy as np
+    import onnxruntime as ort
+    from tokenizers import Tokenizer
+
+    opts = ort.SessionOptions()
+    opts.intra_op_num_threads = threads
+    opts.inter_op_num_threads = 1
+    vad_sess = ort.InferenceSession(str(directory / "silero_vad.onnx"), opts, providers=["CPUExecutionProvider"])
+    cfg = json.loads((directory / "turn" / "config.json").read_text())
+    tok = Tokenizer.from_file(str(directory / "turn" / "tokenizer.json"))
+    tok.enable_truncation(max_length=cfg["max_length"], strategy="only_second")
+    tok.no_padding()
+    sess = ort.InferenceSession(str(directory / "turn" / "model.onnx"), opts, providers=["CPUExecutionProvider"])
+    inputs = cfg["inputs"]
+    labels = cfg["labels"]
+
+    def vad(samples):
+        """Speech probability for each 32 ms chunk, then segments with
+        hysteresis: speech starts at 0.5 and ends after 100 ms under 0.35.
+        A segment shorter than 90 ms is noise."""
+        state = np.zeros((2, 1, 128), dtype=np.float32)
+        ctx = np.zeros(64, dtype=np.float32)
+        sr = np.array(STT_RATE, dtype=np.int64)
+        probs = []
+        for i in range(0, samples.size - VAD_CHUNK + 1, VAD_CHUNK):
+            chunk = samples[i:i + VAD_CHUNK]
+            out, state = vad_sess.run(None, {"input": np.concatenate([ctx, chunk])[None, :], "state": state, "sr": sr})
+            ctx = chunk[-64:]
+            probs.append(float(out[0][0]))
+        ms = VAD_CHUNK * 1000 // STT_RATE
+        segments, start, low = [], None, 0
+        for i, p in enumerate(probs):
+            if start is None:
+                if p >= 0.5:
+                    start, low = i, 0
+            elif p < 0.35:
+                low += 1
+                if low * ms >= 100:
+                    segments.append([start * ms, (i - low + 1) * ms])
+                    start = None
+            else:
+                low = 0
+        if start is not None:
+            segments.append([start * ms, (len(probs) - low) * ms])
+        segments = [s for s in segments if s[1] - s[0] >= 90]
+        return {"speech_ms": sum(e - b for b, e in segments), "segments": segments}
+
+    def classify(items):
+        encs = [tok.encode(norm_words(it["text"]), norm_words(it["context"])) for it in items]
+        n = max(len(e.ids) for e in encs)
+        feed = {k: np.zeros((len(encs), n), dtype=np.int64) for k in inputs}
+        for j, e in enumerate(encs):
+            k = len(e.ids)
+            feed["input_ids"][j, :k] = e.ids
+            feed["attention_mask"][j, :k] = 1
+            if "token_type_ids" in feed:
+                feed["token_type_ids"][j, :k] = e.type_ids
+        logits = sess.run(None, feed)[0]
+        e = np.exp(logits - logits.max(axis=1, keepdims=True))
+        p = e / e.sum(axis=1, keepdims=True)
+        return [{labels[c]: round(float(row[c]), 4) for c in range(len(labels))} for row in p]
+
+    return {"vad": vad, "classify": classify}
 
 
 def load_stt(directory, threads):
@@ -295,6 +396,27 @@ class Handler(BaseHTTPRequestHandler):
                 scores, windows = s.run(texts)
                 elapsed = int((time.monotonic() - start) * 1000)
             return self.reply(200, {"scores": scores, "windows": windows, "engine": s.engine_name, "elapsed_ms": elapsed})
+        if route == ("POST", "/vad", "turn"):
+            samples = decode_audio(self.body(MAX_AUDIO))
+            with s.lock:
+                start = time.monotonic()
+                out = s.run["vad"](samples)
+                elapsed = int((time.monotonic() - start) * 1000)
+            return self.reply(200, dict(out, audio_ms=samples.size * 1000 // STT_RATE, engine=s.engine_name,
+                                        elapsed_ms=elapsed))
+        if route == ("POST", "/turn", "turn"):
+            try:
+                req = json.loads(self.body(256 << 10))
+                items = [{"context": str(it.get("context") or ""), "text": str(it["text"])} for it in req["items"]]
+            except (ValueError, TypeError, KeyError, AttributeError):
+                raise Fail(400, "invalid JSON request")
+            if not 1 <= len(items) <= MAX_TURN_ITEMS or any(len(it["text"]) + len(it["context"]) > 4000 for it in items):
+                raise Fail(400, f"items must be 1 to {MAX_TURN_ITEMS} items of at most 4000 characters")
+            with s.lock:
+                start = time.monotonic()
+                results = s.run["classify"](items)
+                elapsed = int((time.monotonic() - start) * 1000)
+            return self.reply(200, {"results": results, "engine": s.engine_name, "elapsed_ms": elapsed})
         if route == ("POST", "/synthesize", "tts"):
             try:
                 req = json.loads(self.body(64 << 10))
@@ -339,7 +461,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--engine", choices=["stt", "tts", "detect"], required=True)
+    ap.add_argument("--engine", choices=["stt", "tts", "detect", "turn"], required=True)
     ap.add_argument("--model-dir", required=True)
     ap.add_argument("--token-file", required=True)
     ap.add_argument("--pins", default=str(Path(__file__).with_name("model-pins.json")))
@@ -362,6 +484,12 @@ def main():
         verify(directory, pins["injection"]["sha256"])
         run, name, device = load_detect(directory, a.threads), "protectai-deberta-v3-injection-v2", "cpu"
         run(["Ready."])  # warm up
+    elif a.engine == "turn":
+        verify(directory, pins["silero-vad"]["sha256"])
+        verify(directory, {"turn/" + k: v for k, v in pins["turn"]["sha256"].items()})
+        run, name, device = load_turn(directory, a.threads), "silero-vad-5+" + pins["turn"]["name"], "cpu"
+        run["classify"]([{"context": "ready", "text": "okay"}])  # warm up
+        run["vad"](__import__("numpy").zeros(STT_RATE, dtype="float32"))
     else:
         verify(directory, pins["kokoro"]["sha256"])
         device = tts_device(a.device)

@@ -59,3 +59,11 @@ class SpeechAsyncClient:
         """prepare-text"""
         return PrepareTextResponse.from_cbor(await self._transport.call("SpeechService", "prepare-text", req.to_cbor()))
 
+    async def detect_speech(self, req: DetectSpeechRequest) -> DetectSpeechResponse:
+        """detect-speech"""
+        return DetectSpeechResponse.from_cbor(await self._transport.call("SpeechService", "detect-speech", req.to_cbor()))
+
+    async def classify_turn(self, req: ClassifyTurnRequest) -> ClassifyTurnResponse:
+        """classify-turn"""
+        return ClassifyTurnResponse.from_cbor(await self._transport.call("SpeechService", "classify-turn", req.to_cbor()))
+

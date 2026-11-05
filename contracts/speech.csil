@@ -85,6 +85,36 @@ DeleteLexiconEntryResponse = { deleted: bool }
 PrepareTextRequest = { text: text }
 PrepareTextResponse = { spoken: text }
 
+;;; Speech in a short clip (Silero VAD): the parts of the audio that are
+;;; speech, in ms from the start. A noise, music, or a click has no
+;;; segments. media_type is "audio/wav" by default.
+DetectSpeechRequest = { audio: bytes, ? media_type: text }
+SpeechSegment = { start_ms: uint, end_ms: uint }
+DetectSpeechResponse = {
+  speech_ms: uint,
+  audio_ms: uint,
+  segments: [* SpeechSegment],
+  engine: text,
+  elapsed_ms: uint,
+}
+
+;;; Is speech of the person over the persona a backchannel or a turn?
+;;; context is what the persona said last (about 20 words); text is the
+;;; transcript of the person's speech so far, often only the first words.
+;;; Each result has the probability of three classes (the sum is 1):
+;;;   ack:     a backchannel or a reaction ("mm-hm", "wow okay"): the
+;;;            persona continues;
+;;;   turn:    the person takes the turn (a stop, a question, a
+;;;            correction, an answer to a question of the persona): the
+;;;            persona stops;
+;;;   unclear: too few words to know ("so", "um"): wait for more words.
+;;; The model is small and runs in some ms; it uses the idea, not a list
+;;; of words (primitives/speech/engine/turn/).
+TurnText = { context: text, text: text }
+ClassifyTurnRequest = { items: [* TurnText] }
+TurnClass = { ack: float, turn: float, unclear: float }
+ClassifyTurnResponse = { results: [* TurnClass], engine: text, elapsed_ms: uint }
+
 service SpeechService {
   transcribe: TranscribeRequest -> Transcript,
   synthesize: SynthesizeRequest -> Audio,
@@ -93,4 +123,6 @@ service SpeechService {
   put-lexicon-entry: PutLexiconEntryRequest -> LexiconEntry,
   delete-lexicon-entry: DeleteLexiconEntryRequest -> DeleteLexiconEntryResponse,
   prepare-text: PrepareTextRequest -> PrepareTextResponse,
+  detect-speech: DetectSpeechRequest -> DetectSpeechResponse,
+  classify-turn: ClassifyTurnRequest -> ClassifyTurnResponse,
 }

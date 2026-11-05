@@ -17,6 +17,8 @@ proxy secret "model", and Magi holds only its placeholder.
 Optional: DETECTOR_URL is the prompt injection detector engine (the engine
 "detect" of primitives/speech/engine, with the speech engine token);
 DETECTOR_MODE is "flag" (default) or "review", DETECTOR_THRESHOLD 0.98.
+Optional: SPEECH_TURN_URL is the speech detection and turn classifier engine
+(the engine "turn"), for detect-speech and classify-turn.
 Secrets are created separately (see deploy/README.md).
 """
 import argparse
@@ -196,7 +198,9 @@ def render(img, v):
     out += service(v, "source", img["IMAGE_SOURCE"], [{"name": "MAGI_SOURCE_DIR", "value": "/data"}], volumes=[("data", "/data", "source")], mem="512Mi")
     out += service(v, "speech", img["IMAGE_SPEECH"], db_env("speech") + [
         {"name": "MAGI_SPEECH_STT_URL", "value": v["SPEECH_STT_URL"]}, {"name": "MAGI_SPEECH_TTS_URL", "value": v["SPEECH_TTS_URL"]},
-        {"name": "MAGI_SPEECH_ENGINE_TOKEN_FILE", "value": "/etc/magi/speech/token"}], secrets=[("magi-speech-engine", "/etc/magi/speech")])
+        {"name": "MAGI_SPEECH_ENGINE_TOKEN_FILE", "value": "/etc/magi/speech/token"}] +
+        ([{"name": "MAGI_SPEECH_TURN_URL", "value": v["SPEECH_TURN_URL"]}] if v.get("SPEECH_TURN_URL") else []),
+        secrets=[("magi-speech-engine", "/etc/magi/speech")])
     egress = v.get("EGRESS") == "true"
     exec_env, exec_secrets = [], []
     if egress:

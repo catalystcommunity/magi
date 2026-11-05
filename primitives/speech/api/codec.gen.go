@@ -1516,3 +1516,406 @@ func DecodePrepareTextResponse(csilData []byte) (PrepareTextResponse, error) {
 	}
 	return csilDecPrepareTextResponse(csilRoot)
 }
+
+// csilEncDetectSpeechRequest builds the canonical CBOR value tree for a DetectSpeechRequest.
+func csilEncDetectSpeechRequest(csilV DetectSpeechRequest) cborValue {
+	csilEntries := make(cborMap, 0, 2)
+	csilEntries = append(csilEntries, cborEntry{cborText("audio"), cborBytes(csilV.Audio)})
+	if csilV.MediaType != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("media_type"), cborText((*csilV.MediaType))})
+	}
+	return csilEntries
+}
+
+// csilDecDetectSpeechRequest reconstructs a DetectSpeechRequest from a decoded CBOR value tree.
+func csilDecDetectSpeechRequest(csilRoot cborValue) (DetectSpeechRequest, error) {
+	var csilOut DetectSpeechRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "audio")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsBytes)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Audio = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "media_type"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.MediaType = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeDetectSpeechRequest encodes a DetectSpeechRequest to canonical CSIL CBOR bytes.
+func EncodeDetectSpeechRequest(csilV DetectSpeechRequest) []byte {
+	return cborEncode(csilEncDetectSpeechRequest(csilV))
+}
+
+// DecodeDetectSpeechRequest decodes canonical CSIL CBOR bytes into a DetectSpeechRequest.
+func DecodeDetectSpeechRequest(csilData []byte) (DetectSpeechRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero DetectSpeechRequest
+		return csilZero, csilErr
+	}
+	return csilDecDetectSpeechRequest(csilRoot)
+}
+
+// csilEncSpeechSegment builds the canonical CBOR value tree for a SpeechSegment.
+func csilEncSpeechSegment(csilV SpeechSegment) cborValue {
+	csilEntries := make(cborMap, 0, 2)
+	csilEntries = append(csilEntries, cborEntry{cborText("end_ms"), cborUint(csilV.EndMs)})
+	csilEntries = append(csilEntries, cborEntry{cborText("start_ms"), cborUint(csilV.StartMs)})
+	return csilEntries
+}
+
+// csilDecSpeechSegment reconstructs a SpeechSegment from a decoded CBOR value tree.
+func csilDecSpeechSegment(csilRoot cborValue) (SpeechSegment, error) {
+	var csilOut SpeechSegment
+	{
+		csilField, csilErr := cborRequire(csilRoot, "start_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.StartMs = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "end_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.EndMs = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeSpeechSegment encodes a SpeechSegment to canonical CSIL CBOR bytes.
+func EncodeSpeechSegment(csilV SpeechSegment) []byte {
+	return cborEncode(csilEncSpeechSegment(csilV))
+}
+
+// DecodeSpeechSegment decodes canonical CSIL CBOR bytes into a SpeechSegment.
+func DecodeSpeechSegment(csilData []byte) (SpeechSegment, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero SpeechSegment
+		return csilZero, csilErr
+	}
+	return csilDecSpeechSegment(csilRoot)
+}
+
+// csilEncDetectSpeechResponse builds the canonical CBOR value tree for a DetectSpeechResponse.
+func csilEncDetectSpeechResponse(csilV DetectSpeechResponse) cborValue {
+	csilEntries := make(cborMap, 0, 5)
+	csilEntries = append(csilEntries, cborEntry{cborText("engine"), cborText(csilV.Engine)})
+	csilEntries = append(csilEntries, cborEntry{cborText("audio_ms"), cborUint(csilV.AudioMs)})
+	csilEntries = append(csilEntries, cborEntry{cborText("segments"), cborEncArray(csilV.Segments, func(csilElem SpeechSegment) cborValue { return csilEncSpeechSegment(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("speech_ms"), cborUint(csilV.SpeechMs)})
+	csilEntries = append(csilEntries, cborEntry{cborText("elapsed_ms"), cborUint(csilV.ElapsedMs)})
+	return csilEntries
+}
+
+// csilDecDetectSpeechResponse reconstructs a DetectSpeechResponse from a decoded CBOR value tree.
+func csilDecDetectSpeechResponse(csilRoot cborValue) (DetectSpeechResponse, error) {
+	var csilOut DetectSpeechResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "speech_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.SpeechMs = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "audio_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.AudioMs = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "segments")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]SpeechSegment, error) { return cborDecArray(csilV, csilDecSpeechSegment) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Segments = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "engine")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Engine = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "elapsed_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.ElapsedMs = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeDetectSpeechResponse encodes a DetectSpeechResponse to canonical CSIL CBOR bytes.
+func EncodeDetectSpeechResponse(csilV DetectSpeechResponse) []byte {
+	return cborEncode(csilEncDetectSpeechResponse(csilV))
+}
+
+// DecodeDetectSpeechResponse decodes canonical CSIL CBOR bytes into a DetectSpeechResponse.
+func DecodeDetectSpeechResponse(csilData []byte) (DetectSpeechResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero DetectSpeechResponse
+		return csilZero, csilErr
+	}
+	return csilDecDetectSpeechResponse(csilRoot)
+}
+
+// csilEncTurnText builds the canonical CBOR value tree for a TurnText.
+func csilEncTurnText(csilV TurnText) cborValue {
+	csilEntries := make(cborMap, 0, 2)
+	csilEntries = append(csilEntries, cborEntry{cborText("text"), cborText(csilV.Text)})
+	csilEntries = append(csilEntries, cborEntry{cborText("context"), cborText(csilV.Context)})
+	return csilEntries
+}
+
+// csilDecTurnText reconstructs a TurnText from a decoded CBOR value tree.
+func csilDecTurnText(csilRoot cborValue) (TurnText, error) {
+	var csilOut TurnText
+	{
+		csilField, csilErr := cborRequire(csilRoot, "context")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Context = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "text")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Text = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeTurnText encodes a TurnText to canonical CSIL CBOR bytes.
+func EncodeTurnText(csilV TurnText) []byte {
+	return cborEncode(csilEncTurnText(csilV))
+}
+
+// DecodeTurnText decodes canonical CSIL CBOR bytes into a TurnText.
+func DecodeTurnText(csilData []byte) (TurnText, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero TurnText
+		return csilZero, csilErr
+	}
+	return csilDecTurnText(csilRoot)
+}
+
+// csilEncClassifyTurnRequest builds the canonical CBOR value tree for a ClassifyTurnRequest.
+func csilEncClassifyTurnRequest(csilV ClassifyTurnRequest) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("items"), cborEncArray(csilV.Items, func(csilElem TurnText) cborValue { return csilEncTurnText(csilElem) })})
+	return csilEntries
+}
+
+// csilDecClassifyTurnRequest reconstructs a ClassifyTurnRequest from a decoded CBOR value tree.
+func csilDecClassifyTurnRequest(csilRoot cborValue) (ClassifyTurnRequest, error) {
+	var csilOut ClassifyTurnRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "items")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]TurnText, error) { return cborDecArray(csilV, csilDecTurnText) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Items = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeClassifyTurnRequest encodes a ClassifyTurnRequest to canonical CSIL CBOR bytes.
+func EncodeClassifyTurnRequest(csilV ClassifyTurnRequest) []byte {
+	return cborEncode(csilEncClassifyTurnRequest(csilV))
+}
+
+// DecodeClassifyTurnRequest decodes canonical CSIL CBOR bytes into a ClassifyTurnRequest.
+func DecodeClassifyTurnRequest(csilData []byte) (ClassifyTurnRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ClassifyTurnRequest
+		return csilZero, csilErr
+	}
+	return csilDecClassifyTurnRequest(csilRoot)
+}
+
+// csilEncTurnClass builds the canonical CBOR value tree for a TurnClass.
+func csilEncTurnClass(csilV TurnClass) cborValue {
+	csilEntries := make(cborMap, 0, 3)
+	csilEntries = append(csilEntries, cborEntry{cborText("ack"), cborFloat(csilV.Ack)})
+	csilEntries = append(csilEntries, cborEntry{cborText("turn"), cborFloat(csilV.Turn)})
+	csilEntries = append(csilEntries, cborEntry{cborText("unclear"), cborFloat(csilV.Unclear)})
+	return csilEntries
+}
+
+// csilDecTurnClass reconstructs a TurnClass from a decoded CBOR value tree.
+func csilDecTurnClass(csilRoot cborValue) (TurnClass, error) {
+	var csilOut TurnClass
+	{
+		csilField, csilErr := cborRequire(csilRoot, "ack")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsF64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Ack = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "turn")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsF64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Turn = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "unclear")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsF64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Unclear = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeTurnClass encodes a TurnClass to canonical CSIL CBOR bytes.
+func EncodeTurnClass(csilV TurnClass) []byte {
+	return cborEncode(csilEncTurnClass(csilV))
+}
+
+// DecodeTurnClass decodes canonical CSIL CBOR bytes into a TurnClass.
+func DecodeTurnClass(csilData []byte) (TurnClass, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero TurnClass
+		return csilZero, csilErr
+	}
+	return csilDecTurnClass(csilRoot)
+}
+
+// csilEncClassifyTurnResponse builds the canonical CBOR value tree for a ClassifyTurnResponse.
+func csilEncClassifyTurnResponse(csilV ClassifyTurnResponse) cborValue {
+	csilEntries := make(cborMap, 0, 3)
+	csilEntries = append(csilEntries, cborEntry{cborText("engine"), cborText(csilV.Engine)})
+	csilEntries = append(csilEntries, cborEntry{cborText("results"), cborEncArray(csilV.Results, func(csilElem TurnClass) cborValue { return csilEncTurnClass(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("elapsed_ms"), cborUint(csilV.ElapsedMs)})
+	return csilEntries
+}
+
+// csilDecClassifyTurnResponse reconstructs a ClassifyTurnResponse from a decoded CBOR value tree.
+func csilDecClassifyTurnResponse(csilRoot cborValue) (ClassifyTurnResponse, error) {
+	var csilOut ClassifyTurnResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "results")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]TurnClass, error) { return cborDecArray(csilV, csilDecTurnClass) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Results = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "engine")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Engine = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "elapsed_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.ElapsedMs = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeClassifyTurnResponse encodes a ClassifyTurnResponse to canonical CSIL CBOR bytes.
+func EncodeClassifyTurnResponse(csilV ClassifyTurnResponse) []byte {
+	return cborEncode(csilEncClassifyTurnResponse(csilV))
+}
+
+// DecodeClassifyTurnResponse decodes canonical CSIL CBOR bytes into a ClassifyTurnResponse.
+func DecodeClassifyTurnResponse(csilData []byte) (ClassifyTurnResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ClassifyTurnResponse
+		return csilZero, csilErr
+	}
+	return csilDecClassifyTurnResponse(csilRoot)
+}

@@ -21,6 +21,13 @@
 # MAGI_SPEECH_DETECT_PYTHON and MAGI_SPEECH_DETECT_MODEL, by default
 # ~/.local/share/magi/speech/installs/detect/{venv/bin/python,models/protectai-v2}.
 #
+# Speech detection and the turn classifier (engine "turn", port
+# MAGI_SPEECH_TURN_PORT, default 8095) are installed when their model
+# directory is on the host: MAGI_SPEECH_TURN_MODEL, by default
+# ~/.local/share/magi/speech/installs/turn/models (silero_vad.onnx and
+# turn/). It needs onnxruntime, tokenizers, and numpy: MAGI_SPEECH_TURN_PYTHON,
+# by default the detect environment.
+#
 # Files go to ~/magi-speech on the host. The token is ~/magi-speech/token
 # (mode 600). It is made once and never printed. With user lingering enabled,
 # systemd --user units run the engines. Otherwise a nohup supervisor loop runs
@@ -40,6 +47,8 @@ ssh "$host" \
   TTS_DEVICE="${MAGI_SPEECH_TTS_DEVICE:-}" TTS_ENV="${MAGI_SPEECH_TTS_ENV:-}" \
   DETECT_PY="${MAGI_SPEECH_DETECT_PYTHON:-}" DETECT_MODEL="${MAGI_SPEECH_DETECT_MODEL:-}" \
   DETECT_PORT="${MAGI_SPEECH_DETECT_PORT:-8094}" DETECT_THREADS="${MAGI_SPEECH_DETECT_THREADS:-2}" \
+  TURN_PY="${MAGI_SPEECH_TURN_PYTHON:-}" TURN_MODEL="${MAGI_SPEECH_TURN_MODEL:-}" \
+  TURN_PORT="${MAGI_SPEECH_TURN_PORT:-8095}" TURN_THREADS="${MAGI_SPEECH_TURN_THREADS:-2}" \
   bash -s <<'REMOTE'
 set -euo pipefail
 cd ~/magi-speech
@@ -57,8 +66,11 @@ TTS_PY=${TTS_PY:-$(first ~/.local/share/magi/speech/installs/*/tts/venv/bin/pyth
 TTS_MODEL=${TTS_MODEL:-$(first ~/.local/share/magi/speech/installs/*/tts/models/kokoro)}
 DETECT_PY=${DETECT_PY:-$HOME/.local/share/magi/speech/installs/detect/venv/bin/python}
 DETECT_MODEL=${DETECT_MODEL:-$HOME/.local/share/magi/speech/installs/detect/models/protectai-v2}
+TURN_PY=${TURN_PY:-$DETECT_PY}
+TURN_MODEL=${TURN_MODEL:-$HOME/.local/share/magi/speech/installs/turn/models}
 engines="stt tts"
 [ -x "$DETECT_PY" ] && [ -d "$DETECT_MODEL" ] && engines="$engines detect"
+[ -x "$TURN_PY" ] && [ -d "$TURN_MODEL" ] && engines="$engines turn"
 command -v ffmpeg >/dev/null || { echo "ffmpeg is required on the host" >&2; exit 1; }
 
 if [ ! -s token ]; then
@@ -89,9 +101,16 @@ MODEL_DIR=$DETECT_MODEL
 PORT=$DETECT_PORT
 THREADS=$DETECT_THREADS
 EOF
+cat > turn.env <<EOF
+ENGINE=turn
+PYTHON=$TURN_PY
+MODEL_DIR=$TURN_MODEL
+PORT=$TURN_PORT
+THREADS=$TURN_THREADS
+EOF
 
 stop_nohup() {
-  for e in stt tts detect; do
+  for e in stt tts detect turn; do
     if [ -s "$e.pid" ]; then kill -- "-$(cat "$e.pid")" 2>/dev/null || true; rm -f "$e.pid"; fi
   done
   sleep 1

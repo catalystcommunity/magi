@@ -29,18 +29,19 @@ func main() {
 	keys := flag.String("auth-keys", env("MAGI_AUTH_KEYS", ""), "comma-separated issuer key files")
 	stt := flag.String("stt-url", env("MAGI_SPEECH_STT_URL", ""), "speech-to-text engine URL")
 	tts := flag.String("tts-url", env("MAGI_SPEECH_TTS_URL", ""), "text-to-speech engine URL")
+	turn := flag.String("turn-url", env("MAGI_SPEECH_TURN_URL", ""), "speech detection and turn classifier engine URL (optional)")
 	tokenFile := flag.String("engine-token-file", env("MAGI_SPEECH_ENGINE_TOKEN_FILE", ""), "engine bearer token file")
 	dbURL := flag.String("database-url", env("MAGI_DATABASE_URL", ""), "PostgreSQL URL for the lexicon (optional)")
 	flag.Parse()
 
 	log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	if err := run(*listen, *keys, *stt, *tts, *tokenFile, *dbURL, log); err != nil {
+	if err := run(*listen, *keys, *stt, *tts, *turn, *tokenFile, *dbURL, log); err != nil {
 		log.Error("speech", "err", err)
 		os.Exit(1)
 	}
 }
 
-func run(listen, keys, stt, tts, tokenFile, dbURL string, log *slog.Logger) error {
+func run(listen, keys, stt, tts, turn, tokenFile, dbURL string, log *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	if keys == "" || stt == "" || tts == "" || tokenFile == "" {
@@ -56,6 +57,9 @@ func run(listen, keys, stt, tts, tokenFile, dbURL string, log *slog.Logger) erro
 	}
 	token := strings.TrimSpace(string(b))
 	svc := &server.Service{STT: server.NewEngine(stt, token), TTS: server.NewEngine(tts, token), Log: log}
+	if turn != "" {
+		svc.Turn = server.NewEngine(turn, token)
+	}
 	if dbURL != "" {
 		db, err := store.Open(ctx, dbURL)
 		if err != nil {

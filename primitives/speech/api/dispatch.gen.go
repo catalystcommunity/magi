@@ -84,6 +84,28 @@ func SpeechServiceOps(impl SpeechService) map[string]func(context.Context, []byt
 			}
 			return EncodePrepareTextResponse(resp), nil
 		},
+		"detect-speech": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeDetectSpeechRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.DetectSpeech(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeDetectSpeechResponse(resp), nil
+		},
+		"classify-turn": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeClassifyTurnRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ClassifyTurn(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeClassifyTurnResponse(resp), nil
+		},
 	}
 }
 
