@@ -23,7 +23,7 @@ import (
 	"golang.org/x/term"
 )
 
-const usage = `usage: magi [--server URL] <command> [args]
+var usage = `usage: magi [--server URL] <command> [args]
 
   login USER@DOMAIN          sign in with LinkKeys in a browser on any
                              device, then paste the code it shows
@@ -76,6 +76,7 @@ const usage = `usage: magi [--server URL] <command> [args]
                              (from go run ./cmd/runner-package) and make VERSION
                              the release; runners update when idle
   app-release CODE NAME APK  operator: publish an Android app build
+`+attentionUsage[1:]+`
 
 The server comes from --server, MAGI_SERVER, or the login profile.
 MAGI_TOKEN_FILE selects a token file instead of the login profile.`
@@ -155,11 +156,11 @@ func (c *cli) run(cmd string, args []string) error {
 	case "chat":
 		persona := fs.String("persona", "", "persona")
 		fs.Parse(args)
-		return c.chat(*persona)
+		return c.chat(personaID(*persona))
 	case "say":
 		persona, audio, speak := fs.String("persona", "", "persona"), fs.String("audio", "", "audio file to send"), fs.Bool("speak", false, "ask for a spoken reply")
 		fs.Parse(args)
-		req := magiapi.SayRequest{Persona: optional(*persona), SpeakReply: speak}
+		req := magiapi.SayRequest{Persona: optional(personaID(*persona)), SpeakReply: speak}
 		if t := strings.Join(fs.Args(), " "); t != "" {
 			req.Text = &t
 		}
@@ -175,7 +176,7 @@ func (c *cli) run(cmd string, args []string) error {
 			return err
 		}
 		printMessage(res.Message)
-		return c.waitReply(*persona, res.Message)
+		return c.waitReply(personaID(*persona), res.Message)
 	case "search":
 		res, err := c.magi.Search(c.ctx, magiapi.SearchRequest{Text: strings.Join(args, " ")})
 		if err != nil {
@@ -361,7 +362,7 @@ func (c *cli) run(cmd string, args []string) error {
 	case "read":
 		persona, n, follow := fs.String("persona", "", "persona"), fs.Uint64("n", 20, "messages"), fs.Bool("follow", false, "wait for new messages")
 		fs.Parse(args)
-		res, err := c.magi.Read(c.ctx, magiapi.ReadRequest{Persona: optional(*persona), BeforeSeq: ptr(uint64(1) << 62), Limit: n})
+		res, err := c.magi.Read(c.ctx, magiapi.ReadRequest{Persona: optional(personaID(*persona)), BeforeSeq: ptr(uint64(1) << 62), Limit: n})
 		if err != nil {
 			return err
 		}
@@ -371,7 +372,7 @@ func (c *cli) run(cmd string, args []string) error {
 		if !*follow {
 			return nil
 		}
-		return c.read(*persona, res.LastSeq, true, nil)
+		return c.read(personaID(*persona), res.LastSeq, true, nil)
 	case "tasks":
 		res, err := c.magi.ListTasks(c.ctx, magiapi.ListTasksRequest{})
 		if err != nil {
@@ -590,6 +591,9 @@ func (c *cli) run(cmd string, args []string) error {
 			fmt.Printf("%s: %s\n", res.Id, res.Decision)
 		}
 	default:
+		if ok, err := c.attention(cmd, args); ok {
+			return err
+		}
 		return fmt.Errorf("unknown command %q", cmd)
 	}
 	return nil
