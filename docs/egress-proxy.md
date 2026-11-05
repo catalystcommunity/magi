@@ -110,7 +110,7 @@ of section 3.4 of the prompt injection document) written in Rust.
 | Cluster task environment | Network `proxy` (execution service): a NetworkPolicy that permits DNS and the proxy port only. The init container `envd-net` (the only container with a capability: `NET_ADMIN`) adds a firewall: DNS goes to envd, which gives fake addresses, and each other TCP connection goes to envd, which sends `CONNECT name:port` to the proxy address. Tools use the proxy port `127.0.0.1:3128` of envd. The Secret of the environment has the proxy URL with its credential, the CA certificate, and the SSH known_hosts of the proxy (`GIT_SSH_COMMAND` uses it). |
 | Runner sandbox (bubblewrap) | A network namespace with no real interface. `envd netns` sets it up as in a task VM (fake DNS, firewall, transparent port), and then starts bubblewrap with a user namespace of its own, so commands have no capability. envd sends each connection to a unix socket. The runner sends each connection through `GET /runner/egress` on Magi (an HTTP upgrade) to the proxy. Magi gives the proxy user (the run) only to the runner that holds a step of the run. The view has the proxy CA in the system trust store and the SSH known_hosts of the proxy. |
 | Runner task VM (Cloud Hypervisor, Linux) | No network card. The guest DNS gives fake addresses (`198.18.0.0/15`) and keeps the names. The guest firewall sends each TCP connection to envd, which sends `CONNECT name:port` over vsock to the runner, and the runner sends it through `GET /runner/egress`. Tools with no proxy setting also go through the proxy. |
-| Runner task VM (macOS) | No network card. Tools use the proxy port `127.0.0.1:3128`; envd copies it over vsock to the runner, and the runner sends it through `GET /runner/egress`. |
+| Runner task VM (macOS) | No network card. The proxy port `127.0.0.1:3128`, and the transparent route for all other TCP: routes on `lo0` and a pf rule send each connection to envd, which finds the destination with `DIOCNATLOOK`; the DNS of envd is the resolver for all domains (`scutil`). envd sends it all over vsock to the runner, and the runner through `GET /runner/egress`. SSH to `ssh_hosts` works. |
 | Runner sandbox (Seatbelt, macOS) | Not isolated: Seatbelt cannot give a sandbox its own network. |
 | Model calls of Magi and the apprentice service | `MODEL_EGRESS=true`: the same proxy, as the proxy users `svc_magi` and `svc_apprentice`. Magi answers their owner as `service:magi` and `service:apprentice`, and passes their flows with no review (a review would call the model again). The provider key is the proxy secret `model`; the services hold only the placeholder `magi-secret-model`. |
 
@@ -166,8 +166,9 @@ can continue in a different way.
 
 ## 6. Not done yet
 
-- macOS task VMs have the proxy port only: no transparent route, no SSH.
-  A transparent route needs pf in the guest.
+- macOS guests connect to Apple services by themselves. The transparent
+  route sends these to the proxy, which blocks them and opens destination
+  reviews. Block the hosts once, or add them to the policy.
 - macOS runner sandboxes (Seatbelt) do not use the proxy. macOS task VMs
   do.
 - Cluster environments get the proxy CA in the CA variables only, not in

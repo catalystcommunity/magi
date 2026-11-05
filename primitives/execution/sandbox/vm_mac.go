@@ -28,8 +28,12 @@ import (
 //     it. It stays while the environment stays.
 //   - launchd starts envd at boot (the boot script of the template). The
 //     runner reaches envd over vsock, as with Cloud Hypervisor.
-//   - With a Proxy, tools use the proxy port 127.0.0.1:3128, which envd
-//     copies over vsock to the host. macOS has no transparent route.
+//   - With a Proxy, tools can use the proxy port 127.0.0.1:3128, which
+//     envd copies over vsock to the host. The transparent route sends each
+//     other TCP connection through the proxy too (pf in the guest; see
+//     envd/vm_darwin.go), and the DNS of envd gives the names. SSH to an
+//     ssh_hosts host of the proxy works with the proxy host key, which
+//     envd puts in /etc/ssh/ssh_known_hosts.
 //   - The macOS licence permits at most two macOS VMs at a time on a Mac.
 
 // MaxMacVMs is the number of macOS VMs that can run at a time.
@@ -143,12 +147,18 @@ func (s *Sandboxes) launchMacVM(id string, env map[string]string) (*exec.Cmd, er
 		if err := os.WriteFile(filepath.Join(share, "egress", "ca.pem"), ca, 0o644); err != nil {
 			return nil, err
 		}
+		if kh, err := os.ReadFile(filepath.Join(d, "egress", "ssh_known_hosts")); err == nil {
+			if err := os.WriteFile(filepath.Join(share, "egress", "ssh_known_hosts"), kh, 0o644); err != nil {
+				return nil, err
+			}
+		}
 	}
 	m := envd.MacShares
 	flags := []string{"-listen", "vsock:" + strconv.Itoa(vmEnvdPort), "-token-file", m + "/magi/token", "-dir", macWork,
 		"-addr-file", m + "/state/addr"}
 	if s.Proxied(id) {
-		flags = append(flags, "-forward", ProxyAddr+"=vsock:2:"+strconv.Itoa(vmProxyPort))
+		up := "vsock:2:" + strconv.Itoa(vmProxyPort)
+		flags = append(flags, "-forward", ProxyAddr+"="+up, "-transparent", up, "-dns", "127.0.0.1:53")
 	}
 	all := s.environ(id, env)
 	// Host paths of shared directories become their guest paths.

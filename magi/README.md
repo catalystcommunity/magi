@@ -308,9 +308,18 @@ macOS.
   `read_only` and `shared` directory by its base name. The work directory
   `/Users/Shared/work` is on the guest disk: files on a share have no
   owner, and Git refuses such repositories. The runner uses envd for it.
-- The guest has no network card. With the egress proxy, tools use
+- The guest has no network card. With the egress proxy, tools can use
   `127.0.0.1:3128` (the proxy variables), which envd copies over vsock to
-  the runner. macOS has no transparent route.
+  the runner. Other TCP connections take the transparent route: envd
+  (root, from launchd) adds routes 0/1 and 128/1 on `lo0`, a pf rule
+  (anchor `com.apple/250.magi`) that sends them to its port 15001, and a
+  resolver for all domains at its DNS (`scutil`, `SupplementalMatchDomains
+  ""`; programs on macOS ask mDNSResponder, not `/etc/resolv.conf`). It
+  finds the destination with `DIOCNATLOOK`. SSH to an `ssh_hosts` host of
+  the proxy works: envd puts the proxy host key in
+  `/etc/ssh/ssh_known_hosts`. macOS itself also connects out (Apple
+  services); the proxy blocks these, and an admin can block the hosts once
+  to stop the reviews.
 - The macOS licence permits at most two macOS VMs at a time on a Mac. The
   runner refuses a third.
 - Xcode is in the template, not in a share: macOS checks the signature of

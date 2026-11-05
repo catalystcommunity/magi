@@ -129,3 +129,15 @@ func TestDNSThroughProxy(t *testing.T) {
 		t.Fatalf("TXT through the proxy: %+v", m)
 	}
 }
+
+func TestParsePfState(t *testing.T) {
+	out := []byte("No ALTQ support in kernel\nALL tcp 127.0.0.1:15001 <- 93.184.216.34:8080 <- 127.0.0.1:49152       ESTABLISHED:ESTABLISHED\n" +
+		"ALL tcp 127.0.0.1:15001 <- 203.0.113.7:443 <- 127.0.0.1:49153       FIN_WAIT_2:FIN_WAIT_2\n")
+	got, err := parsePfState(out, netip.MustParseAddrPort("127.0.0.1:49153"))
+	if err != nil || got != netip.MustParseAddrPort("203.0.113.7:443") {
+		t.Fatalf("%v %v", got, err)
+	}
+	if _, err := parsePfState(out, netip.MustParseAddrPort("127.0.0.1:1")); err == nil {
+		t.Fatal("no state")
+	}
+}

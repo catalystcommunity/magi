@@ -36,7 +36,7 @@ func TestMacVM(t *testing.T) {
 	s := &sandbox.Sandboxes{Cfg: sandbox.Config{Root: root, Envd: self, EnvdArgs: []string{"envd"}, ReadOnly: []string{tools},
 		Env: map[string]string{"TOOL_FILE": tools + "/tool.txt", "PATH": tools + "/bin:/usr/bin:/bin"},
 		VM:  &sandbox.VM{Template: tpl, Hypervisor: home + "/.local/share/magi-runner-tools/vm/magi-vz"}}}
-	if err := s.Start("mac1", strings.Repeat("t", 32), map[string]string{"FROM_SPEC": "2"}, &sandbox.Proxy{CA: []byte("magi-test-ca\n")}); err != nil {
+	if err := s.Start("mac1", strings.Repeat("t", 32), map[string]string{"FROM_SPEC": "2", "HTTPS_PROXY": "http://env:cred@" + sandbox.ProxyAddr}, &sandbox.Proxy{CA: []byte("magi-test-ca\n"), SSHKnownHosts: []byte("github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMagiProxyTestKey\n")}); err != nil {
 		t.Fatal(err)
 	}
 	defer s.Remove("mac1")
@@ -54,11 +54,28 @@ func TestMacVM(t *testing.T) {
 			}
 			go func() {
 				defer c.Close()
-				req, err := http.ReadRequest(bufio.NewReader(c))
+				br := bufio.NewReader(c)
+				req, err := http.ReadRequest(br)
 				if err != nil {
 					return
 				}
+				if !strings.Contains(req.RequestURI, "example.") {
+					// DNS queries that envd does not answer, and the
+					// background connections of macOS (the transparent
+					// route sends them to the proxy too).
+					c.Write([]byte("HTTP/1.1 502 Not here\r\nContent-Length: 0\r\n\r\n"))
+					return
+				}
 				got <- req.Method + " " + req.RequestURI
+				if req.Method == http.MethodConnect {
+					// The transparent route: then the request of the tool.
+					c.Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n"))
+					if _, err := http.ReadRequest(br); err != nil {
+						return
+					}
+					c.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 15\r\nConnection: close\r\n\r\nvia transparent"))
+					return
+				}
 				c.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 9\r\nConnection: close\r\n\r\nvia proxy"))
 			}()
 		}
@@ -99,11 +116,31 @@ func TestMacVM(t *testing.T) {
 		t.Fatalf("CA: %q %q", r.Stdout, r.Stderr)
 	}
 	if r := run(`curl -sS --max-time 5 -x http://` + sandbox.ProxyAddr + ` http://example.invalid/x`); string(r.Stdout) != "via proxy" {
-		t.Fatalf("proxy port: %d %q %q", r.ExitCode, r.Stdout, r.Stderr)
+		g, _ := os.ReadFile(filepath.Join(s.Dir("mac1"), "state", "guest.log"))
+		r2 := run(`tail -30 /var/log/magi-envd.log; netstat -an -p tcp | head -20; pfctl -s state 2>/dev/null | head`)
+		t.Fatalf("proxy port: %d %q %q\nguest log: %s\n%s", r.ExitCode, r.Stdout, r.Stderr, g, r2.Stdout)
 	}
 	if line := <-got; line != "GET http://example.invalid/x" {
 		t.Fatalf("the proxy got %q", line)
 	}
+	// The transparent route: a tool with no proxy settings, and a name
+	// from the DNS of envd.
+	if r := run(`dscacheutil -q host -a name example.invalid | grep ip_address`); !strings.Contains(string(r.Stdout), "198.18.") {
+		t.Fatalf("guest DNS: %q %q", r.Stdout, r.Stderr)
+	}
+	if r := run(`curl -sS --max-time 10 --noproxy '*' http://example.invalid/t`); string(r.Stdout) != "via transparent" {
+		b, _ := os.ReadFile(filepath.Join(s.Dir("mac1"), "envd.log"))
+		t.Fatalf("transparent: %d %q %q\n%s", r.ExitCode, r.Stdout, r.Stderr, b)
+	}
+	if line := <-got; line != "CONNECT example.invalid:80" {
+		t.Fatalf("the proxy got %q", line)
+	}
+	if r := run(`grep "the first destination" /var/log/magi-envd.log | tail -1; cat /etc/ssh/ssh_known_hosts`); !strings.Contains(string(r.Stdout), "MagiProxyTestKey") {
+		t.Fatalf("known hosts: %q %q", r.Stdout, r.Stderr)
+	} else {
+		t.Logf("guest: %s", r.Stdout)
+	}
+	// No other way out: a connection that the proxy does not complete fails.
 	if r := run(`curl -sS --max-time 5 https://example.org/ -o /dev/null`); r.ExitCode == 0 {
 		t.Fatal("the VM reached the network directly")
 	}

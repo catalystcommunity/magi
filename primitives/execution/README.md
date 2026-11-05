@@ -114,7 +114,9 @@ With `VM.Template` (a Mac), each environment is an APFS clone of a macOS
 template that `magi-vz` (`tools/vm/macos`) runs with no network card. The
 shares are at `/Volumes/My Shared Files`; a launchd daemon in the template
 starts envd from the share `magi`. vsock uses the same socket names as
-Cloud Hypervisor. At most two macOS VMs run at a time (the macOS licence).
+Cloud Hypervisor. With a proxy, the guest gets the same transparent route
+as a Linux VM, with pf in place of nftables (`envd/vm_darwin.go`). At most
+two macOS VMs run at a time (the macOS licence).
 `MAGI_TEST_MAC_TEMPLATE` turns on `TestMacVM`.
 
 ## API

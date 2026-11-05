@@ -2,6 +2,7 @@ package envd
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
@@ -66,6 +67,10 @@ func listenSpec(spec string) (net.Listener, string, error) {
 	}
 	return ln, ln.Addr().String(), nil
 }
+
+// VMTransparentPort is the guest port that the firewall sends TCP
+// connections to.
+const VMTransparentPort = 15001
 
 // PodDNSPort is the port of the DNS of envd in a Pod (envd podnet).
 const PodDNSPort = 15053
@@ -403,4 +408,17 @@ func readVMConfigAt(path string) ([]string, error) {
 		return nil, errors.New(path + ": no args")
 	}
 	return c.Args, nil
+}
+
+// parsePfState finds the destination of the connection from peer in the
+// state list of pfctl on macOS: "ALL tcp 127.0.0.1:15001 <- DEST <- PEER".
+func parsePfState(out []byte, peer netip.AddrPort) (netip.AddrPort, error) {
+	sc := bufio.NewScanner(bytes.NewReader(out))
+	for sc.Scan() {
+		f := strings.Fields(sc.Text())
+		if len(f) >= 7 && f[1] == "tcp" && f[3] == "<-" && f[5] == "<-" && f[6] == peer.String() {
+			return netip.ParseAddrPort(f[4])
+		}
+	}
+	return netip.AddrPort{}, fmt.Errorf("no pf state for %s", peer)
 }

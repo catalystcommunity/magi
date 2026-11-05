@@ -142,10 +142,6 @@ func vmNetwork() error {
 	return nil
 }
 
-// VMTransparentPort is the guest port that the firewall sends TCP
-// connections to.
-const VMTransparentPort = 15001
-
 // startTransparent serves the transparent port and the guest DNS at each
 // address in dns. The connections go through the proxy at upstream (a dial
 // spec); proxyURL has the proxy user and credential.
