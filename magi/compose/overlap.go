@@ -41,11 +41,11 @@ var (
 	turnThreshold = 0.50
 )
 
-func (m *Service) CheckOverlap(ctx context.Context, req magiapi.CheckOverlapRequest) (magiapi.CheckOverlapResponse, error) {
+func (m *Service) CheckOverlap(ctx context.Context, req magiapi.CheckOverlapRequest) (out magiapi.CheckOverlapResponse, err error) {
 	start := time.Now()
 	caller, err := rpc.Caller(ctx)
 	if err != nil {
-		return magiapi.CheckOverlapResponse{}, err
+		return out, err
 	}
 	s, uctx := m.S, AsCaller(ctx)
 	if len(req.Audio) == 0 {
@@ -84,7 +84,7 @@ func (m *Service) CheckOverlap(ctx context.Context, req magiapi.CheckOverlapRequ
 		return magiapi.CheckOverlapResponse{}, verr
 	}
 	final := deref(req.Final)
-	out := magiapi.CheckOverlapResponse{SpeechMs: vad.SpeechMs}
+	out.SpeechMs = vad.SpeechMs
 	defer func() { out.ElapsedMs = uint64(time.Since(start).Milliseconds()) }()
 	if vad.SpeechMs < minSpeechMs {
 		// Noise, a cough, the television without voices: the persona goes on.
@@ -146,11 +146,12 @@ func decideOverlap(r speechapi.TurnClass, nWords int, final bool) string {
 	return "continue"
 }
 
-// noteOverlap records a decided overlap on the persona message, for the
-// conversation graph: backchannels and interruptions are evidence of how
-// the person listened.
+// noteOverlap records the outcome of an overlap on the persona message,
+// for the conversation graph: backchannels and interruptions are evidence
+// of how the person listened. One record for each overlap: the stop, or
+// the last check when the speech ended.
 func (s *System) noteOverlap(ctx context.Context, person, message string, out magiapi.CheckOverlapResponse, final bool) {
-	if out.Decision == "wait" {
+	if out.Decision != "stop" && !final {
 		return
 	}
 	b, _ := json.Marshal(map[string]any{"person": person, "decision": out.Decision, "words": out.Words, "ack": out.Ack,
