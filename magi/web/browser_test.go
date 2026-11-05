@@ -101,6 +101,29 @@ startListening((w) => {
 }).catch((e) => { document.body.textContent = "FAIL " + e; });
 `
 
+// overlapCase is hands-free listening while a persona message "plays"
+// (speaking is set), with a fake check-overlap that answers DECISION. With
+// "stop" the speech becomes a turn; with "continue" it is a backchannel:
+// no turn, and the last check is final.
+const overlapCase = `
+import { startListening } from "/s/@/js/magi/web/src/listen.js";
+import { setSpeaking } from "/s/@/js/magi/web/src/speech.js";
+import { magi } from "/s/@/js/magi/web/src/api.js";
+const checks = [];
+magi.checkOverlap = async (r) => { checks.push(r); return { decision: "DECISION", words: "w", ack: 0, turn: 0, speechMs: 500, elapsedMs: 1 }; };
+setSpeaking("utt_playing");
+document.body.textContent = "WAITING";
+let turns = 0;
+const done = () => {
+  const finals = checks.filter((c) => c.final).length;
+  const ok = checks.length > 0 && checks.every((c) => c.message === "utt_playing" && c.audio.length > 44) &&
+    ("DECISION" === "stop" ? turns === 1 : turns === 0 && finals === 1);
+  document.body.textContent = (ok ? "PASS " : "FAIL ") + "checks=" + checks.length + " finals=" + finals + " turns=" + turns;
+};
+setTimeout(done, 7000);
+startListening(() => { turns++; }).catch((e) => { document.body.textContent = "FAIL " + e; });
+`
+
 // toneWAV is 1 s of quiet, 1.5 s of a 220 Hz tone, and 2 s of quiet, at 48 kHz.
 func toneWAV() []byte {
 	const rate = 48000
@@ -164,6 +187,14 @@ func TestVoiceInBrowser(t *testing.T) {
 		t.Fatalf("microphone: %s", got)
 	} else {
 		t.Log(got)
+	}
+	for _, d := range []string{"stop", "continue"} {
+		if got := runInBrowser(t, strings.ReplaceAll(overlapCase, "DECISION", d), "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream",
+			"--use-file-for-fake-audio-capture="+tone+"%noloop", "--autoplay-policy=no-user-gesture-required"); !strings.HasPrefix(got, "PASS") {
+			t.Fatalf("overlap %s: %s", d, got)
+		} else {
+			t.Logf("overlap %s: %s", d, got)
+		}
 	}
 }
 
