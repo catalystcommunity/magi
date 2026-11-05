@@ -100,6 +100,13 @@ Decisions:
      `task_diff`) before the decision. Task output can contain
      instructions from an attacker (`docs/prompt-injection.md`).
 
+Claims: a model can say that it did something that it did not do. When a
+reply says that the persona started a task, sent a notice, decided or
+stopped a task, or recorded something, and the tool for it did not succeed
+in the same turn, Magi tells the model so one time: call the tool, or write
+the reply again without the claim (`falseClaim` in
+`magi/compose/personas.go`).
+
 ## 5. Call a persona by name
 
 A message that starts with the name of a persona and a comma, colon, or
