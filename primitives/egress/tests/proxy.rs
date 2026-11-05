@@ -376,6 +376,13 @@ async fn placeholders_get_secrets_only_where_permitted() {
     let o = w.curl("localhost", "/api", &["-d", "token=magi-secret-gh"]).await;
     assert_eq!(o.code, 403, "{o:?}");
     assert!(o.body.contains("no secret for placeholder magi-secret-gh"), "{o:?}");
+    // The body of a model call of a Magi service is data (a conversation that quotes test
+    // output): a placeholder in it does not stop the call.
+    let o = w.curl_as(Some("svc_apprentice"), "localhost", "/api", &["-d", "the test sent magi-secret-gh"]).await;
+    assert_eq!(o.code, 200, "{o:?}");
+    assert!(!w.upstream().is_null());
+    let o = w.curl_as(Some("svc_apprentice"), "localhost", "/api", &["-H", "X-Token: magi-secret-unknown"]).await;
+    assert_eq!(o.code, 403, "a header still counts: {o:?}");
 
     // A wide rule from Magi cannot send the secret to a host that the policy does not permit.
     let o = w.curl("127.0.0.1", "/api", &["-H", "Authorization: Bearer magi-secret-wide"]).await;

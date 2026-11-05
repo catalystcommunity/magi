@@ -288,7 +288,10 @@ impl Proxy {
         for (plugin, u) in uses {
             self.use_secret(rec, &mut flow, &t.host, &plugin, &u)?;
         }
-        let left = placeholders(&flow);
+        // The body of a model call of a Magi service (svc_*) is data: the
+        // conversation and tool output, which can quote placeholders (for
+        // example the output of these tests). Its key is in a header.
+        let left = placeholders(&flow, !flow.environment.starts_with("svc_"));
         if !left.is_empty() {
             return Err(block(format!("no secret for placeholder {} at {}", left.join(", "), t.host)));
         }
@@ -376,7 +379,7 @@ impl Proxy {
         if !uses.is_empty() {
             return Err(block("a plugin tried to put a secret in an SSH command"));
         }
-        let left = placeholders(f);
+        let left = placeholders(f, true);
         if !left.is_empty() {
             return Err(block(format!("placeholder {} in an SSH command", left.join(", "))));
         }
@@ -492,7 +495,8 @@ impl Proxy {
     }
 }
 
-fn placeholders(f: &Flow) -> Vec<String> {
+/// The placeholders in the URL, the headers, and (with body) the body.
+fn placeholders(f: &Flow, body: bool) -> Vec<String> {
     let mut v: Vec<String> = Vec::new();
     let mut add = |b: &[u8]| {
         for m in PLACEHOLDER.find_iter(b) {
@@ -503,7 +507,9 @@ fn placeholders(f: &Flow) -> Vec<String> {
     for h in &f.headers {
         add(h.value.as_bytes());
     }
-    add(&f.body);
+    if body {
+        add(&f.body);
+    }
     v.sort();
     v.dedup();
     v

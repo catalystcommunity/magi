@@ -94,7 +94,12 @@ The actions are `pass`, `block`, `review`, `set-body`, `set-header`, and
    to Magi (`EgressAskService/report`), and an admin decides later. The
    report has the placeholders, not the secrets.
 6. Secrets go in place of placeholders, only for permitted hosts. A
-   placeholder that no `use-secret` action took stops the request.
+   placeholder that no `use-secret` action took stops the request. One
+   exception: in the body of a flow of a Magi service (`svc_*`, the model
+   calls of Magi and the apprentice), a placeholder is data, because the
+   body is a conversation that can quote tool output (for example the
+   output of the proxy tests). A placeholder in the URL or a header of
+   such a flow still stops it.
 7. Send, and record.
 
 Steps 1, 2, 3, and 6 are in the Rust host, not in plugins, so a missing or
