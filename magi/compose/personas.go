@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -330,4 +332,38 @@ func failedCheck(run workflowapi.Run) bool {
 		}
 	}
 	return false
+}
+
+// claims are the actions that a reply can say that the persona did, and
+// the tool that does each one.
+var claims = []struct {
+	tool string
+	re   *regexp.Regexp
+}{
+	{"start_code_change", regexp.MustCompile(`(?i)\b(task|change|work)\b[^.!?\n]{0,40}\b(started|has begun|is running now)\b|\bI(?:'ve| have)? started\b`)},
+	{"send_notice", regexp.MustCompile(`(?i)\b(sent|put|pushed)\b[^.!?\n]{0,40}\b(phone|computer|laptop|browser|device|devices|notice|notification)\b`)},
+	{"decide_task", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (approved|rejected|sent (?:it|the task|the change) back)\b`)},
+	{"cancel_task", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (stopped|cancell?ed) (?:the |that |your )?task\b`)},
+	{"remember", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (recorded|remembered|saved|noted)\b`)},
+}
+
+// falseClaim returns the tool of an action that reply says was done, when
+// that tool (of the persona) did not succeed in this turn, or "".
+func falseClaim(reply string, calls []map[string]any, tools []string) string {
+	for _, c := range claims {
+		if !slices.Contains(tools, c.tool) || !c.re.MatchString(reply) {
+			continue
+		}
+		done := false
+		for _, call := range calls {
+			res, _ := call["result"].(string)
+			if call["tool"] == c.tool && !strings.HasPrefix(res, "error") {
+				done = true
+			}
+		}
+		if !done {
+			return c.tool
+		}
+	}
+	return ""
 }

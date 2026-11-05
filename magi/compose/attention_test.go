@@ -102,3 +102,30 @@ func TestAddressed(t *testing.T) {
 		}
 	}
 }
+
+func TestFalseClaim(t *testing.T) {
+	em := profiles[Engineering].tools
+	started := []map[string]any{{"tool": "start_code_change", "result": "Task run_1 started."}}
+	failed := []map[string]any{{"tool": "start_code_change", "result": "error: no runner"}}
+	for _, tc := range []struct {
+		reply string
+		calls []map[string]any
+		want  string
+	}{
+		{`Task started: "Add a note". I'll tell you when it's ready.`, nil, "start_code_change"},
+		{`Task started: "Add a note".`, started, ""},
+		{`Task started: "Add a note".`, failed, "start_code_change"},
+		{"I've sent the summary to your phone.", nil, "send_notice"},
+		{"Three tasks are running and one waits for review.", nil, ""},
+		{"I approved it.", nil, "decide_task"},
+		{"Should I approve it?", nil, ""},
+	} {
+		if got := falseClaim(tc.reply, tc.calls, em); got != tc.want {
+			t.Errorf("falseClaim(%q) = %q, want %q", tc.reply, got, tc.want)
+		}
+	}
+	// A tool that the persona does not have is not checked.
+	if got := falseClaim("I approved it.", nil, profiles[Persona].tools); got != "" {
+		t.Errorf("magi persona: %q", got)
+	}
+}

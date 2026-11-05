@@ -144,6 +144,7 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 	var refs []conversationapi.Ref
 	var reply string
 	tools, ts := prof.toolList(), &turnState{hist: hist.Utterances}
+	corrected := false
 	for round := 0; round < 8; round++ {
 		start := time.Now()
 		m, err := s.Model.Chat(ctx, msgs, tools, 1024)
@@ -169,6 +170,17 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 		msgs = append(msgs, m)
 		if len(m.ToolCalls) == 0 {
 			reply = strings.TrimSpace(m.Content)
+			// A reply that says that the persona did something (started a
+			// task, sent a notice) when it did not call the tool: one
+			// correction, then the reply as it is.
+			if tool := falseClaim(reply, log.Calls, prof.tools); tool != "" && !corrected {
+				corrected = true
+				msgs = append(msgs, model.Message{Role: "user", Content: fmt.Sprintf("(Magi check) Your reply says that you did something "+
+					"that needs the tool %q, but you did not call it with success in this turn. If the person asked for it, call %q now. "+
+					"Else write your reply again without that claim.", tool, tool)})
+				reply = ""
+				continue
+			}
 			break
 		}
 		for i, tc := range m.ToolCalls {
