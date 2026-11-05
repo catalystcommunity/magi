@@ -16,6 +16,10 @@ class Settings(context: Context) {
     var identity: String
         get() = p.getString("identity", "") ?: ""
         set(v) = p.edit().putString("identity", v).apply()
+    /** The app asked for the notification permission once. */
+    var askedNotify: Boolean
+        get() = p.getBoolean("asked_notify", false)
+        set(v) = p.edit().putBoolean("asked_notify", v).apply()
     var speakReplies: Boolean
         get() = p.getBoolean("speak", true)
         set(v) = p.edit().putBoolean("speak", v).apply()

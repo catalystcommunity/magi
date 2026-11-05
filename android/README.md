@@ -8,15 +8,24 @@ like the web and command-line clients.
   no runtime libraries other than the Kotlin standard library.
 - The API client is generated from `contracts/identity.csil` and
   `contracts/magi.csil` into `clients/kotlin/` (`tools/gen.sh`).
-- `minSdk` 29 (Android 10): the recorder writes Ogg Opus, which the speech
-  service reads directly.
+- `minSdk` 29 (Android 10).
+- Hands-free talk records 16 kHz PCM with the voice-call source and sends WAV.
+  While it is on, the phone is in communication mode on its loudspeaker and
+  speech plays as a voice call, so the echo canceller of the phone removes
+  the persona voice from the microphone. The voice activity detector
+  (`Vad.kt`) is the same as the one of the web client.
+- Notices: `NoticeService` is a foreground service of type
+  `remoteMessaging` with a quiet notification ("Ready for notices"). It
+  waits for notices with a long poll that connects out to Magi, and it
+  refreshes the sign in. It starts with the app and after the phone starts.
 
 ## Features
 
 | Screen | Use |
 | --- | --- |
 | Sign in | Server URL and LinkKeys identity. The browser opens for LinkKeys and then comes back to the app. |
-| Talk | One conversation with each persona; no chats. Text messages, and Talk/Stop to send a voice message. A reply to a voice message is spoken. "Speak replies" also speaks replies to text. A message that relates to an earlier one shows an "about" line; tap it to go to that message. Long-press a message to see its links and who can read it, and to correct them. |
+| Talk | One conversation with each persona (Magi, Engineering manager, and others); no chats. Text messages, and Talk for hands-free talk: the microphone stays on, you talk at any time, and you can talk over a persona to stop it (a short "mm-hm" does not stop it). A reply to a voice message is spoken. "Speak replies" also speaks replies to text. A message that relates to an earlier one shows an "about" line; tap it to go to that message. Long-press a message to see its links and who can read it, and to correct them. |
+| Notices | Notices of the personas and of tasks (docs/attention.md). While the app is open, a notice shows at the top, and Magi says it after a tone: at once when it is urgent, else at the next pause. While the app is closed, a background service shows it as a system notification; tap opens the conversation, swipe dismisses it on all devices. |
 | Review | The questions of the librarian, when it is not sure how a message relates to an earlier one or who can read it |
 | Network | Admins only: requests of tasks that the egress proxy blocked for review. Each decision (allow the host, allow the path, block, or dismiss) is a rule for the next such requests. |
 | Tasks | Status of tasks, the diff, and the decisions of a waiting task (for example approve or reject) |

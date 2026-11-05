@@ -1,53 +1,36 @@
 package community.catalyst.magi
 
 import android.content.Context
+import android.media.AudioAttributes
 import android.media.MediaPlayer
-import android.media.MediaRecorder
-import android.os.Build
 import java.io.File
 
-/** Records the microphone as Ogg Opus, 16 kHz mono, which the speech service reads directly. */
-class Recorder(private val context: Context) {
-    private var rec: MediaRecorder? = null
-    private val file = File(context.cacheDir, "say.ogg")
-
-    val recording get() = rec != null
-
-    fun start() {
-        file.delete()
-        val r = if (Build.VERSION.SDK_INT >= 31) MediaRecorder(context) else @Suppress("DEPRECATION") MediaRecorder()
-        r.setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
-        r.setOutputFormat(MediaRecorder.OutputFormat.OGG)
-        r.setAudioEncoder(MediaRecorder.AudioEncoder.OPUS)
-        r.setAudioSamplingRate(16_000)
-        r.setAudioChannels(1)
-        r.setAudioEncodingBitRate(24_000)
-        r.setOutputFile(file.path)
-        r.prepare()
-        r.start()
-        rec = r
-    }
-
-    /** Stops and returns the recording, or null when it is too short. */
-    fun stop(): ByteArray? {
-        val r = rec ?: return null
-        rec = null
-        return try {
-            r.stop()
-            file.readBytes().takeIf { it.size > 200 }
-        } catch (_: RuntimeException) {
-            null // stop() fails when nothing was recorded
-        } finally {
-            r.release()
-        }
-    }
-}
-
-/** Plays audio clips one after the other: one clip, or the parts of a spoken reply. */
+/**
+ * Plays audio clips one after the other: one clip, or the parts of a spoken
+ * reply. A clip can carry a tag (the speech part), so that the app knows
+ * which part plays and where (the spoken cursor). Call it on the main thread.
+ */
 class Player(private val context: Context) {
     private var player: MediaPlayer? = null
-    private val queue = ArrayDeque<Pair<ByteArray, String>>()
+    private var playingTag: Any? = null
+    private val queue = ArrayDeque<Triple<ByteArray, String, Any?>>()
     private var files = 0
+
+    /** Called when the last clip ended (not when stop() stops it). */
+    var onIdle: (() -> Unit)? = null
+
+    /** The volume of speech: 1, or less while the person may take the turn. */
+    var volume = 1f
+        set(v) {
+            field = v
+            player?.setVolume(v, v)
+        }
+
+    /**
+     * Play as a voice call (hands-free talk): then the echo canceller of
+     * the phone hears the playback and removes it from the microphone.
+     */
+    var communication = false
 
     /** Plays a clip now; it stops what plays and drops the queue. */
     fun play(body: ByteArray, mediaType: String) {
@@ -55,16 +38,19 @@ class Player(private val context: Context) {
         enqueue(body, mediaType)
     }
 
-    /** Plays a clip after the clips before it. Call it on the main thread. */
-    fun enqueue(body: ByteArray, mediaType: String) {
-        queue.addLast(body to mediaType)
+    /** Plays a clip after the clips before it. */
+    fun enqueue(body: ByteArray, mediaType: String, tag: Any? = null) {
+        queue.addLast(Triple(body, mediaType, tag))
         if (player == null) next()
     }
 
     val playing: Boolean get() = player != null
 
+    /** The tag of the clip that plays and the position in it (ms). */
+    fun position(): Pair<Any?, Int>? = player?.let { p -> playingTag to runCatching { p.currentPosition }.getOrDefault(0) }
+
     private fun next() {
-        val (body, mediaType) = queue.removeFirstOrNull() ?: return
+        val (body, mediaType, tag) = queue.removeFirstOrNull() ?: run { onIdle?.invoke(); return }
         val ext = when {
             mediaType.contains("ogg") -> "ogg"
             mediaType.contains("mpeg") -> "mp3"
@@ -72,16 +58,21 @@ class Player(private val context: Context) {
         }
         val f = File(context.cacheDir, "reply-${files++ % 4}.$ext")
         f.writeBytes(body)
+        playingTag = tag
         player = MediaPlayer().apply {
+            val usage = if (communication) AudioAttributes.USAGE_VOICE_COMMUNICATION else AudioAttributes.USAGE_MEDIA
+            setAudioAttributes(AudioAttributes.Builder().setUsage(usage).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
             setDataSource(f.path)
             setOnCompletionListener {
                 it.release()
                 if (player === it) {
                     player = null
+                    playingTag = null
                     next()
                 }
             }
             prepare()
+            setVolume(volume, volume)
             start()
         }
     }
@@ -90,5 +81,6 @@ class Player(private val context: Context) {
         queue.clear()
         player?.let { runCatching { it.stop() }; it.release() }
         player = null
+        playingTag = null
     }
 }
