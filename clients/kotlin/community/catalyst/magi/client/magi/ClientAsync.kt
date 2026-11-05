@@ -55,6 +55,15 @@ class MagiAsyncClient(private val transport: AsyncTransport) {
     suspend fun getAudio(request: GetAudioRequest): AudioResponse {
         return decode<AudioResponse>(transport.call("MagiService", "get-audio", encode(request)))
     }
+    suspend fun listen(request: ListenRequest): ListenResponse {
+        return decode<ListenResponse>(transport.call("MagiService", "listen", encode(request)))
+    }
+    suspend fun stopSpeech(request: StopSpeechRequest): StopSpeechResponse {
+        return decode<StopSpeechResponse>(transport.call("MagiService", "stop-speech", encode(request)))
+    }
+    suspend fun reportDelivery(request: ReportDeliveryRequest): ReportDeliveryResponse {
+        return decode<ReportDeliveryResponse>(transport.call("MagiService", "report-delivery", encode(request)))
+    }
     suspend fun startTask(request: StartTaskRequest): Task {
         return decode<Task>(transport.call("MagiService", "start-task", encode(request)))
     }

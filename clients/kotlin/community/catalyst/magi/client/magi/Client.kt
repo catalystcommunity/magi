@@ -65,6 +65,15 @@ class MagiClient(private val transport: Transport) {
     fun getAudio(request: GetAudioRequest): AudioResponse {
         return decode<AudioResponse>(transport.call("MagiService", "get-audio", encode(request)))
     }
+    fun listen(request: ListenRequest): ListenResponse {
+        return decode<ListenResponse>(transport.call("MagiService", "listen", encode(request)))
+    }
+    fun stopSpeech(request: StopSpeechRequest): StopSpeechResponse {
+        return decode<StopSpeechResponse>(transport.call("MagiService", "stop-speech", encode(request)))
+    }
+    fun reportDelivery(request: ReportDeliveryRequest): ReportDeliveryResponse {
+        return decode<ReportDeliveryResponse>(transport.call("MagiService", "report-delivery", encode(request)))
+    }
     fun startTask(request: StartTaskRequest): Task {
         return decode<Task>(transport.call("MagiService", "start-task", encode(request)))
     }

@@ -259,6 +259,71 @@ data class AudioResponse(
     }
 }
 
+/** WordTime record. */
+data class WordTime(
+    val word: String,
+    // wire key: start_ms
+    val startMs: ULong,
+    // wire key: end_ms
+    val endMs: ULong,
+    val start: ULong,
+    val end: ULong
+)
+
+/** SpeechPart record. */
+data class SpeechPart(
+    val index: ULong,
+    val audio: String,
+    // wire key: media_type
+    val mediaType: String,
+    val start: ULong,
+    val end: ULong,
+    // wire key: audio_ms
+    val audioMs: ULong,
+    val words: List<WordTime>
+)
+
+/** ListenRequest record. */
+data class ListenRequest(
+    val message: String,
+    val after: ULong? = null,
+    // wire key: wait_ms
+    val waitMs: ULong? = null
+)
+
+/** ListenResponse record. */
+data class ListenResponse(
+    val parts: List<SpeechPart>,
+    val done: Boolean,
+    val stopped: Boolean
+)
+
+/** StopSpeechRequest record. */
+data class StopSpeechRequest(
+    val message: String,
+    val reason: String? = null
+)
+
+/** StopSpeechResponse record. */
+data class StopSpeechResponse(
+    val stopped: Boolean
+)
+
+/** ReportDeliveryRequest record. */
+data class ReportDeliveryRequest(
+    val message: String,
+    // wire key: spoken_until
+    val spokenUntil: ULong? = null,
+    // wire key: shown_ms
+    val shownMs: ULong? = null,
+    // wire key: stopped_ms
+    val stoppedMs: ULong? = null,
+    val reason: String? = null
+)
+
+/** ReportDeliveryResponse record. */
+class ReportDeliveryResponse
+
 /** TaskStep record. */
 data class TaskStep(
     val step: String,

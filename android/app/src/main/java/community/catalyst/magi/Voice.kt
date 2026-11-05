@@ -43,28 +43,51 @@ class Recorder(private val context: Context) {
     }
 }
 
-/** Plays one audio clip at a time. */
+/** Plays audio clips one after the other: one clip, or the parts of a spoken reply. */
 class Player(private val context: Context) {
     private var player: MediaPlayer? = null
+    private val queue = ArrayDeque<Pair<ByteArray, String>>()
+    private var files = 0
 
+    /** Plays a clip now; it stops what plays and drops the queue. */
     fun play(body: ByteArray, mediaType: String) {
         stop()
+        enqueue(body, mediaType)
+    }
+
+    /** Plays a clip after the clips before it. Call it on the main thread. */
+    fun enqueue(body: ByteArray, mediaType: String) {
+        queue.addLast(body to mediaType)
+        if (player == null) next()
+    }
+
+    val playing: Boolean get() = player != null
+
+    private fun next() {
+        val (body, mediaType) = queue.removeFirstOrNull() ?: return
         val ext = when {
             mediaType.contains("ogg") -> "ogg"
             mediaType.contains("mpeg") -> "mp3"
             else -> "wav"
         }
-        val f = File(context.cacheDir, "reply.$ext")
+        val f = File(context.cacheDir, "reply-${files++ % 4}.$ext")
         f.writeBytes(body)
         player = MediaPlayer().apply {
             setDataSource(f.path)
-            setOnCompletionListener { it.release(); if (player === it) player = null }
+            setOnCompletionListener {
+                it.release()
+                if (player === it) {
+                    player = null
+                    next()
+                }
+            }
             prepare()
             start()
         }
     }
 
     fun stop() {
+        queue.clear()
         player?.let { runCatching { it.stop() }; it.release() }
         player = null
     }

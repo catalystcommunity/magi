@@ -207,6 +207,64 @@ type AudioResponse struct {
 	MediaType string `json:"media_type" yaml:"media_type"`
 }
 
+// WordTime represents a structured data type
+type WordTime struct {
+	Word    string `json:"word" yaml:"word"`
+	StartMs uint64 `json:"start_ms" yaml:"start_ms"`
+	EndMs   uint64 `json:"end_ms" yaml:"end_ms"`
+	Start   uint64 `json:"start" yaml:"start"`
+	End     uint64 `json:"end" yaml:"end"`
+}
+
+// SpeechPart represents a structured data type
+type SpeechPart struct {
+	Index     uint64     `json:"index" yaml:"index"`
+	Audio     string     `json:"audio" yaml:"audio"`
+	MediaType string     `json:"media_type" yaml:"media_type"`
+	Start     uint64     `json:"start" yaml:"start"`
+	End       uint64     `json:"end" yaml:"end"`
+	AudioMs   uint64     `json:"audio_ms" yaml:"audio_ms"`
+	Words     []WordTime `json:"words" yaml:"words"`
+}
+
+// ListenRequest represents a structured data type
+type ListenRequest struct {
+	Message string  `json:"message" yaml:"message"`
+	After   *uint64 `json:"after,omitempty" yaml:"after,omitempty"`
+	WaitMs  *uint64 `json:"wait_ms,omitempty" yaml:"wait_ms,omitempty"`
+}
+
+// ListenResponse represents a structured data type
+type ListenResponse struct {
+	Parts   []SpeechPart `json:"parts" yaml:"parts"`
+	Done    bool         `json:"done" yaml:"done"`
+	Stopped bool         `json:"stopped" yaml:"stopped"`
+}
+
+// StopSpeechRequest represents a structured data type
+type StopSpeechRequest struct {
+	Message string  `json:"message" yaml:"message"`
+	Reason  *string `json:"reason,omitempty" yaml:"reason,omitempty"`
+}
+
+// StopSpeechResponse represents a structured data type
+type StopSpeechResponse struct {
+	Stopped bool `json:"stopped" yaml:"stopped"`
+}
+
+// ReportDeliveryRequest represents a structured data type
+type ReportDeliveryRequest struct {
+	Message     string  `json:"message" yaml:"message"`
+	SpokenUntil *uint64 `json:"spoken_until,omitempty" yaml:"spoken_until,omitempty"`
+	ShownMs     *uint64 `json:"shown_ms,omitempty" yaml:"shown_ms,omitempty"`
+	StoppedMs   *uint64 `json:"stopped_ms,omitempty" yaml:"stopped_ms,omitempty"`
+	Reason      *string `json:"reason,omitempty" yaml:"reason,omitempty"`
+}
+
+// ReportDeliveryResponse represents a structured data type
+type ReportDeliveryResponse struct {
+}
+
 // TaskStep represents a structured data type
 type TaskStep struct {
 	Step      string   `json:"step" yaml:"step"`

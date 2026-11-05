@@ -361,6 +361,12 @@ type GetStreamRequest struct {
 	Id string `json:"id" yaml:"id"`
 }
 
+// SetAudioRequest represents a structured data type
+type SetAudioRequest struct {
+	Utterance string `json:"utterance" yaml:"utterance"`
+	Audio     string `json:"audio" yaml:"audio"`
+}
+
 // AnnotateRequest represents a structured data type
 type AnnotateRequest struct {
 	Utterance string `json:"utterance" yaml:"utterance"`

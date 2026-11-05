@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { Audio, DeleteLexiconEntryRequest, DeleteLexiconEntryResponse, LexiconEntry, ListLexiconRequest, ListLexiconResponse, ListVoicesRequest, ListVoicesResponse, PrepareTextRequest, PrepareTextResponse, PutLexiconEntryRequest, SynthesizeRequest, TranscribeRequest, Transcript, Voice } from "./types.gen.ts";
+import type { Audio, DeleteLexiconEntryRequest, DeleteLexiconEntryResponse, LexiconEntry, ListLexiconRequest, ListLexiconResponse, ListVoicesRequest, ListVoicesResponse, PrepareTextRequest, PrepareTextResponse, PutLexiconEntryRequest, SynthesizeRequest, TranscribeRequest, Transcript, Voice, WordTime } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -401,6 +401,7 @@ export function toSynthesizeRequestCborValue(v: SynthesizeRequest): CborValue {
   if (v.speed !== undefined) csilMap.set("speed", v.speed);
   if (v.voice !== undefined) csilMap.set("voice", v.voice);
   if (v.format !== undefined) csilMap.set("format", v.format);
+  if (v.timings !== undefined) csilMap.set("timings", v.timings);
   return csilMap;
 }
 
@@ -411,6 +412,7 @@ export function fromSynthesizeRequestCborValue(value: CborValue): SynthesizeRequ
     format: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "format")),
     speed: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "speed")),
     raw: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "raw")),
+    timings: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "timings")),
   };
 }
 
@@ -426,6 +428,7 @@ export function toAudioCborValue(v: Audio): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("body", v.body);
   csilMap.set("voice", v.voice);
+  if (v.words !== undefined) csilMap.set("words", v.words.map((csilE): CborValue => toWordTimeCborValue(csilE)));
   csilMap.set("engine", v.engine);
   csilMap.set("spoken", v.spoken);
   csilMap.set("audio_ms", v.audioMs);
@@ -443,6 +446,7 @@ export function fromAudioCborValue(value: CborValue): Audio {
     engine: asString(requireKey(value, "engine")),
     audioMs: asNumber(requireKey(value, "audio_ms")),
     elapsedMs: asNumber(requireKey(value, "elapsed_ms")),
+    words: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => fromWordTimeCborValue(csilE)))(mapGet(value, "words")),
   };
 }
 
@@ -452,6 +456,34 @@ export function toAudioCbor(v: Audio): Uint8Array {
 
 export function fromAudioCbor(bytes: Uint8Array): Audio {
   return fromAudioCborValue(decode(bytes));
+}
+
+export function toWordTimeCborValue(v: WordTime): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("end", v.end);
+  csilMap.set("word", v.word);
+  csilMap.set("start", v.start);
+  csilMap.set("end_ms", v.endMs);
+  csilMap.set("start_ms", v.startMs);
+  return csilMap;
+}
+
+export function fromWordTimeCborValue(value: CborValue): WordTime {
+  return {
+    word: asString(requireKey(value, "word")),
+    startMs: asNumber(requireKey(value, "start_ms")),
+    endMs: asNumber(requireKey(value, "end_ms")),
+    start: asNumber(requireKey(value, "start")),
+    end: asNumber(requireKey(value, "end")),
+  };
+}
+
+export function toWordTimeCbor(v: WordTime): Uint8Array {
+  return encodeValue(toWordTimeCborValue(v));
+}
+
+export function fromWordTimeCbor(bytes: Uint8Array): WordTime {
+  return fromWordTimeCborValue(decode(bytes));
 }
 
 export function toVoiceCborValue(v: Voice): CborValue {

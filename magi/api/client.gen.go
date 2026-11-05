@@ -160,6 +160,33 @@ func (c *MagiClient) GetAudio(ctx context.Context, req GetAudioRequest) (AudioRe
 	return DecodeAudioResponse(csilResp)
 }
 
+func (c *MagiClient) Listen(ctx context.Context, req ListenRequest) (ListenResponse, error) {
+	var csilZero ListenResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "listen", EncodeListenRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListenResponse(csilResp)
+}
+
+func (c *MagiClient) StopSpeech(ctx context.Context, req StopSpeechRequest) (StopSpeechResponse, error) {
+	var csilZero StopSpeechResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "stop-speech", EncodeStopSpeechRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeStopSpeechResponse(csilResp)
+}
+
+func (c *MagiClient) ReportDelivery(ctx context.Context, req ReportDeliveryRequest) (ReportDeliveryResponse, error) {
+	var csilZero ReportDeliveryResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "report-delivery", EncodeReportDeliveryRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeReportDeliveryResponse(csilResp)
+}
+
 func (c *MagiClient) StartTask(ctx context.Context, req StartTaskRequest) (Task, error) {
 	var csilZero Task
 	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "start-task", EncodeStartTaskRequest(req))

@@ -119,6 +119,10 @@ class ConversationClient:
         """mark-classified"""
         return Utterance.from_cbor(self._transport.call("ConversationService", "mark-classified", req.to_cbor()))
 
+    def set_audio(self, req: SetAudioRequest) -> Utterance:
+        """set-audio"""
+        return Utterance.from_cbor(self._transport.call("ConversationService", "set-audio", req.to_cbor()))
+
     def annotate(self, req: AnnotateRequest) -> Annotation:
         """annotate"""
         return Annotation.from_cbor(self._transport.call("ConversationService", "annotate", req.to_cbor()))

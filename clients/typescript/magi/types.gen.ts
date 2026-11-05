@@ -237,6 +237,81 @@ export interface AudioResponse {
   mediaType: string;
 }
 
+/**
+ * Spoken replies. A persona message with modality "voice" is spoken in
+ * parts: Magi posts the text at once and then makes the audio one part
+ * (a clause or more) at a time. listen gives the parts in order; a client
+ * plays each part when it comes. When all parts are made, the message
+ * also gets the whole audio (audio), for clients that do not listen.
+ * start and end are character (code point) offsets [start, end) in the
+ * message text. The words of a part have times in the audio of that part.
+ */
+export interface WordTime {
+  word: string;
+  startMs: number;
+  endMs: number;
+  start: number;
+  end: number;
+}
+
+export interface SpeechPart {
+  index: number;
+  audio: string;
+  mediaType: string;
+  start: number;
+  end: number;
+  audioMs: number;
+  words: WordTime[];
+}
+
+/**
+ * after is the number of parts that the client has. listen waits up to
+ * wait_ms for a new part. done: no more parts come (all made, stopped, or
+ * failed); stopped: a person stopped the speech.
+ */
+export interface ListenRequest {
+  message: string;
+  after?: number;
+  waitMs?: number;
+}
+
+export interface ListenResponse {
+  parts: SpeechPart[];
+  done: boolean;
+  stopped: boolean;
+}
+
+/**
+ * stop-speech stops the parts that are not made yet, for example when the
+ * person interrupts the persona.
+ */
+export interface StopSpeechRequest {
+  message: string;
+  reason?: string;
+}
+
+export interface StopSpeechResponse {
+  stopped: boolean;
+}
+
+/**
+ * What the client did with a spoken message, for the conversation graph:
+ * spoken_until is the offset in the text where playback ended; shown_ms
+ * is when the client showed the whole text; stopped_ms and reason are set
+ * when playback stopped before the end ("interrupted", "typing", "user",
+ * "error"). The last report of a client is the one that counts.
+ */
+export interface ReportDeliveryRequest {
+  message: string;
+  spokenUntil?: number;
+  shownMs?: number;
+  stoppedMs?: number;
+  reason?: string;
+}
+
+export interface ReportDeliveryResponse {
+}
+
 export interface TaskStep {
   step: string;
   status: string;

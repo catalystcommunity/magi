@@ -2,8 +2,8 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { AnnotateRequest, Annotation, AnswerReviewRequest, Calibration, ClaimUnclassifiedRequest, ClaimUnclassifiedResponse, GetCalibrationRequest, GetPersonaRequest, GetStreamRequest, GetUtteranceRequest, GetUtterancesRequest, GetUtterancesResponse, ImportLegacyRequest, ImportLegacyResponse, Link, ListAnnotationsRequest, ListAnnotationsResponse, ListExamplesRequest, ListExamplesResponse, ListLinksRequest, ListLinksResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListStreamsRequest, ListStreamsResponse, ListUtterancesRequest, ListUtterancesResponse, MarkClassifiedRequest, OpenStreamRequest, Persona, PostRequest, PutLinkRequest, PutLinkResponse, PutPersonaRequest, RetractLinkRequest, Review, SearchRequest, SearchResponse, SetVisibilityRequest, SetVisibilityResponse, Stream, TraceRequest, TraceResponse, Utterance } from "./types.gen.ts";
-import { fromAnnotationCbor, fromCalibrationCbor, fromClaimUnclassifiedResponseCbor, fromGetUtterancesResponseCbor, fromImportLegacyResponseCbor, fromLinkCbor, fromListAnnotationsResponseCbor, fromListExamplesResponseCbor, fromListLinksResponseCbor, fromListPersonasResponseCbor, fromListReviewsResponseCbor, fromListStreamsResponseCbor, fromListUtterancesResponseCbor, fromPersonaCbor, fromPutLinkResponseCbor, fromReviewCbor, fromSearchResponseCbor, fromSetVisibilityResponseCbor, fromStreamCbor, fromTraceResponseCbor, fromUtteranceCbor, toAnnotateRequestCbor, toAnswerReviewRequestCbor, toClaimUnclassifiedRequestCbor, toGetCalibrationRequestCbor, toGetPersonaRequestCbor, toGetStreamRequestCbor, toGetUtteranceRequestCbor, toGetUtterancesRequestCbor, toImportLegacyRequestCbor, toListAnnotationsRequestCbor, toListExamplesRequestCbor, toListLinksRequestCbor, toListPersonasRequestCbor, toListReviewsRequestCbor, toListStreamsRequestCbor, toListUtterancesRequestCbor, toMarkClassifiedRequestCbor, toOpenStreamRequestCbor, toPostRequestCbor, toPutLinkRequestCbor, toPutPersonaRequestCbor, toRetractLinkRequestCbor, toSearchRequestCbor, toSetVisibilityRequestCbor, toTraceRequestCbor } from "./codec.gen.ts";
+import type { AnnotateRequest, Annotation, AnswerReviewRequest, Calibration, ClaimUnclassifiedRequest, ClaimUnclassifiedResponse, GetCalibrationRequest, GetPersonaRequest, GetStreamRequest, GetUtteranceRequest, GetUtterancesRequest, GetUtterancesResponse, ImportLegacyRequest, ImportLegacyResponse, Link, ListAnnotationsRequest, ListAnnotationsResponse, ListExamplesRequest, ListExamplesResponse, ListLinksRequest, ListLinksResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListStreamsRequest, ListStreamsResponse, ListUtterancesRequest, ListUtterancesResponse, MarkClassifiedRequest, OpenStreamRequest, Persona, PostRequest, PutLinkRequest, PutLinkResponse, PutPersonaRequest, RetractLinkRequest, Review, SearchRequest, SearchResponse, SetAudioRequest, SetVisibilityRequest, SetVisibilityResponse, Stream, TraceRequest, TraceResponse, Utterance } from "./types.gen.ts";
+import { fromAnnotationCbor, fromCalibrationCbor, fromClaimUnclassifiedResponseCbor, fromGetUtterancesResponseCbor, fromImportLegacyResponseCbor, fromLinkCbor, fromListAnnotationsResponseCbor, fromListExamplesResponseCbor, fromListLinksResponseCbor, fromListPersonasResponseCbor, fromListReviewsResponseCbor, fromListStreamsResponseCbor, fromListUtterancesResponseCbor, fromPersonaCbor, fromPutLinkResponseCbor, fromReviewCbor, fromSearchResponseCbor, fromSetVisibilityResponseCbor, fromStreamCbor, fromTraceResponseCbor, fromUtteranceCbor, toAnnotateRequestCbor, toAnswerReviewRequestCbor, toClaimUnclassifiedRequestCbor, toGetCalibrationRequestCbor, toGetPersonaRequestCbor, toGetStreamRequestCbor, toGetUtteranceRequestCbor, toGetUtterancesRequestCbor, toImportLegacyRequestCbor, toListAnnotationsRequestCbor, toListExamplesRequestCbor, toListLinksRequestCbor, toListPersonasRequestCbor, toListReviewsRequestCbor, toListStreamsRequestCbor, toListUtterancesRequestCbor, toMarkClassifiedRequestCbor, toOpenStreamRequestCbor, toPostRequestCbor, toPutLinkRequestCbor, toPutPersonaRequestCbor, toRetractLinkRequestCbor, toSearchRequestCbor, toSetAudioRequestCbor, toSetVisibilityRequestCbor, toTraceRequestCbor } from "./codec.gen.ts";
 
 export interface ServiceTransport {
   call(service: string, op: string, req: Uint8Array): Uint8Array;
@@ -207,6 +207,15 @@ export class ConversationClient {
    */
   markClassified(req: MarkClassifiedRequest): Utterance {
     const csilResp = this.t.call("ConversationService", "mark-classified", toMarkClassifiedRequestCbor(req));
+    return fromUtteranceCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  setAudio(req: SetAudioRequest): Utterance {
+    const csilResp = this.t.call("ConversationService", "set-audio", toSetAudioRequestCbor(req));
     return fromUtteranceCbor(csilResp);
   }
 

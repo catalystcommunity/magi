@@ -3689,6 +3689,57 @@ func DecodeGetStreamRequest(csilData []byte) (GetStreamRequest, error) {
 	return csilDecGetStreamRequest(csilRoot)
 }
 
+// csilEncSetAudioRequest builds the canonical CBOR value tree for a SetAudioRequest.
+func csilEncSetAudioRequest(csilV SetAudioRequest) cborValue {
+	csilEntries := make(cborMap, 0, 2)
+	csilEntries = append(csilEntries, cborEntry{cborText("audio"), cborText(csilV.Audio)})
+	csilEntries = append(csilEntries, cborEntry{cborText("utterance"), cborText(csilV.Utterance)})
+	return csilEntries
+}
+
+// csilDecSetAudioRequest reconstructs a SetAudioRequest from a decoded CBOR value tree.
+func csilDecSetAudioRequest(csilRoot cborValue) (SetAudioRequest, error) {
+	var csilOut SetAudioRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "utterance")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Utterance = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "audio")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Audio = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeSetAudioRequest encodes a SetAudioRequest to canonical CSIL CBOR bytes.
+func EncodeSetAudioRequest(csilV SetAudioRequest) []byte {
+	return cborEncode(csilEncSetAudioRequest(csilV))
+}
+
+// DecodeSetAudioRequest decodes canonical CSIL CBOR bytes into a SetAudioRequest.
+func DecodeSetAudioRequest(csilData []byte) (SetAudioRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero SetAudioRequest
+		return csilZero, csilErr
+	}
+	return csilDecSetAudioRequest(csilRoot)
+}
+
 // csilEncAnnotateRequest builds the canonical CBOR value tree for a AnnotateRequest.
 func csilEncAnnotateRequest(csilV AnnotateRequest) cborValue {
 	csilEntries := make(cborMap, 0, 3)

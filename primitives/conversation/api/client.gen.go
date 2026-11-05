@@ -241,6 +241,15 @@ func (c *ConversationClient) MarkClassified(ctx context.Context, req MarkClassif
 	return DecodeUtterance(csilResp)
 }
 
+func (c *ConversationClient) SetAudio(ctx context.Context, req SetAudioRequest) (Utterance, error) {
+	var csilZero Utterance
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "set-audio", EncodeSetAudioRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeUtterance(csilResp)
+}
+
 func (c *ConversationClient) Annotate(ctx context.Context, req AnnotateRequest) (Annotation, error) {
 	var csilZero Annotation
 	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "annotate", EncodeAnnotateRequest(req))

@@ -56,10 +56,20 @@ func fakeEngine(t *testing.T) *httptest.Server {
 		var in struct {
 			Text, Voice string
 			Speed       float64
+			Timings     bool
 		}
 		json.NewDecoder(r.Body).Decode(&in)
 		if in.Voice == "" {
 			in.Voice = "af_heart"
+		}
+		if in.Timings { // each word 100 ms
+			var words [][]any
+			for i, f := range strings.Fields(in.Text) {
+				words = append(words, []any{f, i * 100, i*100 + 90})
+			}
+			json.NewEncoder(w).Encode(map[string]any{"audio": []byte("RIFF" + in.Text), "media_type": "audio/wav", "words": words,
+				"audio_ms": len(words) * 100, "elapsed_ms": 5, "voice": in.Voice, "engine": "fake-tts"})
+			return
 		}
 		w.Header().Set("Content-Type", "audio/wav")
 		w.Header().Set("X-Audio-Ms", "1500")
@@ -107,6 +117,13 @@ func TestOperations(t *testing.T) {
 	if err != nil || string(a.Body) != "RIFFhi" || a.MediaType != "audio/wav" || a.Voice != "bm_george" ||
 		a.Engine != "fake-tts" || a.AudioMs != 1500 || a.ElapsedMs != 120 {
 		t.Fatalf("synthesize = %+v, %v", a, err)
+	}
+	// With timings, the word places are in the request text, not in the
+	// spoken text ("4-6" is "4 to 6").
+	a, err = c.Synthesize(ctx, api.SynthesizeRequest{Text: "Wait 4-6 **minutes**.", Timings: ptr(true)})
+	if err != nil || a.Spoken != "Wait 4 to 6 minutes." || string(a.Body) != "RIFFWait 4 to 6 minutes." || len(a.Words) != 5 ||
+		a.Words[4].Word != "minutes." || a.Words[4].Start != 11 || a.Words[4].End != 18 || a.Words[4].StartMs != 400 || a.Words[3].Start != 7 {
+		t.Fatalf("synthesize with timings = %+v, %v", a, err)
 	}
 	v, err := c.ListVoices(ctx, api.ListVoicesRequest{})
 	if err != nil || len(v.Voices) != 2 || v.Voices[0].Id != "af_heart" || *v.Voices[1].Description != "male" {

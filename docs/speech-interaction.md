@@ -91,6 +91,13 @@ echo, "mm-hm", or other people in the room. After the stop, Magi records
 where the person interrupted and why, for the conversation graph and the
 knowledge analysis.
 
+**Status (2026-11-04):** items 1 and 2 are done in a first form: spoken
+replies come in parts with word times (`listen`), the web client marks the
+word that the person hears, and a client reports the delivery
+(`report-delivery`, with `spoken_until`). Typing or the microphone button
+stops the speech now. Not done: microphone frames in the session, VAD on
+the device, the step 2 decision, and the step 3 analysis.
+
 **What is necessary first:**
 
 1. A voice session in the API. The client sends microphone frames and its

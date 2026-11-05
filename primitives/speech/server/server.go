@@ -6,6 +6,7 @@
 package server
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -131,6 +132,35 @@ func (s *Service) Synthesize(ctx context.Context, req api.SynthesizeRequest) (ap
 			return api.Audio{}, rpc.Invalid("speed must be from 0.5 to 2.0")
 		}
 		in["speed"] = *req.Speed
+	}
+	if req.Timings != nil && *req.Timings {
+		in["timings"] = true
+		var out struct {
+			Audio     []byte              `json:"audio"`
+			MediaType string              `json:"media_type"`
+			Words     [][]json.RawMessage `json:"words"`
+			AudioMs   uint64              `json:"audio_ms"`
+			ElapsedMs uint64              `json:"elapsed_ms"`
+			Voice     string              `json:"voice"`
+			Engine    string              `json:"engine"`
+		}
+		if err := s.TTS.json(ctx, http.MethodPost, "/synthesize", in, &out); err != nil {
+			return api.Audio{}, err
+		}
+		var eng []engineWord
+		for _, w := range out.Words {
+			var e engineWord
+			if len(w) != 3 || json.Unmarshal(w[0], &e.word) != nil || json.Unmarshal(w[1], &e.startMs) != nil || json.Unmarshal(w[2], &e.endMs) != nil {
+				return api.Audio{}, rpc.Unavailable("speech engine: bad word time")
+			}
+			eng = append(eng, e)
+		}
+		// The words have the places of the request text; with raw, that
+		// is the spoken text.
+		return api.Audio{
+			Body: out.Audio, Spoken: text, MediaType: cmp.Or(out.MediaType, "audio/wav"), Voice: out.Voice, Engine: out.Engine,
+			AudioMs: out.AudioMs, ElapsedMs: out.ElapsedMs, Words: alignWords(req.Text, eng),
+		}, nil
 	}
 	body, _ := json.Marshal(in)
 	r, err := s.TTS.do(ctx, http.MethodPost, "/synthesize", "application/json", body)

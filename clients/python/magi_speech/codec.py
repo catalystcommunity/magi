@@ -433,6 +433,9 @@ def _encode_synthesize_request_value(v: "SynthesizeRequest") -> Dict[Any, Any]:
     csil_x = v.format
     if csil_x is not None:
         csil_m["format"] = csil_x
+    csil_x = v.timings
+    if csil_x is not None:
+        csil_m["timings"] = csil_x
     return csil_m
 
 def _decode_synthesize_request_value(tree: Any) -> "SynthesizeRequest":
@@ -443,6 +446,7 @@ def _decode_synthesize_request_value(tree: Any) -> "SynthesizeRequest":
         format=(None if tree.get("format") is None else _csil_expect_text(tree["format"])),
         speed=(None if tree.get("speed") is None else _csil_expect_float(tree["speed"])),
         raw=(None if tree.get("raw") is None else _csil_expect_bool(tree["raw"])),
+        timings=(None if tree.get("timings") is None else _csil_expect_bool(tree["timings"])),
     )
 
 
@@ -461,6 +465,9 @@ def _encode_audio_value(v: "Audio") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["body"] = v.body
     csil_m["voice"] = v.voice
+    csil_x = v.words
+    if csil_x is not None:
+        csil_m["words"] = [_encode_word_time_value(csil_e) for csil_e in csil_x]
     csil_m["engine"] = v.engine
     csil_m["spoken"] = v.spoken
     csil_m["audio_ms"] = v.audio_ms
@@ -478,6 +485,7 @@ def _decode_audio_value(tree: Any) -> "Audio":
         engine=_csil_expect_text(tree["engine"]),
         audio_ms=_csil_expect_uint(tree["audio_ms"]),
         elapsed_ms=_csil_expect_uint(tree["elapsed_ms"]),
+        words=(None if tree.get("words") is None else [_decode_word_time_value(csil_e) for csil_e in _csil_expect_array(tree["words"])]),
     )
 
 
@@ -491,6 +499,37 @@ def _audio_from_cbor(data: bytes) -> "Audio":
 
 Audio.to_cbor = _audio_to_cbor
 Audio.from_cbor = staticmethod(_audio_from_cbor)
+
+def _encode_word_time_value(v: "WordTime") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["end"] = v.end
+    csil_m["word"] = v.word
+    csil_m["start"] = v.start
+    csil_m["end_ms"] = v.end_ms
+    csil_m["start_ms"] = v.start_ms
+    return csil_m
+
+def _decode_word_time_value(tree: Any) -> "WordTime":
+    tree = _csil_expect_map(tree)
+    return WordTime(
+        word=_csil_expect_text(tree["word"]),
+        start_ms=_csil_expect_uint(tree["start_ms"]),
+        end_ms=_csil_expect_uint(tree["end_ms"]),
+        start=_csil_expect_uint(tree["start"]),
+        end=_csil_expect_uint(tree["end"]),
+    )
+
+
+def _word_time_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_word_time_value(self))
+
+
+def _word_time_from_cbor(data: bytes) -> "WordTime":
+    return _decode_word_time_value(cbor_decode(data))
+
+
+WordTime.to_cbor = _word_time_to_cbor
+WordTime.from_cbor = staticmethod(_word_time_from_cbor)
 
 def _encode_voice_value(v: "Voice") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}

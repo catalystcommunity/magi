@@ -2312,6 +2312,520 @@ func DecodeAudioResponse(csilData []byte) (AudioResponse, error) {
 	return csilDecAudioResponse(csilRoot)
 }
 
+// csilEncWordTime builds the canonical CBOR value tree for a WordTime.
+func csilEncWordTime(csilV WordTime) cborValue {
+	csilEntries := make(cborMap, 0, 5)
+	csilEntries = append(csilEntries, cborEntry{cborText("end"), cborUint(csilV.End)})
+	csilEntries = append(csilEntries, cborEntry{cborText("word"), cborText(csilV.Word)})
+	csilEntries = append(csilEntries, cborEntry{cborText("start"), cborUint(csilV.Start)})
+	csilEntries = append(csilEntries, cborEntry{cborText("end_ms"), cborUint(csilV.EndMs)})
+	csilEntries = append(csilEntries, cborEntry{cborText("start_ms"), cborUint(csilV.StartMs)})
+	return csilEntries
+}
+
+// csilDecWordTime reconstructs a WordTime from a decoded CBOR value tree.
+func csilDecWordTime(csilRoot cborValue) (WordTime, error) {
+	var csilOut WordTime
+	{
+		csilField, csilErr := cborRequire(csilRoot, "word")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Word = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "start_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.StartMs = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "end_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.EndMs = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "start")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Start = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "end")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.End = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeWordTime encodes a WordTime to canonical CSIL CBOR bytes.
+func EncodeWordTime(csilV WordTime) []byte {
+	return cborEncode(csilEncWordTime(csilV))
+}
+
+// DecodeWordTime decodes canonical CSIL CBOR bytes into a WordTime.
+func DecodeWordTime(csilData []byte) (WordTime, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero WordTime
+		return csilZero, csilErr
+	}
+	return csilDecWordTime(csilRoot)
+}
+
+// csilEncSpeechPart builds the canonical CBOR value tree for a SpeechPart.
+func csilEncSpeechPart(csilV SpeechPart) cborValue {
+	csilEntries := make(cborMap, 0, 7)
+	csilEntries = append(csilEntries, cborEntry{cborText("end"), cborUint(csilV.End)})
+	csilEntries = append(csilEntries, cborEntry{cborText("audio"), cborText(csilV.Audio)})
+	csilEntries = append(csilEntries, cborEntry{cborText("index"), cborUint(csilV.Index)})
+	csilEntries = append(csilEntries, cborEntry{cborText("start"), cborUint(csilV.Start)})
+	csilEntries = append(csilEntries, cborEntry{cborText("words"), cborEncArray(csilV.Words, func(csilElem WordTime) cborValue { return csilEncWordTime(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("audio_ms"), cborUint(csilV.AudioMs)})
+	csilEntries = append(csilEntries, cborEntry{cborText("media_type"), cborText(csilV.MediaType)})
+	return csilEntries
+}
+
+// csilDecSpeechPart reconstructs a SpeechPart from a decoded CBOR value tree.
+func csilDecSpeechPart(csilRoot cborValue) (SpeechPart, error) {
+	var csilOut SpeechPart
+	{
+		csilField, csilErr := cborRequire(csilRoot, "index")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Index = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "audio")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Audio = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "media_type")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.MediaType = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "start")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Start = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "end")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.End = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "audio_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.AudioMs = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "words")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]WordTime, error) { return cborDecArray(csilV, csilDecWordTime) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Words = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeSpeechPart encodes a SpeechPart to canonical CSIL CBOR bytes.
+func EncodeSpeechPart(csilV SpeechPart) []byte {
+	return cborEncode(csilEncSpeechPart(csilV))
+}
+
+// DecodeSpeechPart decodes canonical CSIL CBOR bytes into a SpeechPart.
+func DecodeSpeechPart(csilData []byte) (SpeechPart, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero SpeechPart
+		return csilZero, csilErr
+	}
+	return csilDecSpeechPart(csilRoot)
+}
+
+// csilEncListenRequest builds the canonical CBOR value tree for a ListenRequest.
+func csilEncListenRequest(csilV ListenRequest) cborValue {
+	csilEntries := make(cborMap, 0, 3)
+	if csilV.After != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("after"), cborUint((*csilV.After))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("message"), cborText(csilV.Message)})
+	if csilV.WaitMs != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("wait_ms"), cborUint((*csilV.WaitMs))})
+	}
+	return csilEntries
+}
+
+// csilDecListenRequest reconstructs a ListenRequest from a decoded CBOR value tree.
+func csilDecListenRequest(csilRoot cborValue) (ListenRequest, error) {
+	var csilOut ListenRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "message")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Message = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "after"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.After = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "wait_ms"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.WaitMs = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeListenRequest encodes a ListenRequest to canonical CSIL CBOR bytes.
+func EncodeListenRequest(csilV ListenRequest) []byte {
+	return cborEncode(csilEncListenRequest(csilV))
+}
+
+// DecodeListenRequest decodes canonical CSIL CBOR bytes into a ListenRequest.
+func DecodeListenRequest(csilData []byte) (ListenRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ListenRequest
+		return csilZero, csilErr
+	}
+	return csilDecListenRequest(csilRoot)
+}
+
+// csilEncListenResponse builds the canonical CBOR value tree for a ListenResponse.
+func csilEncListenResponse(csilV ListenResponse) cborValue {
+	csilEntries := make(cborMap, 0, 3)
+	csilEntries = append(csilEntries, cborEntry{cborText("done"), cborBool(csilV.Done)})
+	csilEntries = append(csilEntries, cborEntry{cborText("parts"), cborEncArray(csilV.Parts, func(csilElem SpeechPart) cborValue { return csilEncSpeechPart(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("stopped"), cborBool(csilV.Stopped)})
+	return csilEntries
+}
+
+// csilDecListenResponse reconstructs a ListenResponse from a decoded CBOR value tree.
+func csilDecListenResponse(csilRoot cborValue) (ListenResponse, error) {
+	var csilOut ListenResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "parts")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]SpeechPart, error) { return cborDecArray(csilV, csilDecSpeechPart) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Parts = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "done")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Done = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "stopped")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Stopped = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeListenResponse encodes a ListenResponse to canonical CSIL CBOR bytes.
+func EncodeListenResponse(csilV ListenResponse) []byte {
+	return cborEncode(csilEncListenResponse(csilV))
+}
+
+// DecodeListenResponse decodes canonical CSIL CBOR bytes into a ListenResponse.
+func DecodeListenResponse(csilData []byte) (ListenResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ListenResponse
+		return csilZero, csilErr
+	}
+	return csilDecListenResponse(csilRoot)
+}
+
+// csilEncStopSpeechRequest builds the canonical CBOR value tree for a StopSpeechRequest.
+func csilEncStopSpeechRequest(csilV StopSpeechRequest) cborValue {
+	csilEntries := make(cborMap, 0, 2)
+	if csilV.Reason != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("reason"), cborText((*csilV.Reason))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("message"), cborText(csilV.Message)})
+	return csilEntries
+}
+
+// csilDecStopSpeechRequest reconstructs a StopSpeechRequest from a decoded CBOR value tree.
+func csilDecStopSpeechRequest(csilRoot cborValue) (StopSpeechRequest, error) {
+	var csilOut StopSpeechRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "message")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Message = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "reason"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Reason = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeStopSpeechRequest encodes a StopSpeechRequest to canonical CSIL CBOR bytes.
+func EncodeStopSpeechRequest(csilV StopSpeechRequest) []byte {
+	return cborEncode(csilEncStopSpeechRequest(csilV))
+}
+
+// DecodeStopSpeechRequest decodes canonical CSIL CBOR bytes into a StopSpeechRequest.
+func DecodeStopSpeechRequest(csilData []byte) (StopSpeechRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero StopSpeechRequest
+		return csilZero, csilErr
+	}
+	return csilDecStopSpeechRequest(csilRoot)
+}
+
+// csilEncStopSpeechResponse builds the canonical CBOR value tree for a StopSpeechResponse.
+func csilEncStopSpeechResponse(csilV StopSpeechResponse) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("stopped"), cborBool(csilV.Stopped)})
+	return csilEntries
+}
+
+// csilDecStopSpeechResponse reconstructs a StopSpeechResponse from a decoded CBOR value tree.
+func csilDecStopSpeechResponse(csilRoot cborValue) (StopSpeechResponse, error) {
+	var csilOut StopSpeechResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "stopped")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Stopped = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeStopSpeechResponse encodes a StopSpeechResponse to canonical CSIL CBOR bytes.
+func EncodeStopSpeechResponse(csilV StopSpeechResponse) []byte {
+	return cborEncode(csilEncStopSpeechResponse(csilV))
+}
+
+// DecodeStopSpeechResponse decodes canonical CSIL CBOR bytes into a StopSpeechResponse.
+func DecodeStopSpeechResponse(csilData []byte) (StopSpeechResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero StopSpeechResponse
+		return csilZero, csilErr
+	}
+	return csilDecStopSpeechResponse(csilRoot)
+}
+
+// csilEncReportDeliveryRequest builds the canonical CBOR value tree for a ReportDeliveryRequest.
+func csilEncReportDeliveryRequest(csilV ReportDeliveryRequest) cborValue {
+	csilEntries := make(cborMap, 0, 5)
+	if csilV.Reason != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("reason"), cborText((*csilV.Reason))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("message"), cborText(csilV.Message)})
+	if csilV.ShownMs != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("shown_ms"), cborUint((*csilV.ShownMs))})
+	}
+	if csilV.StoppedMs != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("stopped_ms"), cborUint((*csilV.StoppedMs))})
+	}
+	if csilV.SpokenUntil != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("spoken_until"), cborUint((*csilV.SpokenUntil))})
+	}
+	return csilEntries
+}
+
+// csilDecReportDeliveryRequest reconstructs a ReportDeliveryRequest from a decoded CBOR value tree.
+func csilDecReportDeliveryRequest(csilRoot cborValue) (ReportDeliveryRequest, error) {
+	var csilOut ReportDeliveryRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "message")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Message = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "spoken_until"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.SpokenUntil = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "shown_ms"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.ShownMs = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "stopped_ms"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.StoppedMs = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "reason"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Reason = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeReportDeliveryRequest encodes a ReportDeliveryRequest to canonical CSIL CBOR bytes.
+func EncodeReportDeliveryRequest(csilV ReportDeliveryRequest) []byte {
+	return cborEncode(csilEncReportDeliveryRequest(csilV))
+}
+
+// DecodeReportDeliveryRequest decodes canonical CSIL CBOR bytes into a ReportDeliveryRequest.
+func DecodeReportDeliveryRequest(csilData []byte) (ReportDeliveryRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ReportDeliveryRequest
+		return csilZero, csilErr
+	}
+	return csilDecReportDeliveryRequest(csilRoot)
+}
+
+// csilEncReportDeliveryResponse builds the canonical CBOR value tree for a ReportDeliveryResponse.
+func csilEncReportDeliveryResponse(csilV ReportDeliveryResponse) cborValue {
+	csilEntries := make(cborMap, 0, 0)
+	return csilEntries
+}
+
+// csilDecReportDeliveryResponse reconstructs a ReportDeliveryResponse from a decoded CBOR value tree.
+func csilDecReportDeliveryResponse(csilRoot cborValue) (ReportDeliveryResponse, error) {
+	var csilOut ReportDeliveryResponse
+	return csilOut, nil
+}
+
+// EncodeReportDeliveryResponse encodes a ReportDeliveryResponse to canonical CSIL CBOR bytes.
+func EncodeReportDeliveryResponse(csilV ReportDeliveryResponse) []byte {
+	return cborEncode(csilEncReportDeliveryResponse(csilV))
+}
+
+// DecodeReportDeliveryResponse decodes canonical CSIL CBOR bytes into a ReportDeliveryResponse.
+func DecodeReportDeliveryResponse(csilData []byte) (ReportDeliveryResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ReportDeliveryResponse
+		return csilZero, csilErr
+	}
+	return csilDecReportDeliveryResponse(csilRoot)
+}
+
 // csilEncTaskStep builds the canonical CBOR value tree for a TaskStep.
 func csilEncTaskStep(csilV TaskStep) cborValue {
 	csilEntries := make(cborMap, 0, 6)

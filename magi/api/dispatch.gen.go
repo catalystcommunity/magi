@@ -211,6 +211,39 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			}
 			return EncodeAudioResponse(resp), nil
 		},
+		"listen": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListenRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Listen(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListenResponse(resp), nil
+		},
+		"stop-speech": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeStopSpeechRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.StopSpeech(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeStopSpeechResponse(resp), nil
+		},
+		"report-delivery": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeReportDeliveryRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ReportDelivery(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeReportDeliveryResponse(resp), nil
+		},
 		"start-task": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeStartTaskRequest(b)
 			if err != nil {

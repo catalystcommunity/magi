@@ -7,10 +7,8 @@ import (
 	"strings"
 	"time"
 
-	artifactsapi "github.com/catalystcommunity/magi/primitives/artifacts/api"
 	conversationapi "github.com/catalystcommunity/magi/primitives/conversation/api"
 	knowledgeapi "github.com/catalystcommunity/magi/primitives/knowledge/api"
-	speechapi "github.com/catalystcommunity/magi/primitives/speech/api"
 	workflowapi "github.com/catalystcommunity/magi/primitives/workflow/api"
 
 	"github.com/catalystcommunity/magi/magi/model"
@@ -205,34 +203,22 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 		Stream: streamID, Text: reply, Author: ptr(persona), AuthorKind: ptr("persona"),
 		Attachments: refs, Links: links, Modality: ptr("text"), GeneratedBy: optional(served),
 	}
-	if a.Vars["speak"] == "true" {
-		if digest, err := s.speak(ctx, a.Owner, reply, a.Vars["voice"]); err != nil {
-			s.Log.Warn("speech synthesis", "err", err)
-		} else {
-			post.Audio, post.Modality = ptr(digest), ptr("voice")
-		}
+	speak := a.Vars["speak"] == "true"
+	if speak {
+		post.Modality = ptr("voice")
 	}
-	if _, err := s.Conversation.Post(ctx, post); err != nil {
+	posted, err := s.Conversation.Post(ctx, post)
+	if err != nil {
 		return Result{}, fmt.Errorf("post reply: %w", err)
+	}
+	// The text is in the stream now; the audio follows in parts.
+	if speak {
+		if err := s.speakParts(ctx, a.Owner, posted, a.Vars["voice"]); err != nil {
+			s.Log.Warn("speech synthesis", "utterance", posted.Id, "err", err)
+		}
 	}
 	return Result{Outcome: "done", Outputs: map[string]string{
 		"reply.tools": fmt.Sprint(len(log.Calls)), "reply.model": served, "reply.model_ms": fmt.Sprint(ms)}}, nil
-}
-
-func (s *System) speak(ctx context.Context, owner, text, voice string) (string, error) {
-	req := speechapi.SynthesizeRequest{Text: text}
-	if voice != "" {
-		req.Voice = ptr(voice)
-	}
-	audio, err := s.Speech.Synthesize(ctx, req)
-	if err != nil {
-		return "", err
-	}
-	art, err := s.Artifacts.Put(ctx, artifactsapi.PutRequest{
-		MediaType: audio.MediaType, Body: audio.Body, Owner: ptr(owner),
-		Labels: map[string]string{"kind": "speech", "voice": audio.Voice},
-	})
-	return art.Digest, err
 }
 
 func (s *System) personaTool(ctx context.Context, a workflowapi.Assignment, as conversationLens, utt conversationapi.Utterance, name string, args map[string]string) (string, *conversationapi.Ref) {

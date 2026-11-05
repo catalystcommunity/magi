@@ -38,6 +38,9 @@ import community.catalyst.magi.client.magi.ListLinksRequest
 import community.catalyst.magi.client.magi.ListPersonasRequest
 import community.catalyst.magi.client.magi.ListReviewsRequest
 import community.catalyst.magi.client.magi.ListTasksRequest
+import community.catalyst.magi.client.magi.ListenRequest
+import community.catalyst.magi.client.magi.ReportDeliveryRequest
+import community.catalyst.magi.client.magi.StopSpeechRequest
 import community.catalyst.magi.client.magi.Message
 import community.catalyst.magi.client.magi.MessageLink
 import community.catalyst.magi.client.magi.PersonaInfo
@@ -276,6 +279,7 @@ class MainActivity : Activity() {
                 return@setOnClickListener
             }
             if (!recorder.recording) {
+                interruptSpeech() // the person takes the turn
                 player.stop()
                 try {
                     recorder.start()
@@ -410,10 +414,11 @@ class MainActivity : Activity() {
         if (shown.containsKey(m.id)) return
         val box = messageView(m)
         val audio = m.audio
-        if (audio != null) {
-            box.addView(Button(this).apply { text = "Play"; setOnClickListener { playAudio(audio) } })
+        val spoken = m.authorKind == "persona" && m.modality == "voice"
+        if (spoken || audio != null) {
+            box.addView(Button(this).apply { text = "Play"; setOnClickListener { if (spoken) speakParts(m.id) else playAudio(audio!!) } })
             // Speak a reply to a voice message, or when spoken replies are on.
-            if (live && m.authorKind == "persona" && (voiceTurn || settings.speakReplies)) playAudio(audio)
+            if (live && spoken && (voiceTurn || settings.speakReplies)) speakParts(m.id)
         }
         shown[m.id] = box
         messages.addView(box)
@@ -556,6 +561,39 @@ class MainActivity : Activity() {
         box.addView(row)
         box.addView(note)
         return box
+    }
+
+    // A spoken reply comes in parts while Magi makes them (listen); each
+    // part plays after the one before it.
+    private var speakingId: String? = null
+
+    private fun speakParts(id: String) {
+        player.stop()
+        speakingId = id
+        background(null) {
+            var after = 0UL
+            while (speakingId == id) {
+                val r = client().magi.listen(ListenRequest(message = id, after = after, waitMs = 20000UL))
+                for (p in r.parts) {
+                    val a = client().magi.getAudio(GetAudioRequest(digest = p.audio))
+                    runOnUiThread { if (speakingId == id) player.enqueue(a.body, a.mediaType) }
+                }
+                after += r.parts.size.toULong()
+                if (r.done) break
+            }
+        }
+    }
+
+    /** Stops a spoken reply when the person takes the turn. */
+    private fun interruptSpeech() {
+        val id = speakingId ?: return
+        speakingId = null
+        if (!player.playing) return
+        player.stop()
+        background(null) {
+            client().magi.stopSpeech(StopSpeechRequest(message = id, reason = "interrupted"))
+            client().magi.reportDelivery(ReportDeliveryRequest(message = id, stoppedMs = System.currentTimeMillis().toULong(), reason = "interrupted"))
+        }
     }
 
     private fun playAudio(digest: String) {

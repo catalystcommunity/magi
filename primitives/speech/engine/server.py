@@ -10,6 +10,8 @@ Endpoints (all except /health need "Authorization: Bearer <token>"):
   GET  /health      {"ok": true, "engine": ..., "device": ..., "busy": bool}
   GET  /voices      {"voices": [...]}                      (tts)
   POST /synthesize  JSON {text, voice?, speed?} -> audio/wav (tts)
+                    With "timings": true, JSON {audio (base64 WAV), media_type,
+                    words: [[word, start_ms, end_ms], ...], audio_ms, ...}
   POST /transcribe  audio bytes, any ffmpeg format -> JSON  (stt)
 
 Results carry audio_ms and elapsed_ms (JSON fields, or X-Audio-Ms and
@@ -18,6 +20,7 @@ inference. Errors are JSON {"error": "..."} without input text.
 """
 
 import argparse
+import base64
 import hashlib
 import hmac
 import io
@@ -136,12 +139,20 @@ def load_tts(directory, threads, repo, device):
         pipes[voice[0]].load_single_voice(path)
 
     def synthesize(text, voice, speed):
+        """Returns the WAV, its length in ms, and the time of each word: a
+        list of [word, start_ms, end_ms] in the order of the text. Kokoro
+        gives the times of English tokens in each part; a part starts after
+        the audio of the earlier parts."""
         torch.manual_seed(1729)
-        parts, size = [], 0
+        parts, size, words = [], 0, []
         for r in pipes[voice[0]](text, voice=paths[voice], speed=speed):
             if r.audio is None:
                 continue
             a = r.audio.detach().cpu().numpy()
+            offset_ms = size * 1000 / TTS_RATE
+            for t in r.tokens or []:
+                if t.phonemes and t.start_ts is not None and t.end_ts is not None:
+                    words.append([t.text, round(offset_ms + t.start_ts * 1000), round(offset_ms + t.end_ts * 1000)])
             size += a.size
             if a.ndim != 1 or not np.isfinite(a).all() or size > MAX_SECONDS * 2 * TTS_RATE:
                 raise Fail(500, "synthesis produced invalid audio")
@@ -155,7 +166,7 @@ def load_tts(directory, threads, repo, device):
             w.setsampwidth(2)
             w.setframerate(TTS_RATE)
             w.writeframes(pcm.tobytes())
-        return buf.getvalue(), pcm.size * 1000 // TTS_RATE
+        return buf.getvalue(), pcm.size * 1000 // TTS_RATE, words
     return synthesize
 
 
@@ -217,6 +228,7 @@ class Handler(BaseHTTPRequestHandler):
                 req = json.loads(self.body(64 << 10))
                 text, voice = str(req.get("text", "")).strip(), req.get("voice") or DEFAULT_VOICE
                 speed = float(req.get("speed") or 1.0)
+                timings = bool(req.get("timings"))
             except (ValueError, TypeError, AttributeError):
                 raise Fail(400, "invalid JSON request")
             if not text or len(text) > MAX_TEXT:
@@ -227,8 +239,12 @@ class Handler(BaseHTTPRequestHandler):
                 raise Fail(400, "speed must be from 0.5 to 2.0")
             with s.lock:
                 start = time.monotonic()
-                wav, audio_ms = s.run(text, voice, speed)
+                wav, audio_ms, words = s.run(text, voice, speed)
                 elapsed = int((time.monotonic() - start) * 1000)
+            if timings:  # JSON with the audio in base64 and the word times
+                return self.reply(200, {"audio": base64.b64encode(wav).decode(), "media_type": "audio/wav",
+                                        "words": words, "audio_ms": audio_ms, "elapsed_ms": elapsed,
+                                        "voice": voice, "engine": s.engine_name})
             return self.reply(200, wav, "audio/wav", {"X-Audio-Ms": audio_ms, "X-Elapsed-Ms": elapsed,
                                                       "X-Voice": voice, "X-Engine": s.engine_name})
         return self.reply(404, {"error": "not found"})

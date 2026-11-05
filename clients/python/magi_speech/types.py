@@ -84,6 +84,7 @@ class SynthesizeRequest:
     format: Optional[str] = None
     speed: Optional[float] = None
     raw: Optional[bool] = None
+    timings: Optional[bool] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -97,12 +98,14 @@ class SynthesizeRequest:
             result['speed'] = self.speed
         if hasattr(self, 'raw') and self.raw is not None:
             result['raw'] = self.raw
+        if hasattr(self, 'timings') and self.timings is not None:
+            result['timings'] = self.timings
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'SynthesizeRequest':
         """Create instance from dictionary."""
-        return cls(text=data.get('text'), voice=data.get('voice'), format=data.get('format'), speed=data.get('speed'), raw=data.get('raw'))
+        return cls(text=data.get('text'), voice=data.get('voice'), format=data.get('format'), speed=data.get('speed'), raw=data.get('raw'), timings=data.get('timings'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -123,6 +126,7 @@ class Audio:
     engine: str
     audio_ms: int
     elapsed_ms: int
+    words: Optional[List[WordTime]] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -140,12 +144,14 @@ class Audio:
             result['audio_ms'] = self.audio_ms
         if hasattr(self, 'elapsed_ms') and self.elapsed_ms is not None:
             result['elapsed_ms'] = self.elapsed_ms
+        if hasattr(self, 'words') and self.words is not None:
+            result['words'] = self.words
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Audio':
         """Create instance from dictionary."""
-        return cls(body=data.get('body'), spoken=data.get('spoken'), media_type=data.get('media_type'), voice=data.get('voice'), engine=data.get('engine'), audio_ms=data.get('audio_ms'), elapsed_ms=data.get('elapsed_ms'))
+        return cls(body=data.get('body'), spoken=data.get('spoken'), media_type=data.get('media_type'), voice=data.get('voice'), engine=data.get('engine'), audio_ms=data.get('audio_ms'), elapsed_ms=data.get('elapsed_ms'), words=data.get('words'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -153,6 +159,43 @@ class Audio:
 
     @classmethod
     def from_json(cls, json_str: str) -> 'Audio':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class WordTime:
+    word: str
+    start_ms: int
+    end_ms: int
+    start: int
+    end: int
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'word') and self.word is not None:
+            result['word'] = self.word
+        if hasattr(self, 'start_ms') and self.start_ms is not None:
+            result['start_ms'] = self.start_ms
+        if hasattr(self, 'end_ms') and self.end_ms is not None:
+            result['end_ms'] = self.end_ms
+        if hasattr(self, 'start') and self.start is not None:
+            result['start'] = self.start
+        if hasattr(self, 'end') and self.end is not None:
+            result['end'] = self.end
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'WordTime':
+        """Create instance from dictionary."""
+        return cls(word=data.get('word'), start_ms=data.get('start_ms'), end_ms=data.get('end_ms'), start=data.get('start'), end=data.get('end'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'WordTime':
         """Create instance from JSON string."""
         return cls.from_dict(json.loads(json_str))
 

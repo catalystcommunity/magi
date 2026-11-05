@@ -5,11 +5,13 @@ import { jsx as _jsx, jsxs as _jsxs } from "solid-js/h/jsx-runtime";
 import { createSignal } from "solid-js";
 import { For, Show, aria } from "./flow.js";
 import { magi, me, persona, setPersona, personas, personaName, loadPersonas, refreshCounts, go, store, fail, errText, time, day, shortDay, who } from "./api.js";
+import { speak, speaking, word, unlock, interrupt } from "./speech.js";
 const [messages, setMessages] = createSignal([]);
 const [hasEarlier, setHasEarlier] = createSignal(false);
 const [loadError, setLoadError] = createSignal("");
 const [speakReplies, setSpeakReplies] = createSignal(store.get("magi.speak") === "1");
-export const [playing, setPlaying] = createSignal(false);
+const [clipPlaying, setClipPlaying] = createSignal(false);
+export const playing = () => clipPlaying() || speaking() !== null;
 export const [recording, setRecording] = createSignal(false);
 const [context, setContext] = createSignal(null);
 let firstSeq = 0;
@@ -55,9 +57,10 @@ async function follow(g) {
                 setMessages([...messages(), ...fresh]);
                 if (follow)
                     toEnd();
+                // A new spoken reply plays while Magi makes its parts.
                 for (const m of fresh)
-                    if (m.audio && m.authorKind !== "human" && speakReplies() && Date.now() - m.createdMs < 60000)
-                        play(m.audio);
+                    if (spoken(m) && speakReplies() && Date.now() - m.createdMs < 60000)
+                        speak(m);
             }
             for (const m of res.messages)
                 lastSeq = Math.max(lastSeq, m.seq);
@@ -84,6 +87,9 @@ async function loadEarlier() {
 }
 function replace(m) { setMessages(messages().map((x) => (x.id === m.id ? m : x))); }
 // --- Audio ------------------------------------------------------------------
+// A spoken persona reply plays in parts (speech.ts); a voice message of a
+// person plays as one clip.
+const spoken = (m) => m.authorKind === "persona" && m.modality === "voice";
 let audio = null;
 async function play(digest) {
     try {
@@ -92,8 +98,8 @@ async function play(digest) {
         if (audio)
             URL.revokeObjectURL(audio.src);
         audio = new Audio(URL.createObjectURL(new Blob([a.body], { type: a.mediaType })));
-        audio.onplay = () => setPlaying(true);
-        audio.onpause = audio.onended = () => setPlaying(false);
+        audio.onplay = () => setClipPlaying(true);
+        audio.onpause = audio.onended = () => setClipPlaying(false);
         await audio.play();
     }
     catch (e) {
@@ -105,10 +111,12 @@ async function send(text, audioBody, audioType) {
 }
 let recorder;
 async function toggleMic() {
+    unlock();
     if (recorder) {
         recorder.stop();
         return;
     }
+    interrupt("interrupted"); // the person takes the turn
     let stream;
     try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -168,6 +176,15 @@ async function search(q) {
         setContext({ title: "Search", messages: [], error: errText(e) });
     }
 }
+// spokenText shows the text of a message; while Magi speaks it, the word
+// that the person hears is marked, and the words before it are heard.
+function spokenText(m) {
+    const w = word();
+    if (speaking() !== m.id || !w)
+        return m.text;
+    const rs = Array.from(m.text);
+    return [_jsx("span", { class: "heard", children: rs.slice(0, w.start).join("") }), _jsx("mark", { class: "now", children: rs.slice(w.start, w.end).join("") }), _jsx("span", { class: "ahead", children: rs.slice(w.end).join("") })];
+}
 // --- Message ----------------------------------------------------------------
 function About(props) {
     const l = props.l;
@@ -189,7 +206,9 @@ export function MessageView(props) {
     const links = m.links.filter((l) => l.kind !== "reply-to" || !shown.has(l.target.ref));
     const runs = new Set(m.links.filter((l) => l.target.kind === "workflow-run").map((l) => l.target.ref));
     return _jsxs("article", { class: "msg " + (mine ? "mine" : "theirs"), ref: (el) => { if (!props.compact)
-            boxes.set(m.id, el); }, onClick: props.pick ? () => props.pick(m.id) : undefined, children: [_jsxs("header", { class: "msg-head", children: [_jsx("span", { class: "msg-author", children: author }), _jsxs("time", { class: "msg-time", title: new Date(m.createdMs).toLocaleString(), children: [props.compact ? shortDay(m.createdMs) + ", " : "", time(m.createdMs)] }), m.modality === "voice" ? _jsx("span", { class: "tag", children: "spoken" }) : "", m.visibility === "shared" ? _jsx("span", { class: "tag shared", children: "household" }) : "", props.compact ? "" : _jsx("button", { class: "msg-more", title: "Links and who can read this", ...aria("expanded", () => String(details())), onClick: () => setDetails(!details()), children: "Details" })] }), _jsx("div", { class: "msg-text", children: m.text }), m.audio && !props.compact ? _jsx("button", { class: "play", onClick: () => play(m.audio), children: "Play" }) : "", _jsx(For, { each: props.compact ? [] : links, children: (l) => _jsx(About, { l: l }) }), _jsx(For, { each: props.compact ? [] : m.refs.filter((r) => r.kind === "knowledge-node" || (r.kind === "workflow-run" && !runs.has(r.ref))), children: (r) => r.kind === "knowledge-node"
+            boxes.set(m.id, el); }, onClick: props.pick ? () => props.pick(m.id) : undefined, children: [_jsxs("header", { class: "msg-head", children: [_jsx("span", { class: "msg-author", children: author }), _jsxs("time", { class: "msg-time", title: new Date(m.createdMs).toLocaleString(), children: [props.compact ? shortDay(m.createdMs) + ", " : "", time(m.createdMs)] }), m.modality === "voice" ? _jsx("span", { class: "tag", children: "spoken" }) : "", m.visibility === "shared" ? _jsx("span", { class: "tag shared", children: "household" }) : "", props.compact ? "" : _jsx("button", { class: "msg-more", title: "Links and who can read this", ...aria("expanded", () => String(details())), onClick: () => setDetails(!details()), children: "Details" })] }), _jsx("div", { class: "msg-text", children: props.compact ? m.text : () => spokenText(m) }), !props.compact && (spoken(m) || m.audio)
+                ? _jsx("button", { class: "play", onClick: () => (spoken(m) ? (speaking() === m.id ? interrupt("user") : speak(m, 0)) : play(m.audio)), children: () => (speaking() === m.id ? "Stop" : "Play") })
+                : "", _jsx(For, { each: props.compact ? [] : links, children: (l) => _jsx(About, { l: l }) }), _jsx(For, { each: props.compact ? [] : m.refs.filter((r) => r.kind === "knowledge-node" || (r.kind === "workflow-run" && !runs.has(r.ref))), children: (r) => r.kind === "knowledge-node"
                     ? _jsxs("span", { class: "about", children: [_jsx("span", { class: "about-kind", children: "knows" }), " ", r.title ?? r.ref] })
                     : _jsxs("button", { class: "about", onClick: () => go("task", r.ref), children: [_jsx("span", { class: "about-kind", children: "task" }), " ", r.title ?? r.ref] }) }), _jsx(Show, { when: () => details(), children: _jsx(Details, { m: m, close: (_) => setDetails(false) }) }), m.generatedBy && !props.compact && !mine ? _jsx("footer", { class: "msg-model", children: m.generatedBy }) : ""] });
 }
@@ -227,6 +246,7 @@ export function Conversation() {
     } };
     const submit = async (e) => {
         e?.preventDefault();
+        unlock(); // a reply that comes later can play
         const text = input.value.trim();
         if (!text)
             return;
@@ -242,8 +262,8 @@ export function Conversation() {
         }
     };
     const current = () => personas().find((p) => p.id === persona());
-    return _jsxs("div", { class: "talk", children: [_jsxs("section", { class: "stream", "aria-label": "Conversation", children: [_jsxs("header", { class: "stream-head", children: [_jsx(PersonaOrb, { size: "large" }), _jsxs("div", { children: [_jsx("h1", { class: "stream-name", children: () => personaName(persona()) }), _jsx("p", { class: "stream-note", children: () => current()?.sharing === "public" ? "The household talks with this persona. Magi asks before it shares a message." : "Only you talk with this persona." })] })] }), _jsxs("div", { class: "scroller", ref: (el) => (scroller = el), children: [_jsx(Show, { when: hasEarlier, children: _jsx("button", { class: "earlier", onClick: loadEarlier, children: "Show earlier messages" }) }), _jsx(Show, { when: loadError, children: _jsxs("p", { class: "error", children: ["Could not read the conversation: ", loadError] }) }), _jsx(Show, { when: () => !loadError() && messages().length === 0, children: _jsxs("p", { class: "empty", children: ["Say hello to ", () => personaName(persona()), ". Type below, or hold a conversation with the microphone."] }) }), _jsx("div", { class: "turns", children: _jsx(For, { each: messages, children: (m, i) => _jsxs("div", { class: "turn " + (m.authorKind === "human" ? "mine" : "theirs"), children: [_jsx(Show, { when: () => { const prev = messages()[i() - 1]; return !prev || day(prev.createdMs) !== day(m.createdMs); }, children: _jsx("div", { class: "day", children: _jsx("span", { children: day(m.createdMs) }) }) }), _jsx(MessageView, { m: m })] }) }) })] }), _jsxs("form", { class: "composer", onSubmit: submit, children: [_jsx("textarea", { ref: (el) => (input = el), rows: "1", "aria-label": "Message", placeholder: () => "Message " + personaName(persona()), onInput: grow, onKeyDown: (e) => { if (e.key === "Enter" && !e.shiftKey)
-                                    submit(e); } }), _jsx("button", { class: () => "mic" + (recording() ? " on" : ""), type: "button", onClick: toggleMic, ...aria("pressed", () => String(recording())), children: () => (recording() ? "Stop" : "Speak") }), _jsx("button", { class: "send", children: "Send" }), _jsxs("label", { class: "speak-toggle", children: [_jsx("input", { type: "checkbox", checked: speakReplies(), onChange: (e) => { const v = e.target.checked; setSpeakReplies(v); store.set("magi.speak", v ? "1" : "0"); } }), "Speak replies"] })] })] }), _jsx(Show, { when: context, children: _jsxs("aside", { class: "context", "aria-label": "Context", children: [_jsxs("header", { class: "context-head", children: [_jsx("h2", { children: () => context().title }), _jsx("button", { class: "text-button", onClick: () => setContext(null), children: "Close" })] }), _jsx(Show, { when: () => context().loading, children: _jsx("p", { class: "quiet", children: "Loading." }) }), _jsx(Show, { when: () => context().error, children: _jsx("p", { class: "error", children: () => context().error }) }), _jsx(For, { each: () => context().messages, children: (m) => _jsx(MessageView, { m: m, compact: true, pick: (id) => goTo(id) }) })] }) })] });
+    return _jsxs("div", { class: "talk", children: [_jsxs("section", { class: "stream", "aria-label": "Conversation", children: [_jsxs("header", { class: "stream-head", children: [_jsx(PersonaOrb, { size: "large" }), _jsxs("div", { children: [_jsx("h1", { class: "stream-name", children: () => personaName(persona()) }), _jsx("p", { class: "stream-note", children: () => current()?.sharing === "public" ? "The household talks with this persona. Magi asks before it shares a message." : "Only you talk with this persona." })] })] }), _jsxs("div", { class: "scroller", ref: (el) => (scroller = el), children: [_jsx(Show, { when: hasEarlier, children: _jsx("button", { class: "earlier", onClick: loadEarlier, children: "Show earlier messages" }) }), _jsx(Show, { when: loadError, children: _jsxs("p", { class: "error", children: ["Could not read the conversation: ", loadError] }) }), _jsx(Show, { when: () => !loadError() && messages().length === 0, children: _jsxs("p", { class: "empty", children: ["Say hello to ", () => personaName(persona()), ". Type below, or hold a conversation with the microphone."] }) }), _jsx("div", { class: "turns", children: _jsx(For, { each: messages, children: (m, i) => _jsxs("div", { class: "turn " + (m.authorKind === "human" ? "mine" : "theirs"), children: [_jsx(Show, { when: () => { const prev = messages()[i() - 1]; return !prev || day(prev.createdMs) !== day(m.createdMs); }, children: _jsx("div", { class: "day", children: _jsx("span", { children: day(m.createdMs) }) }) }), _jsx(MessageView, { m: m })] }) }) })] }), _jsxs("form", { class: "composer", onSubmit: submit, children: [_jsx("textarea", { ref: (el) => (input = el), rows: "1", "aria-label": "Message", placeholder: () => "Message " + personaName(persona()), onInput: () => { grow(); interrupt("typing"); }, onKeyDown: (e) => { if (e.key === "Enter" && !e.shiftKey)
+                                    submit(e); } }), _jsx("button", { class: () => "mic" + (recording() ? " on" : ""), type: "button", onClick: toggleMic, ...aria("pressed", () => String(recording())), children: () => (recording() ? "Stop" : "Speak") }), _jsx("button", { class: "send", children: "Send" }), _jsxs("label", { class: "speak-toggle", children: [_jsx("input", { type: "checkbox", checked: speakReplies(), onChange: (e) => { const v = e.target.checked; unlock(); setSpeakReplies(v); store.set("magi.speak", v ? "1" : "0"); } }), "Speak replies"] })] })] }), _jsx(Show, { when: context, children: _jsxs("aside", { class: "context", "aria-label": "Context", children: [_jsxs("header", { class: "context-head", children: [_jsx("h2", { children: () => context().title }), _jsx("button", { class: "text-button", onClick: () => setContext(null), children: "Close" })] }), _jsx(Show, { when: () => context().loading, children: _jsx("p", { class: "quiet", children: "Loading." }) }), _jsx(Show, { when: () => context().error, children: _jsx("p", { class: "error", children: () => context().error }) }), _jsx(For, { each: () => context().messages, children: (m) => _jsx(MessageView, { m: m, compact: true, pick: (id) => goTo(id) }) })] }) })] });
 }
 export async function startConversation() {
     await loadPersonas();

@@ -1805,6 +1805,31 @@ def _get_stream_request_from_cbor(data: bytes) -> "GetStreamRequest":
 GetStreamRequest.to_cbor = _get_stream_request_to_cbor
 GetStreamRequest.from_cbor = staticmethod(_get_stream_request_from_cbor)
 
+def _encode_set_audio_request_value(v: "SetAudioRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["audio"] = v.audio
+    csil_m["utterance"] = v.utterance
+    return csil_m
+
+def _decode_set_audio_request_value(tree: Any) -> "SetAudioRequest":
+    tree = _csil_expect_map(tree)
+    return SetAudioRequest(
+        utterance=_csil_expect_text(tree["utterance"]),
+        audio=_csil_expect_text(tree["audio"]),
+    )
+
+
+def _set_audio_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_set_audio_request_value(self))
+
+
+def _set_audio_request_from_cbor(data: bytes) -> "SetAudioRequest":
+    return _decode_set_audio_request_value(cbor_decode(data))
+
+
+SetAudioRequest.to_cbor = _set_audio_request_to_cbor
+SetAudioRequest.from_cbor = staticmethod(_set_audio_request_from_cbor)
+
 def _encode_annotate_request_value(v: "AnnotateRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["body"] = v.body

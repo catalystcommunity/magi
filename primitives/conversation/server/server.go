@@ -898,6 +898,27 @@ func (s *Service) MarkClassified(ctx context.Context, req api.MarkClassifiedRequ
 	return u, notFound(err, "utterance %s", req.Utterance)
 }
 
+func (s *Service) SetAudio(ctx context.Context, req api.SetAudioRequest) (api.Utterance, error) {
+	p, acc, err := s.access(ctx, nil, nil)
+	if err != nil {
+		return api.Utterance{}, err
+	}
+	if !privileged(p) {
+		return api.Utterance{}, rpc.Denied("set-audio needs %s", ScopeActAs)
+	}
+	if req.Audio == "" {
+		return api.Utterance{}, rpc.Invalid("audio is required")
+	}
+	if _, err := s.DB.GetUtterance(ctx, acc, req.Utterance); err != nil {
+		return api.Utterance{}, notFound(err, "utterance %s", req.Utterance)
+	}
+	u, err := s.DB.SetAudio(ctx, req.Utterance, req.Audio)
+	if err != nil {
+		return api.Utterance{}, notFound(err, "utterance %s with no audio", req.Utterance)
+	}
+	return u, nil
+}
+
 func (s *Service) Annotate(ctx context.Context, req api.AnnotateRequest) (api.Annotation, error) {
 	p, acc, err := s.access(ctx, nil, nil)
 	if err != nil {

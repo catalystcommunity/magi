@@ -41,7 +41,16 @@ API in `contracts/magi.csil`, two clients, and the background workers.
    link, and a `started` link to each task that it started. The tool calls
    are kept as an `interpretation` annotation on the person's utterance.
 5. The librarian classifies both utterances (see below).
-   With `speak_reply`, the reply is also synthesized and stored as audio.
+   With `speak_reply`, the reply is spoken in parts (`compose/speech.go`):
+   Magi posts the text at once, with modality `voice`. Then it synthesizes
+   the first clause, then each sentence, and adds each part as a
+   `speech-part` annotation (audio digest, offsets in the text, word
+   times). `listen` gives the parts to a client while Magi makes them; the
+   first part is ready about 350 ms after the text. When all parts are
+   made, the message gets the whole audio (`set-audio`) for clients that do
+   not listen. `stop-speech` stops the parts that are not made yet, and
+   `report-delivery` records how much of the reply the client played
+   (`delivery` annotation; see `docs/speech-interaction.md`, 2.3.1).
 
 ## Code-change workflow
 

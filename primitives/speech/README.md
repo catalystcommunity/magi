@@ -46,6 +46,7 @@ All requests, except `/health`, need `Authorization: Bearer <token>`.
 | `GET /health` | both | none | `{"ok", "engine", "busy"}` |
 | `POST /transcribe` | STT | audio bytes | `{"text", "engine", "audio_ms", "elapsed_ms"}` |
 | `POST /synthesize` | TTS | `{"text", "voice"?, "speed"?}` | WAV, headers `X-Audio-Ms`, `X-Elapsed-Ms`, `X-Voice`, `X-Engine` |
+| `POST /synthesize` | TTS | `{"text", ..., "timings": true}` | `{"audio" (base64 WAV), "media_type", "words": [[word, start_ms, end_ms]], "audio_ms", ...}` |
 | `GET /voices` | TTS | none | `{"voices": [{"id", "name", "language", "description"}]}` |
 
 An error is JSON `{"error": "..."}`. Status 400 or 413 is a bad input. Other
@@ -59,7 +60,12 @@ statuses are engine failures. The error does not contain the input text.
   `audio_ms`, `elapsed_ms`). The service ignores `language`; Parakeet v3
   finds the language.
 - `synthesize`: text, optional `voice`, `speed` (0.5 to 2.0), and `format`
-  (only `wav`) to `Audio`.
+  (only `wav`) to `Audio`. With `timings`, `Audio.words` gives the time of
+  each spoken word. Kokoro gives the times of English tokens. The service
+  gives each word the place (code point offsets) of a word in the request
+  text, not in the spoken text: it matches equal words in order, and a word
+  that the spoken text adds (the "to" of "4-6") gets the place of a near
+  word (`server/align.go`).
 - `list-voices`: optional `language` filter. `en` matches `en-US` and `en-GB`.
 - `list-lexicon`, `put-lexicon-entry`, `delete-lexicon-entry`: the household
   lexicon. A change needs the scope `speech:lexicon`. Magi has this scope

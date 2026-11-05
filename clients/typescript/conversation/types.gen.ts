@@ -422,6 +422,16 @@ export interface GetStreamRequest {
   id: string;
 }
 
+/**
+ * set-audio gives an utterance its audio after the post, for example a
+ * spoken reply that was made in parts. It needs conversation:act-as, and
+ * the utterance must have no audio.
+ */
+export interface SetAudioRequest {
+  utterance: string;
+  audio: string;
+}
+
 export interface AnnotateRequest {
   utterance: string;
   kind: string;

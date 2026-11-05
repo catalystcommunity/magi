@@ -1523,6 +1523,34 @@ class GetStreamRequest:
 
 
 @dataclass
+class SetAudioRequest:
+    utterance: str
+    audio: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'utterance') and self.utterance is not None:
+            result['utterance'] = self.utterance
+        if hasattr(self, 'audio') and self.audio is not None:
+            result['audio'] = self.audio
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'SetAudioRequest':
+        """Create instance from dictionary."""
+        return cls(utterance=data.get('utterance'), audio=data.get('audio'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'SetAudioRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
 class AnnotateRequest:
     utterance: str
     kind: str

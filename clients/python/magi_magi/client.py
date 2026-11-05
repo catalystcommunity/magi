@@ -83,6 +83,18 @@ class MagiClient:
         """get-audio"""
         return AudioResponse.from_cbor(self._transport.call("MagiService", "get-audio", req.to_cbor()))
 
+    def listen(self, req: ListenRequest) -> ListenResponse:
+        """listen"""
+        return ListenResponse.from_cbor(self._transport.call("MagiService", "listen", req.to_cbor()))
+
+    def stop_speech(self, req: StopSpeechRequest) -> StopSpeechResponse:
+        """stop-speech"""
+        return StopSpeechResponse.from_cbor(self._transport.call("MagiService", "stop-speech", req.to_cbor()))
+
+    def report_delivery(self, req: ReportDeliveryRequest) -> ReportDeliveryResponse:
+        """report-delivery"""
+        return ReportDeliveryResponse.from_cbor(self._transport.call("MagiService", "report-delivery", req.to_cbor()))
+
     def start_task(self, req: StartTaskRequest) -> Task:
         """start-task"""
         return Task.from_cbor(self._transport.call("MagiService", "start-task", req.to_cbor()))

@@ -22,22 +22,33 @@ type Transcript struct {
 
 // SynthesizeRequest represents a structured data type
 type SynthesizeRequest struct {
-	Text   string   `json:"text" yaml:"text"`
-	Voice  *string  `json:"voice,omitempty" yaml:"voice,omitempty"`
-	Format *string  `json:"format,omitempty" yaml:"format,omitempty"`
-	Speed  *float64 `json:"speed,omitempty" yaml:"speed,omitempty"`
-	Raw    *bool    `json:"raw,omitempty" yaml:"raw,omitempty"`
+	Text    string   `json:"text" yaml:"text"`
+	Voice   *string  `json:"voice,omitempty" yaml:"voice,omitempty"`
+	Format  *string  `json:"format,omitempty" yaml:"format,omitempty"`
+	Speed   *float64 `json:"speed,omitempty" yaml:"speed,omitempty"`
+	Raw     *bool    `json:"raw,omitempty" yaml:"raw,omitempty"`
+	Timings *bool    `json:"timings,omitempty" yaml:"timings,omitempty"`
 }
 
 // Audio represents a structured data type
 type Audio struct {
-	Body      []byte `json:"body" yaml:"body"`
-	Spoken    string `json:"spoken" yaml:"spoken"`
-	MediaType string `json:"media_type" yaml:"media_type"`
-	Voice     string `json:"voice" yaml:"voice"`
-	Engine    string `json:"engine" yaml:"engine"`
-	AudioMs   uint64 `json:"audio_ms" yaml:"audio_ms"`
-	ElapsedMs uint64 `json:"elapsed_ms" yaml:"elapsed_ms"`
+	Body      []byte     `json:"body" yaml:"body"`
+	Spoken    string     `json:"spoken" yaml:"spoken"`
+	MediaType string     `json:"media_type" yaml:"media_type"`
+	Voice     string     `json:"voice" yaml:"voice"`
+	Engine    string     `json:"engine" yaml:"engine"`
+	AudioMs   uint64     `json:"audio_ms" yaml:"audio_ms"`
+	ElapsedMs uint64     `json:"elapsed_ms" yaml:"elapsed_ms"`
+	Words     []WordTime `json:"words,omitempty" yaml:"words,omitempty"`
+}
+
+// WordTime represents a structured data type
+type WordTime struct {
+	Word    string `json:"word" yaml:"word"`
+	StartMs uint64 `json:"start_ms" yaml:"start_ms"`
+	EndMs   uint64 `json:"end_ms" yaml:"end_ms"`
+	Start   uint64 `json:"start" yaml:"start"`
+	End     uint64 `json:"end" yaml:"end"`
 }
 
 // Voice represents a structured data type

@@ -936,6 +936,177 @@ export function toAudioResponseCbor(v) {
 export function fromAudioResponseCbor(bytes) {
     return fromAudioResponseCborValue(decode(bytes));
 }
+export function toWordTimeCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("end", v.end);
+    csilMap.set("word", v.word);
+    csilMap.set("start", v.start);
+    csilMap.set("end_ms", v.endMs);
+    csilMap.set("start_ms", v.startMs);
+    return csilMap;
+}
+export function fromWordTimeCborValue(value) {
+    return {
+        word: asString(requireKey(value, "word")),
+        startMs: asNumber(requireKey(value, "start_ms")),
+        endMs: asNumber(requireKey(value, "end_ms")),
+        start: asNumber(requireKey(value, "start")),
+        end: asNumber(requireKey(value, "end")),
+    };
+}
+export function toWordTimeCbor(v) {
+    return encodeValue(toWordTimeCborValue(v));
+}
+export function fromWordTimeCbor(bytes) {
+    return fromWordTimeCborValue(decode(bytes));
+}
+export function toSpeechPartCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("end", v.end);
+    csilMap.set("audio", v.audio);
+    csilMap.set("index", v.index);
+    csilMap.set("start", v.start);
+    csilMap.set("words", v.words.map((csilE) => toWordTimeCborValue(csilE)));
+    csilMap.set("audio_ms", v.audioMs);
+    csilMap.set("media_type", v.mediaType);
+    return csilMap;
+}
+export function fromSpeechPartCborValue(value) {
+    return {
+        index: asNumber(requireKey(value, "index")),
+        audio: asString(requireKey(value, "audio")),
+        mediaType: asString(requireKey(value, "media_type")),
+        start: asNumber(requireKey(value, "start")),
+        end: asNumber(requireKey(value, "end")),
+        audioMs: asNumber(requireKey(value, "audio_ms")),
+        words: asArray(requireKey(value, "words")).map((csilE) => fromWordTimeCborValue(csilE)),
+    };
+}
+export function toSpeechPartCbor(v) {
+    return encodeValue(toSpeechPartCborValue(v));
+}
+export function fromSpeechPartCbor(bytes) {
+    return fromSpeechPartCborValue(decode(bytes));
+}
+export function toListenRequestCborValue(v) {
+    const csilMap = new Map();
+    if (v.after !== undefined)
+        csilMap.set("after", v.after);
+    csilMap.set("message", v.message);
+    if (v.waitMs !== undefined)
+        csilMap.set("wait_ms", v.waitMs);
+    return csilMap;
+}
+export function fromListenRequestCborValue(value) {
+    return {
+        message: asString(requireKey(value, "message")),
+        after: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "after")),
+        waitMs: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "wait_ms")),
+    };
+}
+export function toListenRequestCbor(v) {
+    return encodeValue(toListenRequestCborValue(v));
+}
+export function fromListenRequestCbor(bytes) {
+    return fromListenRequestCborValue(decode(bytes));
+}
+export function toListenResponseCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("done", v.done);
+    csilMap.set("parts", v.parts.map((csilE) => toSpeechPartCborValue(csilE)));
+    csilMap.set("stopped", v.stopped);
+    return csilMap;
+}
+export function fromListenResponseCborValue(value) {
+    return {
+        parts: asArray(requireKey(value, "parts")).map((csilE) => fromSpeechPartCborValue(csilE)),
+        done: asBool(requireKey(value, "done")),
+        stopped: asBool(requireKey(value, "stopped")),
+    };
+}
+export function toListenResponseCbor(v) {
+    return encodeValue(toListenResponseCborValue(v));
+}
+export function fromListenResponseCbor(bytes) {
+    return fromListenResponseCborValue(decode(bytes));
+}
+export function toStopSpeechRequestCborValue(v) {
+    const csilMap = new Map();
+    if (v.reason !== undefined)
+        csilMap.set("reason", v.reason);
+    csilMap.set("message", v.message);
+    return csilMap;
+}
+export function fromStopSpeechRequestCborValue(value) {
+    return {
+        message: asString(requireKey(value, "message")),
+        reason: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "reason")),
+    };
+}
+export function toStopSpeechRequestCbor(v) {
+    return encodeValue(toStopSpeechRequestCborValue(v));
+}
+export function fromStopSpeechRequestCbor(bytes) {
+    return fromStopSpeechRequestCborValue(decode(bytes));
+}
+export function toStopSpeechResponseCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("stopped", v.stopped);
+    return csilMap;
+}
+export function fromStopSpeechResponseCborValue(value) {
+    return {
+        stopped: asBool(requireKey(value, "stopped")),
+    };
+}
+export function toStopSpeechResponseCbor(v) {
+    return encodeValue(toStopSpeechResponseCborValue(v));
+}
+export function fromStopSpeechResponseCbor(bytes) {
+    return fromStopSpeechResponseCborValue(decode(bytes));
+}
+export function toReportDeliveryRequestCborValue(v) {
+    const csilMap = new Map();
+    if (v.reason !== undefined)
+        csilMap.set("reason", v.reason);
+    csilMap.set("message", v.message);
+    if (v.shownMs !== undefined)
+        csilMap.set("shown_ms", v.shownMs);
+    if (v.stoppedMs !== undefined)
+        csilMap.set("stopped_ms", v.stoppedMs);
+    if (v.spokenUntil !== undefined)
+        csilMap.set("spoken_until", v.spokenUntil);
+    return csilMap;
+}
+export function fromReportDeliveryRequestCborValue(value) {
+    return {
+        message: asString(requireKey(value, "message")),
+        spokenUntil: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "spoken_until")),
+        shownMs: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "shown_ms")),
+        stoppedMs: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "stopped_ms")),
+        reason: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "reason")),
+    };
+}
+export function toReportDeliveryRequestCbor(v) {
+    return encodeValue(toReportDeliveryRequestCborValue(v));
+}
+export function fromReportDeliveryRequestCbor(bytes) {
+    return fromReportDeliveryRequestCborValue(decode(bytes));
+}
+export function toReportDeliveryResponseCborValue(v) {
+    const csilMap = new Map();
+    return csilMap;
+}
+export function fromReportDeliveryResponseCborValue(value) {
+    void value;
+    return {};
+}
+export function toReportDeliveryResponseCbor(v) {
+    return encodeValue(toReportDeliveryResponseCborValue(v));
+}
+export function fromReportDeliveryResponseCbor(bytes) {
+    return fromReportDeliveryResponseCborValue(decode(bytes));
+}
 export function toTaskStepCborValue(v) {
     const csilMap = new Map();
     csilMap.set("step", v.step);

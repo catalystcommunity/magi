@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { AnnotateRequest, Annotation, AnswerReviewRequest, Calibration, ClaimUnclassifiedRequest, ClaimUnclassifiedResponse, Example, GetCalibrationRequest, GetPersonaRequest, GetStreamRequest, GetUtteranceRequest, GetUtterancesRequest, GetUtterancesResponse, ImportLegacyRequest, ImportLegacyResponse, Link, ListAnnotationsRequest, ListAnnotationsResponse, ListExamplesRequest, ListExamplesResponse, ListLinksRequest, ListLinksResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListStreamsRequest, ListStreamsResponse, ListUtterancesRequest, ListUtterancesResponse, MarkClassifiedRequest, NewLink, OpenStreamRequest, Persona, PostRequest, PutLinkRequest, PutLinkResponse, PutPersonaRequest, Ref, RetractLinkRequest, Review, SearchHit, SearchRequest, SearchResponse, SetVisibilityRequest, SetVisibilityResponse, Span, Stream, TraceRequest, TraceResponse, Utterance } from "./types.gen.ts";
+import type { AnnotateRequest, Annotation, AnswerReviewRequest, Calibration, ClaimUnclassifiedRequest, ClaimUnclassifiedResponse, Example, GetCalibrationRequest, GetPersonaRequest, GetStreamRequest, GetUtteranceRequest, GetUtterancesRequest, GetUtterancesResponse, ImportLegacyRequest, ImportLegacyResponse, Link, ListAnnotationsRequest, ListAnnotationsResponse, ListExamplesRequest, ListExamplesResponse, ListLinksRequest, ListLinksResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListStreamsRequest, ListStreamsResponse, ListUtterancesRequest, ListUtterancesResponse, MarkClassifiedRequest, NewLink, OpenStreamRequest, Persona, PostRequest, PutLinkRequest, PutLinkResponse, PutPersonaRequest, Ref, RetractLinkRequest, Review, SearchHit, SearchRequest, SearchResponse, SetAudioRequest, SetVisibilityRequest, SetVisibilityResponse, Span, Stream, TraceRequest, TraceResponse, Utterance } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -1514,6 +1514,28 @@ export function toGetStreamRequestCbor(v: GetStreamRequest): Uint8Array {
 
 export function fromGetStreamRequestCbor(bytes: Uint8Array): GetStreamRequest {
   return fromGetStreamRequestCborValue(decode(bytes));
+}
+
+export function toSetAudioRequestCborValue(v: SetAudioRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("audio", v.audio);
+  csilMap.set("utterance", v.utterance);
+  return csilMap;
+}
+
+export function fromSetAudioRequestCborValue(value: CborValue): SetAudioRequest {
+  return {
+    utterance: asString(requireKey(value, "utterance")),
+    audio: asString(requireKey(value, "audio")),
+  };
+}
+
+export function toSetAudioRequestCbor(v: SetAudioRequest): Uint8Array {
+  return encodeValue(toSetAudioRequestCborValue(v));
+}
+
+export function fromSetAudioRequestCbor(bytes: Uint8Array): SetAudioRequest {
+  return fromSetAudioRequestCborValue(decode(bytes));
 }
 
 export function toAnnotateRequestCborValue(v: AnnotateRequest): CborValue {

@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideRequest, DeleteLexiconWordRequest, DeleteLexiconWordResponse, EgressDestinationRequest, EgressDestinationResponse, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressFlow, EgressFlowHeader, EgressReportRequest, EgressReportResponse, EgressReview, EgressReviewHeader, EgressSecretRule, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, FileChange, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetTaskDiffRequest, GetTaskRequest, KnowledgeItem, LexiconWord, LinkRequest, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListVoicesRequest, ListVoicesResponse, Message, MessageLink, PersonaInfo, PutAppReleaseRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, ReviewItem, RunnerAck, RunnerAssignment, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerEgressProxy, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerInfo, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, RunnerUpdate, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, StartTaskRequest, Task, TaskDiff, TaskStep, TraceRequest, TraceResponse, UnlinkRequest, VoiceInfo } from "./types.gen.ts";
+import type { AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideRequest, DeleteLexiconWordRequest, DeleteLexiconWordResponse, EgressDestinationRequest, EgressDestinationResponse, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressFlow, EgressFlowHeader, EgressReportRequest, EgressReportResponse, EgressReview, EgressReviewHeader, EgressSecretRule, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, FileChange, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetTaskDiffRequest, GetTaskRequest, KnowledgeItem, LexiconWord, LinkRequest, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListVoicesRequest, ListVoicesResponse, ListenRequest, ListenResponse, Message, MessageLink, PersonaInfo, PutAppReleaseRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, ReportDeliveryRequest, ReportDeliveryResponse, ReviewItem, RunnerAck, RunnerAssignment, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerEgressProxy, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerInfo, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, RunnerUpdate, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, SpeechPart, StartTaskRequest, StopSpeechRequest, StopSpeechResponse, Task, TaskDiff, TaskStep, TraceRequest, TraceResponse, UnlinkRequest, VoiceInfo, WordTime } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -1016,6 +1016,202 @@ export function toAudioResponseCbor(v: AudioResponse): Uint8Array {
 
 export function fromAudioResponseCbor(bytes: Uint8Array): AudioResponse {
   return fromAudioResponseCborValue(decode(bytes));
+}
+
+export function toWordTimeCborValue(v: WordTime): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("end", v.end);
+  csilMap.set("word", v.word);
+  csilMap.set("start", v.start);
+  csilMap.set("end_ms", v.endMs);
+  csilMap.set("start_ms", v.startMs);
+  return csilMap;
+}
+
+export function fromWordTimeCborValue(value: CborValue): WordTime {
+  return {
+    word: asString(requireKey(value, "word")),
+    startMs: asNumber(requireKey(value, "start_ms")),
+    endMs: asNumber(requireKey(value, "end_ms")),
+    start: asNumber(requireKey(value, "start")),
+    end: asNumber(requireKey(value, "end")),
+  };
+}
+
+export function toWordTimeCbor(v: WordTime): Uint8Array {
+  return encodeValue(toWordTimeCborValue(v));
+}
+
+export function fromWordTimeCbor(bytes: Uint8Array): WordTime {
+  return fromWordTimeCborValue(decode(bytes));
+}
+
+export function toSpeechPartCborValue(v: SpeechPart): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("end", v.end);
+  csilMap.set("audio", v.audio);
+  csilMap.set("index", v.index);
+  csilMap.set("start", v.start);
+  csilMap.set("words", v.words.map((csilE): CborValue => toWordTimeCborValue(csilE)));
+  csilMap.set("audio_ms", v.audioMs);
+  csilMap.set("media_type", v.mediaType);
+  return csilMap;
+}
+
+export function fromSpeechPartCborValue(value: CborValue): SpeechPart {
+  return {
+    index: asNumber(requireKey(value, "index")),
+    audio: asString(requireKey(value, "audio")),
+    mediaType: asString(requireKey(value, "media_type")),
+    start: asNumber(requireKey(value, "start")),
+    end: asNumber(requireKey(value, "end")),
+    audioMs: asNumber(requireKey(value, "audio_ms")),
+    words: asArray(requireKey(value, "words")).map((csilE) => fromWordTimeCborValue(csilE)),
+  };
+}
+
+export function toSpeechPartCbor(v: SpeechPart): Uint8Array {
+  return encodeValue(toSpeechPartCborValue(v));
+}
+
+export function fromSpeechPartCbor(bytes: Uint8Array): SpeechPart {
+  return fromSpeechPartCborValue(decode(bytes));
+}
+
+export function toListenRequestCborValue(v: ListenRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.after !== undefined) csilMap.set("after", v.after);
+  csilMap.set("message", v.message);
+  if (v.waitMs !== undefined) csilMap.set("wait_ms", v.waitMs);
+  return csilMap;
+}
+
+export function fromListenRequestCborValue(value: CborValue): ListenRequest {
+  return {
+    message: asString(requireKey(value, "message")),
+    after: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "after")),
+    waitMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "wait_ms")),
+  };
+}
+
+export function toListenRequestCbor(v: ListenRequest): Uint8Array {
+  return encodeValue(toListenRequestCborValue(v));
+}
+
+export function fromListenRequestCbor(bytes: Uint8Array): ListenRequest {
+  return fromListenRequestCborValue(decode(bytes));
+}
+
+export function toListenResponseCborValue(v: ListenResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("done", v.done);
+  csilMap.set("parts", v.parts.map((csilE): CborValue => toSpeechPartCborValue(csilE)));
+  csilMap.set("stopped", v.stopped);
+  return csilMap;
+}
+
+export function fromListenResponseCborValue(value: CborValue): ListenResponse {
+  return {
+    parts: asArray(requireKey(value, "parts")).map((csilE) => fromSpeechPartCborValue(csilE)),
+    done: asBool(requireKey(value, "done")),
+    stopped: asBool(requireKey(value, "stopped")),
+  };
+}
+
+export function toListenResponseCbor(v: ListenResponse): Uint8Array {
+  return encodeValue(toListenResponseCborValue(v));
+}
+
+export function fromListenResponseCbor(bytes: Uint8Array): ListenResponse {
+  return fromListenResponseCborValue(decode(bytes));
+}
+
+export function toStopSpeechRequestCborValue(v: StopSpeechRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.reason !== undefined) csilMap.set("reason", v.reason);
+  csilMap.set("message", v.message);
+  return csilMap;
+}
+
+export function fromStopSpeechRequestCborValue(value: CborValue): StopSpeechRequest {
+  return {
+    message: asString(requireKey(value, "message")),
+    reason: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "reason")),
+  };
+}
+
+export function toStopSpeechRequestCbor(v: StopSpeechRequest): Uint8Array {
+  return encodeValue(toStopSpeechRequestCborValue(v));
+}
+
+export function fromStopSpeechRequestCbor(bytes: Uint8Array): StopSpeechRequest {
+  return fromStopSpeechRequestCborValue(decode(bytes));
+}
+
+export function toStopSpeechResponseCborValue(v: StopSpeechResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("stopped", v.stopped);
+  return csilMap;
+}
+
+export function fromStopSpeechResponseCborValue(value: CborValue): StopSpeechResponse {
+  return {
+    stopped: asBool(requireKey(value, "stopped")),
+  };
+}
+
+export function toStopSpeechResponseCbor(v: StopSpeechResponse): Uint8Array {
+  return encodeValue(toStopSpeechResponseCborValue(v));
+}
+
+export function fromStopSpeechResponseCbor(bytes: Uint8Array): StopSpeechResponse {
+  return fromStopSpeechResponseCborValue(decode(bytes));
+}
+
+export function toReportDeliveryRequestCborValue(v: ReportDeliveryRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.reason !== undefined) csilMap.set("reason", v.reason);
+  csilMap.set("message", v.message);
+  if (v.shownMs !== undefined) csilMap.set("shown_ms", v.shownMs);
+  if (v.stoppedMs !== undefined) csilMap.set("stopped_ms", v.stoppedMs);
+  if (v.spokenUntil !== undefined) csilMap.set("spoken_until", v.spokenUntil);
+  return csilMap;
+}
+
+export function fromReportDeliveryRequestCborValue(value: CborValue): ReportDeliveryRequest {
+  return {
+    message: asString(requireKey(value, "message")),
+    spokenUntil: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "spoken_until")),
+    shownMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "shown_ms")),
+    stoppedMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "stopped_ms")),
+    reason: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "reason")),
+  };
+}
+
+export function toReportDeliveryRequestCbor(v: ReportDeliveryRequest): Uint8Array {
+  return encodeValue(toReportDeliveryRequestCborValue(v));
+}
+
+export function fromReportDeliveryRequestCbor(bytes: Uint8Array): ReportDeliveryRequest {
+  return fromReportDeliveryRequestCborValue(decode(bytes));
+}
+
+export function toReportDeliveryResponseCborValue(v: ReportDeliveryResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  return csilMap;
+}
+
+export function fromReportDeliveryResponseCborValue(value: CborValue): ReportDeliveryResponse {
+  void value;
+  return {} as ReportDeliveryResponse;
+}
+
+export function toReportDeliveryResponseCbor(v: ReportDeliveryResponse): Uint8Array {
+  return encodeValue(toReportDeliveryResponseCborValue(v));
+}
+
+export function fromReportDeliveryResponseCbor(bytes: Uint8Array): ReportDeliveryResponse {
+  return fromReportDeliveryResponseCborValue(decode(bytes));
 }
 
 export function toTaskStepCborValue(v: TaskStep): CborValue {

@@ -31,7 +31,8 @@ export interface Transcript {
  * Text to speech. format is "wav" by default. The service makes spoken
  * text first: it removes Markdown, says number ranges ("4-6" is "4 to
  * 6"), and applies the lexicon. raw sends the text unchanged. spoken is
- * the text that the engine got.
+ * the text that the engine got. With timings, words gives the time of
+ * each spoken word in the audio.
  */
 export interface SynthesizeRequest {
   text: string;
@@ -39,6 +40,7 @@ export interface SynthesizeRequest {
   format?: string;
   speed?: number;
   raw?: boolean;
+  timings?: boolean;
 }
 
 export interface Audio {
@@ -49,6 +51,22 @@ export interface Audio {
   engine: string;
   audioMs: number;
   elapsedMs: number;
+  words?: WordTime[];
+}
+
+/**
+ * One spoken word and its time in the audio, in ms. start and end are
+ * character (code point) offsets [start, end) of the word in the request
+ * text, not in the spoken text: "4" in "4-6" is the place of the spoken
+ * "four". Words that the spoken text adds (the "to" of "4 to 6") get the
+ * place of the nearest request word.
+ */
+export interface WordTime {
+  word: string;
+  startMs: number;
+  endMs: number;
+  start: number;
+  end: number;
 }
 
 export interface Voice {

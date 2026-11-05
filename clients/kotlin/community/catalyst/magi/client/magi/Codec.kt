@@ -975,6 +975,194 @@ fun audioResponseFromCborValue(cbor: CborValue): AudioResponse {
 /** Decode CSIL CBOR bytes into a AudioResponse. */
 fun audioResponseFromCbor(bytes: ByteArray): AudioResponse = audioResponseFromCborValue(CsilCbor.decode(bytes))
 
+/** The CBOR value tree for a WordTime (deep, canonical key order). */
+fun WordTime.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("end") to CborValue.CUint(this.end))
+    csilEntries.add(CborValue.CText("word") to CborValue.CText(this.word))
+    csilEntries.add(CborValue.CText("start") to CborValue.CUint(this.start))
+    csilEntries.add(CborValue.CText("end_ms") to CborValue.CUint(this.endMs))
+    csilEntries.add(CborValue.CText("start_ms") to CborValue.CUint(this.startMs))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a WordTime to canonical CSIL CBOR bytes. */
+fun WordTime.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a WordTime from a decoded CBOR value tree. */
+fun wordTimeFromCborValue(cbor: CborValue): WordTime {
+    val word = CsilCbor.asText(CsilCbor.require(cbor, "word"))
+    val startMs = CsilCbor.asULong(CsilCbor.require(cbor, "start_ms"))
+    val endMs = CsilCbor.asULong(CsilCbor.require(cbor, "end_ms"))
+    val start = CsilCbor.asULong(CsilCbor.require(cbor, "start"))
+    val end = CsilCbor.asULong(CsilCbor.require(cbor, "end"))
+    return WordTime(word = word, startMs = startMs, endMs = endMs, start = start, end = end)
+}
+
+/** Decode CSIL CBOR bytes into a WordTime. */
+fun wordTimeFromCbor(bytes: ByteArray): WordTime = wordTimeFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a SpeechPart (deep, canonical key order). */
+fun SpeechPart.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("end") to CborValue.CUint(this.end))
+    csilEntries.add(CborValue.CText("audio") to CborValue.CText(this.audio))
+    csilEntries.add(CborValue.CText("index") to CborValue.CUint(this.index))
+    csilEntries.add(CborValue.CText("start") to CborValue.CUint(this.start))
+    csilEntries.add(CborValue.CText("words") to CborValue.CArray((this.words).map { csilE -> csilE.toCborValue() }))
+    csilEntries.add(CborValue.CText("audio_ms") to CborValue.CUint(this.audioMs))
+    csilEntries.add(CborValue.CText("media_type") to CborValue.CText(this.mediaType))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a SpeechPart to canonical CSIL CBOR bytes. */
+fun SpeechPart.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a SpeechPart from a decoded CBOR value tree. */
+fun speechPartFromCborValue(cbor: CborValue): SpeechPart {
+    val index = CsilCbor.asULong(CsilCbor.require(cbor, "index"))
+    val audio = CsilCbor.asText(CsilCbor.require(cbor, "audio"))
+    val mediaType = CsilCbor.asText(CsilCbor.require(cbor, "media_type"))
+    val start = CsilCbor.asULong(CsilCbor.require(cbor, "start"))
+    val end = CsilCbor.asULong(CsilCbor.require(cbor, "end"))
+    val audioMs = CsilCbor.asULong(CsilCbor.require(cbor, "audio_ms"))
+    val words = CsilCbor.asArray(CsilCbor.require(cbor, "words")).map { csilE -> wordTimeFromCborValue(csilE) }
+    return SpeechPart(index = index, audio = audio, mediaType = mediaType, start = start, end = end, audioMs = audioMs, words = words)
+}
+
+/** Decode CSIL CBOR bytes into a SpeechPart. */
+fun speechPartFromCbor(bytes: ByteArray): SpeechPart = speechPartFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListenRequest (deep, canonical key order). */
+fun ListenRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.after?.let { csilV -> csilEntries.add(CborValue.CText("after") to CborValue.CUint(csilV)) }
+    csilEntries.add(CborValue.CText("message") to CborValue.CText(this.message))
+    this.waitMs?.let { csilV -> csilEntries.add(CborValue.CText("wait_ms") to CborValue.CUint(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListenRequest to canonical CSIL CBOR bytes. */
+fun ListenRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListenRequest from a decoded CBOR value tree. */
+fun listenRequestFromCborValue(cbor: CborValue): ListenRequest {
+    val message = CsilCbor.asText(CsilCbor.require(cbor, "message"))
+    val after = CsilCbor.mapGet(cbor, "after")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val waitMs = CsilCbor.mapGet(cbor, "wait_ms")?.let { csilV -> CsilCbor.asULong(csilV) }
+    return ListenRequest(message = message, after = after, waitMs = waitMs)
+}
+
+/** Decode CSIL CBOR bytes into a ListenRequest. */
+fun listenRequestFromCbor(bytes: ByteArray): ListenRequest = listenRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListenResponse (deep, canonical key order). */
+fun ListenResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("done") to CborValue.CBool(this.done))
+    csilEntries.add(CborValue.CText("parts") to CborValue.CArray((this.parts).map { csilE -> csilE.toCborValue() }))
+    csilEntries.add(CborValue.CText("stopped") to CborValue.CBool(this.stopped))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListenResponse to canonical CSIL CBOR bytes. */
+fun ListenResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListenResponse from a decoded CBOR value tree. */
+fun listenResponseFromCborValue(cbor: CborValue): ListenResponse {
+    val parts = CsilCbor.asArray(CsilCbor.require(cbor, "parts")).map { csilE -> speechPartFromCborValue(csilE) }
+    val done = CsilCbor.asBoolean(CsilCbor.require(cbor, "done"))
+    val stopped = CsilCbor.asBoolean(CsilCbor.require(cbor, "stopped"))
+    return ListenResponse(parts = parts, done = done, stopped = stopped)
+}
+
+/** Decode CSIL CBOR bytes into a ListenResponse. */
+fun listenResponseFromCbor(bytes: ByteArray): ListenResponse = listenResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a StopSpeechRequest (deep, canonical key order). */
+fun StopSpeechRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.reason?.let { csilV -> csilEntries.add(CborValue.CText("reason") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("message") to CborValue.CText(this.message))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a StopSpeechRequest to canonical CSIL CBOR bytes. */
+fun StopSpeechRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a StopSpeechRequest from a decoded CBOR value tree. */
+fun stopSpeechRequestFromCborValue(cbor: CborValue): StopSpeechRequest {
+    val message = CsilCbor.asText(CsilCbor.require(cbor, "message"))
+    val reason = CsilCbor.mapGet(cbor, "reason")?.let { csilV -> CsilCbor.asText(csilV) }
+    return StopSpeechRequest(message = message, reason = reason)
+}
+
+/** Decode CSIL CBOR bytes into a StopSpeechRequest. */
+fun stopSpeechRequestFromCbor(bytes: ByteArray): StopSpeechRequest = stopSpeechRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a StopSpeechResponse (deep, canonical key order). */
+fun StopSpeechResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("stopped") to CborValue.CBool(this.stopped))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a StopSpeechResponse to canonical CSIL CBOR bytes. */
+fun StopSpeechResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a StopSpeechResponse from a decoded CBOR value tree. */
+fun stopSpeechResponseFromCborValue(cbor: CborValue): StopSpeechResponse {
+    val stopped = CsilCbor.asBoolean(CsilCbor.require(cbor, "stopped"))
+    return StopSpeechResponse(stopped = stopped)
+}
+
+/** Decode CSIL CBOR bytes into a StopSpeechResponse. */
+fun stopSpeechResponseFromCbor(bytes: ByteArray): StopSpeechResponse = stopSpeechResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ReportDeliveryRequest (deep, canonical key order). */
+fun ReportDeliveryRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.reason?.let { csilV -> csilEntries.add(CborValue.CText("reason") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("message") to CborValue.CText(this.message))
+    this.shownMs?.let { csilV -> csilEntries.add(CborValue.CText("shown_ms") to CborValue.CUint(csilV)) }
+    this.stoppedMs?.let { csilV -> csilEntries.add(CborValue.CText("stopped_ms") to CborValue.CUint(csilV)) }
+    this.spokenUntil?.let { csilV -> csilEntries.add(CborValue.CText("spoken_until") to CborValue.CUint(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ReportDeliveryRequest to canonical CSIL CBOR bytes. */
+fun ReportDeliveryRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ReportDeliveryRequest from a decoded CBOR value tree. */
+fun reportDeliveryRequestFromCborValue(cbor: CborValue): ReportDeliveryRequest {
+    val message = CsilCbor.asText(CsilCbor.require(cbor, "message"))
+    val spokenUntil = CsilCbor.mapGet(cbor, "spoken_until")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val shownMs = CsilCbor.mapGet(cbor, "shown_ms")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val stoppedMs = CsilCbor.mapGet(cbor, "stopped_ms")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val reason = CsilCbor.mapGet(cbor, "reason")?.let { csilV -> CsilCbor.asText(csilV) }
+    return ReportDeliveryRequest(message = message, spokenUntil = spokenUntil, shownMs = shownMs, stoppedMs = stoppedMs, reason = reason)
+}
+
+/** Decode CSIL CBOR bytes into a ReportDeliveryRequest. */
+fun reportDeliveryRequestFromCbor(bytes: ByteArray): ReportDeliveryRequest = reportDeliveryRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ReportDeliveryResponse (deep, canonical key order). */
+fun ReportDeliveryResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ReportDeliveryResponse to canonical CSIL CBOR bytes. */
+fun ReportDeliveryResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ReportDeliveryResponse from a decoded CBOR value tree. */
+fun reportDeliveryResponseFromCborValue(cbor: CborValue): ReportDeliveryResponse {
+    return ReportDeliveryResponse()
+}
+
+/** Decode CSIL CBOR bytes into a ReportDeliveryResponse. */
+fun reportDeliveryResponseFromCbor(bytes: ByteArray): ReportDeliveryResponse = reportDeliveryResponseFromCborValue(CsilCbor.decode(bytes))
+
 /** The CBOR value tree for a TaskStep (deep, canonical key order). */
 fun TaskStep.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
@@ -2832,6 +3020,14 @@ private fun csilToCborValue(value: Any?): CborValue = when (value) {
     is AnswerReviewResponse -> value.toCborValue()
     is GetAudioRequest -> value.toCborValue()
     is AudioResponse -> value.toCborValue()
+    is WordTime -> value.toCborValue()
+    is SpeechPart -> value.toCborValue()
+    is ListenRequest -> value.toCborValue()
+    is ListenResponse -> value.toCborValue()
+    is StopSpeechRequest -> value.toCborValue()
+    is StopSpeechResponse -> value.toCborValue()
+    is ReportDeliveryRequest -> value.toCborValue()
+    is ReportDeliveryResponse -> value.toCborValue()
     is TaskStep -> value.toCborValue()
     is Task -> value.toCborValue()
     is StartTaskRequest -> value.toCborValue()
@@ -2946,6 +3142,14 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     AnswerReviewResponse::class -> answerReviewResponseFromCborValue(cbor)
     GetAudioRequest::class -> getAudioRequestFromCborValue(cbor)
     AudioResponse::class -> audioResponseFromCborValue(cbor)
+    WordTime::class -> wordTimeFromCborValue(cbor)
+    SpeechPart::class -> speechPartFromCborValue(cbor)
+    ListenRequest::class -> listenRequestFromCborValue(cbor)
+    ListenResponse::class -> listenResponseFromCborValue(cbor)
+    StopSpeechRequest::class -> stopSpeechRequestFromCborValue(cbor)
+    StopSpeechResponse::class -> stopSpeechResponseFromCborValue(cbor)
+    ReportDeliveryRequest::class -> reportDeliveryRequestFromCborValue(cbor)
+    ReportDeliveryResponse::class -> reportDeliveryResponseFromCborValue(cbor)
     TaskStep::class -> taskStepFromCborValue(cbor)
     Task::class -> taskFromCborValue(cbor)
     StartTaskRequest::class -> startTaskRequestFromCborValue(cbor)

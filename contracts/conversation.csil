@@ -271,6 +271,10 @@ ClaimUnclassifiedResponse = { utterances: [* Utterance] }
 MarkClassifiedRequest = { utterance: text }
 GetStreamRequest = { id: text }
 
+;;; set-audio gives an utterance its audio after the post, for example a
+;;; spoken reply that was made in parts. It needs conversation:act-as, and
+;;; the utterance must have no audio.
+SetAudioRequest = { utterance: text, audio: text }
 AnnotateRequest = { utterance: text, kind: text, body: text }
 ListAnnotationsRequest = { utterance: text }
 ListAnnotationsResponse = { annotations: [* Annotation] }
@@ -304,6 +308,7 @@ service ConversationService {
   get-calibration: GetCalibrationRequest -> Calibration,
   claim-unclassified: ClaimUnclassifiedRequest -> ClaimUnclassifiedResponse,
   mark-classified: MarkClassifiedRequest -> Utterance,
+  set-audio: SetAudioRequest -> Utterance,
   annotate: AnnotateRequest -> Annotation,
   list-annotations: ListAnnotationsRequest -> ListAnnotationsResponse,
   import-legacy: ImportLegacyRequest -> ImportLegacyResponse,

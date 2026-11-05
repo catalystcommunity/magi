@@ -5,12 +5,14 @@ import { createSignal } from "solid-js";
 import { For, Show, aria } from "./flow.ts";
 import type { Message, MessageLink } from "../../../clients/typescript/magi/types.gen.ts";
 import { magi, me, persona, setPersona, personas, personaName, loadPersonas, refreshCounts, go, store, fail, errText, time, day, shortDay, who } from "./api.ts";
+import { speak, speaking, word, unlock, interrupt } from "./speech.ts";
 
 const [messages, setMessages] = createSignal<Message[]>([]);
 const [hasEarlier, setHasEarlier] = createSignal(false);
 const [loadError, setLoadError] = createSignal("");
 const [speakReplies, setSpeakReplies] = createSignal(store.get("magi.speak") === "1");
-export const [playing, setPlaying] = createSignal(false);
+const [clipPlaying, setClipPlaying] = createSignal(false);
+export const playing = () => clipPlaying() || speaking() !== null;
 export const [recording, setRecording] = createSignal(false);
 
 type Context = { title: string; messages: Message[]; loading?: boolean; error?: string };
@@ -57,7 +59,8 @@ async function follow(g: number) {
         const follow = atEnd() || fresh.some((m) => m.authorKind === "human");
         setMessages([...messages(), ...fresh]);
         if (follow) toEnd();
-        for (const m of fresh) if (m.audio && m.authorKind !== "human" && speakReplies() && Date.now() - m.createdMs < 60000) play(m.audio);
+        // A new spoken reply plays while Magi makes its parts.
+        for (const m of fresh) if (spoken(m) && speakReplies() && Date.now() - m.createdMs < 60000) speak(m);
       }
       for (const m of res.messages) lastSeq = Math.max(lastSeq, m.seq);
     } catch {
@@ -81,6 +84,9 @@ async function loadEarlier() {
 function replace(m: Message) { setMessages(messages().map((x) => (x.id === m.id ? m : x))); }
 
 // --- Audio ------------------------------------------------------------------
+// A spoken persona reply plays in parts (speech.ts); a voice message of a
+// person plays as one clip.
+const spoken = (m: Message) => m.authorKind === "persona" && m.modality === "voice";
 let audio: HTMLAudioElement | null = null;
 async function play(digest: string) {
   try {
@@ -88,8 +94,8 @@ async function play(digest: string) {
     audio?.pause();
     if (audio) URL.revokeObjectURL(audio.src);
     audio = new Audio(URL.createObjectURL(new Blob([a.body as BlobPart], { type: a.mediaType })));
-    audio.onplay = () => setPlaying(true);
-    audio.onpause = audio.onended = () => setPlaying(false);
+    audio.onplay = () => setClipPlaying(true);
+    audio.onpause = audio.onended = () => setClipPlaying(false);
     await audio.play();
   } catch (e) { fail("Could not play the reply")(e); }
 }
@@ -100,7 +106,9 @@ async function send(text: string | undefined, audioBody?: Uint8Array, audioType?
 
 let recorder: MediaRecorder | undefined;
 async function toggleMic() {
+  unlock();
   if (recorder) { recorder.stop(); return; }
+  interrupt("interrupted"); // the person takes the turn
   let stream: MediaStream;
   try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
   catch (e) { return fail("Magi cannot use the microphone")(e); }
@@ -149,6 +157,16 @@ async function search(q: string) {
   } catch (e) { setContext({ title: "Search", messages: [], error: errText(e) }); }
 }
 
+// spokenText shows the text of a message; while Magi speaks it, the word
+// that the person hears is marked, and the words before it are heard.
+function spokenText(m: Message) {
+  const w = word();
+  if (speaking() !== m.id || !w) return m.text;
+  const rs = Array.from(m.text);
+  return [<span class="heard">{rs.slice(0, w.start).join("")}</span>, <mark class="now">{rs.slice(w.start, w.end).join("")}</mark>,
+    <span class="ahead">{rs.slice(w.end).join("")}</span>];
+}
+
 // --- Message ----------------------------------------------------------------
 function About(props: { l: MessageLink }) {
   const l = props.l;
@@ -181,8 +199,12 @@ export function MessageView(props: { m: Message; compact?: boolean; pick?: (id: 
       {m.visibility === "shared" ? <span class="tag shared">household</span> : ""}
       {props.compact ? "" : <button class="msg-more" title="Links and who can read this" {...aria("expanded", () => String(details()))} onClick={() => setDetails(!details())}>Details</button>}
     </header>
-    <div class="msg-text">{m.text}</div>
-    {m.audio && !props.compact ? <button class="play" onClick={() => play(m.audio!)}>Play</button> : ""}
+    <div class="msg-text">{props.compact ? m.text : () => spokenText(m)}</div>
+    {!props.compact && (spoken(m) || m.audio)
+      ? <button class="play" onClick={() => (spoken(m) ? (speaking() === m.id ? interrupt("user") : speak(m, 0)) : play(m.audio!))}>
+          {() => (speaking() === m.id ? "Stop" : "Play")}
+        </button>
+      : ""}
     <For each={props.compact ? [] : links}>{(l: MessageLink) => <About l={l} />}</For>
     <For each={props.compact ? [] : m.refs.filter((r) => r.kind === "knowledge-node" || (r.kind === "workflow-run" && !runs.has(r.ref)))}>{(r) =>
       r.kind === "knowledge-node"
@@ -261,6 +283,7 @@ export function Conversation() {
   const grow = () => { if (input) { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 200) + "px"; } };
   const submit = async (e?: Event) => {
     e?.preventDefault();
+    unlock(); // a reply that comes later can play
     const text = input!.value.trim();
     if (!text) return;
     input!.value = "";
@@ -296,14 +319,14 @@ export function Conversation() {
       </div>
       <form class="composer" onSubmit={submit}>
         <textarea ref={(el: HTMLTextAreaElement) => (input = el)} rows="1" aria-label="Message"
-          placeholder={() => "Message " + personaName(persona())} onInput={grow}
+          placeholder={() => "Message " + personaName(persona())} onInput={() => { grow(); interrupt("typing"); }}
           onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter" && !e.shiftKey) submit(e); }} />
         <button class={() => "mic" + (recording() ? " on" : "")} type="button" onClick={toggleMic} {...aria("pressed", () => String(recording()))}>
           {() => (recording() ? "Stop" : "Speak")}
         </button>
         <button class="send">Send</button>
         <label class="speak-toggle">
-          <input type="checkbox" checked={speakReplies()} onChange={(e: Event) => { const v = (e.target as HTMLInputElement).checked; setSpeakReplies(v); store.set("magi.speak", v ? "1" : "0"); }} />
+          <input type="checkbox" checked={speakReplies()} onChange={(e: Event) => { const v = (e.target as HTMLInputElement).checked; unlock(); setSpeakReplies(v); store.set("magi.speak", v ? "1" : "0"); }} />
           Speak replies
         </label>
       </form>

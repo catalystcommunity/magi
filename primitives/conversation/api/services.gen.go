@@ -31,6 +31,7 @@ type ConversationService interface {
 	GetCalibration(ctx context.Context, req GetCalibrationRequest) (Calibration, error)
 	ClaimUnclassified(ctx context.Context, req ClaimUnclassifiedRequest) (ClaimUnclassifiedResponse, error)
 	MarkClassified(ctx context.Context, req MarkClassifiedRequest) (Utterance, error)
+	SetAudio(ctx context.Context, req SetAudioRequest) (Utterance, error)
 	Annotate(ctx context.Context, req AnnotateRequest) (Annotation, error)
 	ListAnnotations(ctx context.Context, req ListAnnotationsRequest) (ListAnnotationsResponse, error)
 	ImportLegacy(ctx context.Context, req ImportLegacyRequest) (ImportLegacyResponse, error)

@@ -388,6 +388,17 @@ RETURNING `+uttCols, now.UnixMilli(), now.Add(lease).UnixMilli(), limit)
 	return out, err
 }
 
+// SetAudio sets the audio of an utterance that has none.
+func (db *DB) SetAudio(ctx context.Context, id, audio string) (api.Utterance, error) {
+	var u api.Utterance
+	err := db.tx(ctx, All, func(tx pgx.Tx) error {
+		var err error
+		u, err = scanUtt(tx.QueryRow(ctx, `UPDATE utterances SET audio = $2 WHERE id = $1 AND (audio IS NULL OR audio = '') RETURNING `+uttCols, id, audio))
+		return err
+	})
+	return one(u, err)
+}
+
 func (db *DB) MarkClassified(ctx context.Context, id string) (api.Utterance, error) {
 	var u api.Utterance
 	err := db.tx(ctx, All, func(tx pgx.Tx) error {

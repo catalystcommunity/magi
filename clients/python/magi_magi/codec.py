@@ -1178,6 +1178,239 @@ def _audio_response_from_cbor(data: bytes) -> "AudioResponse":
 AudioResponse.to_cbor = _audio_response_to_cbor
 AudioResponse.from_cbor = staticmethod(_audio_response_from_cbor)
 
+def _encode_word_time_value(v: "WordTime") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["end"] = v.end
+    csil_m["word"] = v.word
+    csil_m["start"] = v.start
+    csil_m["end_ms"] = v.end_ms
+    csil_m["start_ms"] = v.start_ms
+    return csil_m
+
+def _decode_word_time_value(tree: Any) -> "WordTime":
+    tree = _csil_expect_map(tree)
+    return WordTime(
+        word=_csil_expect_text(tree["word"]),
+        start_ms=_csil_expect_uint(tree["start_ms"]),
+        end_ms=_csil_expect_uint(tree["end_ms"]),
+        start=_csil_expect_uint(tree["start"]),
+        end=_csil_expect_uint(tree["end"]),
+    )
+
+
+def _word_time_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_word_time_value(self))
+
+
+def _word_time_from_cbor(data: bytes) -> "WordTime":
+    return _decode_word_time_value(cbor_decode(data))
+
+
+WordTime.to_cbor = _word_time_to_cbor
+WordTime.from_cbor = staticmethod(_word_time_from_cbor)
+
+def _encode_speech_part_value(v: "SpeechPart") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["end"] = v.end
+    csil_m["audio"] = v.audio
+    csil_m["index"] = v.index
+    csil_m["start"] = v.start
+    csil_m["words"] = [_encode_word_time_value(csil_e) for csil_e in v.words]
+    csil_m["audio_ms"] = v.audio_ms
+    csil_m["media_type"] = v.media_type
+    return csil_m
+
+def _decode_speech_part_value(tree: Any) -> "SpeechPart":
+    tree = _csil_expect_map(tree)
+    return SpeechPart(
+        index=_csil_expect_uint(tree["index"]),
+        audio=_csil_expect_text(tree["audio"]),
+        media_type=_csil_expect_text(tree["media_type"]),
+        start=_csil_expect_uint(tree["start"]),
+        end=_csil_expect_uint(tree["end"]),
+        audio_ms=_csil_expect_uint(tree["audio_ms"]),
+        words=[_decode_word_time_value(csil_e) for csil_e in _csil_expect_array(tree["words"])],
+    )
+
+
+def _speech_part_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_speech_part_value(self))
+
+
+def _speech_part_from_cbor(data: bytes) -> "SpeechPart":
+    return _decode_speech_part_value(cbor_decode(data))
+
+
+SpeechPart.to_cbor = _speech_part_to_cbor
+SpeechPart.from_cbor = staticmethod(_speech_part_from_cbor)
+
+def _encode_listen_request_value(v: "ListenRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.after
+    if csil_x is not None:
+        csil_m["after"] = csil_x
+    csil_m["message"] = v.message
+    csil_x = v.wait_ms
+    if csil_x is not None:
+        csil_m["wait_ms"] = csil_x
+    return csil_m
+
+def _decode_listen_request_value(tree: Any) -> "ListenRequest":
+    tree = _csil_expect_map(tree)
+    return ListenRequest(
+        message=_csil_expect_text(tree["message"]),
+        after=(None if tree.get("after") is None else _csil_expect_uint(tree["after"])),
+        wait_ms=(None if tree.get("wait_ms") is None else _csil_expect_uint(tree["wait_ms"])),
+    )
+
+
+def _listen_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_listen_request_value(self))
+
+
+def _listen_request_from_cbor(data: bytes) -> "ListenRequest":
+    return _decode_listen_request_value(cbor_decode(data))
+
+
+ListenRequest.to_cbor = _listen_request_to_cbor
+ListenRequest.from_cbor = staticmethod(_listen_request_from_cbor)
+
+def _encode_listen_response_value(v: "ListenResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["done"] = v.done
+    csil_m["parts"] = [_encode_speech_part_value(csil_e) for csil_e in v.parts]
+    csil_m["stopped"] = v.stopped
+    return csil_m
+
+def _decode_listen_response_value(tree: Any) -> "ListenResponse":
+    tree = _csil_expect_map(tree)
+    return ListenResponse(
+        parts=[_decode_speech_part_value(csil_e) for csil_e in _csil_expect_array(tree["parts"])],
+        done=_csil_expect_bool(tree["done"]),
+        stopped=_csil_expect_bool(tree["stopped"]),
+    )
+
+
+def _listen_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_listen_response_value(self))
+
+
+def _listen_response_from_cbor(data: bytes) -> "ListenResponse":
+    return _decode_listen_response_value(cbor_decode(data))
+
+
+ListenResponse.to_cbor = _listen_response_to_cbor
+ListenResponse.from_cbor = staticmethod(_listen_response_from_cbor)
+
+def _encode_stop_speech_request_value(v: "StopSpeechRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.reason
+    if csil_x is not None:
+        csil_m["reason"] = csil_x
+    csil_m["message"] = v.message
+    return csil_m
+
+def _decode_stop_speech_request_value(tree: Any) -> "StopSpeechRequest":
+    tree = _csil_expect_map(tree)
+    return StopSpeechRequest(
+        message=_csil_expect_text(tree["message"]),
+        reason=(None if tree.get("reason") is None else _csil_expect_text(tree["reason"])),
+    )
+
+
+def _stop_speech_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_stop_speech_request_value(self))
+
+
+def _stop_speech_request_from_cbor(data: bytes) -> "StopSpeechRequest":
+    return _decode_stop_speech_request_value(cbor_decode(data))
+
+
+StopSpeechRequest.to_cbor = _stop_speech_request_to_cbor
+StopSpeechRequest.from_cbor = staticmethod(_stop_speech_request_from_cbor)
+
+def _encode_stop_speech_response_value(v: "StopSpeechResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["stopped"] = v.stopped
+    return csil_m
+
+def _decode_stop_speech_response_value(tree: Any) -> "StopSpeechResponse":
+    tree = _csil_expect_map(tree)
+    return StopSpeechResponse(
+        stopped=_csil_expect_bool(tree["stopped"]),
+    )
+
+
+def _stop_speech_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_stop_speech_response_value(self))
+
+
+def _stop_speech_response_from_cbor(data: bytes) -> "StopSpeechResponse":
+    return _decode_stop_speech_response_value(cbor_decode(data))
+
+
+StopSpeechResponse.to_cbor = _stop_speech_response_to_cbor
+StopSpeechResponse.from_cbor = staticmethod(_stop_speech_response_from_cbor)
+
+def _encode_report_delivery_request_value(v: "ReportDeliveryRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.reason
+    if csil_x is not None:
+        csil_m["reason"] = csil_x
+    csil_m["message"] = v.message
+    csil_x = v.shown_ms
+    if csil_x is not None:
+        csil_m["shown_ms"] = csil_x
+    csil_x = v.stopped_ms
+    if csil_x is not None:
+        csil_m["stopped_ms"] = csil_x
+    csil_x = v.spoken_until
+    if csil_x is not None:
+        csil_m["spoken_until"] = csil_x
+    return csil_m
+
+def _decode_report_delivery_request_value(tree: Any) -> "ReportDeliveryRequest":
+    tree = _csil_expect_map(tree)
+    return ReportDeliveryRequest(
+        message=_csil_expect_text(tree["message"]),
+        spoken_until=(None if tree.get("spoken_until") is None else _csil_expect_uint(tree["spoken_until"])),
+        shown_ms=(None if tree.get("shown_ms") is None else _csil_expect_uint(tree["shown_ms"])),
+        stopped_ms=(None if tree.get("stopped_ms") is None else _csil_expect_uint(tree["stopped_ms"])),
+        reason=(None if tree.get("reason") is None else _csil_expect_text(tree["reason"])),
+    )
+
+
+def _report_delivery_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_report_delivery_request_value(self))
+
+
+def _report_delivery_request_from_cbor(data: bytes) -> "ReportDeliveryRequest":
+    return _decode_report_delivery_request_value(cbor_decode(data))
+
+
+ReportDeliveryRequest.to_cbor = _report_delivery_request_to_cbor
+ReportDeliveryRequest.from_cbor = staticmethod(_report_delivery_request_from_cbor)
+
+def _encode_report_delivery_response_value(v: "ReportDeliveryResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    return csil_m
+
+def _decode_report_delivery_response_value(tree: Any) -> "ReportDeliveryResponse":
+    tree = _csil_expect_map(tree)
+    return ReportDeliveryResponse()
+
+
+def _report_delivery_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_report_delivery_response_value(self))
+
+
+def _report_delivery_response_from_cbor(data: bytes) -> "ReportDeliveryResponse":
+    return _decode_report_delivery_response_value(cbor_decode(data))
+
+
+ReportDeliveryResponse.to_cbor = _report_delivery_response_to_cbor
+ReportDeliveryResponse.from_cbor = staticmethod(_report_delivery_response_from_cbor)
+
 def _encode_task_step_value(v: "TaskStep") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["step"] = v.step

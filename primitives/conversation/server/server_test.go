@@ -191,6 +191,23 @@ func TestGraph(t *testing.T) {
 		{Target: api.Ref{Kind: "utterance", Ref: slow.Id}, Kind: "asks-about", Span: &api.Span{Start: 35, End: 57}, Weight: ptr(0.5)},
 	}})
 
+	t.Run("set audio", func(t *testing.T) {
+		if _, err := w.alice.SetAudio(ctx, api.SetAudioRequest{Utterance: started.Id, Audio: "sha256:x"}); err == nil {
+			t.Fatal("a person set the audio of a persona reply")
+		}
+		u := must[api.Utterance](t)(w.librarian.SetAudio(ctx, api.SetAudioRequest{Utterance: started.Id, Audio: "sha256:whole"}))
+		if u.Audio == nil || *u.Audio != "sha256:whole" || u.Text != started.Text {
+			t.Fatalf("set audio = %+v", u)
+		}
+		if _, err := w.librarian.SetAudio(ctx, api.SetAudioRequest{Utterance: started.Id, Audio: "sha256:other"}); err == nil {
+			t.Fatal("the audio of an utterance changed")
+		}
+		got := must[api.Utterance](t)(w.alice.GetUtterance(ctx, api.GetUtteranceRequest{Id: started.Id}))
+		if got.Audio == nil || *got.Audio != "sha256:whole" {
+			t.Fatalf("read after set audio = %+v", got)
+		}
+	})
+
 	t.Run("bad links", func(t *testing.T) {
 		for _, l := range []api.NewLink{
 			{Target: api.Ref{Kind: "utterance", Ref: readme.Id}, Kind: "Reply To"},

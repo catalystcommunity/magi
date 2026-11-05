@@ -152,6 +152,11 @@ details summary { cursor: pointer; color: var(--slate); font-size: 0.9rem; }
 .msg-more { margin-left: auto; border: none; background: none; padding: 0 0.3rem; font-size: 0.8rem; color: var(--slate); border-radius: 6px; }
 .msg-more:hover { color: var(--blue); }
 .msg-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* While the persona speaks: the word that the person hears now, and the
+   words that it did not say yet (still readable, for people who read ahead). */
+.msg-text .now { background: color-mix(in srgb, var(--apricot) 45%, transparent); color: inherit; border-radius: 4px; padding: 0 1px; }
+.msg-text .ahead { color: color-mix(in srgb, var(--harbor) 62%, transparent); }
+@media (prefers-reduced-motion: no-preference) { .msg-text .now { transition: background 80ms; } }
 .msg-model { margin-top: 0.35rem; font-size: 0.75rem; color: var(--slate); }
 .tag { font-size: 0.75rem; padding: 0 0.45rem; border-radius: 999px; background: color-mix(in srgb, var(--cloud) 70%, transparent); border: 1px solid var(--line); }
 .tag.shared { border-color: var(--apricot); }

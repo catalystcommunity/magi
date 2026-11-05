@@ -249,6 +249,17 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			}
 			return EncodeUtterance(resp), nil
 		},
+		"set-audio": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeSetAudioRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.SetAudio(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeUtterance(resp), nil
+		},
 		"annotate": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeAnnotateRequest(b)
 			if err != nil {
