@@ -1419,6 +1419,452 @@ def _report_delivery_response_from_cbor(data: bytes) -> "ReportDeliveryResponse"
 ReportDeliveryResponse.to_cbor = _report_delivery_response_to_cbor
 ReportDeliveryResponse.from_cbor = staticmethod(_report_delivery_response_from_cbor)
 
+def _encode_check_overlap_request_value(v: "CheckOverlapRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["audio"] = v.audio
+    csil_x = v.final
+    if csil_x is not None:
+        csil_m["final"] = csil_x
+    csil_m["message"] = v.message
+    csil_x = v.audio_type
+    if csil_x is not None:
+        csil_m["audio_type"] = csil_x
+    csil_x = v.heard_until
+    if csil_x is not None:
+        csil_m["heard_until"] = csil_x
+    return csil_m
+
+def _decode_check_overlap_request_value(tree: Any) -> "CheckOverlapRequest":
+    tree = _csil_expect_map(tree)
+    return CheckOverlapRequest(
+        message=_csil_expect_text(tree["message"]),
+        audio=_csil_expect_bytes(tree["audio"]),
+        audio_type=(None if tree.get("audio_type") is None else _csil_expect_text(tree["audio_type"])),
+        heard_until=(None if tree.get("heard_until") is None else _csil_expect_uint(tree["heard_until"])),
+        final=(None if tree.get("final") is None else _csil_expect_bool(tree["final"])),
+    )
+
+
+def _check_overlap_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_check_overlap_request_value(self))
+
+
+def _check_overlap_request_from_cbor(data: bytes) -> "CheckOverlapRequest":
+    return _decode_check_overlap_request_value(cbor_decode(data))
+
+
+CheckOverlapRequest.to_cbor = _check_overlap_request_to_cbor
+CheckOverlapRequest.from_cbor = staticmethod(_check_overlap_request_from_cbor)
+
+def _encode_check_overlap_response_value(v: "CheckOverlapResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["ack"] = v.ack
+    csil_m["turn"] = v.turn
+    csil_m["words"] = v.words
+    csil_m["decision"] = v.decision
+    csil_m["speech_ms"] = v.speech_ms
+    csil_m["elapsed_ms"] = v.elapsed_ms
+    return csil_m
+
+def _decode_check_overlap_response_value(tree: Any) -> "CheckOverlapResponse":
+    tree = _csil_expect_map(tree)
+    return CheckOverlapResponse(
+        decision=_csil_expect_text(tree["decision"]),
+        words=_csil_expect_text(tree["words"]),
+        ack=_csil_expect_float(tree["ack"]),
+        turn=_csil_expect_float(tree["turn"]),
+        speech_ms=_csil_expect_uint(tree["speech_ms"]),
+        elapsed_ms=_csil_expect_uint(tree["elapsed_ms"]),
+    )
+
+
+def _check_overlap_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_check_overlap_response_value(self))
+
+
+def _check_overlap_response_from_cbor(data: bytes) -> "CheckOverlapResponse":
+    return _decode_check_overlap_response_value(cbor_decode(data))
+
+
+CheckOverlapResponse.to_cbor = _check_overlap_response_to_cbor
+CheckOverlapResponse.from_cbor = staticmethod(_check_overlap_response_from_cbor)
+
+def _encode_device_value(v: "Device") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["can"] = v.can
+    csil_m["kind"] = v.kind
+    csil_m["name"] = v.name
+    csil_m["active"] = v.active
+    csil_m["seen_ms"] = v.seen_ms
+    csil_m["hands_free"] = v.hands_free
+    return csil_m
+
+def _decode_device_value(tree: Any) -> "Device":
+    tree = _csil_expect_map(tree)
+    return Device(
+        id=_csil_expect_text(tree["id"]),
+        kind=_csil_expect_text(tree["kind"]),
+        name=_csil_expect_text(tree["name"]),
+        can=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["can"])],
+        active=_csil_expect_bool(tree["active"]),
+        hands_free=_csil_expect_bool(tree["hands_free"]),
+        seen_ms=_csil_expect_uint(tree["seen_ms"]),
+    )
+
+
+def _device_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_device_value(self))
+
+
+def _device_from_cbor(data: bytes) -> "Device":
+    return _decode_device_value(cbor_decode(data))
+
+
+Device.to_cbor = _device_to_cbor
+Device.from_cbor = staticmethod(_device_from_cbor)
+
+def _encode_put_device_request_value(v: "PutDeviceRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_x = v.can
+    if csil_x is not None:
+        csil_m["can"] = csil_x
+    csil_m["kind"] = v.kind
+    csil_m["name"] = v.name
+    csil_x = v.active
+    if csil_x is not None:
+        csil_m["active"] = csil_x
+    csil_x = v.hands_free
+    if csil_x is not None:
+        csil_m["hands_free"] = csil_x
+    return csil_m
+
+def _decode_put_device_request_value(tree: Any) -> "PutDeviceRequest":
+    tree = _csil_expect_map(tree)
+    return PutDeviceRequest(
+        id=_csil_expect_text(tree["id"]),
+        kind=_csil_expect_text(tree["kind"]),
+        name=_csil_expect_text(tree["name"]),
+        can=(None if tree.get("can") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["can"])]),
+        active=(None if tree.get("active") is None else _csil_expect_bool(tree["active"])),
+        hands_free=(None if tree.get("hands_free") is None else _csil_expect_bool(tree["hands_free"])),
+    )
+
+
+def _put_device_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_put_device_request_value(self))
+
+
+def _put_device_request_from_cbor(data: bytes) -> "PutDeviceRequest":
+    return _decode_put_device_request_value(cbor_decode(data))
+
+
+PutDeviceRequest.to_cbor = _put_device_request_to_cbor
+PutDeviceRequest.from_cbor = staticmethod(_put_device_request_from_cbor)
+
+def _encode_list_devices_request_value(v: "ListDevicesRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    return csil_m
+
+def _decode_list_devices_request_value(tree: Any) -> "ListDevicesRequest":
+    tree = _csil_expect_map(tree)
+    return ListDevicesRequest()
+
+
+def _list_devices_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_devices_request_value(self))
+
+
+def _list_devices_request_from_cbor(data: bytes) -> "ListDevicesRequest":
+    return _decode_list_devices_request_value(cbor_decode(data))
+
+
+ListDevicesRequest.to_cbor = _list_devices_request_to_cbor
+ListDevicesRequest.from_cbor = staticmethod(_list_devices_request_from_cbor)
+
+def _encode_list_devices_response_value(v: "ListDevicesResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["devices"] = [_encode_device_value(csil_e) for csil_e in v.devices]
+    return csil_m
+
+def _decode_list_devices_response_value(tree: Any) -> "ListDevicesResponse":
+    tree = _csil_expect_map(tree)
+    return ListDevicesResponse(
+        devices=[_decode_device_value(csil_e) for csil_e in _csil_expect_array(tree["devices"])],
+    )
+
+
+def _list_devices_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_devices_response_value(self))
+
+
+def _list_devices_response_from_cbor(data: bytes) -> "ListDevicesResponse":
+    return _decode_list_devices_response_value(cbor_decode(data))
+
+
+ListDevicesResponse.to_cbor = _list_devices_response_to_cbor
+ListDevicesResponse.from_cbor = staticmethod(_list_devices_response_from_cbor)
+
+def _encode_remove_device_request_value(v: "RemoveDeviceRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    return csil_m
+
+def _decode_remove_device_request_value(tree: Any) -> "RemoveDeviceRequest":
+    tree = _csil_expect_map(tree)
+    return RemoveDeviceRequest(
+        id=_csil_expect_text(tree["id"]),
+    )
+
+
+def _remove_device_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_remove_device_request_value(self))
+
+
+def _remove_device_request_from_cbor(data: bytes) -> "RemoveDeviceRequest":
+    return _decode_remove_device_request_value(cbor_decode(data))
+
+
+RemoveDeviceRequest.to_cbor = _remove_device_request_to_cbor
+RemoveDeviceRequest.from_cbor = staticmethod(_remove_device_request_from_cbor)
+
+def _encode_notice_delivery_value(v: "NoticeDelivery") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["how"] = v.how
+    csil_m["at_ms"] = v.at_ms
+    csil_m["device"] = v.device
+    return csil_m
+
+def _decode_notice_delivery_value(tree: Any) -> "NoticeDelivery":
+    tree = _csil_expect_map(tree)
+    return NoticeDelivery(
+        device=_csil_expect_text(tree["device"]),
+        how=_csil_expect_text(tree["how"]),
+        at_ms=_csil_expect_uint(tree["at_ms"]),
+    )
+
+
+def _notice_delivery_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_notice_delivery_value(self))
+
+
+def _notice_delivery_from_cbor(data: bytes) -> "NoticeDelivery":
+    return _decode_notice_delivery_value(cbor_decode(data))
+
+
+NoticeDelivery.to_cbor = _notice_delivery_to_cbor
+NoticeDelivery.from_cbor = staticmethod(_notice_delivery_from_cbor)
+
+def _encode_notice_value(v: "Notice") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["text"] = v.text
+    csil_m["title"] = v.title
+    csil_x = v.device
+    if csil_x is not None:
+        csil_m["device"] = csil_x
+    csil_m["message"] = v.message
+    csil_m["persona"] = v.persona
+    csil_m["urgency"] = v.urgency
+    csil_x = v.acked_ms
+    if csil_x is not None:
+        csil_m["acked_ms"] = csil_x
+    csil_m["created_ms"] = v.created_ms
+    csil_m["deliveries"] = [_encode_notice_delivery_value(csil_e) for csil_e in v.deliveries]
+    return csil_m
+
+def _decode_notice_value(tree: Any) -> "Notice":
+    tree = _csil_expect_map(tree)
+    return Notice(
+        id=_csil_expect_text(tree["id"]),
+        persona=_csil_expect_text(tree["persona"]),
+        message=_csil_expect_text(tree["message"]),
+        title=_csil_expect_text(tree["title"]),
+        text=_csil_expect_text(tree["text"]),
+        urgency=_csil_expect_text(tree["urgency"]),
+        device=(None if tree.get("device") is None else _csil_expect_text(tree["device"])),
+        created_ms=_csil_expect_uint(tree["created_ms"]),
+        acked_ms=(None if tree.get("acked_ms") is None else _csil_expect_uint(tree["acked_ms"])),
+        deliveries=[_decode_notice_delivery_value(csil_e) for csil_e in _csil_expect_array(tree["deliveries"])],
+    )
+
+
+def _notice_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_notice_value(self))
+
+
+def _notice_from_cbor(data: bytes) -> "Notice":
+    return _decode_notice_value(cbor_decode(data))
+
+
+Notice.to_cbor = _notice_to_cbor
+Notice.from_cbor = staticmethod(_notice_from_cbor)
+
+def _encode_wait_notices_request_value(v: "WaitNoticesRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["device"] = v.device
+    csil_x = v.wait_ms
+    if csil_x is not None:
+        csil_m["wait_ms"] = csil_x
+    csil_x = v.closed_after
+    if csil_x is not None:
+        csil_m["closed_after"] = csil_x
+    return csil_m
+
+def _decode_wait_notices_request_value(tree: Any) -> "WaitNoticesRequest":
+    tree = _csil_expect_map(tree)
+    return WaitNoticesRequest(
+        device=_csil_expect_text(tree["device"]),
+        wait_ms=(None if tree.get("wait_ms") is None else _csil_expect_uint(tree["wait_ms"])),
+        closed_after=(None if tree.get("closed_after") is None else _csil_expect_uint(tree["closed_after"])),
+    )
+
+
+def _wait_notices_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_wait_notices_request_value(self))
+
+
+def _wait_notices_request_from_cbor(data: bytes) -> "WaitNoticesRequest":
+    return _decode_wait_notices_request_value(cbor_decode(data))
+
+
+WaitNoticesRequest.to_cbor = _wait_notices_request_to_cbor
+WaitNoticesRequest.from_cbor = staticmethod(_wait_notices_request_from_cbor)
+
+def _encode_wait_notices_response_value(v: "WaitNoticesResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["closed"] = v.closed
+    csil_m["now_ms"] = v.now_ms
+    csil_m["notices"] = [_encode_notice_value(csil_e) for csil_e in v.notices]
+    return csil_m
+
+def _decode_wait_notices_response_value(tree: Any) -> "WaitNoticesResponse":
+    tree = _csil_expect_map(tree)
+    return WaitNoticesResponse(
+        notices=[_decode_notice_value(csil_e) for csil_e in _csil_expect_array(tree["notices"])],
+        closed=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["closed"])],
+        now_ms=_csil_expect_uint(tree["now_ms"]),
+    )
+
+
+def _wait_notices_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_wait_notices_response_value(self))
+
+
+def _wait_notices_response_from_cbor(data: bytes) -> "WaitNoticesResponse":
+    return _decode_wait_notices_response_value(cbor_decode(data))
+
+
+WaitNoticesResponse.to_cbor = _wait_notices_response_to_cbor
+WaitNoticesResponse.from_cbor = staticmethod(_wait_notices_response_from_cbor)
+
+def _encode_deliver_notice_request_value(v: "DeliverNoticeRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["how"] = v.how
+    csil_m["device"] = v.device
+    return csil_m
+
+def _decode_deliver_notice_request_value(tree: Any) -> "DeliverNoticeRequest":
+    tree = _csil_expect_map(tree)
+    return DeliverNoticeRequest(
+        id=_csil_expect_text(tree["id"]),
+        device=_csil_expect_text(tree["device"]),
+        how=_csil_expect_text(tree["how"]),
+    )
+
+
+def _deliver_notice_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_deliver_notice_request_value(self))
+
+
+def _deliver_notice_request_from_cbor(data: bytes) -> "DeliverNoticeRequest":
+    return _decode_deliver_notice_request_value(cbor_decode(data))
+
+
+DeliverNoticeRequest.to_cbor = _deliver_notice_request_to_cbor
+DeliverNoticeRequest.from_cbor = staticmethod(_deliver_notice_request_from_cbor)
+
+def _encode_ack_notice_request_value(v: "AckNoticeRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_x = v.device
+    if csil_x is not None:
+        csil_m["device"] = csil_x
+    return csil_m
+
+def _decode_ack_notice_request_value(tree: Any) -> "AckNoticeRequest":
+    tree = _csil_expect_map(tree)
+    return AckNoticeRequest(
+        id=_csil_expect_text(tree["id"]),
+        device=(None if tree.get("device") is None else _csil_expect_text(tree["device"])),
+    )
+
+
+def _ack_notice_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_ack_notice_request_value(self))
+
+
+def _ack_notice_request_from_cbor(data: bytes) -> "AckNoticeRequest":
+    return _decode_ack_notice_request_value(cbor_decode(data))
+
+
+AckNoticeRequest.to_cbor = _ack_notice_request_to_cbor
+AckNoticeRequest.from_cbor = staticmethod(_ack_notice_request_from_cbor)
+
+def _encode_list_notices_request_value(v: "ListNoticesRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.open
+    if csil_x is not None:
+        csil_m["open"] = csil_x
+    csil_x = v.limit
+    if csil_x is not None:
+        csil_m["limit"] = csil_x
+    return csil_m
+
+def _decode_list_notices_request_value(tree: Any) -> "ListNoticesRequest":
+    tree = _csil_expect_map(tree)
+    return ListNoticesRequest(
+        open=(None if tree.get("open") is None else _csil_expect_bool(tree["open"])),
+        limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
+    )
+
+
+def _list_notices_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_notices_request_value(self))
+
+
+def _list_notices_request_from_cbor(data: bytes) -> "ListNoticesRequest":
+    return _decode_list_notices_request_value(cbor_decode(data))
+
+
+ListNoticesRequest.to_cbor = _list_notices_request_to_cbor
+ListNoticesRequest.from_cbor = staticmethod(_list_notices_request_from_cbor)
+
+def _encode_list_notices_response_value(v: "ListNoticesResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["notices"] = [_encode_notice_value(csil_e) for csil_e in v.notices]
+    return csil_m
+
+def _decode_list_notices_response_value(tree: Any) -> "ListNoticesResponse":
+    tree = _csil_expect_map(tree)
+    return ListNoticesResponse(
+        notices=[_decode_notice_value(csil_e) for csil_e in _csil_expect_array(tree["notices"])],
+    )
+
+
+def _list_notices_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_notices_response_value(self))
+
+
+def _list_notices_response_from_cbor(data: bytes) -> "ListNoticesResponse":
+    return _decode_list_notices_response_value(cbor_decode(data))
+
+
+ListNoticesResponse.to_cbor = _list_notices_response_to_cbor
+ListNoticesResponse.from_cbor = staticmethod(_list_notices_response_from_cbor)
+
 def _encode_task_step_value(v: "TaskStep") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["step"] = v.step

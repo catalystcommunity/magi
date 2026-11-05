@@ -147,6 +147,45 @@ CREATE TABLE IF NOT EXISTS annotations (
 );
 CREATE INDEX IF NOT EXISTS annotations_utterance ON annotations (utterance, created_ms);
 
+-- Devices and notices (docs/attention.md). They belong to one person; the
+-- service reads them only by person, so they have no readers column.
+CREATE TABLE IF NOT EXISTS devices (
+  person     text    NOT NULL,
+  id         text    NOT NULL,
+  kind       text    NOT NULL,
+  name       text    NOT NULL,
+  can        text[]  NOT NULL DEFAULT '{}',
+  active     boolean NOT NULL DEFAULT false,
+  hands_free boolean NOT NULL DEFAULT false,
+  seen_ms    bigint  NOT NULL,
+  created_ms bigint  NOT NULL,
+  PRIMARY KEY (person, id)
+);
+
+CREATE TABLE IF NOT EXISTS notices (
+  id         text   PRIMARY KEY,
+  person     text   NOT NULL,
+  persona    text   NOT NULL,
+  stream     text   NOT NULL,
+  utterance  text   NOT NULL,
+  title      text   NOT NULL,
+  text       text   NOT NULL,
+  urgency    text   NOT NULL,
+  device     text,
+  created_ms bigint NOT NULL,
+  acked_ms   bigint,
+  acked_by   text
+);
+CREATE INDEX IF NOT EXISTS notices_person ON notices (person, created_ms DESC);
+
+CREATE TABLE IF NOT EXISTS notice_deliveries (
+  notice text   NOT NULL,
+  device text   NOT NULL,
+  how    text   NOT NULL,
+  at_ms  bigint NOT NULL,
+  PRIMARY KEY (notice, device)
+);
+
 -- Row-level security. FORCE applies the policies to the table owner too,
 -- which is the role that the service connects as.
 ALTER TABLE utterances ENABLE ROW LEVEL SECURITY;

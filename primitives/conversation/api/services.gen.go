@@ -35,4 +35,12 @@ type ConversationService interface {
 	Annotate(ctx context.Context, req AnnotateRequest) (Annotation, error)
 	ListAnnotations(ctx context.Context, req ListAnnotationsRequest) (ListAnnotationsResponse, error)
 	ImportLegacy(ctx context.Context, req ImportLegacyRequest) (ImportLegacyResponse, error)
+	PutDevice(ctx context.Context, req PutDeviceRequest) (Device, error)
+	ListDevices(ctx context.Context, req ListDevicesRequest) (ListDevicesResponse, error)
+	RemoveDevice(ctx context.Context, req RemoveDeviceRequest) (Device, error)
+	Notify(ctx context.Context, req NotifyRequest) (Notice, error)
+	WaitNotices(ctx context.Context, req WaitNoticesRequest) (WaitNoticesResponse, error)
+	DeliverNotice(ctx context.Context, req DeliverNoticeRequest) (Notice, error)
+	AckNotice(ctx context.Context, req AckNoticeRequest) (Notice, error)
+	ListNotices(ctx context.Context, req ListNoticesRequest) (ListNoticesResponse, error)
 }

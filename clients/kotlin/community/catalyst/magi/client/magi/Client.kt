@@ -74,6 +74,30 @@ class MagiClient(private val transport: Transport) {
     fun reportDelivery(request: ReportDeliveryRequest): ReportDeliveryResponse {
         return decode<ReportDeliveryResponse>(transport.call("MagiService", "report-delivery", encode(request)))
     }
+    fun checkOverlap(request: CheckOverlapRequest): CheckOverlapResponse {
+        return decode<CheckOverlapResponse>(transport.call("MagiService", "check-overlap", encode(request)))
+    }
+    fun putDevice(request: PutDeviceRequest): Device {
+        return decode<Device>(transport.call("MagiService", "put-device", encode(request)))
+    }
+    fun listDevices(request: ListDevicesRequest): ListDevicesResponse {
+        return decode<ListDevicesResponse>(transport.call("MagiService", "list-devices", encode(request)))
+    }
+    fun removeDevice(request: RemoveDeviceRequest): Device {
+        return decode<Device>(transport.call("MagiService", "remove-device", encode(request)))
+    }
+    fun waitNotices(request: WaitNoticesRequest): WaitNoticesResponse {
+        return decode<WaitNoticesResponse>(transport.call("MagiService", "wait-notices", encode(request)))
+    }
+    fun deliverNotice(request: DeliverNoticeRequest): Notice {
+        return decode<Notice>(transport.call("MagiService", "deliver-notice", encode(request)))
+    }
+    fun ackNotice(request: AckNoticeRequest): Notice {
+        return decode<Notice>(transport.call("MagiService", "ack-notice", encode(request)))
+    }
+    fun listNotices(request: ListNoticesRequest): ListNoticesResponse {
+        return decode<ListNoticesResponse>(transport.call("MagiService", "list-notices", encode(request)))
+    }
     fun startTask(request: StartTaskRequest): Task {
         return decode<Task>(transport.call("MagiService", "start-task", encode(request)))
     }

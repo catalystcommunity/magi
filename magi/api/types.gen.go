@@ -267,6 +267,119 @@ type ReportDeliveryRequest struct {
 type ReportDeliveryResponse struct {
 }
 
+// CheckOverlapRequest represents a structured data type
+type CheckOverlapRequest struct {
+	Message    string  `json:"message" yaml:"message"`
+	Audio      []byte  `json:"audio" yaml:"audio"`
+	AudioType  *string `json:"audio_type,omitempty" yaml:"audio_type,omitempty"`
+	HeardUntil *uint64 `json:"heard_until,omitempty" yaml:"heard_until,omitempty"`
+	Final      *bool   `json:"final,omitempty" yaml:"final,omitempty"`
+}
+
+// CheckOverlapResponse represents a structured data type
+type CheckOverlapResponse struct {
+	Decision  string  `json:"decision" yaml:"decision"`
+	Words     string  `json:"words" yaml:"words"`
+	Ack       float64 `json:"ack" yaml:"ack"`
+	Turn      float64 `json:"turn" yaml:"turn"`
+	SpeechMs  uint64  `json:"speech_ms" yaml:"speech_ms"`
+	ElapsedMs uint64  `json:"elapsed_ms" yaml:"elapsed_ms"`
+}
+
+// Device represents a structured data type
+type Device struct {
+	Id        string   `json:"id" yaml:"id"`
+	Kind      string   `json:"kind" yaml:"kind"`
+	Name      string   `json:"name" yaml:"name"`
+	Can       []string `json:"can" yaml:"can"`
+	Active    bool     `json:"active" yaml:"active"`
+	HandsFree bool     `json:"hands_free" yaml:"hands_free"`
+	SeenMs    uint64   `json:"seen_ms" yaml:"seen_ms"`
+}
+
+// PutDeviceRequest represents a structured data type
+type PutDeviceRequest struct {
+	Id        string   `json:"id" yaml:"id"`
+	Kind      string   `json:"kind" yaml:"kind"`
+	Name      string   `json:"name" yaml:"name"`
+	Can       []string `json:"can,omitempty" yaml:"can,omitempty"`
+	Active    *bool    `json:"active,omitempty" yaml:"active,omitempty"`
+	HandsFree *bool    `json:"hands_free,omitempty" yaml:"hands_free,omitempty"`
+}
+
+// ListDevicesRequest represents a structured data type
+type ListDevicesRequest struct {
+}
+
+// ListDevicesResponse represents a structured data type
+type ListDevicesResponse struct {
+	Devices []Device `json:"devices" yaml:"devices"`
+}
+
+// RemoveDeviceRequest represents a structured data type
+type RemoveDeviceRequest struct {
+	Id string `json:"id" yaml:"id"`
+}
+
+// NoticeDelivery represents a structured data type
+type NoticeDelivery struct {
+	Device string `json:"device" yaml:"device"`
+	How    string `json:"how" yaml:"how"`
+	AtMs   uint64 `json:"at_ms" yaml:"at_ms"`
+}
+
+// Notice represents a structured data type
+type Notice struct {
+	Id         string           `json:"id" yaml:"id"`
+	Persona    string           `json:"persona" yaml:"persona"`
+	Message    string           `json:"message" yaml:"message"`
+	Title      string           `json:"title" yaml:"title"`
+	Text       string           `json:"text" yaml:"text"`
+	Urgency    string           `json:"urgency" yaml:"urgency"`
+	Device     *string          `json:"device,omitempty" yaml:"device,omitempty"`
+	CreatedMs  uint64           `json:"created_ms" yaml:"created_ms"`
+	AckedMs    *uint64          `json:"acked_ms,omitempty" yaml:"acked_ms,omitempty"`
+	Deliveries []NoticeDelivery `json:"deliveries" yaml:"deliveries"`
+}
+
+// WaitNoticesRequest represents a structured data type
+type WaitNoticesRequest struct {
+	Device      string  `json:"device" yaml:"device"`
+	WaitMs      *uint64 `json:"wait_ms,omitempty" yaml:"wait_ms,omitempty"`
+	ClosedAfter *uint64 `json:"closed_after,omitempty" yaml:"closed_after,omitempty"`
+}
+
+// WaitNoticesResponse represents a structured data type
+type WaitNoticesResponse struct {
+	Notices []Notice `json:"notices" yaml:"notices"`
+	Closed  []string `json:"closed" yaml:"closed"`
+	NowMs   uint64   `json:"now_ms" yaml:"now_ms"`
+}
+
+// DeliverNoticeRequest represents a structured data type
+type DeliverNoticeRequest struct {
+	Id     string `json:"id" yaml:"id"`
+	Device string `json:"device" yaml:"device"`
+	How    string `json:"how" yaml:"how"`
+}
+
+// AckNoticeRequest represents a structured data type
+type AckNoticeRequest struct {
+	Id     string  `json:"id" yaml:"id"`
+	Device *string `json:"device,omitempty" yaml:"device,omitempty"`
+}
+
+// ListNoticesRequest represents a structured data type
+type ListNoticesRequest struct {
+	Open  *bool   `json:"open,omitempty" yaml:"open,omitempty"`
+	Limit *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+}
+
+// ListNoticesResponse represents a structured data type
+type ListNoticesResponse struct {
+	Notices []Notice `json:"notices" yaml:"notices"`
+}
+
 // TaskStep represents a structured data type
 type TaskStep struct {
 	Step      string   `json:"step" yaml:"step"`

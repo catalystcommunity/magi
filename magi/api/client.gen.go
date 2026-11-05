@@ -187,6 +187,78 @@ func (c *MagiClient) ReportDelivery(ctx context.Context, req ReportDeliveryReque
 	return DecodeReportDeliveryResponse(csilResp)
 }
 
+func (c *MagiClient) CheckOverlap(ctx context.Context, req CheckOverlapRequest) (CheckOverlapResponse, error) {
+	var csilZero CheckOverlapResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "check-overlap", EncodeCheckOverlapRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeCheckOverlapResponse(csilResp)
+}
+
+func (c *MagiClient) PutDevice(ctx context.Context, req PutDeviceRequest) (Device, error) {
+	var csilZero Device
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "put-device", EncodePutDeviceRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeDevice(csilResp)
+}
+
+func (c *MagiClient) ListDevices(ctx context.Context, req ListDevicesRequest) (ListDevicesResponse, error) {
+	var csilZero ListDevicesResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-devices", EncodeListDevicesRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListDevicesResponse(csilResp)
+}
+
+func (c *MagiClient) RemoveDevice(ctx context.Context, req RemoveDeviceRequest) (Device, error) {
+	var csilZero Device
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "remove-device", EncodeRemoveDeviceRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeDevice(csilResp)
+}
+
+func (c *MagiClient) WaitNotices(ctx context.Context, req WaitNoticesRequest) (WaitNoticesResponse, error) {
+	var csilZero WaitNoticesResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "wait-notices", EncodeWaitNoticesRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeWaitNoticesResponse(csilResp)
+}
+
+func (c *MagiClient) DeliverNotice(ctx context.Context, req DeliverNoticeRequest) (Notice, error) {
+	var csilZero Notice
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "deliver-notice", EncodeDeliverNoticeRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeNotice(csilResp)
+}
+
+func (c *MagiClient) AckNotice(ctx context.Context, req AckNoticeRequest) (Notice, error) {
+	var csilZero Notice
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "ack-notice", EncodeAckNoticeRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeNotice(csilResp)
+}
+
+func (c *MagiClient) ListNotices(ctx context.Context, req ListNoticesRequest) (ListNoticesResponse, error) {
+	var csilZero ListNoticesResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-notices", EncodeListNoticesRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListNoticesResponse(csilResp)
+}
+
 func (c *MagiClient) StartTask(ctx context.Context, req StartTaskRequest) (Task, error) {
 	var csilZero Task
 	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "start-task", EncodeStartTaskRequest(req))

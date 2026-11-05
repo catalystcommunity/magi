@@ -42,8 +42,9 @@ Ref = {
 }
 
 ;;; One thing that someone said or did. author_kind is "human", "persona",
-;;; or "system". modality is "text" or "voice". seq increases by one in each
-;;; stream. visibility is "private" or "shared"; visibility_by is the
+;;; or "system". modality is "text", "voice", or "notice" (a persona
+;;; utterance that a notice announces; clients say it through the notice,
+;;; not as a reply). seq increases by one in each stream. visibility is "private" or "shared"; visibility_by is the
 ;;; author of the last visibility decision ("" until it is classified).
 ;;; generated_by names the model or engine that made the text.
 Utterance = {
@@ -144,6 +145,51 @@ Calibration = {
   accepted: uint,
   corrected: uint,
 }
+
+;;; Devices and notices (docs/attention.md). A device is a client of a
+;;; person: a phone, a browser, a desktop, a speaker. It says hello about
+;;; once a minute and when its state changes, and it waits for notices.
+;;; kind is "phone", "browser", "desktop", or "speaker". can lists what
+;;; the device can do: "speak" (play speech), "notify" (system
+;;; notifications when the client is not open), "show" (a screen). active
+;;; is true when the person uses the client now (it is in the foreground,
+;;; or hands-free talk is on). hands_free is true when the microphone stays
+;;; on. A device of another person is never visible.
+Device = {
+  id: text,
+  person: text,
+  kind: text,
+  name: text,
+  can: [* text],
+  active: bool,
+  hands_free: bool,
+  seen_ms: uint,
+  created_ms: uint,
+}
+
+;;; A notice tells the person about an utterance of a persona (the text
+;;; is in the utterance). urgency is "low" (show it), "normal" (say it at
+;;; the next pause), or "high" (say it at once, also over a persona that
+;;; speaks). device is the device that the notice is for; without it, all
+;;; devices of the person get the notice. A notice is open until the person
+;;; acknowledges it on one device; then the other devices remove it.
+Notice = {
+  id: text,
+  person: text,
+  persona: text,
+  stream: text,
+  utterance: text,
+  title: text,
+  text: text,
+  urgency: text,
+  ? device: text,
+  created_ms: uint,
+  ? acked_ms: uint,
+  ? acked_by: text,
+  deliveries: [* NoticeDelivery],
+}
+;;; how is "spoken", "shown", or "notified" (a system notification).
+NoticeDelivery = { device: text, how: text, at_ms: uint }
 
 ;;; Operator call (scope "conversation:admin").
 PutPersonaRequest = { id: text, name: text, sharing: text, ? members: [* text] }
@@ -289,6 +335,46 @@ ListAnnotationsResponse = { annotations: [* Annotation] }
 ImportLegacyRequest = { persona: text }
 ImportLegacyResponse = { streams: uint, utterances: uint, links: uint }
 
+;;; The caller is the person of the device. id is chosen by the client
+;;; (random, kept on the device).
+PutDeviceRequest = {
+  id: text,
+  kind: text,
+  name: text,
+  ? can: [* text],
+  ? active: bool,
+  ? hands_free: bool,
+}
+;;; Devices of the caller, or of person (needs act-as), newest first.
+ListDevicesRequest = { ? person: text }
+ListDevicesResponse = { devices: [* Device] }
+RemoveDeviceRequest = { id: text }
+
+;;; notify needs act-as. The person is the person of the stream of the
+;;; utterance. device must be a device of that person.
+NotifyRequest = {
+  utterance: text,
+  title: text,
+  ? urgency: text,
+  ? device: text,
+}
+;;; Open notices for device that it did not get yet: notices for that
+;;; device and notices for all devices, from the last 24 hours, oldest
+;;; first. If there are none and wait_ms is set, waits up to wait_ms.
+WaitNoticesRequest = { device: text, ? wait_ms: uint, ? closed_after: uint }
+;;; closed has the ids of notices that this device got and that were
+;;; acknowledged after closed_after (ms): remove them. Send now_ms as
+;;; closed_after in the next call.
+WaitNoticesResponse = { notices: [* Notice], closed: [* text], now_ms: uint }
+;;; The device got the notice and gave it to the person (how).
+DeliverNoticeRequest = { id: text, device: text, how: text }
+;;; The person saw or heard the notice.
+AckNoticeRequest = { id: text, ? device: text }
+;;; Notices of the caller (or of person, with act-as), newest first. open
+;;; gives only the notices that are not acknowledged.
+ListNoticesRequest = { ? person: text, ? open: bool, ? limit: uint }
+ListNoticesResponse = { notices: [* Notice] }
+
 service ConversationService {
   put-persona: PutPersonaRequest -> Persona,
   get-persona: GetPersonaRequest -> Persona,
@@ -316,4 +402,12 @@ service ConversationService {
   annotate: AnnotateRequest -> Annotation,
   list-annotations: ListAnnotationsRequest -> ListAnnotationsResponse,
   import-legacy: ImportLegacyRequest -> ImportLegacyResponse,
+  put-device: PutDeviceRequest -> Device,
+  list-devices: ListDevicesRequest -> ListDevicesResponse,
+  remove-device: RemoveDeviceRequest -> Device,
+  notify: NotifyRequest -> Notice,
+  wait-notices: WaitNoticesRequest -> WaitNoticesResponse,
+  deliver-notice: DeliverNoticeRequest -> Notice,
+  ack-notice: AckNoticeRequest -> Notice,
+  list-notices: ListNoticesRequest -> ListNoticesResponse,
 }

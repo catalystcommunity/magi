@@ -2,8 +2,8 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { AnnotateRequest, Annotation, AnswerReviewRequest, Calibration, ClaimUnclassifiedRequest, ClaimUnclassifiedResponse, GetCalibrationRequest, GetPersonaRequest, GetStreamRequest, GetUtteranceRequest, GetUtterancesRequest, GetUtterancesResponse, ImportLegacyRequest, ImportLegacyResponse, Link, ListAnnotationsRequest, ListAnnotationsResponse, ListExamplesRequest, ListExamplesResponse, ListLinksRequest, ListLinksResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListStreamsRequest, ListStreamsResponse, ListUtterancesRequest, ListUtterancesResponse, MarkClassifiedRequest, OpenStreamRequest, Persona, PostRequest, PutLinkRequest, PutLinkResponse, PutPersonaRequest, RetractLinkRequest, Review, SearchRequest, SearchResponse, SetAudioRequest, SetVisibilityRequest, SetVisibilityResponse, Stream, TraceRequest, TraceResponse, Utterance } from "./types.gen.ts";
-import { fromAnnotationCbor, fromCalibrationCbor, fromClaimUnclassifiedResponseCbor, fromGetUtterancesResponseCbor, fromImportLegacyResponseCbor, fromLinkCbor, fromListAnnotationsResponseCbor, fromListExamplesResponseCbor, fromListLinksResponseCbor, fromListPersonasResponseCbor, fromListReviewsResponseCbor, fromListStreamsResponseCbor, fromListUtterancesResponseCbor, fromPersonaCbor, fromPutLinkResponseCbor, fromReviewCbor, fromSearchResponseCbor, fromSetVisibilityResponseCbor, fromStreamCbor, fromTraceResponseCbor, fromUtteranceCbor, toAnnotateRequestCbor, toAnswerReviewRequestCbor, toClaimUnclassifiedRequestCbor, toGetCalibrationRequestCbor, toGetPersonaRequestCbor, toGetStreamRequestCbor, toGetUtteranceRequestCbor, toGetUtterancesRequestCbor, toImportLegacyRequestCbor, toListAnnotationsRequestCbor, toListExamplesRequestCbor, toListLinksRequestCbor, toListPersonasRequestCbor, toListReviewsRequestCbor, toListStreamsRequestCbor, toListUtterancesRequestCbor, toMarkClassifiedRequestCbor, toOpenStreamRequestCbor, toPostRequestCbor, toPutLinkRequestCbor, toPutPersonaRequestCbor, toRetractLinkRequestCbor, toSearchRequestCbor, toSetAudioRequestCbor, toSetVisibilityRequestCbor, toTraceRequestCbor } from "./codec.gen.ts";
+import type { AckNoticeRequest, AnnotateRequest, Annotation, AnswerReviewRequest, Calibration, ClaimUnclassifiedRequest, ClaimUnclassifiedResponse, DeliverNoticeRequest, Device, GetCalibrationRequest, GetPersonaRequest, GetStreamRequest, GetUtteranceRequest, GetUtterancesRequest, GetUtterancesResponse, ImportLegacyRequest, ImportLegacyResponse, Link, ListAnnotationsRequest, ListAnnotationsResponse, ListDevicesRequest, ListDevicesResponse, ListExamplesRequest, ListExamplesResponse, ListLinksRequest, ListLinksResponse, ListNoticesRequest, ListNoticesResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListStreamsRequest, ListStreamsResponse, ListUtterancesRequest, ListUtterancesResponse, MarkClassifiedRequest, Notice, NotifyRequest, OpenStreamRequest, Persona, PostRequest, PutDeviceRequest, PutLinkRequest, PutLinkResponse, PutPersonaRequest, RemoveDeviceRequest, RetractLinkRequest, Review, SearchRequest, SearchResponse, SetAudioRequest, SetVisibilityRequest, SetVisibilityResponse, Stream, TraceRequest, TraceResponse, Utterance, WaitNoticesRequest, WaitNoticesResponse } from "./types.gen.ts";
+import { fromAnnotationCbor, fromCalibrationCbor, fromClaimUnclassifiedResponseCbor, fromDeviceCbor, fromGetUtterancesResponseCbor, fromImportLegacyResponseCbor, fromLinkCbor, fromListAnnotationsResponseCbor, fromListDevicesResponseCbor, fromListExamplesResponseCbor, fromListLinksResponseCbor, fromListNoticesResponseCbor, fromListPersonasResponseCbor, fromListReviewsResponseCbor, fromListStreamsResponseCbor, fromListUtterancesResponseCbor, fromNoticeCbor, fromPersonaCbor, fromPutLinkResponseCbor, fromReviewCbor, fromSearchResponseCbor, fromSetVisibilityResponseCbor, fromStreamCbor, fromTraceResponseCbor, fromUtteranceCbor, fromWaitNoticesResponseCbor, toAckNoticeRequestCbor, toAnnotateRequestCbor, toAnswerReviewRequestCbor, toClaimUnclassifiedRequestCbor, toDeliverNoticeRequestCbor, toGetCalibrationRequestCbor, toGetPersonaRequestCbor, toGetStreamRequestCbor, toGetUtteranceRequestCbor, toGetUtterancesRequestCbor, toImportLegacyRequestCbor, toListAnnotationsRequestCbor, toListDevicesRequestCbor, toListExamplesRequestCbor, toListLinksRequestCbor, toListNoticesRequestCbor, toListPersonasRequestCbor, toListReviewsRequestCbor, toListStreamsRequestCbor, toListUtterancesRequestCbor, toMarkClassifiedRequestCbor, toNotifyRequestCbor, toOpenStreamRequestCbor, toPostRequestCbor, toPutDeviceRequestCbor, toPutLinkRequestCbor, toPutPersonaRequestCbor, toRemoveDeviceRequestCbor, toRetractLinkRequestCbor, toSearchRequestCbor, toSetAudioRequestCbor, toSetVisibilityRequestCbor, toTraceRequestCbor, toWaitNoticesRequestCbor } from "./codec.gen.ts";
 
 export interface ServiceTransport {
   call(service: string, op: string, req: Uint8Array): Uint8Array;
@@ -244,6 +244,78 @@ export class ConversationClient {
   importLegacy(req: ImportLegacyRequest): ImportLegacyResponse {
     const csilResp = this.t.call("ConversationService", "import-legacy", toImportLegacyRequestCbor(req));
     return fromImportLegacyResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  putDevice(req: PutDeviceRequest): Device {
+    const csilResp = this.t.call("ConversationService", "put-device", toPutDeviceRequestCbor(req));
+    return fromDeviceCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  listDevices(req: ListDevicesRequest): ListDevicesResponse {
+    const csilResp = this.t.call("ConversationService", "list-devices", toListDevicesRequestCbor(req));
+    return fromListDevicesResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  removeDevice(req: RemoveDeviceRequest): Device {
+    const csilResp = this.t.call("ConversationService", "remove-device", toRemoveDeviceRequestCbor(req));
+    return fromDeviceCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  notify(req: NotifyRequest): Notice {
+    const csilResp = this.t.call("ConversationService", "notify", toNotifyRequestCbor(req));
+    return fromNoticeCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  waitNotices(req: WaitNoticesRequest): WaitNoticesResponse {
+    const csilResp = this.t.call("ConversationService", "wait-notices", toWaitNoticesRequestCbor(req));
+    return fromWaitNoticesResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  deliverNotice(req: DeliverNoticeRequest): Notice {
+    const csilResp = this.t.call("ConversationService", "deliver-notice", toDeliverNoticeRequestCbor(req));
+    return fromNoticeCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  ackNotice(req: AckNoticeRequest): Notice {
+    const csilResp = this.t.call("ConversationService", "ack-notice", toAckNoticeRequestCbor(req));
+    return fromNoticeCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  listNotices(req: ListNoticesRequest): ListNoticesResponse {
+    const csilResp = this.t.call("ConversationService", "list-notices", toListNoticesRequestCbor(req));
+    return fromListNoticesResponseCbor(csilResp);
   }
 }
 

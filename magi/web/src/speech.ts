@@ -45,7 +45,7 @@ class Playback {
   heard = 0;         // the offset in the text up to which the person heard
   over = false;
   frame = 0;
-  constructor(public m: Message, public shownMs: number) {}
+  constructor(public m: Pick<Message, "id" | "text">, public shownMs: number, public onEnd?: (reason: string) => void) {}
 
   async run() {
     let after = 0;
@@ -113,6 +113,7 @@ class Playback {
     this.over = true;
     cancelAnimationFrame(this.frame);
     if (current === this) { current = null; setSpeaking(null); setWord(null); }
+    this.onEnd?.(reason);
     const len = Array.from(this.m.text).length;
     const spokenUntil = reason === "done" ? len : this.heard;
     magi.reportDelivery({
@@ -124,14 +125,15 @@ class Playback {
 
 let current: Playback | null = null;
 
-// speak plays the parts of a persona message. shownMs is when the client
-// showed its text.
-export function speak(m: Message, shownMs = Date.now()) {
+// speak plays the parts of a persona message (or of the message of a
+// notice). shownMs is when the client showed its text. onEnd gets the
+// reason when the playback ends ("done" when it played to the end).
+export function speak(m: Pick<Message, "id" | "text">, shownMs = Date.now(), onEnd?: (reason: string) => void) {
   unlock();
-  if (!ctx) return notify("This browser cannot play audio.", true);
+  if (!ctx) { notify("This browser cannot play audio.", true); onEnd?.("error"); return; }
   current?.stop("user");
   duck(1);
-  const p = new Playback(m, shownMs);
+  const p = new Playback(m, shownMs, onEnd);
   current = p;
   setSpeaking(m.id);
   p.run().catch((e) => { notify("Could not play the reply: " + errText(e), true); p.finish("error"); });
@@ -139,6 +141,33 @@ export function speak(m: Message, shownMs = Date.now()) {
 
 // interrupt stops the speech when the person takes the turn: they type,
 // or they start to speak.
-export function interrupt(reason: "typing" | "interrupted" | "user") {
+export function interrupt(reason: "typing" | "interrupted" | "user" | "notice") {
   current?.stop(reason);
+}
+
+// heardUntil is the spoken cursor of the message that plays now.
+export const heardUntil = () => current?.heard ?? 0;
+
+// unlocked is true when the page can play audio (after a click or a key).
+export const unlocked = () => ctx !== null && ctx.state === "running";
+
+// chime plays a short two-tone signal before the computer speaks on its
+// own (a notice). It does not go through the ducked output.
+export function chime(high = false) {
+  if (!ctx) return;
+  const t0 = ctx.currentTime + 0.02;
+  const tones = high ? [1175, 1568, 1175, 1568] : [1319, 1760];
+  tones.forEach((f, i) => {
+    const o = ctx!.createOscillator(), g = ctx!.createGain();
+    o.type = "sine";
+    o.frequency.value = f;
+    const t = t0 + i * 0.09;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.18, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+    o.connect(g).connect(ctx!.destination);
+    o.start(t);
+    o.stop(t + 0.09);
+  });
+  return new Promise<void>((ok) => setTimeout(ok, (tones.length * 90 + 120)));
 }

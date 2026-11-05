@@ -69,7 +69,7 @@ func (s *System) release(ctx context.Context, a workflowapi.Assignment, note fun
 			return Result{}, err
 		}
 		if r.ExitCode != 0 {
-			s.post(ctx, a, "The release build failed. Nothing was released.")
+			s.report(ctx, a, "normal", "Release failed", "The release build failed. Nothing was released.")
 			return Result{Outcome: "build-failed", Outputs: map[string]string{"release.output": tail(string(r.Stdout)+string(r.Stderr), 4000)}}, nil
 		}
 		bin, err := s.Execution.ReadFile(ctx, executionapi.ReadFileRequest{Environment: envID, Path: "/work/out/app", MaxBytes: ptr(uint64(64 << 20))})
@@ -126,7 +126,7 @@ func (s *System) waitRelease(ctx context.Context, a workflowapi.Assignment, id s
 		out := map[string]string{"release.id": id, "release.status": rel.Status}
 		switch rel.Status {
 		case "succeeded":
-			s.post(ctx, a, fmt.Sprintf("Release %s succeeded. The new version is running.", id))
+			s.report(ctx, a, "low", "Released", fmt.Sprintf("Release %s succeeded. The new version is running.", id))
 			out["task.result"] = "released"
 			return Result{Outcome: "done", Outputs: out}, nil
 		case "rolled-back", "failed":
@@ -134,7 +134,7 @@ func (s *System) waitRelease(ctx context.Context, a workflowapi.Assignment, id s
 			for _, it := range rel.Items {
 				msg += deref(it.Message) + " "
 			}
-			s.post(ctx, a, fmt.Sprintf("Release %s did not pass and is %s: %s", id, rel.Status, strings.TrimSpace(msg)))
+			s.report(ctx, a, "normal", "Release failed", fmt.Sprintf("Release %s did not pass and is %s: %s", id, rel.Status, strings.TrimSpace(msg)))
 			out["task.result"] = "release-" + rel.Status
 			return Result{Outcome: "rolled-back", Outputs: out}, nil
 		}

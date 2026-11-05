@@ -1,28 +1,41 @@
 // Hands-free talk (docs/speech-interaction.md, 2.3.1, steps 1 and 2). The
 // microphone stays on, with the echo canceller of the browser. The voice
 // activity detector (vad.ts) finds when the person speaks:
-//   - while the persona speaks, an onset lowers its volume at once; speech
-//     that goes on for 700 ms stops the persona, and becomes the next turn
-//     of the person; shorter speech ("mm-hm") only restores the volume;
+//   - while the persona speaks, an onset lowers its volume at once. Then
+//     Magi decides from the words (check-overlap: speech check, STT, and a
+//     small classifier with what the persona said last): "stop" stops the
+//     persona, and the speech becomes the next turn of the person;
+//     "continue" (a backchannel such as "mm-hm", "right, okay") restores
+//     the volume, and the speech is not a turn. Speech that goes on for
+//     2.5 s is a turn in any case. Without check-overlap (an older Magi, or
+//     the engine is down), speech of 700 ms stops the persona;
 //   - at the end of a turn, the audio (WAV, 16 kHz) goes to Magi.
 // The recording starts 400 ms before the onset, so the first sound is not
 // lost.
 import { createSignal } from "solid-js";
 import { Vad, defaultVad } from "./vad.ts";
-import { audioContext, unlock, duck, speaking, interrupt } from "./speech.ts";
+import { audioContext, unlock, duck, speaking, interrupt, heardUntil } from "./speech.ts";
+import { magi, RpcError } from "./api.ts";
 
 export const [handsFree, setHandsFree] = createSignal(false);
 export const [hearing, setHearing] = createSignal(false); // the person speaks now
+// The words of the person while the persona speaks, as Magi heard them.
+export const [overlapWords, setOverlapWords] = createSignal("");
 
 const prerollMs = 400;
 const maxTurnMs = 60_000;
+const firstCheckMs = 400;  // speech before the first check
+const checkEveryMs = 300;  // then a check this often, one at a time
+const longTurnMs = 2500;   // speech this long takes the turn
+let overlapAvailable = true; // false after check-overlap is not there
 
 let stream: MediaStream | null = null;
 let node: AudioWorkletNode | null = null;
 let sink: GainNode | null = null;
 
-// startListening turns on the microphone. onTurn gets the audio of each
-// turn of the person.
+// An overlap: the person speaks while a persona message plays.
+type Overlap = { message: string; busy: boolean; lastMs: number; stopped: boolean };
+
 export async function startListening(onTurn: (wav: Uint8Array) => void) {
   unlock();
   const ctx = audioContext();
@@ -41,7 +54,34 @@ export async function startListening(onTurn: (wav: Uint8Array) => void) {
   let pending = new Float32Array(0);
   const preroll: Float32Array[] = [];
   let rec: Float32Array[] | null = null;
-  let duringSpeech = false; // the persona spoke at the onset
+  let ov: Overlap | null = null; // the persona spoke at the onset
+  let elapsed = 0;               // ms of audio so far
+
+  const takeTurn = (o: Overlap) => {
+    if (o.stopped) return;
+    o.stopped = true;
+    duck(1);
+    interrupt("interrupted");
+  };
+  const check = (o: Overlap, final: boolean, frames: Float32Array[]) => {
+    o.busy = true;
+    o.lastMs = elapsed;
+    const audio = wav(frames, rate);
+    return magi.checkOverlap({ message: o.message, audio, audioType: "audio/wav", heardUntil: heardUntil(), final })
+      .then((r) => {
+        if (ov !== o && !final) return r.decision;
+        setOverlapWords(r.words);
+        if (r.decision === "stop") takeTurn(o);
+        else if (r.decision === "continue") duck(1);
+        return r.decision;
+      })
+      .catch((e) => {
+        // Not there (404, 501) or the engine is down (503): the simple rule.
+        if (e instanceof RpcError && [404, 501, 503].includes(e.code)) overlapAvailable = false;
+        return "error";
+      })
+      .finally(() => { o.busy = false; });
+  };
 
   node.port.onmessage = (e: MessageEvent<Float32Array>) => {
     const joined = new Float32Array(pending.length + e.data.length);
@@ -50,38 +90,57 @@ export async function startListening(onTurn: (wav: Uint8Array) => void) {
     let at = 0;
     for (; at + frameLen <= joined.length; at += frameLen) {
       const frame = joined.slice(at, at + frameLen);
+      elapsed += defaultVad.frameMs;
       if (rec) rec.push(frame);
       else {
         preroll.push(frame);
         if (preroll.length * defaultVad.frameMs > prerollMs) preroll.shift();
       }
       vad.extraDb = speaking() ? 6 : 0; // what is left of the echo
-      switch (vad.push(frame)) {
-        case "onset":
-          duringSpeech = speaking() !== null;
-          if (duringSpeech) duck(0.25);
+      const ev = vad.push(frame);
+      switch (ev) {
+        case "onset": {
+          const m = speaking();
+          ov = m ? { message: m, busy: false, lastMs: 0, stopped: false } : null;
+          if (ov) duck(0.25);
+          setOverlapWords("");
           rec = preroll.splice(0);
           setHearing(true);
           break;
-        case "turn":
-          if (duringSpeech) interrupt("interrupted");
-          duringSpeech = false;
-          break;
-        case "end":
-          if (!duringSpeech && rec) onTurn(wav(rec, rate));
-          duck(1);
-          rec = null;
+        }
+        case "end": {
+          const o = ov, frames = rec;
+          ov = null; rec = null;
           setHearing(false);
+          if (!frames) break;
+          if (!o || o.stopped) { duck(1); onTurn(wav(frames, rate)); break; }
+          if (!overlapAvailable) {
+            // Shorter than a turn: a backchannel; the persona goes on.
+            duck(1);
+            break;
+          }
+          // The person stopped speaking: the last check decides.
+          check(o, true, frames).then((d) => {
+            if (d === "stop") onTurn(wav(frames, rate));
+            else duck(1);
+          });
           break;
+        }
         case "cancel":
+          ov = null;
           duck(1);
           rec = null;
           setHearing(false);
           break;
       }
+      if (ov && rec && !ov.stopped) {
+        if (vad.speechMs >= (overlapAvailable ? longTurnMs : defaultVad.turnMs)) takeTurn(ov);
+        else if (!ov.busy && vad.speechMs >= firstCheckMs && elapsed - ov.lastMs >= checkEveryMs) check(ov, false, rec.slice());
+      }
       if (rec && rec.length * defaultVad.frameMs > maxTurnMs) {
         onTurn(wav(rec, rate));
         rec = null;
+        ov = null;
         setHearing(false);
       }
     }

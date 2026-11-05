@@ -195,7 +195,8 @@ func (s *System) findInterruption(ctx context.Context, person string, u conversa
 		return nil
 	}
 	d := s.lastDelivery(ctx, *reply, person)
-	if d == nil || d.Reason == "done" || d.Reason == "" || d.StoppedMs == 0 {
+	// A notice that stopped the reply is not an interruption by the person.
+	if d == nil || d.Reason == "done" || d.Reason == "notice" || d.Reason == "" || d.StoppedMs == 0 {
 		return nil
 	}
 	sentences := sentenceSpans(reply.Text)

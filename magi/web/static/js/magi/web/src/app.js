@@ -3,11 +3,12 @@ import { jsx as _jsx, jsxs as _jsxs } from "solid-js/h/jsx-runtime";
 import { createSignal } from "solid-js";
 import { For, Show, Switch, Match, aria } from "./flow.js";
 import { render } from "solid-js/web";
-import { identity, me, setMe, hasToken, setToken, signOut, route, go, notice, questionCount, networkCount, refreshCounts, errText } from "./api.js";
+import { identity, me, setMe, hasToken, setToken, signOut, route, go, notice, questionCount, networkCount, refreshCounts, errText, personaName } from "./api.js";
 import { Conversation, PersonaList, PersonaOrb, startConversation } from "./conversation.js";
 import { Questions, Network } from "./review.js";
 import { Tasks, TaskView } from "./tasks.js";
 import { Knowledge, Words } from "./knowledge.js";
+import { tray, dismiss, startAttention, askForNotifications } from "./attention.js";
 // --- Sign in ----------------------------------------------------------------
 // The sign in is a redirect flow in one tab. The page posts the start token
 // to the identity service, LinkKeys sends the browser back to this page,
@@ -98,6 +99,7 @@ async function start() {
     }
     setPhase("app");
     startConversation();
+    startAttention();
     refreshCounts();
 }
 function SignIn() {
@@ -114,7 +116,14 @@ const tabs = [
 ];
 function Shell() {
     const active = (v) => route().view === v || (v === "tasks" && route().view === "task");
-    return _jsxs("div", { class: "shell", children: [_jsxs("header", { class: "top", children: [_jsxs("a", { class: "brand", href: "#/talk", "aria-label": "Magi, talk", children: [_jsx(PersonaOrb, {}), _jsx("span", { class: "wordmark", children: "Magi" })] }), _jsxs("nav", { class: "tabs", "aria-label": "Sections", children: [_jsx(For, { each: tabs.filter((t) => t.view !== "network"), children: (t) => _jsx(TabLink, { t: t, active: active }) }), _jsx(Show, { when: () => networkCount() !== null, children: _jsx(TabLink, { t: tabs[2], active: active }) })] }), _jsxs("div", { class: "me", children: [_jsx("span", { class: "me-name", title: () => me()?.subject ?? "", children: () => me()?.name }), _jsx("button", { class: "text-button", onClick: signOut, children: "Sign out" })] })] }), _jsxs("div", { class: "body", children: [_jsx("aside", { class: "rail", children: _jsx(PersonaList, {}) }), _jsxs("main", { class: "main", children: [_jsxs(Switch, { children: [_jsx(Match, { when: () => route().view === "questions", children: _jsx(Questions, {}) }), _jsx(Match, { when: () => route().view === "network", children: _jsx(Network, {}) }), _jsx(Match, { when: () => route().view === "tasks", children: _jsx(Tasks, {}) }), _jsx(Match, { when: () => route().view === "task", children: () => _jsx(TaskView, { id: route().arg }) }), _jsx(Match, { when: () => route().view === "knowledge", children: _jsx(Knowledge, {}) }), _jsx(Match, { when: () => route().view === "words", children: _jsx(Words, {}) })] }), _jsx("div", { class: "talk-wrap", hidden: () => route().view !== "talk", children: _jsx(Conversation, {}) })] })] }), _jsx(Show, { when: notice, children: _jsx("div", { class: () => "notice" + (notice()?.bad ? " bad" : ""), role: "status", children: () => notice()?.text }) })] });
+    return _jsxs("div", { class: "shell", children: [_jsxs("header", { class: "top", children: [_jsxs("a", { class: "brand", href: "#/talk", "aria-label": "Magi, talk", children: [_jsx(PersonaOrb, {}), _jsx("span", { class: "wordmark", children: "Magi" })] }), _jsxs("nav", { class: "tabs", "aria-label": "Sections", children: [_jsx(For, { each: tabs.filter((t) => t.view !== "network"), children: (t) => _jsx(TabLink, { t: t, active: active }) }), _jsx(Show, { when: () => networkCount() !== null, children: _jsx(TabLink, { t: tabs[2], active: active }) })] }), _jsxs("div", { class: "me", children: [_jsx("span", { class: "me-name", title: () => me()?.subject ?? "", children: () => me()?.name }), _jsx("button", { class: "text-button", onClick: signOut, children: "Sign out" })] })] }), _jsxs("div", { class: "body", children: [_jsx("aside", { class: "rail", children: _jsx(PersonaList, {}) }), _jsxs("main", { class: "main", children: [_jsxs(Switch, { children: [_jsx(Match, { when: () => route().view === "questions", children: _jsx(Questions, {}) }), _jsx(Match, { when: () => route().view === "network", children: _jsx(Network, {}) }), _jsx(Match, { when: () => route().view === "tasks", children: _jsx(Tasks, {}) }), _jsx(Match, { when: () => route().view === "task", children: () => _jsx(TaskView, { id: route().arg }) }), _jsx(Match, { when: () => route().view === "knowledge", children: _jsx(Knowledge, {}) }), _jsx(Match, { when: () => route().view === "words", children: _jsx(Words, {}) })] }), _jsx("div", { class: "talk-wrap", hidden: () => route().view !== "talk", children: _jsx(Conversation, {}) })] })] }), _jsx(Show, { when: notice, children: _jsx("div", { class: () => "notice" + (notice()?.bad ? " bad" : ""), role: "status", children: () => notice()?.text }) }), _jsx(NoticeTray, {})] });
+}
+// The notices of the personas: the newest at the bottom, until the person
+// dismisses them here or on another device.
+function NoticeTray() {
+    const [open, setOpen] = createSignal(null);
+    const canAsk = () => "Notification" in window && Notification.permission === "default";
+    return _jsx(Show, { when: () => tray().length > 0, children: _jsxs("aside", { class: "tray", "aria-label": "Notices", "aria-live": "polite", children: [_jsx(For, { each: tray, children: (n) => _jsxs("article", { class: "tray-item " + n.urgency, children: [_jsxs("header", { children: [_jsx("span", { class: "tray-from", children: personaName(n.persona) }), _jsx("h2", { class: "tray-title", children: n.title })] }), _jsx("p", { class: () => "tray-text" + (open() === n.id ? " open" : ""), onClick: () => setOpen(open() === n.id ? null : n.id), children: n.text }), _jsxs("div", { class: "tray-actions", children: [_jsx("button", { class: "text-button", onClick: () => setOpen(open() === n.id ? null : n.id), children: () => (open() === n.id ? "Less" : "Read") }), _jsx("button", { class: "text-button", onClick: () => dismiss(n.id), children: "Dismiss" })] })] }) }), _jsx(Show, { when: canAsk, children: _jsx("button", { class: "text-button tray-ask", onClick: askForNotifications, children: "Show notices when this tab is hidden" }) })] }) });
 }
 function TabLink(props) {
     const t = props.t;

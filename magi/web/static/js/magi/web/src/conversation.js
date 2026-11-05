@@ -61,7 +61,7 @@ async function follow(g) {
                     toEnd();
                 // A new spoken reply plays while Magi makes its parts.
                 for (const m of fresh)
-                    if (spoken(m) && speakReplies() && Date.now() - m.createdMs < 60000)
+                    if (m.modality === "voice" && spoken(m) && speakReplies() && Date.now() - m.createdMs < 60000)
                         speak(m);
             }
             for (const m of res.messages)
@@ -91,7 +91,9 @@ function replace(m) { setMessages(messages().map((x) => (x.id === m.id ? m : x))
 // --- Audio ------------------------------------------------------------------
 // A spoken persona reply plays in parts (speech.ts); a voice message of a
 // person plays as one clip.
-const spoken = (m) => m.authorKind === "persona" && m.modality === "voice";
+// A notice is said by the notice loop (attention.ts), not as a reply; its
+// play button replays it.
+const spoken = (m) => m.authorKind === "persona" && (m.modality === "voice" || m.modality === "notice");
 let audio = null;
 async function play(digest) {
     try {
@@ -193,7 +195,7 @@ export function MessageView(props) {
     const links = m.links.filter((l) => l.kind !== "reply-to" || !shown.has(l.target.ref));
     const runs = new Set(m.links.filter((l) => l.target.kind === "workflow-run").map((l) => l.target.ref));
     return _jsxs("article", { class: "msg " + (mine ? "mine" : "theirs"), ref: (el) => { if (!props.compact)
-            boxes.set(m.id, el); }, onClick: props.pick ? () => props.pick(m.id) : undefined, children: [_jsxs("header", { class: "msg-head", children: [_jsx("span", { class: "msg-author", children: author }), _jsxs("time", { class: "msg-time", title: new Date(m.createdMs).toLocaleString(), children: [props.compact ? shortDay(m.createdMs) + ", " : "", time(m.createdMs)] }), m.modality === "voice" ? _jsx("span", { class: "tag", children: "spoken" }) : "", m.visibility === "shared" ? _jsx("span", { class: "tag shared", children: "household" }) : "", props.compact ? "" : _jsx("button", { class: "msg-more", title: "Links and who can read this", ...aria("expanded", () => String(details())), onClick: () => setDetails(!details()), children: "Details" })] }), _jsx("div", { class: "msg-text", children: props.compact ? m.text : () => spokenText(m) }), !props.compact && (spoken(m) || m.audio)
+            boxes.set(m.id, el); }, onClick: props.pick ? () => props.pick(m.id) : undefined, children: [_jsxs("header", { class: "msg-head", children: [_jsx("span", { class: "msg-author", children: author }), _jsxs("time", { class: "msg-time", title: new Date(m.createdMs).toLocaleString(), children: [props.compact ? shortDay(m.createdMs) + ", " : "", time(m.createdMs)] }), m.modality === "voice" ? _jsx("span", { class: "tag", children: "spoken" }) : m.modality === "notice" ? _jsx("span", { class: "tag notice-tag", children: "notice" }) : "", m.visibility === "shared" ? _jsx("span", { class: "tag shared", children: "household" }) : "", props.compact ? "" : _jsx("button", { class: "msg-more", title: "Links and who can read this", ...aria("expanded", () => String(details())), onClick: () => setDetails(!details()), children: "Details" })] }), _jsx("div", { class: "msg-text", children: props.compact ? m.text : () => spokenText(m) }), !props.compact && (spoken(m) || m.audio)
                 ? _jsx("button", { class: "play", onClick: () => (spoken(m) ? (speaking() === m.id ? interrupt("user") : speak(m, 0)) : play(m.audio)), children: () => (speaking() === m.id ? "Stop" : "Play") })
                 : "", _jsx(For, { each: props.compact ? [] : links, children: (l) => _jsx(About, { l: l }) }), _jsx(For, { each: props.compact ? [] : m.refs.filter((r) => r.kind === "knowledge-node" || (r.kind === "workflow-run" && !runs.has(r.ref))), children: (r) => r.kind === "knowledge-node"
                     ? _jsxs("span", { class: "about", children: [_jsx("span", { class: "about-kind", children: "knows" }), " ", r.title ?? r.ref] })

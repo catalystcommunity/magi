@@ -62,7 +62,7 @@ async function follow(g: number) {
         setMessages([...messages(), ...fresh]);
         if (follow) toEnd();
         // A new spoken reply plays while Magi makes its parts.
-        for (const m of fresh) if (spoken(m) && speakReplies() && Date.now() - m.createdMs < 60000) speak(m);
+        for (const m of fresh) if (m.modality === "voice" && spoken(m) && speakReplies() && Date.now() - m.createdMs < 60000) speak(m);
       }
       for (const m of res.messages) lastSeq = Math.max(lastSeq, m.seq);
     } catch {
@@ -88,7 +88,9 @@ function replace(m: Message) { setMessages(messages().map((x) => (x.id === m.id 
 // --- Audio ------------------------------------------------------------------
 // A spoken persona reply plays in parts (speech.ts); a voice message of a
 // person plays as one clip.
-const spoken = (m: Message) => m.authorKind === "persona" && m.modality === "voice";
+// A notice is said by the notice loop (attention.ts), not as a reply; its
+// play button replays it.
+const spoken = (m: Message) => m.authorKind === "persona" && (m.modality === "voice" || m.modality === "notice");
 let audio: HTMLAudioElement | null = null;
 async function play(digest: string) {
   try {
@@ -185,7 +187,7 @@ export function MessageView(props: { m: Message; compact?: boolean; pick?: (id: 
     <header class="msg-head">
       <span class="msg-author">{author}</span>
       <time class="msg-time" title={new Date(m.createdMs).toLocaleString()}>{props.compact ? shortDay(m.createdMs) + ", " : ""}{time(m.createdMs)}</time>
-      {m.modality === "voice" ? <span class="tag">spoken</span> : ""}
+      {m.modality === "voice" ? <span class="tag">spoken</span> : m.modality === "notice" ? <span class="tag notice-tag">notice</span> : ""}
       {m.visibility === "shared" ? <span class="tag shared">household</span> : ""}
       {props.compact ? "" : <button class="msg-more" title="Links and who can read this" {...aria("expanded", () => String(details()))} onClick={() => setDetails(!details())}>Details</button>}
     </header>

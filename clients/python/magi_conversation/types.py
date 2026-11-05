@@ -452,6 +452,147 @@ class Calibration:
 
 
 @dataclass
+class Device:
+    id: str
+    person: str
+    kind: str
+    name: str
+    can: List[str]
+    active: bool
+    hands_free: bool
+    seen_ms: int
+    created_ms: int
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'person') and self.person is not None:
+            result['person'] = self.person
+        if hasattr(self, 'kind') and self.kind is not None:
+            result['kind'] = self.kind
+        if hasattr(self, 'name') and self.name is not None:
+            result['name'] = self.name
+        if hasattr(self, 'can') and self.can is not None:
+            result['can'] = self.can
+        if hasattr(self, 'active') and self.active is not None:
+            result['active'] = self.active
+        if hasattr(self, 'hands_free') and self.hands_free is not None:
+            result['hands_free'] = self.hands_free
+        if hasattr(self, 'seen_ms') and self.seen_ms is not None:
+            result['seen_ms'] = self.seen_ms
+        if hasattr(self, 'created_ms') and self.created_ms is not None:
+            result['created_ms'] = self.created_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Device':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), person=data.get('person'), kind=data.get('kind'), name=data.get('name'), can=data.get('can'), active=data.get('active'), hands_free=data.get('hands_free'), seen_ms=data.get('seen_ms'), created_ms=data.get('created_ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'Device':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class Notice:
+    id: str
+    person: str
+    persona: str
+    stream: str
+    utterance: str
+    title: str
+    text: str
+    urgency: str
+    created_ms: int
+    deliveries: List[NoticeDelivery]
+    device: Optional[str] = None
+    acked_ms: Optional[int] = None
+    acked_by: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'person') and self.person is not None:
+            result['person'] = self.person
+        if hasattr(self, 'persona') and self.persona is not None:
+            result['persona'] = self.persona
+        if hasattr(self, 'stream') and self.stream is not None:
+            result['stream'] = self.stream
+        if hasattr(self, 'utterance') and self.utterance is not None:
+            result['utterance'] = self.utterance
+        if hasattr(self, 'title') and self.title is not None:
+            result['title'] = self.title
+        if hasattr(self, 'text') and self.text is not None:
+            result['text'] = self.text
+        if hasattr(self, 'urgency') and self.urgency is not None:
+            result['urgency'] = self.urgency
+        if hasattr(self, 'device') and self.device is not None:
+            result['device'] = self.device
+        if hasattr(self, 'created_ms') and self.created_ms is not None:
+            result['created_ms'] = self.created_ms
+        if hasattr(self, 'acked_ms') and self.acked_ms is not None:
+            result['acked_ms'] = self.acked_ms
+        if hasattr(self, 'acked_by') and self.acked_by is not None:
+            result['acked_by'] = self.acked_by
+        if hasattr(self, 'deliveries') and self.deliveries is not None:
+            result['deliveries'] = self.deliveries
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Notice':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), person=data.get('person'), persona=data.get('persona'), stream=data.get('stream'), utterance=data.get('utterance'), title=data.get('title'), text=data.get('text'), urgency=data.get('urgency'), device=data.get('device'), created_ms=data.get('created_ms'), acked_ms=data.get('acked_ms'), acked_by=data.get('acked_by'), deliveries=data.get('deliveries'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'Notice':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class NoticeDelivery:
+    device: str
+    how: str
+    at_ms: int
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'device') and self.device is not None:
+            result['device'] = self.device
+        if hasattr(self, 'how') and self.how is not None:
+            result['how'] = self.how
+        if hasattr(self, 'at_ms') and self.at_ms is not None:
+            result['at_ms'] = self.at_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'NoticeDelivery':
+        """Create instance from dictionary."""
+        return cls(device=data.get('device'), how=data.get('how'), at_ms=data.get('at_ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'NoticeDelivery':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
 class PutPersonaRequest:
     id: str
     name: str
@@ -1689,6 +1830,332 @@ class ImportLegacyResponse:
 
     @classmethod
     def from_json(cls, json_str: str) -> 'ImportLegacyResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class PutDeviceRequest:
+    id: str
+    kind: str
+    name: str
+    can: Optional[List[str]] = None
+    active: Optional[bool] = None
+    hands_free: Optional[bool] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'kind') and self.kind is not None:
+            result['kind'] = self.kind
+        if hasattr(self, 'name') and self.name is not None:
+            result['name'] = self.name
+        if hasattr(self, 'can') and self.can is not None:
+            result['can'] = self.can
+        if hasattr(self, 'active') and self.active is not None:
+            result['active'] = self.active
+        if hasattr(self, 'hands_free') and self.hands_free is not None:
+            result['hands_free'] = self.hands_free
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'PutDeviceRequest':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), kind=data.get('kind'), name=data.get('name'), can=data.get('can'), active=data.get('active'), hands_free=data.get('hands_free'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'PutDeviceRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ListDevicesRequest:
+    person: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'person') and self.person is not None:
+            result['person'] = self.person
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ListDevicesRequest':
+        """Create instance from dictionary."""
+        return cls(person=data.get('person'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ListDevicesRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ListDevicesResponse:
+    devices: List[Device]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'devices') and self.devices is not None:
+            result['devices'] = self.devices
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ListDevicesResponse':
+        """Create instance from dictionary."""
+        return cls(devices=data.get('devices'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ListDevicesResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class RemoveDeviceRequest:
+    id: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'RemoveDeviceRequest':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'RemoveDeviceRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class NotifyRequest:
+    utterance: str
+    title: str
+    urgency: Optional[str] = None
+    device: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'utterance') and self.utterance is not None:
+            result['utterance'] = self.utterance
+        if hasattr(self, 'title') and self.title is not None:
+            result['title'] = self.title
+        if hasattr(self, 'urgency') and self.urgency is not None:
+            result['urgency'] = self.urgency
+        if hasattr(self, 'device') and self.device is not None:
+            result['device'] = self.device
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'NotifyRequest':
+        """Create instance from dictionary."""
+        return cls(utterance=data.get('utterance'), title=data.get('title'), urgency=data.get('urgency'), device=data.get('device'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'NotifyRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class WaitNoticesRequest:
+    device: str
+    wait_ms: Optional[int] = None
+    closed_after: Optional[int] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'device') and self.device is not None:
+            result['device'] = self.device
+        if hasattr(self, 'wait_ms') and self.wait_ms is not None:
+            result['wait_ms'] = self.wait_ms
+        if hasattr(self, 'closed_after') and self.closed_after is not None:
+            result['closed_after'] = self.closed_after
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'WaitNoticesRequest':
+        """Create instance from dictionary."""
+        return cls(device=data.get('device'), wait_ms=data.get('wait_ms'), closed_after=data.get('closed_after'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'WaitNoticesRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class WaitNoticesResponse:
+    notices: List[Notice]
+    closed: List[str]
+    now_ms: int
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'notices') and self.notices is not None:
+            result['notices'] = self.notices
+        if hasattr(self, 'closed') and self.closed is not None:
+            result['closed'] = self.closed
+        if hasattr(self, 'now_ms') and self.now_ms is not None:
+            result['now_ms'] = self.now_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'WaitNoticesResponse':
+        """Create instance from dictionary."""
+        return cls(notices=data.get('notices'), closed=data.get('closed'), now_ms=data.get('now_ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'WaitNoticesResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class DeliverNoticeRequest:
+    id: str
+    device: str
+    how: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'device') and self.device is not None:
+            result['device'] = self.device
+        if hasattr(self, 'how') and self.how is not None:
+            result['how'] = self.how
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'DeliverNoticeRequest':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), device=data.get('device'), how=data.get('how'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'DeliverNoticeRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class AckNoticeRequest:
+    id: str
+    device: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'device') and self.device is not None:
+            result['device'] = self.device
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'AckNoticeRequest':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), device=data.get('device'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'AckNoticeRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ListNoticesRequest:
+    person: Optional[str] = None
+    open: Optional[bool] = None
+    limit: Optional[int] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'person') and self.person is not None:
+            result['person'] = self.person
+        if hasattr(self, 'open') and self.open is not None:
+            result['open'] = self.open
+        if hasattr(self, 'limit') and self.limit is not None:
+            result['limit'] = self.limit
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ListNoticesRequest':
+        """Create instance from dictionary."""
+        return cls(person=data.get('person'), open=data.get('open'), limit=data.get('limit'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ListNoticesRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ListNoticesResponse:
+    notices: List[Notice]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'notices') and self.notices is not None:
+            result['notices'] = self.notices
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ListNoticesResponse':
+        """Create instance from dictionary."""
+        return cls(notices=data.get('notices'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ListNoticesResponse':
         """Create instance from JSON string."""
         return cls.from_dict(json.loads(json_str))
 

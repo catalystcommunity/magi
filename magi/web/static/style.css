@@ -242,8 +242,24 @@ button.about:hover { color: var(--harbor); }
   padding: 0.6rem 1.1rem; border-radius: 14px; box-shadow: 0 8px 24px color-mix(in srgb, var(--harbor) 30%, transparent); z-index: 10; }
 .notice.bad { background: var(--rose); color: #fff; }
 
+/* Notices of the personas: a stack at the right. The warm edge is the
+   persona; "high" has a stronger edge, "low" is quiet. */
+.tray { position: fixed; right: 1rem; bottom: 1rem; width: min(22rem, calc(100% - 2rem)); display: grid; gap: 0.5rem; z-index: 9; max-height: 70vh; overflow-y: auto; }
+.tray-item { background: var(--cloud); border: 1px solid var(--peach-line); border-left: 4px solid var(--apricot); border-radius: 14px;
+  padding: 0.6rem 0.85rem; box-shadow: 0 8px 24px color-mix(in srgb, var(--harbor) 18%, transparent); }
+.tray-item.high { border-left-width: 6px; border-color: var(--apricot); background: var(--peach); }
+.tray-item.low { border-left-color: var(--line); box-shadow: none; }
+.tray-from { font-size: 0.78rem; color: var(--slate); }
+.tray-title { font-size: 1rem; }
+.tray-text { margin: 0.25rem 0 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; cursor: pointer; }
+.tray-text.open { display: block; -webkit-line-clamp: unset; max-height: 40vh; overflow-y: auto; }
+.tray-actions { display: flex; gap: 0.75rem; justify-content: flex-end; }
+.tray-ask { justify-self: end; font-size: 0.85rem; }
+.notice-tag { border-color: var(--peach-line); background: var(--peach); }
+
 /* --- Phones --- */
 @media (max-width: 760px) {
+  .tray { top: 6.5rem; bottom: auto; right: 1rem; max-height: 50vh; }
   .top { flex-wrap: wrap; gap: 0.5rem; padding: 0.5rem 1rem; }
   .tabs { order: 3; flex-basis: 100%; margin: 0 -1rem; padding: 0 1rem; }
   .me { margin-left: auto; }

@@ -306,8 +306,8 @@ func (m *Service) StopSpeech(ctx context.Context, req magiapi.StopSpeechRequest)
 
 // ReportDelivery records what the client did with a spoken message.
 func (m *Service) ReportDelivery(ctx context.Context, req magiapi.ReportDeliveryRequest) (magiapi.ReportDeliveryResponse, error) {
-	if r := deref(req.Reason); r != "" && !strings.Contains(" interrupted typing user error done ", " "+r+" ") {
-		return magiapi.ReportDeliveryResponse{}, rpc.Invalid(`reason must be "interrupted", "typing", "user", "error", or "done"`)
+	if r := deref(req.Reason); r != "" && !strings.Contains(" interrupted typing user notice error done ", " "+r+" ") {
+		return magiapi.ReportDeliveryResponse{}, rpc.Invalid(`reason must be "interrupted", "typing", "user", "notice", "error", or "done"`)
 	}
 	d := map[string]any{"reason": deref(req.Reason)}
 	if req.SpokenUntil != nil {

@@ -2,8 +2,8 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideRequest, DeleteLexiconWordRequest, DeleteLexiconWordResponse, EgressDestinationRequest, EgressDestinationResponse, EgressDetectRequest, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressReportRequest, EgressReportResponse, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetTaskDiffRequest, GetTaskRequest, KnowledgeItem, LexiconWord, LinkRequest, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListVoicesRequest, ListVoicesResponse, ListenRequest, ListenResponse, Message, MessageLink, PersonaInfo, PutAppReleaseRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, RememberRequest, ReportDeliveryRequest, ReportDeliveryResponse, RunnerAck, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, StartTaskRequest, StopSpeechRequest, StopSpeechResponse, Task, TaskDiff, TraceRequest, TraceResponse, UnlinkRequest } from "./types.gen.ts";
-import { fromAnswerReviewResponseCbor, fromAppReleaseCbor, fromAudioResponseCbor, fromDecideEgressReviewResponseCbor, fromDeleteLexiconWordResponseCbor, fromEgressDestinationResponseCbor, fromEgressEnvironmentResponseCbor, fromEgressReportResponseCbor, fromEgressSecretRulesResponseCbor, fromEgressVerdictCbor, fromGetAppPackageResponseCbor, fromGetAppReleaseResponseCbor, fromKnowledgeItemCbor, fromLexiconWordCbor, fromListEgressReviewsResponseCbor, fromListLexiconResponseCbor, fromListLinksResponseCbor, fromListPersonasResponseCbor, fromListReviewsResponseCbor, fromListRunnersResponseCbor, fromListTasksResponseCbor, fromListVoicesResponseCbor, fromListenResponseCbor, fromMessageCbor, fromMessageLinkCbor, fromPersonaInfoCbor, fromPutRunnerPackageResponseCbor, fromQueryKnowledgeResponseCbor, fromReadResponseCbor, fromReportDeliveryResponseCbor, fromRunnerAckCbor, fromRunnerClaimResponseCbor, fromRunnerEgressAccessResponseCbor, fromRunnerGetArtifactResponseCbor, fromRunnerGetPackageResponseCbor, fromRunnerHelloResponseCbor, fromRunnerPutArtifactResponseCbor, fromRunnerRunStatusResponseCbor, fromSayResponseCbor, fromSearchResponseCbor, fromSetRunnerReleaseResponseCbor, fromSpeakResponseCbor, fromStopSpeechResponseCbor, fromTaskCbor, fromTaskDiffCbor, fromTraceResponseCbor, toAnswerReviewRequestCbor, toCancelTaskRequestCbor, toDecideEgressReviewRequestCbor, toDecideRequestCbor, toDeleteLexiconWordRequestCbor, toEgressDestinationRequestCbor, toEgressDetectRequestCbor, toEgressEnvironmentRequestCbor, toEgressEvaluateRequestCbor, toEgressReportRequestCbor, toEgressSecretRulesRequestCbor, toGetAppPackageRequestCbor, toGetAppReleaseRequestCbor, toGetAudioRequestCbor, toGetTaskDiffRequestCbor, toGetTaskRequestCbor, toLinkRequestCbor, toListEgressReviewsRequestCbor, toListLexiconRequestCbor, toListLinksRequestCbor, toListPersonasRequestCbor, toListReviewsRequestCbor, toListRunnersRequestCbor, toListTasksRequestCbor, toListVoicesRequestCbor, toListenRequestCbor, toPutAppReleaseRequestCbor, toPutLexiconWordRequestCbor, toPutPersonaRequestCbor, toPutRunnerPackageRequestCbor, toQueryKnowledgeRequestCbor, toReadRequestCbor, toRememberRequestCbor, toReportDeliveryRequestCbor, toRunnerClaimRequestCbor, toRunnerCompleteRequestCbor, toRunnerGetArtifactRequestCbor, toRunnerGetPackageRequestCbor, toRunnerHelloRequestCbor, toRunnerPostRequestCbor, toRunnerProgressRequestCbor, toRunnerPutArtifactRequestCbor, toRunnerRunStatusRequestCbor, toRunnerStepCbor, toSayRequestCbor, toSearchRequestCbor, toSetRunnerReleaseRequestCbor, toSetVisibilityRequestCbor, toSpeakRequestCbor, toStartTaskRequestCbor, toStopSpeechRequestCbor, toTraceRequestCbor, toUnlinkRequestCbor } from "./codec.gen.ts";
+import type { AckNoticeRequest, AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, CheckOverlapRequest, CheckOverlapResponse, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideRequest, DeleteLexiconWordRequest, DeleteLexiconWordResponse, DeliverNoticeRequest, Device, EgressDestinationRequest, EgressDestinationResponse, EgressDetectRequest, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressReportRequest, EgressReportResponse, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetTaskDiffRequest, GetTaskRequest, KnowledgeItem, LexiconWord, LinkRequest, ListDevicesRequest, ListDevicesResponse, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListNoticesRequest, ListNoticesResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListVoicesRequest, ListVoicesResponse, ListenRequest, ListenResponse, Message, MessageLink, Notice, PersonaInfo, PutAppReleaseRequest, PutDeviceRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, RememberRequest, RemoveDeviceRequest, ReportDeliveryRequest, ReportDeliveryResponse, RunnerAck, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, StartTaskRequest, StopSpeechRequest, StopSpeechResponse, Task, TaskDiff, TraceRequest, TraceResponse, UnlinkRequest, WaitNoticesRequest, WaitNoticesResponse } from "./types.gen.ts";
+import { fromAnswerReviewResponseCbor, fromAppReleaseCbor, fromAudioResponseCbor, fromCheckOverlapResponseCbor, fromDecideEgressReviewResponseCbor, fromDeleteLexiconWordResponseCbor, fromDeviceCbor, fromEgressDestinationResponseCbor, fromEgressEnvironmentResponseCbor, fromEgressReportResponseCbor, fromEgressSecretRulesResponseCbor, fromEgressVerdictCbor, fromGetAppPackageResponseCbor, fromGetAppReleaseResponseCbor, fromKnowledgeItemCbor, fromLexiconWordCbor, fromListDevicesResponseCbor, fromListEgressReviewsResponseCbor, fromListLexiconResponseCbor, fromListLinksResponseCbor, fromListNoticesResponseCbor, fromListPersonasResponseCbor, fromListReviewsResponseCbor, fromListRunnersResponseCbor, fromListTasksResponseCbor, fromListVoicesResponseCbor, fromListenResponseCbor, fromMessageCbor, fromMessageLinkCbor, fromNoticeCbor, fromPersonaInfoCbor, fromPutRunnerPackageResponseCbor, fromQueryKnowledgeResponseCbor, fromReadResponseCbor, fromReportDeliveryResponseCbor, fromRunnerAckCbor, fromRunnerClaimResponseCbor, fromRunnerEgressAccessResponseCbor, fromRunnerGetArtifactResponseCbor, fromRunnerGetPackageResponseCbor, fromRunnerHelloResponseCbor, fromRunnerPutArtifactResponseCbor, fromRunnerRunStatusResponseCbor, fromSayResponseCbor, fromSearchResponseCbor, fromSetRunnerReleaseResponseCbor, fromSpeakResponseCbor, fromStopSpeechResponseCbor, fromTaskCbor, fromTaskDiffCbor, fromTraceResponseCbor, fromWaitNoticesResponseCbor, toAckNoticeRequestCbor, toAnswerReviewRequestCbor, toCancelTaskRequestCbor, toCheckOverlapRequestCbor, toDecideEgressReviewRequestCbor, toDecideRequestCbor, toDeleteLexiconWordRequestCbor, toDeliverNoticeRequestCbor, toEgressDestinationRequestCbor, toEgressDetectRequestCbor, toEgressEnvironmentRequestCbor, toEgressEvaluateRequestCbor, toEgressReportRequestCbor, toEgressSecretRulesRequestCbor, toGetAppPackageRequestCbor, toGetAppReleaseRequestCbor, toGetAudioRequestCbor, toGetTaskDiffRequestCbor, toGetTaskRequestCbor, toLinkRequestCbor, toListDevicesRequestCbor, toListEgressReviewsRequestCbor, toListLexiconRequestCbor, toListLinksRequestCbor, toListNoticesRequestCbor, toListPersonasRequestCbor, toListReviewsRequestCbor, toListRunnersRequestCbor, toListTasksRequestCbor, toListVoicesRequestCbor, toListenRequestCbor, toPutAppReleaseRequestCbor, toPutDeviceRequestCbor, toPutLexiconWordRequestCbor, toPutPersonaRequestCbor, toPutRunnerPackageRequestCbor, toQueryKnowledgeRequestCbor, toReadRequestCbor, toRememberRequestCbor, toRemoveDeviceRequestCbor, toReportDeliveryRequestCbor, toRunnerClaimRequestCbor, toRunnerCompleteRequestCbor, toRunnerGetArtifactRequestCbor, toRunnerGetPackageRequestCbor, toRunnerHelloRequestCbor, toRunnerPostRequestCbor, toRunnerProgressRequestCbor, toRunnerPutArtifactRequestCbor, toRunnerRunStatusRequestCbor, toRunnerStepCbor, toSayRequestCbor, toSearchRequestCbor, toSetRunnerReleaseRequestCbor, toSetVisibilityRequestCbor, toSpeakRequestCbor, toStartTaskRequestCbor, toStopSpeechRequestCbor, toTraceRequestCbor, toUnlinkRequestCbor, toWaitNoticesRequestCbor } from "./codec.gen.ts";
 
 export interface ServiceTransport {
   call(service: string, op: string, req: Uint8Array): Uint8Array;
@@ -212,6 +212,78 @@ export class MagiClient {
   reportDelivery(req: ReportDeliveryRequest): ReportDeliveryResponse {
     const csilResp = this.t.call("MagiService", "report-delivery", toReportDeliveryRequestCbor(req));
     return fromReportDeliveryResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  checkOverlap(req: CheckOverlapRequest): CheckOverlapResponse {
+    const csilResp = this.t.call("MagiService", "check-overlap", toCheckOverlapRequestCbor(req));
+    return fromCheckOverlapResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  putDevice(req: PutDeviceRequest): Device {
+    const csilResp = this.t.call("MagiService", "put-device", toPutDeviceRequestCbor(req));
+    return fromDeviceCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  listDevices(req: ListDevicesRequest): ListDevicesResponse {
+    const csilResp = this.t.call("MagiService", "list-devices", toListDevicesRequestCbor(req));
+    return fromListDevicesResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  removeDevice(req: RemoveDeviceRequest): Device {
+    const csilResp = this.t.call("MagiService", "remove-device", toRemoveDeviceRequestCbor(req));
+    return fromDeviceCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  waitNotices(req: WaitNoticesRequest): WaitNoticesResponse {
+    const csilResp = this.t.call("MagiService", "wait-notices", toWaitNoticesRequestCbor(req));
+    return fromWaitNoticesResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  deliverNotice(req: DeliverNoticeRequest): Notice {
+    const csilResp = this.t.call("MagiService", "deliver-notice", toDeliverNoticeRequestCbor(req));
+    return fromNoticeCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  ackNotice(req: AckNoticeRequest): Notice {
+    const csilResp = this.t.call("MagiService", "ack-notice", toAckNoticeRequestCbor(req));
+    return fromNoticeCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  listNotices(req: ListNoticesRequest): ListNoticesResponse {
+    const csilResp = this.t.call("MagiService", "list-notices", toListNoticesRequestCbor(req));
+    return fromListNoticesResponseCbor(csilResp);
   }
 
   /**

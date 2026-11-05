@@ -293,6 +293,94 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			}
 			return EncodeImportLegacyResponse(resp), nil
 		},
+		"put-device": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodePutDeviceRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.PutDevice(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeDevice(resp), nil
+		},
+		"list-devices": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListDevicesRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListDevices(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListDevicesResponse(resp), nil
+		},
+		"remove-device": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeRemoveDeviceRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.RemoveDevice(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeDevice(resp), nil
+		},
+		"notify": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeNotifyRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Notify(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeNotice(resp), nil
+		},
+		"wait-notices": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeWaitNoticesRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.WaitNotices(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeWaitNoticesResponse(resp), nil
+		},
+		"deliver-notice": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeDeliverNoticeRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.DeliverNotice(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeNotice(resp), nil
+		},
+		"ack-notice": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeAckNoticeRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.AckNotice(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeNotice(resp), nil
+		},
+		"list-notices": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListNoticesRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListNotices(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListNoticesResponse(resp), nil
+		},
 	}
 }
 

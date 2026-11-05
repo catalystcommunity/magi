@@ -168,7 +168,7 @@ StopSpeechResponse = { stopped: bool }
 ;;; spoken_until is the offset in the text where playback ended; shown_ms
 ;;; is when the client showed the whole text; stopped_ms and reason are set
 ;;; when playback stopped before the end ("interrupted", "typing", "user",
-;;; "error"). The last report of a client is the one that counts.
+;;; "notice" (a notice took the turn), "error"). The last report of a client is the one that counts.
 ReportDeliveryRequest = {
   message: text,
   ? spoken_until: uint,
@@ -177,6 +177,85 @@ ReportDeliveryRequest = {
   ? reason: text,
 }
 ReportDeliveryResponse = { }
+
+;;; check-overlap decides what to do when the person speaks while a persona
+;;; speaks (docs/speech-interaction.md, 2.3.1, step 2). audio is the
+;;; speech of the person from the onset (WAV, 16 kHz). heard_until is the
+;;; spoken cursor in the text of message. Magi checks that the audio is
+;;; speech, transcribes it, and classifies the words with what the persona
+;;; said last:
+;;;   - "continue": a backchannel or an acknowledgment ("mm-hm", "right,
+;;;     okay"), or no speech. Restore the volume; the persona continues.
+;;;   - "stop": the person takes the turn. Stop the speech.
+;;;   - "wait": not clear yet. Send more audio.
+;;; final is true when the person stopped speaking: then "wait" does not
+;;; come back.
+CheckOverlapRequest = {
+  message: text,
+  audio: bytes,
+  ? audio_type: text,
+  ? heard_until: uint,
+  ? final: bool,
+}
+CheckOverlapResponse = {
+  decision: text,
+  words: text,
+  ack: float,
+  turn: float,
+  speech_ms: uint,
+  elapsed_ms: uint,
+}
+
+;;; Devices and notices (docs/attention.md). A client says hello as a
+;;; device about once a minute and when its state changes (put-device),
+;;; and waits for notices (wait-notices). A persona sends a notice to the
+;;; person: to one device ("send it to my phone"), or to all devices. kind
+;;; is "phone", "browser", "desktop", or "speaker". can: "speak", "notify",
+;;; "show". active: the person uses the client now. urgency: "low" (show),
+;;; "normal" (say at the next pause), "high" (say at once). how: "spoken",
+;;; "shown", "notified".
+Device = {
+  id: text,
+  kind: text,
+  name: text,
+  can: [* text],
+  active: bool,
+  hands_free: bool,
+  seen_ms: uint,
+}
+PutDeviceRequest = {
+  id: text,
+  kind: text,
+  name: text,
+  ? can: [* text],
+  ? active: bool,
+  ? hands_free: bool,
+}
+ListDevicesRequest = { }
+ListDevicesResponse = { devices: [* Device] }
+RemoveDeviceRequest = { id: text }
+NoticeDelivery = { device: text, how: text, at_ms: uint }
+Notice = {
+  id: text,
+  persona: text,
+  message: text,
+  title: text,
+  text: text,
+  urgency: text,
+  ? device: text,
+  created_ms: uint,
+  ? acked_ms: uint,
+  deliveries: [* NoticeDelivery],
+}
+WaitNoticesRequest = { device: text, ? wait_ms: uint, ? closed_after: uint }
+;;; closed has the ids of notices that this device got and that were
+;;; acknowledged after closed_after (ms): remove them. Send now_ms as
+;;; closed_after in the next call.
+WaitNoticesResponse = { notices: [* Notice], closed: [* text], now_ms: uint }
+DeliverNoticeRequest = { id: text, device: text, how: text }
+AckNoticeRequest = { id: text, ? device: text }
+ListNoticesRequest = { ? open: bool, ? limit: uint }
+ListNoticesResponse = { notices: [* Notice] }
 
 TaskStep = {
   step: text,
@@ -380,6 +459,14 @@ service MagiService {
   listen: ListenRequest -> ListenResponse,
   stop-speech: StopSpeechRequest -> StopSpeechResponse,
   report-delivery: ReportDeliveryRequest -> ReportDeliveryResponse,
+  check-overlap: CheckOverlapRequest -> CheckOverlapResponse,
+  put-device: PutDeviceRequest -> Device,
+  list-devices: ListDevicesRequest -> ListDevicesResponse,
+  remove-device: RemoveDeviceRequest -> Device,
+  wait-notices: WaitNoticesRequest -> WaitNoticesResponse,
+  deliver-notice: DeliverNoticeRequest -> Notice,
+  ack-notice: AckNoticeRequest -> Notice,
+  list-notices: ListNoticesRequest -> ListNoticesResponse,
   start-task: StartTaskRequest -> Task,
   get-task: GetTaskRequest -> Task,
   list-tasks: ListTasksRequest -> ListTasksResponse,

@@ -368,8 +368,10 @@ func (s *Service) Post(ctx context.Context, req api.PostRequest) (api.Utterance,
 	switch {
 	case !slices.Contains([]string{"human", "persona", "system"}, u.AuthorKind):
 		return api.Utterance{}, rpc.Invalid("author_kind must be human, persona, or system")
-	case u.Modality != "text" && u.Modality != "voice":
-		return api.Utterance{}, rpc.Invalid("modality must be text or voice")
+	case !slices.Contains([]string{"text", "voice", "notice"}, u.Modality):
+		return api.Utterance{}, rpc.Invalid("modality must be text, voice, or notice")
+	case u.Modality == "notice" && u.AuthorKind == "human":
+		return api.Utterance{}, rpc.Invalid("a person does not post a notice")
 	case u.Text == "" && (u.Audio == nil || *u.Audio == ""):
 		return api.Utterance{}, rpc.Invalid("text or audio is required")
 	case len(u.Text) > maxText:

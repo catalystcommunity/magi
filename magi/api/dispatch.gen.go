@@ -255,6 +255,94 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			}
 			return EncodeReportDeliveryResponse(resp), nil
 		},
+		"check-overlap": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeCheckOverlapRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.CheckOverlap(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeCheckOverlapResponse(resp), nil
+		},
+		"put-device": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodePutDeviceRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.PutDevice(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeDevice(resp), nil
+		},
+		"list-devices": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListDevicesRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListDevices(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListDevicesResponse(resp), nil
+		},
+		"remove-device": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeRemoveDeviceRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.RemoveDevice(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeDevice(resp), nil
+		},
+		"wait-notices": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeWaitNoticesRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.WaitNotices(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeWaitNoticesResponse(resp), nil
+		},
+		"deliver-notice": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeDeliverNoticeRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.DeliverNotice(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeNotice(resp), nil
+		},
+		"ack-notice": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeAckNoticeRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.AckNotice(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeNotice(resp), nil
+		},
+		"list-notices": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListNoticesRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListNotices(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListNoticesResponse(resp), nil
+		},
 		"start-task": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeStartTaskRequest(b)
 			if err != nil {

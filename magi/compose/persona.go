@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -107,12 +108,13 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 	if err != nil {
 		return Result{}, fmt.Errorf("history: %w", err)
 	}
-	name := "Magi"
+	prof := profileFor(persona)
+	name := prof.name
 	if p, err := s.Conversation.GetPersona(ctx, conversationapi.GetPersonaRequest{Id: persona}); err == nil {
 		name = p.Name
 	}
 	now := time.Now()
-	msgs := []model.Message{{Role: "system", Content: fmt.Sprintf(personaPrompt, name, displayName(a), now.Format("Monday 2 January 2006 15:04 MST"))}}
+	msgs := []model.Message{{Role: "system", Content: fmt.Sprintf(prof.prompt, name, displayName(a), now.Format("Monday 2 January 2006 15:04 MST"))}}
 	if rel := s.relatedContext(ctx, as, utt, hist.Utterances, now); rel != "" {
 		// Not a second system message: chat templates such as Qwen's allow
 		// one, at the start. The text can come from other people, so it is
@@ -130,6 +132,9 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 		if u.AuthorKind != "human" {
 			role = "assistant"
 		}
+		if u.Modality == "notice" {
+			content = "[Notice sent to the person's devices] " + content
+		}
 		if inter != nil && u.Id == inter.reply.Id {
 			content = inter.heardText()
 		}
@@ -138,9 +143,10 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 	log := turnLog{}
 	var refs []conversationapi.Ref
 	var reply string
-	for round := 0; round < 6; round++ {
+	tools, ts := prof.toolList(), &turnState{hist: hist.Utterances}
+	for round := 0; round < 8; round++ {
 		start := time.Now()
-		m, err := s.Model.Chat(ctx, msgs, personaTools(), 1024)
+		m, err := s.Model.Chat(ctx, msgs, tools, 1024)
 		call := modelCall{Served: m.Served, Skipped: m.Skipped, Ms: time.Since(start).Milliseconds()}
 		if err != nil {
 			call.Error = err.Error()
@@ -172,7 +178,17 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 				continue
 			}
 			args := toolArgs(tc.Function.Arguments)
-			out, ref := s.personaTool(ctx, a, as, utt, tc.Function.Name, args)
+			var out string
+			var ref *conversationapi.Ref
+			ok := !slices.Contains(prof.tools, tc.Function.Name)
+			if ok {
+				out = "error: unknown tool " + tc.Function.Name
+			} else {
+				out, ref, ok = s.extraTool(ctx, a, as, utt, ts, tc.Function.Name, args)
+			}
+			if !ok {
+				out, ref = s.personaTool(ctx, a, as, utt, tc.Function.Name, args)
+			}
 			if ref != nil {
 				refs = append(refs, *ref)
 			}

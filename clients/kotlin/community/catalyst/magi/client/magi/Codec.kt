@@ -1167,6 +1167,367 @@ fun reportDeliveryResponseFromCborValue(cbor: CborValue): ReportDeliveryResponse
 /** Decode CSIL CBOR bytes into a ReportDeliveryResponse. */
 fun reportDeliveryResponseFromCbor(bytes: ByteArray): ReportDeliveryResponse = reportDeliveryResponseFromCborValue(CsilCbor.decode(bytes))
 
+/** The CBOR value tree for a CheckOverlapRequest (deep, canonical key order). */
+fun CheckOverlapRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("audio") to CborValue.CBytes(this.audio))
+    this.final?.let { csilV -> csilEntries.add(CborValue.CText("final") to CborValue.CBool(csilV)) }
+    csilEntries.add(CborValue.CText("message") to CborValue.CText(this.message))
+    this.audioType?.let { csilV -> csilEntries.add(CborValue.CText("audio_type") to CborValue.CText(csilV)) }
+    this.heardUntil?.let { csilV -> csilEntries.add(CborValue.CText("heard_until") to CborValue.CUint(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a CheckOverlapRequest to canonical CSIL CBOR bytes. */
+fun CheckOverlapRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a CheckOverlapRequest from a decoded CBOR value tree. */
+fun checkOverlapRequestFromCborValue(cbor: CborValue): CheckOverlapRequest {
+    val message = CsilCbor.asText(CsilCbor.require(cbor, "message"))
+    val audio = CsilCbor.asBytes(CsilCbor.require(cbor, "audio"))
+    val audioType = CsilCbor.mapGet(cbor, "audio_type")?.let { csilV -> CsilCbor.asText(csilV) }
+    val heardUntil = CsilCbor.mapGet(cbor, "heard_until")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val final = CsilCbor.mapGet(cbor, "final")?.let { csilV -> CsilCbor.asBoolean(csilV) }
+    return CheckOverlapRequest(message = message, audio = audio, audioType = audioType, heardUntil = heardUntil, final = final)
+}
+
+/** Decode CSIL CBOR bytes into a CheckOverlapRequest. */
+fun checkOverlapRequestFromCbor(bytes: ByteArray): CheckOverlapRequest = checkOverlapRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a CheckOverlapResponse (deep, canonical key order). */
+fun CheckOverlapResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("ack") to CborValue.CFloat(this.ack))
+    csilEntries.add(CborValue.CText("turn") to CborValue.CFloat(this.turn))
+    csilEntries.add(CborValue.CText("words") to CborValue.CText(this.words))
+    csilEntries.add(CborValue.CText("decision") to CborValue.CText(this.decision))
+    csilEntries.add(CborValue.CText("speech_ms") to CborValue.CUint(this.speechMs))
+    csilEntries.add(CborValue.CText("elapsed_ms") to CborValue.CUint(this.elapsedMs))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a CheckOverlapResponse to canonical CSIL CBOR bytes. */
+fun CheckOverlapResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a CheckOverlapResponse from a decoded CBOR value tree. */
+fun checkOverlapResponseFromCborValue(cbor: CborValue): CheckOverlapResponse {
+    val decision = CsilCbor.asText(CsilCbor.require(cbor, "decision"))
+    val words = CsilCbor.asText(CsilCbor.require(cbor, "words"))
+    val ack = CsilCbor.asDouble(CsilCbor.require(cbor, "ack"))
+    val turn = CsilCbor.asDouble(CsilCbor.require(cbor, "turn"))
+    val speechMs = CsilCbor.asULong(CsilCbor.require(cbor, "speech_ms"))
+    val elapsedMs = CsilCbor.asULong(CsilCbor.require(cbor, "elapsed_ms"))
+    return CheckOverlapResponse(decision = decision, words = words, ack = ack, turn = turn, speechMs = speechMs, elapsedMs = elapsedMs)
+}
+
+/** Decode CSIL CBOR bytes into a CheckOverlapResponse. */
+fun checkOverlapResponseFromCbor(bytes: ByteArray): CheckOverlapResponse = checkOverlapResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a Device (deep, canonical key order). */
+fun Device.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    csilEntries.add(CborValue.CText("can") to CborValue.CArray((this.can).map { csilE -> CborValue.CText(csilE) }))
+    csilEntries.add(CborValue.CText("kind") to CborValue.CText(this.kind))
+    csilEntries.add(CborValue.CText("name") to CborValue.CText(this.name))
+    csilEntries.add(CborValue.CText("active") to CborValue.CBool(this.active))
+    csilEntries.add(CborValue.CText("seen_ms") to CborValue.CUint(this.seenMs))
+    csilEntries.add(CborValue.CText("hands_free") to CborValue.CBool(this.handsFree))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a Device to canonical CSIL CBOR bytes. */
+fun Device.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a Device from a decoded CBOR value tree. */
+fun deviceFromCborValue(cbor: CborValue): Device {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val kind = CsilCbor.asText(CsilCbor.require(cbor, "kind"))
+    val name = CsilCbor.asText(CsilCbor.require(cbor, "name"))
+    val can = CsilCbor.asArray(CsilCbor.require(cbor, "can")).map { csilE -> CsilCbor.asText(csilE) }
+    val active = CsilCbor.asBoolean(CsilCbor.require(cbor, "active"))
+    val handsFree = CsilCbor.asBoolean(CsilCbor.require(cbor, "hands_free"))
+    val seenMs = CsilCbor.asULong(CsilCbor.require(cbor, "seen_ms"))
+    return Device(id = id, kind = kind, name = name, can = can, active = active, handsFree = handsFree, seenMs = seenMs)
+}
+
+/** Decode CSIL CBOR bytes into a Device. */
+fun deviceFromCbor(bytes: ByteArray): Device = deviceFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a PutDeviceRequest (deep, canonical key order). */
+fun PutDeviceRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    this.can?.let { csilV -> csilEntries.add(CborValue.CText("can") to CborValue.CArray((csilV).map { csilE -> CborValue.CText(csilE) })) }
+    csilEntries.add(CborValue.CText("kind") to CborValue.CText(this.kind))
+    csilEntries.add(CborValue.CText("name") to CborValue.CText(this.name))
+    this.active?.let { csilV -> csilEntries.add(CborValue.CText("active") to CborValue.CBool(csilV)) }
+    this.handsFree?.let { csilV -> csilEntries.add(CborValue.CText("hands_free") to CborValue.CBool(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a PutDeviceRequest to canonical CSIL CBOR bytes. */
+fun PutDeviceRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a PutDeviceRequest from a decoded CBOR value tree. */
+fun putDeviceRequestFromCborValue(cbor: CborValue): PutDeviceRequest {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val kind = CsilCbor.asText(CsilCbor.require(cbor, "kind"))
+    val name = CsilCbor.asText(CsilCbor.require(cbor, "name"))
+    val can = CsilCbor.mapGet(cbor, "can")?.let { csilV -> CsilCbor.asArray(csilV).map { csilE -> CsilCbor.asText(csilE) } }
+    val active = CsilCbor.mapGet(cbor, "active")?.let { csilV -> CsilCbor.asBoolean(csilV) }
+    val handsFree = CsilCbor.mapGet(cbor, "hands_free")?.let { csilV -> CsilCbor.asBoolean(csilV) }
+    return PutDeviceRequest(id = id, kind = kind, name = name, can = can, active = active, handsFree = handsFree)
+}
+
+/** Decode CSIL CBOR bytes into a PutDeviceRequest. */
+fun putDeviceRequestFromCbor(bytes: ByteArray): PutDeviceRequest = putDeviceRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListDevicesRequest (deep, canonical key order). */
+fun ListDevicesRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListDevicesRequest to canonical CSIL CBOR bytes. */
+fun ListDevicesRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListDevicesRequest from a decoded CBOR value tree. */
+fun listDevicesRequestFromCborValue(cbor: CborValue): ListDevicesRequest {
+    return ListDevicesRequest()
+}
+
+/** Decode CSIL CBOR bytes into a ListDevicesRequest. */
+fun listDevicesRequestFromCbor(bytes: ByteArray): ListDevicesRequest = listDevicesRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListDevicesResponse (deep, canonical key order). */
+fun ListDevicesResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("devices") to CborValue.CArray((this.devices).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListDevicesResponse to canonical CSIL CBOR bytes. */
+fun ListDevicesResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListDevicesResponse from a decoded CBOR value tree. */
+fun listDevicesResponseFromCborValue(cbor: CborValue): ListDevicesResponse {
+    val devices = CsilCbor.asArray(CsilCbor.require(cbor, "devices")).map { csilE -> deviceFromCborValue(csilE) }
+    return ListDevicesResponse(devices = devices)
+}
+
+/** Decode CSIL CBOR bytes into a ListDevicesResponse. */
+fun listDevicesResponseFromCbor(bytes: ByteArray): ListDevicesResponse = listDevicesResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RemoveDeviceRequest (deep, canonical key order). */
+fun RemoveDeviceRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RemoveDeviceRequest to canonical CSIL CBOR bytes. */
+fun RemoveDeviceRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RemoveDeviceRequest from a decoded CBOR value tree. */
+fun removeDeviceRequestFromCborValue(cbor: CborValue): RemoveDeviceRequest {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    return RemoveDeviceRequest(id = id)
+}
+
+/** Decode CSIL CBOR bytes into a RemoveDeviceRequest. */
+fun removeDeviceRequestFromCbor(bytes: ByteArray): RemoveDeviceRequest = removeDeviceRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a NoticeDelivery (deep, canonical key order). */
+fun NoticeDelivery.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("how") to CborValue.CText(this.how))
+    csilEntries.add(CborValue.CText("at_ms") to CborValue.CUint(this.atMs))
+    csilEntries.add(CborValue.CText("device") to CborValue.CText(this.device))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a NoticeDelivery to canonical CSIL CBOR bytes. */
+fun NoticeDelivery.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a NoticeDelivery from a decoded CBOR value tree. */
+fun noticeDeliveryFromCborValue(cbor: CborValue): NoticeDelivery {
+    val device = CsilCbor.asText(CsilCbor.require(cbor, "device"))
+    val how = CsilCbor.asText(CsilCbor.require(cbor, "how"))
+    val atMs = CsilCbor.asULong(CsilCbor.require(cbor, "at_ms"))
+    return NoticeDelivery(device = device, how = how, atMs = atMs)
+}
+
+/** Decode CSIL CBOR bytes into a NoticeDelivery. */
+fun noticeDeliveryFromCbor(bytes: ByteArray): NoticeDelivery = noticeDeliveryFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a Notice (deep, canonical key order). */
+fun Notice.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    csilEntries.add(CborValue.CText("text") to CborValue.CText(this.text))
+    csilEntries.add(CborValue.CText("title") to CborValue.CText(this.title))
+    this.device?.let { csilV -> csilEntries.add(CborValue.CText("device") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("message") to CborValue.CText(this.message))
+    csilEntries.add(CborValue.CText("persona") to CborValue.CText(this.persona))
+    csilEntries.add(CborValue.CText("urgency") to CborValue.CText(this.urgency))
+    this.ackedMs?.let { csilV -> csilEntries.add(CborValue.CText("acked_ms") to CborValue.CUint(csilV)) }
+    csilEntries.add(CborValue.CText("created_ms") to CborValue.CUint(this.createdMs))
+    csilEntries.add(CborValue.CText("deliveries") to CborValue.CArray((this.deliveries).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a Notice to canonical CSIL CBOR bytes. */
+fun Notice.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a Notice from a decoded CBOR value tree. */
+fun noticeFromCborValue(cbor: CborValue): Notice {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val persona = CsilCbor.asText(CsilCbor.require(cbor, "persona"))
+    val message = CsilCbor.asText(CsilCbor.require(cbor, "message"))
+    val title = CsilCbor.asText(CsilCbor.require(cbor, "title"))
+    val text = CsilCbor.asText(CsilCbor.require(cbor, "text"))
+    val urgency = CsilCbor.asText(CsilCbor.require(cbor, "urgency"))
+    val device = CsilCbor.mapGet(cbor, "device")?.let { csilV -> CsilCbor.asText(csilV) }
+    val createdMs = CsilCbor.asULong(CsilCbor.require(cbor, "created_ms"))
+    val ackedMs = CsilCbor.mapGet(cbor, "acked_ms")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val deliveries = CsilCbor.asArray(CsilCbor.require(cbor, "deliveries")).map { csilE -> noticeDeliveryFromCborValue(csilE) }
+    return Notice(id = id, persona = persona, message = message, title = title, text = text, urgency = urgency, device = device, createdMs = createdMs, ackedMs = ackedMs, deliveries = deliveries)
+}
+
+/** Decode CSIL CBOR bytes into a Notice. */
+fun noticeFromCbor(bytes: ByteArray): Notice = noticeFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a WaitNoticesRequest (deep, canonical key order). */
+fun WaitNoticesRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("device") to CborValue.CText(this.device))
+    this.waitMs?.let { csilV -> csilEntries.add(CborValue.CText("wait_ms") to CborValue.CUint(csilV)) }
+    this.closedAfter?.let { csilV -> csilEntries.add(CborValue.CText("closed_after") to CborValue.CUint(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a WaitNoticesRequest to canonical CSIL CBOR bytes. */
+fun WaitNoticesRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a WaitNoticesRequest from a decoded CBOR value tree. */
+fun waitNoticesRequestFromCborValue(cbor: CborValue): WaitNoticesRequest {
+    val device = CsilCbor.asText(CsilCbor.require(cbor, "device"))
+    val waitMs = CsilCbor.mapGet(cbor, "wait_ms")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val closedAfter = CsilCbor.mapGet(cbor, "closed_after")?.let { csilV -> CsilCbor.asULong(csilV) }
+    return WaitNoticesRequest(device = device, waitMs = waitMs, closedAfter = closedAfter)
+}
+
+/** Decode CSIL CBOR bytes into a WaitNoticesRequest. */
+fun waitNoticesRequestFromCbor(bytes: ByteArray): WaitNoticesRequest = waitNoticesRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a WaitNoticesResponse (deep, canonical key order). */
+fun WaitNoticesResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("closed") to CborValue.CArray((this.closed).map { csilE -> CborValue.CText(csilE) }))
+    csilEntries.add(CborValue.CText("now_ms") to CborValue.CUint(this.nowMs))
+    csilEntries.add(CborValue.CText("notices") to CborValue.CArray((this.notices).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a WaitNoticesResponse to canonical CSIL CBOR bytes. */
+fun WaitNoticesResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a WaitNoticesResponse from a decoded CBOR value tree. */
+fun waitNoticesResponseFromCborValue(cbor: CborValue): WaitNoticesResponse {
+    val notices = CsilCbor.asArray(CsilCbor.require(cbor, "notices")).map { csilE -> noticeFromCborValue(csilE) }
+    val closed = CsilCbor.asArray(CsilCbor.require(cbor, "closed")).map { csilE -> CsilCbor.asText(csilE) }
+    val nowMs = CsilCbor.asULong(CsilCbor.require(cbor, "now_ms"))
+    return WaitNoticesResponse(notices = notices, closed = closed, nowMs = nowMs)
+}
+
+/** Decode CSIL CBOR bytes into a WaitNoticesResponse. */
+fun waitNoticesResponseFromCbor(bytes: ByteArray): WaitNoticesResponse = waitNoticesResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a DeliverNoticeRequest (deep, canonical key order). */
+fun DeliverNoticeRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    csilEntries.add(CborValue.CText("how") to CborValue.CText(this.how))
+    csilEntries.add(CborValue.CText("device") to CborValue.CText(this.device))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a DeliverNoticeRequest to canonical CSIL CBOR bytes. */
+fun DeliverNoticeRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a DeliverNoticeRequest from a decoded CBOR value tree. */
+fun deliverNoticeRequestFromCborValue(cbor: CborValue): DeliverNoticeRequest {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val device = CsilCbor.asText(CsilCbor.require(cbor, "device"))
+    val how = CsilCbor.asText(CsilCbor.require(cbor, "how"))
+    return DeliverNoticeRequest(id = id, device = device, how = how)
+}
+
+/** Decode CSIL CBOR bytes into a DeliverNoticeRequest. */
+fun deliverNoticeRequestFromCbor(bytes: ByteArray): DeliverNoticeRequest = deliverNoticeRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a AckNoticeRequest (deep, canonical key order). */
+fun AckNoticeRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    this.device?.let { csilV -> csilEntries.add(CborValue.CText("device") to CborValue.CText(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a AckNoticeRequest to canonical CSIL CBOR bytes. */
+fun AckNoticeRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a AckNoticeRequest from a decoded CBOR value tree. */
+fun ackNoticeRequestFromCborValue(cbor: CborValue): AckNoticeRequest {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val device = CsilCbor.mapGet(cbor, "device")?.let { csilV -> CsilCbor.asText(csilV) }
+    return AckNoticeRequest(id = id, device = device)
+}
+
+/** Decode CSIL CBOR bytes into a AckNoticeRequest. */
+fun ackNoticeRequestFromCbor(bytes: ByteArray): AckNoticeRequest = ackNoticeRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListNoticesRequest (deep, canonical key order). */
+fun ListNoticesRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.open?.let { csilV -> csilEntries.add(CborValue.CText("open") to CborValue.CBool(csilV)) }
+    this.limit?.let { csilV -> csilEntries.add(CborValue.CText("limit") to CborValue.CUint(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListNoticesRequest to canonical CSIL CBOR bytes. */
+fun ListNoticesRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListNoticesRequest from a decoded CBOR value tree. */
+fun listNoticesRequestFromCborValue(cbor: CborValue): ListNoticesRequest {
+    val open = CsilCbor.mapGet(cbor, "open")?.let { csilV -> CsilCbor.asBoolean(csilV) }
+    val limit = CsilCbor.mapGet(cbor, "limit")?.let { csilV -> CsilCbor.asULong(csilV) }
+    return ListNoticesRequest(open = open, limit = limit)
+}
+
+/** Decode CSIL CBOR bytes into a ListNoticesRequest. */
+fun listNoticesRequestFromCbor(bytes: ByteArray): ListNoticesRequest = listNoticesRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListNoticesResponse (deep, canonical key order). */
+fun ListNoticesResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("notices") to CborValue.CArray((this.notices).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListNoticesResponse to canonical CSIL CBOR bytes. */
+fun ListNoticesResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListNoticesResponse from a decoded CBOR value tree. */
+fun listNoticesResponseFromCborValue(cbor: CborValue): ListNoticesResponse {
+    val notices = CsilCbor.asArray(CsilCbor.require(cbor, "notices")).map { csilE -> noticeFromCborValue(csilE) }
+    return ListNoticesResponse(notices = notices)
+}
+
+/** Decode CSIL CBOR bytes into a ListNoticesResponse. */
+fun listNoticesResponseFromCbor(bytes: ByteArray): ListNoticesResponse = listNoticesResponseFromCborValue(CsilCbor.decode(bytes))
+
 /** The CBOR value tree for a TaskStep (deep, canonical key order). */
 fun TaskStep.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
@@ -3055,6 +3416,21 @@ private fun csilToCborValue(value: Any?): CborValue = when (value) {
     is StopSpeechResponse -> value.toCborValue()
     is ReportDeliveryRequest -> value.toCborValue()
     is ReportDeliveryResponse -> value.toCborValue()
+    is CheckOverlapRequest -> value.toCborValue()
+    is CheckOverlapResponse -> value.toCborValue()
+    is Device -> value.toCborValue()
+    is PutDeviceRequest -> value.toCborValue()
+    is ListDevicesRequest -> value.toCborValue()
+    is ListDevicesResponse -> value.toCborValue()
+    is RemoveDeviceRequest -> value.toCborValue()
+    is NoticeDelivery -> value.toCborValue()
+    is Notice -> value.toCborValue()
+    is WaitNoticesRequest -> value.toCborValue()
+    is WaitNoticesResponse -> value.toCborValue()
+    is DeliverNoticeRequest -> value.toCborValue()
+    is AckNoticeRequest -> value.toCborValue()
+    is ListNoticesRequest -> value.toCborValue()
+    is ListNoticesResponse -> value.toCborValue()
     is TaskStep -> value.toCborValue()
     is Task -> value.toCborValue()
     is StartTaskRequest -> value.toCborValue()
@@ -3178,6 +3554,21 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     StopSpeechResponse::class -> stopSpeechResponseFromCborValue(cbor)
     ReportDeliveryRequest::class -> reportDeliveryRequestFromCborValue(cbor)
     ReportDeliveryResponse::class -> reportDeliveryResponseFromCborValue(cbor)
+    CheckOverlapRequest::class -> checkOverlapRequestFromCborValue(cbor)
+    CheckOverlapResponse::class -> checkOverlapResponseFromCborValue(cbor)
+    Device::class -> deviceFromCborValue(cbor)
+    PutDeviceRequest::class -> putDeviceRequestFromCborValue(cbor)
+    ListDevicesRequest::class -> listDevicesRequestFromCborValue(cbor)
+    ListDevicesResponse::class -> listDevicesResponseFromCborValue(cbor)
+    RemoveDeviceRequest::class -> removeDeviceRequestFromCborValue(cbor)
+    NoticeDelivery::class -> noticeDeliveryFromCborValue(cbor)
+    Notice::class -> noticeFromCborValue(cbor)
+    WaitNoticesRequest::class -> waitNoticesRequestFromCborValue(cbor)
+    WaitNoticesResponse::class -> waitNoticesResponseFromCborValue(cbor)
+    DeliverNoticeRequest::class -> deliverNoticeRequestFromCborValue(cbor)
+    AckNoticeRequest::class -> ackNoticeRequestFromCborValue(cbor)
+    ListNoticesRequest::class -> listNoticesRequestFromCborValue(cbor)
+    ListNoticesResponse::class -> listNoticesResponseFromCborValue(cbor)
     TaskStep::class -> taskStepFromCborValue(cbor)
     Task::class -> taskFromCborValue(cbor)
     StartTaskRequest::class -> startTaskRequestFromCborValue(cbor)

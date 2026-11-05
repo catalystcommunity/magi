@@ -303,7 +303,7 @@ export interface StopSpeechResponse {
  * spoken_until is the offset in the text where playback ended; shown_ms
  * is when the client showed the whole text; stopped_ms and reason are set
  * when playback stopped before the end ("interrupted", "typing", "user",
- * "error"). The last report of a client is the one that counts.
+ * "notice" (a notice took the turn), "error"). The last report of a client is the one that counts.
  */
 export interface ReportDeliveryRequest {
   message: string;
@@ -314,6 +314,133 @@ export interface ReportDeliveryRequest {
 }
 
 export interface ReportDeliveryResponse {
+}
+
+/**
+ * check-overlap decides what to do when the person speaks while a persona
+ * speaks (docs/speech-interaction.md, 2.3.1, step 2). audio is the
+ * speech of the person from the onset (WAV, 16 kHz). heard_until is the
+ * spoken cursor in the text of message. Magi checks that the audio is
+ * speech, transcribes it, and classifies the words with what the persona
+ * said last:
+ * - "continue": a backchannel or an acknowledgment ("mm-hm", "right,
+ * okay"), or no speech. Restore the volume; the persona continues.
+ * - "stop": the person takes the turn. Stop the speech.
+ * - "wait": not clear yet. Send more audio.
+ * final is true when the person stopped speaking: then "wait" does not
+ * come back.
+ */
+export interface CheckOverlapRequest {
+  message: string;
+  audio: Uint8Array;
+  audioType?: string;
+  heardUntil?: number;
+  final?: boolean;
+}
+
+export interface CheckOverlapResponse {
+  decision: string;
+  words: string;
+  ack: number;
+  turn: number;
+  speechMs: number;
+  elapsedMs: number;
+}
+
+/**
+ * Devices and notices (docs/attention.md). A client says hello as a
+ * device about once a minute and when its state changes (put-device),
+ * and waits for notices (wait-notices). A persona sends a notice to the
+ * person: to one device ("send it to my phone"), or to all devices. kind
+ * is "phone", "browser", "desktop", or "speaker". can: "speak", "notify",
+ * "show". active: the person uses the client now. urgency: "low" (show),
+ * "normal" (say at the next pause), "high" (say at once). how: "spoken",
+ * "shown", "notified".
+ */
+export interface Device {
+  id: string;
+  kind: string;
+  name: string;
+  can: string[];
+  active: boolean;
+  handsFree: boolean;
+  seenMs: number;
+}
+
+export interface PutDeviceRequest {
+  id: string;
+  kind: string;
+  name: string;
+  can?: string[];
+  active?: boolean;
+  handsFree?: boolean;
+}
+
+export interface ListDevicesRequest {
+}
+
+export interface ListDevicesResponse {
+  devices: Device[];
+}
+
+export interface RemoveDeviceRequest {
+  id: string;
+}
+
+export interface NoticeDelivery {
+  device: string;
+  how: string;
+  atMs: number;
+}
+
+export interface Notice {
+  id: string;
+  persona: string;
+  message: string;
+  title: string;
+  text: string;
+  urgency: string;
+  device?: string;
+  createdMs: number;
+  ackedMs?: number;
+  deliveries: NoticeDelivery[];
+}
+
+export interface WaitNoticesRequest {
+  device: string;
+  waitMs?: number;
+  closedAfter?: number;
+}
+
+/**
+ * closed has the ids of notices that this device got and that were
+ * acknowledged after closed_after (ms): remove them. Send now_ms as
+ * closed_after in the next call.
+ */
+export interface WaitNoticesResponse {
+  notices: Notice[];
+  closed: string[];
+  nowMs: number;
+}
+
+export interface DeliverNoticeRequest {
+  id: string;
+  device: string;
+  how: string;
+}
+
+export interface AckNoticeRequest {
+  id: string;
+  device?: string;
+}
+
+export interface ListNoticesRequest {
+  open?: boolean;
+  limit?: number;
+}
+
+export interface ListNoticesResponse {
+  notices: Notice[];
 }
 
 export interface TaskStep {

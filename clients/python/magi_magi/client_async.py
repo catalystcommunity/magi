@@ -95,6 +95,38 @@ class MagiAsyncClient:
         """report-delivery"""
         return ReportDeliveryResponse.from_cbor(await self._transport.call("MagiService", "report-delivery", req.to_cbor()))
 
+    async def check_overlap(self, req: CheckOverlapRequest) -> CheckOverlapResponse:
+        """check-overlap"""
+        return CheckOverlapResponse.from_cbor(await self._transport.call("MagiService", "check-overlap", req.to_cbor()))
+
+    async def put_device(self, req: PutDeviceRequest) -> Device:
+        """put-device"""
+        return Device.from_cbor(await self._transport.call("MagiService", "put-device", req.to_cbor()))
+
+    async def list_devices(self, req: ListDevicesRequest) -> ListDevicesResponse:
+        """list-devices"""
+        return ListDevicesResponse.from_cbor(await self._transport.call("MagiService", "list-devices", req.to_cbor()))
+
+    async def remove_device(self, req: RemoveDeviceRequest) -> Device:
+        """remove-device"""
+        return Device.from_cbor(await self._transport.call("MagiService", "remove-device", req.to_cbor()))
+
+    async def wait_notices(self, req: WaitNoticesRequest) -> WaitNoticesResponse:
+        """wait-notices"""
+        return WaitNoticesResponse.from_cbor(await self._transport.call("MagiService", "wait-notices", req.to_cbor()))
+
+    async def deliver_notice(self, req: DeliverNoticeRequest) -> Notice:
+        """deliver-notice"""
+        return Notice.from_cbor(await self._transport.call("MagiService", "deliver-notice", req.to_cbor()))
+
+    async def ack_notice(self, req: AckNoticeRequest) -> Notice:
+        """ack-notice"""
+        return Notice.from_cbor(await self._transport.call("MagiService", "ack-notice", req.to_cbor()))
+
+    async def list_notices(self, req: ListNoticesRequest) -> ListNoticesResponse:
+        """list-notices"""
+        return ListNoticesResponse.from_cbor(await self._transport.call("MagiService", "list-notices", req.to_cbor()))
+
     async def start_task(self, req: StartTaskRequest) -> Task:
         """start-task"""
         return Task.from_cbor(await self._transport.call("MagiService", "start-task", req.to_cbor()))

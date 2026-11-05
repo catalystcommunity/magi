@@ -151,6 +151,9 @@ func TestFindInterruption(t *testing.T) {
 
 var testCtx context.Context
 
+// testToken is the service token of testCtx (for System.Cfg.ServiceToken).
+var testToken string
+
 // conversationClient serves fake behind the rpc server, and sets testCtx to
 // a context with a service token.
 func conversationClient(t *testing.T, fake conversationapi.ConversationService) *conversationapi.ConversationClient {
@@ -161,6 +164,6 @@ func conversationClient(t *testing.T, fake conversationapi.ConversationService) 
 	h := httptest.NewServer(rpc.Mux(srv, nil))
 	t.Cleanup(h.Close)
 	tok, _ := iss.Issue(authn.Principal{Subject: "service:magi", Kind: authn.KindService}, time.Hour)
-	testCtx = rpc.WithToken(context.Background(), tok)
+	testCtx, testToken = rpc.WithToken(context.Background(), tok), tok
 	return conversationapi.NewConversationClient(rpc.NewClient(h.URL, nil))
 }

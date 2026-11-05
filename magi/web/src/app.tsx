@@ -2,11 +2,13 @@
 import { createSignal } from "solid-js";
 import { For, Show, Switch, Match, aria } from "./flow.ts";
 import { render } from "solid-js/web";
-import { identity, me, setMe, hasToken, setToken, signOut, route, go, notice, questionCount, networkCount, refreshCounts, errText, type View } from "./api.ts";
+import { identity, me, setMe, hasToken, setToken, signOut, route, go, notice, questionCount, networkCount, refreshCounts, errText, personaName, type View } from "./api.ts";
 import { Conversation, PersonaList, PersonaOrb, startConversation } from "./conversation.tsx";
 import { Questions, Network } from "./review.tsx";
 import { Tasks, TaskView } from "./tasks.tsx";
 import { Knowledge, Words } from "./knowledge.tsx";
+import { tray, dismiss, startAttention, askForNotifications } from "./attention.ts";
+import type { Notice } from "../../../clients/typescript/magi/types.gen.ts";
 
 // --- Sign in ----------------------------------------------------------------
 // The sign in is a redirect flow in one tab. The page posts the start token
@@ -76,6 +78,7 @@ async function start() {
   } catch { setMe(null); return setPhase("signin"); }
   setPhase("app");
   startConversation();
+  startAttention();
   refreshCounts();
 }
 
@@ -139,7 +142,35 @@ function Shell() {
     <Show when={notice}>
       <div class={() => "notice" + (notice()?.bad ? " bad" : "")} role="status">{() => notice()?.text}</div>
     </Show>
+    <NoticeTray />
   </div>;
+}
+
+// The notices of the personas: the newest at the bottom, until the person
+// dismisses them here or on another device.
+function NoticeTray() {
+  const [open, setOpen] = createSignal<string | null>(null);
+  const canAsk = () => "Notification" in window && Notification.permission === "default";
+  return <Show when={() => tray().length > 0}>
+    <aside class="tray" aria-label="Notices" aria-live="polite">
+      <For each={tray}>{(n: Notice) =>
+        <article class={"tray-item " + n.urgency}>
+          <header>
+            <span class="tray-from">{personaName(n.persona)}</span>
+            <h2 class="tray-title">{n.title}</h2>
+          </header>
+          <p class={() => "tray-text" + (open() === n.id ? " open" : "")} onClick={() => setOpen(open() === n.id ? null : n.id)}>{n.text}</p>
+          <div class="tray-actions">
+            <button class="text-button" onClick={() => setOpen(open() === n.id ? null : n.id)}>{() => (open() === n.id ? "Less" : "Read")}</button>
+            <button class="text-button" onClick={() => dismiss(n.id)}>Dismiss</button>
+          </div>
+        </article>}
+      </For>
+      <Show when={canAsk}>
+        <button class="text-button tray-ask" onClick={askForNotifications}>Show notices when this tab is hidden</button>
+      </Show>
+    </aside>
+  </Show>;
 }
 
 function TabLink(props: { t: Tab; active: (v: View) => boolean }) {

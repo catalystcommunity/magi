@@ -328,6 +328,151 @@ data class ReportDeliveryRequest(
 /** ReportDeliveryResponse record. */
 class ReportDeliveryResponse
 
+/** CheckOverlapRequest record. */
+data class CheckOverlapRequest(
+    val message: String,
+    val audio: ByteArray,
+    // wire key: audio_type
+    val audioType: String? = null,
+    // wire key: heard_until
+    val heardUntil: ULong? = null,
+    val final: Boolean? = null
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is CheckOverlapRequest) return false
+        if (message != other.message) return false
+        if (!audio.contentEquals(other.audio)) return false
+        if (audioType != other.audioType) return false
+        if (heardUntil != other.heardUntil) return false
+        if (final != other.final) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = message.hashCode()
+        result = 31 * result + audio.contentHashCode()
+        result = 31 * result + audioType.hashCode()
+        result = 31 * result + heardUntil.hashCode()
+        result = 31 * result + final.hashCode()
+        return result
+    }
+}
+
+/** CheckOverlapResponse record. */
+data class CheckOverlapResponse(
+    val decision: String,
+    val words: String,
+    val ack: Double,
+    val turn: Double,
+    // wire key: speech_ms
+    val speechMs: ULong,
+    // wire key: elapsed_ms
+    val elapsedMs: ULong
+)
+
+/** Device record. */
+data class Device(
+    val id: String,
+    val kind: String,
+    val name: String,
+    val can: List<String>,
+    val active: Boolean,
+    // wire key: hands_free
+    val handsFree: Boolean,
+    // wire key: seen_ms
+    val seenMs: ULong
+)
+
+/** PutDeviceRequest record. */
+data class PutDeviceRequest(
+    val id: String,
+    val kind: String,
+    val name: String,
+    val can: List<String>? = null,
+    val active: Boolean? = null,
+    // wire key: hands_free
+    val handsFree: Boolean? = null
+)
+
+/** ListDevicesRequest record. */
+class ListDevicesRequest
+
+/** ListDevicesResponse record. */
+data class ListDevicesResponse(
+    val devices: List<Device>
+)
+
+/** RemoveDeviceRequest record. */
+data class RemoveDeviceRequest(
+    val id: String
+)
+
+/** NoticeDelivery record. */
+data class NoticeDelivery(
+    val device: String,
+    val how: String,
+    // wire key: at_ms
+    val atMs: ULong
+)
+
+/** Notice record. */
+data class Notice(
+    val id: String,
+    val persona: String,
+    val message: String,
+    val title: String,
+    val text: String,
+    val urgency: String,
+    val device: String? = null,
+    // wire key: created_ms
+    val createdMs: ULong,
+    // wire key: acked_ms
+    val ackedMs: ULong? = null,
+    val deliveries: List<NoticeDelivery>
+)
+
+/** WaitNoticesRequest record. */
+data class WaitNoticesRequest(
+    val device: String,
+    // wire key: wait_ms
+    val waitMs: ULong? = null,
+    // wire key: closed_after
+    val closedAfter: ULong? = null
+)
+
+/** WaitNoticesResponse record. */
+data class WaitNoticesResponse(
+    val notices: List<Notice>,
+    val closed: List<String>,
+    // wire key: now_ms
+    val nowMs: ULong
+)
+
+/** DeliverNoticeRequest record. */
+data class DeliverNoticeRequest(
+    val id: String,
+    val device: String,
+    val how: String
+)
+
+/** AckNoticeRequest record. */
+data class AckNoticeRequest(
+    val id: String,
+    val device: String? = null
+)
+
+/** ListNoticesRequest record. */
+data class ListNoticesRequest(
+    val open: Boolean? = null,
+    val limit: ULong? = null
+)
+
+/** ListNoticesResponse record. */
+data class ListNoticesResponse(
+    val notices: List<Notice>
+)
+
 /** TaskStep record. */
 data class TaskStep(
     val step: String,

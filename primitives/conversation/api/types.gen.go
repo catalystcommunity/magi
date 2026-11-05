@@ -118,6 +118,43 @@ type Calibration struct {
 	Corrected uint64  `json:"corrected" yaml:"corrected"`
 }
 
+// Device represents a structured data type
+type Device struct {
+	Id        string   `json:"id" yaml:"id"`
+	Person    string   `json:"person" yaml:"person"`
+	Kind      string   `json:"kind" yaml:"kind"`
+	Name      string   `json:"name" yaml:"name"`
+	Can       []string `json:"can" yaml:"can"`
+	Active    bool     `json:"active" yaml:"active"`
+	HandsFree bool     `json:"hands_free" yaml:"hands_free"`
+	SeenMs    uint64   `json:"seen_ms" yaml:"seen_ms"`
+	CreatedMs uint64   `json:"created_ms" yaml:"created_ms"`
+}
+
+// Notice represents a structured data type
+type Notice struct {
+	Id         string           `json:"id" yaml:"id"`
+	Person     string           `json:"person" yaml:"person"`
+	Persona    string           `json:"persona" yaml:"persona"`
+	Stream     string           `json:"stream" yaml:"stream"`
+	Utterance  string           `json:"utterance" yaml:"utterance"`
+	Title      string           `json:"title" yaml:"title"`
+	Text       string           `json:"text" yaml:"text"`
+	Urgency    string           `json:"urgency" yaml:"urgency"`
+	Device     *string          `json:"device,omitempty" yaml:"device,omitempty"`
+	CreatedMs  uint64           `json:"created_ms" yaml:"created_ms"`
+	AckedMs    *uint64          `json:"acked_ms,omitempty" yaml:"acked_ms,omitempty"`
+	AckedBy    *string          `json:"acked_by,omitempty" yaml:"acked_by,omitempty"`
+	Deliveries []NoticeDelivery `json:"deliveries" yaml:"deliveries"`
+}
+
+// NoticeDelivery represents a structured data type
+type NoticeDelivery struct {
+	Device string `json:"device" yaml:"device"`
+	How    string `json:"how" yaml:"how"`
+	AtMs   uint64 `json:"at_ms" yaml:"at_ms"`
+}
+
 // PutPersonaRequest represents a structured data type
 type PutPersonaRequest struct {
 	Id      string   `json:"id" yaml:"id"`
@@ -396,4 +433,76 @@ type ImportLegacyResponse struct {
 	Streams    uint64 `json:"streams" yaml:"streams"`
 	Utterances uint64 `json:"utterances" yaml:"utterances"`
 	Links      uint64 `json:"links" yaml:"links"`
+}
+
+// PutDeviceRequest represents a structured data type
+type PutDeviceRequest struct {
+	Id        string   `json:"id" yaml:"id"`
+	Kind      string   `json:"kind" yaml:"kind"`
+	Name      string   `json:"name" yaml:"name"`
+	Can       []string `json:"can,omitempty" yaml:"can,omitempty"`
+	Active    *bool    `json:"active,omitempty" yaml:"active,omitempty"`
+	HandsFree *bool    `json:"hands_free,omitempty" yaml:"hands_free,omitempty"`
+}
+
+// ListDevicesRequest represents a structured data type
+type ListDevicesRequest struct {
+	Person *string `json:"person,omitempty" yaml:"person,omitempty"`
+}
+
+// ListDevicesResponse represents a structured data type
+type ListDevicesResponse struct {
+	Devices []Device `json:"devices" yaml:"devices"`
+}
+
+// RemoveDeviceRequest represents a structured data type
+type RemoveDeviceRequest struct {
+	Id string `json:"id" yaml:"id"`
+}
+
+// NotifyRequest represents a structured data type
+type NotifyRequest struct {
+	Utterance string  `json:"utterance" yaml:"utterance"`
+	Title     string  `json:"title" yaml:"title"`
+	Urgency   *string `json:"urgency,omitempty" yaml:"urgency,omitempty"`
+	Device    *string `json:"device,omitempty" yaml:"device,omitempty"`
+}
+
+// WaitNoticesRequest represents a structured data type
+type WaitNoticesRequest struct {
+	Device      string  `json:"device" yaml:"device"`
+	WaitMs      *uint64 `json:"wait_ms,omitempty" yaml:"wait_ms,omitempty"`
+	ClosedAfter *uint64 `json:"closed_after,omitempty" yaml:"closed_after,omitempty"`
+}
+
+// WaitNoticesResponse represents a structured data type
+type WaitNoticesResponse struct {
+	Notices []Notice `json:"notices" yaml:"notices"`
+	Closed  []string `json:"closed" yaml:"closed"`
+	NowMs   uint64   `json:"now_ms" yaml:"now_ms"`
+}
+
+// DeliverNoticeRequest represents a structured data type
+type DeliverNoticeRequest struct {
+	Id     string `json:"id" yaml:"id"`
+	Device string `json:"device" yaml:"device"`
+	How    string `json:"how" yaml:"how"`
+}
+
+// AckNoticeRequest represents a structured data type
+type AckNoticeRequest struct {
+	Id     string  `json:"id" yaml:"id"`
+	Device *string `json:"device,omitempty" yaml:"device,omitempty"`
+}
+
+// ListNoticesRequest represents a structured data type
+type ListNoticesRequest struct {
+	Person *string `json:"person,omitempty" yaml:"person,omitempty"`
+	Open   *bool   `json:"open,omitempty" yaml:"open,omitempty"`
+	Limit  *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+}
+
+// ListNoticesResponse represents a structured data type
+type ListNoticesResponse struct {
+	Notices []Notice `json:"notices" yaml:"notices"`
 }

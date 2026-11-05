@@ -1113,6 +1113,335 @@ export function toReportDeliveryResponseCbor(v) {
 export function fromReportDeliveryResponseCbor(bytes) {
     return fromReportDeliveryResponseCborValue(decode(bytes));
 }
+export function toCheckOverlapRequestCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("audio", v.audio);
+    if (v.final !== undefined)
+        csilMap.set("final", v.final);
+    csilMap.set("message", v.message);
+    if (v.audioType !== undefined)
+        csilMap.set("audio_type", v.audioType);
+    if (v.heardUntil !== undefined)
+        csilMap.set("heard_until", v.heardUntil);
+    return csilMap;
+}
+export function fromCheckOverlapRequestCborValue(value) {
+    return {
+        message: asString(requireKey(value, "message")),
+        audio: asBytes(requireKey(value, "audio")),
+        audioType: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "audio_type")),
+        heardUntil: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "heard_until")),
+        final: ((csilV) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "final")),
+    };
+}
+export function toCheckOverlapRequestCbor(v) {
+    return encodeValue(toCheckOverlapRequestCborValue(v));
+}
+export function fromCheckOverlapRequestCbor(bytes) {
+    return fromCheckOverlapRequestCborValue(decode(bytes));
+}
+export function toCheckOverlapResponseCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("ack", v.ack);
+    csilMap.set("turn", v.turn);
+    csilMap.set("words", v.words);
+    csilMap.set("decision", v.decision);
+    csilMap.set("speech_ms", v.speechMs);
+    csilMap.set("elapsed_ms", v.elapsedMs);
+    return csilMap;
+}
+export function fromCheckOverlapResponseCborValue(value) {
+    return {
+        decision: asString(requireKey(value, "decision")),
+        words: asString(requireKey(value, "words")),
+        ack: asNumber(requireKey(value, "ack")),
+        turn: asNumber(requireKey(value, "turn")),
+        speechMs: asNumber(requireKey(value, "speech_ms")),
+        elapsedMs: asNumber(requireKey(value, "elapsed_ms")),
+    };
+}
+export function toCheckOverlapResponseCbor(v) {
+    return encodeValue(toCheckOverlapResponseCborValue(v));
+}
+export function fromCheckOverlapResponseCbor(bytes) {
+    return fromCheckOverlapResponseCborValue(decode(bytes));
+}
+export function toDeviceCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("id", v.id);
+    csilMap.set("can", v.can);
+    csilMap.set("kind", v.kind);
+    csilMap.set("name", v.name);
+    csilMap.set("active", v.active);
+    csilMap.set("seen_ms", v.seenMs);
+    csilMap.set("hands_free", v.handsFree);
+    return csilMap;
+}
+export function fromDeviceCborValue(value) {
+    return {
+        id: asString(requireKey(value, "id")),
+        kind: asString(requireKey(value, "kind")),
+        name: asString(requireKey(value, "name")),
+        can: asArray(requireKey(value, "can")).map((csilE) => asString(csilE)),
+        active: asBool(requireKey(value, "active")),
+        handsFree: asBool(requireKey(value, "hands_free")),
+        seenMs: asNumber(requireKey(value, "seen_ms")),
+    };
+}
+export function toDeviceCbor(v) {
+    return encodeValue(toDeviceCborValue(v));
+}
+export function fromDeviceCbor(bytes) {
+    return fromDeviceCborValue(decode(bytes));
+}
+export function toPutDeviceRequestCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("id", v.id);
+    if (v.can !== undefined)
+        csilMap.set("can", v.can);
+    csilMap.set("kind", v.kind);
+    csilMap.set("name", v.name);
+    if (v.active !== undefined)
+        csilMap.set("active", v.active);
+    if (v.handsFree !== undefined)
+        csilMap.set("hands_free", v.handsFree);
+    return csilMap;
+}
+export function fromPutDeviceRequestCborValue(value) {
+    return {
+        id: asString(requireKey(value, "id")),
+        kind: asString(requireKey(value, "kind")),
+        name: asString(requireKey(value, "name")),
+        can: ((csilV) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "can")),
+        active: ((csilV) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "active")),
+        handsFree: ((csilV) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "hands_free")),
+    };
+}
+export function toPutDeviceRequestCbor(v) {
+    return encodeValue(toPutDeviceRequestCborValue(v));
+}
+export function fromPutDeviceRequestCbor(bytes) {
+    return fromPutDeviceRequestCborValue(decode(bytes));
+}
+export function toListDevicesRequestCborValue(v) {
+    const csilMap = new Map();
+    return csilMap;
+}
+export function fromListDevicesRequestCborValue(value) {
+    void value;
+    return {};
+}
+export function toListDevicesRequestCbor(v) {
+    return encodeValue(toListDevicesRequestCborValue(v));
+}
+export function fromListDevicesRequestCbor(bytes) {
+    return fromListDevicesRequestCborValue(decode(bytes));
+}
+export function toListDevicesResponseCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("devices", v.devices.map((csilE) => toDeviceCborValue(csilE)));
+    return csilMap;
+}
+export function fromListDevicesResponseCborValue(value) {
+    return {
+        devices: asArray(requireKey(value, "devices")).map((csilE) => fromDeviceCborValue(csilE)),
+    };
+}
+export function toListDevicesResponseCbor(v) {
+    return encodeValue(toListDevicesResponseCborValue(v));
+}
+export function fromListDevicesResponseCbor(bytes) {
+    return fromListDevicesResponseCborValue(decode(bytes));
+}
+export function toRemoveDeviceRequestCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("id", v.id);
+    return csilMap;
+}
+export function fromRemoveDeviceRequestCborValue(value) {
+    return {
+        id: asString(requireKey(value, "id")),
+    };
+}
+export function toRemoveDeviceRequestCbor(v) {
+    return encodeValue(toRemoveDeviceRequestCborValue(v));
+}
+export function fromRemoveDeviceRequestCbor(bytes) {
+    return fromRemoveDeviceRequestCborValue(decode(bytes));
+}
+export function toNoticeDeliveryCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("how", v.how);
+    csilMap.set("at_ms", v.atMs);
+    csilMap.set("device", v.device);
+    return csilMap;
+}
+export function fromNoticeDeliveryCborValue(value) {
+    return {
+        device: asString(requireKey(value, "device")),
+        how: asString(requireKey(value, "how")),
+        atMs: asNumber(requireKey(value, "at_ms")),
+    };
+}
+export function toNoticeDeliveryCbor(v) {
+    return encodeValue(toNoticeDeliveryCborValue(v));
+}
+export function fromNoticeDeliveryCbor(bytes) {
+    return fromNoticeDeliveryCborValue(decode(bytes));
+}
+export function toNoticeCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("id", v.id);
+    csilMap.set("text", v.text);
+    csilMap.set("title", v.title);
+    if (v.device !== undefined)
+        csilMap.set("device", v.device);
+    csilMap.set("message", v.message);
+    csilMap.set("persona", v.persona);
+    csilMap.set("urgency", v.urgency);
+    if (v.ackedMs !== undefined)
+        csilMap.set("acked_ms", v.ackedMs);
+    csilMap.set("created_ms", v.createdMs);
+    csilMap.set("deliveries", v.deliveries.map((csilE) => toNoticeDeliveryCborValue(csilE)));
+    return csilMap;
+}
+export function fromNoticeCborValue(value) {
+    return {
+        id: asString(requireKey(value, "id")),
+        persona: asString(requireKey(value, "persona")),
+        message: asString(requireKey(value, "message")),
+        title: asString(requireKey(value, "title")),
+        text: asString(requireKey(value, "text")),
+        urgency: asString(requireKey(value, "urgency")),
+        device: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "device")),
+        createdMs: asNumber(requireKey(value, "created_ms")),
+        ackedMs: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "acked_ms")),
+        deliveries: asArray(requireKey(value, "deliveries")).map((csilE) => fromNoticeDeliveryCborValue(csilE)),
+    };
+}
+export function toNoticeCbor(v) {
+    return encodeValue(toNoticeCborValue(v));
+}
+export function fromNoticeCbor(bytes) {
+    return fromNoticeCborValue(decode(bytes));
+}
+export function toWaitNoticesRequestCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("device", v.device);
+    if (v.waitMs !== undefined)
+        csilMap.set("wait_ms", v.waitMs);
+    if (v.closedAfter !== undefined)
+        csilMap.set("closed_after", v.closedAfter);
+    return csilMap;
+}
+export function fromWaitNoticesRequestCborValue(value) {
+    return {
+        device: asString(requireKey(value, "device")),
+        waitMs: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "wait_ms")),
+        closedAfter: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "closed_after")),
+    };
+}
+export function toWaitNoticesRequestCbor(v) {
+    return encodeValue(toWaitNoticesRequestCborValue(v));
+}
+export function fromWaitNoticesRequestCbor(bytes) {
+    return fromWaitNoticesRequestCborValue(decode(bytes));
+}
+export function toWaitNoticesResponseCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("closed", v.closed);
+    csilMap.set("now_ms", v.nowMs);
+    csilMap.set("notices", v.notices.map((csilE) => toNoticeCborValue(csilE)));
+    return csilMap;
+}
+export function fromWaitNoticesResponseCborValue(value) {
+    return {
+        notices: asArray(requireKey(value, "notices")).map((csilE) => fromNoticeCborValue(csilE)),
+        closed: asArray(requireKey(value, "closed")).map((csilE) => asString(csilE)),
+        nowMs: asNumber(requireKey(value, "now_ms")),
+    };
+}
+export function toWaitNoticesResponseCbor(v) {
+    return encodeValue(toWaitNoticesResponseCborValue(v));
+}
+export function fromWaitNoticesResponseCbor(bytes) {
+    return fromWaitNoticesResponseCborValue(decode(bytes));
+}
+export function toDeliverNoticeRequestCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("id", v.id);
+    csilMap.set("how", v.how);
+    csilMap.set("device", v.device);
+    return csilMap;
+}
+export function fromDeliverNoticeRequestCborValue(value) {
+    return {
+        id: asString(requireKey(value, "id")),
+        device: asString(requireKey(value, "device")),
+        how: asString(requireKey(value, "how")),
+    };
+}
+export function toDeliverNoticeRequestCbor(v) {
+    return encodeValue(toDeliverNoticeRequestCborValue(v));
+}
+export function fromDeliverNoticeRequestCbor(bytes) {
+    return fromDeliverNoticeRequestCborValue(decode(bytes));
+}
+export function toAckNoticeRequestCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("id", v.id);
+    if (v.device !== undefined)
+        csilMap.set("device", v.device);
+    return csilMap;
+}
+export function fromAckNoticeRequestCborValue(value) {
+    return {
+        id: asString(requireKey(value, "id")),
+        device: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "device")),
+    };
+}
+export function toAckNoticeRequestCbor(v) {
+    return encodeValue(toAckNoticeRequestCborValue(v));
+}
+export function fromAckNoticeRequestCbor(bytes) {
+    return fromAckNoticeRequestCborValue(decode(bytes));
+}
+export function toListNoticesRequestCborValue(v) {
+    const csilMap = new Map();
+    if (v.open !== undefined)
+        csilMap.set("open", v.open);
+    if (v.limit !== undefined)
+        csilMap.set("limit", v.limit);
+    return csilMap;
+}
+export function fromListNoticesRequestCborValue(value) {
+    return {
+        open: ((csilV) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "open")),
+        limit: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
+    };
+}
+export function toListNoticesRequestCbor(v) {
+    return encodeValue(toListNoticesRequestCborValue(v));
+}
+export function fromListNoticesRequestCbor(bytes) {
+    return fromListNoticesRequestCborValue(decode(bytes));
+}
+export function toListNoticesResponseCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("notices", v.notices.map((csilE) => toNoticeCborValue(csilE)));
+    return csilMap;
+}
+export function fromListNoticesResponseCborValue(value) {
+    return {
+        notices: asArray(requireKey(value, "notices")).map((csilE) => fromNoticeCborValue(csilE)),
+    };
+}
+export function toListNoticesResponseCbor(v) {
+    return encodeValue(toListNoticesResponseCborValue(v));
+}
+export function fromListNoticesResponseCbor(bytes) {
+    return fromListNoticesResponseCborValue(decode(bytes));
+}
 export function toTaskStepCborValue(v) {
     const csilMap = new Map();
     csilMap.set("step", v.step);

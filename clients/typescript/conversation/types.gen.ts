@@ -42,8 +42,9 @@ export interface Ref {
 
 /**
  * One thing that someone said or did. author_kind is "human", "persona",
- * or "system". modality is "text" or "voice". seq increases by one in each
- * stream. visibility is "private" or "shared"; visibility_by is the
+ * or "system". modality is "text", "voice", or "notice" (a persona
+ * utterance that a notice announces; clients say it through the notice,
+ * not as a reply). seq increases by one in each stream. visibility is "private" or "shared"; visibility_by is the
  * author of the last visibility decision ("" until it is classified).
  * generated_by names the model or engine that made the text.
  */
@@ -159,6 +160,62 @@ export interface Calibration {
   threshold: number;
   accepted: number;
   corrected: number;
+}
+
+/**
+ * Devices and notices (docs/attention.md). A device is a client of a
+ * person: a phone, a browser, a desktop, a speaker. It says hello about
+ * once a minute and when its state changes, and it waits for notices.
+ * kind is "phone", "browser", "desktop", or "speaker". can lists what
+ * the device can do: "speak" (play speech), "notify" (system
+ * notifications when the client is not open), "show" (a screen). active
+ * is true when the person uses the client now (it is in the foreground,
+ * or hands-free talk is on). hands_free is true when the microphone stays
+ * on. A device of another person is never visible.
+ */
+export interface Device {
+  id: string;
+  person: string;
+  kind: string;
+  name: string;
+  can: string[];
+  active: boolean;
+  handsFree: boolean;
+  seenMs: number;
+  createdMs: number;
+}
+
+/**
+ * A notice tells the person about an utterance of a persona (the text
+ * is in the utterance). urgency is "low" (show it), "normal" (say it at
+ * the next pause), or "high" (say it at once, also over a persona that
+ * speaks). device is the device that the notice is for; without it, all
+ * devices of the person get the notice. A notice is open until the person
+ * acknowledges it on one device; then the other devices remove it.
+ */
+export interface Notice {
+  id: string;
+  person: string;
+  persona: string;
+  stream: string;
+  utterance: string;
+  title: string;
+  text: string;
+  urgency: string;
+  device?: string;
+  createdMs: number;
+  ackedMs?: number;
+  ackedBy?: string;
+  deliveries: NoticeDelivery[];
+}
+
+/**
+ * how is "spoken", "shown", or "notified" (a system notification).
+ */
+export interface NoticeDelivery {
+  device: string;
+  how: string;
+  atMs: number;
 }
 
 /**
@@ -463,5 +520,97 @@ export interface ImportLegacyResponse {
   streams: number;
   utterances: number;
   links: number;
+}
+
+/**
+ * The caller is the person of the device. id is chosen by the client
+ * (random, kept on the device).
+ */
+export interface PutDeviceRequest {
+  id: string;
+  kind: string;
+  name: string;
+  can?: string[];
+  active?: boolean;
+  handsFree?: boolean;
+}
+
+/**
+ * Devices of the caller, or of person (needs act-as), newest first.
+ */
+export interface ListDevicesRequest {
+  person?: string;
+}
+
+export interface ListDevicesResponse {
+  devices: Device[];
+}
+
+export interface RemoveDeviceRequest {
+  id: string;
+}
+
+/**
+ * notify needs act-as. The person is the person of the stream of the
+ * utterance. device must be a device of that person.
+ */
+export interface NotifyRequest {
+  utterance: string;
+  title: string;
+  urgency?: string;
+  device?: string;
+}
+
+/**
+ * Open notices for device that it did not get yet: notices for that
+ * device and notices for all devices, from the last 24 hours, oldest
+ * first. If there are none and wait_ms is set, waits up to wait_ms.
+ */
+export interface WaitNoticesRequest {
+  device: string;
+  waitMs?: number;
+  closedAfter?: number;
+}
+
+/**
+ * closed has the ids of notices that this device got and that were
+ * acknowledged after closed_after (ms): remove them. Send now_ms as
+ * closed_after in the next call.
+ */
+export interface WaitNoticesResponse {
+  notices: Notice[];
+  closed: string[];
+  nowMs: number;
+}
+
+/**
+ * The device got the notice and gave it to the person (how).
+ */
+export interface DeliverNoticeRequest {
+  id: string;
+  device: string;
+  how: string;
+}
+
+/**
+ * The person saw or heard the notice.
+ */
+export interface AckNoticeRequest {
+  id: string;
+  device?: string;
+}
+
+/**
+ * Notices of the caller (or of person, with act-as), newest first. open
+ * gives only the notices that are not acknowledged.
+ */
+export interface ListNoticesRequest {
+  person?: string;
+  open?: boolean;
+  limit?: number;
+}
+
+export interface ListNoticesResponse {
+  notices: Notice[];
 }
 

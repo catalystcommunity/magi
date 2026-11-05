@@ -185,7 +185,7 @@ func (s *System) check(ctx context.Context, a workflowapi.Assignment, note func(
 		out["check_output"] = tail(output, 6000)
 		if attempts >= maxCheckAttempts {
 			out["task.result"] = "gave-up"
-			s.post(ctx, a, fmt.Sprintf("The checks failed %d times. I stopped the task. The last output is in artifact %s.", attempts, art.Digest))
+			s.report(ctx, a, "normal", "Task stopped", fmt.Sprintf("The checks failed %d times. I stopped the task. The last output is in artifact %s.", attempts, art.Digest))
 			return Result{Outcome: "give-up", Outputs: out}, nil
 		}
 		note(fmt.Sprintf("Checks failed (attempt %d). The apprentice will try again.", attempts))
@@ -232,7 +232,7 @@ git rev-parse HEAD`, msg, a.Vars["base_commit"], branch)
 	out["check_output"] = ""
 	out["check.attempts"] = "0"
 	note("Checks passed. Waiting for review.")
-	s.post(ctx, a, fmt.Sprintf("The checks passed. The change on %s is ready for your review. Decide with the task API: approve, revise with a comment, or reject.", branch))
+	s.report(ctx, a, "normal", "Ready for review", fmt.Sprintf("The checks passed. The change on %s is ready for your review. Tell me to approve, revise with a comment, or reject, or decide in the Tasks view.", branch))
 	return Result{Outcome: "pass", Outputs: out}, nil
 }
 
@@ -249,11 +249,11 @@ func (s *System) merge(ctx context.Context, a workflowapi.Assignment, note func(
 		return Result{}, err
 	}
 	if !m.Merged {
-		s.post(ctx, a, fmt.Sprintf("I could not merge %s: %s", a.Vars["branch"], deref(m.Message)))
+		s.report(ctx, a, "normal", "Merge failed", fmt.Sprintf("I could not merge %s: %s", a.Vars["branch"], deref(m.Message)))
 		return Result{Outcome: "conflict", Outputs: map[string]string{"task.result": "conflict"}}, nil
 	}
 	note("Merged as " + m.Commit)
-	s.post(ctx, a, fmt.Sprintf("I merged the change into %s as commit %.12s.", a.Vars["default_branch"], m.Commit))
+	s.report(ctx, a, "low", "Merged", fmt.Sprintf("I merged the change into %s as commit %.12s.", a.Vars["default_branch"], m.Commit))
 	return Result{Outcome: "done", Outputs: map[string]string{"task.result": "merged", "merge.commit": m.Commit}}, nil
 }
 
@@ -266,7 +266,7 @@ func (s *System) cleanup(ctx context.Context, a workflowapi.Assignment, note fun
 	result := a.Vars["task.result"]
 	if result == "" {
 		result = "rejected"
-		s.post(ctx, a, "The change was rejected. I removed the environment. The branch stays for reference.")
+		s.report(ctx, a, "low", "Rejected", "The change was rejected. I removed the environment. The branch stays for reference.")
 	}
 	return Result{Outcome: "done", Outputs: map[string]string{"task.result": result}}, nil
 }
@@ -299,11 +299,11 @@ func (s *System) publish(ctx context.Context, a workflowapi.Assignment, note fun
 		if deref(p.Message) == "already published" {
 			return Result{Outcome: "done"}, nil
 		}
-		s.post(ctx, a, "I could not push the change to the upstream: "+deref(p.Message)+". It is merged in Magi's copy.")
+		s.report(ctx, a, "normal", "Push failed", "I could not push the change to the upstream: "+deref(p.Message)+". It is merged in Magi's copy.")
 		return Result{Outcome: "rejected", Outputs: map[string]string{"publish.error": deref(p.Message)}}, nil
 	}
 	note("Published " + p.Commit)
-	s.post(ctx, a, fmt.Sprintf("The release stayed healthy, so I pushed commit %.12s to the upstream repository.", p.Commit))
+	s.report(ctx, a, "low", "Done", fmt.Sprintf("The release stayed healthy, so I pushed commit %.12s to the upstream repository.", p.Commit))
 	return Result{Outcome: "done", Outputs: map[string]string{"publish.commit": p.Commit}}, nil
 }
 
@@ -349,7 +349,7 @@ func (s *System) cancelTask(ctx context.Context, run workflowapi.Run, by, reason
 	if reason != "" {
 		msg += ": " + reason
 	}
-	s.post(ctx, workflowapi.Assignment{Run: run.Id, Owner: run.Owner, Vars: run.Vars}, msg+". I removed its environment. The branch stays for reference.")
+	s.report(ctx, workflowapi.Assignment{Run: run.Id, Owner: run.Owner, Vars: run.Vars}, "low", "Task stopped", msg+". I removed its environment. The branch stays for reference.")
 	s.Log.Info("task cancelled", "run", run.Id, "by", by, "step", step)
 	return run, nil
 }
@@ -371,6 +371,25 @@ func (s *System) post(ctx context.Context, a workflowapi.Assignment, text string
 	}
 	if _, err := s.Conversation.Post(ctx, req); err != nil {
 		s.Log.Warn("post to stream", "stream", stream, "err", err)
+	}
+}
+
+// report tells the person about the run as a notice: it goes to the
+// devices of the person, and it is also in the stream. When the notice
+// fails, it is a plain message.
+func (s *System) report(ctx context.Context, a workflowapi.Assignment, urgency, title, text string) {
+	run := conversationapi.Ref{Kind: "workflow-run", Ref: a.Run, Title: optional(a.Vars["title"])}
+	if t := a.Vars["title"]; t != "" {
+		title += ": " + t
+	}
+	if len([]rune(title)) > 120 {
+		title = string([]rune(title)[:117]) + "..."
+	}
+	_, err := s.sendNotice(ctx, noticeReq{owner: a.Owner, persona: firstNonEmpty(a.Vars["persona"], Persona), stream: a.Vars["stream"],
+		title: title, text: text, urgency: urgency, refs: []conversationapi.Ref{run}})
+	if err != nil {
+		s.Log.Warn("task notice", "run", a.Run, "err", err)
+		s.post(ctx, a, text)
 	}
 }
 

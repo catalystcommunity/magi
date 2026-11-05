@@ -276,3 +276,75 @@ func (c *ConversationClient) ImportLegacy(ctx context.Context, req ImportLegacyR
 	}
 	return DecodeImportLegacyResponse(csilResp)
 }
+
+func (c *ConversationClient) PutDevice(ctx context.Context, req PutDeviceRequest) (Device, error) {
+	var csilZero Device
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "put-device", EncodePutDeviceRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeDevice(csilResp)
+}
+
+func (c *ConversationClient) ListDevices(ctx context.Context, req ListDevicesRequest) (ListDevicesResponse, error) {
+	var csilZero ListDevicesResponse
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-devices", EncodeListDevicesRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListDevicesResponse(csilResp)
+}
+
+func (c *ConversationClient) RemoveDevice(ctx context.Context, req RemoveDeviceRequest) (Device, error) {
+	var csilZero Device
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "remove-device", EncodeRemoveDeviceRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeDevice(csilResp)
+}
+
+func (c *ConversationClient) Notify(ctx context.Context, req NotifyRequest) (Notice, error) {
+	var csilZero Notice
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "notify", EncodeNotifyRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeNotice(csilResp)
+}
+
+func (c *ConversationClient) WaitNotices(ctx context.Context, req WaitNoticesRequest) (WaitNoticesResponse, error) {
+	var csilZero WaitNoticesResponse
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "wait-notices", EncodeWaitNoticesRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeWaitNoticesResponse(csilResp)
+}
+
+func (c *ConversationClient) DeliverNotice(ctx context.Context, req DeliverNoticeRequest) (Notice, error) {
+	var csilZero Notice
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "deliver-notice", EncodeDeliverNoticeRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeNotice(csilResp)
+}
+
+func (c *ConversationClient) AckNotice(ctx context.Context, req AckNoticeRequest) (Notice, error) {
+	var csilZero Notice
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "ack-notice", EncodeAckNoticeRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeNotice(csilResp)
+}
+
+func (c *ConversationClient) ListNotices(ctx context.Context, req ListNoticesRequest) (ListNoticesResponse, error) {
+	var csilZero ListNoticesResponse
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-notices", EncodeListNoticesRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListNoticesResponse(csilResp)
+}
