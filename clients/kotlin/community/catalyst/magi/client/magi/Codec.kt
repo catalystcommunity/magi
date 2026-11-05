@@ -2828,6 +2828,8 @@ fun RunnerPostRequest.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
     csilEntries.add(CborValue.CText("step") to this.step.toCborValue())
     csilEntries.add(CborValue.CText("text") to CborValue.CText(this.text))
+    this.notice?.let { csilV -> csilEntries.add(CborValue.CText("notice") to CborValue.CText(csilV)) }
+    this.urgency?.let { csilV -> csilEntries.add(CborValue.CText("urgency") to CborValue.CText(csilV)) }
     return CborValue.CMap(csilEntries)
 }
 
@@ -2838,7 +2840,9 @@ fun RunnerPostRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
 fun runnerPostRequestFromCborValue(cbor: CborValue): RunnerPostRequest {
     val step = runnerStepFromCborValue(CsilCbor.require(cbor, "step"))
     val text = CsilCbor.asText(CsilCbor.require(cbor, "text"))
-    return RunnerPostRequest(step = step, text = text)
+    val notice = CsilCbor.mapGet(cbor, "notice")?.let { csilV -> CsilCbor.asText(csilV) }
+    val urgency = CsilCbor.mapGet(cbor, "urgency")?.let { csilV -> CsilCbor.asText(csilV) }
+    return RunnerPostRequest(step = step, text = text, notice = notice, urgency = urgency)
 }
 
 /** Decode CSIL CBOR bytes into a RunnerPostRequest. */

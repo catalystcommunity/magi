@@ -882,11 +882,15 @@ export interface RunnerPutArtifactResponse {
 
 /**
  * Writes a persona message into the stream of the person who started
- * the run.
+ * the run. With notice (a title), the message is a notice to the devices
+ * of the person (docs/attention.md); urgency is "low", "normal" (the
+ * default), or "high".
  */
 export interface RunnerPostRequest {
   step: RunnerStep;
   text: string;
+  notice?: string;
+  urgency?: string;
 }
 
 /**

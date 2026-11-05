@@ -3487,6 +3487,12 @@ def _encode_runner_post_request_value(v: "RunnerPostRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["step"] = _encode_runner_step_value(v.step)
     csil_m["text"] = v.text
+    csil_x = v.notice
+    if csil_x is not None:
+        csil_m["notice"] = csil_x
+    csil_x = v.urgency
+    if csil_x is not None:
+        csil_m["urgency"] = csil_x
     return csil_m
 
 def _decode_runner_post_request_value(tree: Any) -> "RunnerPostRequest":
@@ -3494,6 +3500,8 @@ def _decode_runner_post_request_value(tree: Any) -> "RunnerPostRequest":
     return RunnerPostRequest(
         step=_decode_runner_step_value(tree["step"]),
         text=_csil_expect_text(tree["text"]),
+        notice=(None if tree.get("notice") is None else _csil_expect_text(tree["notice"])),
+        urgency=(None if tree.get("urgency") is None else _csil_expect_text(tree["urgency"])),
     )
 
 

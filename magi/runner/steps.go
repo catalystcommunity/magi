@@ -250,7 +250,7 @@ func (r *Runner) check(ctx context.Context, a magiapi.RunnerAssignment, st magia
 		out["check_output"] = why
 		if attempts >= maxCheckAttempts {
 			out["task.result"] = "gave-up"
-			r.post(ctx, st, fmt.Sprintf("The checks failed %d times. I stopped the task. The last output is in artifact %s.", attempts, art.Digest))
+			r.report(ctx, st, "normal", "Task stopped", fmt.Sprintf("The checks failed %d times. I stopped the task. The last output is in artifact %s.", attempts, art.Digest))
 			return Result{Outcome: "give-up", Outputs: out}, nil
 		}
 		r.post(ctx, st, fmt.Sprintf("The checks failed (attempt %d of %d, %s). I sent the output back to the apprentice.", attempts, maxCheckAttempts, exitText(res)))
@@ -302,7 +302,7 @@ git rev-parse HEAD`, a.Vars["base_commit"], branch, shellQuote(w)), 120000)
 	out["patch"], out["patch.files"] = patch.Digest, string(files)
 	out["check_output"], out["check.attempts"] = "", "0"
 	r.note(ctx, st, "Checks passed. Waiting for review.")
-	r.post(ctx, st, fmt.Sprintf("The checks passed. The change on %s is ready for your review: approve, revise with a comment, or reject.", branch))
+	r.report(ctx, st, "normal", "Ready for review", fmt.Sprintf("The checks passed. The change on %s is ready for your review: approve, revise with a comment, or reject.", branch))
 	return Result{Outcome: "pass", Outputs: out}, nil
 }
 
@@ -336,7 +336,7 @@ git rev-parse HEAD`, repo.DefaultBranch, branch, strings.NewReplacer(`"`, `'`, "
 		return Result{}, err
 	}
 	if res.ExitCode != 0 || strings.Contains(string(res.Stdout), "MERGE_CONFLICT") {
-		r.post(ctx, st, fmt.Sprintf("I could not merge %s onto the newest %s (upstream %.12s): there is a conflict.", branch, repo.DefaultBranch, sync.UpstreamCommit))
+		r.report(ctx, st, "normal", "Merge failed", fmt.Sprintf("I could not merge %s onto the newest %s (upstream %.12s): there is a conflict.", branch, repo.DefaultBranch, sync.UpstreamCommit))
 		return Result{Outcome: "conflict", Outputs: map[string]string{"task.result": "conflict"}}, nil
 	}
 	commit := lastLine(string(res.Stdout))
@@ -366,7 +366,7 @@ git rev-parse HEAD`, repo.DefaultBranch, branch, strings.NewReplacer(`"`, `'`, "
 			return Result{}, err
 		}
 		if res.ExitCode != 0 {
-			r.post(ctx, st, "The release build failed. Nothing was released or published.")
+			r.report(ctx, st, "normal", "Release failed", "The release build failed. Nothing was released or published.")
 			out["release.output"] = tail(string(res.Stdout)+string(res.Stderr), 4000)
 			out["task.result"] = "build-failed"
 			return Result{Outcome: "build-failed", Outputs: out}, nil
@@ -382,13 +382,13 @@ git rev-parse HEAD`, repo.DefaultBranch, branch, strings.NewReplacer(`"`, `'`, "
 		}
 		out["build.binary"] = d.Digest
 		if err := r.buildRunnerPackages(ctx, env, workdir, commit, st, out); err != nil {
-			r.post(ctx, st, "The runner package build failed. Nothing was released or published.")
+			r.report(ctx, st, "normal", "Release failed", "The runner package build failed. Nothing was released or published.")
 			out["release.output"] = tail(err.Error(), 4000)
 			out["task.result"] = "build-failed"
 			return Result{Outcome: "build-failed", Outputs: out}, nil
 		}
 	}
-	r.post(ctx, st, fmt.Sprintf("I merged %s onto the newest %s as %.12s.", branch, repo.DefaultBranch, commit))
+	r.report(ctx, st, "low", "Merged", fmt.Sprintf("I merged %s onto the newest %s as %.12s.", branch, repo.DefaultBranch, commit))
 	out["task.result"] = "merged"
 	return Result{Outcome: "done", Outputs: out}, nil
 }
@@ -424,7 +424,7 @@ func (r *Runner) publish(ctx context.Context, a magiapi.RunnerAssignment, st mag
 		return Result{}, err
 	}
 	if !m.Merged {
-		r.post(ctx, st, fmt.Sprintf("The upstream %s moved after the release, so I did not push. The released commit is %.12s.", repo.DefaultBranch, commit))
+		r.report(ctx, st, "normal", "Not pushed", fmt.Sprintf("The upstream %s moved after the release, so I did not push. The released commit is %.12s.", repo.DefaultBranch, commit))
 		return Result{Outcome: "rejected", Outputs: map[string]string{"publish.error": "upstream moved"}}, nil
 	}
 	p, err := r.Source.Publish(sourceCtx(ctx), sourceapi.PublishRequest{Repo: name})
@@ -432,10 +432,10 @@ func (r *Runner) publish(ctx context.Context, a magiapi.RunnerAssignment, st mag
 		return Result{}, err
 	}
 	if !p.Pushed {
-		r.post(ctx, st, "I could not push to the upstream: "+deref(p.Message))
+		r.report(ctx, st, "normal", "Push failed", "I could not push to the upstream: "+deref(p.Message))
 		return Result{Outcome: "rejected", Outputs: map[string]string{"publish.error": deref(p.Message)}}, nil
 	}
-	r.post(ctx, st, fmt.Sprintf("The release stayed healthy, so runner %s pushed %.12s to the upstream %s.", r.Cfg.Name, p.Commit, repo.DefaultBranch))
+	r.report(ctx, st, "low", "Done", fmt.Sprintf("The release stayed healthy, so runner %s pushed %.12s to the upstream %s.", r.Cfg.Name, p.Commit, repo.DefaultBranch))
 	return Result{Outcome: "done", Outputs: map[string]string{"publish.commit": p.Commit, "task.result": "published"}}, nil
 }
 
@@ -484,7 +484,7 @@ func (r *Runner) cleanup(ctx context.Context, a magiapi.RunnerAssignment, st mag
 	result := a.Vars["task.result"]
 	if result == "" {
 		result = "rejected"
-		r.post(ctx, st, "The change was rejected. I removed the environment. The branch stays for reference.")
+		r.report(ctx, st, "low", "Rejected", "The change was rejected. I removed the environment. The branch stays for reference.")
 	}
 	return Result{Outcome: "done", Outputs: map[string]string{"task.result": result}}, nil
 }

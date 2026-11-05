@@ -3283,6 +3283,8 @@ class RunnerPutArtifactResponse:
 class RunnerPostRequest:
     step: RunnerStep
     text: str
+    notice: Optional[str] = None
+    urgency: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -3290,12 +3292,16 @@ class RunnerPostRequest:
             result['step'] = self.step
         if hasattr(self, 'text') and self.text is not None:
             result['text'] = self.text
+        if hasattr(self, 'notice') and self.notice is not None:
+            result['notice'] = self.notice
+        if hasattr(self, 'urgency') and self.urgency is not None:
+            result['urgency'] = self.urgency
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'RunnerPostRequest':
         """Create instance from dictionary."""
-        return cls(step=data.get('step'), text=data.get('text'))
+        return cls(step=data.get('step'), text=data.get('text'), notice=data.get('notice'), urgency=data.get('urgency'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

@@ -2948,6 +2948,8 @@ export function toRunnerPostRequestCborValue(v: RunnerPostRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("step", toRunnerStepCborValue(v.step));
   csilMap.set("text", v.text);
+  if (v.notice !== undefined) csilMap.set("notice", v.notice);
+  if (v.urgency !== undefined) csilMap.set("urgency", v.urgency);
   return csilMap;
 }
 
@@ -2955,6 +2957,8 @@ export function fromRunnerPostRequestCborValue(value: CborValue): RunnerPostRequ
   return {
     step: fromRunnerStepCborValue(requireKey(value, "step")),
     text: asString(requireKey(value, "text")),
+    notice: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "notice")),
+    urgency: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "urgency")),
   };
 }
 

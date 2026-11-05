@@ -538,8 +538,10 @@ RunnerPutArtifactRequest = {
 }
 RunnerPutArtifactResponse = { digest: text }
 ;;; Writes a persona message into the stream of the person who started
-;;; the run.
-RunnerPostRequest = { step: RunnerStep, text: text }
+;;; the run. With notice (a title), the message is a notice to the devices
+;;; of the person (docs/attention.md); urgency is "low", "normal" (the
+;;; default), or "high".
+RunnerPostRequest = { step: RunnerStep, text: text, ? notice: text, ? urgency: text }
 ;;; Status of a run whose steps this runner ran: the runner removes the
 ;;; environments of finished runs.
 RunnerRunStatusRequest = { run: text }

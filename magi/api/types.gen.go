@@ -782,8 +782,10 @@ type RunnerPutArtifactResponse struct {
 
 // RunnerPostRequest represents a structured data type
 type RunnerPostRequest struct {
-	Step RunnerStep `json:"step" yaml:"step"`
-	Text string     `json:"text" yaml:"text"`
+	Step    RunnerStep `json:"step" yaml:"step"`
+	Text    string     `json:"text" yaml:"text"`
+	Notice  *string    `json:"notice,omitempty" yaml:"notice,omitempty"`
+	Urgency *string    `json:"urgency,omitempty" yaml:"urgency,omitempty"`
 }
 
 // RunnerRunStatusRequest represents a structured data type

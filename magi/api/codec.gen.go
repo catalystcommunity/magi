@@ -7404,9 +7404,15 @@ func DecodeRunnerPutArtifactResponse(csilData []byte) (RunnerPutArtifactResponse
 
 // csilEncRunnerPostRequest builds the canonical CBOR value tree for a RunnerPostRequest.
 func csilEncRunnerPostRequest(csilV RunnerPostRequest) cborValue {
-	csilEntries := make(cborMap, 0, 2)
+	csilEntries := make(cborMap, 0, 4)
 	csilEntries = append(csilEntries, cborEntry{cborText("step"), csilEncRunnerStep(csilV.Step)})
 	csilEntries = append(csilEntries, cborEntry{cborText("text"), cborText(csilV.Text)})
+	if csilV.Notice != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("notice"), cborText((*csilV.Notice))})
+	}
+	if csilV.Urgency != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("urgency"), cborText((*csilV.Urgency))})
+	}
 	return csilEntries
 }
 
@@ -7434,6 +7440,20 @@ func csilDecRunnerPostRequest(csilRoot cborValue) (RunnerPostRequest, error) {
 			return csilOut, csilErr
 		}
 		csilOut.Text = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "notice"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Notice = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "urgency"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Urgency = &csilVal
 	}
 	return csilOut, nil
 }

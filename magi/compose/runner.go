@@ -149,7 +149,16 @@ func (r *Runners) Post(ctx context.Context, req magiapi.RunnerPostRequest) (magi
 	if err != nil {
 		return magiapi.RunnerAck{}, err
 	}
-	r.S.post(sctx, workflowapi.Assignment{Run: run.Id, Owner: run.Owner, Vars: run.Vars}, req.Text)
+	as := workflowapi.Assignment{Run: run.Id, Owner: run.Owner, Vars: run.Vars}
+	if title := strings.TrimSpace(deref(req.Notice)); title != "" {
+		urgency := deref(req.Urgency)
+		if urgency != "low" && urgency != "high" {
+			urgency = "normal"
+		}
+		r.S.report(sctx, as, urgency, title, req.Text)
+	} else {
+		r.S.post(sctx, as, req.Text)
+	}
 	return magiapi.RunnerAck{Ok: true}, nil
 }
 

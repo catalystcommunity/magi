@@ -304,6 +304,14 @@ func (r *Runner) post(ctx context.Context, st magiapi.RunnerStep, text string) {
 	}
 }
 
+// report posts text as a notice with title to the devices of the person
+// (urgency "low" shows it, "normal" says it at the next pause).
+func (r *Runner) report(ctx context.Context, st magiapi.RunnerStep, urgency, title, text string) {
+	if _, err := r.Magi.Post(ctx, magiapi.RunnerPostRequest{Step: st, Text: text, Notice: &title, Urgency: &urgency}); err != nil {
+		r.Log.Warn("post failed", "err", err)
+	}
+}
+
 // collect removes the environments of runs that ended, also after a
 // cancel, when no cleanup step runs.
 func (r *Runner) collect(ctx context.Context) {

@@ -1027,7 +1027,9 @@ data class RunnerPutArtifactResponse(
 /** RunnerPostRequest record. */
 data class RunnerPostRequest(
     val step: RunnerStep,
-    val text: String
+    val text: String,
+    val notice: String? = null,
+    val urgency: String? = null
 )
 
 /** RunnerRunStatusRequest record. */

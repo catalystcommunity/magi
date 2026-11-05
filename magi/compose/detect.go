@@ -196,7 +196,19 @@ func (e *Egress) Detect(ctx context.Context, req magiapi.EgressDetectRequest) (m
 			return
 		}
 		e.S.Log.Warn("possible prompt injection", "environment", flow.Environment, "owner", flow.Owner, "url", flow.Url, "score", score, "engine", engine)
-		e.flagInjection(bctx, flow, score)
+		// One message for each environment and host in an hour: a task
+		// that reads many pages of one host gets one warning.
+		hk := "host " + flow.Environment + " " + safePlace(flow.Url)
+		d.mu.Lock()
+		last, told := d.seen[hk]
+		told = told && time.Since(last) < detectRepeat
+		if !told {
+			d.seen[hk] = time.Now()
+		}
+		d.mu.Unlock()
+		if !told {
+			e.flagInjection(bctx, flow, score)
+		}
 	}()
 	return magiapi.EgressVerdict{Verdict: "pass", Reason: "checked in the background", By: "detector"}, nil
 }

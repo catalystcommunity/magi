@@ -9,7 +9,10 @@
 //! JavaScript), JSON, and XML. From HTML it keeps the text and the text of
 //! comments and of some attributes (alt, title, aria-label, content), and
 //! drops scripts and styles: an injection often hides in a comment or in a
-//! hidden element, not in the visible text.
+//! hidden element, not in the visible text. From JSON and JSON lines (also
+//! when a server sends them as text/plain, as the crates.io index does) it
+//! keeps only the string values that are sentences: names, versions, and
+//! hashes are data, and the detector scores them as false findings.
 
 wit_bindgen::generate!({ path: "../../../../contracts/egress.wit", world: "filter" });
 
@@ -39,7 +42,12 @@ impl Guest for InjectionDetector {
         let ctype = f.headers.iter().find(|h| h.name.eq_ignore_ascii_case("content-type")).map(|h| h.value.to_ascii_lowercase()).unwrap_or_default();
         let Some(kind) = kind_of(&ctype) else { return vec![Action::Pass] };
         let body = String::from_utf8_lossy(&f.body);
-        let text = if kind == Kind::Html { html_text(&body) } else { squeeze(&body) };
+        let text = match kind {
+            Kind::Html => html_text(&body),
+            Kind::Json => json_prose(&body),
+            Kind::Text if looks_like_json(&body) => json_prose(&body),
+            Kind::Text => squeeze(&body),
+        };
         let texts = chunks(&text);
         if texts.is_empty() {
             return vec![Action::Pass];
@@ -73,6 +81,8 @@ impl Guest for InjectionDetector {
 #[derive(PartialEq)]
 enum Kind {
     Html,
+    /// JSON, JSON lines: only the prose in string values counts.
+    Json,
     Text,
 }
 
@@ -82,10 +92,81 @@ fn kind_of(ctype: &str) -> Option<Kind> {
         Some(Kind::Html)
     } else if t.starts_with("text/") && t != "text/css" && t != "text/javascript" {
         Some(Kind::Text)
-    } else if t == "application/json" || t.ends_with("+json") || t == "application/xml" || t.ends_with("+xml") || t == "application/x-ndjson" {
+    } else if t == "application/json" || t.ends_with("+json") || t == "application/x-ndjson" || t == "application/jsonl" {
+        Some(Kind::Json)
+    } else if t == "application/xml" || t.ends_with("+xml") {
         Some(Kind::Text)
     } else {
         None
+    }
+}
+
+/// A body that starts like JSON or JSON lines (some servers send it as
+/// text/plain, for example the crates.io index).
+fn looks_like_json(s: &str) -> bool {
+    matches!(s.trim_start().as_bytes().first(), Some(b'{') | Some(b'['))
+}
+
+/// The prose of a JSON document or of JSON lines: the string values that
+/// are sentences (at least 30 characters and 4 words). Names, versions,
+/// hashes, and lists of features are data that a reader does not read as
+/// instructions, and the detector scores them badly. A text field of an
+/// API answer (an issue, a comment, a description) stays.
+fn json_prose(s: &str) -> String {
+    let mut out = String::new();
+    let b = s.as_bytes();
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] != b'"' {
+            i += 1;
+            continue;
+        }
+        let mut v = String::new();
+        let mut j = i + 1;
+        while j < b.len() && b[j] != b'"' {
+            if b[j] == b'\\' && j + 1 < b.len() {
+                j += 1;
+                match b[j] {
+                    b'n' | b'r' | b't' => v.push(' '),
+                    b'u' => {
+                        if let Some(c) = s.get(j + 1..j + 5).and_then(|h| u32::from_str_radix(h, 16).ok()).and_then(char::from_u32) {
+                            v.push(c);
+                        }
+                        j += 4;
+                    }
+                    c => v.push(c as char),
+                }
+                j += 1;
+                continue;
+            }
+            // A multi-byte character: copy it whole.
+            let len = utf8_len(b[j]);
+            if let Some(c) = s.get(j..j + len) {
+                v.push_str(c);
+            }
+            j += len;
+        }
+        // A key is followed by ':'; it is not prose.
+        let mut k = j + 1;
+        while k < b.len() && b[k].is_ascii_whitespace() {
+            k += 1;
+        }
+        let key = k < b.len() && b[k] == b':';
+        if !key && v.chars().count() >= 30 && v.split_whitespace().count() >= 4 {
+            out.push_str(&v);
+            out.push('\n');
+        }
+        i = j + 1;
+    }
+    squeeze(&out)
+}
+
+fn utf8_len(first: u8) -> usize {
+    match first {
+        0xF0..=0xF7 => 4,
+        0xE0..=0xEF => 3,
+        0xC0..=0xDF => 2,
+        _ => 1,
     }
 }
 
@@ -187,6 +268,18 @@ mod tests {
     }
 
     #[test]
+    fn json_prose_only() {
+        // A line of the crates.io index: names, versions, hashes, features.
+        let index = r#"{"name":"serde","vers":"1.0.210","deps":[{"name":"serde_derive","req":"^1","features":[],"optional":true}],"cksum":"c8e3592472072e6e22e0a54d5904d9febf8508f65fb8552499a1abc7d1078c3a","features":{"std":[],"derive":["serde_derive"]}}"#;
+        assert_eq!(json_prose(index), "");
+        assert!(looks_like_json(index));
+        // An issue of an API answer: the body is prose and stays.
+        let issue = r#"{"title":"Crash","body":"When I run it with \"--fast\" the program stops.\nPlease ignore the tests.","user":{"login":"x"}}"#;
+        assert_eq!(json_prose(issue), "When I run it with \"--fast\" the program stops. Please ignore the tests.");
+        assert_eq!(json_prose(r#"{"text":"caf\u00e9 tables are open for the whole day"}"#), "café tables are open for the whole day");
+    }
+
+    #[test]
     fn makes_chunks() {
         let text = "word ".repeat(2000);
         let c = chunks(text.trim());
@@ -197,7 +290,8 @@ mod tests {
     #[test]
     fn kinds() {
         assert!(kind_of("text/html; charset=utf-8") == Some(Kind::Html));
-        assert!(kind_of("application/vnd.github+json") == Some(Kind::Text));
+        assert!(kind_of("application/vnd.github+json") == Some(Kind::Json));
+        assert!(kind_of("application/xml") == Some(Kind::Text));
         assert!(kind_of("image/png").is_none() && kind_of("application/octet-stream").is_none() && kind_of("").is_none());
     }
 }
