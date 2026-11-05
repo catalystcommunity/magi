@@ -156,12 +156,21 @@ func toneWAV() []byte {
 	return b
 }
 
+// browser is a Chromium or Chrome that runs: a wrapper script without the
+// browser (as in some task environments) does not count.
 func browser() string {
 	if b := os.Getenv("MAGI_TEST_BROWSER"); b != "" {
 		return b
 	}
 	for _, b := range []string{"chromium", "chromium-browser", "google-chrome-stable", "google-chrome"} {
-		if p, err := exec.LookPath(b); err == nil {
+		p, err := exec.LookPath(b)
+		if err != nil {
+			continue
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		out, err := exec.CommandContext(ctx, p, "--version").Output()
+		cancel()
+		if err == nil && strings.Contains(strings.ToLower(string(out)), "chrom") {
 			return p
 		}
 	}
