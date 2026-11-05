@@ -347,6 +347,15 @@ var claims = []struct {
 	{"remember", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (recorded|remembered|saved|noted)\b`)},
 }
 
+// claimNote says what did not happen, for each tool of claims.
+var claimNote = map[string]string{
+	"start_code_change": "no task was started.",
+	"send_notice":       "no notice was sent.",
+	"decide_task":       "no decision was recorded.",
+	"cancel_task":       "no task was stopped.",
+	"remember":          "nothing was recorded.",
+}
+
 // falseClaim returns the tool of an action that reply says was done, when
 // that tool (of the persona) did not succeed in this turn, or "".
 func falseClaim(reply string, calls []map[string]any, tools []string) string {

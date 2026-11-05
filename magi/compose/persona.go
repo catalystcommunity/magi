@@ -211,6 +211,10 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 	if reply == "" {
 		reply = "I could not finish my answer. Please ask again."
 	}
+	// The claim is still there after the correction: say what is true.
+	if tool := falseClaim(reply, log.Calls, prof.tools); tool != "" && corrected {
+		reply += "\n\n(Magi check: " + claimNote[tool] + " Ask again, please.)"
+	}
 	log.Reply = reply
 	served, ms := "", int64(0)
 	for _, c := range log.Models {
