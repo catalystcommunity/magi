@@ -121,8 +121,26 @@ other words and topics. On both sets (170 real turns), it took no turn as a
 backchannel; it took 10 of 104 unusual backchannels ("copy that", "cool
 beans") as a turn, which only stops the persona. Time on the engine host:
 VAD 6 ms, classifier 3 ms, STT of a 2 s clip 100 ms. Details:
-`primitives/speech/README.md`, "Turn engine". Not done: the decision in
-Magi and the clients (see the policy below), and Android.
+`primitives/speech/README.md`, "Turn engine".
+
+The decision is done too (2026-11-04): Magi has `check-overlap`
+(`magi/compose/overlap.go`), and the web client (`listen.ts`) and the
+Android client (`HandsFree.kt`) use it. It follows the policy below, with
+three changes:
+
+- A backchannel (`ack` >= 0.85) restores the volume at once, also while
+  the person still speaks. The client sends more clips while the speech
+  goes on, so a later "stop" still stops the persona.
+- Words that are mostly the persona's own words near the cursor (in the 30
+  words before it or the 10 words after it) are echo: continue.
+- At the end of the speech, a result that is not clear is a turn when
+  `turn` >= `ack`: a wrong stop costs less than an ignored interruption.
+  Eight or more words are a turn unless they are a clear backchannel.
+
+Each decision is an `overlap` annotation on the persona message (the
+words, the decision, and the scores), for the conversation graph. Without
+`check-overlap` (an error 404, 501, or 503), the clients use the earlier
+rule: 700 ms of speech stops the persona.
 
 **Decision policy for step 2 (recommended).** The client sends the audio
 from the onset, at about 500 ms and then each 300 ms, until a decision.
