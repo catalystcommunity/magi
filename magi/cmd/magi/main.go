@@ -176,7 +176,8 @@ func (c *cli) run(cmd string, args []string) error {
 			return err
 		}
 		printMessage(res.Message)
-		return c.waitReply(personaID(*persona), res.Message)
+		// A message that names a persona ("Engineering, ...") goes to it.
+		return c.waitReply(firstNonEmpty(res.Message.Persona, personaID(*persona)), res.Message)
 	case "search":
 		res, err := c.magi.Search(c.ctx, magiapi.SearchRequest{Text: strings.Join(args, " ")})
 		if err != nil {
@@ -906,4 +907,11 @@ func deref[T any](p *T) T {
 		return z
 	}
 	return *p
+}
+
+func firstNonEmpty(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
 }
