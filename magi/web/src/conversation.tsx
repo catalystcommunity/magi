@@ -62,7 +62,7 @@ async function follow(g: number) {
         setMessages([...messages(), ...fresh]);
         if (follow) toEnd();
         // A new spoken reply plays while Magi makes its parts.
-        for (const m of fresh) if (m.modality === "voice" && spoken(m) && speakReplies() && Date.now() - m.createdMs < 60000) speak(m);
+        for (const m of fresh) if (m.modality === "voice" && spoken(m) && (speakReplies() || handsFree()) && Date.now() - m.createdMs < 60000) speak(m);
       }
       for (const m of res.messages) lastSeq = Math.max(lastSeq, m.seq);
     } catch {
@@ -104,8 +104,11 @@ async function play(digest: string) {
   } catch (e) { fail("Could not play the reply")(e); }
 }
 
+// A message that names another persona ("Engineering, ...") goes to that
+// persona; the view follows it.
 async function send(text: string | undefined, audioBody?: Uint8Array, audioType?: string) {
-  await magi.say({ persona: persona(), text, audio: audioBody, audioType, speakReply: speakReplies() });
+  const r = await magi.say({ persona: persona(), text, audio: audioBody, audioType, speakReply: speakReplies() || !!audioBody });
+  if (r.message.persona && r.message.persona !== persona()) openStream(r.message.persona);
 }
 
 // toggleMic turns hands-free talk on or off (listen.ts). Each turn of the

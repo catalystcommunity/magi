@@ -370,8 +370,10 @@ class MainActivity : Activity() {
     private fun say(req: SayRequest, status: TextView) {
         status.text = "Sending..."
         background(status) {
-            client().magi.say(req)
-            runOnUiThread { status.text = "" }
+            val r = client().magi.say(req)
+            // A message that names another persona ("Engineering, ...") went to that persona.
+            val p = r.message.persona
+            runOnUiThread { status.text = ""; if (p.isNotEmpty() && p != persona) showConversation(p) }
         }
     }
 

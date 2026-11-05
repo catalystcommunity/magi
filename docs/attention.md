@@ -100,10 +100,24 @@ Decisions:
      `task_diff`) before the decision. Task output can contain
      instructions from an attacker (`docs/prompt-injection.md`).
 
-## 5. Status
+## 5. Call a persona by name
+
+A message that starts with the name of a persona and a comma, colon, or
+exclamation mark goes to that persona, from any conversation: "Computer,
+what time is it?" goes to Magi, "Engineering, what is the status?" goes to
+the engineering manager. Magi and "computer" call `persona:magi`;
+"engineering" and "engineering manager" call `persona:engineering`; the
+name of any persona calls that persona. The reply of `say` has the
+persona, and the clients then show that conversation. "computer science is
+hard" calls nobody, because no comma follows the name.
+
+## 6. Status
 
 Done: devices and notices in the conversation service and the Magi API,
 the tools `send_notice` and `list_devices`, task notices, the engineering
 manager, and the web client (hello, notice loop, chime, tray, system
-notifications). Not done: the Android client (system notifications from a
-background service, notices said in hands-free talk).
+notifications), the Android client (system notifications from a
+foreground service, notices said after a tone while the app is open), and
+calling a persona by name. Not done: hands-free talk on Android while the
+screen is off (Android gives silence to a microphone in the background; it
+needs a foreground service of type microphone), and a wake word.

@@ -76,3 +76,29 @@ func TestAskedBefore(t *testing.T) {
 		t.Fatal("the same turn")
 	}
 }
+
+type personaConversation struct {
+	conversationapi.ConversationService
+}
+
+func (personaConversation) ListPersonas(context.Context, conversationapi.ListPersonasRequest) (conversationapi.ListPersonasResponse, error) {
+	return conversationapi.ListPersonasResponse{Personas: []conversationapi.Persona{{Id: "persona:butler", Name: "Jeeves"}}}, nil
+}
+
+func TestAddressed(t *testing.T) {
+	sys := &System{Log: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	sys.Conversation = conversationClient(t, personaConversation{})
+	for text, want := range map[string]string{
+		"Computer, what time is it?":        Persona,
+		"Engineering: status of the tasks":  Engineering,
+		"hey engineering manager, any news": Engineering,
+		"Jeeves, the door please":           "persona:butler",
+		"computer science is hard, right?":  "",
+		"What time is it, computer?":        "",
+		"Hello":                             "",
+	} {
+		if got := sys.addressed(testCtx, text); got != want {
+			t.Errorf("addressed(%q) = %q, want %q", text, got, want)
+		}
+	}
+}

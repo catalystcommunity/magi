@@ -3,6 +3,7 @@ package compose
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/catalystcommunity/magi/lib/rpc"
@@ -71,6 +72,11 @@ func (m *Service) Say(ctx context.Context, req magiapi.SayRequest) (magiapi.SayR
 		return magiapi.SayResponse{}, rpc.Invalid("text or audio is required")
 	}
 	persona := personaOr(req.Persona)
+	// "Computer, ..." and "Engineering, ...": the person names the persona
+	// that they talk to, as on the bridge of a starship.
+	if p := s.addressed(uctx, text); p != "" {
+		persona = p
+	}
 	st, err := s.Conversation.OpenStream(uctx, conversationapi.OpenStreamRequest{Persona: persona})
 	if err != nil {
 		return magiapi.SayResponse{}, err
@@ -369,4 +375,41 @@ func snippet(s string, n int) string {
 		return string(r[:n]) + "…"
 	}
 	return s
+}
+
+// aliases are more names that a person can use to call a persona.
+var aliases = map[string][]string{
+	Persona:     {"computer", "magi"},
+	Engineering: {"engineering", "engineering manager"},
+}
+
+// addressed returns the persona that text calls by name at its start
+// ("Computer, what time is it?"), or "". The name must come first and a
+// comma, colon, or exclamation mark must follow it, so that "computer
+// science is hard" does not call a persona.
+func (s *System) addressed(ctx context.Context, text string) string {
+	t := strings.ToLower(strings.TrimSpace(text))
+	for _, hey := range []string{"hey ", "ok ", "okay "} {
+		t = strings.TrimPrefix(t, hey)
+	}
+	end := strings.IndexAny(t, ",:!")
+	if end <= 0 || end > 40 {
+		return ""
+	}
+	name := strings.TrimSpace(t[:end])
+	for id, names := range aliases {
+		if slices.Contains(names, name) {
+			return id
+		}
+	}
+	res, err := s.Conversation.ListPersonas(ctx, conversationapi.ListPersonasRequest{})
+	if err != nil {
+		return ""
+	}
+	for _, p := range res.Personas {
+		if strings.ToLower(p.Name) == name {
+			return p.Id
+		}
+	}
+	return ""
 }
