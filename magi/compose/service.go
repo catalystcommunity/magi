@@ -3,6 +3,7 @@ package compose
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"sort"
 	"strings"
 
@@ -292,4 +293,36 @@ func firstLine(s string, n int) string {
 		s = s[:n] + "..."
 	}
 	return s
+}
+
+// taskOutputs are the outputs of a run that a person can read.
+var taskOutputs = []string{"check.output", "apprentice.transcript"}
+
+func (m *Service) GetTaskOutput(ctx context.Context, req magiapi.GetTaskOutputRequest) (magiapi.TaskOutput, error) {
+	// Reading the run with the caller's token is the access check.
+	run, err := m.S.Workflow.GetRun(AsCaller(ctx), workflowapi.GetRunRequest{Id: req.Id})
+	if err != nil {
+		return magiapi.TaskOutput{}, err
+	}
+	return m.S.taskOutput(ctx, run, req.Name, 1<<20)
+}
+
+// taskOutput reads output name of run, at most max bytes (the end).
+func (s *System) taskOutput(ctx context.Context, run workflowapi.Run, name string, max int) (magiapi.TaskOutput, error) {
+	if !slices.Contains(taskOutputs, name) {
+		return magiapi.TaskOutput{}, rpc.Invalid("name must be one of %v", taskOutputs)
+	}
+	digest := run.Vars[name]
+	if digest == "" {
+		return magiapi.TaskOutput{}, rpc.NotFound("task %s has no %s yet", run.Id, name)
+	}
+	a, err := s.Artifacts.Get(s.AsService(ctx), artifactsapi.GetRequest{Digest: digest})
+	if err != nil {
+		return magiapi.TaskOutput{}, err
+	}
+	out := magiapi.TaskOutput{Task: run.Id, Name: name, MediaType: a.Artifact.MediaType, Text: string(a.Body)}
+	if len(out.Text) > max {
+		out.Text, out.Truncated = out.Text[len(out.Text)-max:], true
+	}
+	return out, nil
 }

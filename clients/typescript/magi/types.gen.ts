@@ -524,6 +524,24 @@ export interface GetTaskDiffRequest {
 }
 
 /**
+ * Reads the output of a task: name is "check.output" (the output of the
+ * last check run) or "apprentice.transcript" (the record of the last
+ * apprentice run). Text over 1 MiB is cut at the start (the end stays).
+ */
+export interface GetTaskOutputRequest {
+  id: string;
+  name: string;
+}
+
+export interface TaskOutput {
+  task: string;
+  name: string;
+  mediaType: string;
+  text: string;
+  truncated: boolean;
+}
+
+/**
  * Records a human decision on a waiting task, for example "approve" or
  * "reject". A message does not record a decision.
  */

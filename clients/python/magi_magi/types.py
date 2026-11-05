@@ -1899,6 +1899,71 @@ class GetTaskDiffRequest:
 
 
 @dataclass
+class GetTaskOutputRequest:
+    id: str
+    name: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'name') and self.name is not None:
+            result['name'] = self.name
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'GetTaskOutputRequest':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), name=data.get('name'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'GetTaskOutputRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class TaskOutput:
+    task: str
+    name: str
+    media_type: str
+    text: str
+    truncated: bool
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'task') and self.task is not None:
+            result['task'] = self.task
+        if hasattr(self, 'name') and self.name is not None:
+            result['name'] = self.name
+        if hasattr(self, 'media_type') and self.media_type is not None:
+            result['media_type'] = self.media_type
+        if hasattr(self, 'text') and self.text is not None:
+            result['text'] = self.text
+        if hasattr(self, 'truncated') and self.truncated is not None:
+            result['truncated'] = self.truncated
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'TaskOutput':
+        """Create instance from dictionary."""
+        return cls(task=data.get('task'), name=data.get('name'), media_type=data.get('media_type'), text=data.get('text'), truncated=data.get('truncated'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'TaskOutput':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
 class DecideRequest:
     task: str
     outcome: str

@@ -110,6 +110,9 @@ class MagiClient(private val transport: Transport) {
     fun getTaskDiff(request: GetTaskDiffRequest): TaskDiff {
         return decode<TaskDiff>(transport.call("MagiService", "get-task-diff", encode(request)))
     }
+    fun getTaskOutput(request: GetTaskOutputRequest): TaskOutput {
+        return decode<TaskOutput>(transport.call("MagiService", "get-task-output", encode(request)))
+    }
     fun decide(request: DecideRequest): Task {
         return decode<Task>(transport.call("MagiService", "decide", encode(request)))
     }

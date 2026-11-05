@@ -100,6 +100,9 @@ class MagiAsyncClient(private val transport: AsyncTransport) {
     suspend fun getTaskDiff(request: GetTaskDiffRequest): TaskDiff {
         return decode<TaskDiff>(transport.call("MagiService", "get-task-diff", encode(request)))
     }
+    suspend fun getTaskOutput(request: GetTaskOutputRequest): TaskOutput {
+        return decode<TaskOutput>(transport.call("MagiService", "get-task-output", encode(request)))
+    }
     suspend fun decide(request: DecideRequest): Task {
         return decode<Task>(transport.call("MagiService", "decide", encode(request)))
     }

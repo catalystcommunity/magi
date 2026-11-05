@@ -153,7 +153,14 @@ func (s *System) extraTool(ctx context.Context, a workflowapi.Assignment, as con
 			return "error: " + err.Error(), nil, true
 		}
 		ts.readTask = true
-		return describeTask(run), nil, true
+		desc := describeTask(run)
+		// The end of the last check output, when the last check failed.
+		if failedCheck(run) {
+			if o, err := s.taskOutput(ctx, run, "check.output", 3000); err == nil {
+				desc += "\nEnd of the last check output:\n" + o.Text
+			}
+		}
+		return desc, nil, true
 	case "task_diff":
 		run, err := s.ownRun(ctx, a.Owner, args["task"])
 		if err != nil {
@@ -313,4 +320,14 @@ func describeRunners(rs []magiapi.RunnerInfo) string {
 		fmt.Fprintf(&b, "- %s: %s/%s, %s, version %s\n", r.Name, r.Os, r.Arch, state, r.Version)
 	}
 	return b.String()
+}
+
+// failedCheck is true when the last check step of run failed.
+func failedCheck(run workflowapi.Run) bool {
+	for i := len(run.History) - 1; i >= 0; i-- {
+		if run.History[i].Step == "check" {
+			return run.History[i].Outcome != nil && *run.History[i].Outcome != "pass"
+		}
+	}
+	return false
 }

@@ -2160,6 +2160,62 @@ def _get_task_diff_request_from_cbor(data: bytes) -> "GetTaskDiffRequest":
 GetTaskDiffRequest.to_cbor = _get_task_diff_request_to_cbor
 GetTaskDiffRequest.from_cbor = staticmethod(_get_task_diff_request_from_cbor)
 
+def _encode_get_task_output_request_value(v: "GetTaskOutputRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["name"] = v.name
+    return csil_m
+
+def _decode_get_task_output_request_value(tree: Any) -> "GetTaskOutputRequest":
+    tree = _csil_expect_map(tree)
+    return GetTaskOutputRequest(
+        id=_csil_expect_text(tree["id"]),
+        name=_csil_expect_text(tree["name"]),
+    )
+
+
+def _get_task_output_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_get_task_output_request_value(self))
+
+
+def _get_task_output_request_from_cbor(data: bytes) -> "GetTaskOutputRequest":
+    return _decode_get_task_output_request_value(cbor_decode(data))
+
+
+GetTaskOutputRequest.to_cbor = _get_task_output_request_to_cbor
+GetTaskOutputRequest.from_cbor = staticmethod(_get_task_output_request_from_cbor)
+
+def _encode_task_output_value(v: "TaskOutput") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["name"] = v.name
+    csil_m["task"] = v.task
+    csil_m["text"] = v.text
+    csil_m["truncated"] = v.truncated
+    csil_m["media_type"] = v.media_type
+    return csil_m
+
+def _decode_task_output_value(tree: Any) -> "TaskOutput":
+    tree = _csil_expect_map(tree)
+    return TaskOutput(
+        task=_csil_expect_text(tree["task"]),
+        name=_csil_expect_text(tree["name"]),
+        media_type=_csil_expect_text(tree["media_type"]),
+        text=_csil_expect_text(tree["text"]),
+        truncated=_csil_expect_bool(tree["truncated"]),
+    )
+
+
+def _task_output_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_task_output_value(self))
+
+
+def _task_output_from_cbor(data: bytes) -> "TaskOutput":
+    return _decode_task_output_value(cbor_decode(data))
+
+
+TaskOutput.to_cbor = _task_output_to_cbor
+TaskOutput.from_cbor = staticmethod(_task_output_from_cbor)
+
 def _encode_decide_request_value(v: "DecideRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["task"] = v.task

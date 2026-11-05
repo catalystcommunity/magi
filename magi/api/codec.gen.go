@@ -4544,6 +4544,144 @@ func DecodeGetTaskDiffRequest(csilData []byte) (GetTaskDiffRequest, error) {
 	return csilDecGetTaskDiffRequest(csilRoot)
 }
 
+// csilEncGetTaskOutputRequest builds the canonical CBOR value tree for a GetTaskOutputRequest.
+func csilEncGetTaskOutputRequest(csilV GetTaskOutputRequest) cborValue {
+	csilEntries := make(cborMap, 0, 2)
+	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
+	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
+	return csilEntries
+}
+
+// csilDecGetTaskOutputRequest reconstructs a GetTaskOutputRequest from a decoded CBOR value tree.
+func csilDecGetTaskOutputRequest(csilRoot cborValue) (GetTaskOutputRequest, error) {
+	var csilOut GetTaskOutputRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Id = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "name")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Name = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeGetTaskOutputRequest encodes a GetTaskOutputRequest to canonical CSIL CBOR bytes.
+func EncodeGetTaskOutputRequest(csilV GetTaskOutputRequest) []byte {
+	return cborEncode(csilEncGetTaskOutputRequest(csilV))
+}
+
+// DecodeGetTaskOutputRequest decodes canonical CSIL CBOR bytes into a GetTaskOutputRequest.
+func DecodeGetTaskOutputRequest(csilData []byte) (GetTaskOutputRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero GetTaskOutputRequest
+		return csilZero, csilErr
+	}
+	return csilDecGetTaskOutputRequest(csilRoot)
+}
+
+// csilEncTaskOutput builds the canonical CBOR value tree for a TaskOutput.
+func csilEncTaskOutput(csilV TaskOutput) cborValue {
+	csilEntries := make(cborMap, 0, 5)
+	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
+	csilEntries = append(csilEntries, cborEntry{cborText("task"), cborText(csilV.Task)})
+	csilEntries = append(csilEntries, cborEntry{cborText("text"), cborText(csilV.Text)})
+	csilEntries = append(csilEntries, cborEntry{cborText("truncated"), cborBool(csilV.Truncated)})
+	csilEntries = append(csilEntries, cborEntry{cborText("media_type"), cborText(csilV.MediaType)})
+	return csilEntries
+}
+
+// csilDecTaskOutput reconstructs a TaskOutput from a decoded CBOR value tree.
+func csilDecTaskOutput(csilRoot cborValue) (TaskOutput, error) {
+	var csilOut TaskOutput
+	{
+		csilField, csilErr := cborRequire(csilRoot, "task")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Task = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "name")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Name = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "media_type")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.MediaType = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "text")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Text = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "truncated")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Truncated = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeTaskOutput encodes a TaskOutput to canonical CSIL CBOR bytes.
+func EncodeTaskOutput(csilV TaskOutput) []byte {
+	return cborEncode(csilEncTaskOutput(csilV))
+}
+
+// DecodeTaskOutput decodes canonical CSIL CBOR bytes into a TaskOutput.
+func DecodeTaskOutput(csilData []byte) (TaskOutput, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero TaskOutput
+		return csilZero, csilErr
+	}
+	return csilDecTaskOutput(csilRoot)
+}
+
 // csilEncDecideRequest builds the canonical CBOR value tree for a DecideRequest.
 func csilEncDecideRequest(csilV DecideRequest) cborValue {
 	csilEntries := make(cborMap, 0, 3)

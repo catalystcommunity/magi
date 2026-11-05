@@ -143,6 +143,10 @@ class MagiClient:
         """get-task-diff"""
         return TaskDiff.from_cbor(self._transport.call("MagiService", "get-task-diff", req.to_cbor()))
 
+    def get_task_output(self, req: GetTaskOutputRequest) -> TaskOutput:
+        """get-task-output"""
+        return TaskOutput.from_cbor(self._transport.call("MagiService", "get-task-output", req.to_cbor()))
+
     def decide(self, req: DecideRequest) -> Task:
         """decide"""
         return Task.from_cbor(self._transport.call("MagiService", "decide", req.to_cbor()))

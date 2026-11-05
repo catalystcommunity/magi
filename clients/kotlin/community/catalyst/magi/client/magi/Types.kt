@@ -557,6 +557,22 @@ data class GetTaskDiffRequest(
     val id: String
 )
 
+/** GetTaskOutputRequest record. */
+data class GetTaskOutputRequest(
+    val id: String,
+    val name: String
+)
+
+/** TaskOutput record. */
+data class TaskOutput(
+    val task: String,
+    val name: String,
+    // wire key: media_type
+    val mediaType: String,
+    val text: String,
+    val truncated: Boolean
+)
+
 /** DecideRequest record. */
 data class DecideRequest(
     val task: String,

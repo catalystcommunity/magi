@@ -51,6 +51,7 @@ var usage = `usage: magi [--server URL] <command> [args]
   tasks                      list tasks
   task ID                    show one task
   diff ID                    show the change of a task
+  output ID check|transcript   show the last check output or apprentice record
   decide ID OUTCOME [-m TEXT]   approve, revise, or reject a waiting task
   cancel ID [-m TEXT] [-yes]  stop a task; asks first when the step is risky
   start [-repo R] [-title T] [-runner N] INSTRUCTIONS   start a code change directly
@@ -411,6 +412,19 @@ func (c *cli) run(cmd string, args []string) error {
 		}
 		fmt.Println()
 		fmt.Print(d.Patch)
+	case "output":
+		if len(args) != 2 || (args[1] != "check" && args[1] != "transcript") {
+			return errors.New("output ID check|transcript")
+		}
+		name := map[string]string{"check": "check.output", "transcript": "apprentice.transcript"}[args[1]]
+		o, err := c.magi.GetTaskOutput(c.ctx, magiapi.GetTaskOutputRequest{Id: args[0], Name: name})
+		if err != nil {
+			return err
+		}
+		if o.Truncated {
+			fmt.Fprintln(os.Stderr, "(the start is cut)")
+		}
+		fmt.Print(o.Text)
 	case "decide":
 		comment := fs.String("m", "", "comment")
 		if len(args) < 2 {

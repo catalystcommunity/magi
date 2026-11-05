@@ -309,6 +309,12 @@ FileChange = { path: text, additions: uint, deletions: uint }
 TaskDiff = { task: text, patch: text, files: [* FileChange], truncated: bool }
 GetTaskDiffRequest = { id: text }
 
+;;; Reads the output of a task: name is "check.output" (the output of the
+;;; last check run) or "apprentice.transcript" (the record of the last
+;;; apprentice run). Text over 1 MiB is cut at the start (the end stays).
+GetTaskOutputRequest = { id: text, name: text }
+TaskOutput = { task: text, name: text, media_type: text, text: text, truncated: bool }
+
 ;;; Records a human decision on a waiting task, for example "approve" or
 ;;; "reject". A message does not record a decision.
 DecideRequest = { task: text, outcome: text, ? comment: text }
@@ -478,6 +484,7 @@ service MagiService {
   get-task: GetTaskRequest -> Task,
   list-tasks: ListTasksRequest -> ListTasksResponse,
   get-task-diff: GetTaskDiffRequest -> TaskDiff,
+  get-task-output: GetTaskOutputRequest -> TaskOutput,
   decide: DecideRequest -> Task,
   cancel-task: CancelTaskRequest -> Task,
   query-knowledge: QueryKnowledgeRequest -> QueryKnowledgeResponse,

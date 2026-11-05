@@ -295,6 +295,15 @@ func (c *MagiClient) GetTaskDiff(ctx context.Context, req GetTaskDiffRequest) (T
 	return DecodeTaskDiff(csilResp)
 }
 
+func (c *MagiClient) GetTaskOutput(ctx context.Context, req GetTaskOutputRequest) (TaskOutput, error) {
+	var csilZero TaskOutput
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "get-task-output", EncodeGetTaskOutputRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeTaskOutput(csilResp)
+}
+
 func (c *MagiClient) Decide(ctx context.Context, req DecideRequest) (Task, error) {
 	var csilZero Task
 	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "decide", EncodeDecideRequest(req))

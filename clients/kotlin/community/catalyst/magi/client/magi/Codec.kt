@@ -1759,6 +1759,54 @@ fun getTaskDiffRequestFromCborValue(cbor: CborValue): GetTaskDiffRequest {
 /** Decode CSIL CBOR bytes into a GetTaskDiffRequest. */
 fun getTaskDiffRequestFromCbor(bytes: ByteArray): GetTaskDiffRequest = getTaskDiffRequestFromCborValue(CsilCbor.decode(bytes))
 
+/** The CBOR value tree for a GetTaskOutputRequest (deep, canonical key order). */
+fun GetTaskOutputRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    csilEntries.add(CborValue.CText("name") to CborValue.CText(this.name))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a GetTaskOutputRequest to canonical CSIL CBOR bytes. */
+fun GetTaskOutputRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a GetTaskOutputRequest from a decoded CBOR value tree. */
+fun getTaskOutputRequestFromCborValue(cbor: CborValue): GetTaskOutputRequest {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val name = CsilCbor.asText(CsilCbor.require(cbor, "name"))
+    return GetTaskOutputRequest(id = id, name = name)
+}
+
+/** Decode CSIL CBOR bytes into a GetTaskOutputRequest. */
+fun getTaskOutputRequestFromCbor(bytes: ByteArray): GetTaskOutputRequest = getTaskOutputRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a TaskOutput (deep, canonical key order). */
+fun TaskOutput.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("name") to CborValue.CText(this.name))
+    csilEntries.add(CborValue.CText("task") to CborValue.CText(this.task))
+    csilEntries.add(CborValue.CText("text") to CborValue.CText(this.text))
+    csilEntries.add(CborValue.CText("truncated") to CborValue.CBool(this.truncated))
+    csilEntries.add(CborValue.CText("media_type") to CborValue.CText(this.mediaType))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a TaskOutput to canonical CSIL CBOR bytes. */
+fun TaskOutput.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a TaskOutput from a decoded CBOR value tree. */
+fun taskOutputFromCborValue(cbor: CborValue): TaskOutput {
+    val task = CsilCbor.asText(CsilCbor.require(cbor, "task"))
+    val name = CsilCbor.asText(CsilCbor.require(cbor, "name"))
+    val mediaType = CsilCbor.asText(CsilCbor.require(cbor, "media_type"))
+    val text = CsilCbor.asText(CsilCbor.require(cbor, "text"))
+    val truncated = CsilCbor.asBoolean(CsilCbor.require(cbor, "truncated"))
+    return TaskOutput(task = task, name = name, mediaType = mediaType, text = text, truncated = truncated)
+}
+
+/** Decode CSIL CBOR bytes into a TaskOutput. */
+fun taskOutputFromCbor(bytes: ByteArray): TaskOutput = taskOutputFromCborValue(CsilCbor.decode(bytes))
+
 /** The CBOR value tree for a DecideRequest (deep, canonical key order). */
 fun DecideRequest.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
@@ -3444,6 +3492,8 @@ private fun csilToCborValue(value: Any?): CborValue = when (value) {
     is FileChange -> value.toCborValue()
     is TaskDiff -> value.toCborValue()
     is GetTaskDiffRequest -> value.toCborValue()
+    is GetTaskOutputRequest -> value.toCborValue()
+    is TaskOutput -> value.toCborValue()
     is DecideRequest -> value.toCborValue()
     is CancelTaskRequest -> value.toCborValue()
     is KnowledgeItem -> value.toCborValue()
@@ -3582,6 +3632,8 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     FileChange::class -> fileChangeFromCborValue(cbor)
     TaskDiff::class -> taskDiffFromCborValue(cbor)
     GetTaskDiffRequest::class -> getTaskDiffRequestFromCborValue(cbor)
+    GetTaskOutputRequest::class -> getTaskOutputRequestFromCborValue(cbor)
+    TaskOutput::class -> taskOutputFromCborValue(cbor)
     DecideRequest::class -> decideRequestFromCborValue(cbor)
     CancelTaskRequest::class -> cancelTaskRequestFromCborValue(cbor)
     KnowledgeItem::class -> knowledgeItemFromCborValue(cbor)

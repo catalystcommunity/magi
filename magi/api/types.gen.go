@@ -455,6 +455,21 @@ type GetTaskDiffRequest struct {
 	Id string `json:"id" yaml:"id"`
 }
 
+// GetTaskOutputRequest represents a structured data type
+type GetTaskOutputRequest struct {
+	Id   string `json:"id" yaml:"id"`
+	Name string `json:"name" yaml:"name"`
+}
+
+// TaskOutput represents a structured data type
+type TaskOutput struct {
+	Task      string `json:"task" yaml:"task"`
+	Name      string `json:"name" yaml:"name"`
+	MediaType string `json:"media_type" yaml:"media_type"`
+	Text      string `json:"text" yaml:"text"`
+	Truncated bool   `json:"truncated" yaml:"truncated"`
+}
+
 // DecideRequest represents a structured data type
 type DecideRequest struct {
 	Task    string  `json:"task" yaml:"task"`
