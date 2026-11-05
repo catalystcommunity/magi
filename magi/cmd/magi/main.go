@@ -76,7 +76,7 @@ var usage = `usage: magi [--server URL] <command> [args]
                              (from go run ./cmd/runner-package) and make VERSION
                              the release; runners update when idle
   app-release CODE NAME APK  operator: publish an Android app build
-`+attentionUsage[1:]+`
+` + attentionUsage[1:] + `
 
 The server comes from --server, MAGI_SERVER, or the login profile.
 MAGI_TOKEN_FILE selects a token file instead of the login profile.`
