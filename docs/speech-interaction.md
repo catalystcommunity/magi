@@ -98,8 +98,17 @@ word that the person hears, and a client reports the delivery
 stops the speech now. Step 3 is done: the persona turn records
 `interrupts`, `reads-ahead`, or `cuts-off` with the target span
 (`docs/conversations.md`), and the persona sees only what the person
-heard. Not done: microphone frames in the session, VAD on the device, and
-the step 2 decision (backchannel and echo).
+heard. Steps 1 and 2 are in the web client, in a first form (hands-free talk,
+`magi/web/src/listen.ts`): the microphone stays on with the echo canceller
+of the browser; an energy VAD with a room noise floor (`vad.ts`, not
+Silero yet) lowers the volume of the persona to 25 % at an onset (120 ms
+of speech), stops it after 700 ms of speech, and restores the volume after
+shorter speech (a backchannel). A turn ends after 800 ms of silence and
+goes to Magi as a WAV file. `magi/web/browser_test.go` tests the VAD and the
+whole microphone path with the fake microphone of Chromium. Not done: a
+check with real devices that the echo canceller removes the persona voice
+from Web Audio playback (without it the persona can stop itself), STT
+words for the step 2 decision, Silero VAD, and the same on Android.
 
 **What is necessary first:**
 

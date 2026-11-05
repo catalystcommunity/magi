@@ -55,6 +55,10 @@ Without the Solid compiler, a reactive value must be a function:
      each call.
 - `browser_test.go` runs these cases in headless Chromium or Chrome
   (`MAGI_TEST_BROWSER`, or one on the PATH; skipped when there is none).
+  It also tests the voice activity detector (`src/vad.ts`) and the whole
+  hands-free microphone path (`src/listen.ts`, `src/capture-worklet.ts`)
+  with the fake microphone of Chromium. The page sends its result to the
+  test server.
 
 ## Design
 

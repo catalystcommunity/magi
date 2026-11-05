@@ -10,11 +10,24 @@ import { magi, errText, notify } from "./api.js";
 export const [speaking, setSpeaking] = createSignal(null);
 export const [word, setWord] = createSignal(null);
 let ctx = null;
+let out = null; // all speech plays through it (duck)
+// audioContext is the audio context of the page, after unlock.
+export const audioContext = () => ctx;
+// duck sets the volume of the speech: 1, or less while the person may be
+// taking the turn.
+export function duck(level) {
+    if (ctx && out)
+        out.gain.setTargetAtTime(level, ctx.currentTime, 0.03);
+}
 // unlock makes the audio context in a click or a key press: browsers play
 // audio only after the person did something on the page.
 export function unlock() {
     try {
-        ctx ??= new AudioContext();
+        if (!ctx) {
+            ctx = new AudioContext();
+            out = ctx.createGain();
+            out.connect(ctx.destination);
+        }
         if (ctx.state === "suspended")
             ctx.resume();
     }
@@ -64,7 +77,7 @@ class Playback {
             return;
         const source = ctx.createBufferSource();
         source.buffer = buf;
-        source.connect(ctx.destination);
+        source.connect(out);
         const at = Math.max(ctx.currentTime + 0.03, this.end);
         source.start(at);
         this.end = at + buf.duration;
@@ -132,6 +145,7 @@ export function speak(m, shownMs = Date.now()) {
     if (!ctx)
         return notify("This browser cannot play audio.", true);
     current?.stop("user");
+    duck(1);
     const p = new Playback(m, shownMs);
     current = p;
     setSpeaking(m.id);

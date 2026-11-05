@@ -6,6 +6,7 @@ import { For, Show, aria } from "./flow.ts";
 import type { Message, MessageLink } from "../../../clients/typescript/magi/types.gen.ts";
 import { magi, me, persona, setPersona, personas, personaName, loadPersonas, refreshCounts, go, store, fail, errText, time, day, shortDay, who } from "./api.ts";
 import { speak, speaking, word, unlock, interrupt } from "./speech.ts";
+import { handsFree, hearing, startListening, stopListening } from "./listen.ts";
 
 const [messages, setMessages] = createSignal<Message[]>([]);
 const [hasEarlier, setHasEarlier] = createSignal(false);
@@ -13,7 +14,8 @@ const [loadError, setLoadError] = createSignal("");
 const [speakReplies, setSpeakReplies] = createSignal(store.get("magi.speak") === "1");
 const [clipPlaying, setClipPlaying] = createSignal(false);
 export const playing = () => clipPlaying() || speaking() !== null;
-export const [recording, setRecording] = createSignal(false);
+// The orb listens while hands-free talk is on.
+export const recording = () => handsFree();
 
 type Context = { title: string; messages: Message[]; loading?: boolean; error?: string };
 const [context, setContext] = createSignal<Context | null>(null);
@@ -104,27 +106,15 @@ async function send(text: string | undefined, audioBody?: Uint8Array, audioType?
   await magi.say({ persona: persona(), text, audio: audioBody, audioType, speakReply: speakReplies() });
 }
 
-let recorder: MediaRecorder | undefined;
+// toggleMic turns hands-free talk on or off (listen.ts). Each turn of the
+// person goes to Magi as a voice message; the person can talk over the
+// persona to stop it.
 async function toggleMic() {
-  unlock();
-  if (recorder) { recorder.stop(); return; }
-  interrupt("interrupted"); // the person takes the turn
-  let stream: MediaStream;
-  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
-  catch (e) { return fail("Magi cannot use the microphone")(e); }
-  const chunks: Blob[] = [];
-  recorder = new MediaRecorder(stream);
-  recorder.ondataavailable = (e) => chunks.push(e.data);
-  recorder.onstop = async () => {
-    stream.getTracks().forEach((t) => t.stop());
-    setRecording(false);
-    const type = recorder!.mimeType || "audio/webm";
-    recorder = undefined;
-    const blob = new Blob(chunks, { type });
-    try { await send(undefined, new Uint8Array(await blob.arrayBuffer()), type.split(";")[0]); } catch (e) { fail("Could not send the recording")(e); }
-  };
-  recorder.start();
-  setRecording(true);
+  if (handsFree()) { stopListening(); return; }
+  try {
+    await startListening((wav) => send(undefined, wav, "audio/wav").catch(fail("Could not send what you said")));
+    if (!speakReplies()) { setSpeakReplies(true); store.set("magi.speak", "1"); }
+  } catch (e) { fail("Magi cannot use the microphone")(e); }
 }
 
 // --- Navigation inside the conversation -------------------------------------
@@ -257,7 +247,7 @@ function Details(props: { m: Message; close: (_: unknown) => void }) {
 
 // --- The view -----------------------------------------------------------
 export function PersonaOrb(props: { size?: "large" }) {
-  return <span class={() => "orb" + (props.size ? " " + props.size : "") + (playing() ? " speaking" : "") + (recording() ? " listening" : "")} aria-hidden="true" />;
+  return <span class={() => "orb" + (props.size ? " " + props.size : "") + (playing() ? " speaking" : "") + (recording() ? " listening" : "") + (hearing() ? " hearing" : "")} aria-hidden="true" />;
 }
 
 export function PersonaList() {
@@ -322,7 +312,7 @@ export function Conversation() {
           placeholder={() => "Message " + personaName(persona())} onInput={() => { grow(); interrupt("typing"); }}
           onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter" && !e.shiftKey) submit(e); }} />
         <button class={() => "mic" + (recording() ? " on" : "")} type="button" onClick={toggleMic} {...aria("pressed", () => String(recording()))}>
-          {() => (recording() ? "Stop" : "Speak")}
+          {() => (handsFree() ? (hearing() ? "Hearing you" : "Listening") : "Talk")}
         </button>
         <button class="send">Send</button>
         <label class="speak-toggle">
