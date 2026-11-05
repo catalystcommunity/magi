@@ -1,0 +1,5 @@
+# Engines "detect" (prompt injection) and "turn" (Silero VAD and the turn
+# classifier). Python 3.13. ONNX on the CPU only.
+onnxruntime==1.31.0
+tokenizers==0.23.3
+numpy==2.5.4

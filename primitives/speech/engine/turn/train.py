@@ -1,12 +1,14 @@
 """Train the turn classifier and export it to ONNX.
 
   python train.py OUT_DIR [--base sentence-transformers/all-MiniLM-L12-v2]
-                  [--epochs 3] [--smooth 0.1] [--lr 5e-5]
+                  [--revision REV] [--epochs 3] [--smooth 0.1] [--lr 5e-5]
+                  [--device auto|cpu|cuda]
   python train.py OUT_DIR --export-only    (export the saved model again)
 
 OUT_DIR gets model.onnx (fp32), model-int8.onnx (dynamic int8),
 tokenizer.json, config.json (labels, max length, inputs), hf/ and tok/ (the
-trained model), and report.json (metrics on heldout.py). The engine uses
+trained model), and report.json (metrics on heldout.py). Training uses a CUDA GPU
+when torch sees one; on a CPU it is slower (see primitives/speech/README.md). The engine uses
 model-int8.onnx as turn/model.onnx: on MiniLM it is faster and took no
 held-out turn as a backchannel (see the report in
 primitives/speech/README.md). Needs torch, transformers 4.x (5.x does not
@@ -33,6 +35,9 @@ import data  # noqa: E402
 import heldout  # noqa: E402
 
 LABELS = [data.ACK, data.TURN, data.UNCLEAR]
+BASE = "sentence-transformers/all-MiniLM-L12-v2"
+BASE_REVISION = "a50ef00143b4d5391434df20ae11632588ac25be"
+DEVICE = "cpu"
 MAX_LEN = 64
 
 
@@ -46,7 +51,12 @@ def encode(tok, rows):
 def main():
     args = sys.argv[1:]
     out = Path(args[0])
-    base = args[args.index("--base") + 1] if "--base" in args else "sentence-transformers/all-MiniLM-L12-v2"
+    base = args[args.index("--base") + 1] if "--base" in args else BASE
+    # The default revision is the one that made magi-turn-minilm-l12-v1.
+    rev = args[args.index("--revision") + 1] if "--revision" in args else (BASE_REVISION if base == BASE else None)
+    want = args[args.index("--device") + 1] if "--device" in args else "auto"
+    global DEVICE
+    DEVICE = ("cuda" if torch.cuda.is_available() else "cpu") if want == "auto" else want
     epochs = int(args[args.index("--epochs") + 1]) if "--epochs" in args else 3
     # Label smoothing keeps the model from 1.0 on everything, so that a
     # threshold on the probability means something.
@@ -72,8 +82,10 @@ def main():
     seen = {r["text"] for r in train}
     print("held-out texts also in training:", sum(r["text"] in seen for r in test), "of", len(test))
 
-    tok = AutoTokenizer.from_pretrained(base, use_fast=True)
-    model = AutoModelForSequenceClassification.from_pretrained(base, num_labels=3).cuda()
+    print("device:", DEVICE, flush=True)
+    t0 = time.monotonic()
+    tok = AutoTokenizer.from_pretrained(base, revision=rev, use_fast=True)
+    model = AutoModelForSequenceClassification.from_pretrained(base, revision=rev, num_labels=3).to(DEVICE)
     opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=0.01)
     bs = 64
     steps = epochs * len(train) // bs
@@ -85,16 +97,16 @@ def main():
         model.train()
         for i in range(0, len(train) - bs + 1, bs):
             b = train[i:i + bs]
-            enc = {k: v.cuda() for k, v in encode(tok, b).items()}
+            enc = {k: v.to(DEVICE) for k, v in encode(tok, b).items()}
             logits = model(**enc).logits
-            loss = torch.nn.functional.cross_entropy(logits, torch.tensor([y[r["label"]] for r in b]).cuda(),
+            loss = torch.nn.functional.cross_entropy(logits, torch.tensor([y[r["label"]] for r in b]).to(DEVICE),
                                                      label_smoothing=smooth)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             opt.step(); sched.step(); opt.zero_grad()
             step += 1
             if step % 200 == 0:
-                print(f"epoch {ep} step {step}/{steps} loss {loss.item():.4f}", flush=True)
+                print(f"epoch {ep} step {step}/{steps} loss {loss.item():.4f} {time.monotonic() - t0:.0f} s", flush=True)
         print("dev", metrics(predict_torch(model, tok, dev), dev, 0.0))
         print("held-out", metrics(predict_torch(model, tok, test), test, 0.0))
 
@@ -104,7 +116,7 @@ def main():
     export(out, model, tok, test, dev, seen, base)
 
 
-def export(out, model, tok, test, dev, seen, base="sentence-transformers/all-MiniLM-L12-v2"):
+def export(out, model, tok, test, dev, seen, base=BASE):
     """ONNX (fp32 and int8), the config of the engine, and the report."""
     (out / "tokenizer.json").write_bytes((out / "tok" / "tokenizer.json").read_bytes())
     enc = encode(tok, test[:2])
@@ -141,7 +153,7 @@ def predict_torch(model, tok, rows):
     ps = []
     with torch.no_grad():
         for i in range(0, len(rows), 256):
-            enc = {k: v.cuda() for k, v in encode(tok, rows[i:i + 256]).items()}
+            enc = {k: v.to(DEVICE) for k, v in encode(tok, rows[i:i + 256]).items()}
             ps.append(torch.softmax(model(**enc).logits, -1).cpu().numpy())
     model.train()
     return np.concatenate(ps)

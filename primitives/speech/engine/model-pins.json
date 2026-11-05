@@ -37,6 +37,7 @@
     "repo": "protectai/deberta-v3-base-prompt-injection-v2",
     "revision": "90c9989b1a342275dd0d1a95aad283c04e075671",
     "files": "onnx/",
+    "root_files": ["LICENSE"],
     "license": "Apache-2.0",
     "sha256": {
       "config.json": "3093743035223c46b1497a72e939e56fa0a50afbd7bafbf7eb8aad060b8d23f8",
@@ -56,7 +57,7 @@
   },
   "turn": {
     "name": "magi-turn-minilm-l12-v1",
-    "source": "primitives/speech/engine/turn/train.py, base sentence-transformers/all-MiniLM-L12-v2, file model-int8.onnx",
+    "source": "primitives/speech/engine/turn/train.py, base sentence-transformers/all-MiniLM-L12-v2 at a50ef00143b4d5391434df20ae11632588ac25be, file model-int8.onnx",
     "license": "Apache-2.0 (base model)",
     "files": "turn/",
     "sha256": {

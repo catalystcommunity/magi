@@ -17,7 +17,7 @@ credential files outside the repository.
 | Corndogs | namespace `magi` | Task state for the workflow service; only workflow can connect |
 | Image registry | namespace `magi` | `registry/registry.yaml`; Magi's own credentials |
 | Model | any host | OpenAI-compatible Chat Completions endpoint |
-| Speech engines | any host | `primitives/speech/engine/install.sh HOST` |
+| Speech engines | any host | `primitives/speech/engine/install.sh --provision HOST` |
 | Egress proxy | namespace `magi` | Optional (`EGRESS=true`); the only route out for environments with network `proxy` and for Linux runner sandboxes |
 
 ## Image registry
@@ -29,7 +29,8 @@ mode with localhost NodePorts (the default).
 
 1. Make a credential file `registry.json` with `username` and `password`.
 2. Make an htpasswd file with bcrypt (`htpasswd -nBi magi`).
-3. Create Secret `registry-htpasswd` in `magi`, then apply `registry/registry.yaml`.
+3. Create Secret `registry-htpasswd` in `magi`. Then render and apply the
+   registry with the PostgreSQL cluster ("Install or update").
 4. Create Secret `magi-registry` (type `kubernetes.io/dockerconfigjson`, server
    `localhost:30500`) in each namespace that pulls Magi images.
 5. Run `tools/registry-forward.sh` to push through a port-forward.
@@ -56,6 +57,7 @@ Create these Secrets in namespace `magi`:
 | `magi-token-apprentice` | `token` | Service token of the apprentice worker |
 | `magi-model` | `api-key` | Model API key |
 | `magi-speech-engine` | `token` | Speech engine token |
+| `magi-inference-token` | `token` | With `PERSONA_LOCAL_URL`: a token with the scope `inference:use`, signed by an issuer key in the `auth_keys` of the inference host |
 | `magi-linkkeys` | `runtime.json` | LinkKeys relying-party runtime file (see `primitives/identity/README.md`) |
 
 ## Values file
@@ -70,6 +72,9 @@ GATEWAY_NAMESPACE=projectcontour
 GATEWAY_SECTION=http
 MODEL_BASE_URL=http://model.example.local:8091/v1
 MODEL_NAME=magi-coder
+PERSONA_LOCAL_URL=            # optional: an inference host (primitives/inference) that the persona tries first; Secret magi-inference-token
+PERSONA_LOCAL_MODEL=          # optional: the model name on that host (default "local")
+STORAGE_CLASS=                # optional: the storage class of the volumes; empty: the default class of the cluster
 SPEECH_STT_URL=http://speech.example.local:8092
 SPEECH_TTS_URL=http://speech.example.local:8093
 SPEECH_TURN_URL=              # optional: speech detection and turn classifier engine (speech engine host, port 8095)
@@ -151,7 +156,7 @@ proxy is its only route out. Read `docs/egress-proxy.md` first.
 ```sh
 tools/build-web.sh                       # when the web client changed (builds tsgo with Go; no Node)
 tools/build-images.sh                    # builds and pushes; writes .build/images.env
-kubectl apply -f deploy/base/postgres.yaml
+python3 deploy/render.py --base --values VALUES.env | kubectl apply -f -   # PostgreSQL and the registry
 kubectl apply -f primitives/execution/deploy/rbac.yaml
 python3 deploy/render.py --images .build/images.env --values VALUES.env > out.json
 kubectl apply -f out.json

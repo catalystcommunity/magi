@@ -87,14 +87,18 @@ the persona speaks (`docs/speech-interaction.md`, 2.3.1, step 2).
 The classifier is our own model: `engine/turn/` has the data generator
 (`data.py`), a separate held-out set with other words and topics
 (`heldout.py`), and the training script (`train.py`). The model files are
-not in the repository. Make them again with `train.py` (a GPU is useful,
-not necessary). `model-pins.json` has the hashes of the files that the
-engine uses. Put them on the host:
-
-```text
-~/.local/share/magi/speech/installs/turn/models/silero_vad.onnx
-~/.local/share/magi/speech/installs/turn/models/turn/{model.onnx,tokenizer.json,config.json}
-```
+not in the repository. `install.sh --provision` trains the model on the
+engine host, or copies a build (see "Deploy the engines"). Training takes
+about 90 s on an RTX 4080 (3 epochs). `train.py` uses a CUDA GPU when torch
+sees one, else the CPU, which is much slower.
+`model-pins.json` has the hashes of the published build. A build that the
+host made itself gets `turn/built.json` with its own hashes and the name
+`magi-turn-minilm-l12-v1-local`; the engine checks the files against that.
+On 2026-11-05, a build from zero on a CUDA GPU (the same code, seed, and
+base model revision) gave the published files, byte for byte. A build on
+other hardware can give a slightly different model.
+`provision.py` refuses a model that takes more than 2 held-out turns as
+acknowledgments.
 
 Results of `magi-turn-minilm-l12-v1` (int8), 2026-11-04. "Turn as ack" is
 the bad error (the persona does not stop for a real turn); "ack as turn" only
@@ -117,7 +121,7 @@ TOKEN_FILE [--set 2]`.
 
 Silero VAD comes from github.com/snakers4/silero-vad, tag v5.1.2,
 `src/silero_vad/data/silero_vad.onnx`. The engine uses the Python
-environment of `detect` (onnxruntime, tokenizers, numpy).
+environment `runtime`, the same as `detect` (onnxruntime, tokenizers, numpy).
 
 An error is JSON `{"error": "..."}`. Status 400 or 413 is a bad input. Other
 statuses are engine failures. The error does not contain the input text.
@@ -199,41 +203,76 @@ The service reads the engine token one time, at start.
 
 ## Deploy the engines
 
-The host must have `ffmpeg` and the installed Parakeet and Kokoro Python
-environments and models. Then run:
+Run this from a checkout. The engine host must be Linux with `ffmpeg`,
+`curl`, and SSH access. It needs no root.
 
 ```sh
-primitives/speech/engine/install.sh user@speech.example.local
+primitives/speech/engine/install.sh --provision user@speech.example.local
 ```
 
-The script does these steps:
+`--provision` runs `engine/provision.py` on the host first:
+
+1. It installs a pinned `uv` in `~/magi-speech/bin` if the host has no `uv`.
+   `uv` gets the Python versions (3.12 for TTS and training, 3.13 for the
+   other engines).
+2. It makes the environments in `~/.local/share/magi/speech/envs/` from the
+   lock files in `engine/requirements/` (pinned versions, with hashes). An
+   environment whose lock did not change is not made again.
+3. It downloads the models to `~/.local/share/magi/speech/models/` and checks
+   each file against `model-pins.json`: Parakeet (from the sherpa-onnx
+   release), Kokoro and the injection detector (from Hugging Face at the
+   pinned revision), and Silero VAD (from GitHub at the pinned tag).
+4. It trains the turn classifier (above) in the environment `train`. To
+   copy a build from another host in its place, give the directory:
+   `MAGI_SPEECH_PROVISION_ARGS="--turn-from DIR"`.
+5. It writes the paths to `~/.local/share/magi/speech/engines.env`.
+
+Keep `MAGI_SPEECH_ROOT` short (the default is good). espeak-ng, which Kokoro
+uses, cuts a data path of 160 bytes or more, and then the TTS engine does
+not start; `provision.py` refuses such a root.
+
+The TTS torch build comes from the host: CUDA when `nvidia-smi` answers,
+ROCm when the host has `/dev/kfd` and `rocminfo`, else the CPU. To choose,
+use `MAGI_SPEECH_PROVISION_ARGS="--torch cpu"` (or `cuda`, `rocm`). The CUDA
+build of torch is about 3 GB and the ROCm build about 16 GB. The lock files
+are for x86_64. To change a package, edit the `*.in` file and run
+`engine/requirements/compile.sh`.
+
+Then `install.sh` does these steps (also without `--provision`):
 
 1. It copies `server.py`, `model-pins.json`, and `supervise.sh` to
    `~/magi-speech/` on the host.
-2. It finds the environments and models under
+2. It finds the environments and models: an explicit value first, then
+   after `--provision` the paths of `engines.env`, then the values of the
+   last install, then `engines.env`, then the older layout under
    `~/.local/share/magi/speech/installs/*/`. To use other paths, set
-   `MAGI_SPEECH_{STT,TTS}_{PYTHON,MODEL}`. Set ports and threads with
-   `MAGI_SPEECH_{STT,TTS}_{PORT,THREADS}`.
+   `MAGI_SPEECH_{STT,TTS,DETECT,TURN}_{PYTHON,MODEL}`. Set ports and threads
+   with `MAGI_SPEECH_{STT,TTS,DETECT,TURN}_{PORT,THREADS}`.
 3. It makes `~/magi-speech/token` (mode 600) if the file does not exist. It
    does not show the token.
-4. It starts or restarts the two engines and waits for `/health`.
+4. It starts or restarts the engines and waits for `/health`.
 
-If user lingering is on, systemd user units `magi-speech-stt` and
-`magi-speech-tts` run the engines. If lingering is off, a `nohup` supervisor
-loop runs each engine and restarts it after a crash. The loop does not
-continue after a host restart. Then run `install.sh` again. Logs and PID
-files are in `~/magi-speech/`.
+If user lingering is on (`loginctl enable-linger USER`, as root), systemd
+user units `magi-speech-{stt,tts,detect,turn}` run the engines. If lingering
+is off, a `nohup` supervisor loop runs each engine and restarts it after a
+crash. The loop does not continue after a host restart. Then run
+`install.sh` again. Logs and PID files are in `~/magi-speech/`.
+
+Put the token in the Secret `magi-speech-engine` without showing it:
+
+```sh
+ssh user@speech.example.local cat magi-speech/token | \
+  kubectl -n magi create secret generic magi-speech-engine --from-file=token=/dev/stdin
+```
 
 ### TTS on a GPU
 
 The TTS engine uses a GPU when its Python environment has a CUDA or ROCm
-build of PyTorch (BSD-3-Clause; ROCm is MIT and similar licenses). Make a
-second environment with the same packages and a GPU torch, then give its
-path to `install.sh`:
+build of PyTorch (BSD-3-Clause; ROCm is MIT and similar licenses).
+`--provision` makes that environment when the host has the GPU (see above).
+For a host with more than one GPU, give the engine environment:
 
 ```sh
-MAGI_SPEECH_TTS_PYTHON=/path/on/host/venv/bin/python \
-MAGI_SPEECH_TTS_DEVICE=gpu \
 MAGI_SPEECH_TTS_ENV=HIP_VISIBLE_DEVICES=0 \
 primitives/speech/engine/install.sh user@speech.example.local
 ```
@@ -251,9 +290,6 @@ primitives/speech/engine/install.sh user@speech.example.local
 Measured on an RX 7600 (gfx1102, torch 2.9.1+rocm6.4): a 20.8 s reply takes
 1.0 s on the GPU, and 3.0 s on 3 CPU threads. STT stays on the CPU: it
 transcribes 8.5 s of audio in 0.24 s.
-
-Copy the token to the host of the Go service. Do not show the token or put it
-in the repository.
 
 ## Tests
 

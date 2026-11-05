@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """Render the Kubernetes manifests of one Magi installation.
 
-    deploy/render.py --images .build/images.env --values PRIVATE.env > out.yaml
+    deploy/render.py --images .build/images.env --values PRIVATE.env > out.json
+    deploy/render.py --base --values PRIVATE.env > base.yaml   (PostgreSQL, registry)
 
 The repository holds no private values. The values file supplies them:
   NAMESPACE, ENV_NAMESPACE, PUBLIC_HOST, MODEL_BASE_URL, MODEL_NAME,
   SPEECH_STT_URL, SPEECH_TTS_URL, ALLOWED_DOMAINS, GATEWAY_NAME,
   GATEWAY_NAMESPACE, GATEWAY_SECTION, ENV_IMAGE.
+Optional: STORAGE_CLASS for the volumes (empty: the default class of the
+cluster).
 Optional: PERSONA_LOCAL_URL and PERSONA_LOCAL_MODEL (an inference host that
 the persona tries first; it needs the secret magi-inference-token).
 Optional: EGRESS=true adds the egress proxy (primitives/egress) and the
@@ -24,6 +27,7 @@ Secrets are created separately (see deploy/README.md).
 import argparse
 import collections
 import json
+import pathlib
 
 
 def load_env(path):
@@ -149,7 +153,24 @@ def egress_proxy(img, v):
 
 def pvc(v, name, size):
     return {"apiVersion": "v1", "kind": "PersistentVolumeClaim", "metadata": {"name": name, "namespace": v["NAMESPACE"], "labels": LABELS},
-            "spec": {"accessModes": ["ReadWriteOnce"], "storageClassName": "longhorn", "resources": {"requests": {"storage": size}}}}
+            "spec": {"accessModes": ["ReadWriteOnce"], "resources": {"requests": {"storage": size}},
+                     **({"storageClassName": v["STORAGE_CLASS"]} if v.get("STORAGE_CLASS") else {})}}
+
+
+def base(v):
+    """deploy/base/postgres.yaml and deploy/registry/registry.yaml with the
+    namespace and the storage class of the installation. A line with
+    ${STORAGE_CLASS} goes when STORAGE_CLASS is empty."""
+    here = pathlib.Path(__file__).parent
+    out = []
+    for f in [here / "base/postgres.yaml", here / "registry/registry.yaml"]:
+        lines = []
+        for line in f.read_text().splitlines():
+            if "${STORAGE_CLASS}" in line and not v.get("STORAGE_CLASS"):
+                continue
+            lines.append(line.replace("${STORAGE_CLASS}", v.get("STORAGE_CLASS", "")).replace("${NAMESPACE}", v["NAMESPACE"]))
+        out.append("\n".join(lines))
+    return "\n---\n".join(out) + "\n"
 
 
 def render(img, v):
@@ -345,10 +366,16 @@ def render(img, v):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--images", required=True)
+    ap.add_argument("--images")
     ap.add_argument("--values", required=True)
     ap.add_argument("--only", default="", help="comma-separated object names to keep")
+    ap.add_argument("--base", action="store_true", help="print the PostgreSQL cluster and the registry (YAML)")
     a = ap.parse_args()
+    if a.base:
+        print(base(load_env(a.values)), end="")
+        return
+    if not a.images:
+        ap.error("--images is required")
     # A missing image renders as MISSING so --only can deploy part of the set.
     images = collections.defaultdict(lambda: "MISSING", load_env(a.images))
     objs = render(images, load_env(a.values))

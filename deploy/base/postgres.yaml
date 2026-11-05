@@ -1,14 +1,17 @@
 # One PostgreSQL cluster for the installation. Each primitive has its own
 # database. The owner role "magi" is shared for now (see deploy/README.md).
+# Render it with deploy/render.py --base.
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
   name: magi-db
-  namespace: magi
+  namespace: ${NAMESPACE}
   labels: {app.kubernetes.io/part-of: magi}
 spec:
   instances: 1
-  storage: {size: 10Gi, storageClass: longhorn}
+  storage:
+    size: 10Gi
+    storageClass: ${STORAGE_CLASS}
   resources: {requests: {cpu: 100m, memory: 256Mi}, limits: {cpu: "2", memory: 1Gi}}
   bootstrap:
     initdb:

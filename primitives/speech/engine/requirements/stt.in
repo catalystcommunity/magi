@@ -1,0 +1,3 @@
+# STT engine (Parakeet with sherpa-onnx). Python 3.13.
+sherpa-onnx==1.13.8
+numpy==2.3.4

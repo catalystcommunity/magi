@@ -1,0 +1,8 @@
+# Training of the turn classifier (turn/train.py). Python 3.12. Not needed
+# to run the engines.
+torch==2.6.0
+transformers==4.57.1
+onnx==1.23.2
+onnxruntime==1.31.1
+sentencepiece==0.2.2
+numpy==2.5.4

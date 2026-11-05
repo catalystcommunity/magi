@@ -8,6 +8,7 @@ Magi is a set of separate primitives with their own APIs. The `magi/`
 composition layer uses them to give people one conversation for questions,
 knowledge, and work. Clients (command line, web, Android) use the API.
 
+- [Setup](docs/setup.md): set up a new installation, step by step.
 - [Plan](docs/plan.md): goal, primitives, and slices.
 - [Conventions](docs/conventions.md): layout, rules, transport, storage, tests.
 - [Conversations](docs/conversations.md): the conversation graph.
@@ -45,4 +46,4 @@ The apprentice worker claims workflow tasks and serves no HTTP endpoint.
 
 ## Try it
 
-To install Magi, read deploy/README.md. To use the command-line client, read magi/README.md.
+To install Magi, read docs/setup.md. To use the command-line client, read magi/README.md.

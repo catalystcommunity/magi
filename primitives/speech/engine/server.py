@@ -486,8 +486,12 @@ def main():
         run(["Ready."])  # warm up
     elif a.engine == "turn":
         verify(directory, pins["silero-vad"]["sha256"])
-        verify(directory, {"turn/" + k: v for k, v in pins["turn"]["sha256"].items()})
-        run, name, device = load_turn(directory, a.threads), "silero-vad-5+" + pins["turn"]["name"], "cpu"
+        # A turn model that provision.py trained on this host is not the
+        # published build: built.json has its hashes and its name.
+        built = directory / "turn" / "built.json"
+        turn = json.loads(built.read_text()) if built.exists() else pins["turn"]
+        verify(directory, {"turn/" + k: v for k, v in turn["sha256"].items()})
+        run, name, device = load_turn(directory, a.threads), "silero-vad-5+" + turn["name"], "cpu"
         run["classify"]([{"context": "ready", "text": "okay"}])  # warm up
         run["vad"](__import__("numpy").zeros(STT_RATE, dtype="float32"))
     else:

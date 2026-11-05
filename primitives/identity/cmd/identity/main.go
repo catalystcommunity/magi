@@ -142,7 +142,7 @@ func serve(args []string) error {
 	keys := fs.String("auth-keys", env("MAGI_AUTH_KEYS", ""), "comma-separated issuer key files to accept (the issuer key is always accepted)")
 	issuerKey := fs.String("issuer-key", env("MAGI_ISSUER_KEY", ""), "issuer private key file")
 	publicURL := fs.String("public-url", env("MAGI_PUBLIC_URL", ""), "public base URL, such as https://magi.example.local")
-	domains := fs.String("allowed-domains", env("MAGI_ALLOWED_DOMAINS", "todandlorna.com,squizzlezig.com"), "comma-separated admitted identity domains")
+	domains := fs.String("allowed-domains", env("MAGI_ALLOWED_DOMAINS", ""), "comma-separated admitted identity domains")
 	runtime := fs.String("linkkeys-runtime", env("MAGI_LINKKEYS_RUNTIME", ""), "private LinkKeys RP runtime JSON file")
 	dbURL := fs.String("database-url", env("MAGI_DATABASE_URL", ""), "PostgreSQL URL")
 	tokenTTL := fs.Duration("token-ttl", durEnv("MAGI_TOKEN_TTL", server.DefaultTokenTTL), "user token lifetime")
@@ -150,8 +150,8 @@ func serve(args []string) error {
 	fs.Parse(args)
 
 	log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	if *issuerKey == "" || *publicURL == "" || *runtime == "" || *dbURL == "" {
-		return errors.New("MAGI_ISSUER_KEY, MAGI_PUBLIC_URL, MAGI_LINKKEYS_RUNTIME, and MAGI_DATABASE_URL are required")
+	if *issuerKey == "" || *publicURL == "" || *runtime == "" || *dbURL == "" || strings.TrimSpace(*domains) == "" {
+		return errors.New("MAGI_ISSUER_KEY, MAGI_PUBLIC_URL, MAGI_ALLOWED_DOMAINS, MAGI_LINKKEYS_RUNTIME, and MAGI_DATABASE_URL are required")
 	}
 	pub := strings.TrimRight(*publicURL, "/")
 	if !strings.HasPrefix(pub, "https://") && !strings.HasPrefix(pub, "http://localhost") && !strings.HasPrefix(pub, "http://127.0.0.1") {

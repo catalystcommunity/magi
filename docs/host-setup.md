@@ -1,7 +1,9 @@
 # Host setup tool
 
 Status (2026-10-31): the model host role is built (`magi/cmd/magi-host-setup`,
-package `magi/hostsetup`). The speech host role is only in the live check.
+package `magi/hostsetup`). The speech host role is only in the live check;
+to make a speech host, use `primitives/speech/engine/install.sh --provision`
+(deterministic, no setup model).
 
 Magi does not ship images for models or speech engines. Magi gives a tool
 that makes a host into a model host or a speech host. The tool downloads

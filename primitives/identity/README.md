@@ -72,7 +72,7 @@ Flags have environment defaults.
 | `MAGI_ISSUER_KEY` | required | Issuer private key file |
 | `MAGI_AUTH_KEYS` | empty | More issuer key files to accept. The issuer key is always accepted |
 | `MAGI_PUBLIC_URL` | required | Public base URL, for example `https://magi.example.local`. It must be a subdomain of the RP domain |
-| `MAGI_ALLOWED_DOMAINS` | `todandlorna.com,squizzlezig.com` | Identity domains that can sign in |
+| `MAGI_ALLOWED_DOMAINS` | required | Identity domains that can sign in, comma-separated |
 | `MAGI_LINKKEYS_RUNTIME` | required | Private RP file (below) |
 | `MAGI_DATABASE_URL` | required | PostgreSQL URL |
 | `MAGI_TOKEN_TTL` | `12h` | User token lifetime |
