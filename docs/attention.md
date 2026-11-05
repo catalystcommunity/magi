@@ -94,8 +94,10 @@ Decisions:
   2. An earlier turn of the persona (in the last 30 minutes, in one of the
      last four messages of the person) asked to confirm the same outcome
      for the same task. Magi reads this from the record of that turn, which
-     only the Magi service writes. Thus the person had a message in which
-     to say yes or no.
+     only the Magi service writes. Or the persona reply just before the
+     message of the person names the outcome and the task (its id or
+     title): the persona asked in its own words. Thus the person had a
+     message in which to say yes or no.
   3. The current turn did not read task output (`task_status`,
      `task_diff`) before the decision. Task output can contain
      instructions from an attacker (`docs/prompt-injection.md`).

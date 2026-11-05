@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	conversationapi "github.com/catalystcommunity/magi/primitives/conversation/api"
+	workflowapi "github.com/catalystcommunity/magi/primitives/workflow/api"
 )
 
 // devConversation answers ListDevices and ListAnnotations.
@@ -127,5 +128,26 @@ func TestFalseClaim(t *testing.T) {
 	// A tool that the persona does not have is not checked.
 	if got := falseClaim("I approved it.", nil, profiles[Persona].tools); got != "" {
 		t.Errorf("magi persona: %q", got)
+	}
+}
+
+func TestAskedInReply(t *testing.T) {
+	run := workflowapi.Run{Id: "run_9", Vars: map[string]string{"title": "Add a note"}}
+	ask := conversationapi.Utterance{Id: "u1", AuthorKind: "persona", Text: `I will reject the task "Add a note". Please confirm.`}
+	yes := conversationapi.Utterance{Id: "u2", AuthorKind: "human", Text: "yes"}
+	if !askedInReply([]conversationapi.Utterance{ask, yes}, yes, run, "reject") {
+		t.Fatal("asked in the reply before")
+	}
+	if askedInReply([]conversationapi.Utterance{ask, yes}, yes, run, "approve") {
+		t.Fatal("another outcome")
+	}
+	other := workflowapi.Run{Id: "run_8", Vars: map[string]string{"title": "Other"}}
+	if askedInReply([]conversationapi.Utterance{ask, yes}, yes, other, "reject") {
+		t.Fatal("another task")
+	}
+	// A message of the person in between: the question was not the last word.
+	mid := conversationapi.Utterance{Id: "u3", AuthorKind: "human", Text: "hmm"}
+	if askedInReply([]conversationapi.Utterance{ask, mid, yes}, yes, run, "reject") {
+		t.Fatal("not the reply just before")
 	}
 }
