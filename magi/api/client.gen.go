@@ -531,6 +531,15 @@ func (c *EgressAskClient) Evaluate(ctx context.Context, req EgressEvaluateReques
 	return DecodeEgressVerdict(csilResp)
 }
 
+func (c *EgressAskClient) Detect(ctx context.Context, req EgressDetectRequest) (EgressVerdict, error) {
+	var csilZero EgressVerdict
+	csilResp, csilErr := c.transport.Call(ctx, "EgressAskService", "detect", EncodeEgressDetectRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeEgressVerdict(csilResp)
+}
+
 func (c *EgressAskClient) SecretRules(ctx context.Context, req EgressSecretRulesRequest) (EgressSecretRulesResponse, error) {
 	var csilZero EgressSecretRulesResponse
 	csilResp, csilErr := c.transport.Call(ctx, "EgressAskService", "secret-rules", EncodeEgressSecretRulesRequest(req))

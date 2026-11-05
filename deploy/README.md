@@ -82,6 +82,9 @@ EGRESS=                       # optional: true adds the egress proxy (see "Egres
 EGRESS_RULES=                 # optional: true mounts ConfigMap magi-egress-rules into magi
 EGRESS_SSH=                   # optional: true lets the proxy end SSH (Secret magi-egress-ssh-key)
 MODEL_EGRESS=                 # optional, with EGRESS: true sends the model calls of magi and apprentice through the proxy
+DETECTOR_URL=                 # optional: the prompt injection detector engine (speech engine host, port 8094; Secret magi-speech-engine)
+DETECTOR_MODE=                # optional: flag (default; pass now, tell the person later) or review (block a finding for an admin)
+DETECTOR_THRESHOLD=           # optional: 0.98
 ```
 
 A database that `postgres.yaml` adds later is not made in an existing

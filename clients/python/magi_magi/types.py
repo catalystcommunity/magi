@@ -3309,6 +3309,37 @@ class EgressVerdict:
 
 
 @dataclass
+class EgressDetectRequest:
+    plugin: str
+    flow: EgressFlow
+    texts: List[str]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'plugin') and self.plugin is not None:
+            result['plugin'] = self.plugin
+        if hasattr(self, 'flow') and self.flow is not None:
+            result['flow'] = self.flow
+        if hasattr(self, 'texts') and self.texts is not None:
+            result['texts'] = self.texts
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'EgressDetectRequest':
+        """Create instance from dictionary."""
+        return cls(plugin=data.get('plugin'), flow=data.get('flow'), texts=data.get('texts'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'EgressDetectRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
 class EgressSecretRulesRequest:
     plugin: str
     flow: EgressFlow

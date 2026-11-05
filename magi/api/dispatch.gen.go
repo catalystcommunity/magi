@@ -51,6 +51,17 @@ func EgressAskServiceOps(impl EgressAskService) map[string]func(context.Context,
 			}
 			return EncodeEgressVerdict(resp), nil
 		},
+		"detect": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeEgressDetectRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Detect(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeEgressVerdict(resp), nil
+		},
 		"secret-rules": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeEgressSecretRulesRequest(b)
 			if err != nil {

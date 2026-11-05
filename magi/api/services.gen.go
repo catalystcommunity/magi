@@ -69,5 +69,6 @@ type EgressAskService interface {
 	Destination(ctx context.Context, req EgressDestinationRequest) (EgressDestinationResponse, error)
 	Report(ctx context.Context, req EgressReportRequest) (EgressReportResponse, error)
 	Evaluate(ctx context.Context, req EgressEvaluateRequest) (EgressVerdict, error)
+	Detect(ctx context.Context, req EgressDetectRequest) (EgressVerdict, error)
 	SecretRules(ctx context.Context, req EgressSecretRulesRequest) (EgressSecretRulesResponse, error)
 }

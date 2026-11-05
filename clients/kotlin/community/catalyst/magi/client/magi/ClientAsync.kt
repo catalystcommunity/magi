@@ -182,6 +182,9 @@ class EgressAskAsyncClient(private val transport: AsyncTransport) {
     suspend fun evaluate(request: EgressEvaluateRequest): EgressVerdict {
         return decode<EgressVerdict>(transport.call("EgressAskService", "evaluate", encode(request)))
     }
+    suspend fun detect(request: EgressDetectRequest): EgressVerdict {
+        return decode<EgressVerdict>(transport.call("EgressAskService", "detect", encode(request)))
+    }
     suspend fun secretRules(request: EgressSecretRulesRequest): EgressSecretRulesResponse {
         return decode<EgressSecretRulesResponse>(transport.call("EgressAskService", "secret-rules", encode(request)))
     }

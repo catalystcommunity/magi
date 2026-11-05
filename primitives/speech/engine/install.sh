@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Install or restart the Magi speech engines on a remote host over SSH.
+# Install or restart the Magi model engines (speech, and the prompt
+# injection detector) on a remote host over SSH.
 #
 #   install.sh [user@]host
 #
@@ -12,6 +13,13 @@
 # TTS device: MAGI_SPEECH_TTS_DEVICE (auto, cpu, gpu; default auto). A GPU needs
 # a TTS environment with a CUDA or ROCm torch. MAGI_SPEECH_TTS_ENV adds
 # NAME=value words to the TTS engine environment (e.g. HIP_VISIBLE_DEVICES=0).
+# A value that is not set keeps the value of the last install (the *.env
+# files on the host), so a second run does not move TTS off its GPU.
+#
+# The prompt injection detector (engine "detect", port MAGI_SPEECH_DETECT_PORT,
+# default 8094) is installed when its environment and model are on the host:
+# MAGI_SPEECH_DETECT_PYTHON and MAGI_SPEECH_DETECT_MODEL, by default
+# ~/.local/share/magi/speech/installs/detect/{venv/bin/python,models/protectai-v2}.
 #
 # Files go to ~/magi-speech on the host. The token is ~/magi-speech/token
 # (mode 600). It is made once and never printed. With user lingering enabled,
@@ -29,16 +37,28 @@ ssh "$host" \
   TTS_PY="${MAGI_SPEECH_TTS_PYTHON:-}" TTS_MODEL="${MAGI_SPEECH_TTS_MODEL:-}" \
   STT_PORT="${MAGI_SPEECH_STT_PORT:-8092}" TTS_PORT="${MAGI_SPEECH_TTS_PORT:-8093}" \
   STT_THREADS="${MAGI_SPEECH_STT_THREADS:-2}" TTS_THREADS="${MAGI_SPEECH_TTS_THREADS:-3}" \
-  TTS_DEVICE="${MAGI_SPEECH_TTS_DEVICE:-auto}" TTS_ENV="${MAGI_SPEECH_TTS_ENV:-}" \
+  TTS_DEVICE="${MAGI_SPEECH_TTS_DEVICE:-}" TTS_ENV="${MAGI_SPEECH_TTS_ENV:-}" \
+  DETECT_PY="${MAGI_SPEECH_DETECT_PYTHON:-}" DETECT_MODEL="${MAGI_SPEECH_DETECT_MODEL:-}" \
+  DETECT_PORT="${MAGI_SPEECH_DETECT_PORT:-8094}" DETECT_THREADS="${MAGI_SPEECH_DETECT_THREADS:-2}" \
   bash -s <<'REMOTE'
 set -euo pipefail
 cd ~/magi-speech
 chmod 755 supervise.sh
 first() { for p in "$@"; do [ -e "$p" ] && { echo "$p"; return; }; done; echo "missing: $1" >&2; exit 1; }
+# The value of the last install.
+last() { [ -s "$1.env" ] && sed -n "s/^$2=//p" "$1.env" | tr -d '"' || true; }
+STT_PY=${STT_PY:-$(last stt PYTHON)}; STT_MODEL=${STT_MODEL:-$(last stt MODEL_DIR)}
+TTS_PY=${TTS_PY:-$(last tts PYTHON)}; TTS_MODEL=${TTS_MODEL:-$(last tts MODEL_DIR)}
+TTS_DEVICE=${TTS_DEVICE:-$(last tts DEVICE)}; TTS_DEVICE=${TTS_DEVICE:-auto}
+TTS_ENV=${TTS_ENV:-$(last tts ENGINE_ENV)}
 STT_PY=${STT_PY:-$(first ~/.local/share/magi/speech/installs/*/stt/venv/bin/python)}
 STT_MODEL=${STT_MODEL:-$(first ~/.local/share/magi/speech/installs/*/stt/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8)}
 TTS_PY=${TTS_PY:-$(first ~/.local/share/magi/speech/installs/*/tts/venv/bin/python)}
 TTS_MODEL=${TTS_MODEL:-$(first ~/.local/share/magi/speech/installs/*/tts/models/kokoro)}
+DETECT_PY=${DETECT_PY:-$HOME/.local/share/magi/speech/installs/detect/venv/bin/python}
+DETECT_MODEL=${DETECT_MODEL:-$HOME/.local/share/magi/speech/installs/detect/models/protectai-v2}
+engines="stt tts"
+[ -x "$DETECT_PY" ] && [ -d "$DETECT_MODEL" ] && engines="$engines detect"
 command -v ffmpeg >/dev/null || { echo "ffmpeg is required on the host" >&2; exit 1; }
 
 if [ ! -s token ]; then
@@ -62,9 +82,16 @@ THREADS=$TTS_THREADS
 DEVICE=$TTS_DEVICE
 ENGINE_ENV="$TTS_ENV"
 EOF
+cat > detect.env <<EOF
+ENGINE=detect
+PYTHON=$DETECT_PY
+MODEL_DIR=$DETECT_MODEL
+PORT=$DETECT_PORT
+THREADS=$DETECT_THREADS
+EOF
 
 stop_nohup() {
-  for e in stt tts; do
+  for e in stt tts detect; do
     if [ -s "$e.pid" ]; then kill -- "-$(cat "$e.pid")" 2>/dev/null || true; rm -f "$e.pid"; fi
   done
   sleep 1
@@ -73,7 +100,7 @@ stop_nohup() {
 if loginctl show-user "$USER" 2>/dev/null | grep -q '^Linger=yes'; then
   stop_nohup
   mkdir -p ~/.config/systemd/user
-  for e in stt tts; do
+  for e in $engines; do
     cat > ~/.config/systemd/user/magi-speech-$e.service <<EOF
 [Unit]
 Description=Magi speech engine ($e)
@@ -86,19 +113,20 @@ WantedBy=default.target
 EOF
   done
   systemctl --user daemon-reload
-  systemctl --user enable magi-speech-stt magi-speech-tts >/dev/null
-  systemctl --user restart magi-speech-stt magi-speech-tts
+  units=$(for e in $engines; do printf 'magi-speech-%s ' "$e"; done)
+  systemctl --user enable $units >/dev/null
+  systemctl --user restart $units
   echo "mode: systemd --user"
 else
   stop_nohup
-  for e in stt tts; do
+  for e in $engines; do
     setsid nohup ./supervise.sh "$PWD/$e.env" >>"$e.log" 2>&1 </dev/null &
     echo $! > "$e.pid"
   done
   echo "mode: nohup supervisor (user lingering is off; restart after reboot)"
 fi
 
-for e in stt tts; do
+for e in $engines; do
   port=$(sed -n 's/^PORT=//p' "$e.env")
   for _ in $(seq 120); do
     curl -fsS "http://127.0.0.1:$port/health" >/dev/null 2>&1 && break

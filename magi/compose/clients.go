@@ -182,6 +182,9 @@ type System struct {
 	// ReviewModel decides egress flows that no rule decides (EgressRules
 	// default "model"); nil sends them to review.
 	ReviewModel model.Chatter
+	// Detector scores text for prompt injections (detect.go); nil
+	// passes all text.
+	Detector    *Detector
 	EgressRules *EgressRules
 	EgressProxy *EgressProxy
 	// egressReviews caches decided egress reviews (egressreview.go).

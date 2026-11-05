@@ -7342,6 +7342,69 @@ func DecodeEgressVerdict(csilData []byte) (EgressVerdict, error) {
 	return csilDecEgressVerdict(csilRoot)
 }
 
+// csilEncEgressDetectRequest builds the canonical CBOR value tree for a EgressDetectRequest.
+func csilEncEgressDetectRequest(csilV EgressDetectRequest) cborValue {
+	csilEntries := make(cborMap, 0, 3)
+	csilEntries = append(csilEntries, cborEntry{cborText("flow"), csilEncEgressFlow(csilV.Flow)})
+	csilEntries = append(csilEntries, cborEntry{cborText("texts"), cborEncArray(csilV.Texts, func(csilElem string) cborValue { return cborText(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("plugin"), cborText(csilV.Plugin)})
+	return csilEntries
+}
+
+// csilDecEgressDetectRequest reconstructs a EgressDetectRequest from a decoded CBOR value tree.
+func csilDecEgressDetectRequest(csilRoot cborValue) (EgressDetectRequest, error) {
+	var csilOut EgressDetectRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "plugin")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Plugin = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "flow")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (csilDecEgressFlow)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Flow = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "texts")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]string, error) { return cborDecArray(csilV, cborAsText) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Texts = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeEgressDetectRequest encodes a EgressDetectRequest to canonical CSIL CBOR bytes.
+func EncodeEgressDetectRequest(csilV EgressDetectRequest) []byte {
+	return cborEncode(csilEncEgressDetectRequest(csilV))
+}
+
+// DecodeEgressDetectRequest decodes canonical CSIL CBOR bytes into a EgressDetectRequest.
+func DecodeEgressDetectRequest(csilData []byte) (EgressDetectRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero EgressDetectRequest
+		return csilZero, csilErr
+	}
+	return csilDecEgressDetectRequest(csilRoot)
+}
+
 // csilEncEgressSecretRulesRequest builds the canonical CBOR value tree for a EgressSecretRulesRequest.
 func csilEncEgressSecretRulesRequest(csilV EgressSecretRulesRequest) cborValue {
 	csilEntries := make(cborMap, 0, 2)

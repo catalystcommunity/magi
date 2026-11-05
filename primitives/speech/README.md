@@ -48,6 +48,17 @@ All requests, except `/health`, need `Authorization: Bearer <token>`.
 | `POST /synthesize` | TTS | `{"text", "voice"?, "speed"?}` | WAV, headers `X-Audio-Ms`, `X-Elapsed-Ms`, `X-Voice`, `X-Engine` |
 | `POST /synthesize` | TTS | `{"text", ..., "timings": true}` | `{"audio" (base64 WAV), "media_type", "words": [[word, start_ms, end_ms]], "audio_ms", ...}` |
 | `GET /voices` | TTS | none | `{"voices": [{"id", "name", "language", "description"}]}` |
+| `POST /detect` | detect | `{"texts": [...]}` (at most 64 texts, 256 KiB) | `{"scores": [...], "windows", "engine", "elapsed_ms"}` |
+
+The engine `detect` is not speech. It is the prompt injection detector of
+Magi (ProtectAI deberta v3 v2, Apache-2.0, ONNX on the CPU; pins in
+`model-pins.json`). It uses the same host program and token because the
+same host runs it. The score of a text is the INJECTION probability of its
+worst window of 512 tokens. Magi calls it directly (`MAGI_DETECTOR_URL`);
+the speech service does not use it. Environment: Python 3.13 with
+onnxruntime 1.31.0 (MIT), tokenizers 0.23.3 (Apache-2.0), and numpy 2.5.4,
+in `~/.local/share/magi/speech/installs/detect/venv`; the model is in
+`.../detect/models/protectai-v2`.
 
 An error is JSON `{"error": "..."}`. Status 400 or 413 is a bad input. Other
 statuses are engine failures. The error does not contain the input text.

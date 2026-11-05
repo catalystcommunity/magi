@@ -84,6 +84,7 @@ cd plugins && cargo build --release --target wasm32-wasip2
 | --- | --- | --- | --- |
 | `placeholders` | out | `secret-rules` | Gets the placeholder rules of the owner from Magi. Returns `use-secret` for each placeholder whose rule matches the host and the path. |
 | `magi-review` | out | `evaluate` | Magi decides: pass, review, or block. When Magi cannot answer, the flow stops for review. |
+| `injection-detector` | in | `detect` | Sends the text of a successful text response (HTML without tags but with comments and some attributes, plain text, JSON, XML; at most 32 KiB in chunks of 4,000 characters) to Magi's prompt injection detector. Magi decides: in the default mode it answers pass at once and checks later; in the mode "review" a finding is a review. When Magi cannot answer, the response passes (the detector is triage, not a gate). |
 | `test-actions` | out, in | (test) | Only for the tests. The header `x-test-plugin` selects actions. |
 
 Plugin limits:

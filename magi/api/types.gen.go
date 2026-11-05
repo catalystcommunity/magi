@@ -777,6 +777,13 @@ type EgressVerdict struct {
 	By      string `json:"by" yaml:"by"`
 }
 
+// EgressDetectRequest represents a structured data type
+type EgressDetectRequest struct {
+	Plugin string     `json:"plugin" yaml:"plugin"`
+	Flow   EgressFlow `json:"flow" yaml:"flow"`
+	Texts  []string   `json:"texts" yaml:"texts"`
+}
+
 // EgressSecretRulesRequest represents a structured data type
 type EgressSecretRulesRequest struct {
 	Plugin string     `json:"plugin" yaml:"plugin"`

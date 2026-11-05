@@ -3486,6 +3486,33 @@ def _egress_verdict_from_cbor(data: bytes) -> "EgressVerdict":
 EgressVerdict.to_cbor = _egress_verdict_to_cbor
 EgressVerdict.from_cbor = staticmethod(_egress_verdict_from_cbor)
 
+def _encode_egress_detect_request_value(v: "EgressDetectRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["flow"] = _encode_egress_flow_value(v.flow)
+    csil_m["texts"] = v.texts
+    csil_m["plugin"] = v.plugin
+    return csil_m
+
+def _decode_egress_detect_request_value(tree: Any) -> "EgressDetectRequest":
+    tree = _csil_expect_map(tree)
+    return EgressDetectRequest(
+        plugin=_csil_expect_text(tree["plugin"]),
+        flow=_decode_egress_flow_value(tree["flow"]),
+        texts=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["texts"])],
+    )
+
+
+def _egress_detect_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_egress_detect_request_value(self))
+
+
+def _egress_detect_request_from_cbor(data: bytes) -> "EgressDetectRequest":
+    return _decode_egress_detect_request_value(cbor_decode(data))
+
+
+EgressDetectRequest.to_cbor = _egress_detect_request_to_cbor
+EgressDetectRequest.from_cbor = staticmethod(_egress_detect_request_from_cbor)
+
 def _encode_egress_secret_rules_request_value(v: "EgressSecretRulesRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["flow"] = _encode_egress_flow_value(v.flow)

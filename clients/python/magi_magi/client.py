@@ -249,6 +249,10 @@ class EgressAskClient:
         """evaluate"""
         return EgressVerdict.from_cbor(self._transport.call("EgressAskService", "evaluate", req.to_cbor()))
 
+    def detect(self, req: EgressDetectRequest) -> EgressVerdict:
+        """detect"""
+        return EgressVerdict.from_cbor(self._transport.call("EgressAskService", "detect", req.to_cbor()))
+
     def secret_rules(self, req: EgressSecretRulesRequest) -> EgressSecretRulesResponse:
         """secret-rules"""
         return EgressSecretRulesResponse.from_cbor(self._transport.call("EgressAskService", "secret-rules", req.to_cbor()))

@@ -63,6 +63,10 @@ func run(listen, keys string, workers bool, log *slog.Logger) error {
 	}
 	// The egress review is background work too: the local model first.
 	sys.ReviewModel = sys.LibrarianModel
+	// MAGI_DETECTOR_URL: the prompt injection detector (compose/detect.go).
+	if sys.Detector, err = compose.DetectorFromEnv(); err != nil {
+		return err
+	}
 	// MAGI_MODEL_EGRESS=true: all model calls of Magi go through the egress
 	// proxy, as the proxy user svc_magi. Then the provider key can be a
 	// proxy secret, and Magi holds only its placeholder.

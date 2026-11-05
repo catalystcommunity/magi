@@ -880,6 +880,20 @@ export interface EgressVerdict {
 }
 
 /**
+ * detect: a plugin asks if the texts of a flow (for example the text of a
+ * fetched page, in chunks) carry a prompt injection. The detector is
+ * triage (docs/prompt-injection.md, 3.4): in the mode "flag" (the
+ * default) Magi answers "pass" at once, checks the texts later, and tells
+ * the person of the task when it finds one. In the mode "review" Magi
+ * checks first, and a finding is "review". The mode is a Magi setting.
+ */
+export interface EgressDetectRequest {
+  plugin: string;
+  flow: EgressFlow;
+  texts: string[];
+}
+
+/**
  * The placeholder rules for the owner of the flow. hosts are host
  * patterns ("api.example.local", "*.example.local"). path is an optional
  * regular expression for the URL path. place: "header:<name>", "url",

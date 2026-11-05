@@ -1062,6 +1062,13 @@ data class EgressVerdict(
     val by: String
 )
 
+/** EgressDetectRequest record. */
+data class EgressDetectRequest(
+    val plugin: String,
+    val flow: EgressFlow,
+    val texts: List<String>
+)
+
 /** EgressSecretRulesRequest record. */
 data class EgressSecretRulesRequest(
     val plugin: String,

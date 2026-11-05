@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideRequest, DeleteLexiconWordRequest, DeleteLexiconWordResponse, EgressDestinationRequest, EgressDestinationResponse, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressFlow, EgressFlowHeader, EgressReportRequest, EgressReportResponse, EgressReview, EgressReviewHeader, EgressSecretRule, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, FileChange, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetTaskDiffRequest, GetTaskRequest, KnowledgeItem, LexiconWord, LinkRequest, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListVoicesRequest, ListVoicesResponse, ListenRequest, ListenResponse, Message, MessageLink, PersonaInfo, PutAppReleaseRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, ReportDeliveryRequest, ReportDeliveryResponse, ReviewItem, RunnerAck, RunnerAssignment, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerEgressProxy, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerInfo, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, RunnerUpdate, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, SpeechPart, StartTaskRequest, StopSpeechRequest, StopSpeechResponse, Task, TaskDiff, TaskStep, TraceRequest, TraceResponse, UnlinkRequest, VoiceInfo, WordTime } from "./types.gen.ts";
+import type { AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideRequest, DeleteLexiconWordRequest, DeleteLexiconWordResponse, EgressDestinationRequest, EgressDestinationResponse, EgressDetectRequest, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressFlow, EgressFlowHeader, EgressReportRequest, EgressReportResponse, EgressReview, EgressReviewHeader, EgressSecretRule, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, FileChange, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetTaskDiffRequest, GetTaskRequest, KnowledgeItem, LexiconWord, LinkRequest, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListVoicesRequest, ListVoicesResponse, ListenRequest, ListenResponse, Message, MessageLink, PersonaInfo, PutAppReleaseRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, ReportDeliveryRequest, ReportDeliveryResponse, ReviewItem, RunnerAck, RunnerAssignment, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerEgressProxy, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerInfo, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, RunnerUpdate, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, SpeechPart, StartTaskRequest, StopSpeechRequest, StopSpeechResponse, Task, TaskDiff, TaskStep, TraceRequest, TraceResponse, UnlinkRequest, VoiceInfo, WordTime } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -2956,6 +2956,30 @@ export function toEgressVerdictCbor(v: EgressVerdict): Uint8Array {
 
 export function fromEgressVerdictCbor(bytes: Uint8Array): EgressVerdict {
   return fromEgressVerdictCborValue(decode(bytes));
+}
+
+export function toEgressDetectRequestCborValue(v: EgressDetectRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("flow", toEgressFlowCborValue(v.flow));
+  csilMap.set("texts", v.texts);
+  csilMap.set("plugin", v.plugin);
+  return csilMap;
+}
+
+export function fromEgressDetectRequestCborValue(value: CborValue): EgressDetectRequest {
+  return {
+    plugin: asString(requireKey(value, "plugin")),
+    flow: fromEgressFlowCborValue(requireKey(value, "flow")),
+    texts: asArray(requireKey(value, "texts")).map((csilE) => asString(csilE)),
+  };
+}
+
+export function toEgressDetectRequestCbor(v: EgressDetectRequest): Uint8Array {
+  return encodeValue(toEgressDetectRequestCborValue(v));
+}
+
+export function fromEgressDetectRequestCbor(bytes: Uint8Array): EgressDetectRequest {
+  return fromEgressDetectRequestCborValue(decode(bytes));
 }
 
 export function toEgressSecretRulesRequestCborValue(v: EgressSecretRulesRequest): CborValue {

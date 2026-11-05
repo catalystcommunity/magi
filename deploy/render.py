@@ -14,6 +14,9 @@ Optional: EGRESS=true adds the egress proxy (primitives/egress) and the
 and ConfigMaps. MODEL_EGRESS=true (with EGRESS) sends the model calls of
 Magi and the apprentice through the proxy; the provider key is then the
 proxy secret "model", and Magi holds only its placeholder.
+Optional: DETECTOR_URL is the prompt injection detector engine (the engine
+"detect" of primitives/speech/engine, with the speech engine token);
+DETECTOR_MODE is "flag" (default) or "review", DETECTOR_THRESHOLD 0.98.
 Secrets are created separately (see deploy/README.md).
 """
 import argparse
@@ -264,8 +267,15 @@ def render(img, v):
             egress_env.append({"name": "MAGI_EGRESS_SSH_PUB", "value": "/etc/magi/egress-ca/ssh.pub"})
         if model_egress:
             egress_env.append({"name": "MAGI_MODEL_EGRESS", "value": "true"})
+    detector_env, detector_secrets = [], []
+    if v.get("DETECTOR_URL"):
+        detector_env = [{"name": "MAGI_DETECTOR_URL", "value": v["DETECTOR_URL"]},
+                        {"name": "MAGI_DETECTOR_TOKEN_FILE", "value": "/etc/magi/detector/token"},
+                        {"name": "MAGI_DETECTOR_MODE", "value": v.get("DETECTOR_MODE", "flag")},
+                        {"name": "MAGI_DETECTOR_THRESHOLD", "value": v.get("DETECTOR_THRESHOLD", "0.98")}]
+        detector_secrets = [("magi-speech-engine", "/etc/magi/detector")]
     mg = service(v, "magi", img["IMAGE_MAGI"], [
-        *model, *svc_token, *persona, *egress_env,
+        *model, *svc_token, *persona, *egress_env, *detector_env,
         *[{"name": f"MAGI_{k.upper()}_URL", "value": u} for k, u in urls.items()],
         {"name": "MAGI_ENV_IMAGE", "value": v["ENV_IMAGE"]},
         # RUNNER: the default runner for code changes (RunnerService).
@@ -279,7 +289,7 @@ def render(img, v):
         {"name": "MAGI_LEXICON_EDITORS", "value": v.get("LEXICON_EDITORS", "")},
         {"name": "MAGI_IMAGE_REGISTRY", "value": f"registry.{ns}.svc:5000"},
         {"name": "MAGI_IMAGE_CREDENTIALS_FILE", "value": "/etc/magi/registry/registry.json"}],
-        secrets=[*model_secret, ("magi-token-magi", "/etc/magi/token"), ("magi-registry-push", "/etc/magi/registry"), *persona_secrets,
+        secrets=[*model_secret, ("magi-token-magi", "/etc/magi/token"), ("magi-registry-push", "/etc/magi/registry"), *persona_secrets, *detector_secrets,
                  *([("magi-egress-env-key", "/etc/magi/egress-key")] if egress else [])], mem="512Mi")
     if egress:
         configmap(mg, "magi-egress-ca", "/etc/magi/egress-ca")

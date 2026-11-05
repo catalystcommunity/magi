@@ -119,6 +119,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "injection-detector"
+version = "0.1.0"
+dependencies = [
+ "ciborium",
+ "serde",
+ "wit-bindgen",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"

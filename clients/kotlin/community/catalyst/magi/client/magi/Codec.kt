@@ -2835,6 +2835,29 @@ fun egressVerdictFromCborValue(cbor: CborValue): EgressVerdict {
 /** Decode CSIL CBOR bytes into a EgressVerdict. */
 fun egressVerdictFromCbor(bytes: ByteArray): EgressVerdict = egressVerdictFromCborValue(CsilCbor.decode(bytes))
 
+/** The CBOR value tree for a EgressDetectRequest (deep, canonical key order). */
+fun EgressDetectRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("flow") to this.flow.toCborValue())
+    csilEntries.add(CborValue.CText("texts") to CborValue.CArray((this.texts).map { csilE -> CborValue.CText(csilE) }))
+    csilEntries.add(CborValue.CText("plugin") to CborValue.CText(this.plugin))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a EgressDetectRequest to canonical CSIL CBOR bytes. */
+fun EgressDetectRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a EgressDetectRequest from a decoded CBOR value tree. */
+fun egressDetectRequestFromCborValue(cbor: CborValue): EgressDetectRequest {
+    val plugin = CsilCbor.asText(CsilCbor.require(cbor, "plugin"))
+    val flow = egressFlowFromCborValue(CsilCbor.require(cbor, "flow"))
+    val texts = CsilCbor.asArray(CsilCbor.require(cbor, "texts")).map { csilE -> CsilCbor.asText(csilE) }
+    return EgressDetectRequest(plugin = plugin, flow = flow, texts = texts)
+}
+
+/** Decode CSIL CBOR bytes into a EgressDetectRequest. */
+fun egressDetectRequestFromCbor(bytes: ByteArray): EgressDetectRequest = egressDetectRequestFromCborValue(CsilCbor.decode(bytes))
+
 /** The CBOR value tree for a EgressSecretRulesRequest (deep, canonical key order). */
 fun EgressSecretRulesRequest.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
@@ -3100,6 +3123,7 @@ private fun csilToCborValue(value: Any?): CborValue = when (value) {
     is EgressEnvironmentResponse -> value.toCborValue()
     is EgressEvaluateRequest -> value.toCborValue()
     is EgressVerdict -> value.toCborValue()
+    is EgressDetectRequest -> value.toCborValue()
     is EgressSecretRulesRequest -> value.toCborValue()
     is EgressSecretRule -> value.toCborValue()
     is EgressSecretRulesResponse -> value.toCborValue()
@@ -3222,6 +3246,7 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     EgressEnvironmentResponse::class -> egressEnvironmentResponseFromCborValue(cbor)
     EgressEvaluateRequest::class -> egressEvaluateRequestFromCborValue(cbor)
     EgressVerdict::class -> egressVerdictFromCborValue(cbor)
+    EgressDetectRequest::class -> egressDetectRequestFromCborValue(cbor)
     EgressSecretRulesRequest::class -> egressSecretRulesRequestFromCborValue(cbor)
     EgressSecretRule::class -> egressSecretRuleFromCborValue(cbor)
     EgressSecretRulesResponse::class -> egressSecretRulesResponseFromCborValue(cbor)

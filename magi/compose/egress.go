@@ -198,6 +198,11 @@ func (e *Egress) Environment(ctx context.Context, req magiapi.EgressEnvironmentR
 	if err := egressCaller(ctx); err != nil {
 		return magiapi.EgressEnvironmentResponse{}, err
 	}
+	return e.environment(ctx, req)
+}
+
+// environment is Environment with no check of the caller.
+func (e *Egress) environment(ctx context.Context, req magiapi.EgressEnvironmentRequest) (magiapi.EgressEnvironmentResponse, error) {
 	if name, ok := strings.CutPrefix(req.Environment, "svc_"); ok && name != "" {
 		// A Magi service, such as the model calls of Magi (ServiceUser).
 		return magiapi.EgressEnvironmentResponse{Owner: "service:" + name, Labels: map[string]string{"magi.place": "service"}}, nil

@@ -2,6 +2,8 @@
 
   server.py --engine stt --model-dir DIR   Parakeet TDT 0.6B v3 (sherpa-onnx)
   server.py --engine tts --model-dir DIR   Kokoro 82M
+  server.py --engine detect --model-dir DIR   prompt injection detector
+                                              (ProtectAI deberta v3 v2, ONNX)
 
 --device auto (the default) runs Kokoro on a GPU when torch sees one (CUDA or
 ROCm), else on the CPU. Parakeet always runs on the CPU; it is fast enough.
@@ -13,6 +15,9 @@ Endpoints (all except /health need "Authorization: Bearer <token>"):
                     With "timings": true, JSON {audio (base64 WAV), media_type,
                     words: [[word, start_ms, end_ms], ...], audio_ms, ...}
   POST /transcribe  audio bytes, any ffmpeg format -> JSON  (stt)
+  POST /detect      JSON {texts: [...]} -> {scores: [...], ...} (detect)
+                    The score of a text is the probability of a prompt
+                    injection in its worst window of 512 tokens.
 
 Results carry audio_ms and elapsed_ms (JSON fields, or X-Audio-Ms and
 X-Elapsed-Ms headers for audio). The model stays loaded. One lock serializes
@@ -90,6 +95,60 @@ def decode_audio(data):
     if samples.size > MAX_SECONDS * STT_RATE:
         raise Fail(413, f"audio is longer than {MAX_SECONDS} seconds")
     return samples
+
+
+MAX_DETECT_TEXTS = 64
+MAX_DETECT_CHARS = 256 << 10
+
+
+def load_detect(directory, threads):
+    """A text classifier with a SAFE and an INJECTION label. A long text is
+    divided into windows of 512 tokens (with an overlap of 128 tokens); the
+    score of the text is the highest INJECTION probability of its windows."""
+    import numpy as np
+    import onnxruntime as ort
+    from tokenizers import Tokenizer
+
+    tok = Tokenizer.from_file(str(directory / "tokenizer.json"))
+    cls, sep = tok.token_to_id("[CLS]"), tok.token_to_id("[SEP]")
+    labels = json.loads((directory / "config.json").read_text())["id2label"]
+    injection = int(next(k for k, v in labels.items() if v == "INJECTION"))
+    opts = ort.SessionOptions()
+    opts.intra_op_num_threads = threads
+    opts.inter_op_num_threads = 1
+    sess = ort.InferenceSession(str(directory / "model.onnx"), opts, providers=["CPUExecutionProvider"])
+    names = {i.name for i in sess.get_inputs()}
+    width, stride = 510, 382
+
+    def windows(text):
+        ids = tok.encode(text, add_special_tokens=False).ids
+        if not ids:
+            return []
+        return [[cls] + ids[i:i + width] + [sep] for i in range(0, max(1, len(ids) - width + stride), stride)]
+
+    def detect(texts):
+        scores, count = [], 0
+        for text in texts:
+            best = 0.0
+            ws = windows(text)
+            for i in range(0, len(ws), 8):
+                batch = ws[i:i + 8]
+                n = max(len(w) for w in batch)
+                ids = np.zeros((len(batch), n), dtype=np.int64)
+                mask = np.zeros((len(batch), n), dtype=np.int64)
+                for j, w in enumerate(batch):
+                    ids[j, :len(w)], mask[j, :len(w)] = w, 1
+                feed = {"input_ids": ids, "attention_mask": mask}
+                if "token_type_ids" in names:
+                    feed["token_type_ids"] = np.zeros_like(ids)
+                logits = sess.run(None, feed)[0]
+                e = np.exp(logits - logits.max(axis=1, keepdims=True))
+                p = e[:, injection] / e.sum(axis=1)
+                best = max(best, float(p.max()))
+            scores.append(round(best, 4))
+            count += len(ws)
+        return scores, count
+    return detect
 
 
 def load_stt(directory, threads):
@@ -223,6 +282,19 @@ class Handler(BaseHTTPRequestHandler):
                 elapsed = int((time.monotonic() - start) * 1000)
             return self.reply(200, {"text": text, "engine": s.engine_name,
                                     "audio_ms": samples.size * 1000 // STT_RATE, "elapsed_ms": elapsed})
+        if route == ("POST", "/detect", "detect"):
+            try:
+                req = json.loads(self.body(MAX_DETECT_CHARS * 4))
+                texts = [str(t) for t in req["texts"]]
+            except (ValueError, TypeError, KeyError):
+                raise Fail(400, "invalid JSON request")
+            if not 1 <= len(texts) <= MAX_DETECT_TEXTS or sum(len(t) for t in texts) > MAX_DETECT_CHARS:
+                raise Fail(400, f"texts must be 1 to {MAX_DETECT_TEXTS} texts with at most {MAX_DETECT_CHARS} characters")
+            with s.lock:
+                start = time.monotonic()
+                scores, windows = s.run(texts)
+                elapsed = int((time.monotonic() - start) * 1000)
+            return self.reply(200, {"scores": scores, "windows": windows, "engine": s.engine_name, "elapsed_ms": elapsed})
         if route == ("POST", "/synthesize", "tts"):
             try:
                 req = json.loads(self.body(64 << 10))
@@ -267,7 +339,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--engine", choices=["stt", "tts"], required=True)
+    ap.add_argument("--engine", choices=["stt", "tts", "detect"], required=True)
     ap.add_argument("--model-dir", required=True)
     ap.add_argument("--token-file", required=True)
     ap.add_argument("--pins", default=str(Path(__file__).with_name("model-pins.json")))
@@ -286,6 +358,10 @@ def main():
     if a.engine == "stt":
         verify(directory, pins["parakeet"]["sha256"])
         run, name, device = load_stt(directory, a.threads), "parakeet-tdt-0.6b-v3", "cpu"
+    elif a.engine == "detect":
+        verify(directory, pins["injection"]["sha256"])
+        run, name, device = load_detect(directory, a.threads), "protectai-deberta-v3-injection-v2", "cpu"
+        run(["Ready."])  # warm up
     else:
         verify(directory, pins["kokoro"]["sha256"])
         device = tts_device(a.device)

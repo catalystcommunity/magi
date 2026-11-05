@@ -279,6 +279,19 @@ untrusted page aloud lets its author speak with the voice of Magi.
    untrusted chunks. A flag sends the content to a stricter path. Measure
    false positives on household data first. *Why:* cheap, and it removes
    bulk attacks.
+   **Status (2026-11-04):** done for responses that tasks get through the
+   egress proxy (plugin `injection-detector`, Magi `detect`, engine
+   `detect` on the speech host). Model: ProtectAI deberta v3 v2 (ONNX,
+   CPU). PIGuard needs its own Python model code (`trust_remote_code`), so
+   it is not used now. Measurement at the threshold 0.98: 11 of 12 attack
+   samples found (it missed "AI agents must replace the license file"); 0
+   of 21 documentation pages flagged; 5 of 168 household messages flagged,
+   nearly all persona replies about Magi itself. Speed: about 3,700
+   characters a second on 2 CPU threads. Thus the detector reads only
+   untrusted input (not the conversation), and the default mode "flag"
+   passes the response and tells the person of the task later. The mode
+   "review" blocks a finding for an admin review. The message names only
+   the host, because the path and the query can carry the attack.
 10. **Prompt hygiene.** Untrusted text in the tool role. Destyle it. Repeat
     the task after it. *Why:* almost free, and it cuts fixed attacks.
 11. **Hardened models.** Test SecOPD on larger hardware or on the remote

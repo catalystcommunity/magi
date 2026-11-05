@@ -2,7 +2,7 @@
 # The files are target/wasm32-wasip2/release/<name>.wasm.
 [workspace]
 resolver = "3"
-members = ["placeholders", "magi-review", "test-actions"]
+members = ["placeholders", "magi-review", "injection-detector", "test-actions"]
 
 [workspace.package]
 edition = "2024"

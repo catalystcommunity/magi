@@ -15,7 +15,7 @@ COPY primitives/egress/src ./src
 COPY primitives/egress/plugins ./plugins
 RUN touch src/main.rs src/lib.rs && cargo build --release --locked \
  && cd plugins && cargo build --release --locked --target wasm32-wasip2 \
- && mkdir -p /out/plugins && cp target/wasm32-wasip2/release/placeholders.wasm target/wasm32-wasip2/release/magi_review.wasm /out/plugins/ \
+ && mkdir -p /out/plugins && cp target/wasm32-wasip2/release/placeholders.wasm target/wasm32-wasip2/release/magi_review.wasm target/wasm32-wasip2/release/injection_detector.wasm /out/plugins/ \
  && cd /out/plugins && sha256sum *.wasm > SHA256SUMS
 
 FROM gcr.io/distroless/cc-debian12:nonroot
