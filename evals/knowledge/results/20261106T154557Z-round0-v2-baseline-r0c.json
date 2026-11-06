@@ -267,7 +267,7 @@
    "present": []
   },
   {
-   "reply": "I don't have a specific record of where you work in my knowledge base. It might be listed in your email signature, your company directory, or a previous conversation. Do you work for Squizzlezig, or another company?",
+   "reply": "I don't have a specific record of where you work in my knowledge base. It might be listed in your email signature, your company directory, or a previous conversation. Do you work for Example, or another company?",
    "model": "qwen3.5-9b",
    "ms": 4256,
    "kind": "question",
