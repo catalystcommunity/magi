@@ -159,9 +159,25 @@ class MagiClient:
         """query-knowledge"""
         return QueryKnowledgeResponse.from_cbor(self._transport.call("MagiService", "query-knowledge", req.to_cbor()))
 
-    def remember(self, req: RememberRequest) -> KnowledgeItem:
+    def remember(self, req: RememberRequest) -> RememberResponse:
         """remember"""
-        return KnowledgeItem.from_cbor(self._transport.call("MagiService", "remember", req.to_cbor()))
+        return RememberResponse.from_cbor(self._transport.call("MagiService", "remember", req.to_cbor()))
+
+    def change_knowledge(self, req: ChangeKnowledgeRequest) -> ChangeKnowledgeResponse:
+        """change-knowledge"""
+        return ChangeKnowledgeResponse.from_cbor(self._transport.call("MagiService", "change-knowledge", req.to_cbor()))
+
+    def knowledge_history(self, req: KnowledgeHistoryRequest) -> KnowledgeHistoryResponse:
+        """knowledge-history"""
+        return KnowledgeHistoryResponse.from_cbor(self._transport.call("MagiService", "knowledge-history", req.to_cbor()))
+
+    def merge_knowledge(self, req: MergeKnowledgeRequest) -> ChangeKnowledgeResponse:
+        """merge-knowledge"""
+        return ChangeKnowledgeResponse.from_cbor(self._transport.call("MagiService", "merge-knowledge", req.to_cbor()))
+
+    def unmerge_knowledge(self, req: UnmergeKnowledgeRequest) -> ChangeKnowledgeResponse:
+        """unmerge-knowledge"""
+        return ChangeKnowledgeResponse.from_cbor(self._transport.call("MagiService", "unmerge-knowledge", req.to_cbor()))
 
     def list_voices(self, req: ListVoicesRequest) -> ListVoicesResponse:
         """list-voices"""

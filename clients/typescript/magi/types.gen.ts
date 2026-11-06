@@ -563,39 +563,148 @@ export interface CancelTaskRequest {
   confirm?: boolean;
 }
 
+/**
+ * A fact: one claim, seen from the entity that it is listed under.
+ * direction "out": entity relation other (or value); "in": other
+ * relation entity. status is "current" or "ended". mine: the caller owns
+ * it (and can change it). supported: evidence supports it, or a person
+ * wrote it. stale: a fact that it was derived from changed.
+ */
+export interface KnowledgeFact {
+  id: string;
+  relation: string;
+  direction: string;
+  other?: string;
+  otherId?: string;
+  value?: string;
+  status: string;
+  validFromMs?: number;
+  validToMs?: number;
+  supported: boolean;
+  stale: boolean;
+  mine: boolean;
+  disputed: boolean;
+}
+
 export interface KnowledgeItem {
   id: string;
   kind: string;
   label: string;
+  aliases: string[];
   summary: string;
   properties: Record<string, string>;
   system?: string;
   locator?: string;
-  relations: string[];
+  facts: KnowledgeFact[];
+  mine: boolean;
 }
 
+/**
+ * An episode (a thing that occurred) or a procedure (how to do a thing).
+ */
+export interface KnowledgeRecord {
+  id: string;
+  type: string;
+  kind: string;
+  title: string;
+  summary: string;
+  atMs: number;
+}
+
+/**
+ * Finds what the caller knows. Without text, the records that changed last.
+ * include_ended also gives facts that are no longer true.
+ */
 export interface QueryKnowledgeRequest {
   text?: string;
   kind?: string;
   limit?: number;
+  includeEnded?: boolean;
 }
 
 export interface QueryKnowledgeResponse {
   items: KnowledgeItem[];
+  records: KnowledgeRecord[];
 }
 
 /**
- * Records knowledge that the caller authored.
+ * Records one fact that the caller wrote: subject relation object (an
+ * entity, by name) or value. subject "me" is the caller. When a current
+ * fact has the same subject and relation and another object or value,
+ * nothing is recorded unless also is true: the note tells which fact,
+ * so that the caller can change it instead (fix or update).
  */
 export interface RememberRequest {
-  kind: string;
-  label: string;
+  subject: string;
+  subjectKind?: string;
+  relation: string;
+  object?: string;
+  objectKind?: string;
+  value?: string;
   summary?: string;
-  properties?: Record<string, string>;
-  system?: string;
-  locator?: string;
-  relatedTo?: string;
-  relation?: string;
+  also?: boolean;
+}
+
+export interface RememberResponse {
+  recorded: boolean;
+  note?: string;
+  item: KnowledgeItem;
+}
+
+/**
+ * Changes a record of the caller (docs/knowledge.md, "Changes").
+ * operation: "fix" (it was wrong), "update" (it was true and changed; facts
+ * only), or "retract" (it was never true, or forget it). field and value
+ * give the new value: for a fact, field "value" (default) or "object" (a
+ * name) or "relation"; for an entity, "label" (default), "summary", or
+ * "kind".
+ */
+export interface ChangeKnowledgeRequest {
+  id: string;
+  operation: string;
+  field?: string;
+  value?: string;
+  reason?: string;
+  erase?: boolean;
+}
+
+export interface KnowledgeChange {
+  id: string;
+  record: string;
+  operation: string;
+  actor: string;
+  reason?: string;
+  before?: string;
+  after?: string;
+  atMs: number;
+}
+
+export interface ChangeKnowledgeResponse {
+  change: KnowledgeChange;
+  item?: KnowledgeItem;
+}
+
+/**
+ * Merges entity merge into entity keep: the same thing under two names.
+ * Its facts move to keep, and its name becomes an alias. unmerge-knowledge
+ * reverts a merge by the id of its change.
+ */
+export interface MergeKnowledgeRequest {
+  keep: string;
+  merge: string;
+  reason?: string;
+}
+
+export interface UnmergeKnowledgeRequest {
+  change: string;
+}
+
+export interface KnowledgeHistoryRequest {
+  id: string;
+}
+
+export interface KnowledgeHistoryResponse {
+  changes: KnowledgeChange[];
 }
 
 export interface VoiceInfo {

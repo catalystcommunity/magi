@@ -4802,20 +4802,195 @@ func DecodeCancelTaskRequest(csilData []byte) (CancelTaskRequest, error) {
 	return csilDecCancelTaskRequest(csilRoot)
 }
 
+// csilEncKnowledgeFact builds the canonical CBOR value tree for a KnowledgeFact.
+func csilEncKnowledgeFact(csilV KnowledgeFact) cborValue {
+	csilEntries := make(cborMap, 0, 13)
+	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
+	csilEntries = append(csilEntries, cborEntry{cborText("mine"), cborBool(csilV.Mine)})
+	if csilV.Other != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("other"), cborText((*csilV.Other))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("stale"), cborBool(csilV.Stale)})
+	if csilV.Value != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("value"), cborText((*csilV.Value))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("status"), cborText(csilV.Status)})
+	csilEntries = append(csilEntries, cborEntry{cborText("disputed"), cborBool(csilV.Disputed)})
+	if csilV.OtherId != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("other_id"), cborText((*csilV.OtherId))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("relation"), cborText(csilV.Relation)})
+	csilEntries = append(csilEntries, cborEntry{cborText("direction"), cborText(csilV.Direction)})
+	csilEntries = append(csilEntries, cborEntry{cborText("supported"), cborBool(csilV.Supported)})
+	if csilV.ValidToMs != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("valid_to_ms"), cborUint((*csilV.ValidToMs))})
+	}
+	if csilV.ValidFromMs != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("valid_from_ms"), cborUint((*csilV.ValidFromMs))})
+	}
+	return csilEntries
+}
+
+// csilDecKnowledgeFact reconstructs a KnowledgeFact from a decoded CBOR value tree.
+func csilDecKnowledgeFact(csilRoot cborValue) (KnowledgeFact, error) {
+	var csilOut KnowledgeFact
+	{
+		csilField, csilErr := cborRequire(csilRoot, "id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Id = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "relation")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Relation = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "direction")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Direction = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "other"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Other = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "other_id"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.OtherId = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "value"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Value = &csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "status")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Status = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "valid_from_ms"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.ValidFromMs = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "valid_to_ms"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.ValidToMs = &csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "supported")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Supported = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "stale")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Stale = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "mine")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Mine = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "disputed")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Disputed = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeKnowledgeFact encodes a KnowledgeFact to canonical CSIL CBOR bytes.
+func EncodeKnowledgeFact(csilV KnowledgeFact) []byte {
+	return cborEncode(csilEncKnowledgeFact(csilV))
+}
+
+// DecodeKnowledgeFact decodes canonical CSIL CBOR bytes into a KnowledgeFact.
+func DecodeKnowledgeFact(csilData []byte) (KnowledgeFact, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero KnowledgeFact
+		return csilZero, csilErr
+	}
+	return csilDecKnowledgeFact(csilRoot)
+}
+
 // csilEncKnowledgeItem builds the canonical CBOR value tree for a KnowledgeItem.
 func csilEncKnowledgeItem(csilV KnowledgeItem) cborValue {
-	csilEntries := make(cborMap, 0, 8)
+	csilEntries := make(cborMap, 0, 10)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
+	csilEntries = append(csilEntries, cborEntry{cborText("mine"), cborBool(csilV.Mine)})
+	csilEntries = append(csilEntries, cborEntry{cborText("facts"), cborEncArray(csilV.Facts, func(csilElem KnowledgeFact) cborValue { return csilEncKnowledgeFact(csilElem) })})
 	csilEntries = append(csilEntries, cborEntry{cborText("label"), cborText(csilV.Label)})
 	if csilV.System != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("system"), cborText((*csilV.System))})
 	}
+	csilEntries = append(csilEntries, cborEntry{cborText("aliases"), cborEncArray(csilV.Aliases, func(csilElem string) cborValue { return cborText(csilElem) })})
 	if csilV.Locator != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("locator"), cborText((*csilV.Locator))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("summary"), cborText(csilV.Summary)})
-	csilEntries = append(csilEntries, cborEntry{cborText("relations"), cborEncArray(csilV.Relations, func(csilElem string) cborValue { return cborText(csilElem) })})
 	csilEntries = append(csilEntries, cborEntry{cborText("properties"), cborEncMap(csilV.Properties, func(csilK string) cborValue { return cborText(csilK) }, func(csilV string) cborValue { return cborText(csilV) })})
 	return csilEntries
 }
@@ -4857,6 +5032,17 @@ func csilDecKnowledgeItem(csilRoot cborValue) (KnowledgeItem, error) {
 		csilOut.Label = csilVal
 	}
 	{
+		csilField, csilErr := cborRequire(csilRoot, "aliases")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]string, error) { return cborDecArray(csilV, cborAsText) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Aliases = csilVal
+	}
+	{
 		csilField, csilErr := cborRequire(csilRoot, "summary")
 		if csilErr != nil {
 			return csilOut, csilErr
@@ -4893,15 +5079,26 @@ func csilDecKnowledgeItem(csilRoot cborValue) (KnowledgeItem, error) {
 		csilOut.Locator = &csilVal
 	}
 	{
-		csilField, csilErr := cborRequire(csilRoot, "relations")
+		csilField, csilErr := cborRequire(csilRoot, "facts")
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) ([]string, error) { return cborDecArray(csilV, cborAsText) })(csilField)
+		csilVal, csilErr := (func(csilV cborValue) ([]KnowledgeFact, error) { return cborDecArray(csilV, csilDecKnowledgeFact) })(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilOut.Relations = csilVal
+		csilOut.Facts = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "mine")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Mine = csilVal
 	}
 	return csilOut, nil
 }
@@ -4921,9 +5118,108 @@ func DecodeKnowledgeItem(csilData []byte) (KnowledgeItem, error) {
 	return csilDecKnowledgeItem(csilRoot)
 }
 
+// csilEncKnowledgeRecord builds the canonical CBOR value tree for a KnowledgeRecord.
+func csilEncKnowledgeRecord(csilV KnowledgeRecord) cborValue {
+	csilEntries := make(cborMap, 0, 6)
+	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
+	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
+	csilEntries = append(csilEntries, cborEntry{cborText("type"), cborText(csilV.Type)})
+	csilEntries = append(csilEntries, cborEntry{cborText("at_ms"), cborUint(csilV.AtMs)})
+	csilEntries = append(csilEntries, cborEntry{cborText("title"), cborText(csilV.Title)})
+	csilEntries = append(csilEntries, cborEntry{cborText("summary"), cborText(csilV.Summary)})
+	return csilEntries
+}
+
+// csilDecKnowledgeRecord reconstructs a KnowledgeRecord from a decoded CBOR value tree.
+func csilDecKnowledgeRecord(csilRoot cborValue) (KnowledgeRecord, error) {
+	var csilOut KnowledgeRecord
+	{
+		csilField, csilErr := cborRequire(csilRoot, "id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Id = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "type")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Type = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "kind")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Kind = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "title")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Title = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "summary")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Summary = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "at_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.AtMs = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeKnowledgeRecord encodes a KnowledgeRecord to canonical CSIL CBOR bytes.
+func EncodeKnowledgeRecord(csilV KnowledgeRecord) []byte {
+	return cborEncode(csilEncKnowledgeRecord(csilV))
+}
+
+// DecodeKnowledgeRecord decodes canonical CSIL CBOR bytes into a KnowledgeRecord.
+func DecodeKnowledgeRecord(csilData []byte) (KnowledgeRecord, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero KnowledgeRecord
+		return csilZero, csilErr
+	}
+	return csilDecKnowledgeRecord(csilRoot)
+}
+
 // csilEncQueryKnowledgeRequest builds the canonical CBOR value tree for a QueryKnowledgeRequest.
 func csilEncQueryKnowledgeRequest(csilV QueryKnowledgeRequest) cborValue {
-	csilEntries := make(cborMap, 0, 3)
+	csilEntries := make(cborMap, 0, 4)
 	if csilV.Kind != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText((*csilV.Kind))})
 	}
@@ -4932,6 +5228,9 @@ func csilEncQueryKnowledgeRequest(csilV QueryKnowledgeRequest) cborValue {
 	}
 	if csilV.Limit != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("limit"), cborUint((*csilV.Limit))})
+	}
+	if csilV.IncludeEnded != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("include_ended"), cborBool((*csilV.IncludeEnded))})
 	}
 	return csilEntries
 }
@@ -4960,6 +5259,13 @@ func csilDecQueryKnowledgeRequest(csilRoot cborValue) (QueryKnowledgeRequest, er
 		}
 		csilOut.Limit = &csilVal
 	}
+	if csilField, csilOk := cborMapGet(csilRoot, "include_ended"); csilOk {
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.IncludeEnded = &csilVal
+	}
 	return csilOut, nil
 }
 
@@ -4980,8 +5286,9 @@ func DecodeQueryKnowledgeRequest(csilData []byte) (QueryKnowledgeRequest, error)
 
 // csilEncQueryKnowledgeResponse builds the canonical CBOR value tree for a QueryKnowledgeResponse.
 func csilEncQueryKnowledgeResponse(csilV QueryKnowledgeResponse) cborValue {
-	csilEntries := make(cborMap, 0, 1)
+	csilEntries := make(cborMap, 0, 2)
 	csilEntries = append(csilEntries, cborEntry{cborText("items"), cborEncArray(csilV.Items, func(csilElem KnowledgeItem) cborValue { return csilEncKnowledgeItem(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("records"), cborEncArray(csilV.Records, func(csilElem KnowledgeRecord) cborValue { return csilEncKnowledgeRecord(csilElem) })})
 	return csilEntries
 }
 
@@ -4998,6 +5305,17 @@ func csilDecQueryKnowledgeResponse(csilRoot cborValue) (QueryKnowledgeResponse, 
 			return csilOut, csilErr
 		}
 		csilOut.Items = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "records")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]KnowledgeRecord, error) { return cborDecArray(csilV, csilDecKnowledgeRecord) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Records = csilVal
 	}
 	return csilOut, nil
 }
@@ -5020,25 +5338,25 @@ func DecodeQueryKnowledgeResponse(csilData []byte) (QueryKnowledgeResponse, erro
 // csilEncRememberRequest builds the canonical CBOR value tree for a RememberRequest.
 func csilEncRememberRequest(csilV RememberRequest) cborValue {
 	csilEntries := make(cborMap, 0, 8)
-	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
-	csilEntries = append(csilEntries, cborEntry{cborText("label"), cborText(csilV.Label)})
-	if csilV.System != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("system"), cborText((*csilV.System))})
+	if csilV.Also != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("also"), cborBool((*csilV.Also))})
 	}
-	if csilV.Locator != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("locator"), cborText((*csilV.Locator))})
+	if csilV.Value != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("value"), cborText((*csilV.Value))})
 	}
+	if csilV.Object != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("object"), cborText((*csilV.Object))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("subject"), cborText(csilV.Subject)})
 	if csilV.Summary != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("summary"), cborText((*csilV.Summary))})
 	}
-	if csilV.Relation != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("relation"), cborText((*csilV.Relation))})
+	csilEntries = append(csilEntries, cborEntry{cborText("relation"), cborText(csilV.Relation)})
+	if csilV.ObjectKind != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("object_kind"), cborText((*csilV.ObjectKind))})
 	}
-	if csilV.Properties != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("properties"), cborEncMap(csilV.Properties, func(csilK string) cborValue { return cborText(csilK) }, func(csilV string) cborValue { return cborText(csilV) })})
-	}
-	if csilV.RelatedTo != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("related_to"), cborText((*csilV.RelatedTo))})
+	if csilV.SubjectKind != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("subject_kind"), cborText((*csilV.SubjectKind))})
 	}
 	return csilEntries
 }
@@ -5047,7 +5365,7 @@ func csilEncRememberRequest(csilV RememberRequest) cborValue {
 func csilDecRememberRequest(csilRoot cborValue) (RememberRequest, error) {
 	var csilOut RememberRequest
 	{
-		csilField, csilErr := cborRequire(csilRoot, "kind")
+		csilField, csilErr := cborRequire(csilRoot, "subject")
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -5055,10 +5373,17 @@ func csilDecRememberRequest(csilRoot cborValue) (RememberRequest, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilOut.Kind = csilVal
+		csilOut.Subject = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "subject_kind"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.SubjectKind = &csilVal
 	}
 	{
-		csilField, csilErr := cborRequire(csilRoot, "label")
+		csilField, csilErr := cborRequire(csilRoot, "relation")
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -5066,7 +5391,28 @@ func csilDecRememberRequest(csilRoot cborValue) (RememberRequest, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilOut.Label = csilVal
+		csilOut.Relation = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "object"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Object = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "object_kind"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.ObjectKind = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "value"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Value = &csilVal
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "summary"); csilOk {
 		csilVal, csilErr := (cborAsText)(csilField)
@@ -5075,40 +5421,12 @@ func csilDecRememberRequest(csilRoot cborValue) (RememberRequest, error) {
 		}
 		csilOut.Summary = &csilVal
 	}
-	if csilField, csilOk := cborMapGet(csilRoot, "properties"); csilOk {
-		csilVal, csilErr := (func(csilV cborValue) (map[string]string, error) { return cborDecMap(csilV, cborAsText, cborAsText) })(csilField)
+	if csilField, csilOk := cborMapGet(csilRoot, "also"); csilOk {
+		csilVal, csilErr := (cborAsBool)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilOut.Properties = csilVal
-	}
-	if csilField, csilOk := cborMapGet(csilRoot, "system"); csilOk {
-		csilVal, csilErr := (cborAsText)(csilField)
-		if csilErr != nil {
-			return csilOut, csilErr
-		}
-		csilOut.System = &csilVal
-	}
-	if csilField, csilOk := cborMapGet(csilRoot, "locator"); csilOk {
-		csilVal, csilErr := (cborAsText)(csilField)
-		if csilErr != nil {
-			return csilOut, csilErr
-		}
-		csilOut.Locator = &csilVal
-	}
-	if csilField, csilOk := cborMapGet(csilRoot, "related_to"); csilOk {
-		csilVal, csilErr := (cborAsText)(csilField)
-		if csilErr != nil {
-			return csilOut, csilErr
-		}
-		csilOut.RelatedTo = &csilVal
-	}
-	if csilField, csilOk := cborMapGet(csilRoot, "relation"); csilOk {
-		csilVal, csilErr := (cborAsText)(csilField)
-		if csilErr != nil {
-			return csilOut, csilErr
-		}
-		csilOut.Relation = &csilVal
+		csilOut.Also = &csilVal
 	}
 	return csilOut, nil
 }
@@ -5126,6 +5444,502 @@ func DecodeRememberRequest(csilData []byte) (RememberRequest, error) {
 		return csilZero, csilErr
 	}
 	return csilDecRememberRequest(csilRoot)
+}
+
+// csilEncRememberResponse builds the canonical CBOR value tree for a RememberResponse.
+func csilEncRememberResponse(csilV RememberResponse) cborValue {
+	csilEntries := make(cborMap, 0, 3)
+	csilEntries = append(csilEntries, cborEntry{cborText("item"), csilEncKnowledgeItem(csilV.Item)})
+	if csilV.Note != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("note"), cborText((*csilV.Note))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("recorded"), cborBool(csilV.Recorded)})
+	return csilEntries
+}
+
+// csilDecRememberResponse reconstructs a RememberResponse from a decoded CBOR value tree.
+func csilDecRememberResponse(csilRoot cborValue) (RememberResponse, error) {
+	var csilOut RememberResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "recorded")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Recorded = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "note"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Note = &csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "item")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (csilDecKnowledgeItem)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Item = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeRememberResponse encodes a RememberResponse to canonical CSIL CBOR bytes.
+func EncodeRememberResponse(csilV RememberResponse) []byte {
+	return cborEncode(csilEncRememberResponse(csilV))
+}
+
+// DecodeRememberResponse decodes canonical CSIL CBOR bytes into a RememberResponse.
+func DecodeRememberResponse(csilData []byte) (RememberResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero RememberResponse
+		return csilZero, csilErr
+	}
+	return csilDecRememberResponse(csilRoot)
+}
+
+// csilEncChangeKnowledgeRequest builds the canonical CBOR value tree for a ChangeKnowledgeRequest.
+func csilEncChangeKnowledgeRequest(csilV ChangeKnowledgeRequest) cborValue {
+	csilEntries := make(cborMap, 0, 6)
+	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
+	if csilV.Erase != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("erase"), cborBool((*csilV.Erase))})
+	}
+	if csilV.Field != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("field"), cborText((*csilV.Field))})
+	}
+	if csilV.Value != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("value"), cborText((*csilV.Value))})
+	}
+	if csilV.Reason != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("reason"), cborText((*csilV.Reason))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("operation"), cborText(csilV.Operation)})
+	return csilEntries
+}
+
+// csilDecChangeKnowledgeRequest reconstructs a ChangeKnowledgeRequest from a decoded CBOR value tree.
+func csilDecChangeKnowledgeRequest(csilRoot cborValue) (ChangeKnowledgeRequest, error) {
+	var csilOut ChangeKnowledgeRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Id = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "operation")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Operation = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "field"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Field = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "value"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Value = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "reason"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Reason = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "erase"); csilOk {
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Erase = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeChangeKnowledgeRequest encodes a ChangeKnowledgeRequest to canonical CSIL CBOR bytes.
+func EncodeChangeKnowledgeRequest(csilV ChangeKnowledgeRequest) []byte {
+	return cborEncode(csilEncChangeKnowledgeRequest(csilV))
+}
+
+// DecodeChangeKnowledgeRequest decodes canonical CSIL CBOR bytes into a ChangeKnowledgeRequest.
+func DecodeChangeKnowledgeRequest(csilData []byte) (ChangeKnowledgeRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ChangeKnowledgeRequest
+		return csilZero, csilErr
+	}
+	return csilDecChangeKnowledgeRequest(csilRoot)
+}
+
+// csilEncKnowledgeChange builds the canonical CBOR value tree for a KnowledgeChange.
+func csilEncKnowledgeChange(csilV KnowledgeChange) cborValue {
+	csilEntries := make(cborMap, 0, 8)
+	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
+	csilEntries = append(csilEntries, cborEntry{cborText("actor"), cborText(csilV.Actor)})
+	if csilV.After != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("after"), cborText((*csilV.After))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("at_ms"), cborUint(csilV.AtMs)})
+	if csilV.Before != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("before"), cborText((*csilV.Before))})
+	}
+	if csilV.Reason != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("reason"), cborText((*csilV.Reason))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("record"), cborText(csilV.Record)})
+	csilEntries = append(csilEntries, cborEntry{cborText("operation"), cborText(csilV.Operation)})
+	return csilEntries
+}
+
+// csilDecKnowledgeChange reconstructs a KnowledgeChange from a decoded CBOR value tree.
+func csilDecKnowledgeChange(csilRoot cborValue) (KnowledgeChange, error) {
+	var csilOut KnowledgeChange
+	{
+		csilField, csilErr := cborRequire(csilRoot, "id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Id = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "record")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Record = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "operation")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Operation = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "actor")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Actor = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "reason"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Reason = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "before"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Before = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "after"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.After = &csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "at_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.AtMs = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeKnowledgeChange encodes a KnowledgeChange to canonical CSIL CBOR bytes.
+func EncodeKnowledgeChange(csilV KnowledgeChange) []byte {
+	return cborEncode(csilEncKnowledgeChange(csilV))
+}
+
+// DecodeKnowledgeChange decodes canonical CSIL CBOR bytes into a KnowledgeChange.
+func DecodeKnowledgeChange(csilData []byte) (KnowledgeChange, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero KnowledgeChange
+		return csilZero, csilErr
+	}
+	return csilDecKnowledgeChange(csilRoot)
+}
+
+// csilEncChangeKnowledgeResponse builds the canonical CBOR value tree for a ChangeKnowledgeResponse.
+func csilEncChangeKnowledgeResponse(csilV ChangeKnowledgeResponse) cborValue {
+	csilEntries := make(cborMap, 0, 2)
+	if csilV.Item != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("item"), csilEncKnowledgeItem((*csilV.Item))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("change"), csilEncKnowledgeChange(csilV.Change)})
+	return csilEntries
+}
+
+// csilDecChangeKnowledgeResponse reconstructs a ChangeKnowledgeResponse from a decoded CBOR value tree.
+func csilDecChangeKnowledgeResponse(csilRoot cborValue) (ChangeKnowledgeResponse, error) {
+	var csilOut ChangeKnowledgeResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "change")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (csilDecKnowledgeChange)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Change = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "item"); csilOk {
+		csilVal, csilErr := (csilDecKnowledgeItem)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Item = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeChangeKnowledgeResponse encodes a ChangeKnowledgeResponse to canonical CSIL CBOR bytes.
+func EncodeChangeKnowledgeResponse(csilV ChangeKnowledgeResponse) []byte {
+	return cborEncode(csilEncChangeKnowledgeResponse(csilV))
+}
+
+// DecodeChangeKnowledgeResponse decodes canonical CSIL CBOR bytes into a ChangeKnowledgeResponse.
+func DecodeChangeKnowledgeResponse(csilData []byte) (ChangeKnowledgeResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ChangeKnowledgeResponse
+		return csilZero, csilErr
+	}
+	return csilDecChangeKnowledgeResponse(csilRoot)
+}
+
+// csilEncMergeKnowledgeRequest builds the canonical CBOR value tree for a MergeKnowledgeRequest.
+func csilEncMergeKnowledgeRequest(csilV MergeKnowledgeRequest) cborValue {
+	csilEntries := make(cborMap, 0, 3)
+	csilEntries = append(csilEntries, cborEntry{cborText("keep"), cborText(csilV.Keep)})
+	csilEntries = append(csilEntries, cborEntry{cborText("merge"), cborText(csilV.Merge)})
+	if csilV.Reason != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("reason"), cborText((*csilV.Reason))})
+	}
+	return csilEntries
+}
+
+// csilDecMergeKnowledgeRequest reconstructs a MergeKnowledgeRequest from a decoded CBOR value tree.
+func csilDecMergeKnowledgeRequest(csilRoot cborValue) (MergeKnowledgeRequest, error) {
+	var csilOut MergeKnowledgeRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "keep")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Keep = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "merge")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Merge = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "reason"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Reason = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeMergeKnowledgeRequest encodes a MergeKnowledgeRequest to canonical CSIL CBOR bytes.
+func EncodeMergeKnowledgeRequest(csilV MergeKnowledgeRequest) []byte {
+	return cborEncode(csilEncMergeKnowledgeRequest(csilV))
+}
+
+// DecodeMergeKnowledgeRequest decodes canonical CSIL CBOR bytes into a MergeKnowledgeRequest.
+func DecodeMergeKnowledgeRequest(csilData []byte) (MergeKnowledgeRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero MergeKnowledgeRequest
+		return csilZero, csilErr
+	}
+	return csilDecMergeKnowledgeRequest(csilRoot)
+}
+
+// csilEncUnmergeKnowledgeRequest builds the canonical CBOR value tree for a UnmergeKnowledgeRequest.
+func csilEncUnmergeKnowledgeRequest(csilV UnmergeKnowledgeRequest) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("change"), cborText(csilV.Change)})
+	return csilEntries
+}
+
+// csilDecUnmergeKnowledgeRequest reconstructs a UnmergeKnowledgeRequest from a decoded CBOR value tree.
+func csilDecUnmergeKnowledgeRequest(csilRoot cborValue) (UnmergeKnowledgeRequest, error) {
+	var csilOut UnmergeKnowledgeRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "change")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Change = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeUnmergeKnowledgeRequest encodes a UnmergeKnowledgeRequest to canonical CSIL CBOR bytes.
+func EncodeUnmergeKnowledgeRequest(csilV UnmergeKnowledgeRequest) []byte {
+	return cborEncode(csilEncUnmergeKnowledgeRequest(csilV))
+}
+
+// DecodeUnmergeKnowledgeRequest decodes canonical CSIL CBOR bytes into a UnmergeKnowledgeRequest.
+func DecodeUnmergeKnowledgeRequest(csilData []byte) (UnmergeKnowledgeRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero UnmergeKnowledgeRequest
+		return csilZero, csilErr
+	}
+	return csilDecUnmergeKnowledgeRequest(csilRoot)
+}
+
+// csilEncKnowledgeHistoryRequest builds the canonical CBOR value tree for a KnowledgeHistoryRequest.
+func csilEncKnowledgeHistoryRequest(csilV KnowledgeHistoryRequest) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
+	return csilEntries
+}
+
+// csilDecKnowledgeHistoryRequest reconstructs a KnowledgeHistoryRequest from a decoded CBOR value tree.
+func csilDecKnowledgeHistoryRequest(csilRoot cborValue) (KnowledgeHistoryRequest, error) {
+	var csilOut KnowledgeHistoryRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Id = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeKnowledgeHistoryRequest encodes a KnowledgeHistoryRequest to canonical CSIL CBOR bytes.
+func EncodeKnowledgeHistoryRequest(csilV KnowledgeHistoryRequest) []byte {
+	return cborEncode(csilEncKnowledgeHistoryRequest(csilV))
+}
+
+// DecodeKnowledgeHistoryRequest decodes canonical CSIL CBOR bytes into a KnowledgeHistoryRequest.
+func DecodeKnowledgeHistoryRequest(csilData []byte) (KnowledgeHistoryRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero KnowledgeHistoryRequest
+		return csilZero, csilErr
+	}
+	return csilDecKnowledgeHistoryRequest(csilRoot)
+}
+
+// csilEncKnowledgeHistoryResponse builds the canonical CBOR value tree for a KnowledgeHistoryResponse.
+func csilEncKnowledgeHistoryResponse(csilV KnowledgeHistoryResponse) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("changes"), cborEncArray(csilV.Changes, func(csilElem KnowledgeChange) cborValue { return csilEncKnowledgeChange(csilElem) })})
+	return csilEntries
+}
+
+// csilDecKnowledgeHistoryResponse reconstructs a KnowledgeHistoryResponse from a decoded CBOR value tree.
+func csilDecKnowledgeHistoryResponse(csilRoot cborValue) (KnowledgeHistoryResponse, error) {
+	var csilOut KnowledgeHistoryResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "changes")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]KnowledgeChange, error) { return cborDecArray(csilV, csilDecKnowledgeChange) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Changes = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeKnowledgeHistoryResponse encodes a KnowledgeHistoryResponse to canonical CSIL CBOR bytes.
+func EncodeKnowledgeHistoryResponse(csilV KnowledgeHistoryResponse) []byte {
+	return cborEncode(csilEncKnowledgeHistoryResponse(csilV))
+}
+
+// DecodeKnowledgeHistoryResponse decodes canonical CSIL CBOR bytes into a KnowledgeHistoryResponse.
+func DecodeKnowledgeHistoryResponse(csilData []byte) (KnowledgeHistoryResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero KnowledgeHistoryResponse
+		return csilZero, csilErr
+	}
+	return csilDecKnowledgeHistoryResponse(csilRoot)
 }
 
 // csilEncVoiceInfo builds the canonical CBOR value tree for a VoiceInfo.

@@ -2026,13 +2026,76 @@ class CancelTaskRequest:
 
 
 @dataclass
+class KnowledgeFact:
+    id: str
+    relation: str
+    direction: str
+    status: str
+    supported: bool
+    stale: bool
+    mine: bool
+    disputed: bool
+    other: Optional[str] = None
+    other_id: Optional[str] = None
+    value: Optional[str] = None
+    valid_from_ms: Optional[int] = None
+    valid_to_ms: Optional[int] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'relation') and self.relation is not None:
+            result['relation'] = self.relation
+        if hasattr(self, 'direction') and self.direction is not None:
+            result['direction'] = self.direction
+        if hasattr(self, 'other') and self.other is not None:
+            result['other'] = self.other
+        if hasattr(self, 'other_id') and self.other_id is not None:
+            result['other_id'] = self.other_id
+        if hasattr(self, 'value') and self.value is not None:
+            result['value'] = self.value
+        if hasattr(self, 'status') and self.status is not None:
+            result['status'] = self.status
+        if hasattr(self, 'valid_from_ms') and self.valid_from_ms is not None:
+            result['valid_from_ms'] = self.valid_from_ms
+        if hasattr(self, 'valid_to_ms') and self.valid_to_ms is not None:
+            result['valid_to_ms'] = self.valid_to_ms
+        if hasattr(self, 'supported') and self.supported is not None:
+            result['supported'] = self.supported
+        if hasattr(self, 'stale') and self.stale is not None:
+            result['stale'] = self.stale
+        if hasattr(self, 'mine') and self.mine is not None:
+            result['mine'] = self.mine
+        if hasattr(self, 'disputed') and self.disputed is not None:
+            result['disputed'] = self.disputed
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'KnowledgeFact':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), relation=data.get('relation'), direction=data.get('direction'), other=data.get('other'), other_id=data.get('other_id'), value=data.get('value'), status=data.get('status'), valid_from_ms=data.get('valid_from_ms'), valid_to_ms=data.get('valid_to_ms'), supported=data.get('supported'), stale=data.get('stale'), mine=data.get('mine'), disputed=data.get('disputed'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'KnowledgeFact':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
 class KnowledgeItem:
     id: str
     kind: str
     label: str
+    aliases: List[str]
     summary: str
     properties: Dict[str, str]
-    relations: List[str]
+    facts: List[KnowledgeFact]
+    mine: bool
     system: Optional[str] = None
     locator: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
@@ -2044,6 +2107,8 @@ class KnowledgeItem:
             result['kind'] = self.kind
         if hasattr(self, 'label') and self.label is not None:
             result['label'] = self.label
+        if hasattr(self, 'aliases') and self.aliases is not None:
+            result['aliases'] = self.aliases
         if hasattr(self, 'summary') and self.summary is not None:
             result['summary'] = self.summary
         if hasattr(self, 'properties') and self.properties is not None:
@@ -2052,14 +2117,16 @@ class KnowledgeItem:
             result['system'] = self.system
         if hasattr(self, 'locator') and self.locator is not None:
             result['locator'] = self.locator
-        if hasattr(self, 'relations') and self.relations is not None:
-            result['relations'] = self.relations
+        if hasattr(self, 'facts') and self.facts is not None:
+            result['facts'] = self.facts
+        if hasattr(self, 'mine') and self.mine is not None:
+            result['mine'] = self.mine
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'KnowledgeItem':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), kind=data.get('kind'), label=data.get('label'), summary=data.get('summary'), properties=data.get('properties'), system=data.get('system'), locator=data.get('locator'), relations=data.get('relations'))
+        return cls(id=data.get('id'), kind=data.get('kind'), label=data.get('label'), aliases=data.get('aliases'), summary=data.get('summary'), properties=data.get('properties'), system=data.get('system'), locator=data.get('locator'), facts=data.get('facts'), mine=data.get('mine'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -2072,10 +2139,51 @@ class KnowledgeItem:
 
 
 @dataclass
+class KnowledgeRecord:
+    id: str
+    type: str
+    kind: str
+    title: str
+    summary: str
+    at_ms: int
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'type') and self.type is not None:
+            result['type'] = self.type
+        if hasattr(self, 'kind') and self.kind is not None:
+            result['kind'] = self.kind
+        if hasattr(self, 'title') and self.title is not None:
+            result['title'] = self.title
+        if hasattr(self, 'summary') and self.summary is not None:
+            result['summary'] = self.summary
+        if hasattr(self, 'at_ms') and self.at_ms is not None:
+            result['at_ms'] = self.at_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'KnowledgeRecord':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), type=data.get('type'), kind=data.get('kind'), title=data.get('title'), summary=data.get('summary'), at_ms=data.get('at_ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'KnowledgeRecord':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
 class QueryKnowledgeRequest:
     text: Optional[str] = None
     kind: Optional[str] = None
     limit: Optional[int] = None
+    include_ended: Optional[bool] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -2085,12 +2193,14 @@ class QueryKnowledgeRequest:
             result['kind'] = self.kind
         if hasattr(self, 'limit') and self.limit is not None:
             result['limit'] = self.limit
+        if hasattr(self, 'include_ended') and self.include_ended is not None:
+            result['include_ended'] = self.include_ended
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'QueryKnowledgeRequest':
         """Create instance from dictionary."""
-        return cls(text=data.get('text'), kind=data.get('kind'), limit=data.get('limit'))
+        return cls(text=data.get('text'), kind=data.get('kind'), limit=data.get('limit'), include_ended=data.get('include_ended'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -2105,17 +2215,20 @@ class QueryKnowledgeRequest:
 @dataclass
 class QueryKnowledgeResponse:
     items: List[KnowledgeItem]
+    records: List[KnowledgeRecord]
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'items') and self.items is not None:
             result['items'] = self.items
+        if hasattr(self, 'records') and self.records is not None:
+            result['records'] = self.records
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'QueryKnowledgeResponse':
         """Create instance from dictionary."""
-        return cls(items=data.get('items'))
+        return cls(items=data.get('items'), records=data.get('records'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -2129,39 +2242,39 @@ class QueryKnowledgeResponse:
 
 @dataclass
 class RememberRequest:
-    kind: str
-    label: str
+    subject: str
+    relation: str
+    subject_kind: Optional[str] = None
+    object: Optional[str] = None
+    object_kind: Optional[str] = None
+    value: Optional[str] = None
     summary: Optional[str] = None
-    properties: Optional[Dict[str, str]] = None
-    system: Optional[str] = None
-    locator: Optional[str] = None
-    related_to: Optional[str] = None
-    relation: Optional[str] = None
+    also: Optional[bool] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
-        if hasattr(self, 'kind') and self.kind is not None:
-            result['kind'] = self.kind
-        if hasattr(self, 'label') and self.label is not None:
-            result['label'] = self.label
-        if hasattr(self, 'summary') and self.summary is not None:
-            result['summary'] = self.summary
-        if hasattr(self, 'properties') and self.properties is not None:
-            result['properties'] = self.properties
-        if hasattr(self, 'system') and self.system is not None:
-            result['system'] = self.system
-        if hasattr(self, 'locator') and self.locator is not None:
-            result['locator'] = self.locator
-        if hasattr(self, 'related_to') and self.related_to is not None:
-            result['related_to'] = self.related_to
+        if hasattr(self, 'subject') and self.subject is not None:
+            result['subject'] = self.subject
+        if hasattr(self, 'subject_kind') and self.subject_kind is not None:
+            result['subject_kind'] = self.subject_kind
         if hasattr(self, 'relation') and self.relation is not None:
             result['relation'] = self.relation
+        if hasattr(self, 'object') and self.object is not None:
+            result['object'] = self.object
+        if hasattr(self, 'object_kind') and self.object_kind is not None:
+            result['object_kind'] = self.object_kind
+        if hasattr(self, 'value') and self.value is not None:
+            result['value'] = self.value
+        if hasattr(self, 'summary') and self.summary is not None:
+            result['summary'] = self.summary
+        if hasattr(self, 'also') and self.also is not None:
+            result['also'] = self.also
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'RememberRequest':
         """Create instance from dictionary."""
-        return cls(kind=data.get('kind'), label=data.get('label'), summary=data.get('summary'), properties=data.get('properties'), system=data.get('system'), locator=data.get('locator'), related_to=data.get('related_to'), relation=data.get('relation'))
+        return cls(subject=data.get('subject'), subject_kind=data.get('subject_kind'), relation=data.get('relation'), object=data.get('object'), object_kind=data.get('object_kind'), value=data.get('value'), summary=data.get('summary'), also=data.get('also'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -2169,6 +2282,257 @@ class RememberRequest:
 
     @classmethod
     def from_json(cls, json_str: str) -> 'RememberRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class RememberResponse:
+    recorded: bool
+    item: KnowledgeItem
+    note: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'recorded') and self.recorded is not None:
+            result['recorded'] = self.recorded
+        if hasattr(self, 'note') and self.note is not None:
+            result['note'] = self.note
+        if hasattr(self, 'item') and self.item is not None:
+            result['item'] = self.item
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'RememberResponse':
+        """Create instance from dictionary."""
+        return cls(recorded=data.get('recorded'), note=data.get('note'), item=data.get('item'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'RememberResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ChangeKnowledgeRequest:
+    id: str
+    operation: str
+    field: Optional[str] = None
+    value: Optional[str] = None
+    reason: Optional[str] = None
+    erase: Optional[bool] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'operation') and self.operation is not None:
+            result['operation'] = self.operation
+        if hasattr(self, 'field') and self.field is not None:
+            result['field'] = self.field
+        if hasattr(self, 'value') and self.value is not None:
+            result['value'] = self.value
+        if hasattr(self, 'reason') and self.reason is not None:
+            result['reason'] = self.reason
+        if hasattr(self, 'erase') and self.erase is not None:
+            result['erase'] = self.erase
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ChangeKnowledgeRequest':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), operation=data.get('operation'), field=data.get('field'), value=data.get('value'), reason=data.get('reason'), erase=data.get('erase'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ChangeKnowledgeRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class KnowledgeChange:
+    id: str
+    record: str
+    operation: str
+    actor: str
+    at_ms: int
+    reason: Optional[str] = None
+    before: Optional[str] = None
+    after: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'record') and self.record is not None:
+            result['record'] = self.record
+        if hasattr(self, 'operation') and self.operation is not None:
+            result['operation'] = self.operation
+        if hasattr(self, 'actor') and self.actor is not None:
+            result['actor'] = self.actor
+        if hasattr(self, 'reason') and self.reason is not None:
+            result['reason'] = self.reason
+        if hasattr(self, 'before') and self.before is not None:
+            result['before'] = self.before
+        if hasattr(self, 'after') and self.after is not None:
+            result['after'] = self.after
+        if hasattr(self, 'at_ms') and self.at_ms is not None:
+            result['at_ms'] = self.at_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'KnowledgeChange':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), record=data.get('record'), operation=data.get('operation'), actor=data.get('actor'), reason=data.get('reason'), before=data.get('before'), after=data.get('after'), at_ms=data.get('at_ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'KnowledgeChange':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ChangeKnowledgeResponse:
+    change: KnowledgeChange
+    item: Optional[KnowledgeItem] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'change') and self.change is not None:
+            result['change'] = self.change
+        if hasattr(self, 'item') and self.item is not None:
+            result['item'] = self.item
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ChangeKnowledgeResponse':
+        """Create instance from dictionary."""
+        return cls(change=data.get('change'), item=data.get('item'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ChangeKnowledgeResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class MergeKnowledgeRequest:
+    keep: str
+    merge: str
+    reason: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'keep') and self.keep is not None:
+            result['keep'] = self.keep
+        if hasattr(self, 'merge') and self.merge is not None:
+            result['merge'] = self.merge
+        if hasattr(self, 'reason') and self.reason is not None:
+            result['reason'] = self.reason
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'MergeKnowledgeRequest':
+        """Create instance from dictionary."""
+        return cls(keep=data.get('keep'), merge=data.get('merge'), reason=data.get('reason'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'MergeKnowledgeRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class UnmergeKnowledgeRequest:
+    change: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'change') and self.change is not None:
+            result['change'] = self.change
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'UnmergeKnowledgeRequest':
+        """Create instance from dictionary."""
+        return cls(change=data.get('change'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'UnmergeKnowledgeRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class KnowledgeHistoryRequest:
+    id: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'KnowledgeHistoryRequest':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'KnowledgeHistoryRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class KnowledgeHistoryResponse:
+    changes: List[KnowledgeChange]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'changes') and self.changes is not None:
+            result['changes'] = self.changes
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'KnowledgeHistoryResponse':
+        """Create instance from dictionary."""
+        return cls(changes=data.get('changes'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'KnowledgeHistoryResponse':
         """Create instance from JSON string."""
         return cls.from_dict(json.loads(json_str))
 

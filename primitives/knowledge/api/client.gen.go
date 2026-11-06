@@ -43,31 +43,76 @@ func NewKnowledgeClient(transport Transport) *KnowledgeClient {
 	return &KnowledgeClient{transport: transport}
 }
 
-func (c *KnowledgeClient) PutNode(ctx context.Context, req PutNodeRequest) (Node, error) {
-	var csilZero Node
-	csilResp, csilErr := c.transport.Call(ctx, "KnowledgeService", "put-node", EncodePutNodeRequest(req))
+func (c *KnowledgeClient) PutEntity(ctx context.Context, req PutEntityRequest) (Entity, error) {
+	var csilZero Entity
+	csilResp, csilErr := c.transport.Call(ctx, "KnowledgeService", "put-entity", EncodePutEntityRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeNode(csilResp)
+	return DecodeEntity(csilResp)
 }
 
-func (c *KnowledgeClient) GetNode(ctx context.Context, req GetNodeRequest) (NodeView, error) {
-	var csilZero NodeView
-	csilResp, csilErr := c.transport.Call(ctx, "KnowledgeService", "get-node", EncodeGetNodeRequest(req))
+func (c *KnowledgeClient) Self(ctx context.Context, req SelfRequest) (Entity, error) {
+	var csilZero Entity
+	csilResp, csilErr := c.transport.Call(ctx, "KnowledgeService", "self", EncodeSelfRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeNodeView(csilResp)
+	return DecodeEntity(csilResp)
 }
 
-func (c *KnowledgeClient) PutEdge(ctx context.Context, req PutEdgeRequest) (Edge, error) {
-	var csilZero Edge
-	csilResp, csilErr := c.transport.Call(ctx, "KnowledgeService", "put-edge", EncodePutEdgeRequest(req))
+func (c *KnowledgeClient) Assert(ctx context.Context, req AssertRequest) (Claim, error) {
+	var csilZero Claim
+	csilResp, csilErr := c.transport.Call(ctx, "KnowledgeService", "assert", EncodeAssertRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEdge(csilResp)
+	return DecodeClaim(csilResp)
+}
+
+func (c *KnowledgeClient) Change(ctx context.Context, req ChangeRequest) (ChangeResponse, error) {
+	var csilZero ChangeResponse
+	csilResp, csilErr := c.transport.Call(ctx, "KnowledgeService", "change", EncodeChangeRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeChangeResponse(csilResp)
+}
+
+func (c *KnowledgeClient) Merge(ctx context.Context, req MergeRequest) (Change, error) {
+	var csilZero Change
+	csilResp, csilErr := c.transport.Call(ctx, "KnowledgeService", "merge", EncodeMergeRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeChange(csilResp)
+}
+
+func (c *KnowledgeClient) Unmerge(ctx context.Context, req UnmergeRequest) (Change, error) {
+	var csilZero Change
+	csilResp, csilErr := c.transport.Call(ctx, "KnowledgeService", "unmerge", EncodeUnmergeRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeChange(csilResp)
+}
+
+func (c *KnowledgeClient) RecordEpisode(ctx context.Context, req RecordEpisodeRequest) (Episode, error) {
+	var csilZero Episode
+	csilResp, csilErr := c.transport.Call(ctx, "KnowledgeService", "record-episode", EncodeRecordEpisodeRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeEpisode(csilResp)
+}
+
+func (c *KnowledgeClient) PutProcedure(ctx context.Context, req PutProcedureRequest) (Procedure, error) {
+	var csilZero Procedure
+	csilResp, csilErr := c.transport.Call(ctx, "KnowledgeService", "put-procedure", EncodePutProcedureRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeProcedure(csilResp)
 }
 
 func (c *KnowledgeClient) LinkEvidence(ctx context.Context, req LinkEvidenceRequest) (Evidence, error) {
@@ -79,20 +124,92 @@ func (c *KnowledgeClient) LinkEvidence(ctx context.Context, req LinkEvidenceRequ
 	return DecodeEvidence(csilResp)
 }
 
-func (c *KnowledgeClient) Query(ctx context.Context, req QueryRequest) (QueryResponse, error) {
-	var csilZero QueryResponse
-	csilResp, csilErr := c.transport.Call(ctx, "KnowledgeService", "query", EncodeQueryRequest(req))
+func (c *KnowledgeClient) Dispute(ctx context.Context, req DisputeRequest) (Dispute, error) {
+	var csilZero Dispute
+	csilResp, csilErr := c.transport.Call(ctx, "KnowledgeService", "dispute", EncodeDisputeRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeQueryResponse(csilResp)
+	return DecodeDispute(csilResp)
 }
 
-func (c *KnowledgeClient) Delete(ctx context.Context, req DeleteRequest) (DeleteResponse, error) {
-	var csilZero DeleteResponse
-	csilResp, csilErr := c.transport.Call(ctx, "KnowledgeService", "delete", EncodeDeleteRequest(req))
+func (c *KnowledgeClient) ResolveDispute(ctx context.Context, req ResolveDisputeRequest) (Dispute, error) {
+	var csilZero Dispute
+	csilResp, csilErr := c.transport.Call(ctx, "KnowledgeService", "resolve-dispute", EncodeResolveDisputeRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeDeleteResponse(csilResp)
+	return DecodeDispute(csilResp)
+}
+
+func (c *KnowledgeClient) ListDisputes(ctx context.Context, req ListDisputesRequest) (ListDisputesResponse, error) {
+	var csilZero ListDisputesResponse
+	csilResp, csilErr := c.transport.Call(ctx, "KnowledgeService", "list-disputes", EncodeListDisputesRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListDisputesResponse(csilResp)
+}
+
+func (c *KnowledgeClient) PutGroup(ctx context.Context, req PutGroupRequest) (Group, error) {
+	var csilZero Group
+	csilResp, csilErr := c.transport.Call(ctx, "KnowledgeService", "put-group", EncodePutGroupRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeGroup(csilResp)
+}
+
+func (c *KnowledgeClient) Search(ctx context.Context, req SearchRequest) (SearchResponse, error) {
+	var csilZero SearchResponse
+	csilResp, csilErr := c.transport.Call(ctx, "KnowledgeService", "search", EncodeSearchRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeSearchResponse(csilResp)
+}
+
+func (c *KnowledgeClient) About(ctx context.Context, req AboutRequest) (AboutResponse, error) {
+	var csilZero AboutResponse
+	csilResp, csilErr := c.transport.Call(ctx, "KnowledgeService", "about", EncodeAboutRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeAboutResponse(csilResp)
+}
+
+func (c *KnowledgeClient) Neighbors(ctx context.Context, req NeighborsRequest) (NeighborsResponse, error) {
+	var csilZero NeighborsResponse
+	csilResp, csilErr := c.transport.Call(ctx, "KnowledgeService", "neighbors", EncodeNeighborsRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeNeighborsResponse(csilResp)
+}
+
+func (c *KnowledgeClient) Timeline(ctx context.Context, req TimelineRequest) (TimelineResponse, error) {
+	var csilZero TimelineResponse
+	csilResp, csilErr := c.transport.Call(ctx, "KnowledgeService", "timeline", EncodeTimelineRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeTimelineResponse(csilResp)
+}
+
+func (c *KnowledgeClient) History(ctx context.Context, req HistoryRequest) (HistoryResponse, error) {
+	var csilZero HistoryResponse
+	csilResp, csilErr := c.transport.Call(ctx, "KnowledgeService", "history", EncodeHistoryRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeHistoryResponse(csilResp)
+}
+
+func (c *KnowledgeClient) Get(ctx context.Context, req GetRequest) (GetResponse, error) {
+	var csilZero GetResponse
+	csilResp, csilErr := c.transport.Call(ctx, "KnowledgeService", "get", EncodeGetRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeGetResponse(csilResp)
 }

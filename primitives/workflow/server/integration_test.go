@@ -514,3 +514,58 @@ func TestRecovery(t *testing.T) {
 		}
 	})
 }
+
+// TestDeciders checks a human step that names who decides, and its wait.
+func TestDeciders(t *testing.T) {
+	ctx := context.Background()
+	e, alice, _ := setup(t, &memQueue{})
+	bob, carol := e.as(t, "user:bob@example.local"), e.as(t, "user:carol@example.local")
+	def := api.Definition{Name: "ask", Start: "ask", Steps: []api.Step{
+		{Id: "ask", Kind: "human", Prompt: ptr("How many guests?"), Deciders: []string{"${lead}"}, WaitMs: ptr(uint64(60_000)),
+			TimeoutOutcome: ptr("no-answer"), Outcomes: []string{"answered", "no-answer"}, Next: map[string]string{"answered": "", "no-answer": ""}},
+	}}
+	must[api.Definition](t)(alice.PutDefinition(ctx, def))
+	bad := def
+	bad.Name, bad.Steps = "bad", []api.Step{{Id: "ask", Kind: "human", Deciders: []string{"bob"}, Next: map[string]string{}}}
+	_, err := alice.PutDefinition(ctx, bad)
+	code(t, err, 400)
+	bad.Steps = []api.Step{{Id: "ask", Kind: "human", TimeoutOutcome: ptr("x"), Next: map[string]string{}}}
+	_, err = alice.PutDefinition(ctx, bad)
+	code(t, err, 400)
+
+	run := must[api.Run](t)(alice.Start(ctx, api.StartRequest{Definition: "ask", Vars: map[string]string{"lead": "user:bob@example.local"}}))
+	if run.Status != RunWaiting || len(run.WaitingFor) != 1 || run.WaitingFor[0] != "user:bob@example.local" || run.WaitUntilMs == nil {
+		t.Fatalf("waiting run: %+v", run)
+	}
+	if l := must[api.ListRunsResponse](t)(bob.ListRuns(ctx, api.ListRunsRequest{WaitingForMe: ptr(true)})); len(l.Runs) != 1 {
+		t.Fatalf("bob's waiting runs: %d", len(l.Runs))
+	}
+	if l := must[api.ListRunsResponse](t)(carol.ListRuns(ctx, api.ListRunsRequest{WaitingForMe: ptr(true)})); len(l.Runs) != 0 {
+		t.Fatal("carol sees a run that does not wait for her")
+	}
+	must[api.Run](t)(bob.GetRun(ctx, api.GetRunRequest{Id: run.Id}))
+	_, err = carol.GetRun(ctx, api.GetRunRequest{Id: run.Id})
+	code(t, err, 404)
+	_, err = carol.Decide(ctx, api.DecideRequest{Run: run.Id, Step: "ask", Outcome: "answered"})
+	code(t, err, 403)
+	done := must[api.Run](t)(bob.Decide(ctx, api.DecideRequest{Run: run.Id, Step: "ask", Outcome: "answered", Comment: ptr("17")}))
+	if done.Status != RunSucceeded || *done.History[0].DecidedBy != "user:bob@example.local" || done.Vars["ask.comment"] != "17" || len(done.WaitingFor) != 0 {
+		t.Fatalf("decided: %+v", done)
+	}
+	// After the decision, bob cannot read the run of alice.
+	_, err = bob.GetRun(ctx, api.GetRunRequest{Id: run.Id})
+	code(t, err, 404)
+
+	// The wait ends: the sweep decides the timeout outcome.
+	run = must[api.Run](t)(alice.Start(ctx, api.StartRequest{Definition: "ask", Vars: map[string]string{"lead": "user:bob@example.local"}}))
+	e.st.DB.Exec(ctx, `UPDATE workflow_runs SET wait_until = 1 WHERE id = $1`, run.Id)
+	r, _, err := e.st.UpdateRun(ctx, run.Id, func(_ *store.RunTx, r *api.Run) error { r.WaitUntilMs = ptr(uint64(1)); return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.svc.SweepOnce(ctx)
+	r = must[api.Run](t)(alice.GetRun(ctx, api.GetRunRequest{Id: run.Id}))
+	if r.Status != RunSucceeded || *r.History[0].Outcome != "no-answer" || *r.History[0].DecidedBy != "workflow:timeout" {
+		t.Fatalf("timeout: %+v", r)
+	}
+}

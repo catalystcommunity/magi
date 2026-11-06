@@ -19,6 +19,11 @@ CREATE TABLE IF NOT EXISTS workflow_runs (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS workflow_runs_owner_key ON workflow_runs (owner, start_key) WHERE start_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS workflow_runs_owner_created ON workflow_runs (owner, created_ms DESC);
+-- The deciders of a waiting human step, and the end of its wait (0: none).
+ALTER TABLE workflow_runs ADD COLUMN IF NOT EXISTS waiting_for text[] NOT NULL DEFAULT '{}';
+ALTER TABLE workflow_runs ADD COLUMN IF NOT EXISTS wait_until bigint NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS workflow_runs_waiting_for ON workflow_runs USING gin (waiting_for);
+CREATE INDEX IF NOT EXISTS workflow_runs_wait_until ON workflow_runs (wait_until) WHERE wait_until > 0;
 
 -- One row per task step attempt. state: submit (not yet confirmed in the
 -- queue), queued, claimed, finish (queue task must be closed), done.

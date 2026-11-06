@@ -2,8 +2,8 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { DeleteRequest, DeleteResponse, Edge, Evidence, GetNodeRequest, LinkEvidenceRequest, Node, NodeView, PutEdgeRequest, PutNodeRequest, QueryRequest, QueryResponse } from "./types.gen.ts";
-import { fromDeleteResponseCbor, fromEdgeCbor, fromEvidenceCbor, fromNodeCbor, fromNodeViewCbor, fromQueryResponseCbor, toDeleteRequestCbor, toGetNodeRequestCbor, toLinkEvidenceRequestCbor, toPutEdgeRequestCbor, toPutNodeRequestCbor, toQueryRequestCbor } from "./codec.gen.ts";
+import type { AboutRequest, AboutResponse, AssertRequest, Change, ChangeRequest, ChangeResponse, Claim, Dispute, DisputeRequest, Entity, Episode, Evidence, GetRequest, GetResponse, Group, HistoryRequest, HistoryResponse, LinkEvidenceRequest, ListDisputesRequest, ListDisputesResponse, MergeRequest, NeighborsRequest, NeighborsResponse, Procedure, PutEntityRequest, PutGroupRequest, PutProcedureRequest, RecordEpisodeRequest, ResolveDisputeRequest, SearchRequest, SearchResponse, SelfRequest, TimelineRequest, TimelineResponse, UnmergeRequest } from "./types.gen.ts";
+import { fromAboutResponseCbor, fromChangeCbor, fromChangeResponseCbor, fromClaimCbor, fromDisputeCbor, fromEntityCbor, fromEpisodeCbor, fromEvidenceCbor, fromGetResponseCbor, fromGroupCbor, fromHistoryResponseCbor, fromListDisputesResponseCbor, fromNeighborsResponseCbor, fromProcedureCbor, fromSearchResponseCbor, fromTimelineResponseCbor, toAboutRequestCbor, toAssertRequestCbor, toChangeRequestCbor, toDisputeRequestCbor, toGetRequestCbor, toHistoryRequestCbor, toLinkEvidenceRequestCbor, toListDisputesRequestCbor, toMergeRequestCbor, toNeighborsRequestCbor, toPutEntityRequestCbor, toPutGroupRequestCbor, toPutProcedureRequestCbor, toRecordEpisodeRequestCbor, toResolveDisputeRequestCbor, toSearchRequestCbor, toSelfRequestCbor, toTimelineRequestCbor, toUnmergeRequestCbor } from "./codec.gen.ts";
 
 export interface AsyncServiceTransport {
   call(service: string, op: string, req: Uint8Array): Promise<Uint8Array>;
@@ -16,27 +16,72 @@ export class KnowledgeAsyncClient {
    * @throws {ServiceError} when the API returns an error response
    * @throws transport errors (network, timeout) raised by the transport
    */
-  async putNode(req: PutNodeRequest): Promise<Node> {
-    const csilResp = await this.t.call("KnowledgeService", "put-node", toPutNodeRequestCbor(req));
-    return fromNodeCbor(csilResp);
+  async putEntity(req: PutEntityRequest): Promise<Entity> {
+    const csilResp = await this.t.call("KnowledgeService", "put-entity", toPutEntityRequestCbor(req));
+    return fromEntityCbor(csilResp);
   }
 
   /**
    * @throws {ServiceError} when the API returns an error response
    * @throws transport errors (network, timeout) raised by the transport
    */
-  async getNode(req: GetNodeRequest): Promise<NodeView> {
-    const csilResp = await this.t.call("KnowledgeService", "get-node", toGetNodeRequestCbor(req));
-    return fromNodeViewCbor(csilResp);
+  async self(req: SelfRequest): Promise<Entity> {
+    const csilResp = await this.t.call("KnowledgeService", "self", toSelfRequestCbor(req));
+    return fromEntityCbor(csilResp);
   }
 
   /**
    * @throws {ServiceError} when the API returns an error response
    * @throws transport errors (network, timeout) raised by the transport
    */
-  async putEdge(req: PutEdgeRequest): Promise<Edge> {
-    const csilResp = await this.t.call("KnowledgeService", "put-edge", toPutEdgeRequestCbor(req));
-    return fromEdgeCbor(csilResp);
+  async assert(req: AssertRequest): Promise<Claim> {
+    const csilResp = await this.t.call("KnowledgeService", "assert", toAssertRequestCbor(req));
+    return fromClaimCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async change(req: ChangeRequest): Promise<ChangeResponse> {
+    const csilResp = await this.t.call("KnowledgeService", "change", toChangeRequestCbor(req));
+    return fromChangeResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async merge(req: MergeRequest): Promise<Change> {
+    const csilResp = await this.t.call("KnowledgeService", "merge", toMergeRequestCbor(req));
+    return fromChangeCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async unmerge(req: UnmergeRequest): Promise<Change> {
+    const csilResp = await this.t.call("KnowledgeService", "unmerge", toUnmergeRequestCbor(req));
+    return fromChangeCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async recordEpisode(req: RecordEpisodeRequest): Promise<Episode> {
+    const csilResp = await this.t.call("KnowledgeService", "record-episode", toRecordEpisodeRequestCbor(req));
+    return fromEpisodeCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async putProcedure(req: PutProcedureRequest): Promise<Procedure> {
+    const csilResp = await this.t.call("KnowledgeService", "put-procedure", toPutProcedureRequestCbor(req));
+    return fromProcedureCbor(csilResp);
   }
 
   /**
@@ -52,18 +97,90 @@ export class KnowledgeAsyncClient {
    * @throws {ServiceError} when the API returns an error response
    * @throws transport errors (network, timeout) raised by the transport
    */
-  async query(req: QueryRequest): Promise<QueryResponse> {
-    const csilResp = await this.t.call("KnowledgeService", "query", toQueryRequestCbor(req));
-    return fromQueryResponseCbor(csilResp);
+  async dispute(req: DisputeRequest): Promise<Dispute> {
+    const csilResp = await this.t.call("KnowledgeService", "dispute", toDisputeRequestCbor(req));
+    return fromDisputeCbor(csilResp);
   }
 
   /**
    * @throws {ServiceError} when the API returns an error response
    * @throws transport errors (network, timeout) raised by the transport
    */
-  async delete(req: DeleteRequest): Promise<DeleteResponse> {
-    const csilResp = await this.t.call("KnowledgeService", "delete", toDeleteRequestCbor(req));
-    return fromDeleteResponseCbor(csilResp);
+  async resolveDispute(req: ResolveDisputeRequest): Promise<Dispute> {
+    const csilResp = await this.t.call("KnowledgeService", "resolve-dispute", toResolveDisputeRequestCbor(req));
+    return fromDisputeCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async listDisputes(req: ListDisputesRequest): Promise<ListDisputesResponse> {
+    const csilResp = await this.t.call("KnowledgeService", "list-disputes", toListDisputesRequestCbor(req));
+    return fromListDisputesResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async putGroup(req: PutGroupRequest): Promise<Group> {
+    const csilResp = await this.t.call("KnowledgeService", "put-group", toPutGroupRequestCbor(req));
+    return fromGroupCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async search(req: SearchRequest): Promise<SearchResponse> {
+    const csilResp = await this.t.call("KnowledgeService", "search", toSearchRequestCbor(req));
+    return fromSearchResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async about(req: AboutRequest): Promise<AboutResponse> {
+    const csilResp = await this.t.call("KnowledgeService", "about", toAboutRequestCbor(req));
+    return fromAboutResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async neighbors(req: NeighborsRequest): Promise<NeighborsResponse> {
+    const csilResp = await this.t.call("KnowledgeService", "neighbors", toNeighborsRequestCbor(req));
+    return fromNeighborsResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async timeline(req: TimelineRequest): Promise<TimelineResponse> {
+    const csilResp = await this.t.call("KnowledgeService", "timeline", toTimelineRequestCbor(req));
+    return fromTimelineResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async history(req: HistoryRequest): Promise<HistoryResponse> {
+    const csilResp = await this.t.call("KnowledgeService", "history", toHistoryRequestCbor(req));
+    return fromHistoryResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async get(req: GetRequest): Promise<GetResponse> {
+    const csilResp = await this.t.call("KnowledgeService", "get", toGetRequestCbor(req));
+    return fromGetResponseCbor(csilResp);
   }
 }
 

@@ -587,41 +587,137 @@ data class CancelTaskRequest(
     val confirm: Boolean? = null
 )
 
+/** KnowledgeFact record. */
+data class KnowledgeFact(
+    val id: String,
+    val relation: String,
+    val direction: String,
+    val other: String? = null,
+    // wire key: other_id
+    val otherId: String? = null,
+    val value: String? = null,
+    val status: String,
+    // wire key: valid_from_ms
+    val validFromMs: ULong? = null,
+    // wire key: valid_to_ms
+    val validToMs: ULong? = null,
+    val supported: Boolean,
+    val stale: Boolean,
+    val mine: Boolean,
+    val disputed: Boolean
+)
+
 /** KnowledgeItem record. */
 data class KnowledgeItem(
     val id: String,
     val kind: String,
     val label: String,
+    val aliases: List<String>,
     val summary: String,
     val properties: Map<String, String>,
     val system: String? = null,
     val locator: String? = null,
-    val relations: List<String>
+    val facts: List<KnowledgeFact>,
+    val mine: Boolean
+)
+
+/** KnowledgeRecord record. */
+data class KnowledgeRecord(
+    val id: String,
+    val type: String,
+    val kind: String,
+    val title: String,
+    val summary: String,
+    // wire key: at_ms
+    val atMs: ULong
 )
 
 /** QueryKnowledgeRequest record. */
 data class QueryKnowledgeRequest(
     val text: String? = null,
     val kind: String? = null,
-    val limit: ULong? = null
+    val limit: ULong? = null,
+    // wire key: include_ended
+    val includeEnded: Boolean? = null
 )
 
 /** QueryKnowledgeResponse record. */
 data class QueryKnowledgeResponse(
-    val items: List<KnowledgeItem>
+    val items: List<KnowledgeItem>,
+    val records: List<KnowledgeRecord>
 )
 
 /** RememberRequest record. */
 data class RememberRequest(
-    val kind: String,
-    val label: String,
+    val subject: String,
+    // wire key: subject_kind
+    val subjectKind: String? = null,
+    val relation: String,
+    // wire key: object
+    val `object`: String? = null,
+    // wire key: object_kind
+    val objectKind: String? = null,
+    val value: String? = null,
     val summary: String? = null,
-    val properties: Map<String, String>? = null,
-    val system: String? = null,
-    val locator: String? = null,
-    // wire key: related_to
-    val relatedTo: String? = null,
-    val relation: String? = null
+    val also: Boolean? = null
+)
+
+/** RememberResponse record. */
+data class RememberResponse(
+    val recorded: Boolean,
+    val note: String? = null,
+    val item: KnowledgeItem
+)
+
+/** ChangeKnowledgeRequest record. */
+data class ChangeKnowledgeRequest(
+    val id: String,
+    val operation: String,
+    val field: String? = null,
+    val value: String? = null,
+    val reason: String? = null,
+    val erase: Boolean? = null
+)
+
+/** KnowledgeChange record. */
+data class KnowledgeChange(
+    val id: String,
+    val record: String,
+    val operation: String,
+    val actor: String,
+    val reason: String? = null,
+    val before: String? = null,
+    val after: String? = null,
+    // wire key: at_ms
+    val atMs: ULong
+)
+
+/** ChangeKnowledgeResponse record. */
+data class ChangeKnowledgeResponse(
+    val change: KnowledgeChange,
+    val item: KnowledgeItem? = null
+)
+
+/** MergeKnowledgeRequest record. */
+data class MergeKnowledgeRequest(
+    val keep: String,
+    val merge: String,
+    val reason: String? = null
+)
+
+/** UnmergeKnowledgeRequest record. */
+data class UnmergeKnowledgeRequest(
+    val change: String
+)
+
+/** KnowledgeHistoryRequest record. */
+data class KnowledgeHistoryRequest(
+    val id: String
+)
+
+/** KnowledgeHistoryResponse record. */
+data class KnowledgeHistoryResponse(
+    val changes: List<KnowledgeChange>
 )
 
 /** VoiceInfo record. */

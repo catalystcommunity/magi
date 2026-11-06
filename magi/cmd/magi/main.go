@@ -55,8 +55,18 @@ var usage = `usage: magi [--server URL] <command> [args]
   decide ID OUTCOME [-m TEXT]   approve, revise, or reject a waiting task
   cancel ID [-m TEXT] [-yes]  stop a task; asks first when the step is risky
   start [-repo R] [-title T] [-runner N] INSTRUCTIONS   start a code change directly
-  know [TEXT]                search your knowledge
-  remember KIND LABEL [-summary S] [-system S] [-locator L] [-related R -relation N]
+  know [-past] [TEXT]        search your knowledge (-past: also facts that ended)
+  remember SUBJECT RELATION [OBJECT] [-value V] [-subject-kind K] [-object-kind K] [-also]
+                             record a fact; SUBJECT "me" is you, for example
+                             remember me dentist "Dr. Rivera" -object-kind person
+  fix ID VALUE [-field F] [-m REASON]      the record was wrong: change it in place
+  update ID VALUE [-field F] [-m REASON]   the fact was true and changed: end it
+                             and record the new value
+  retract ID [-m REASON] [-erase]   the record was never true, or forget it
+                             (-erase: keep no copy in the history)
+  merge KEEP MERGE [-m REASON]   two entities are the same thing: move the
+                             facts of MERGE to KEEP (unmerge CHANGE reverts it)
+  history ID                 the changes of a record
   audio DIGEST -o FILE       save the audio of a message
   voices                     list voices
   words                      list the household lexicon (how Magi says and
@@ -467,32 +477,101 @@ func (c *cli) run(cmd string, args []string) error {
 		}
 		printTask(t)
 	case "know":
-		res, err := c.magi.QueryKnowledge(c.ctx, magiapi.QueryKnowledgeRequest{Text: optional(strings.Join(args, " "))})
+		past := fs.Bool("past", false, "also facts that are no longer true")
+		fs.Parse(args)
+		res, err := c.magi.QueryKnowledge(c.ctx, magiapi.QueryKnowledgeRequest{Text: optional(strings.Join(fs.Args(), " ")), IncludeEnded: past})
 		if err != nil {
 			return err
 		}
-		for _, it := range res.Items {
-			fmt.Printf("%s  [%s] %s: %s\n", it.Id, it.Kind, it.Label, it.Summary)
-			if it.System != nil {
-				fmt.Printf("      in %s at %s\n", *it.System, deref(it.Locator))
-			}
-			for _, r := range it.Relations {
-				fmt.Printf("      %s\n", r)
-			}
-		}
+		printKnowledge(res.Items, res.Records)
 	case "remember":
-		summary, system, locator := fs.String("summary", "", ""), fs.String("system", "", ""), fs.String("locator", "", "")
-		related, relation := fs.String("related", "", ""), fs.String("relation", "", "")
 		if len(args) < 2 {
-			return errors.New("remember KIND LABEL [flags]")
+			return errors.New("remember SUBJECT RELATION [OBJECT] [-value V] [-subject-kind K] [-object-kind K] [-summary S] [-also]")
 		}
-		fs.Parse(args[2:])
-		it, err := c.magi.Remember(c.ctx, magiapi.RememberRequest{Kind: args[0], Label: args[1], Summary: optional(*summary),
-			System: optional(*system), Locator: optional(*locator), RelatedTo: optional(*related), Relation: optional(*relation)})
+		n := 2
+		if len(args) > 2 && !strings.HasPrefix(args[2], "-") {
+			n = 3
+		}
+		value, sk, ok, summary := fs.String("value", "", ""), fs.String("subject-kind", "", ""), fs.String("object-kind", "", ""), fs.String("summary", "", "")
+		also := fs.Bool("also", false, "")
+		fs.Parse(args[n:])
+		req := magiapi.RememberRequest{Subject: args[0], Relation: args[1], Value: optional(*value), SubjectKind: optional(*sk), ObjectKind: optional(*ok),
+			Summary: optional(*summary), Also: also}
+		if n == 3 {
+			req.Object = &args[2]
+		}
+		r, err := c.magi.Remember(c.ctx, req)
 		if err != nil {
 			return err
 		}
-		fmt.Printf("%s  [%s] %s\n", it.Id, it.Kind, it.Label)
+		if r.Note != nil {
+			fmt.Println(*r.Note)
+		}
+		printKnowledge([]magiapi.KnowledgeItem{r.Item}, nil)
+	case "fix", "update", "retract":
+		usage := cmd + " ID VALUE [-field F] [-m REASON]"
+		n := 2
+		if cmd == "retract" {
+			usage, n = "retract ID [-m REASON] [-erase]", 1
+		}
+		if len(args) < n {
+			return errors.New(usage)
+		}
+		field, reason, erase := fs.String("field", "", ""), fs.String("m", "", ""), fs.Bool("erase", false, "")
+		fs.Parse(args[n:])
+		req := magiapi.ChangeKnowledgeRequest{Id: args[0], Operation: cmd, Field: optional(*field), Reason: optional(*reason), Erase: erase}
+		if n == 2 {
+			req.Value = &args[1]
+		}
+		r, err := c.magi.ChangeKnowledge(c.ctx, req)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%s %s %s\n", r.Change.Id, r.Change.Operation, r.Change.Record)
+		if r.Item != nil {
+			printKnowledge([]magiapi.KnowledgeItem{*r.Item}, nil)
+		}
+	case "merge", "unmerge":
+		var r magiapi.ChangeKnowledgeResponse
+		var err error
+		if cmd == "merge" {
+			if len(args) < 2 {
+				return errors.New("merge KEEP MERGE [-m REASON]")
+			}
+			reason := fs.String("m", "", "")
+			fs.Parse(args[2:])
+			r, err = c.magi.MergeKnowledge(c.ctx, magiapi.MergeKnowledgeRequest{Keep: args[0], Merge: args[1], Reason: optional(*reason)})
+		} else {
+			if len(args) < 1 {
+				return errors.New("unmerge CHANGE")
+			}
+			r, err = c.magi.UnmergeKnowledge(c.ctx, magiapi.UnmergeKnowledgeRequest{Change: args[0]})
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%s %s %s\n", r.Change.Id, r.Change.Operation, r.Change.Record)
+		if r.Item != nil {
+			printKnowledge([]magiapi.KnowledgeItem{*r.Item}, nil)
+		}
+	case "history":
+		if len(args) < 1 {
+			return errors.New("history ID")
+		}
+		r, err := c.magi.KnowledgeHistory(c.ctx, magiapi.KnowledgeHistoryRequest{Id: args[0]})
+		if err != nil {
+			return err
+		}
+		for _, h := range r.Changes {
+			fmt.Printf("%s  %-8s %s  %s", time.UnixMilli(int64(h.AtMs)).Format("2006-01-02 15:04"), h.Operation, h.Actor, deref(h.Reason))
+			if h.Before != nil {
+				fmt.Printf("\n      before %s", *h.Before)
+			}
+			if h.After != nil {
+				fmt.Printf("\n      after  %s", *h.After)
+			}
+			fmt.Println()
+		}
 	case "audio":
 		out := fs.String("o", "", "output file")
 		if len(args) < 1 {
@@ -935,4 +1014,59 @@ func firstNonEmpty(a, b string) string {
 		return a
 	}
 	return b
+}
+
+// printKnowledge prints entities with their facts, each fact once.
+func printKnowledge(items []magiapi.KnowledgeItem, records []magiapi.KnowledgeRecord) {
+	seen := map[string]bool{}
+	for _, it := range items {
+		fmt.Printf("%s  [%s] %s", it.Id, it.Kind, it.Label)
+		if len(it.Aliases) > 0 {
+			fmt.Printf(" (%s)", strings.Join(it.Aliases, ", "))
+		}
+		if it.Summary != "" {
+			fmt.Printf(": %s", it.Summary)
+		}
+		fmt.Println()
+		if it.System != nil {
+			fmt.Printf("      in %s at %s\n", *it.System, deref(it.Locator))
+		}
+		for _, f := range it.Facts {
+			if seen[f.Id] {
+				continue
+			}
+			seen[f.Id] = true
+			other := deref(f.Value)
+			if f.Other != nil {
+				other = *f.Other
+			}
+			line := it.Label + " " + f.Relation + " " + other
+			if f.Direction == "in" {
+				line = other + " " + f.Relation + " " + it.Label
+			}
+			var notes []string
+			if f.Status != "current" {
+				notes = append(notes, f.Status)
+			}
+			if !f.Supported {
+				notes = append(notes, "no evidence")
+			}
+			if f.Stale {
+				notes = append(notes, "stale")
+			}
+			if f.Disputed {
+				notes = append(notes, "disputed")
+			}
+			if !f.Mine {
+				notes = append(notes, "not yours")
+			}
+			if len(notes) > 0 {
+				line += "  (" + strings.Join(notes, ", ") + ")"
+			}
+			fmt.Printf("      %s  %s\n", f.Id, line)
+		}
+	}
+	for _, r := range records {
+		fmt.Printf("%s  [%s] %s: %s\n", r.Id, r.Kind, r.Title, r.Summary)
+	}
 }

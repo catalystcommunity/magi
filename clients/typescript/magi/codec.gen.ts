@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { AckNoticeRequest, AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, CheckOverlapRequest, CheckOverlapResponse, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideRequest, DeleteLexiconWordRequest, DeleteLexiconWordResponse, DeliverNoticeRequest, Device, EgressDestinationRequest, EgressDestinationResponse, EgressDetectRequest, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressFlow, EgressFlowHeader, EgressReportRequest, EgressReportResponse, EgressReview, EgressReviewHeader, EgressSecretRule, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, FileChange, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetTaskDiffRequest, GetTaskOutputRequest, GetTaskRequest, KnowledgeItem, LexiconWord, LinkRequest, ListDevicesRequest, ListDevicesResponse, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListNoticesRequest, ListNoticesResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListVoicesRequest, ListVoicesResponse, ListenRequest, ListenResponse, Message, MessageLink, Notice, NoticeDelivery, PersonaInfo, PutAppReleaseRequest, PutDeviceRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, RemoveDeviceRequest, ReportDeliveryRequest, ReportDeliveryResponse, ReviewItem, RunnerAck, RunnerAssignment, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerEgressProxy, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerInfo, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, RunnerUpdate, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, SpeechPart, StartTaskRequest, StopSpeechRequest, StopSpeechResponse, Task, TaskDiff, TaskOutput, TaskStep, TraceRequest, TraceResponse, UnlinkRequest, VoiceInfo, WaitNoticesRequest, WaitNoticesResponse, WordTime } from "./types.gen.ts";
+import type { AckNoticeRequest, AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, ChangeKnowledgeRequest, ChangeKnowledgeResponse, CheckOverlapRequest, CheckOverlapResponse, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideRequest, DeleteLexiconWordRequest, DeleteLexiconWordResponse, DeliverNoticeRequest, Device, EgressDestinationRequest, EgressDestinationResponse, EgressDetectRequest, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressFlow, EgressFlowHeader, EgressReportRequest, EgressReportResponse, EgressReview, EgressReviewHeader, EgressSecretRule, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, FileChange, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetTaskDiffRequest, GetTaskOutputRequest, GetTaskRequest, KnowledgeChange, KnowledgeFact, KnowledgeHistoryRequest, KnowledgeHistoryResponse, KnowledgeItem, KnowledgeRecord, LexiconWord, LinkRequest, ListDevicesRequest, ListDevicesResponse, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListNoticesRequest, ListNoticesResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListVoicesRequest, ListVoicesResponse, ListenRequest, ListenResponse, MergeKnowledgeRequest, Message, MessageLink, Notice, NoticeDelivery, PersonaInfo, PutAppReleaseRequest, PutDeviceRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, RememberResponse, RemoveDeviceRequest, ReportDeliveryRequest, ReportDeliveryResponse, ReviewItem, RunnerAck, RunnerAssignment, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerEgressProxy, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerInfo, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, RunnerUpdate, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, SpeechPart, StartTaskRequest, StopSpeechRequest, StopSpeechResponse, Task, TaskDiff, TaskOutput, TaskStep, TraceRequest, TraceResponse, UnlinkRequest, UnmergeKnowledgeRequest, VoiceInfo, WaitNoticesRequest, WaitNoticesResponse, WordTime } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -1932,15 +1932,61 @@ export function fromCancelTaskRequestCbor(bytes: Uint8Array): CancelTaskRequest 
   return fromCancelTaskRequestCborValue(decode(bytes));
 }
 
+export function toKnowledgeFactCborValue(v: KnowledgeFact): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  csilMap.set("mine", v.mine);
+  if (v.other !== undefined) csilMap.set("other", v.other);
+  csilMap.set("stale", v.stale);
+  if (v.value !== undefined) csilMap.set("value", v.value);
+  csilMap.set("status", v.status);
+  csilMap.set("disputed", v.disputed);
+  if (v.otherId !== undefined) csilMap.set("other_id", v.otherId);
+  csilMap.set("relation", v.relation);
+  csilMap.set("direction", v.direction);
+  csilMap.set("supported", v.supported);
+  if (v.validToMs !== undefined) csilMap.set("valid_to_ms", v.validToMs);
+  if (v.validFromMs !== undefined) csilMap.set("valid_from_ms", v.validFromMs);
+  return csilMap;
+}
+
+export function fromKnowledgeFactCborValue(value: CborValue): KnowledgeFact {
+  return {
+    id: asString(requireKey(value, "id")),
+    relation: asString(requireKey(value, "relation")),
+    direction: asString(requireKey(value, "direction")),
+    other: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "other")),
+    otherId: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "other_id")),
+    value: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "value")),
+    status: asString(requireKey(value, "status")),
+    validFromMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "valid_from_ms")),
+    validToMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "valid_to_ms")),
+    supported: asBool(requireKey(value, "supported")),
+    stale: asBool(requireKey(value, "stale")),
+    mine: asBool(requireKey(value, "mine")),
+    disputed: asBool(requireKey(value, "disputed")),
+  };
+}
+
+export function toKnowledgeFactCbor(v: KnowledgeFact): Uint8Array {
+  return encodeValue(toKnowledgeFactCborValue(v));
+}
+
+export function fromKnowledgeFactCbor(bytes: Uint8Array): KnowledgeFact {
+  return fromKnowledgeFactCborValue(decode(bytes));
+}
+
 export function toKnowledgeItemCborValue(v: KnowledgeItem): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("id", v.id);
   csilMap.set("kind", v.kind);
+  csilMap.set("mine", v.mine);
+  csilMap.set("facts", v.facts.map((csilE): CborValue => toKnowledgeFactCborValue(csilE)));
   csilMap.set("label", v.label);
   if (v.system !== undefined) csilMap.set("system", v.system);
+  csilMap.set("aliases", v.aliases);
   if (v.locator !== undefined) csilMap.set("locator", v.locator);
   csilMap.set("summary", v.summary);
-  csilMap.set("relations", v.relations);
   csilMap.set("properties", new Map<CborValue, CborValue>(Object.entries(v.properties).map(([csilK, csilV]): [CborValue, CborValue] => [csilK, csilV])));
   return csilMap;
 }
@@ -1950,11 +1996,13 @@ export function fromKnowledgeItemCborValue(value: CborValue): KnowledgeItem {
     id: asString(requireKey(value, "id")),
     kind: asString(requireKey(value, "kind")),
     label: asString(requireKey(value, "label")),
+    aliases: asArray(requireKey(value, "aliases")).map((csilE) => asString(csilE)),
     summary: asString(requireKey(value, "summary")),
     properties: Object.fromEntries(Array.from(asMap(requireKey(value, "properties")), ([csilK, csilV]): [string, string] => [asString(csilK), asString(csilV)])),
     system: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "system")),
     locator: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "locator")),
-    relations: asArray(requireKey(value, "relations")).map((csilE) => asString(csilE)),
+    facts: asArray(requireKey(value, "facts")).map((csilE) => fromKnowledgeFactCborValue(csilE)),
+    mine: asBool(requireKey(value, "mine")),
   };
 }
 
@@ -1966,11 +2014,42 @@ export function fromKnowledgeItemCbor(bytes: Uint8Array): KnowledgeItem {
   return fromKnowledgeItemCborValue(decode(bytes));
 }
 
+export function toKnowledgeRecordCborValue(v: KnowledgeRecord): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  csilMap.set("kind", v.kind);
+  csilMap.set("type", v.type);
+  csilMap.set("at_ms", v.atMs);
+  csilMap.set("title", v.title);
+  csilMap.set("summary", v.summary);
+  return csilMap;
+}
+
+export function fromKnowledgeRecordCborValue(value: CborValue): KnowledgeRecord {
+  return {
+    id: asString(requireKey(value, "id")),
+    type: asString(requireKey(value, "type")),
+    kind: asString(requireKey(value, "kind")),
+    title: asString(requireKey(value, "title")),
+    summary: asString(requireKey(value, "summary")),
+    atMs: asNumber(requireKey(value, "at_ms")),
+  };
+}
+
+export function toKnowledgeRecordCbor(v: KnowledgeRecord): Uint8Array {
+  return encodeValue(toKnowledgeRecordCborValue(v));
+}
+
+export function fromKnowledgeRecordCbor(bytes: Uint8Array): KnowledgeRecord {
+  return fromKnowledgeRecordCborValue(decode(bytes));
+}
+
 export function toQueryKnowledgeRequestCborValue(v: QueryKnowledgeRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   if (v.kind !== undefined) csilMap.set("kind", v.kind);
   if (v.text !== undefined) csilMap.set("text", v.text);
   if (v.limit !== undefined) csilMap.set("limit", v.limit);
+  if (v.includeEnded !== undefined) csilMap.set("include_ended", v.includeEnded);
   return csilMap;
 }
 
@@ -1979,6 +2058,7 @@ export function fromQueryKnowledgeRequestCborValue(value: CborValue): QueryKnowl
     text: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "text")),
     kind: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "kind")),
     limit: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
+    includeEnded: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "include_ended")),
   };
 }
 
@@ -1993,12 +2073,14 @@ export function fromQueryKnowledgeRequestCbor(bytes: Uint8Array): QueryKnowledge
 export function toQueryKnowledgeResponseCborValue(v: QueryKnowledgeResponse): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("items", v.items.map((csilE): CborValue => toKnowledgeItemCborValue(csilE)));
+  csilMap.set("records", v.records.map((csilE): CborValue => toKnowledgeRecordCborValue(csilE)));
   return csilMap;
 }
 
 export function fromQueryKnowledgeResponseCborValue(value: CborValue): QueryKnowledgeResponse {
   return {
     items: asArray(requireKey(value, "items")).map((csilE) => fromKnowledgeItemCborValue(csilE)),
+    records: asArray(requireKey(value, "records")).map((csilE) => fromKnowledgeRecordCborValue(csilE)),
   };
 }
 
@@ -2012,27 +2094,27 @@ export function fromQueryKnowledgeResponseCbor(bytes: Uint8Array): QueryKnowledg
 
 export function toRememberRequestCborValue(v: RememberRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
-  csilMap.set("kind", v.kind);
-  csilMap.set("label", v.label);
-  if (v.system !== undefined) csilMap.set("system", v.system);
-  if (v.locator !== undefined) csilMap.set("locator", v.locator);
+  if (v.also !== undefined) csilMap.set("also", v.also);
+  if (v.value !== undefined) csilMap.set("value", v.value);
+  if (v.object !== undefined) csilMap.set("object", v.object);
+  csilMap.set("subject", v.subject);
   if (v.summary !== undefined) csilMap.set("summary", v.summary);
-  if (v.relation !== undefined) csilMap.set("relation", v.relation);
-  if (v.properties !== undefined) csilMap.set("properties", new Map<CborValue, CborValue>(Object.entries(v.properties).map(([csilK, csilV]): [CborValue, CborValue] => [csilK, csilV])));
-  if (v.relatedTo !== undefined) csilMap.set("related_to", v.relatedTo);
+  csilMap.set("relation", v.relation);
+  if (v.objectKind !== undefined) csilMap.set("object_kind", v.objectKind);
+  if (v.subjectKind !== undefined) csilMap.set("subject_kind", v.subjectKind);
   return csilMap;
 }
 
 export function fromRememberRequestCborValue(value: CborValue): RememberRequest {
   return {
-    kind: asString(requireKey(value, "kind")),
-    label: asString(requireKey(value, "label")),
+    subject: asString(requireKey(value, "subject")),
+    subjectKind: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "subject_kind")),
+    relation: asString(requireKey(value, "relation")),
+    object: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "object")),
+    objectKind: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "object_kind")),
+    value: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "value")),
     summary: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "summary")),
-    properties: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : Object.fromEntries(Array.from(asMap(csilV), ([csilK, csilV]): [string, string] => [asString(csilK), asString(csilV)])))(mapGet(value, "properties")),
-    system: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "system")),
-    locator: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "locator")),
-    relatedTo: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "related_to")),
-    relation: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "relation")),
+    also: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "also")),
   };
 }
 
@@ -2042,6 +2124,200 @@ export function toRememberRequestCbor(v: RememberRequest): Uint8Array {
 
 export function fromRememberRequestCbor(bytes: Uint8Array): RememberRequest {
   return fromRememberRequestCborValue(decode(bytes));
+}
+
+export function toRememberResponseCborValue(v: RememberResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("item", toKnowledgeItemCborValue(v.item));
+  if (v.note !== undefined) csilMap.set("note", v.note);
+  csilMap.set("recorded", v.recorded);
+  return csilMap;
+}
+
+export function fromRememberResponseCborValue(value: CborValue): RememberResponse {
+  return {
+    recorded: asBool(requireKey(value, "recorded")),
+    note: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "note")),
+    item: fromKnowledgeItemCborValue(requireKey(value, "item")),
+  };
+}
+
+export function toRememberResponseCbor(v: RememberResponse): Uint8Array {
+  return encodeValue(toRememberResponseCborValue(v));
+}
+
+export function fromRememberResponseCbor(bytes: Uint8Array): RememberResponse {
+  return fromRememberResponseCborValue(decode(bytes));
+}
+
+export function toChangeKnowledgeRequestCborValue(v: ChangeKnowledgeRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  if (v.erase !== undefined) csilMap.set("erase", v.erase);
+  if (v.field !== undefined) csilMap.set("field", v.field);
+  if (v.value !== undefined) csilMap.set("value", v.value);
+  if (v.reason !== undefined) csilMap.set("reason", v.reason);
+  csilMap.set("operation", v.operation);
+  return csilMap;
+}
+
+export function fromChangeKnowledgeRequestCborValue(value: CborValue): ChangeKnowledgeRequest {
+  return {
+    id: asString(requireKey(value, "id")),
+    operation: asString(requireKey(value, "operation")),
+    field: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "field")),
+    value: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "value")),
+    reason: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "reason")),
+    erase: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "erase")),
+  };
+}
+
+export function toChangeKnowledgeRequestCbor(v: ChangeKnowledgeRequest): Uint8Array {
+  return encodeValue(toChangeKnowledgeRequestCborValue(v));
+}
+
+export function fromChangeKnowledgeRequestCbor(bytes: Uint8Array): ChangeKnowledgeRequest {
+  return fromChangeKnowledgeRequestCborValue(decode(bytes));
+}
+
+export function toKnowledgeChangeCborValue(v: KnowledgeChange): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  csilMap.set("actor", v.actor);
+  if (v.after !== undefined) csilMap.set("after", v.after);
+  csilMap.set("at_ms", v.atMs);
+  if (v.before !== undefined) csilMap.set("before", v.before);
+  if (v.reason !== undefined) csilMap.set("reason", v.reason);
+  csilMap.set("record", v.record);
+  csilMap.set("operation", v.operation);
+  return csilMap;
+}
+
+export function fromKnowledgeChangeCborValue(value: CborValue): KnowledgeChange {
+  return {
+    id: asString(requireKey(value, "id")),
+    record: asString(requireKey(value, "record")),
+    operation: asString(requireKey(value, "operation")),
+    actor: asString(requireKey(value, "actor")),
+    reason: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "reason")),
+    before: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "before")),
+    after: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "after")),
+    atMs: asNumber(requireKey(value, "at_ms")),
+  };
+}
+
+export function toKnowledgeChangeCbor(v: KnowledgeChange): Uint8Array {
+  return encodeValue(toKnowledgeChangeCborValue(v));
+}
+
+export function fromKnowledgeChangeCbor(bytes: Uint8Array): KnowledgeChange {
+  return fromKnowledgeChangeCborValue(decode(bytes));
+}
+
+export function toChangeKnowledgeResponseCborValue(v: ChangeKnowledgeResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.item !== undefined) csilMap.set("item", toKnowledgeItemCborValue(v.item));
+  csilMap.set("change", toKnowledgeChangeCborValue(v.change));
+  return csilMap;
+}
+
+export function fromChangeKnowledgeResponseCborValue(value: CborValue): ChangeKnowledgeResponse {
+  return {
+    change: fromKnowledgeChangeCborValue(requireKey(value, "change")),
+    item: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromKnowledgeItemCborValue(csilV))(mapGet(value, "item")),
+  };
+}
+
+export function toChangeKnowledgeResponseCbor(v: ChangeKnowledgeResponse): Uint8Array {
+  return encodeValue(toChangeKnowledgeResponseCborValue(v));
+}
+
+export function fromChangeKnowledgeResponseCbor(bytes: Uint8Array): ChangeKnowledgeResponse {
+  return fromChangeKnowledgeResponseCborValue(decode(bytes));
+}
+
+export function toMergeKnowledgeRequestCborValue(v: MergeKnowledgeRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("keep", v.keep);
+  csilMap.set("merge", v.merge);
+  if (v.reason !== undefined) csilMap.set("reason", v.reason);
+  return csilMap;
+}
+
+export function fromMergeKnowledgeRequestCborValue(value: CborValue): MergeKnowledgeRequest {
+  return {
+    keep: asString(requireKey(value, "keep")),
+    merge: asString(requireKey(value, "merge")),
+    reason: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "reason")),
+  };
+}
+
+export function toMergeKnowledgeRequestCbor(v: MergeKnowledgeRequest): Uint8Array {
+  return encodeValue(toMergeKnowledgeRequestCborValue(v));
+}
+
+export function fromMergeKnowledgeRequestCbor(bytes: Uint8Array): MergeKnowledgeRequest {
+  return fromMergeKnowledgeRequestCborValue(decode(bytes));
+}
+
+export function toUnmergeKnowledgeRequestCborValue(v: UnmergeKnowledgeRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("change", v.change);
+  return csilMap;
+}
+
+export function fromUnmergeKnowledgeRequestCborValue(value: CborValue): UnmergeKnowledgeRequest {
+  return {
+    change: asString(requireKey(value, "change")),
+  };
+}
+
+export function toUnmergeKnowledgeRequestCbor(v: UnmergeKnowledgeRequest): Uint8Array {
+  return encodeValue(toUnmergeKnowledgeRequestCborValue(v));
+}
+
+export function fromUnmergeKnowledgeRequestCbor(bytes: Uint8Array): UnmergeKnowledgeRequest {
+  return fromUnmergeKnowledgeRequestCborValue(decode(bytes));
+}
+
+export function toKnowledgeHistoryRequestCborValue(v: KnowledgeHistoryRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  return csilMap;
+}
+
+export function fromKnowledgeHistoryRequestCborValue(value: CborValue): KnowledgeHistoryRequest {
+  return {
+    id: asString(requireKey(value, "id")),
+  };
+}
+
+export function toKnowledgeHistoryRequestCbor(v: KnowledgeHistoryRequest): Uint8Array {
+  return encodeValue(toKnowledgeHistoryRequestCborValue(v));
+}
+
+export function fromKnowledgeHistoryRequestCbor(bytes: Uint8Array): KnowledgeHistoryRequest {
+  return fromKnowledgeHistoryRequestCborValue(decode(bytes));
+}
+
+export function toKnowledgeHistoryResponseCborValue(v: KnowledgeHistoryResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("changes", v.changes.map((csilE): CborValue => toKnowledgeChangeCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromKnowledgeHistoryResponseCborValue(value: CborValue): KnowledgeHistoryResponse {
+  return {
+    changes: asArray(requireKey(value, "changes")).map((csilE) => fromKnowledgeChangeCborValue(csilE)),
+  };
+}
+
+export function toKnowledgeHistoryResponseCbor(v: KnowledgeHistoryResponse): Uint8Array {
+  return encodeValue(toKnowledgeHistoryResponseCborValue(v));
+}
+
+export function fromKnowledgeHistoryResponseCbor(bytes: Uint8Array): KnowledgeHistoryResponse {
+  return fromKnowledgeHistoryResponseCborValue(decode(bytes));
 }
 
 export function toVoiceInfoCborValue(v: VoiceInfo): CborValue {

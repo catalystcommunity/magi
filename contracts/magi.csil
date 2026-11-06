@@ -325,30 +325,90 @@ DecideRequest = { task: text, outcome: text, ? comment: text }
 ;;; tells the risk. Send confirm true to stop it after the person agrees.
 CancelTaskRequest = { task: text, ? reason: text, ? confirm: bool }
 
+;;; A fact: one claim, seen from the entity that it is listed under.
+;;; direction "out": entity relation other (or value); "in": other
+;;; relation entity. status is "current" or "ended". mine: the caller owns
+;;; it (and can change it). supported: evidence supports it, or a person
+;;; wrote it. stale: a fact that it was derived from changed.
+KnowledgeFact = {
+  id: text,
+  relation: text,
+  direction: text,
+  ? other: text,
+  ? other_id: text,
+  ? value: text,
+  status: text,
+  ? valid_from_ms: uint,
+  ? valid_to_ms: uint,
+  supported: bool,
+  stale: bool,
+  mine: bool,
+  disputed: bool,
+}
+
 KnowledgeItem = {
   id: text,
   kind: text,
   label: text,
+  aliases: [* text],
   summary: text,
   properties: { * text => text },
   ? system: text,
   ? locator: text,
-  relations: [* text],
+  facts: [* KnowledgeFact],
+  mine: bool,
 }
-QueryKnowledgeRequest = { ? text: text, ? kind: text, ? limit: uint }
-QueryKnowledgeResponse = { items: [* KnowledgeItem] }
 
-;;; Records knowledge that the caller authored.
+;;; An episode (a thing that occurred) or a procedure (how to do a thing).
+KnowledgeRecord = { id: text, type: text, kind: text, title: text, summary: text, at_ms: uint }
+
+;;; Finds what the caller knows. Without text, the records that changed last.
+;;; include_ended also gives facts that are no longer true.
+QueryKnowledgeRequest = { ? text: text, ? kind: text, ? limit: uint, ? include_ended: bool }
+QueryKnowledgeResponse = { items: [* KnowledgeItem], records: [* KnowledgeRecord] }
+
+;;; Records one fact that the caller wrote: subject relation object (an
+;;; entity, by name) or value. subject "me" is the caller. When a current
+;;; fact has the same subject and relation and another object or value,
+;;; nothing is recorded unless also is true: the note tells which fact,
+;;; so that the caller can change it instead (fix or update).
 RememberRequest = {
-  kind: text,
-  label: text,
+  subject: text,
+  ? subject_kind: text,
+  relation: text,
+  ? object: text,
+  ? object_kind: text,
+  ? value: text,
   ? summary: text,
-  ? properties: { * text => text },
-  ? system: text,
-  ? locator: text,
-  ? related_to: text,
-  ? relation: text,
+  ? also: bool,
 }
+RememberResponse = { recorded: bool, ? note: text, item: KnowledgeItem }
+
+;;; Changes a record of the caller (docs/knowledge.md, "Changes").
+;;; operation: "fix" (it was wrong), "update" (it was true and changed; facts
+;;; only), or "retract" (it was never true, or forget it). field and value
+;;; give the new value: for a fact, field "value" (default) or "object" (a
+;;; name) or "relation"; for an entity, "label" (default), "summary", or
+;;; "kind".
+ChangeKnowledgeRequest = { id: text, operation: text, ? field: text, ? value: text, ? reason: text, ? erase: bool }
+KnowledgeChange = {
+  id: text,
+  record: text,
+  operation: text,
+  actor: text,
+  ? reason: text,
+  ? before: text,
+  ? after: text,
+  at_ms: uint,
+}
+ChangeKnowledgeResponse = { change: KnowledgeChange, ? item: KnowledgeItem }
+;;; Merges entity merge into entity keep: the same thing under two names.
+;;; Its facts move to keep, and its name becomes an alias. unmerge-knowledge
+;;; reverts a merge by the id of its change.
+MergeKnowledgeRequest = { keep: text, merge: text, ? reason: text }
+UnmergeKnowledgeRequest = { change: text }
+KnowledgeHistoryRequest = { id: text }
+KnowledgeHistoryResponse = { changes: [* KnowledgeChange] }
 
 VoiceInfo = { id: text, name: text, language: text }
 ListVoicesRequest = { ? language: text }
@@ -488,7 +548,11 @@ service MagiService {
   decide: DecideRequest -> Task,
   cancel-task: CancelTaskRequest -> Task,
   query-knowledge: QueryKnowledgeRequest -> QueryKnowledgeResponse,
-  remember: RememberRequest -> KnowledgeItem,
+  remember: RememberRequest -> RememberResponse,
+  change-knowledge: ChangeKnowledgeRequest -> ChangeKnowledgeResponse,
+  knowledge-history: KnowledgeHistoryRequest -> KnowledgeHistoryResponse,
+  merge-knowledge: MergeKnowledgeRequest -> ChangeKnowledgeResponse,
+  unmerge-knowledge: UnmergeKnowledgeRequest -> ChangeKnowledgeResponse,
   list-voices: ListVoicesRequest -> ListVoicesResponse,
   list-lexicon: ListLexiconRequest -> ListLexiconResponse,
   put-lexicon-word: PutLexiconWordRequest -> LexiconWord,

@@ -31,27 +31,79 @@ class KnowledgeClient:
     def __init__(self, transport: Transport):
         self._transport = transport
 
-    def put_node(self, req: PutNodeRequest) -> Node:
-        """put-node"""
-        return Node.from_cbor(self._transport.call("KnowledgeService", "put-node", req.to_cbor()))
+    def put_entity(self, req: PutEntityRequest) -> Entity:
+        """put-entity"""
+        return Entity.from_cbor(self._transport.call("KnowledgeService", "put-entity", req.to_cbor()))
 
-    def get_node(self, req: GetNodeRequest) -> NodeView:
-        """get-node"""
-        return NodeView.from_cbor(self._transport.call("KnowledgeService", "get-node", req.to_cbor()))
+    def self(self, req: SelfRequest) -> Entity:
+        """self"""
+        return Entity.from_cbor(self._transport.call("KnowledgeService", "self", req.to_cbor()))
 
-    def put_edge(self, req: PutEdgeRequest) -> Edge:
-        """put-edge"""
-        return Edge.from_cbor(self._transport.call("KnowledgeService", "put-edge", req.to_cbor()))
+    def assert(self, req: AssertRequest) -> Claim:
+        """assert"""
+        return Claim.from_cbor(self._transport.call("KnowledgeService", "assert", req.to_cbor()))
+
+    def change(self, req: ChangeRequest) -> ChangeResponse:
+        """change"""
+        return ChangeResponse.from_cbor(self._transport.call("KnowledgeService", "change", req.to_cbor()))
+
+    def merge(self, req: MergeRequest) -> Change:
+        """merge"""
+        return Change.from_cbor(self._transport.call("KnowledgeService", "merge", req.to_cbor()))
+
+    def unmerge(self, req: UnmergeRequest) -> Change:
+        """unmerge"""
+        return Change.from_cbor(self._transport.call("KnowledgeService", "unmerge", req.to_cbor()))
+
+    def record_episode(self, req: RecordEpisodeRequest) -> Episode:
+        """record-episode"""
+        return Episode.from_cbor(self._transport.call("KnowledgeService", "record-episode", req.to_cbor()))
+
+    def put_procedure(self, req: PutProcedureRequest) -> Procedure:
+        """put-procedure"""
+        return Procedure.from_cbor(self._transport.call("KnowledgeService", "put-procedure", req.to_cbor()))
 
     def link_evidence(self, req: LinkEvidenceRequest) -> Evidence:
         """link-evidence"""
         return Evidence.from_cbor(self._transport.call("KnowledgeService", "link-evidence", req.to_cbor()))
 
-    def query(self, req: QueryRequest) -> QueryResponse:
-        """query"""
-        return QueryResponse.from_cbor(self._transport.call("KnowledgeService", "query", req.to_cbor()))
+    def dispute(self, req: DisputeRequest) -> Dispute:
+        """dispute"""
+        return Dispute.from_cbor(self._transport.call("KnowledgeService", "dispute", req.to_cbor()))
 
-    def delete(self, req: DeleteRequest) -> DeleteResponse:
-        """delete"""
-        return DeleteResponse.from_cbor(self._transport.call("KnowledgeService", "delete", req.to_cbor()))
+    def resolve_dispute(self, req: ResolveDisputeRequest) -> Dispute:
+        """resolve-dispute"""
+        return Dispute.from_cbor(self._transport.call("KnowledgeService", "resolve-dispute", req.to_cbor()))
+
+    def list_disputes(self, req: ListDisputesRequest) -> ListDisputesResponse:
+        """list-disputes"""
+        return ListDisputesResponse.from_cbor(self._transport.call("KnowledgeService", "list-disputes", req.to_cbor()))
+
+    def put_group(self, req: PutGroupRequest) -> Group:
+        """put-group"""
+        return Group.from_cbor(self._transport.call("KnowledgeService", "put-group", req.to_cbor()))
+
+    def search(self, req: SearchRequest) -> SearchResponse:
+        """search"""
+        return SearchResponse.from_cbor(self._transport.call("KnowledgeService", "search", req.to_cbor()))
+
+    def about(self, req: AboutRequest) -> AboutResponse:
+        """about"""
+        return AboutResponse.from_cbor(self._transport.call("KnowledgeService", "about", req.to_cbor()))
+
+    def neighbors(self, req: NeighborsRequest) -> NeighborsResponse:
+        """neighbors"""
+        return NeighborsResponse.from_cbor(self._transport.call("KnowledgeService", "neighbors", req.to_cbor()))
+
+    def timeline(self, req: TimelineRequest) -> TimelineResponse:
+        """timeline"""
+        return TimelineResponse.from_cbor(self._transport.call("KnowledgeService", "timeline", req.to_cbor()))
+
+    def history(self, req: HistoryRequest) -> HistoryResponse:
+        """history"""
+        return HistoryResponse.from_cbor(self._transport.call("KnowledgeService", "history", req.to_cbor()))
+
+    def get(self, req: GetRequest) -> GetResponse:
+        """get"""
+        return GetResponse.from_cbor(self._transport.call("KnowledgeService", "get", req.to_cbor()))
 

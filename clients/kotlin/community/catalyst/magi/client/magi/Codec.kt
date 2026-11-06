@@ -1853,16 +1853,61 @@ fun cancelTaskRequestFromCborValue(cbor: CborValue): CancelTaskRequest {
 /** Decode CSIL CBOR bytes into a CancelTaskRequest. */
 fun cancelTaskRequestFromCbor(bytes: ByteArray): CancelTaskRequest = cancelTaskRequestFromCborValue(CsilCbor.decode(bytes))
 
+/** The CBOR value tree for a KnowledgeFact (deep, canonical key order). */
+fun KnowledgeFact.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    csilEntries.add(CborValue.CText("mine") to CborValue.CBool(this.mine))
+    this.other?.let { csilV -> csilEntries.add(CborValue.CText("other") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("stale") to CborValue.CBool(this.stale))
+    this.value?.let { csilV -> csilEntries.add(CborValue.CText("value") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("status") to CborValue.CText(this.status))
+    csilEntries.add(CborValue.CText("disputed") to CborValue.CBool(this.disputed))
+    this.otherId?.let { csilV -> csilEntries.add(CborValue.CText("other_id") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("relation") to CborValue.CText(this.relation))
+    csilEntries.add(CborValue.CText("direction") to CborValue.CText(this.direction))
+    csilEntries.add(CborValue.CText("supported") to CborValue.CBool(this.supported))
+    this.validToMs?.let { csilV -> csilEntries.add(CborValue.CText("valid_to_ms") to CborValue.CUint(csilV)) }
+    this.validFromMs?.let { csilV -> csilEntries.add(CborValue.CText("valid_from_ms") to CborValue.CUint(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a KnowledgeFact to canonical CSIL CBOR bytes. */
+fun KnowledgeFact.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a KnowledgeFact from a decoded CBOR value tree. */
+fun knowledgeFactFromCborValue(cbor: CborValue): KnowledgeFact {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val relation = CsilCbor.asText(CsilCbor.require(cbor, "relation"))
+    val direction = CsilCbor.asText(CsilCbor.require(cbor, "direction"))
+    val other = CsilCbor.mapGet(cbor, "other")?.let { csilV -> CsilCbor.asText(csilV) }
+    val otherId = CsilCbor.mapGet(cbor, "other_id")?.let { csilV -> CsilCbor.asText(csilV) }
+    val value = CsilCbor.mapGet(cbor, "value")?.let { csilV -> CsilCbor.asText(csilV) }
+    val status = CsilCbor.asText(CsilCbor.require(cbor, "status"))
+    val validFromMs = CsilCbor.mapGet(cbor, "valid_from_ms")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val validToMs = CsilCbor.mapGet(cbor, "valid_to_ms")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val supported = CsilCbor.asBoolean(CsilCbor.require(cbor, "supported"))
+    val stale = CsilCbor.asBoolean(CsilCbor.require(cbor, "stale"))
+    val mine = CsilCbor.asBoolean(CsilCbor.require(cbor, "mine"))
+    val disputed = CsilCbor.asBoolean(CsilCbor.require(cbor, "disputed"))
+    return KnowledgeFact(id = id, relation = relation, direction = direction, other = other, otherId = otherId, value = value, status = status, validFromMs = validFromMs, validToMs = validToMs, supported = supported, stale = stale, mine = mine, disputed = disputed)
+}
+
+/** Decode CSIL CBOR bytes into a KnowledgeFact. */
+fun knowledgeFactFromCbor(bytes: ByteArray): KnowledgeFact = knowledgeFactFromCborValue(CsilCbor.decode(bytes))
+
 /** The CBOR value tree for a KnowledgeItem (deep, canonical key order). */
 fun KnowledgeItem.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
     csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
     csilEntries.add(CborValue.CText("kind") to CborValue.CText(this.kind))
+    csilEntries.add(CborValue.CText("mine") to CborValue.CBool(this.mine))
+    csilEntries.add(CborValue.CText("facts") to CborValue.CArray((this.facts).map { csilE -> csilE.toCborValue() }))
     csilEntries.add(CborValue.CText("label") to CborValue.CText(this.label))
     this.system?.let { csilV -> csilEntries.add(CborValue.CText("system") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("aliases") to CborValue.CArray((this.aliases).map { csilE -> CborValue.CText(csilE) }))
     this.locator?.let { csilV -> csilEntries.add(CborValue.CText("locator") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("summary") to CborValue.CText(this.summary))
-    csilEntries.add(CborValue.CText("relations") to CborValue.CArray((this.relations).map { csilE -> CborValue.CText(csilE) }))
     csilEntries.add(CborValue.CText("properties") to CborValue.CMap((this.properties).map { (csilK, csilV) -> CborValue.CText(csilK) to CborValue.CText(csilV) }))
     return CborValue.CMap(csilEntries)
 }
@@ -1875,16 +1920,47 @@ fun knowledgeItemFromCborValue(cbor: CborValue): KnowledgeItem {
     val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
     val kind = CsilCbor.asText(CsilCbor.require(cbor, "kind"))
     val label = CsilCbor.asText(CsilCbor.require(cbor, "label"))
+    val aliases = CsilCbor.asArray(CsilCbor.require(cbor, "aliases")).map { csilE -> CsilCbor.asText(csilE) }
     val summary = CsilCbor.asText(CsilCbor.require(cbor, "summary"))
     val properties = CsilCbor.asMap(CsilCbor.require(cbor, "properties")).associate { (csilK, csilV) -> CsilCbor.asText(csilK) to CsilCbor.asText(csilV) }
     val system = CsilCbor.mapGet(cbor, "system")?.let { csilV -> CsilCbor.asText(csilV) }
     val locator = CsilCbor.mapGet(cbor, "locator")?.let { csilV -> CsilCbor.asText(csilV) }
-    val relations = CsilCbor.asArray(CsilCbor.require(cbor, "relations")).map { csilE -> CsilCbor.asText(csilE) }
-    return KnowledgeItem(id = id, kind = kind, label = label, summary = summary, properties = properties, system = system, locator = locator, relations = relations)
+    val facts = CsilCbor.asArray(CsilCbor.require(cbor, "facts")).map { csilE -> knowledgeFactFromCborValue(csilE) }
+    val mine = CsilCbor.asBoolean(CsilCbor.require(cbor, "mine"))
+    return KnowledgeItem(id = id, kind = kind, label = label, aliases = aliases, summary = summary, properties = properties, system = system, locator = locator, facts = facts, mine = mine)
 }
 
 /** Decode CSIL CBOR bytes into a KnowledgeItem. */
 fun knowledgeItemFromCbor(bytes: ByteArray): KnowledgeItem = knowledgeItemFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a KnowledgeRecord (deep, canonical key order). */
+fun KnowledgeRecord.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    csilEntries.add(CborValue.CText("kind") to CborValue.CText(this.kind))
+    csilEntries.add(CborValue.CText("type") to CborValue.CText(this.type))
+    csilEntries.add(CborValue.CText("at_ms") to CborValue.CUint(this.atMs))
+    csilEntries.add(CborValue.CText("title") to CborValue.CText(this.title))
+    csilEntries.add(CborValue.CText("summary") to CborValue.CText(this.summary))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a KnowledgeRecord to canonical CSIL CBOR bytes. */
+fun KnowledgeRecord.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a KnowledgeRecord from a decoded CBOR value tree. */
+fun knowledgeRecordFromCborValue(cbor: CborValue): KnowledgeRecord {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val type = CsilCbor.asText(CsilCbor.require(cbor, "type"))
+    val kind = CsilCbor.asText(CsilCbor.require(cbor, "kind"))
+    val title = CsilCbor.asText(CsilCbor.require(cbor, "title"))
+    val summary = CsilCbor.asText(CsilCbor.require(cbor, "summary"))
+    val atMs = CsilCbor.asULong(CsilCbor.require(cbor, "at_ms"))
+    return KnowledgeRecord(id = id, type = type, kind = kind, title = title, summary = summary, atMs = atMs)
+}
+
+/** Decode CSIL CBOR bytes into a KnowledgeRecord. */
+fun knowledgeRecordFromCbor(bytes: ByteArray): KnowledgeRecord = knowledgeRecordFromCborValue(CsilCbor.decode(bytes))
 
 /** The CBOR value tree for a QueryKnowledgeRequest (deep, canonical key order). */
 fun QueryKnowledgeRequest.toCborValue(): CborValue {
@@ -1892,6 +1968,7 @@ fun QueryKnowledgeRequest.toCborValue(): CborValue {
     this.kind?.let { csilV -> csilEntries.add(CborValue.CText("kind") to CborValue.CText(csilV)) }
     this.text?.let { csilV -> csilEntries.add(CborValue.CText("text") to CborValue.CText(csilV)) }
     this.limit?.let { csilV -> csilEntries.add(CborValue.CText("limit") to CborValue.CUint(csilV)) }
+    this.includeEnded?.let { csilV -> csilEntries.add(CborValue.CText("include_ended") to CborValue.CBool(csilV)) }
     return CborValue.CMap(csilEntries)
 }
 
@@ -1903,7 +1980,8 @@ fun queryKnowledgeRequestFromCborValue(cbor: CborValue): QueryKnowledgeRequest {
     val text = CsilCbor.mapGet(cbor, "text")?.let { csilV -> CsilCbor.asText(csilV) }
     val kind = CsilCbor.mapGet(cbor, "kind")?.let { csilV -> CsilCbor.asText(csilV) }
     val limit = CsilCbor.mapGet(cbor, "limit")?.let { csilV -> CsilCbor.asULong(csilV) }
-    return QueryKnowledgeRequest(text = text, kind = kind, limit = limit)
+    val includeEnded = CsilCbor.mapGet(cbor, "include_ended")?.let { csilV -> CsilCbor.asBoolean(csilV) }
+    return QueryKnowledgeRequest(text = text, kind = kind, limit = limit, includeEnded = includeEnded)
 }
 
 /** Decode CSIL CBOR bytes into a QueryKnowledgeRequest. */
@@ -1913,6 +1991,7 @@ fun queryKnowledgeRequestFromCbor(bytes: ByteArray): QueryKnowledgeRequest = que
 fun QueryKnowledgeResponse.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
     csilEntries.add(CborValue.CText("items") to CborValue.CArray((this.items).map { csilE -> csilE.toCborValue() }))
+    csilEntries.add(CborValue.CText("records") to CborValue.CArray((this.records).map { csilE -> csilE.toCborValue() }))
     return CborValue.CMap(csilEntries)
 }
 
@@ -1922,7 +2001,8 @@ fun QueryKnowledgeResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValu
 /** Reconstruct a QueryKnowledgeResponse from a decoded CBOR value tree. */
 fun queryKnowledgeResponseFromCborValue(cbor: CborValue): QueryKnowledgeResponse {
     val items = CsilCbor.asArray(CsilCbor.require(cbor, "items")).map { csilE -> knowledgeItemFromCborValue(csilE) }
-    return QueryKnowledgeResponse(items = items)
+    val records = CsilCbor.asArray(CsilCbor.require(cbor, "records")).map { csilE -> knowledgeRecordFromCborValue(csilE) }
+    return QueryKnowledgeResponse(items = items, records = records)
 }
 
 /** Decode CSIL CBOR bytes into a QueryKnowledgeResponse. */
@@ -1931,14 +2011,14 @@ fun queryKnowledgeResponseFromCbor(bytes: ByteArray): QueryKnowledgeResponse = q
 /** The CBOR value tree for a RememberRequest (deep, canonical key order). */
 fun RememberRequest.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
-    csilEntries.add(CborValue.CText("kind") to CborValue.CText(this.kind))
-    csilEntries.add(CborValue.CText("label") to CborValue.CText(this.label))
-    this.system?.let { csilV -> csilEntries.add(CborValue.CText("system") to CborValue.CText(csilV)) }
-    this.locator?.let { csilV -> csilEntries.add(CborValue.CText("locator") to CborValue.CText(csilV)) }
+    this.also?.let { csilV -> csilEntries.add(CborValue.CText("also") to CborValue.CBool(csilV)) }
+    this.value?.let { csilV -> csilEntries.add(CborValue.CText("value") to CborValue.CText(csilV)) }
+    this.`object`?.let { csilV -> csilEntries.add(CborValue.CText("object") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("subject") to CborValue.CText(this.subject))
     this.summary?.let { csilV -> csilEntries.add(CborValue.CText("summary") to CborValue.CText(csilV)) }
-    this.relation?.let { csilV -> csilEntries.add(CborValue.CText("relation") to CborValue.CText(csilV)) }
-    this.properties?.let { csilV -> csilEntries.add(CborValue.CText("properties") to CborValue.CMap((csilV).map { (csilK, csilV) -> CborValue.CText(csilK) to CborValue.CText(csilV) })) }
-    this.relatedTo?.let { csilV -> csilEntries.add(CborValue.CText("related_to") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("relation") to CborValue.CText(this.relation))
+    this.objectKind?.let { csilV -> csilEntries.add(CborValue.CText("object_kind") to CborValue.CText(csilV)) }
+    this.subjectKind?.let { csilV -> csilEntries.add(CborValue.CText("subject_kind") to CborValue.CText(csilV)) }
     return CborValue.CMap(csilEntries)
 }
 
@@ -1947,19 +2027,205 @@ fun RememberRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
 
 /** Reconstruct a RememberRequest from a decoded CBOR value tree. */
 fun rememberRequestFromCborValue(cbor: CborValue): RememberRequest {
-    val kind = CsilCbor.asText(CsilCbor.require(cbor, "kind"))
-    val label = CsilCbor.asText(CsilCbor.require(cbor, "label"))
+    val subject = CsilCbor.asText(CsilCbor.require(cbor, "subject"))
+    val subjectKind = CsilCbor.mapGet(cbor, "subject_kind")?.let { csilV -> CsilCbor.asText(csilV) }
+    val relation = CsilCbor.asText(CsilCbor.require(cbor, "relation"))
+    val `object` = CsilCbor.mapGet(cbor, "object")?.let { csilV -> CsilCbor.asText(csilV) }
+    val objectKind = CsilCbor.mapGet(cbor, "object_kind")?.let { csilV -> CsilCbor.asText(csilV) }
+    val value = CsilCbor.mapGet(cbor, "value")?.let { csilV -> CsilCbor.asText(csilV) }
     val summary = CsilCbor.mapGet(cbor, "summary")?.let { csilV -> CsilCbor.asText(csilV) }
-    val properties = CsilCbor.mapGet(cbor, "properties")?.let { csilV -> CsilCbor.asMap(csilV).associate { (csilK, csilV) -> CsilCbor.asText(csilK) to CsilCbor.asText(csilV) } }
-    val system = CsilCbor.mapGet(cbor, "system")?.let { csilV -> CsilCbor.asText(csilV) }
-    val locator = CsilCbor.mapGet(cbor, "locator")?.let { csilV -> CsilCbor.asText(csilV) }
-    val relatedTo = CsilCbor.mapGet(cbor, "related_to")?.let { csilV -> CsilCbor.asText(csilV) }
-    val relation = CsilCbor.mapGet(cbor, "relation")?.let { csilV -> CsilCbor.asText(csilV) }
-    return RememberRequest(kind = kind, label = label, summary = summary, properties = properties, system = system, locator = locator, relatedTo = relatedTo, relation = relation)
+    val also = CsilCbor.mapGet(cbor, "also")?.let { csilV -> CsilCbor.asBoolean(csilV) }
+    return RememberRequest(subject = subject, subjectKind = subjectKind, relation = relation, `object` = `object`, objectKind = objectKind, value = value, summary = summary, also = also)
 }
 
 /** Decode CSIL CBOR bytes into a RememberRequest. */
 fun rememberRequestFromCbor(bytes: ByteArray): RememberRequest = rememberRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RememberResponse (deep, canonical key order). */
+fun RememberResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("item") to this.item.toCborValue())
+    this.note?.let { csilV -> csilEntries.add(CborValue.CText("note") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("recorded") to CborValue.CBool(this.recorded))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RememberResponse to canonical CSIL CBOR bytes. */
+fun RememberResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RememberResponse from a decoded CBOR value tree. */
+fun rememberResponseFromCborValue(cbor: CborValue): RememberResponse {
+    val recorded = CsilCbor.asBoolean(CsilCbor.require(cbor, "recorded"))
+    val note = CsilCbor.mapGet(cbor, "note")?.let { csilV -> CsilCbor.asText(csilV) }
+    val item = knowledgeItemFromCborValue(CsilCbor.require(cbor, "item"))
+    return RememberResponse(recorded = recorded, note = note, item = item)
+}
+
+/** Decode CSIL CBOR bytes into a RememberResponse. */
+fun rememberResponseFromCbor(bytes: ByteArray): RememberResponse = rememberResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ChangeKnowledgeRequest (deep, canonical key order). */
+fun ChangeKnowledgeRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    this.erase?.let { csilV -> csilEntries.add(CborValue.CText("erase") to CborValue.CBool(csilV)) }
+    this.field?.let { csilV -> csilEntries.add(CborValue.CText("field") to CborValue.CText(csilV)) }
+    this.value?.let { csilV -> csilEntries.add(CborValue.CText("value") to CborValue.CText(csilV)) }
+    this.reason?.let { csilV -> csilEntries.add(CborValue.CText("reason") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("operation") to CborValue.CText(this.operation))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ChangeKnowledgeRequest to canonical CSIL CBOR bytes. */
+fun ChangeKnowledgeRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ChangeKnowledgeRequest from a decoded CBOR value tree. */
+fun changeKnowledgeRequestFromCborValue(cbor: CborValue): ChangeKnowledgeRequest {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val operation = CsilCbor.asText(CsilCbor.require(cbor, "operation"))
+    val field = CsilCbor.mapGet(cbor, "field")?.let { csilV -> CsilCbor.asText(csilV) }
+    val value = CsilCbor.mapGet(cbor, "value")?.let { csilV -> CsilCbor.asText(csilV) }
+    val reason = CsilCbor.mapGet(cbor, "reason")?.let { csilV -> CsilCbor.asText(csilV) }
+    val erase = CsilCbor.mapGet(cbor, "erase")?.let { csilV -> CsilCbor.asBoolean(csilV) }
+    return ChangeKnowledgeRequest(id = id, operation = operation, field = field, value = value, reason = reason, erase = erase)
+}
+
+/** Decode CSIL CBOR bytes into a ChangeKnowledgeRequest. */
+fun changeKnowledgeRequestFromCbor(bytes: ByteArray): ChangeKnowledgeRequest = changeKnowledgeRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a KnowledgeChange (deep, canonical key order). */
+fun KnowledgeChange.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    csilEntries.add(CborValue.CText("actor") to CborValue.CText(this.actor))
+    this.after?.let { csilV -> csilEntries.add(CborValue.CText("after") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("at_ms") to CborValue.CUint(this.atMs))
+    this.before?.let { csilV -> csilEntries.add(CborValue.CText("before") to CborValue.CText(csilV)) }
+    this.reason?.let { csilV -> csilEntries.add(CborValue.CText("reason") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("record") to CborValue.CText(this.record))
+    csilEntries.add(CborValue.CText("operation") to CborValue.CText(this.operation))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a KnowledgeChange to canonical CSIL CBOR bytes. */
+fun KnowledgeChange.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a KnowledgeChange from a decoded CBOR value tree. */
+fun knowledgeChangeFromCborValue(cbor: CborValue): KnowledgeChange {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val record = CsilCbor.asText(CsilCbor.require(cbor, "record"))
+    val operation = CsilCbor.asText(CsilCbor.require(cbor, "operation"))
+    val actor = CsilCbor.asText(CsilCbor.require(cbor, "actor"))
+    val reason = CsilCbor.mapGet(cbor, "reason")?.let { csilV -> CsilCbor.asText(csilV) }
+    val before = CsilCbor.mapGet(cbor, "before")?.let { csilV -> CsilCbor.asText(csilV) }
+    val after = CsilCbor.mapGet(cbor, "after")?.let { csilV -> CsilCbor.asText(csilV) }
+    val atMs = CsilCbor.asULong(CsilCbor.require(cbor, "at_ms"))
+    return KnowledgeChange(id = id, record = record, operation = operation, actor = actor, reason = reason, before = before, after = after, atMs = atMs)
+}
+
+/** Decode CSIL CBOR bytes into a KnowledgeChange. */
+fun knowledgeChangeFromCbor(bytes: ByteArray): KnowledgeChange = knowledgeChangeFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ChangeKnowledgeResponse (deep, canonical key order). */
+fun ChangeKnowledgeResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.item?.let { csilV -> csilEntries.add(CborValue.CText("item") to csilV.toCborValue()) }
+    csilEntries.add(CborValue.CText("change") to this.change.toCborValue())
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ChangeKnowledgeResponse to canonical CSIL CBOR bytes. */
+fun ChangeKnowledgeResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ChangeKnowledgeResponse from a decoded CBOR value tree. */
+fun changeKnowledgeResponseFromCborValue(cbor: CborValue): ChangeKnowledgeResponse {
+    val change = knowledgeChangeFromCborValue(CsilCbor.require(cbor, "change"))
+    val item = CsilCbor.mapGet(cbor, "item")?.let { csilV -> knowledgeItemFromCborValue(csilV) }
+    return ChangeKnowledgeResponse(change = change, item = item)
+}
+
+/** Decode CSIL CBOR bytes into a ChangeKnowledgeResponse. */
+fun changeKnowledgeResponseFromCbor(bytes: ByteArray): ChangeKnowledgeResponse = changeKnowledgeResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a MergeKnowledgeRequest (deep, canonical key order). */
+fun MergeKnowledgeRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("keep") to CborValue.CText(this.keep))
+    csilEntries.add(CborValue.CText("merge") to CborValue.CText(this.merge))
+    this.reason?.let { csilV -> csilEntries.add(CborValue.CText("reason") to CborValue.CText(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a MergeKnowledgeRequest to canonical CSIL CBOR bytes. */
+fun MergeKnowledgeRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a MergeKnowledgeRequest from a decoded CBOR value tree. */
+fun mergeKnowledgeRequestFromCborValue(cbor: CborValue): MergeKnowledgeRequest {
+    val keep = CsilCbor.asText(CsilCbor.require(cbor, "keep"))
+    val merge = CsilCbor.asText(CsilCbor.require(cbor, "merge"))
+    val reason = CsilCbor.mapGet(cbor, "reason")?.let { csilV -> CsilCbor.asText(csilV) }
+    return MergeKnowledgeRequest(keep = keep, merge = merge, reason = reason)
+}
+
+/** Decode CSIL CBOR bytes into a MergeKnowledgeRequest. */
+fun mergeKnowledgeRequestFromCbor(bytes: ByteArray): MergeKnowledgeRequest = mergeKnowledgeRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a UnmergeKnowledgeRequest (deep, canonical key order). */
+fun UnmergeKnowledgeRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("change") to CborValue.CText(this.change))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a UnmergeKnowledgeRequest to canonical CSIL CBOR bytes. */
+fun UnmergeKnowledgeRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a UnmergeKnowledgeRequest from a decoded CBOR value tree. */
+fun unmergeKnowledgeRequestFromCborValue(cbor: CborValue): UnmergeKnowledgeRequest {
+    val change = CsilCbor.asText(CsilCbor.require(cbor, "change"))
+    return UnmergeKnowledgeRequest(change = change)
+}
+
+/** Decode CSIL CBOR bytes into a UnmergeKnowledgeRequest. */
+fun unmergeKnowledgeRequestFromCbor(bytes: ByteArray): UnmergeKnowledgeRequest = unmergeKnowledgeRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a KnowledgeHistoryRequest (deep, canonical key order). */
+fun KnowledgeHistoryRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a KnowledgeHistoryRequest to canonical CSIL CBOR bytes. */
+fun KnowledgeHistoryRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a KnowledgeHistoryRequest from a decoded CBOR value tree. */
+fun knowledgeHistoryRequestFromCborValue(cbor: CborValue): KnowledgeHistoryRequest {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    return KnowledgeHistoryRequest(id = id)
+}
+
+/** Decode CSIL CBOR bytes into a KnowledgeHistoryRequest. */
+fun knowledgeHistoryRequestFromCbor(bytes: ByteArray): KnowledgeHistoryRequest = knowledgeHistoryRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a KnowledgeHistoryResponse (deep, canonical key order). */
+fun KnowledgeHistoryResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("changes") to CborValue.CArray((this.changes).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a KnowledgeHistoryResponse to canonical CSIL CBOR bytes. */
+fun KnowledgeHistoryResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a KnowledgeHistoryResponse from a decoded CBOR value tree. */
+fun knowledgeHistoryResponseFromCborValue(cbor: CborValue): KnowledgeHistoryResponse {
+    val changes = CsilCbor.asArray(CsilCbor.require(cbor, "changes")).map { csilE -> knowledgeChangeFromCborValue(csilE) }
+    return KnowledgeHistoryResponse(changes = changes)
+}
+
+/** Decode CSIL CBOR bytes into a KnowledgeHistoryResponse. */
+fun knowledgeHistoryResponseFromCbor(bytes: ByteArray): KnowledgeHistoryResponse = knowledgeHistoryResponseFromCborValue(CsilCbor.decode(bytes))
 
 /** The CBOR value tree for a VoiceInfo (deep, canonical key order). */
 fun VoiceInfo.toCborValue(): CborValue {
@@ -3500,10 +3766,20 @@ private fun csilToCborValue(value: Any?): CborValue = when (value) {
     is TaskOutput -> value.toCborValue()
     is DecideRequest -> value.toCborValue()
     is CancelTaskRequest -> value.toCborValue()
+    is KnowledgeFact -> value.toCborValue()
     is KnowledgeItem -> value.toCborValue()
+    is KnowledgeRecord -> value.toCborValue()
     is QueryKnowledgeRequest -> value.toCborValue()
     is QueryKnowledgeResponse -> value.toCborValue()
     is RememberRequest -> value.toCborValue()
+    is RememberResponse -> value.toCborValue()
+    is ChangeKnowledgeRequest -> value.toCborValue()
+    is KnowledgeChange -> value.toCborValue()
+    is ChangeKnowledgeResponse -> value.toCborValue()
+    is MergeKnowledgeRequest -> value.toCborValue()
+    is UnmergeKnowledgeRequest -> value.toCborValue()
+    is KnowledgeHistoryRequest -> value.toCborValue()
+    is KnowledgeHistoryResponse -> value.toCborValue()
     is VoiceInfo -> value.toCborValue()
     is ListVoicesRequest -> value.toCborValue()
     is ListVoicesResponse -> value.toCborValue()
@@ -3640,10 +3916,20 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     TaskOutput::class -> taskOutputFromCborValue(cbor)
     DecideRequest::class -> decideRequestFromCborValue(cbor)
     CancelTaskRequest::class -> cancelTaskRequestFromCborValue(cbor)
+    KnowledgeFact::class -> knowledgeFactFromCborValue(cbor)
     KnowledgeItem::class -> knowledgeItemFromCborValue(cbor)
+    KnowledgeRecord::class -> knowledgeRecordFromCborValue(cbor)
     QueryKnowledgeRequest::class -> queryKnowledgeRequestFromCborValue(cbor)
     QueryKnowledgeResponse::class -> queryKnowledgeResponseFromCborValue(cbor)
     RememberRequest::class -> rememberRequestFromCborValue(cbor)
+    RememberResponse::class -> rememberResponseFromCborValue(cbor)
+    ChangeKnowledgeRequest::class -> changeKnowledgeRequestFromCborValue(cbor)
+    KnowledgeChange::class -> knowledgeChangeFromCborValue(cbor)
+    ChangeKnowledgeResponse::class -> changeKnowledgeResponseFromCborValue(cbor)
+    MergeKnowledgeRequest::class -> mergeKnowledgeRequestFromCborValue(cbor)
+    UnmergeKnowledgeRequest::class -> unmergeKnowledgeRequestFromCborValue(cbor)
+    KnowledgeHistoryRequest::class -> knowledgeHistoryRequestFromCborValue(cbor)
+    KnowledgeHistoryResponse::class -> knowledgeHistoryResponseFromCborValue(cbor)
     VoiceInfo::class -> voiceInfoFromCborValue(cbor)
     ListVoicesRequest::class -> listVoicesRequestFromCborValue(cbor)
     ListVoicesResponse::class -> listVoicesResponseFromCborValue(cbor)

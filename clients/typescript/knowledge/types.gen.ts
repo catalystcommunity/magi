@@ -8,9 +8,9 @@ export interface ServiceError {
 }
 
 /**
- * A reference to a record in an external system. system is the id of a
- * knowledge node of kind "system", or a stable system name. locator is the
- * address of the record inside that system, such as a calendar URL.
+ * A reference to a record in another system. system is a stable system
+ * name or the id of an entity of kind "system". locator is the address of
+ * the record in that system.
  */
 export interface ExternalRef {
   system: string;
@@ -19,130 +19,436 @@ export interface ExternalRef {
 }
 
 /**
- * A thing that Magi knows about. Examples of kind: "person", "system",
- * "calendar", "repository", "fact", "preference". scope is a policy tag
- * such as "private", "household", or "public". authored_by is set when a
- * human wrote the content. confidence is from 0 to 1.
+ * A reference from an episode or evidence to another record. kind is
+ * "utterance", "workflow-run", "artifact", "external", "url", or a
+ * knowledge record type ("entity", "claim", "episode", "procedure").
  */
-export interface Node {
+export interface Ref {
+  kind: string;
+  ref: string;
+  title?: string;
+}
+
+export interface Entity {
   id: string;
   kind: string;
   label: string;
+  aliases: string[];
   summary: string;
   properties: Record<string, string>;
   external?: ExternalRef;
-  owner: string;
-  scope: string;
-  authoredBy?: string;
+  owners: string[];
+  readers: string[];
   confidence: number;
+  /**
+   * Set when this entity was merged into another one.
+   */
+  mergedInto?: string;
   createdMs: number;
   updatedMs: number;
 }
 
 /**
- * A directed relation between two nodes, such as "owns", "member-of",
- * "located-in", or "uses".
+ * One statement: subject relation object (an entity) or value (text).
+ * status is "current", "ended" (an update replaced it, or valid_to_ms is
+ * in the past), or "retracted" (only in history). stale is true when a
+ * claim in derived_from changed after this claim was made. supported is
+ * false when no evidence supports the claim and no person wrote it.
  */
-export interface Edge {
+export interface Claim {
   id: string;
-  fromNode: string;
-  toNode: string;
+  subject: string;
   relation: string;
-  properties: Record<string, string>;
-  owner: string;
+  object?: string;
+  value?: string;
+  validFromMs?: number;
+  validToMs?: number;
+  status: string;
+  replacedBy?: string;
   confidence: number;
+  authoredBy?: string;
+  derivedFrom: string[];
+  stale: boolean;
+  supported: boolean;
+  owners: string[];
+  readers: string[];
   createdMs: number;
+  updatedMs: number;
 }
 
 /**
- * A link from a node or edge to the record that supports it.
- * ref_kind is "artifact", "utterance", "external", or "url".
+ * A thing that occurred. kind is open text, for example "conversation",
+ * "investigation", "task", "observation", "import".
+ */
+export interface Episode {
+  id: string;
+  kind: string;
+  title: string;
+  summary: string;
+  startedMs: number;
+  endedMs?: number;
+  participants: string[];
+  entities: string[];
+  refs: Ref[];
+  procedure?: string;
+  outcome?: string;
+  owners: string[];
+  readers: string[];
+  createdMs: number;
+  updatedMs: number;
+}
+
+/**
+ * How to do a thing. Each put-procedure with the same name and owners
+ * makes the next revision. status is "draft" or "approved". uses counts
+ * the episodes that used the procedure, by outcome.
+ */
+export interface Procedure {
+  id: string;
+  name: string;
+  goal: string;
+  inputs: Record<string, string>;
+  steps: string;
+  definition?: string;
+  revision: number;
+  status: string;
+  uses: Record<string, number>;
+  entities: string[];
+  owners: string[];
+  readers: string[];
+  createdMs: number;
+  updatedMs: number;
+}
+
+/**
  * stance is "supports", "contradicts", or "mentions".
  */
 export interface Evidence {
   id: string;
   subject: string;
-  refKind: string;
-  ref: string;
+  ref: Ref;
   stance: string;
   note?: string;
-  owner: string;
   createdMs: number;
 }
 
 /**
- * Creates or updates a node. Without id, a node that has the same owner
- * and external system and locator is updated. Otherwise a new node is made.
+ * One change of a record. operation is "create", "fix", "update",
+ * "retract", "merge", "unmerge", or "dispute". before and after are JSON
+ * text of the changed fields; an erased retraction keeps neither.
  */
-export interface PutNodeRequest {
-  id?: string;
-  kind: string;
-  label: string;
-  summary?: string;
-  properties?: Record<string, string>;
-  external?: ExternalRef;
-  scope?: string;
-  authoredBy?: string;
-  confidence?: number;
-  owner?: string;
-}
-
-export interface GetNodeRequest {
+export interface Change {
   id: string;
-}
-
-export interface NodeView {
-  node: Node;
-  edges: Edge[];
-  evidence: Evidence[];
+  record: string;
+  operation: string;
+  actor: string;
+  reason?: string;
+  before?: string;
+  after?: string;
+  utterance?: string;
+  atMs: number;
 }
 
 /**
- * Creates or updates the edge with the same from_node, to_node, and relation.
+ * state is "open", "accepted", or "rejected".
  */
-export interface PutEdgeRequest {
-  fromNode: string;
-  toNode: string;
-  relation: string;
+export interface Dispute {
+  id: string;
+  record: string;
+  by: string;
+  reason: string;
+  proposed?: string;
+  state: string;
+  resolution?: string;
+  owners: string[];
+  createdMs: number;
+  updatedMs: number;
+}
+
+export interface Group {
+  id: string;
+  label: string;
+  members: string[];
+  owners: string[];
+  updatedMs: number;
+}
+
+/**
+ * Makes an entity, or returns the entity with the same external system and
+ * locator, or with the same kind and label (or alias), for the same owners.
+ * An existing entity takes the new aliases and the absent fields; other
+ * differences need change with operation fix.
+ */
+export interface PutEntityRequest {
+  kind: string;
+  label: string;
+  aliases?: string[];
+  summary?: string;
   properties?: Record<string, string>;
+  external?: ExternalRef;
+  owners?: string[];
+  readers?: string[];
   confidence?: number;
-  owner?: string;
+  actFor?: string;
+  utterance?: string;
+}
+
+/**
+ * The self entity of the caller (or of "act_for"): kind person, alias "me".
+ */
+export interface SelfRequest {
+  label?: string;
+  actFor?: string;
+}
+
+/**
+ * Makes a claim, or returns the current claim with the same subject,
+ * relation, and object or value (and adds the evidence). Give object or
+ * value.
+ */
+export interface AssertRequest {
+  subject: string;
+  relation: string;
+  object?: string;
+  value?: string;
+  validFromMs?: number;
+  validToMs?: number;
+  confidence?: number;
+  authoredBy?: string;
+  derivedFrom?: string[];
+  evidence?: Ref[];
+  owners?: string[];
+  readers?: string[];
+  actFor?: string;
+  utterance?: string;
+}
+
+/**
+ * Changes a record. operation is "fix", "update", or "retract".
+ * fix: the fields in set replace the stored ones (any record type).
+ * update: claims only; ends the claim at at_ms (default now) and makes a
+ * new claim with the fields in set; the response is the new claim.
+ * retract: removes the record from queries; erase also removes its
+ * content from the history. A retracted entity takes its claims with it.
+ * set keys: entity: label, kind, summary, aliases (comma-separated),
+ * property.NAME; claim: relation, object, value, valid_from_ms,
+ * valid_to_ms, confidence; episode: title, summary, outcome, ended_ms;
+ * procedure: goal, steps, status; evidence: stance, note.
+ */
+export interface ChangeRequest {
+  id: string;
+  operation: string;
+  set?: Record<string, string>;
+  atMs?: number;
+  erase?: boolean;
+  reason?: string;
+  actFor?: string;
+  utterance?: string;
+}
+
+export interface ChangeResponse {
+  change: Change;
+  entity?: Entity;
+  claim?: Claim;
+  episode?: Episode;
+  procedure?: Procedure;
+}
+
+/**
+ * Merges entity merge into entity keep. The claims, episodes, and evidence
+ * of merge move to keep; its label becomes an alias of keep. Both must
+ * have the same owners. unmerge reverts a merge by its change id.
+ */
+export interface MergeRequest {
+  keep: string;
+  merge: string;
+  reason?: string;
+  actFor?: string;
+  utterance?: string;
+}
+
+export interface UnmergeRequest {
+  change: string;
+  actFor?: string;
+}
+
+export interface RecordEpisodeRequest {
+  id?: string;
+  kind: string;
+  title: string;
+  summary?: string;
+  startedMs?: number;
+  endedMs?: number;
+  participants?: string[];
+  entities?: string[];
+  refs?: Ref[];
+  procedure?: string;
+  outcome?: string;
+  owners?: string[];
+  readers?: string[];
+  actFor?: string;
+}
+
+export interface PutProcedureRequest {
+  name: string;
+  goal: string;
+  inputs?: Record<string, string>;
+  steps: string;
+  definition?: string;
+  status?: string;
+  entities?: string[];
+  owners?: string[];
+  readers?: string[];
+  actFor?: string;
+  reason?: string;
 }
 
 export interface LinkEvidenceRequest {
   subject: string;
-  refKind: string;
-  ref: string;
+  ref: Ref;
   stance?: string;
   note?: string;
-  owner?: string;
+  actFor?: string;
 }
 
 /**
- * Finds nodes visible to the caller. text matches label, summary, and
- * property values. near returns nodes within depth edges of a node.
- * The response includes edges between the returned nodes. owner selects
- * the records of another subject; it needs knowledge:act-as or admin.
+ * A person who can read a record and does not agree with it.
  */
-export interface QueryRequest {
+export interface DisputeRequest {
+  record: string;
+  reason: string;
+  proposed?: string;
+  actFor?: string;
+}
+
+/**
+ * An owner accepts or rejects a dispute. Accepting does not change the
+ * record; do the change, then resolve.
+ */
+export interface ResolveDisputeRequest {
+  id: string;
+  accept: boolean;
+  resolution?: string;
+  actFor?: string;
+}
+
+export interface ListDisputesRequest {
+  state?: string;
+  actFor?: string;
+}
+
+export interface ListDisputesResponse {
+  disputes: Dispute[];
+}
+
+export interface PutGroupRequest {
+  id: string;
+  label: string;
+  members: string[];
+  owners?: string[];
+  actFor?: string;
+}
+
+/**
+ * types selects record types ("entity", "claim", "episode", "procedure");
+ * all by default. kind filters entity, episode kinds. at_ms: claims true
+ * at that time; include_ended: ended claims also.
+ */
+export interface SearchRequest {
   text?: string;
-  owner?: string;
+  types?: string[];
   kind?: string;
-  near?: string;
+  relation?: string;
+  atMs?: number;
+  includeEnded?: boolean;
+  limit?: number;
+  actFor?: string;
+}
+
+/**
+ * A hit is one record. The entities that the claims, episodes, and
+ * procedures refer to are in entities.
+ */
+export interface Hit {
+  type: string;
+  id: string;
+  score: number;
+}
+
+export interface SearchResponse {
+  hits: Hit[];
+  entities: Entity[];
+  claims: Claim[];
+  episodes: Episode[];
+  procedures: Procedure[];
+}
+
+export interface AboutRequest {
+  id: string;
+  atMs?: number;
+  includeEnded?: boolean;
+  actFor?: string;
+}
+
+export interface AboutResponse {
+  entity: Entity;
+  /**
+   * Claims with the entity as subject or object, and the entities they name.
+   */
+  claims: Claim[];
+  related: Entity[];
+  episodes: Episode[];
+  procedures: Procedure[];
+  evidence: Evidence[];
+  disputes: Dispute[];
+}
+
+export interface NeighborsRequest {
+  id: string;
+  relation?: string;
   depth?: number;
   limit?: number;
+  actFor?: string;
 }
 
-export interface QueryResponse {
-  nodes: Node[];
-  edges: Edge[];
+export interface NeighborsResponse {
+  entities: Entity[];
+  claims: Claim[];
 }
 
-export interface DeleteRequest {
+export interface TimelineRequest {
+  entity?: string;
+  fromMs: number;
+  toMs: number;
+  limit?: number;
+  actFor?: string;
+}
+
+export interface TimelineResponse {
+  episodes: Episode[];
+  claims: Claim[];
+  changes: Change[];
+}
+
+export interface HistoryRequest {
   id: string;
+  actFor?: string;
 }
 
-export interface DeleteResponse {
-  deleted: boolean;
+export interface HistoryResponse {
+  changes: Change[];
+}
+
+export interface GetRequest {
+  id: string;
+  actFor?: string;
+}
+
+export interface GetResponse {
+  entity?: Entity;
+  claim?: Claim;
+  episode?: Episode;
+  procedure?: Procedure;
+  evidence?: Evidence;
 }
 

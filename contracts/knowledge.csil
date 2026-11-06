@@ -2,119 +2,338 @@ options {
   go_package: "knowledgeapi",
 }
 
-;;; A reference to a record in an external system. system is the id of a
-;;; knowledge node of kind "system", or a stable system name. locator is the
-;;; address of the record inside that system, such as a calendar URL.
+;;; The knowledge primitive keeps entities, claims (semantic memory),
+;;; episodes (episodic memory), procedures (procedural memory), and the
+;;; evidence for them. See docs/knowledge.md.
+;;;
+;;; Access: each record has owners and readers. An item is a subject
+;;; ("user:...", "service:...") or a group ("group:..."). Owners read,
+;;; change, and dispute a record. Readers read and dispute it. A caller can
+;;; set owners only to the self and to groups that the caller is a member of;
+;;; knowledge:act-as permits all owners and acts as the subject in "act_for".
+;;; knowledge:admin permits all operations.
+
+;;; A reference to a record in another system. system is a stable system
+;;; name or the id of an entity of kind "system". locator is the address of
+;;; the record in that system.
 ExternalRef = {
   system: text,
   locator: text,
   ? context: text,
 }
 
-;;; A thing that Magi knows about. Examples of kind: "person", "system",
-;;; "calendar", "repository", "fact", "preference". scope is a policy tag
-;;; such as "private", "household", or "public". authored_by is set when a
-;;; human wrote the content. confidence is from 0 to 1.
-Node = {
+;;; A reference from an episode or evidence to another record. kind is
+;;; "utterance", "workflow-run", "artifact", "external", "url", or a
+;;; knowledge record type ("entity", "claim", "episode", "procedure").
+Ref = { kind: text, ref: text, ? title: text }
+
+Entity = {
   id: text,
   kind: text,
   label: text,
+  aliases: [* text],
   summary: text,
   properties: { * text => text },
   ? external: ExternalRef,
-  owner: text,
-  scope: text,
-  ? authored_by: text,
+  owners: [* text],
+  readers: [* text],
   confidence: float,
+  ;;; Set when this entity was merged into another one.
+  ? merged_into: text,
   created_ms: uint,
   updated_ms: uint,
 }
 
-;;; A directed relation between two nodes, such as "owns", "member-of",
-;;; "located-in", or "uses".
-Edge = {
+;;; One statement: subject relation object (an entity) or value (text).
+;;; status is "current", "ended" (an update replaced it, or valid_to_ms is
+;;; in the past), or "retracted" (only in history). stale is true when a
+;;; claim in derived_from changed after this claim was made. supported is
+;;; false when no evidence supports the claim and no person wrote it.
+Claim = {
   id: text,
-  from_node: text,
-  to_node: text,
+  subject: text,
   relation: text,
-  properties: { * text => text },
-  owner: text,
+  ? object: text,
+  ? value: text,
+  ? valid_from_ms: uint,
+  ? valid_to_ms: uint,
+  status: text,
+  ? replaced_by: text,
   confidence: float,
+  ? authored_by: text,
+  derived_from: [* text],
+  stale: bool,
+  supported: bool,
+  owners: [* text],
+  readers: [* text],
   created_ms: uint,
+  updated_ms: uint,
 }
 
-;;; A link from a node or edge to the record that supports it.
-;;; ref_kind is "artifact", "utterance", "external", or "url".
+;;; A thing that occurred. kind is open text, for example "conversation",
+;;; "investigation", "task", "observation", "import".
+Episode = {
+  id: text,
+  kind: text,
+  title: text,
+  summary: text,
+  started_ms: uint,
+  ? ended_ms: uint,
+  participants: [* text],
+  entities: [* text],
+  refs: [* Ref],
+  ? procedure: text,
+  ? outcome: text,
+  owners: [* text],
+  readers: [* text],
+  created_ms: uint,
+  updated_ms: uint,
+}
+
+;;; How to do a thing. Each put-procedure with the same name and owners
+;;; makes the next revision. status is "draft" or "approved". uses counts
+;;; the episodes that used the procedure, by outcome.
+Procedure = {
+  id: text,
+  name: text,
+  goal: text,
+  inputs: { * text => text },
+  steps: text,
+  ? definition: text,
+  revision: uint,
+  status: text,
+  uses: { * text => uint },
+  entities: [* text],
+  owners: [* text],
+  readers: [* text],
+  created_ms: uint,
+  updated_ms: uint,
+}
+
 ;;; stance is "supports", "contradicts", or "mentions".
 Evidence = {
   id: text,
   subject: text,
-  ref_kind: text,
-  ref: text,
+  ref: Ref,
   stance: text,
   ? note: text,
-  owner: text,
   created_ms: uint,
 }
 
-;;; Creates or updates a node. Without id, a node that has the same owner
-;;; and external system and locator is updated. Otherwise a new node is made.
-PutNodeRequest = {
-  ? id: text,
+;;; One change of a record. operation is "create", "fix", "update",
+;;; "retract", "merge", "unmerge", or "dispute". before and after are JSON
+;;; text of the changed fields; an erased retraction keeps neither.
+Change = {
+  id: text,
+  record: text,
+  operation: text,
+  actor: text,
+  ? reason: text,
+  ? before: text,
+  ? after: text,
+  ? utterance: text,
+  at_ms: uint,
+}
+
+;;; state is "open", "accepted", or "rejected".
+Dispute = {
+  id: text,
+  record: text,
+  by: text,
+  reason: text,
+  ? proposed: text,
+  state: text,
+  ? resolution: text,
+  owners: [* text],
+  created_ms: uint,
+  updated_ms: uint,
+}
+
+Group = { id: text, label: text, members: [* text], owners: [* text], updated_ms: uint }
+
+;;; Common fields of a write. act_for: the subject that the call acts for (needs
+;;; knowledge:act-as). utterance: the utterance that asked for the write;
+;;; it goes into the history and, for a new record, into the evidence.
+;;; reason: text for the history.
+
+;;; Makes an entity, or returns the entity with the same external system and
+;;; locator, or with the same kind and label (or alias), for the same owners.
+;;; An existing entity takes the new aliases and the absent fields; other
+;;; differences need change with operation fix.
+PutEntityRequest = {
   kind: text,
   label: text,
+  ? aliases: [* text],
   ? summary: text,
   ? properties: { * text => text },
   ? external: ExternalRef,
-  ? scope: text,
-  ? authored_by: text,
+  ? owners: [* text],
+  ? readers: [* text],
   ? confidence: float,
-  ? owner: text,
-}
-GetNodeRequest = { id: text }
-NodeView = { node: Node, edges: [* Edge], evidence: [* Evidence] }
-
-;;; Creates or updates the edge with the same from_node, to_node, and relation.
-PutEdgeRequest = {
-  from_node: text,
-  to_node: text,
-  relation: text,
-  ? properties: { * text => text },
-  ? confidence: float,
-  ? owner: text,
+  ? act_for: text,
+  ? utterance: text,
 }
 
-LinkEvidenceRequest = {
+;;; The self entity of the caller (or of "act_for"): kind person, alias "me".
+SelfRequest = { ? label: text, ? act_for: text }
+
+;;; Makes a claim, or returns the current claim with the same subject,
+;;; relation, and object or value (and adds the evidence). Give object or
+;;; value.
+AssertRequest = {
   subject: text,
-  ref_kind: text,
-  ref: text,
-  ? stance: text,
-  ? note: text,
-  ? owner: text,
+  relation: text,
+  ? object: text,
+  ? value: text,
+  ? valid_from_ms: uint,
+  ? valid_to_ms: uint,
+  ? confidence: float,
+  ? authored_by: text,
+  ? derived_from: [* text],
+  ? evidence: [* Ref],
+  ? owners: [* text],
+  ? readers: [* text],
+  ? act_for: text,
+  ? utterance: text,
 }
 
-;;; Finds nodes visible to the caller. text matches label, summary, and
-;;; property values. near returns nodes within depth edges of a node.
-;;; The response includes edges between the returned nodes. owner selects
-;;; the records of another subject; it needs knowledge:act-as or admin.
-QueryRequest = {
+;;; Changes a record. operation is "fix", "update", or "retract".
+;;; fix: the fields in set replace the stored ones (any record type).
+;;; update: claims only; ends the claim at at_ms (default now) and makes a
+;;;   new claim with the fields in set; the response is the new claim.
+;;; retract: removes the record from queries; erase also removes its
+;;;   content from the history. A retracted entity takes its claims with it.
+;;; set keys: entity: label, kind, summary, aliases (comma-separated),
+;;;   property.NAME; claim: relation, object, value, valid_from_ms,
+;;;   valid_to_ms, confidence; episode: title, summary, outcome, ended_ms;
+;;;   procedure: goal, steps, status; evidence: stance, note.
+ChangeRequest = {
+  id: text,
+  operation: text,
+  ? set: { * text => text },
+  ? at_ms: uint,
+  ? erase: bool,
+  ? reason: text,
+  ? act_for: text,
+  ? utterance: text,
+}
+ChangeResponse = { change: Change, ? entity: Entity, ? claim: Claim, ? episode: Episode, ? procedure: Procedure }
+
+;;; Merges entity merge into entity keep. The claims, episodes, and evidence
+;;; of merge move to keep; its label becomes an alias of keep. Both must
+;;; have the same owners. unmerge reverts a merge by its change id.
+MergeRequest = { keep: text, merge: text, ? reason: text, ? act_for: text, ? utterance: text }
+UnmergeRequest = { change: text, ? act_for: text }
+
+RecordEpisodeRequest = {
+  ? id: text,
+  kind: text,
+  title: text,
+  ? summary: text,
+  ? started_ms: uint,
+  ? ended_ms: uint,
+  ? participants: [* text],
+  ? entities: [* text],
+  ? refs: [* Ref],
+  ? procedure: text,
+  ? outcome: text,
+  ? owners: [* text],
+  ? readers: [* text],
+  ? act_for: text,
+}
+
+PutProcedureRequest = {
+  name: text,
+  goal: text,
+  ? inputs: { * text => text },
+  steps: text,
+  ? definition: text,
+  ? status: text,
+  ? entities: [* text],
+  ? owners: [* text],
+  ? readers: [* text],
+  ? act_for: text,
+  ? reason: text,
+}
+
+LinkEvidenceRequest = { subject: text, ref: Ref, ? stance: text, ? note: text, ? act_for: text }
+
+;;; A person who can read a record and does not agree with it.
+DisputeRequest = { record: text, reason: text, ? proposed: text, ? act_for: text }
+;;; An owner accepts or rejects a dispute. Accepting does not change the
+;;; record; do the change, then resolve.
+ResolveDisputeRequest = { id: text, accept: bool, ? resolution: text, ? act_for: text }
+ListDisputesRequest = { ? state: text, ? act_for: text }
+ListDisputesResponse = { disputes: [* Dispute] }
+
+PutGroupRequest = { id: text, label: text, members: [* text], ? owners: [* text], ? act_for: text }
+
+;;; types selects record types ("entity", "claim", "episode", "procedure");
+;;; all by default. kind filters entity, episode kinds. at_ms: claims true
+;;; at that time; include_ended: ended claims also.
+SearchRequest = {
   ? text: text,
-  ? owner: text,
+  ? types: [* text],
   ? kind: text,
-  ? near: text,
-  ? depth: uint,
+  ? relation: text,
+  ? at_ms: uint,
+  ? include_ended: bool,
   ? limit: uint,
+  ? act_for: text,
 }
-QueryResponse = { nodes: [* Node], edges: [* Edge] }
+;;; A hit is one record. The entities that the claims, episodes, and
+;;; procedures refer to are in entities.
+Hit = { type: text, id: text, score: float }
+SearchResponse = {
+  hits: [* Hit],
+  entities: [* Entity],
+  claims: [* Claim],
+  episodes: [* Episode],
+  procedures: [* Procedure],
+}
 
-DeleteRequest = { id: text }
-DeleteResponse = { deleted: bool }
+AboutRequest = { id: text, ? at_ms: uint, ? include_ended: bool, ? act_for: text }
+AboutResponse = {
+  entity: Entity,
+  ;;; Claims with the entity as subject or object, and the entities they name.
+  claims: [* Claim],
+  related: [* Entity],
+  episodes: [* Episode],
+  procedures: [* Procedure],
+  evidence: [* Evidence],
+  disputes: [* Dispute],
+}
+
+NeighborsRequest = { id: text, ? relation: text, ? depth: uint, ? limit: uint, ? act_for: text }
+NeighborsResponse = { entities: [* Entity], claims: [* Claim] }
+
+TimelineRequest = { ? entity: text, from_ms: uint, to_ms: uint, ? limit: uint, ? act_for: text }
+TimelineResponse = { episodes: [* Episode], claims: [* Claim], changes: [* Change] }
+
+HistoryRequest = { id: text, ? act_for: text }
+HistoryResponse = { changes: [* Change] }
+
+GetRequest = { id: text, ? act_for: text }
+GetResponse = { ? entity: Entity, ? claim: Claim, ? episode: Episode, ? procedure: Procedure, ? evidence: Evidence }
 
 service KnowledgeService {
-  put-node: PutNodeRequest -> Node,
-  get-node: GetNodeRequest -> NodeView,
-  put-edge: PutEdgeRequest -> Edge,
+  put-entity: PutEntityRequest -> Entity,
+  self: SelfRequest -> Entity,
+  assert: AssertRequest -> Claim,
+  change: ChangeRequest -> ChangeResponse,
+  merge: MergeRequest -> Change,
+  unmerge: UnmergeRequest -> Change,
+  record-episode: RecordEpisodeRequest -> Episode,
+  put-procedure: PutProcedureRequest -> Procedure,
   link-evidence: LinkEvidenceRequest -> Evidence,
-  query: QueryRequest -> QueryResponse,
-  delete: DeleteRequest -> DeleteResponse,
+  dispute: DisputeRequest -> Dispute,
+  resolve-dispute: ResolveDisputeRequest -> Dispute,
+  list-disputes: ListDisputesRequest -> ListDisputesResponse,
+  put-group: PutGroupRequest -> Group,
+  search: SearchRequest -> SearchResponse,
+  about: AboutRequest -> AboutResponse,
+  neighbors: NeighborsRequest -> NeighborsResponse,
+  timeline: TimelineRequest -> TimelineResponse,
+  history: HistoryRequest -> HistoryResponse,
+  get: GetRequest -> GetResponse,
 }

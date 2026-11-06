@@ -29,11 +29,11 @@ type personaProfile struct {
 }
 
 var profiles = map[string]personaProfile{
-	Persona: {name: "Magi", prompt: personaPrompt + noticeRules, tools: []string{
-		"recall", "remember", "start_code_change", "search_conversation", "list_tasks", "cancel_task", "send_notice", "list_devices"}},
-	Engineering: {name: "Engineering manager", prompt: engineeringPrompt + noticeRules, tools: []string{
+	Persona: {name: "Magi", prompt: personaPrompt + knowledgeRules + noticeRules, tools: []string{
+		"recall", "remember", "change_knowledge", "start_code_change", "search_conversation", "list_tasks", "cancel_task", "send_notice", "list_devices"}},
+	Engineering: {name: "Engineering manager", prompt: engineeringPrompt + knowledgeRules + noticeRules, tools: []string{
 		"list_tasks", "task_status", "task_diff", "start_code_change", "decide_task", "cancel_task", "list_runners",
-		"send_notice", "list_devices", "search_conversation", "recall", "remember"}},
+		"send_notice", "list_devices", "search_conversation", "recall", "remember", "change_knowledge"}},
 }
 
 func profileFor(persona string) personaProfile {
@@ -365,6 +365,7 @@ var claims = []struct {
 	{"decide_task", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (approved|rejected|sent (?:it|the task|the change) back)\b`)},
 	{"cancel_task", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (stopped|cancell?ed) (?:the |that |your )?task\b`)},
 	{"remember", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (recorded|remembered|saved|noted)\b`)},
+	{"change_knowledge", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (updated|corrected|fixed|changed|removed|deleted|forgotten|retracted)\b`)},
 }
 
 // claimNote says what did not happen, for each tool of claims.
@@ -374,6 +375,7 @@ var claimNote = map[string]string{
 	"decide_task":       "no decision was recorded.",
 	"cancel_task":       "no task was stopped.",
 	"remember":          "nothing was recorded.",
+	"change_knowledge":  "nothing was changed.",
 }
 
 // falseClaim returns the tool of an action that reply says was done, when
@@ -386,7 +388,7 @@ func falseClaim(reply string, calls []map[string]any, tools []string) string {
 		done := false
 		for _, call := range calls {
 			res, _ := call["result"].(string)
-			if call["tool"] == c.tool && !strings.HasPrefix(res, "error") {
+			if call["tool"] == c.tool && !strings.HasPrefix(res, "error") && !strings.HasPrefix(res, "Not recorded") {
 				done = true
 			}
 		}

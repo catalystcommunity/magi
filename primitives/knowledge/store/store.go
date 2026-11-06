@@ -1,4 +1,9 @@
-// Package store keeps knowledge nodes, edges, and evidence in PostgreSQL.
+// Package store keeps entities, claims, episodes, procedures, evidence,
+// changes, disputes, and groups in PostgreSQL (docs/knowledge.md).
+//
+// Access is part of each query: a Who gives the principals of the caller
+// (the subject and its groups). A record is visible when its owners or
+// readers contain a principal, and changeable when its owners do.
 package store
 
 import (
@@ -6,19 +11,17 @@ import (
 	"crypto/rand"
 	_ "embed"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
 	"slices"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
-
-	api "github.com/catalystcommunity/magi/primitives/knowledge/api"
 )
 
 //go:embed schema.sql
@@ -27,12 +30,32 @@ var schema string
 var (
 	ErrNotFound = errors.New("not found")
 	ErrConflict = errors.New("conflict")
+	ErrInvalid  = errors.New("invalid")
 )
+
+func invalid(format string, a ...any) error {
+	return fmt.Errorf("%w: %s", ErrInvalid, fmt.Sprintf(format, a...))
+}
 
 // Store is the knowledge database.
 type Store struct {
 	DB  *pgxpool.Pool
 	Now func() time.Time
+}
+
+// Who is the caller of an operation. Subject is the actor in the history.
+// Principals are the subject and the groups that it is a member of. All
+// permits every record (knowledge:admin).
+type Who struct {
+	Subject    string
+	Principals []string
+	All        bool
+}
+
+type querier interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
 }
 
 // Open connects to url and applies the schema.
@@ -51,12 +74,45 @@ func Open(ctx context.Context, url string) (*Store, error) {
 
 func (s *Store) Close() { s.DB.Close() }
 
+// The first schema had nodes, edges, and evidence. Its tables become
+// legacy_*, and their rows become entities, claims, and evidence once.
+const legacyRename = `DO $$ BEGIN
+IF to_regclass('public.nodes') IS NOT NULL THEN
+  ALTER TABLE nodes RENAME TO legacy_nodes;
+  ALTER TABLE edges RENAME TO legacy_edges;
+  ALTER TABLE evidence RENAME TO legacy_evidence;
+  ALTER INDEX evidence_pkey RENAME TO legacy_evidence_pkey;
+  ALTER INDEX evidence_subject_ref_kind_ref_key RENAME TO legacy_evidence_subject_ref_kind_ref_key;
+END IF; END $$`
+
+const legacyCopy = `DO $$ BEGIN
+IF to_regclass('public.legacy_nodes') IS NOT NULL THEN
+IF NOT EXISTS (SELECT 1 FROM entities e JOIN legacy_nodes n ON n.id = e.id) THEN
+  INSERT INTO entities (id, kind, label, summary, properties, ext_system, ext_locator, ext_context, owners, confidence, created_ms, updated_ms)
+    SELECT id, kind, label, summary, properties, ext_system, ext_locator, ext_context, ARRAY[owner], confidence, created_ms, updated_ms FROM legacy_nodes;
+  INSERT INTO claims (id, subject, relation, object, confidence, owners, created_ms, updated_ms)
+    SELECT id, from_node, relation, to_node, confidence, ARRAY[owner], created_ms, created_ms FROM legacy_edges;
+  INSERT INTO evidence (id, subject, ref_kind, ref, stance, note, owners, created_ms)
+    SELECT id, subject, ref_kind, ref, stance, note, ARRAY[owner], created_ms FROM legacy_evidence;
+  INSERT INTO changes (id, record, operation, actor, reason, owners, at_ms)
+    SELECT 'chg_legacy_' || id, id, 'create', owner, 'imported from the first knowledge schema', ARRAY[owner], created_ms FROM legacy_nodes;
+END IF;
+END IF; END $$`
+
 func (s *Store) migrate(ctx context.Context) error {
 	return pgx.BeginFunc(ctx, s.DB, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock(7316001)"); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, schema)
+		for _, q := range []string{legacyRename, schema, legacyCopy} {
+			if _, err := tx.Exec(ctx, q); err != nil {
+				return err
+			}
+		}
+		if _, err := tx.Exec(ctx, `UPDATE entities SET search_text = `+entitySearch+` WHERE search_text = ''`); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `UPDATE claims c SET search_text = `+claimSearch+` WHERE c.search_text = ''`)
 		return err
 	})
 }
@@ -75,40 +131,18 @@ func NewID(prefix string) string {
 	return prefix + base64.RawURLEncoding.EncodeToString(b)
 }
 
-const nodeCols = `id, owner, kind, label, summary, properties, ext_system, ext_locator, ext_context, scope, authored_by, confidence, created_ms, updated_ms`
-const edgeCols = `id, owner, from_node, to_node, relation, properties, confidence, created_ms`
-const evidenceCols = `id, owner, subject, ref_kind, ref, stance, note, created_ms`
-
-func scanNode(r pgx.Row) (api.Node, error) {
-	var n api.Node
-	var sys, loc *string
-	var ctx *string
-	err := r.Scan(&n.Id, &n.Owner, &n.Kind, &n.Label, &n.Summary, &n.Properties, &sys, &loc, &ctx, &n.Scope, &n.AuthoredBy, &n.Confidence, &n.CreatedMs, &n.UpdatedMs)
-	if sys != nil && loc != nil {
-		n.External = &api.ExternalRef{System: *sys, Locator: *loc, Context: ctx}
+func notFound(err error) error {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
 	}
-	if n.Properties == nil {
-		n.Properties = map[string]string{}
+	var pe *pgconn.PgError
+	if errors.As(err, &pe) && pe.Code == "23505" {
+		return fmt.Errorf("%w: %s", ErrConflict, pe.ConstraintName)
 	}
-	return n, notFound(err)
+	return err
 }
 
-func scanEdge(r pgx.Row) (api.Edge, error) {
-	var e api.Edge
-	err := r.Scan(&e.Id, &e.Owner, &e.FromNode, &e.ToNode, &e.Relation, &e.Properties, &e.Confidence, &e.CreatedMs)
-	if e.Properties == nil {
-		e.Properties = map[string]string{}
-	}
-	return e, notFound(err)
-}
-
-func scanEvidence(r pgx.Row) (api.Evidence, error) {
-	var v api.Evidence
-	err := r.Scan(&v.Id, &v.Owner, &v.Subject, &v.RefKind, &v.Ref, &v.Stance, &v.Note, &v.CreatedMs)
-	return v, notFound(err)
-}
-
-func collect[T any](ctx context.Context, db *pgxpool.Pool, scan func(pgx.Row) (T, error), sql string, args ...any) ([]T, error) {
+func collect[T any](ctx context.Context, db querier, scan func(pgx.Row) (T, error), sql string, args ...any) ([]T, error) {
 	rows, err := db.Query(ctx, sql, args...)
 	if err != nil {
 		return nil, err
@@ -125,281 +159,92 @@ func collect[T any](ctx context.Context, db *pgxpool.Pool, scan func(pgx.Row) (T
 	return out, rows.Err()
 }
 
-func notFound(err error) error {
-	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrNotFound
-	}
-	var pe *pgconn.PgError
-	if errors.As(err, &pe) && pe.Code == "23505" {
-		return fmt.Errorf("%w: %s", ErrConflict, pe.ConstraintName)
-	}
-	return err
-}
-
-// searchText is the text that query matches: label, summary, and the
-// property values in key order.
-func searchText(label, summary string, props map[string]string) string {
-	parts := []string{label, summary}
-	for _, k := range slices.Sorted(maps.Keys(props)) {
-		parts = append(parts, props[k])
-	}
-	return strings.Join(parts, " ")
-}
-
-// NodeInput is a validated put-node request. Nil fields keep stored values
-// on update and take defaults on create.
-type NodeInput struct {
-	ID         string // empty: match by external or create
-	Owner      string
-	Kind       string
-	Label      string
-	Summary    *string
-	Properties map[string]string
-	External   *api.ExternalRef
-	Scope      *string
-	AuthoredBy *string
-	Confidence *float64
-}
-
-// PutNode creates or updates a node as the contract describes. With an ID,
-// the node must exist. Without one, a node with the same owner and external
-// system and locator is updated.
-func (s *Store) PutNode(ctx context.Context, in NodeInput) (api.Node, error) {
-	now := s.now()
-	var sys, loc, xctx *string
-	if in.External != nil {
-		sys, loc, xctx = &in.External.System, &in.External.Locator, in.External.Context
-	}
-	var props any
-	if in.Properties != nil {
-		props = in.Properties
-	}
-	// Each optional value is passed as NULL when absent. COALESCE keeps the
-	// stored value on update.
-	set := `kind = $3, label = $4,
-		summary = COALESCE($5, nodes.summary),
-		properties = COALESCE($6::jsonb, nodes.properties),
-		ext_system = COALESCE($7, nodes.ext_system),
-		ext_locator = COALESCE($8, nodes.ext_locator),
-		ext_context = COALESCE($9, nodes.ext_context),
-		scope = COALESCE($10, nodes.scope),
-		authored_by = COALESCE($11, nodes.authored_by),
-		confidence = COALESCE($12, nodes.confidence),
-		updated_ms = $13`
-	args := []any{in.ID, in.Owner, in.Kind, in.Label, in.Summary, props, sys, loc, xctx, in.Scope, in.AuthoredBy, in.Confidence, now}
-	var q string
-	if in.ID != "" {
-		q = `UPDATE nodes SET ` + set + ` WHERE id = $1 AND owner = $2 RETURNING ` + nodeCols
-	} else {
-		args[0] = NewID("nod_")
-		q = `INSERT INTO nodes (id, owner, kind, label, summary, properties, ext_system, ext_locator, ext_context, scope, authored_by, confidence, created_ms, updated_ms)
-		VALUES ($1, $2, $3, $4, COALESCE($5, ''), COALESCE($6::jsonb, '{}'), $7, $8, $9, COALESCE($10, 'private'), $11, COALESCE($12, 1.0), $13, $13)
-		ON CONFLICT (owner, ext_system, ext_locator) WHERE ext_system IS NOT NULL DO UPDATE SET ` + set + `
-		RETURNING ` + nodeCols
-	}
-	var n api.Node
-	err := pgx.BeginFunc(ctx, s.DB, func(tx pgx.Tx) error {
-		var err error
-		if n, err = scanNode(tx.QueryRow(ctx, q, args...)); err != nil {
-			return err
-		}
-		_, err = tx.Exec(ctx, `UPDATE nodes SET search_text = $2 WHERE id = $1`, n.Id, searchText(n.Label, n.Summary, n.Properties))
-		return err
-	})
-	return n, notFound(err)
-}
-
-// Node returns one node.
-func (s *Store) Node(ctx context.Context, id string) (api.Node, error) {
-	return scanNode(s.DB.QueryRow(ctx, `SELECT `+nodeCols+` FROM nodes WHERE id = $1`, id))
-}
-
-// Edge returns one edge.
-func (s *Store) Edge(ctx context.Context, id string) (api.Edge, error) {
-	return scanEdge(s.DB.QueryRow(ctx, `SELECT `+edgeCols+` FROM edges WHERE id = $1`, id))
-}
-
-// View returns a node, its incident edges, and the evidence for the node
-// and for those edges.
-func (s *Store) View(ctx context.Context, id string) (api.NodeView, error) {
-	n, err := s.Node(ctx, id)
+// Principals returns subject and the groups that have it as a member.
+func (s *Store) Principals(ctx context.Context, subject string) ([]string, error) {
+	rows, err := s.DB.Query(ctx, `SELECT id FROM groups WHERE members @> ARRAY[$1]`, subject)
 	if err != nil {
-		return api.NodeView{}, err
+		return nil, err
 	}
-	edges, err := collect(ctx, s.DB, scanEdge, `SELECT `+edgeCols+` FROM edges WHERE from_node = $1 OR to_node = $1 ORDER BY created_ms, id`, id)
-	if err != nil {
-		return api.NodeView{}, err
-	}
-	subjects := []string{id}
-	for _, e := range edges {
-		subjects = append(subjects, e.Id)
-	}
-	ev, err := collect(ctx, s.DB, scanEvidence, `SELECT `+evidenceCols+` FROM evidence WHERE subject = ANY($1) ORDER BY created_ms, id`, subjects)
-	return api.NodeView{Node: n, Edges: edges, Evidence: ev}, err
+	gs, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	return append([]string{subject}, gs...), err
 }
 
-// PutEdge creates or updates the edge with the same owner, nodes, and relation.
-// Both nodes must belong to owner.
-func (s *Store) PutEdge(ctx context.Context, owner string, req api.PutEdgeRequest) (api.Edge, error) {
-	var count int
-	if err := s.DB.QueryRow(ctx, `SELECT count(*) FROM nodes WHERE owner = $1 AND id IN ($2, $3)`, owner, req.FromNode, req.ToNode).Scan(&count); err != nil {
-		return api.Edge{}, err
-	}
-	if want := map[bool]int{true: 1, false: 2}[req.FromNode == req.ToNode]; count != want {
-		return api.Edge{}, ErrNotFound
-	}
-	var props any
-	if req.Properties != nil {
-		props = req.Properties
-	}
-	return scanEdge(s.DB.QueryRow(ctx, `INSERT INTO edges (`+edgeCols+`)
-		VALUES ($1, $2, $3, $4, $5, COALESCE($6::jsonb, '{}'), COALESCE($7, 1.0), $8)
-		ON CONFLICT (owner, from_node, to_node, relation) DO UPDATE SET
-			properties = COALESCE($6::jsonb, edges.properties),
-			confidence = COALESCE($7, edges.confidence)
-		RETURNING `+edgeCols,
-		NewID("edg_"), owner, req.FromNode, req.ToNode, req.Relation, props, req.Confidence, s.now()))
-}
-
-// LinkEvidence records evidence for subject. The same subject, ref_kind, and
-// ref update the stance and note.
-func (s *Store) LinkEvidence(ctx context.Context, owner string, req api.LinkEvidenceRequest, stance string) (api.Evidence, error) {
-	return scanEvidence(s.DB.QueryRow(ctx, `INSERT INTO evidence (`+evidenceCols+`)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		ON CONFLICT (subject, ref_kind, ref) DO UPDATE SET stance = $6, note = COALESCE($7, evidence.note)
-		RETURNING `+evidenceCols,
-		NewID("evd_"), owner, req.Subject, req.RefKind, req.Ref, stance, req.Note, s.now()))
-}
-
-// Evidence returns one evidence record.
-func (s *Store) Evidence(ctx context.Context, id string) (api.Evidence, error) {
-	return scanEvidence(s.DB.QueryRow(ctx, `SELECT `+evidenceCols+` FROM evidence WHERE id = $1`, id))
-}
-
-// Delete removes a node, edge, or evidence record by ID. A node takes its
-// edges and the evidence of both with it.
-func (s *Store) Delete(ctx context.Context, id string) (bool, error) {
-	var n int64
-	err := pgx.BeginFunc(ctx, s.DB, func(tx pgx.Tx) error {
-		// Evidence has no foreign key because its subject is a node or an edge.
-		if _, err := tx.Exec(ctx, `DELETE FROM evidence WHERE subject = $1 OR subject IN (SELECT id FROM edges WHERE from_node = $1 OR to_node = $1)`, id); err != nil {
-			return err
+// Set returns the sorted, unique, non-empty items of v.
+func Set(v []string) []string {
+	out := []string{}
+	for _, x := range v {
+		if x = strings.TrimSpace(x); x != "" && !slices.Contains(out, x) {
+			out = append(out, x)
 		}
-		for _, t := range []string{"nodes", "edges", "evidence"} {
-			tag, err := tx.Exec(ctx, `DELETE FROM `+t+` WHERE id = $1`, id)
-			if err != nil {
-				return err
-			}
-			n += tag.RowsAffected()
-		}
-		return nil
-	})
-	return n > 0, err
+	}
+	slices.Sort(out)
+	return out
 }
 
-// Query is a validated query.
-type Query struct {
-	Owner string
-	Text  string
-	Kind  string
-	Near  string
-	Depth int
-	Limit int
+// access is an SQL condition on the columns owners and readers of alias t.
+// The arguments are appended to args.
+func access(w Who, t string, write bool, args *[]any) string {
+	if w.All {
+		return "true"
+	}
+	*args = append(*args, w.Principals)
+	n := len(*args)
+	if write {
+		return fmt.Sprintf("%s.owners && $%d", t, n)
+	}
+	return fmt.Sprintf("(%s.owners && $%d OR %s.readers && $%d)", t, n, t, n)
 }
 
-// Find returns the owner's nodes that match q and the edges between them.
-func (s *Store) Find(ctx context.Context, q Query) (api.QueryResponse, error) {
-	args := []any{q.Owner}
-	arg := func(v any) string { args = append(args, v); return fmt.Sprintf("$%d", len(args)) }
-	var with, from = "", "nodes n"
-	where := []string{"n.owner = $1"}
-	order := []string{}
-	if q.Near != "" {
-		near, depth := arg(q.Near), arg(q.Depth)
-		with = `WITH RECURSIVE hood(id, d) AS (
-			SELECT id, 0 FROM nodes WHERE id = ` + near + ` AND owner = $1
-			UNION
-			SELECT CASE WHEN e.from_node = h.id THEN e.to_node ELSE e.from_node END, h.d + 1
-			FROM hood h JOIN edges e ON (e.from_node = h.id OR e.to_node = h.id) AND e.owner = $1
-			WHERE h.d < ` + depth + `
-		), dist AS (SELECT id, min(d) AS d FROM hood GROUP BY id) `
-		from = "nodes n JOIN dist ON dist.id = n.id"
-		order = append(order, "dist.d")
-	}
-	if q.Kind != "" {
-		where = append(where, "n.kind = "+arg(q.Kind))
-	}
-	if q.Text != "" {
-		// Any word can match, so a question in natural words finds records
-		// that hold only some of them. More matched words rank higher. The
-		// word patterns also match inside longer words ("vet" in
-		// "veterinary").
-		words := searchWords(q.Text)
-		ts := arg(strings.Join(words, " or "))
-		likes := []string{"%" + escapeLike(q.Text) + "%"}
-		for _, w := range words {
-			if len([]rune(w)) >= 3 && !stopWords[w] {
-				likes = append(likes, "%"+escapeLike(w)+"%")
-			}
-		}
-		like := arg(likes)
-		where = append(where, "(n.search @@ websearch_to_tsquery('english', "+ts+") OR n.search_text ILIKE ANY("+like+"))")
-		order = append(order, "ts_rank(n.search, websearch_to_tsquery('english', "+ts+")) DESC")
-	}
-	order = append(order, "n.updated_ms DESC", "n.id")
-	sql := with + `SELECT ` + prefixed("n.", nodeCols) + ` FROM ` + from + ` WHERE ` + strings.Join(where, " AND ") +
-		` ORDER BY ` + strings.Join(order, ", ") + ` LIMIT ` + arg(q.Limit)
-	nodes, err := collect(ctx, s.DB, scanNode, sql, args...)
-	if err != nil {
-		return api.QueryResponse{}, err
-	}
-	ids := make([]string, len(nodes))
-	for i, n := range nodes {
-		ids[i] = n.Id
-	}
-	edges, err := collect(ctx, s.DB, scanEdge, `SELECT `+edgeCols+` FROM edges WHERE owner = $1 AND from_node = ANY($2) AND to_node = ANY($2) ORDER BY created_ms, id`, q.Owner, ids)
-	return api.QueryResponse{Nodes: nodes, Edges: edges}, err
+func (w Who) owns(owners []string) bool {
+	return w.All || slices.ContainsFunc(owners, func(o string) bool { return slices.Contains(w.Principals, o) })
 }
 
-func prefixed(p, cols string) string {
-	parts := strings.Split(cols, ", ")
-	for i := range parts {
-		parts[i] = p + parts[i]
+func (w Who) reads(owners, readers []string) bool {
+	return w.owns(owners) || slices.ContainsFunc(readers, func(o string) bool { return slices.Contains(w.Principals, o) })
+}
+
+func jsonText(v any) *string {
+	b, _ := json.Marshal(v)
+	s := string(b)
+	return &s
+}
+
+func sortedKeys(m map[string]string) []string { return slices.Sorted(maps.Keys(m)) }
+
+// change writes one row of the history.
+func (s *Store) change(ctx context.Context, tx querier, record, op string, w Who, owners []string, reason, utterance *string, before, after any) (string, uint64, error) {
+	id, at := NewID("chg_"), s.now()
+	var b, a *string
+	if before != nil {
+		b = jsonText(before)
 	}
-	return strings.Join(parts, ", ")
-}
-
-// searchWords returns the lower-case words of text without punctuation.
-func searchWords(text string) []string {
-	return strings.FieldsFunc(strings.ToLower(text), func(r rune) bool {
-		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
-	})
-}
-
-// stopWords are not used as substring patterns. Full-text search drops them
-// by itself.
-var stopWords = map[string]bool{
-	"the": true, "and": true, "for": true, "how": true, "what": true, "who": true, "where": true,
-	"when": true, "which": true, "with": true, "you": true, "your": true, "are": true, "was": true,
-	"has": true, "have": true, "this": true, "that": true, "from": true, "about": true, "does": true,
-	"can": true, "not": true, "any": true, "all": true, "out": true, "get": true, "use": true,
-}
-
-func escapeLike(s string) string {
-	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(s)
-}
-
-// OwnerOf returns the owner of the node, edge, or evidence record id.
-// kinds limits the tables searched: "nodes", "edges", "evidence".
-func (s *Store) OwnerOf(ctx context.Context, id string, kinds ...string) (string, error) {
-	parts := make([]string, len(kinds))
-	for i, k := range kinds {
-		if k != "nodes" && k != "edges" && k != "evidence" {
-			return "", fmt.Errorf("unknown table %q", k)
-		}
-		parts[i] = `SELECT owner FROM ` + k + ` WHERE id = $1`
+	if after != nil {
+		a = jsonText(after)
 	}
-	var o string
-	err := s.DB.QueryRow(ctx, strings.Join(parts, " UNION ALL ")+" LIMIT 1", id).Scan(&o)
-	return o, notFound(err)
+	_, err := tx.Exec(ctx, `INSERT INTO changes (id, record, operation, actor, reason, before, after, utterance, owners, at_ms)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`, id, record, op, w.Subject, reason, b, a, utterance, owners, at)
+	return id, at, err
+}
+
+// TypeOf returns the record type of id: entity, claim, episode, procedure,
+// or evidence.
+func (s *Store) TypeOf(ctx context.Context, db querier, id string) (string, error) {
+	var t string
+	err := db.QueryRow(ctx, `SELECT 'entity' FROM entities WHERE id = $1
+		UNION ALL SELECT 'claim' FROM claims WHERE id = $1
+		UNION ALL SELECT 'episode' FROM episodes WHERE id = $1
+		UNION ALL SELECT 'procedure' FROM procedures WHERE id = $1
+		UNION ALL SELECT 'evidence' FROM evidence WHERE id = $1 LIMIT 1`, id).Scan(&t)
+	return t, notFound(err)
+}
+
+// ownersOf returns the owners and readers of a record of any type, and
+// whether it is retracted.
+func (s *Store) ownersOf(ctx context.Context, db querier, id string) (owners, readers []string, gone bool, err error) {
+	err = db.QueryRow(ctx, `SELECT owners, readers, status = 'retracted' FROM entities WHERE id = $1
+		UNION ALL SELECT owners, readers, status = 'retracted' FROM claims WHERE id = $1
+		UNION ALL SELECT owners, readers, status = 'retracted' FROM episodes WHERE id = $1
+		UNION ALL SELECT owners, readers, retracted FROM procedures WHERE id = $1
+		UNION ALL SELECT owners, '{}'::text[], retracted FROM evidence WHERE id = $1 LIMIT 1`, id).Scan(&owners, &readers, &gone)
+	return owners, readers, gone, notFound(err)
 }

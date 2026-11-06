@@ -35,8 +35,10 @@ API in `contracts/magi.csil`, two clients, and the background workers.
    shares. The model gets the newest 30 turns and "earlier, related"
    utterances: matches of the words of the new message, with the
    utterances that they link to and from. It can call `recall`,
-   `remember`, `search_conversation`, `start_code_change`, `list_tasks`,
-   and `cancel_task`.
+   `remember`, `change_knowledge`, `search_conversation`,
+   `start_code_change`, `list_tasks`, and `cancel_task`. The knowledge tools
+   follow `docs/knowledge.md`: a correction is a `fix`, `update`, or
+   `retract` of the record, not a second record.
 4. The reply goes to the stream as a persona utterance, with a `reply-to`
    link, and a `started` link to each task that it started. The tool calls
    are kept as an `interpretation` annotation on the person's utterance.
@@ -394,7 +396,10 @@ magi personas; magi persona persona:butler Butler public user:a@x user:b@x   # o
 magi say -speak -audio question.wav
 magi tasks; magi task RUN; magi diff RUN; magi decide RUN approve
 magi cancel RUN -m "not needed"   # stop a task; asks first at a risky step
-magi know calendar
+magi know calendar; magi know -past dentist
+magi remember me dentist "Dr. Rivera" -object-kind person
+magi fix clm_x Phoenix -m "misheard"; magi update clm_y "Dr. Chen"; magi retract clm_z
+magi merge ent_keep ent_dup -m "the same dentist"; magi history clm_x
 magi usage -days 7             # your Magi replies by model
 magi words; magi speak "Read the README, it takes 4-6 minutes" -o test.wav
 magi word README -say readme; magi word Magi -heard Magei   # lexicon editor

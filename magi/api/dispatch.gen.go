@@ -440,7 +440,51 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeKnowledgeItem(resp), nil
+			return EncodeRememberResponse(resp), nil
+		},
+		"change-knowledge": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeChangeKnowledgeRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ChangeKnowledge(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeChangeKnowledgeResponse(resp), nil
+		},
+		"knowledge-history": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeKnowledgeHistoryRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.KnowledgeHistory(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeKnowledgeHistoryResponse(resp), nil
+		},
+		"merge-knowledge": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeMergeKnowledgeRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.MergeKnowledge(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeChangeKnowledgeResponse(resp), nil
+		},
+		"unmerge-knowledge": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeUnmergeKnowledgeRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.UnmergeKnowledge(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeChangeKnowledgeResponse(resp), nil
 		},
 		"list-voices": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListVoicesRequest(b)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/catalystcommunity/magi/lib/rpc"
@@ -168,32 +167,104 @@ func (m *Service) CancelTask(ctx context.Context, req magiapi.CancelTaskRequest)
 }
 
 func (m *Service) QueryKnowledge(ctx context.Context, req magiapi.QueryKnowledgeRequest) (magiapi.QueryKnowledgeResponse, error) {
-	uctx := AsCaller(ctx)
-	res, err := m.S.Knowledge.Query(uctx, knowledgeapi.QueryRequest{Text: req.Text, Kind: req.Kind, Limit: req.Limit})
+	caller, err := rpc.Caller(ctx)
 	if err != nil {
 		return magiapi.QueryKnowledgeResponse{}, err
 	}
-	items := knowledgeItems(res.Nodes, res.Edges)
-	m.S.resolveSystems(uctx, items)
-	return magiapi.QueryKnowledgeResponse{Items: items}, nil
+	limit := 50
+	if req.Limit != nil && *req.Limit > 0 {
+		limit = int(min(*req.Limit, 200))
+	}
+	items, records, err := m.S.knowledgeView(m.S.AsService(ctx), caller.Subject, deref(req.Text), deref(req.Kind), limit, req.IncludeEnded != nil && *req.IncludeEnded)
+	return magiapi.QueryKnowledgeResponse{Items: items, Records: records}, err
 }
 
-func (m *Service) Remember(ctx context.Context, req magiapi.RememberRequest) (magiapi.KnowledgeItem, error) {
+func (m *Service) Remember(ctx context.Context, req magiapi.RememberRequest) (magiapi.RememberResponse, error) {
 	caller, err := rpc.Caller(ctx)
 	if err != nil {
-		return magiapi.KnowledgeItem{}, err
+		return magiapi.RememberResponse{}, err
 	}
-	args := map[string]string{"kind": req.Kind, "label": req.Label, "summary": deref(req.Summary), "system": deref(req.System),
-		"locator": deref(req.Locator), "related_to": deref(req.RelatedTo), "relation": deref(req.Relation)}
-	n, err := m.S.rememberNode(m.S.AsService(ctx), caller.Subject, args, caller.Subject, "")
+	sctx := m.S.AsService(ctx)
+	f := fact{subject: req.Subject, subjectKind: deref(req.SubjectKind), relation: req.Relation, object: deref(req.Object), objectKind: deref(req.ObjectKind),
+		value: deref(req.Value), summary: deref(req.Summary), also: req.Also != nil && *req.Also}
+	c, note, err := m.S.remember(sctx, caller.Subject, caller.Name, f, true, nil)
 	if err != nil {
-		return magiapi.KnowledgeItem{}, err
+		return magiapi.RememberResponse{}, rpc.Invalid("%s", err.Error())
 	}
-	if len(req.Properties) > 0 {
-		n, _ = m.S.Knowledge.PutNode(m.S.AsService(ctx), knowledgeapi.PutNodeRequest{Id: ptr(n.Id), Kind: n.Kind, Label: n.Label, Summary: ptr(n.Summary),
-			Properties: req.Properties, External: n.External, Owner: ptr(caller.Subject), AuthoredBy: ptr(caller.Subject)})
+	out := magiapi.RememberResponse{Recorded: c.Id != "", Note: optional(note)}
+	subject := c.Subject
+	if subject == "" {
+		e, err := m.S.entityFor(sctx, caller.Subject, caller.Name, req.Subject, deref(req.SubjectKind), nil)
+		if err != nil {
+			return out, err
+		}
+		subject = e.Id
 	}
-	return knowledgeItems([]knowledgeapi.Node{n}, nil)[0], nil
+	a, err := m.S.Knowledge.About(sctx, knowledgeapi.AboutRequest{Id: subject, ActFor: &caller.Subject})
+	if err != nil {
+		return out, err
+	}
+	out.Item = knowledgeItem(a, caller.Subject, map[string]knowledgeapi.Claim{c.Id: c})
+	return out, nil
+}
+
+func (m *Service) ChangeKnowledge(ctx context.Context, req magiapi.ChangeKnowledgeRequest) (magiapi.ChangeKnowledgeResponse, error) {
+	caller, err := rpc.Caller(ctx)
+	if err != nil {
+		return magiapi.ChangeKnowledgeResponse{}, err
+	}
+	sctx := m.S.AsService(ctx)
+	r, err := m.S.changeRecord(sctx, caller.Subject, caller.Name, req.Id, req.Operation, deref(req.Field), deref(req.Value), deref(req.Reason),
+		req.Erase != nil && *req.Erase, nil)
+	if err != nil {
+		if rpc.CodeOf(err) == 0 {
+			return magiapi.ChangeKnowledgeResponse{}, rpc.Invalid("%s", err.Error())
+		}
+		return magiapi.ChangeKnowledgeResponse{}, err
+	}
+	return magiapi.ChangeKnowledgeResponse{Change: knowledgeChange(r.Change), Item: m.S.changedItem(sctx, caller.Subject, r)}, nil
+}
+
+func (m *Service) MergeKnowledge(ctx context.Context, req magiapi.MergeKnowledgeRequest) (magiapi.ChangeKnowledgeResponse, error) {
+	caller, err := rpc.Caller(ctx)
+	if err != nil {
+		return magiapi.ChangeKnowledgeResponse{}, err
+	}
+	sctx := m.S.AsService(ctx)
+	c, err := m.S.Knowledge.Merge(sctx, knowledgeapi.MergeRequest{Keep: req.Keep, Merge: req.Merge, Reason: req.Reason, ActFor: &caller.Subject})
+	if err != nil {
+		return magiapi.ChangeKnowledgeResponse{}, err
+	}
+	keep := knowledgeapi.Entity{Id: req.Keep}
+	return magiapi.ChangeKnowledgeResponse{Change: knowledgeChange(c), Item: m.S.changedItem(sctx, caller.Subject, knowledgeapi.ChangeResponse{Entity: &keep})}, nil
+}
+
+func (m *Service) UnmergeKnowledge(ctx context.Context, req magiapi.UnmergeKnowledgeRequest) (magiapi.ChangeKnowledgeResponse, error) {
+	caller, err := rpc.Caller(ctx)
+	if err != nil {
+		return magiapi.ChangeKnowledgeResponse{}, err
+	}
+	c, err := m.S.Knowledge.Unmerge(m.S.AsService(ctx), knowledgeapi.UnmergeRequest{Change: req.Change, ActFor: &caller.Subject})
+	if err != nil {
+		return magiapi.ChangeKnowledgeResponse{}, err
+	}
+	return magiapi.ChangeKnowledgeResponse{Change: knowledgeChange(c)}, nil
+}
+
+func (m *Service) KnowledgeHistory(ctx context.Context, req magiapi.KnowledgeHistoryRequest) (magiapi.KnowledgeHistoryResponse, error) {
+	caller, err := rpc.Caller(ctx)
+	if err != nil {
+		return magiapi.KnowledgeHistoryResponse{}, err
+	}
+	h, err := m.S.Knowledge.History(m.S.AsService(ctx), knowledgeapi.HistoryRequest{Id: req.Id, ActFor: &caller.Subject})
+	if err != nil {
+		return magiapi.KnowledgeHistoryResponse{}, err
+	}
+	out := magiapi.KnowledgeHistoryResponse{Changes: []magiapi.KnowledgeChange{}}
+	for _, c := range h.Changes {
+		out.Changes = append(out.Changes, knowledgeChange(c))
+	}
+	return out, nil
 }
 
 func (m *Service) ListVoices(ctx context.Context, req magiapi.ListVoicesRequest) (magiapi.ListVoicesResponse, error) {
@@ -238,53 +309,6 @@ func task(r workflowapi.Run) magiapi.Task {
 		t.Refs = append(t.Refs, magiapi.Ref{Kind: "commit", Ref: c, Title: ptr("merge")})
 	}
 	return t
-}
-
-func knowledgeItems(nodes []knowledgeapi.Node, edges []knowledgeapi.Edge) []magiapi.KnowledgeItem {
-	label := map[string]string{}
-	for _, n := range nodes {
-		label[n.Id] = n.Label
-	}
-	rel := map[string][]string{}
-	for _, e := range edges {
-		rel[e.FromNode] = append(rel[e.FromNode], e.Relation+" "+firstNonEmpty(label[e.ToNode], e.ToNode))
-		rel[e.ToNode] = append(rel[e.ToNode], "← "+e.Relation+" "+firstNonEmpty(label[e.FromNode], e.FromNode))
-	}
-	out := []magiapi.KnowledgeItem{}
-	for _, n := range nodes {
-		it := magiapi.KnowledgeItem{Id: n.Id, Kind: n.Kind, Label: n.Label, Summary: n.Summary, Properties: n.Properties, Relations: rel[n.Id]}
-		if it.Relations == nil {
-			it.Relations = []string{}
-		}
-		if it.Properties == nil {
-			it.Properties = map[string]string{}
-		}
-		if n.External != nil {
-			it.System, it.Locator = ptr(firstNonEmpty(label[n.External.System], n.External.System)), ptr(n.External.Locator)
-		}
-		sort.Strings(it.Relations)
-		out = append(out, it)
-	}
-	return out
-}
-
-// resolveSystems replaces system node ids with their labels.
-func (s *System) resolveSystems(ctx context.Context, items []magiapi.KnowledgeItem) {
-	names := map[string]string{}
-	for i, it := range items {
-		id := deref(it.System)
-		if !strings.HasPrefix(id, "nod_") {
-			continue
-		}
-		if _, ok := names[id]; !ok {
-			if v, err := s.Knowledge.GetNode(ctx, knowledgeapi.GetNodeRequest{Id: id}); err == nil {
-				names[id] = v.Node.Label
-			}
-		}
-		if n := names[id]; n != "" {
-			items[i].System = ptr(n)
-		}
-	}
 }
 
 func firstLine(s string, n int) string {

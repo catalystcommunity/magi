@@ -15,6 +15,9 @@ class Step:
     prompt: Optional[str] = None
     outcomes: Optional[List[str]] = None
     max_attempts: Optional[int] = None
+    deciders: Optional[List[str]] = None
+    wait_ms: Optional[int] = None
+    timeout_outcome: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -32,12 +35,18 @@ class Step:
             result['next'] = self.next
         if hasattr(self, 'max_attempts') and self.max_attempts is not None:
             result['max_attempts'] = self.max_attempts
+        if hasattr(self, 'deciders') and self.deciders is not None:
+            result['deciders'] = self.deciders
+        if hasattr(self, 'wait_ms') and self.wait_ms is not None:
+            result['wait_ms'] = self.wait_ms
+        if hasattr(self, 'timeout_outcome') and self.timeout_outcome is not None:
+            result['timeout_outcome'] = self.timeout_outcome
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Step':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), kind=data.get('kind'), queue=data.get('queue'), prompt=data.get('prompt'), outcomes=data.get('outcomes'), next=data.get('next'), max_attempts=data.get('max_attempts'))
+        return cls(id=data.get('id'), kind=data.get('kind'), queue=data.get('queue'), prompt=data.get('prompt'), outcomes=data.get('outcomes'), next=data.get('next'), max_attempts=data.get('max_attempts'), deciders=data.get('deciders'), wait_ms=data.get('wait_ms'), timeout_outcome=data.get('timeout_outcome'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -181,6 +190,8 @@ class Run:
     history: List[StepState]
     created_ms: int
     updated_ms: int
+    waiting_for: Optional[List[str]] = None
+    wait_until_ms: Optional[int] = None
     error: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -201,6 +212,10 @@ class Run:
             result['vars'] = self.vars
         if hasattr(self, 'history') and self.history is not None:
             result['history'] = self.history
+        if hasattr(self, 'waiting_for') and self.waiting_for is not None:
+            result['waiting_for'] = self.waiting_for
+        if hasattr(self, 'wait_until_ms') and self.wait_until_ms is not None:
+            result['wait_until_ms'] = self.wait_until_ms
         if hasattr(self, 'error') and self.error is not None:
             result['error'] = self.error
         if hasattr(self, 'created_ms') and self.created_ms is not None:
@@ -212,7 +227,7 @@ class Run:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Run':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), definition=data.get('definition'), revision=data.get('revision'), owner=data.get('owner'), status=data.get('status'), current_step=data.get('current_step'), vars=data.get('vars'), history=data.get('history'), error=data.get('error'), created_ms=data.get('created_ms'), updated_ms=data.get('updated_ms'))
+        return cls(id=data.get('id'), definition=data.get('definition'), revision=data.get('revision'), owner=data.get('owner'), status=data.get('status'), current_step=data.get('current_step'), vars=data.get('vars'), history=data.get('history'), waiting_for=data.get('waiting_for'), wait_until_ms=data.get('wait_until_ms'), error=data.get('error'), created_ms=data.get('created_ms'), updated_ms=data.get('updated_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -313,6 +328,7 @@ class ListRunsRequest:
     status: Optional[str] = None
     definition: Optional[str] = None
     limit: Optional[int] = None
+    waiting_for_me: Optional[bool] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -322,12 +338,14 @@ class ListRunsRequest:
             result['definition'] = self.definition
         if hasattr(self, 'limit') and self.limit is not None:
             result['limit'] = self.limit
+        if hasattr(self, 'waiting_for_me') and self.waiting_for_me is not None:
+            result['waiting_for_me'] = self.waiting_for_me
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListRunsRequest':
         """Create instance from dictionary."""
-        return cls(status=data.get('status'), definition=data.get('definition'), limit=data.get('limit'))
+        return cls(status=data.get('status'), definition=data.get('definition'), limit=data.get('limit'), waiting_for_me=data.get('waiting_for_me'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

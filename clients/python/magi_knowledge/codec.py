@@ -381,13 +381,43 @@ def _external_ref_from_cbor(data: bytes) -> "ExternalRef":
 ExternalRef.to_cbor = _external_ref_to_cbor
 ExternalRef.from_cbor = staticmethod(_external_ref_from_cbor)
 
-def _encode_node_value(v: "Node") -> Dict[Any, Any]:
+def _encode_ref_value(v: "Ref") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["ref"] = v.ref
+    csil_m["kind"] = v.kind
+    csil_x = v.title
+    if csil_x is not None:
+        csil_m["title"] = csil_x
+    return csil_m
+
+def _decode_ref_value(tree: Any) -> "Ref":
+    tree = _csil_expect_map(tree)
+    return Ref(
+        kind=_csil_expect_text(tree["kind"]),
+        ref=_csil_expect_text(tree["ref"]),
+        title=(None if tree.get("title") is None else _csil_expect_text(tree["title"])),
+    )
+
+
+def _ref_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_ref_value(self))
+
+
+def _ref_from_cbor(data: bytes) -> "Ref":
+    return _decode_ref_value(cbor_decode(data))
+
+
+Ref.to_cbor = _ref_to_cbor
+Ref.from_cbor = staticmethod(_ref_from_cbor)
+
+def _encode_entity_value(v: "Entity") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["id"] = v.id
     csil_m["kind"] = v.kind
     csil_m["label"] = v.label
-    csil_m["owner"] = v.owner
-    csil_m["scope"] = v.scope
+    csil_m["owners"] = v.owners
+    csil_m["aliases"] = v.aliases
+    csil_m["readers"] = v.readers
     csil_m["summary"] = v.summary
     csil_x = v.external
     if csil_x is not None:
@@ -396,88 +426,227 @@ def _encode_node_value(v: "Node") -> Dict[Any, Any]:
     csil_m["created_ms"] = v.created_ms
     csil_m["properties"] = v.properties
     csil_m["updated_ms"] = v.updated_ms
-    csil_x = v.authored_by
+    csil_x = v.merged_into
     if csil_x is not None:
-        csil_m["authored_by"] = csil_x
+        csil_m["merged_into"] = csil_x
     return csil_m
 
-def _decode_node_value(tree: Any) -> "Node":
+def _decode_entity_value(tree: Any) -> "Entity":
     tree = _csil_expect_map(tree)
-    return Node(
+    return Entity(
         id=_csil_expect_text(tree["id"]),
         kind=_csil_expect_text(tree["kind"]),
         label=_csil_expect_text(tree["label"]),
+        aliases=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["aliases"])],
         summary=_csil_expect_text(tree["summary"]),
         properties={_csil_expect_text(csil_k): _csil_expect_text(csil_v) for csil_k, csil_v in _csil_expect_map(tree["properties"]).items()},
         external=(None if tree.get("external") is None else _decode_external_ref_value(tree["external"])),
-        owner=_csil_expect_text(tree["owner"]),
-        scope=_csil_expect_text(tree["scope"]),
-        authored_by=(None if tree.get("authored_by") is None else _csil_expect_text(tree["authored_by"])),
+        owners=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["owners"])],
+        readers=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["readers"])],
         confidence=_csil_expect_float(tree["confidence"]),
+        merged_into=(None if tree.get("merged_into") is None else _csil_expect_text(tree["merged_into"])),
         created_ms=_csil_expect_uint(tree["created_ms"]),
         updated_ms=_csil_expect_uint(tree["updated_ms"]),
     )
 
 
-def _node_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_node_value(self))
+def _entity_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_entity_value(self))
 
 
-def _node_from_cbor(data: bytes) -> "Node":
-    return _decode_node_value(cbor_decode(data))
+def _entity_from_cbor(data: bytes) -> "Entity":
+    return _decode_entity_value(cbor_decode(data))
 
 
-Node.to_cbor = _node_to_cbor
-Node.from_cbor = staticmethod(_node_from_cbor)
+Entity.to_cbor = _entity_to_cbor
+Entity.from_cbor = staticmethod(_entity_from_cbor)
 
-def _encode_edge_value(v: "Edge") -> Dict[Any, Any]:
+def _encode_claim_value(v: "Claim") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["id"] = v.id
-    csil_m["owner"] = v.owner
-    csil_m["to_node"] = v.to_node
+    csil_m["stale"] = v.stale
+    csil_x = v.value
+    if csil_x is not None:
+        csil_m["value"] = csil_x
+    csil_x = v.object
+    if csil_x is not None:
+        csil_m["object"] = csil_x
+    csil_m["owners"] = v.owners
+    csil_m["status"] = v.status
+    csil_m["readers"] = v.readers
+    csil_m["subject"] = v.subject
     csil_m["relation"] = v.relation
-    csil_m["from_node"] = v.from_node
+    csil_m["supported"] = v.supported
     csil_m["confidence"] = v.confidence
     csil_m["created_ms"] = v.created_ms
-    csil_m["properties"] = v.properties
+    csil_m["updated_ms"] = v.updated_ms
+    csil_x = v.authored_by
+    if csil_x is not None:
+        csil_m["authored_by"] = csil_x
+    csil_x = v.replaced_by
+    if csil_x is not None:
+        csil_m["replaced_by"] = csil_x
+    csil_x = v.valid_to_ms
+    if csil_x is not None:
+        csil_m["valid_to_ms"] = csil_x
+    csil_m["derived_from"] = v.derived_from
+    csil_x = v.valid_from_ms
+    if csil_x is not None:
+        csil_m["valid_from_ms"] = csil_x
     return csil_m
 
-def _decode_edge_value(tree: Any) -> "Edge":
+def _decode_claim_value(tree: Any) -> "Claim":
     tree = _csil_expect_map(tree)
-    return Edge(
+    return Claim(
         id=_csil_expect_text(tree["id"]),
-        from_node=_csil_expect_text(tree["from_node"]),
-        to_node=_csil_expect_text(tree["to_node"]),
+        subject=_csil_expect_text(tree["subject"]),
         relation=_csil_expect_text(tree["relation"]),
-        properties={_csil_expect_text(csil_k): _csil_expect_text(csil_v) for csil_k, csil_v in _csil_expect_map(tree["properties"]).items()},
-        owner=_csil_expect_text(tree["owner"]),
+        object=(None if tree.get("object") is None else _csil_expect_text(tree["object"])),
+        value=(None if tree.get("value") is None else _csil_expect_text(tree["value"])),
+        valid_from_ms=(None if tree.get("valid_from_ms") is None else _csil_expect_uint(tree["valid_from_ms"])),
+        valid_to_ms=(None if tree.get("valid_to_ms") is None else _csil_expect_uint(tree["valid_to_ms"])),
+        status=_csil_expect_text(tree["status"]),
+        replaced_by=(None if tree.get("replaced_by") is None else _csil_expect_text(tree["replaced_by"])),
         confidence=_csil_expect_float(tree["confidence"]),
+        authored_by=(None if tree.get("authored_by") is None else _csil_expect_text(tree["authored_by"])),
+        derived_from=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["derived_from"])],
+        stale=_csil_expect_bool(tree["stale"]),
+        supported=_csil_expect_bool(tree["supported"]),
+        owners=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["owners"])],
+        readers=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["readers"])],
         created_ms=_csil_expect_uint(tree["created_ms"]),
+        updated_ms=_csil_expect_uint(tree["updated_ms"]),
     )
 
 
-def _edge_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_edge_value(self))
+def _claim_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_claim_value(self))
 
 
-def _edge_from_cbor(data: bytes) -> "Edge":
-    return _decode_edge_value(cbor_decode(data))
+def _claim_from_cbor(data: bytes) -> "Claim":
+    return _decode_claim_value(cbor_decode(data))
 
 
-Edge.to_cbor = _edge_to_cbor
-Edge.from_cbor = staticmethod(_edge_from_cbor)
+Claim.to_cbor = _claim_to_cbor
+Claim.from_cbor = staticmethod(_claim_from_cbor)
+
+def _encode_episode_value(v: "Episode") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["kind"] = v.kind
+    csil_m["refs"] = [_encode_ref_value(csil_e) for csil_e in v.refs]
+    csil_m["title"] = v.title
+    csil_m["owners"] = v.owners
+    csil_x = v.outcome
+    if csil_x is not None:
+        csil_m["outcome"] = csil_x
+    csil_m["readers"] = v.readers
+    csil_m["summary"] = v.summary
+    csil_x = v.ended_ms
+    if csil_x is not None:
+        csil_m["ended_ms"] = csil_x
+    csil_m["entities"] = v.entities
+    csil_x = v.procedure
+    if csil_x is not None:
+        csil_m["procedure"] = csil_x
+    csil_m["created_ms"] = v.created_ms
+    csil_m["started_ms"] = v.started_ms
+    csil_m["updated_ms"] = v.updated_ms
+    csil_m["participants"] = v.participants
+    return csil_m
+
+def _decode_episode_value(tree: Any) -> "Episode":
+    tree = _csil_expect_map(tree)
+    return Episode(
+        id=_csil_expect_text(tree["id"]),
+        kind=_csil_expect_text(tree["kind"]),
+        title=_csil_expect_text(tree["title"]),
+        summary=_csil_expect_text(tree["summary"]),
+        started_ms=_csil_expect_uint(tree["started_ms"]),
+        ended_ms=(None if tree.get("ended_ms") is None else _csil_expect_uint(tree["ended_ms"])),
+        participants=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["participants"])],
+        entities=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["entities"])],
+        refs=[_decode_ref_value(csil_e) for csil_e in _csil_expect_array(tree["refs"])],
+        procedure=(None if tree.get("procedure") is None else _csil_expect_text(tree["procedure"])),
+        outcome=(None if tree.get("outcome") is None else _csil_expect_text(tree["outcome"])),
+        owners=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["owners"])],
+        readers=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["readers"])],
+        created_ms=_csil_expect_uint(tree["created_ms"]),
+        updated_ms=_csil_expect_uint(tree["updated_ms"]),
+    )
+
+
+def _episode_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_episode_value(self))
+
+
+def _episode_from_cbor(data: bytes) -> "Episode":
+    return _decode_episode_value(cbor_decode(data))
+
+
+Episode.to_cbor = _episode_to_cbor
+Episode.from_cbor = staticmethod(_episode_from_cbor)
+
+def _encode_procedure_value(v: "Procedure") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["goal"] = v.goal
+    csil_m["name"] = v.name
+    csil_m["uses"] = v.uses
+    csil_m["steps"] = v.steps
+    csil_m["inputs"] = v.inputs
+    csil_m["owners"] = v.owners
+    csil_m["status"] = v.status
+    csil_m["readers"] = v.readers
+    csil_m["entities"] = v.entities
+    csil_m["revision"] = v.revision
+    csil_m["created_ms"] = v.created_ms
+    csil_x = v.definition
+    if csil_x is not None:
+        csil_m["definition"] = csil_x
+    csil_m["updated_ms"] = v.updated_ms
+    return csil_m
+
+def _decode_procedure_value(tree: Any) -> "Procedure":
+    tree = _csil_expect_map(tree)
+    return Procedure(
+        id=_csil_expect_text(tree["id"]),
+        name=_csil_expect_text(tree["name"]),
+        goal=_csil_expect_text(tree["goal"]),
+        inputs={_csil_expect_text(csil_k): _csil_expect_text(csil_v) for csil_k, csil_v in _csil_expect_map(tree["inputs"]).items()},
+        steps=_csil_expect_text(tree["steps"]),
+        definition=(None if tree.get("definition") is None else _csil_expect_text(tree["definition"])),
+        revision=_csil_expect_uint(tree["revision"]),
+        status=_csil_expect_text(tree["status"]),
+        uses={_csil_expect_text(csil_k): _csil_expect_uint(csil_v) for csil_k, csil_v in _csil_expect_map(tree["uses"]).items()},
+        entities=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["entities"])],
+        owners=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["owners"])],
+        readers=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["readers"])],
+        created_ms=_csil_expect_uint(tree["created_ms"]),
+        updated_ms=_csil_expect_uint(tree["updated_ms"]),
+    )
+
+
+def _procedure_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_procedure_value(self))
+
+
+def _procedure_from_cbor(data: bytes) -> "Procedure":
+    return _decode_procedure_value(cbor_decode(data))
+
+
+Procedure.to_cbor = _procedure_to_cbor
+Procedure.from_cbor = staticmethod(_procedure_from_cbor)
 
 def _encode_evidence_value(v: "Evidence") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["id"] = v.id
-    csil_m["ref"] = v.ref
+    csil_m["ref"] = _encode_ref_value(v.ref)
     csil_x = v.note
     if csil_x is not None:
         csil_m["note"] = csil_x
-    csil_m["owner"] = v.owner
     csil_m["stance"] = v.stance
     csil_m["subject"] = v.subject
-    csil_m["ref_kind"] = v.ref_kind
     csil_m["created_ms"] = v.created_ms
     return csil_m
 
@@ -486,11 +655,9 @@ def _decode_evidence_value(tree: Any) -> "Evidence":
     return Evidence(
         id=_csil_expect_text(tree["id"]),
         subject=_csil_expect_text(tree["subject"]),
-        ref_kind=_csil_expect_text(tree["ref_kind"]),
-        ref=_csil_expect_text(tree["ref"]),
+        ref=_decode_ref_value(tree["ref"]),
         stance=_csil_expect_text(tree["stance"]),
         note=(None if tree.get("note") is None else _csil_expect_text(tree["note"])),
-        owner=_csil_expect_text(tree["owner"]),
         created_ms=_csil_expect_uint(tree["created_ms"]),
     )
 
@@ -506,177 +673,599 @@ def _evidence_from_cbor(data: bytes) -> "Evidence":
 Evidence.to_cbor = _evidence_to_cbor
 Evidence.from_cbor = staticmethod(_evidence_from_cbor)
 
-def _encode_put_node_request_value(v: "PutNodeRequest") -> Dict[Any, Any]:
+def _encode_change_value(v: "Change") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
-    csil_x = v.id
+    csil_m["id"] = v.id
+    csil_m["actor"] = v.actor
+    csil_x = v.after
     if csil_x is not None:
-        csil_m["id"] = csil_x
+        csil_m["after"] = csil_x
+    csil_m["at_ms"] = v.at_ms
+    csil_x = v.before
+    if csil_x is not None:
+        csil_m["before"] = csil_x
+    csil_x = v.reason
+    if csil_x is not None:
+        csil_m["reason"] = csil_x
+    csil_m["record"] = v.record
+    csil_m["operation"] = v.operation
+    csil_x = v.utterance
+    if csil_x is not None:
+        csil_m["utterance"] = csil_x
+    return csil_m
+
+def _decode_change_value(tree: Any) -> "Change":
+    tree = _csil_expect_map(tree)
+    return Change(
+        id=_csil_expect_text(tree["id"]),
+        record=_csil_expect_text(tree["record"]),
+        operation=_csil_expect_text(tree["operation"]),
+        actor=_csil_expect_text(tree["actor"]),
+        reason=(None if tree.get("reason") is None else _csil_expect_text(tree["reason"])),
+        before=(None if tree.get("before") is None else _csil_expect_text(tree["before"])),
+        after=(None if tree.get("after") is None else _csil_expect_text(tree["after"])),
+        utterance=(None if tree.get("utterance") is None else _csil_expect_text(tree["utterance"])),
+        at_ms=_csil_expect_uint(tree["at_ms"]),
+    )
+
+
+def _change_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_change_value(self))
+
+
+def _change_from_cbor(data: bytes) -> "Change":
+    return _decode_change_value(cbor_decode(data))
+
+
+Change.to_cbor = _change_to_cbor
+Change.from_cbor = staticmethod(_change_from_cbor)
+
+def _encode_dispute_value(v: "Dispute") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["by"] = v.by
+    csil_m["id"] = v.id
+    csil_m["state"] = v.state
+    csil_m["owners"] = v.owners
+    csil_m["reason"] = v.reason
+    csil_m["record"] = v.record
+    csil_x = v.proposed
+    if csil_x is not None:
+        csil_m["proposed"] = csil_x
+    csil_m["created_ms"] = v.created_ms
+    csil_x = v.resolution
+    if csil_x is not None:
+        csil_m["resolution"] = csil_x
+    csil_m["updated_ms"] = v.updated_ms
+    return csil_m
+
+def _decode_dispute_value(tree: Any) -> "Dispute":
+    tree = _csil_expect_map(tree)
+    return Dispute(
+        id=_csil_expect_text(tree["id"]),
+        record=_csil_expect_text(tree["record"]),
+        by=_csil_expect_text(tree["by"]),
+        reason=_csil_expect_text(tree["reason"]),
+        proposed=(None if tree.get("proposed") is None else _csil_expect_text(tree["proposed"])),
+        state=_csil_expect_text(tree["state"]),
+        resolution=(None if tree.get("resolution") is None else _csil_expect_text(tree["resolution"])),
+        owners=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["owners"])],
+        created_ms=_csil_expect_uint(tree["created_ms"]),
+        updated_ms=_csil_expect_uint(tree["updated_ms"]),
+    )
+
+
+def _dispute_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_dispute_value(self))
+
+
+def _dispute_from_cbor(data: bytes) -> "Dispute":
+    return _decode_dispute_value(cbor_decode(data))
+
+
+Dispute.to_cbor = _dispute_to_cbor
+Dispute.from_cbor = staticmethod(_dispute_from_cbor)
+
+def _encode_group_value(v: "Group") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["label"] = v.label
+    csil_m["owners"] = v.owners
+    csil_m["members"] = v.members
+    csil_m["updated_ms"] = v.updated_ms
+    return csil_m
+
+def _decode_group_value(tree: Any) -> "Group":
+    tree = _csil_expect_map(tree)
+    return Group(
+        id=_csil_expect_text(tree["id"]),
+        label=_csil_expect_text(tree["label"]),
+        members=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["members"])],
+        owners=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["owners"])],
+        updated_ms=_csil_expect_uint(tree["updated_ms"]),
+    )
+
+
+def _group_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_group_value(self))
+
+
+def _group_from_cbor(data: bytes) -> "Group":
+    return _decode_group_value(cbor_decode(data))
+
+
+Group.to_cbor = _group_to_cbor
+Group.from_cbor = staticmethod(_group_from_cbor)
+
+def _encode_put_entity_request_value(v: "PutEntityRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
     csil_m["kind"] = v.kind
     csil_m["label"] = v.label
-    csil_x = v.owner
+    csil_x = v.owners
     if csil_x is not None:
-        csil_m["owner"] = csil_x
-    csil_x = v.scope
+        csil_m["owners"] = csil_x
+    csil_x = v.act_for
     if csil_x is not None:
-        csil_m["scope"] = csil_x
+        csil_m["act_for"] = csil_x
+    csil_x = v.aliases
+    if csil_x is not None:
+        csil_m["aliases"] = csil_x
+    csil_x = v.readers
+    if csil_x is not None:
+        csil_m["readers"] = csil_x
     csil_x = v.summary
     if csil_x is not None:
         csil_m["summary"] = csil_x
     csil_x = v.external
     if csil_x is not None:
         csil_m["external"] = _encode_external_ref_value(csil_x)
+    csil_x = v.utterance
+    if csil_x is not None:
+        csil_m["utterance"] = csil_x
     csil_x = v.confidence
     if csil_x is not None:
         csil_m["confidence"] = csil_x
     csil_x = v.properties
     if csil_x is not None:
         csil_m["properties"] = csil_x
-    csil_x = v.authored_by
-    if csil_x is not None:
-        csil_m["authored_by"] = csil_x
     return csil_m
 
-def _decode_put_node_request_value(tree: Any) -> "PutNodeRequest":
+def _decode_put_entity_request_value(tree: Any) -> "PutEntityRequest":
     tree = _csil_expect_map(tree)
-    return PutNodeRequest(
-        id=(None if tree.get("id") is None else _csil_expect_text(tree["id"])),
+    return PutEntityRequest(
         kind=_csil_expect_text(tree["kind"]),
         label=_csil_expect_text(tree["label"]),
+        aliases=(None if tree.get("aliases") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["aliases"])]),
         summary=(None if tree.get("summary") is None else _csil_expect_text(tree["summary"])),
         properties=(None if tree.get("properties") is None else {_csil_expect_text(csil_k): _csil_expect_text(csil_v) for csil_k, csil_v in _csil_expect_map(tree["properties"]).items()}),
         external=(None if tree.get("external") is None else _decode_external_ref_value(tree["external"])),
-        scope=(None if tree.get("scope") is None else _csil_expect_text(tree["scope"])),
-        authored_by=(None if tree.get("authored_by") is None else _csil_expect_text(tree["authored_by"])),
+        owners=(None if tree.get("owners") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["owners"])]),
+        readers=(None if tree.get("readers") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["readers"])]),
         confidence=(None if tree.get("confidence") is None else _csil_expect_float(tree["confidence"])),
-        owner=(None if tree.get("owner") is None else _csil_expect_text(tree["owner"])),
+        act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
+        utterance=(None if tree.get("utterance") is None else _csil_expect_text(tree["utterance"])),
     )
 
 
-def _put_node_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_put_node_request_value(self))
+def _put_entity_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_put_entity_request_value(self))
 
 
-def _put_node_request_from_cbor(data: bytes) -> "PutNodeRequest":
-    return _decode_put_node_request_value(cbor_decode(data))
+def _put_entity_request_from_cbor(data: bytes) -> "PutEntityRequest":
+    return _decode_put_entity_request_value(cbor_decode(data))
 
 
-PutNodeRequest.to_cbor = _put_node_request_to_cbor
-PutNodeRequest.from_cbor = staticmethod(_put_node_request_from_cbor)
+PutEntityRequest.to_cbor = _put_entity_request_to_cbor
+PutEntityRequest.from_cbor = staticmethod(_put_entity_request_from_cbor)
 
-def _encode_get_node_request_value(v: "GetNodeRequest") -> Dict[Any, Any]:
+def _encode_self_request_value(v: "SelfRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
-    csil_m["id"] = v.id
-    return csil_m
-
-def _decode_get_node_request_value(tree: Any) -> "GetNodeRequest":
-    tree = _csil_expect_map(tree)
-    return GetNodeRequest(
-        id=_csil_expect_text(tree["id"]),
-    )
-
-
-def _get_node_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_get_node_request_value(self))
-
-
-def _get_node_request_from_cbor(data: bytes) -> "GetNodeRequest":
-    return _decode_get_node_request_value(cbor_decode(data))
-
-
-GetNodeRequest.to_cbor = _get_node_request_to_cbor
-GetNodeRequest.from_cbor = staticmethod(_get_node_request_from_cbor)
-
-def _encode_node_view_value(v: "NodeView") -> Dict[Any, Any]:
-    csil_m: Dict[Any, Any] = {}
-    csil_m["node"] = _encode_node_value(v.node)
-    csil_m["edges"] = [_encode_edge_value(csil_e) for csil_e in v.edges]
-    csil_m["evidence"] = [_encode_evidence_value(csil_e) for csil_e in v.evidence]
-    return csil_m
-
-def _decode_node_view_value(tree: Any) -> "NodeView":
-    tree = _csil_expect_map(tree)
-    return NodeView(
-        node=_decode_node_value(tree["node"]),
-        edges=[_decode_edge_value(csil_e) for csil_e in _csil_expect_array(tree["edges"])],
-        evidence=[_decode_evidence_value(csil_e) for csil_e in _csil_expect_array(tree["evidence"])],
-    )
-
-
-def _node_view_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_node_view_value(self))
-
-
-def _node_view_from_cbor(data: bytes) -> "NodeView":
-    return _decode_node_view_value(cbor_decode(data))
-
-
-NodeView.to_cbor = _node_view_to_cbor
-NodeView.from_cbor = staticmethod(_node_view_from_cbor)
-
-def _encode_put_edge_request_value(v: "PutEdgeRequest") -> Dict[Any, Any]:
-    csil_m: Dict[Any, Any] = {}
-    csil_x = v.owner
+    csil_x = v.label
     if csil_x is not None:
-        csil_m["owner"] = csil_x
-    csil_m["to_node"] = v.to_node
+        csil_m["label"] = csil_x
+    csil_x = v.act_for
+    if csil_x is not None:
+        csil_m["act_for"] = csil_x
+    return csil_m
+
+def _decode_self_request_value(tree: Any) -> "SelfRequest":
+    tree = _csil_expect_map(tree)
+    return SelfRequest(
+        label=(None if tree.get("label") is None else _csil_expect_text(tree["label"])),
+        act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
+    )
+
+
+def _self_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_self_request_value(self))
+
+
+def _self_request_from_cbor(data: bytes) -> "SelfRequest":
+    return _decode_self_request_value(cbor_decode(data))
+
+
+SelfRequest.to_cbor = _self_request_to_cbor
+SelfRequest.from_cbor = staticmethod(_self_request_from_cbor)
+
+def _encode_assert_request_value(v: "AssertRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.value
+    if csil_x is not None:
+        csil_m["value"] = csil_x
+    csil_x = v.object
+    if csil_x is not None:
+        csil_m["object"] = csil_x
+    csil_x = v.owners
+    if csil_x is not None:
+        csil_m["owners"] = csil_x
+    csil_x = v.act_for
+    if csil_x is not None:
+        csil_m["act_for"] = csil_x
+    csil_x = v.readers
+    if csil_x is not None:
+        csil_m["readers"] = csil_x
+    csil_m["subject"] = v.subject
+    csil_x = v.evidence
+    if csil_x is not None:
+        csil_m["evidence"] = [_encode_ref_value(csil_e) for csil_e in csil_x]
     csil_m["relation"] = v.relation
-    csil_m["from_node"] = v.from_node
+    csil_x = v.utterance
+    if csil_x is not None:
+        csil_m["utterance"] = csil_x
     csil_x = v.confidence
     if csil_x is not None:
         csil_m["confidence"] = csil_x
-    csil_x = v.properties
+    csil_x = v.authored_by
     if csil_x is not None:
-        csil_m["properties"] = csil_x
+        csil_m["authored_by"] = csil_x
+    csil_x = v.valid_to_ms
+    if csil_x is not None:
+        csil_m["valid_to_ms"] = csil_x
+    csil_x = v.derived_from
+    if csil_x is not None:
+        csil_m["derived_from"] = csil_x
+    csil_x = v.valid_from_ms
+    if csil_x is not None:
+        csil_m["valid_from_ms"] = csil_x
     return csil_m
 
-def _decode_put_edge_request_value(tree: Any) -> "PutEdgeRequest":
+def _decode_assert_request_value(tree: Any) -> "AssertRequest":
     tree = _csil_expect_map(tree)
-    return PutEdgeRequest(
-        from_node=_csil_expect_text(tree["from_node"]),
-        to_node=_csil_expect_text(tree["to_node"]),
+    return AssertRequest(
+        subject=_csil_expect_text(tree["subject"]),
         relation=_csil_expect_text(tree["relation"]),
-        properties=(None if tree.get("properties") is None else {_csil_expect_text(csil_k): _csil_expect_text(csil_v) for csil_k, csil_v in _csil_expect_map(tree["properties"]).items()}),
+        object=(None if tree.get("object") is None else _csil_expect_text(tree["object"])),
+        value=(None if tree.get("value") is None else _csil_expect_text(tree["value"])),
+        valid_from_ms=(None if tree.get("valid_from_ms") is None else _csil_expect_uint(tree["valid_from_ms"])),
+        valid_to_ms=(None if tree.get("valid_to_ms") is None else _csil_expect_uint(tree["valid_to_ms"])),
         confidence=(None if tree.get("confidence") is None else _csil_expect_float(tree["confidence"])),
-        owner=(None if tree.get("owner") is None else _csil_expect_text(tree["owner"])),
+        authored_by=(None if tree.get("authored_by") is None else _csil_expect_text(tree["authored_by"])),
+        derived_from=(None if tree.get("derived_from") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["derived_from"])]),
+        evidence=(None if tree.get("evidence") is None else [_decode_ref_value(csil_e) for csil_e in _csil_expect_array(tree["evidence"])]),
+        owners=(None if tree.get("owners") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["owners"])]),
+        readers=(None if tree.get("readers") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["readers"])]),
+        act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
+        utterance=(None if tree.get("utterance") is None else _csil_expect_text(tree["utterance"])),
     )
 
 
-def _put_edge_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_put_edge_request_value(self))
+def _assert_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_assert_request_value(self))
 
 
-def _put_edge_request_from_cbor(data: bytes) -> "PutEdgeRequest":
-    return _decode_put_edge_request_value(cbor_decode(data))
+def _assert_request_from_cbor(data: bytes) -> "AssertRequest":
+    return _decode_assert_request_value(cbor_decode(data))
 
 
-PutEdgeRequest.to_cbor = _put_edge_request_to_cbor
-PutEdgeRequest.from_cbor = staticmethod(_put_edge_request_from_cbor)
+AssertRequest.to_cbor = _assert_request_to_cbor
+AssertRequest.from_cbor = staticmethod(_assert_request_from_cbor)
+
+def _encode_change_request_value(v: "ChangeRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_x = v.set
+    if csil_x is not None:
+        csil_m["set"] = csil_x
+    csil_x = v.at_ms
+    if csil_x is not None:
+        csil_m["at_ms"] = csil_x
+    csil_x = v.erase
+    if csil_x is not None:
+        csil_m["erase"] = csil_x
+    csil_x = v.reason
+    if csil_x is not None:
+        csil_m["reason"] = csil_x
+    csil_x = v.act_for
+    if csil_x is not None:
+        csil_m["act_for"] = csil_x
+    csil_m["operation"] = v.operation
+    csil_x = v.utterance
+    if csil_x is not None:
+        csil_m["utterance"] = csil_x
+    return csil_m
+
+def _decode_change_request_value(tree: Any) -> "ChangeRequest":
+    tree = _csil_expect_map(tree)
+    return ChangeRequest(
+        id=_csil_expect_text(tree["id"]),
+        operation=_csil_expect_text(tree["operation"]),
+        set=(None if tree.get("set") is None else {_csil_expect_text(csil_k): _csil_expect_text(csil_v) for csil_k, csil_v in _csil_expect_map(tree["set"]).items()}),
+        at_ms=(None if tree.get("at_ms") is None else _csil_expect_uint(tree["at_ms"])),
+        erase=(None if tree.get("erase") is None else _csil_expect_bool(tree["erase"])),
+        reason=(None if tree.get("reason") is None else _csil_expect_text(tree["reason"])),
+        act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
+        utterance=(None if tree.get("utterance") is None else _csil_expect_text(tree["utterance"])),
+    )
+
+
+def _change_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_change_request_value(self))
+
+
+def _change_request_from_cbor(data: bytes) -> "ChangeRequest":
+    return _decode_change_request_value(cbor_decode(data))
+
+
+ChangeRequest.to_cbor = _change_request_to_cbor
+ChangeRequest.from_cbor = staticmethod(_change_request_from_cbor)
+
+def _encode_change_response_value(v: "ChangeResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.claim
+    if csil_x is not None:
+        csil_m["claim"] = _encode_claim_value(csil_x)
+    csil_m["change"] = _encode_change_value(v.change)
+    csil_x = v.entity
+    if csil_x is not None:
+        csil_m["entity"] = _encode_entity_value(csil_x)
+    csil_x = v.episode
+    if csil_x is not None:
+        csil_m["episode"] = _encode_episode_value(csil_x)
+    csil_x = v.procedure
+    if csil_x is not None:
+        csil_m["procedure"] = _encode_procedure_value(csil_x)
+    return csil_m
+
+def _decode_change_response_value(tree: Any) -> "ChangeResponse":
+    tree = _csil_expect_map(tree)
+    return ChangeResponse(
+        change=_decode_change_value(tree["change"]),
+        entity=(None if tree.get("entity") is None else _decode_entity_value(tree["entity"])),
+        claim=(None if tree.get("claim") is None else _decode_claim_value(tree["claim"])),
+        episode=(None if tree.get("episode") is None else _decode_episode_value(tree["episode"])),
+        procedure=(None if tree.get("procedure") is None else _decode_procedure_value(tree["procedure"])),
+    )
+
+
+def _change_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_change_response_value(self))
+
+
+def _change_response_from_cbor(data: bytes) -> "ChangeResponse":
+    return _decode_change_response_value(cbor_decode(data))
+
+
+ChangeResponse.to_cbor = _change_response_to_cbor
+ChangeResponse.from_cbor = staticmethod(_change_response_from_cbor)
+
+def _encode_merge_request_value(v: "MergeRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["keep"] = v.keep
+    csil_m["merge"] = v.merge
+    csil_x = v.reason
+    if csil_x is not None:
+        csil_m["reason"] = csil_x
+    csil_x = v.act_for
+    if csil_x is not None:
+        csil_m["act_for"] = csil_x
+    csil_x = v.utterance
+    if csil_x is not None:
+        csil_m["utterance"] = csil_x
+    return csil_m
+
+def _decode_merge_request_value(tree: Any) -> "MergeRequest":
+    tree = _csil_expect_map(tree)
+    return MergeRequest(
+        keep=_csil_expect_text(tree["keep"]),
+        merge=_csil_expect_text(tree["merge"]),
+        reason=(None if tree.get("reason") is None else _csil_expect_text(tree["reason"])),
+        act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
+        utterance=(None if tree.get("utterance") is None else _csil_expect_text(tree["utterance"])),
+    )
+
+
+def _merge_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_merge_request_value(self))
+
+
+def _merge_request_from_cbor(data: bytes) -> "MergeRequest":
+    return _decode_merge_request_value(cbor_decode(data))
+
+
+MergeRequest.to_cbor = _merge_request_to_cbor
+MergeRequest.from_cbor = staticmethod(_merge_request_from_cbor)
+
+def _encode_unmerge_request_value(v: "UnmergeRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["change"] = v.change
+    csil_x = v.act_for
+    if csil_x is not None:
+        csil_m["act_for"] = csil_x
+    return csil_m
+
+def _decode_unmerge_request_value(tree: Any) -> "UnmergeRequest":
+    tree = _csil_expect_map(tree)
+    return UnmergeRequest(
+        change=_csil_expect_text(tree["change"]),
+        act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
+    )
+
+
+def _unmerge_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_unmerge_request_value(self))
+
+
+def _unmerge_request_from_cbor(data: bytes) -> "UnmergeRequest":
+    return _decode_unmerge_request_value(cbor_decode(data))
+
+
+UnmergeRequest.to_cbor = _unmerge_request_to_cbor
+UnmergeRequest.from_cbor = staticmethod(_unmerge_request_from_cbor)
+
+def _encode_record_episode_request_value(v: "RecordEpisodeRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.id
+    if csil_x is not None:
+        csil_m["id"] = csil_x
+    csil_m["kind"] = v.kind
+    csil_x = v.refs
+    if csil_x is not None:
+        csil_m["refs"] = [_encode_ref_value(csil_e) for csil_e in csil_x]
+    csil_m["title"] = v.title
+    csil_x = v.owners
+    if csil_x is not None:
+        csil_m["owners"] = csil_x
+    csil_x = v.act_for
+    if csil_x is not None:
+        csil_m["act_for"] = csil_x
+    csil_x = v.outcome
+    if csil_x is not None:
+        csil_m["outcome"] = csil_x
+    csil_x = v.readers
+    if csil_x is not None:
+        csil_m["readers"] = csil_x
+    csil_x = v.summary
+    if csil_x is not None:
+        csil_m["summary"] = csil_x
+    csil_x = v.ended_ms
+    if csil_x is not None:
+        csil_m["ended_ms"] = csil_x
+    csil_x = v.entities
+    if csil_x is not None:
+        csil_m["entities"] = csil_x
+    csil_x = v.procedure
+    if csil_x is not None:
+        csil_m["procedure"] = csil_x
+    csil_x = v.started_ms
+    if csil_x is not None:
+        csil_m["started_ms"] = csil_x
+    csil_x = v.participants
+    if csil_x is not None:
+        csil_m["participants"] = csil_x
+    return csil_m
+
+def _decode_record_episode_request_value(tree: Any) -> "RecordEpisodeRequest":
+    tree = _csil_expect_map(tree)
+    return RecordEpisodeRequest(
+        id=(None if tree.get("id") is None else _csil_expect_text(tree["id"])),
+        kind=_csil_expect_text(tree["kind"]),
+        title=_csil_expect_text(tree["title"]),
+        summary=(None if tree.get("summary") is None else _csil_expect_text(tree["summary"])),
+        started_ms=(None if tree.get("started_ms") is None else _csil_expect_uint(tree["started_ms"])),
+        ended_ms=(None if tree.get("ended_ms") is None else _csil_expect_uint(tree["ended_ms"])),
+        participants=(None if tree.get("participants") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["participants"])]),
+        entities=(None if tree.get("entities") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["entities"])]),
+        refs=(None if tree.get("refs") is None else [_decode_ref_value(csil_e) for csil_e in _csil_expect_array(tree["refs"])]),
+        procedure=(None if tree.get("procedure") is None else _csil_expect_text(tree["procedure"])),
+        outcome=(None if tree.get("outcome") is None else _csil_expect_text(tree["outcome"])),
+        owners=(None if tree.get("owners") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["owners"])]),
+        readers=(None if tree.get("readers") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["readers"])]),
+        act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
+    )
+
+
+def _record_episode_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_record_episode_request_value(self))
+
+
+def _record_episode_request_from_cbor(data: bytes) -> "RecordEpisodeRequest":
+    return _decode_record_episode_request_value(cbor_decode(data))
+
+
+RecordEpisodeRequest.to_cbor = _record_episode_request_to_cbor
+RecordEpisodeRequest.from_cbor = staticmethod(_record_episode_request_from_cbor)
+
+def _encode_put_procedure_request_value(v: "PutProcedureRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["goal"] = v.goal
+    csil_m["name"] = v.name
+    csil_m["steps"] = v.steps
+    csil_x = v.inputs
+    if csil_x is not None:
+        csil_m["inputs"] = csil_x
+    csil_x = v.owners
+    if csil_x is not None:
+        csil_m["owners"] = csil_x
+    csil_x = v.reason
+    if csil_x is not None:
+        csil_m["reason"] = csil_x
+    csil_x = v.status
+    if csil_x is not None:
+        csil_m["status"] = csil_x
+    csil_x = v.act_for
+    if csil_x is not None:
+        csil_m["act_for"] = csil_x
+    csil_x = v.readers
+    if csil_x is not None:
+        csil_m["readers"] = csil_x
+    csil_x = v.entities
+    if csil_x is not None:
+        csil_m["entities"] = csil_x
+    csil_x = v.definition
+    if csil_x is not None:
+        csil_m["definition"] = csil_x
+    return csil_m
+
+def _decode_put_procedure_request_value(tree: Any) -> "PutProcedureRequest":
+    tree = _csil_expect_map(tree)
+    return PutProcedureRequest(
+        name=_csil_expect_text(tree["name"]),
+        goal=_csil_expect_text(tree["goal"]),
+        inputs=(None if tree.get("inputs") is None else {_csil_expect_text(csil_k): _csil_expect_text(csil_v) for csil_k, csil_v in _csil_expect_map(tree["inputs"]).items()}),
+        steps=_csil_expect_text(tree["steps"]),
+        definition=(None if tree.get("definition") is None else _csil_expect_text(tree["definition"])),
+        status=(None if tree.get("status") is None else _csil_expect_text(tree["status"])),
+        entities=(None if tree.get("entities") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["entities"])]),
+        owners=(None if tree.get("owners") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["owners"])]),
+        readers=(None if tree.get("readers") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["readers"])]),
+        act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
+        reason=(None if tree.get("reason") is None else _csil_expect_text(tree["reason"])),
+    )
+
+
+def _put_procedure_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_put_procedure_request_value(self))
+
+
+def _put_procedure_request_from_cbor(data: bytes) -> "PutProcedureRequest":
+    return _decode_put_procedure_request_value(cbor_decode(data))
+
+
+PutProcedureRequest.to_cbor = _put_procedure_request_to_cbor
+PutProcedureRequest.from_cbor = staticmethod(_put_procedure_request_from_cbor)
 
 def _encode_link_evidence_request_value(v: "LinkEvidenceRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
-    csil_m["ref"] = v.ref
+    csil_m["ref"] = _encode_ref_value(v.ref)
     csil_x = v.note
     if csil_x is not None:
         csil_m["note"] = csil_x
-    csil_x = v.owner
-    if csil_x is not None:
-        csil_m["owner"] = csil_x
     csil_x = v.stance
     if csil_x is not None:
         csil_m["stance"] = csil_x
+    csil_x = v.act_for
+    if csil_x is not None:
+        csil_m["act_for"] = csil_x
     csil_m["subject"] = v.subject
-    csil_m["ref_kind"] = v.ref_kind
     return csil_m
 
 def _decode_link_evidence_request_value(tree: Any) -> "LinkEvidenceRequest":
     tree = _csil_expect_map(tree)
     return LinkEvidenceRequest(
         subject=_csil_expect_text(tree["subject"]),
-        ref_kind=_csil_expect_text(tree["ref_kind"]),
-        ref=_csil_expect_text(tree["ref"]),
+        ref=_decode_ref_value(tree["ref"]),
         stance=(None if tree.get("stance") is None else _csil_expect_text(tree["stance"])),
         note=(None if tree.get("note") is None else _csil_expect_text(tree["note"])),
-        owner=(None if tree.get("owner") is None else _csil_expect_text(tree["owner"])),
+        act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
     )
 
 
@@ -691,118 +1280,582 @@ def _link_evidence_request_from_cbor(data: bytes) -> "LinkEvidenceRequest":
 LinkEvidenceRequest.to_cbor = _link_evidence_request_to_cbor
 LinkEvidenceRequest.from_cbor = staticmethod(_link_evidence_request_from_cbor)
 
-def _encode_query_request_value(v: "QueryRequest") -> Dict[Any, Any]:
+def _encode_dispute_request_value(v: "DisputeRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["reason"] = v.reason
+    csil_m["record"] = v.record
+    csil_x = v.act_for
+    if csil_x is not None:
+        csil_m["act_for"] = csil_x
+    csil_x = v.proposed
+    if csil_x is not None:
+        csil_m["proposed"] = csil_x
+    return csil_m
+
+def _decode_dispute_request_value(tree: Any) -> "DisputeRequest":
+    tree = _csil_expect_map(tree)
+    return DisputeRequest(
+        record=_csil_expect_text(tree["record"]),
+        reason=_csil_expect_text(tree["reason"]),
+        proposed=(None if tree.get("proposed") is None else _csil_expect_text(tree["proposed"])),
+        act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
+    )
+
+
+def _dispute_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_dispute_request_value(self))
+
+
+def _dispute_request_from_cbor(data: bytes) -> "DisputeRequest":
+    return _decode_dispute_request_value(cbor_decode(data))
+
+
+DisputeRequest.to_cbor = _dispute_request_to_cbor
+DisputeRequest.from_cbor = staticmethod(_dispute_request_from_cbor)
+
+def _encode_resolve_dispute_request_value(v: "ResolveDisputeRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["accept"] = v.accept
+    csil_x = v.act_for
+    if csil_x is not None:
+        csil_m["act_for"] = csil_x
+    csil_x = v.resolution
+    if csil_x is not None:
+        csil_m["resolution"] = csil_x
+    return csil_m
+
+def _decode_resolve_dispute_request_value(tree: Any) -> "ResolveDisputeRequest":
+    tree = _csil_expect_map(tree)
+    return ResolveDisputeRequest(
+        id=_csil_expect_text(tree["id"]),
+        accept=_csil_expect_bool(tree["accept"]),
+        resolution=(None if tree.get("resolution") is None else _csil_expect_text(tree["resolution"])),
+        act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
+    )
+
+
+def _resolve_dispute_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_resolve_dispute_request_value(self))
+
+
+def _resolve_dispute_request_from_cbor(data: bytes) -> "ResolveDisputeRequest":
+    return _decode_resolve_dispute_request_value(cbor_decode(data))
+
+
+ResolveDisputeRequest.to_cbor = _resolve_dispute_request_to_cbor
+ResolveDisputeRequest.from_cbor = staticmethod(_resolve_dispute_request_from_cbor)
+
+def _encode_list_disputes_request_value(v: "ListDisputesRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.state
+    if csil_x is not None:
+        csil_m["state"] = csil_x
+    csil_x = v.act_for
+    if csil_x is not None:
+        csil_m["act_for"] = csil_x
+    return csil_m
+
+def _decode_list_disputes_request_value(tree: Any) -> "ListDisputesRequest":
+    tree = _csil_expect_map(tree)
+    return ListDisputesRequest(
+        state=(None if tree.get("state") is None else _csil_expect_text(tree["state"])),
+        act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
+    )
+
+
+def _list_disputes_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_disputes_request_value(self))
+
+
+def _list_disputes_request_from_cbor(data: bytes) -> "ListDisputesRequest":
+    return _decode_list_disputes_request_value(cbor_decode(data))
+
+
+ListDisputesRequest.to_cbor = _list_disputes_request_to_cbor
+ListDisputesRequest.from_cbor = staticmethod(_list_disputes_request_from_cbor)
+
+def _encode_list_disputes_response_value(v: "ListDisputesResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["disputes"] = [_encode_dispute_value(csil_e) for csil_e in v.disputes]
+    return csil_m
+
+def _decode_list_disputes_response_value(tree: Any) -> "ListDisputesResponse":
+    tree = _csil_expect_map(tree)
+    return ListDisputesResponse(
+        disputes=[_decode_dispute_value(csil_e) for csil_e in _csil_expect_array(tree["disputes"])],
+    )
+
+
+def _list_disputes_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_disputes_response_value(self))
+
+
+def _list_disputes_response_from_cbor(data: bytes) -> "ListDisputesResponse":
+    return _decode_list_disputes_response_value(cbor_decode(data))
+
+
+ListDisputesResponse.to_cbor = _list_disputes_response_to_cbor
+ListDisputesResponse.from_cbor = staticmethod(_list_disputes_response_from_cbor)
+
+def _encode_put_group_request_value(v: "PutGroupRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["label"] = v.label
+    csil_x = v.owners
+    if csil_x is not None:
+        csil_m["owners"] = csil_x
+    csil_x = v.act_for
+    if csil_x is not None:
+        csil_m["act_for"] = csil_x
+    csil_m["members"] = v.members
+    return csil_m
+
+def _decode_put_group_request_value(tree: Any) -> "PutGroupRequest":
+    tree = _csil_expect_map(tree)
+    return PutGroupRequest(
+        id=_csil_expect_text(tree["id"]),
+        label=_csil_expect_text(tree["label"]),
+        members=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["members"])],
+        owners=(None if tree.get("owners") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["owners"])]),
+        act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
+    )
+
+
+def _put_group_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_put_group_request_value(self))
+
+
+def _put_group_request_from_cbor(data: bytes) -> "PutGroupRequest":
+    return _decode_put_group_request_value(cbor_decode(data))
+
+
+PutGroupRequest.to_cbor = _put_group_request_to_cbor
+PutGroupRequest.from_cbor = staticmethod(_put_group_request_from_cbor)
+
+def _encode_search_request_value(v: "SearchRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_x = v.kind
     if csil_x is not None:
         csil_m["kind"] = csil_x
-    csil_x = v.near
-    if csil_x is not None:
-        csil_m["near"] = csil_x
     csil_x = v.text
     if csil_x is not None:
         csil_m["text"] = csil_x
+    csil_x = v.at_ms
+    if csil_x is not None:
+        csil_m["at_ms"] = csil_x
+    csil_x = v.limit
+    if csil_x is not None:
+        csil_m["limit"] = csil_x
+    csil_x = v.types
+    if csil_x is not None:
+        csil_m["types"] = csil_x
+    csil_x = v.act_for
+    if csil_x is not None:
+        csil_m["act_for"] = csil_x
+    csil_x = v.relation
+    if csil_x is not None:
+        csil_m["relation"] = csil_x
+    csil_x = v.include_ended
+    if csil_x is not None:
+        csil_m["include_ended"] = csil_x
+    return csil_m
+
+def _decode_search_request_value(tree: Any) -> "SearchRequest":
+    tree = _csil_expect_map(tree)
+    return SearchRequest(
+        text=(None if tree.get("text") is None else _csil_expect_text(tree["text"])),
+        types=(None if tree.get("types") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["types"])]),
+        kind=(None if tree.get("kind") is None else _csil_expect_text(tree["kind"])),
+        relation=(None if tree.get("relation") is None else _csil_expect_text(tree["relation"])),
+        at_ms=(None if tree.get("at_ms") is None else _csil_expect_uint(tree["at_ms"])),
+        include_ended=(None if tree.get("include_ended") is None else _csil_expect_bool(tree["include_ended"])),
+        limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
+        act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
+    )
+
+
+def _search_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_search_request_value(self))
+
+
+def _search_request_from_cbor(data: bytes) -> "SearchRequest":
+    return _decode_search_request_value(cbor_decode(data))
+
+
+SearchRequest.to_cbor = _search_request_to_cbor
+SearchRequest.from_cbor = staticmethod(_search_request_from_cbor)
+
+def _encode_hit_value(v: "Hit") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["type"] = v.type
+    csil_m["score"] = v.score
+    return csil_m
+
+def _decode_hit_value(tree: Any) -> "Hit":
+    tree = _csil_expect_map(tree)
+    return Hit(
+        type=_csil_expect_text(tree["type"]),
+        id=_csil_expect_text(tree["id"]),
+        score=_csil_expect_float(tree["score"]),
+    )
+
+
+def _hit_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_hit_value(self))
+
+
+def _hit_from_cbor(data: bytes) -> "Hit":
+    return _decode_hit_value(cbor_decode(data))
+
+
+Hit.to_cbor = _hit_to_cbor
+Hit.from_cbor = staticmethod(_hit_from_cbor)
+
+def _encode_search_response_value(v: "SearchResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["hits"] = [_encode_hit_value(csil_e) for csil_e in v.hits]
+    csil_m["claims"] = [_encode_claim_value(csil_e) for csil_e in v.claims]
+    csil_m["entities"] = [_encode_entity_value(csil_e) for csil_e in v.entities]
+    csil_m["episodes"] = [_encode_episode_value(csil_e) for csil_e in v.episodes]
+    csil_m["procedures"] = [_encode_procedure_value(csil_e) for csil_e in v.procedures]
+    return csil_m
+
+def _decode_search_response_value(tree: Any) -> "SearchResponse":
+    tree = _csil_expect_map(tree)
+    return SearchResponse(
+        hits=[_decode_hit_value(csil_e) for csil_e in _csil_expect_array(tree["hits"])],
+        entities=[_decode_entity_value(csil_e) for csil_e in _csil_expect_array(tree["entities"])],
+        claims=[_decode_claim_value(csil_e) for csil_e in _csil_expect_array(tree["claims"])],
+        episodes=[_decode_episode_value(csil_e) for csil_e in _csil_expect_array(tree["episodes"])],
+        procedures=[_decode_procedure_value(csil_e) for csil_e in _csil_expect_array(tree["procedures"])],
+    )
+
+
+def _search_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_search_response_value(self))
+
+
+def _search_response_from_cbor(data: bytes) -> "SearchResponse":
+    return _decode_search_response_value(cbor_decode(data))
+
+
+SearchResponse.to_cbor = _search_response_to_cbor
+SearchResponse.from_cbor = staticmethod(_search_response_from_cbor)
+
+def _encode_about_request_value(v: "AboutRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_x = v.at_ms
+    if csil_x is not None:
+        csil_m["at_ms"] = csil_x
+    csil_x = v.act_for
+    if csil_x is not None:
+        csil_m["act_for"] = csil_x
+    csil_x = v.include_ended
+    if csil_x is not None:
+        csil_m["include_ended"] = csil_x
+    return csil_m
+
+def _decode_about_request_value(tree: Any) -> "AboutRequest":
+    tree = _csil_expect_map(tree)
+    return AboutRequest(
+        id=_csil_expect_text(tree["id"]),
+        at_ms=(None if tree.get("at_ms") is None else _csil_expect_uint(tree["at_ms"])),
+        include_ended=(None if tree.get("include_ended") is None else _csil_expect_bool(tree["include_ended"])),
+        act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
+    )
+
+
+def _about_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_about_request_value(self))
+
+
+def _about_request_from_cbor(data: bytes) -> "AboutRequest":
+    return _decode_about_request_value(cbor_decode(data))
+
+
+AboutRequest.to_cbor = _about_request_to_cbor
+AboutRequest.from_cbor = staticmethod(_about_request_from_cbor)
+
+def _encode_about_response_value(v: "AboutResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["claims"] = [_encode_claim_value(csil_e) for csil_e in v.claims]
+    csil_m["entity"] = _encode_entity_value(v.entity)
+    csil_m["related"] = [_encode_entity_value(csil_e) for csil_e in v.related]
+    csil_m["disputes"] = [_encode_dispute_value(csil_e) for csil_e in v.disputes]
+    csil_m["episodes"] = [_encode_episode_value(csil_e) for csil_e in v.episodes]
+    csil_m["evidence"] = [_encode_evidence_value(csil_e) for csil_e in v.evidence]
+    csil_m["procedures"] = [_encode_procedure_value(csil_e) for csil_e in v.procedures]
+    return csil_m
+
+def _decode_about_response_value(tree: Any) -> "AboutResponse":
+    tree = _csil_expect_map(tree)
+    return AboutResponse(
+        entity=_decode_entity_value(tree["entity"]),
+        claims=[_decode_claim_value(csil_e) for csil_e in _csil_expect_array(tree["claims"])],
+        related=[_decode_entity_value(csil_e) for csil_e in _csil_expect_array(tree["related"])],
+        episodes=[_decode_episode_value(csil_e) for csil_e in _csil_expect_array(tree["episodes"])],
+        procedures=[_decode_procedure_value(csil_e) for csil_e in _csil_expect_array(tree["procedures"])],
+        evidence=[_decode_evidence_value(csil_e) for csil_e in _csil_expect_array(tree["evidence"])],
+        disputes=[_decode_dispute_value(csil_e) for csil_e in _csil_expect_array(tree["disputes"])],
+    )
+
+
+def _about_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_about_response_value(self))
+
+
+def _about_response_from_cbor(data: bytes) -> "AboutResponse":
+    return _decode_about_response_value(cbor_decode(data))
+
+
+AboutResponse.to_cbor = _about_response_to_cbor
+AboutResponse.from_cbor = staticmethod(_about_response_from_cbor)
+
+def _encode_neighbors_request_value(v: "NeighborsRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
     csil_x = v.depth
     if csil_x is not None:
         csil_m["depth"] = csil_x
     csil_x = v.limit
     if csil_x is not None:
         csil_m["limit"] = csil_x
-    csil_x = v.owner
+    csil_x = v.act_for
     if csil_x is not None:
-        csil_m["owner"] = csil_x
+        csil_m["act_for"] = csil_x
+    csil_x = v.relation
+    if csil_x is not None:
+        csil_m["relation"] = csil_x
     return csil_m
 
-def _decode_query_request_value(tree: Any) -> "QueryRequest":
+def _decode_neighbors_request_value(tree: Any) -> "NeighborsRequest":
     tree = _csil_expect_map(tree)
-    return QueryRequest(
-        text=(None if tree.get("text") is None else _csil_expect_text(tree["text"])),
-        owner=(None if tree.get("owner") is None else _csil_expect_text(tree["owner"])),
-        kind=(None if tree.get("kind") is None else _csil_expect_text(tree["kind"])),
-        near=(None if tree.get("near") is None else _csil_expect_text(tree["near"])),
+    return NeighborsRequest(
+        id=_csil_expect_text(tree["id"]),
+        relation=(None if tree.get("relation") is None else _csil_expect_text(tree["relation"])),
         depth=(None if tree.get("depth") is None else _csil_expect_uint(tree["depth"])),
         limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
+        act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
     )
 
 
-def _query_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_query_request_value(self))
+def _neighbors_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_neighbors_request_value(self))
 
 
-def _query_request_from_cbor(data: bytes) -> "QueryRequest":
-    return _decode_query_request_value(cbor_decode(data))
+def _neighbors_request_from_cbor(data: bytes) -> "NeighborsRequest":
+    return _decode_neighbors_request_value(cbor_decode(data))
 
 
-QueryRequest.to_cbor = _query_request_to_cbor
-QueryRequest.from_cbor = staticmethod(_query_request_from_cbor)
+NeighborsRequest.to_cbor = _neighbors_request_to_cbor
+NeighborsRequest.from_cbor = staticmethod(_neighbors_request_from_cbor)
 
-def _encode_query_response_value(v: "QueryResponse") -> Dict[Any, Any]:
+def _encode_neighbors_response_value(v: "NeighborsResponse") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
-    csil_m["edges"] = [_encode_edge_value(csil_e) for csil_e in v.edges]
-    csil_m["nodes"] = [_encode_node_value(csil_e) for csil_e in v.nodes]
+    csil_m["claims"] = [_encode_claim_value(csil_e) for csil_e in v.claims]
+    csil_m["entities"] = [_encode_entity_value(csil_e) for csil_e in v.entities]
     return csil_m
 
-def _decode_query_response_value(tree: Any) -> "QueryResponse":
+def _decode_neighbors_response_value(tree: Any) -> "NeighborsResponse":
     tree = _csil_expect_map(tree)
-    return QueryResponse(
-        nodes=[_decode_node_value(csil_e) for csil_e in _csil_expect_array(tree["nodes"])],
-        edges=[_decode_edge_value(csil_e) for csil_e in _csil_expect_array(tree["edges"])],
+    return NeighborsResponse(
+        entities=[_decode_entity_value(csil_e) for csil_e in _csil_expect_array(tree["entities"])],
+        claims=[_decode_claim_value(csil_e) for csil_e in _csil_expect_array(tree["claims"])],
     )
 
 
-def _query_response_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_query_response_value(self))
+def _neighbors_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_neighbors_response_value(self))
 
 
-def _query_response_from_cbor(data: bytes) -> "QueryResponse":
-    return _decode_query_response_value(cbor_decode(data))
+def _neighbors_response_from_cbor(data: bytes) -> "NeighborsResponse":
+    return _decode_neighbors_response_value(cbor_decode(data))
 
 
-QueryResponse.to_cbor = _query_response_to_cbor
-QueryResponse.from_cbor = staticmethod(_query_response_from_cbor)
+NeighborsResponse.to_cbor = _neighbors_response_to_cbor
+NeighborsResponse.from_cbor = staticmethod(_neighbors_response_from_cbor)
 
-def _encode_delete_request_value(v: "DeleteRequest") -> Dict[Any, Any]:
+def _encode_timeline_request_value(v: "TimelineRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.limit
+    if csil_x is not None:
+        csil_m["limit"] = csil_x
+    csil_m["to_ms"] = v.to_ms
+    csil_x = v.entity
+    if csil_x is not None:
+        csil_m["entity"] = csil_x
+    csil_x = v.act_for
+    if csil_x is not None:
+        csil_m["act_for"] = csil_x
+    csil_m["from_ms"] = v.from_ms
+    return csil_m
+
+def _decode_timeline_request_value(tree: Any) -> "TimelineRequest":
+    tree = _csil_expect_map(tree)
+    return TimelineRequest(
+        entity=(None if tree.get("entity") is None else _csil_expect_text(tree["entity"])),
+        from_ms=_csil_expect_uint(tree["from_ms"]),
+        to_ms=_csil_expect_uint(tree["to_ms"]),
+        limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
+        act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
+    )
+
+
+def _timeline_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_timeline_request_value(self))
+
+
+def _timeline_request_from_cbor(data: bytes) -> "TimelineRequest":
+    return _decode_timeline_request_value(cbor_decode(data))
+
+
+TimelineRequest.to_cbor = _timeline_request_to_cbor
+TimelineRequest.from_cbor = staticmethod(_timeline_request_from_cbor)
+
+def _encode_timeline_response_value(v: "TimelineResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["claims"] = [_encode_claim_value(csil_e) for csil_e in v.claims]
+    csil_m["changes"] = [_encode_change_value(csil_e) for csil_e in v.changes]
+    csil_m["episodes"] = [_encode_episode_value(csil_e) for csil_e in v.episodes]
+    return csil_m
+
+def _decode_timeline_response_value(tree: Any) -> "TimelineResponse":
+    tree = _csil_expect_map(tree)
+    return TimelineResponse(
+        episodes=[_decode_episode_value(csil_e) for csil_e in _csil_expect_array(tree["episodes"])],
+        claims=[_decode_claim_value(csil_e) for csil_e in _csil_expect_array(tree["claims"])],
+        changes=[_decode_change_value(csil_e) for csil_e in _csil_expect_array(tree["changes"])],
+    )
+
+
+def _timeline_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_timeline_response_value(self))
+
+
+def _timeline_response_from_cbor(data: bytes) -> "TimelineResponse":
+    return _decode_timeline_response_value(cbor_decode(data))
+
+
+TimelineResponse.to_cbor = _timeline_response_to_cbor
+TimelineResponse.from_cbor = staticmethod(_timeline_response_from_cbor)
+
+def _encode_history_request_value(v: "HistoryRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["id"] = v.id
+    csil_x = v.act_for
+    if csil_x is not None:
+        csil_m["act_for"] = csil_x
     return csil_m
 
-def _decode_delete_request_value(tree: Any) -> "DeleteRequest":
+def _decode_history_request_value(tree: Any) -> "HistoryRequest":
     tree = _csil_expect_map(tree)
-    return DeleteRequest(
+    return HistoryRequest(
         id=_csil_expect_text(tree["id"]),
+        act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
     )
 
 
-def _delete_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_delete_request_value(self))
+def _history_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_history_request_value(self))
 
 
-def _delete_request_from_cbor(data: bytes) -> "DeleteRequest":
-    return _decode_delete_request_value(cbor_decode(data))
+def _history_request_from_cbor(data: bytes) -> "HistoryRequest":
+    return _decode_history_request_value(cbor_decode(data))
 
 
-DeleteRequest.to_cbor = _delete_request_to_cbor
-DeleteRequest.from_cbor = staticmethod(_delete_request_from_cbor)
+HistoryRequest.to_cbor = _history_request_to_cbor
+HistoryRequest.from_cbor = staticmethod(_history_request_from_cbor)
 
-def _encode_delete_response_value(v: "DeleteResponse") -> Dict[Any, Any]:
+def _encode_history_response_value(v: "HistoryResponse") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
-    csil_m["deleted"] = v.deleted
+    csil_m["changes"] = [_encode_change_value(csil_e) for csil_e in v.changes]
     return csil_m
 
-def _decode_delete_response_value(tree: Any) -> "DeleteResponse":
+def _decode_history_response_value(tree: Any) -> "HistoryResponse":
     tree = _csil_expect_map(tree)
-    return DeleteResponse(
-        deleted=_csil_expect_bool(tree["deleted"]),
+    return HistoryResponse(
+        changes=[_decode_change_value(csil_e) for csil_e in _csil_expect_array(tree["changes"])],
     )
 
 
-def _delete_response_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_delete_response_value(self))
+def _history_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_history_response_value(self))
 
 
-def _delete_response_from_cbor(data: bytes) -> "DeleteResponse":
-    return _decode_delete_response_value(cbor_decode(data))
+def _history_response_from_cbor(data: bytes) -> "HistoryResponse":
+    return _decode_history_response_value(cbor_decode(data))
 
 
-DeleteResponse.to_cbor = _delete_response_to_cbor
-DeleteResponse.from_cbor = staticmethod(_delete_response_from_cbor)
+HistoryResponse.to_cbor = _history_response_to_cbor
+HistoryResponse.from_cbor = staticmethod(_history_response_from_cbor)
+
+def _encode_get_request_value(v: "GetRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_x = v.act_for
+    if csil_x is not None:
+        csil_m["act_for"] = csil_x
+    return csil_m
+
+def _decode_get_request_value(tree: Any) -> "GetRequest":
+    tree = _csil_expect_map(tree)
+    return GetRequest(
+        id=_csil_expect_text(tree["id"]),
+        act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
+    )
+
+
+def _get_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_get_request_value(self))
+
+
+def _get_request_from_cbor(data: bytes) -> "GetRequest":
+    return _decode_get_request_value(cbor_decode(data))
+
+
+GetRequest.to_cbor = _get_request_to_cbor
+GetRequest.from_cbor = staticmethod(_get_request_from_cbor)
+
+def _encode_get_response_value(v: "GetResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.claim
+    if csil_x is not None:
+        csil_m["claim"] = _encode_claim_value(csil_x)
+    csil_x = v.entity
+    if csil_x is not None:
+        csil_m["entity"] = _encode_entity_value(csil_x)
+    csil_x = v.episode
+    if csil_x is not None:
+        csil_m["episode"] = _encode_episode_value(csil_x)
+    csil_x = v.evidence
+    if csil_x is not None:
+        csil_m["evidence"] = _encode_evidence_value(csil_x)
+    csil_x = v.procedure
+    if csil_x is not None:
+        csil_m["procedure"] = _encode_procedure_value(csil_x)
+    return csil_m
+
+def _decode_get_response_value(tree: Any) -> "GetResponse":
+    tree = _csil_expect_map(tree)
+    return GetResponse(
+        entity=(None if tree.get("entity") is None else _decode_entity_value(tree["entity"])),
+        claim=(None if tree.get("claim") is None else _decode_claim_value(tree["claim"])),
+        episode=(None if tree.get("episode") is None else _decode_episode_value(tree["episode"])),
+        procedure=(None if tree.get("procedure") is None else _decode_procedure_value(tree["procedure"])),
+        evidence=(None if tree.get("evidence") is None else _decode_evidence_value(tree["evidence"])),
+    )
+
+
+def _get_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_get_response_value(self))
+
+
+def _get_response_from_cbor(data: bytes) -> "GetResponse":
+    return _decode_get_response_value(cbor_decode(data))
+
+
+GetResponse.to_cbor = _get_response_to_cbor
+GetResponse.from_cbor = staticmethod(_get_response_from_cbor)

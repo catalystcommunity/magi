@@ -38,19 +38,51 @@ class ExternalRef:
 
 
 @dataclass
-class Node:
+class Ref:
+    kind: str
+    ref: str
+    title: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'kind') and self.kind is not None:
+            result['kind'] = self.kind
+        if hasattr(self, 'ref') and self.ref is not None:
+            result['ref'] = self.ref
+        if hasattr(self, 'title') and self.title is not None:
+            result['title'] = self.title
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Ref':
+        """Create instance from dictionary."""
+        return cls(kind=data.get('kind'), ref=data.get('ref'), title=data.get('title'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'Ref':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class Entity:
     id: str
     kind: str
     label: str
+    aliases: List[str]
     summary: str
     properties: Dict[str, str]
-    owner: str
-    scope: str
+    owners: List[str]
+    readers: List[str]
     confidence: float
     created_ms: int
     updated_ms: int
     external: Optional[ExternalRef] = None
-    authored_by: Optional[str] = None
+    merged_into: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -60,20 +92,22 @@ class Node:
             result['kind'] = self.kind
         if hasattr(self, 'label') and self.label is not None:
             result['label'] = self.label
+        if hasattr(self, 'aliases') and self.aliases is not None:
+            result['aliases'] = self.aliases
         if hasattr(self, 'summary') and self.summary is not None:
             result['summary'] = self.summary
         if hasattr(self, 'properties') and self.properties is not None:
             result['properties'] = self.properties
         if hasattr(self, 'external') and self.external is not None:
             result['external'] = self.external
-        if hasattr(self, 'owner') and self.owner is not None:
-            result['owner'] = self.owner
-        if hasattr(self, 'scope') and self.scope is not None:
-            result['scope'] = self.scope
-        if hasattr(self, 'authored_by') and self.authored_by is not None:
-            result['authored_by'] = self.authored_by
+        if hasattr(self, 'owners') and self.owners is not None:
+            result['owners'] = self.owners
+        if hasattr(self, 'readers') and self.readers is not None:
+            result['readers'] = self.readers
         if hasattr(self, 'confidence') and self.confidence is not None:
             result['confidence'] = self.confidence
+        if hasattr(self, 'merged_into') and self.merged_into is not None:
+            result['merged_into'] = self.merged_into
         if hasattr(self, 'created_ms') and self.created_ms is not None:
             result['created_ms'] = self.created_ms
         if hasattr(self, 'updated_ms') and self.updated_ms is not None:
@@ -81,62 +115,223 @@ class Node:
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'Node':
+    def from_dict(cls, data: Dict[str, Any]) -> 'Entity':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), kind=data.get('kind'), label=data.get('label'), summary=data.get('summary'), properties=data.get('properties'), external=data.get('external'), owner=data.get('owner'), scope=data.get('scope'), authored_by=data.get('authored_by'), confidence=data.get('confidence'), created_ms=data.get('created_ms'), updated_ms=data.get('updated_ms'))
+        return cls(id=data.get('id'), kind=data.get('kind'), label=data.get('label'), aliases=data.get('aliases'), summary=data.get('summary'), properties=data.get('properties'), external=data.get('external'), owners=data.get('owners'), readers=data.get('readers'), confidence=data.get('confidence'), merged_into=data.get('merged_into'), created_ms=data.get('created_ms'), updated_ms=data.get('updated_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
         return json.dumps(self.to_dict())
 
     @classmethod
-    def from_json(cls, json_str: str) -> 'Node':
+    def from_json(cls, json_str: str) -> 'Entity':
         """Create instance from JSON string."""
         return cls.from_dict(json.loads(json_str))
 
 
 @dataclass
-class Edge:
+class Claim:
     id: str
-    from_node: str
-    to_node: str
+    subject: str
     relation: str
-    properties: Dict[str, str]
-    owner: str
+    status: str
     confidence: float
+    derived_from: List[str]
+    stale: bool
+    supported: bool
+    owners: List[str]
+    readers: List[str]
     created_ms: int
+    updated_ms: int
+    object: Optional[str] = None
+    value: Optional[str] = None
+    valid_from_ms: Optional[int] = None
+    valid_to_ms: Optional[int] = None
+    replaced_by: Optional[str] = None
+    authored_by: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'id') and self.id is not None:
             result['id'] = self.id
-        if hasattr(self, 'from_node') and self.from_node is not None:
-            result['from_node'] = self.from_node
-        if hasattr(self, 'to_node') and self.to_node is not None:
-            result['to_node'] = self.to_node
+        if hasattr(self, 'subject') and self.subject is not None:
+            result['subject'] = self.subject
         if hasattr(self, 'relation') and self.relation is not None:
             result['relation'] = self.relation
-        if hasattr(self, 'properties') and self.properties is not None:
-            result['properties'] = self.properties
-        if hasattr(self, 'owner') and self.owner is not None:
-            result['owner'] = self.owner
+        if hasattr(self, 'object') and self.object is not None:
+            result['object'] = self.object
+        if hasattr(self, 'value') and self.value is not None:
+            result['value'] = self.value
+        if hasattr(self, 'valid_from_ms') and self.valid_from_ms is not None:
+            result['valid_from_ms'] = self.valid_from_ms
+        if hasattr(self, 'valid_to_ms') and self.valid_to_ms is not None:
+            result['valid_to_ms'] = self.valid_to_ms
+        if hasattr(self, 'status') and self.status is not None:
+            result['status'] = self.status
+        if hasattr(self, 'replaced_by') and self.replaced_by is not None:
+            result['replaced_by'] = self.replaced_by
         if hasattr(self, 'confidence') and self.confidence is not None:
             result['confidence'] = self.confidence
+        if hasattr(self, 'authored_by') and self.authored_by is not None:
+            result['authored_by'] = self.authored_by
+        if hasattr(self, 'derived_from') and self.derived_from is not None:
+            result['derived_from'] = self.derived_from
+        if hasattr(self, 'stale') and self.stale is not None:
+            result['stale'] = self.stale
+        if hasattr(self, 'supported') and self.supported is not None:
+            result['supported'] = self.supported
+        if hasattr(self, 'owners') and self.owners is not None:
+            result['owners'] = self.owners
+        if hasattr(self, 'readers') and self.readers is not None:
+            result['readers'] = self.readers
         if hasattr(self, 'created_ms') and self.created_ms is not None:
             result['created_ms'] = self.created_ms
+        if hasattr(self, 'updated_ms') and self.updated_ms is not None:
+            result['updated_ms'] = self.updated_ms
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'Edge':
+    def from_dict(cls, data: Dict[str, Any]) -> 'Claim':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), from_node=data.get('from_node'), to_node=data.get('to_node'), relation=data.get('relation'), properties=data.get('properties'), owner=data.get('owner'), confidence=data.get('confidence'), created_ms=data.get('created_ms'))
+        return cls(id=data.get('id'), subject=data.get('subject'), relation=data.get('relation'), object=data.get('object'), value=data.get('value'), valid_from_ms=data.get('valid_from_ms'), valid_to_ms=data.get('valid_to_ms'), status=data.get('status'), replaced_by=data.get('replaced_by'), confidence=data.get('confidence'), authored_by=data.get('authored_by'), derived_from=data.get('derived_from'), stale=data.get('stale'), supported=data.get('supported'), owners=data.get('owners'), readers=data.get('readers'), created_ms=data.get('created_ms'), updated_ms=data.get('updated_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
         return json.dumps(self.to_dict())
 
     @classmethod
-    def from_json(cls, json_str: str) -> 'Edge':
+    def from_json(cls, json_str: str) -> 'Claim':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class Episode:
+    id: str
+    kind: str
+    title: str
+    summary: str
+    started_ms: int
+    participants: List[str]
+    entities: List[str]
+    refs: List[Ref]
+    owners: List[str]
+    readers: List[str]
+    created_ms: int
+    updated_ms: int
+    ended_ms: Optional[int] = None
+    procedure: Optional[str] = None
+    outcome: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'kind') and self.kind is not None:
+            result['kind'] = self.kind
+        if hasattr(self, 'title') and self.title is not None:
+            result['title'] = self.title
+        if hasattr(self, 'summary') and self.summary is not None:
+            result['summary'] = self.summary
+        if hasattr(self, 'started_ms') and self.started_ms is not None:
+            result['started_ms'] = self.started_ms
+        if hasattr(self, 'ended_ms') and self.ended_ms is not None:
+            result['ended_ms'] = self.ended_ms
+        if hasattr(self, 'participants') and self.participants is not None:
+            result['participants'] = self.participants
+        if hasattr(self, 'entities') and self.entities is not None:
+            result['entities'] = self.entities
+        if hasattr(self, 'refs') and self.refs is not None:
+            result['refs'] = self.refs
+        if hasattr(self, 'procedure') and self.procedure is not None:
+            result['procedure'] = self.procedure
+        if hasattr(self, 'outcome') and self.outcome is not None:
+            result['outcome'] = self.outcome
+        if hasattr(self, 'owners') and self.owners is not None:
+            result['owners'] = self.owners
+        if hasattr(self, 'readers') and self.readers is not None:
+            result['readers'] = self.readers
+        if hasattr(self, 'created_ms') and self.created_ms is not None:
+            result['created_ms'] = self.created_ms
+        if hasattr(self, 'updated_ms') and self.updated_ms is not None:
+            result['updated_ms'] = self.updated_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Episode':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), kind=data.get('kind'), title=data.get('title'), summary=data.get('summary'), started_ms=data.get('started_ms'), ended_ms=data.get('ended_ms'), participants=data.get('participants'), entities=data.get('entities'), refs=data.get('refs'), procedure=data.get('procedure'), outcome=data.get('outcome'), owners=data.get('owners'), readers=data.get('readers'), created_ms=data.get('created_ms'), updated_ms=data.get('updated_ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'Episode':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class Procedure:
+    id: str
+    name: str
+    goal: str
+    inputs: Dict[str, str]
+    steps: str
+    revision: int
+    status: str
+    uses: Dict[str, int]
+    entities: List[str]
+    owners: List[str]
+    readers: List[str]
+    created_ms: int
+    updated_ms: int
+    definition: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'name') and self.name is not None:
+            result['name'] = self.name
+        if hasattr(self, 'goal') and self.goal is not None:
+            result['goal'] = self.goal
+        if hasattr(self, 'inputs') and self.inputs is not None:
+            result['inputs'] = self.inputs
+        if hasattr(self, 'steps') and self.steps is not None:
+            result['steps'] = self.steps
+        if hasattr(self, 'definition') and self.definition is not None:
+            result['definition'] = self.definition
+        if hasattr(self, 'revision') and self.revision is not None:
+            result['revision'] = self.revision
+        if hasattr(self, 'status') and self.status is not None:
+            result['status'] = self.status
+        if hasattr(self, 'uses') and self.uses is not None:
+            result['uses'] = self.uses
+        if hasattr(self, 'entities') and self.entities is not None:
+            result['entities'] = self.entities
+        if hasattr(self, 'owners') and self.owners is not None:
+            result['owners'] = self.owners
+        if hasattr(self, 'readers') and self.readers is not None:
+            result['readers'] = self.readers
+        if hasattr(self, 'created_ms') and self.created_ms is not None:
+            result['created_ms'] = self.created_ms
+        if hasattr(self, 'updated_ms') and self.updated_ms is not None:
+            result['updated_ms'] = self.updated_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Procedure':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), name=data.get('name'), goal=data.get('goal'), inputs=data.get('inputs'), steps=data.get('steps'), definition=data.get('definition'), revision=data.get('revision'), status=data.get('status'), uses=data.get('uses'), entities=data.get('entities'), owners=data.get('owners'), readers=data.get('readers'), created_ms=data.get('created_ms'), updated_ms=data.get('updated_ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'Procedure':
         """Create instance from JSON string."""
         return cls.from_dict(json.loads(json_str))
 
@@ -145,10 +340,8 @@ class Edge:
 class Evidence:
     id: str
     subject: str
-    ref_kind: str
-    ref: str
+    ref: Ref
     stance: str
-    owner: str
     created_ms: int
     note: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
@@ -158,16 +351,12 @@ class Evidence:
             result['id'] = self.id
         if hasattr(self, 'subject') and self.subject is not None:
             result['subject'] = self.subject
-        if hasattr(self, 'ref_kind') and self.ref_kind is not None:
-            result['ref_kind'] = self.ref_kind
         if hasattr(self, 'ref') and self.ref is not None:
             result['ref'] = self.ref
         if hasattr(self, 'stance') and self.stance is not None:
             result['stance'] = self.stance
         if hasattr(self, 'note') and self.note is not None:
             result['note'] = self.note
-        if hasattr(self, 'owner') and self.owner is not None:
-            result['owner'] = self.owner
         if hasattr(self, 'created_ms') and self.created_ms is not None:
             result['created_ms'] = self.created_ms
         return result
@@ -175,7 +364,7 @@ class Evidence:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Evidence':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), subject=data.get('subject'), ref_kind=data.get('ref_kind'), ref=data.get('ref'), stance=data.get('stance'), note=data.get('note'), owner=data.get('owner'), created_ms=data.get('created_ms'))
+        return cls(id=data.get('id'), subject=data.get('subject'), ref=data.get('ref'), stance=data.get('stance'), note=data.get('note'), created_ms=data.get('created_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -188,17 +377,454 @@ class Evidence:
 
 
 @dataclass
-class PutNodeRequest:
+class Change:
+    id: str
+    record: str
+    operation: str
+    actor: str
+    at_ms: int
+    reason: Optional[str] = None
+    before: Optional[str] = None
+    after: Optional[str] = None
+    utterance: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'record') and self.record is not None:
+            result['record'] = self.record
+        if hasattr(self, 'operation') and self.operation is not None:
+            result['operation'] = self.operation
+        if hasattr(self, 'actor') and self.actor is not None:
+            result['actor'] = self.actor
+        if hasattr(self, 'reason') and self.reason is not None:
+            result['reason'] = self.reason
+        if hasattr(self, 'before') and self.before is not None:
+            result['before'] = self.before
+        if hasattr(self, 'after') and self.after is not None:
+            result['after'] = self.after
+        if hasattr(self, 'utterance') and self.utterance is not None:
+            result['utterance'] = self.utterance
+        if hasattr(self, 'at_ms') and self.at_ms is not None:
+            result['at_ms'] = self.at_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Change':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), record=data.get('record'), operation=data.get('operation'), actor=data.get('actor'), reason=data.get('reason'), before=data.get('before'), after=data.get('after'), utterance=data.get('utterance'), at_ms=data.get('at_ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'Change':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class Dispute:
+    id: str
+    record: str
+    by: str
+    reason: str
+    state: str
+    owners: List[str]
+    created_ms: int
+    updated_ms: int
+    proposed: Optional[str] = None
+    resolution: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'record') and self.record is not None:
+            result['record'] = self.record
+        if hasattr(self, 'by') and self.by is not None:
+            result['by'] = self.by
+        if hasattr(self, 'reason') and self.reason is not None:
+            result['reason'] = self.reason
+        if hasattr(self, 'proposed') and self.proposed is not None:
+            result['proposed'] = self.proposed
+        if hasattr(self, 'state') and self.state is not None:
+            result['state'] = self.state
+        if hasattr(self, 'resolution') and self.resolution is not None:
+            result['resolution'] = self.resolution
+        if hasattr(self, 'owners') and self.owners is not None:
+            result['owners'] = self.owners
+        if hasattr(self, 'created_ms') and self.created_ms is not None:
+            result['created_ms'] = self.created_ms
+        if hasattr(self, 'updated_ms') and self.updated_ms is not None:
+            result['updated_ms'] = self.updated_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Dispute':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), record=data.get('record'), by=data.get('by'), reason=data.get('reason'), proposed=data.get('proposed'), state=data.get('state'), resolution=data.get('resolution'), owners=data.get('owners'), created_ms=data.get('created_ms'), updated_ms=data.get('updated_ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'Dispute':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class Group:
+    id: str
+    label: str
+    members: List[str]
+    owners: List[str]
+    updated_ms: int
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'label') and self.label is not None:
+            result['label'] = self.label
+        if hasattr(self, 'members') and self.members is not None:
+            result['members'] = self.members
+        if hasattr(self, 'owners') and self.owners is not None:
+            result['owners'] = self.owners
+        if hasattr(self, 'updated_ms') and self.updated_ms is not None:
+            result['updated_ms'] = self.updated_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Group':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), label=data.get('label'), members=data.get('members'), owners=data.get('owners'), updated_ms=data.get('updated_ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'Group':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class PutEntityRequest:
     kind: str
     label: str
-    id: Optional[str] = None
+    aliases: Optional[List[str]] = None
     summary: Optional[str] = None
     properties: Optional[Dict[str, str]] = None
     external: Optional[ExternalRef] = None
-    scope: Optional[str] = None
-    authored_by: Optional[str] = None
+    owners: Optional[List[str]] = None
+    readers: Optional[List[str]] = None
     confidence: Optional[float] = None
-    owner: Optional[str] = None
+    act_for: Optional[str] = None
+    utterance: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'kind') and self.kind is not None:
+            result['kind'] = self.kind
+        if hasattr(self, 'label') and self.label is not None:
+            result['label'] = self.label
+        if hasattr(self, 'aliases') and self.aliases is not None:
+            result['aliases'] = self.aliases
+        if hasattr(self, 'summary') and self.summary is not None:
+            result['summary'] = self.summary
+        if hasattr(self, 'properties') and self.properties is not None:
+            result['properties'] = self.properties
+        if hasattr(self, 'external') and self.external is not None:
+            result['external'] = self.external
+        if hasattr(self, 'owners') and self.owners is not None:
+            result['owners'] = self.owners
+        if hasattr(self, 'readers') and self.readers is not None:
+            result['readers'] = self.readers
+        if hasattr(self, 'confidence') and self.confidence is not None:
+            result['confidence'] = self.confidence
+        if hasattr(self, 'act_for') and self.act_for is not None:
+            result['act_for'] = self.act_for
+        if hasattr(self, 'utterance') and self.utterance is not None:
+            result['utterance'] = self.utterance
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'PutEntityRequest':
+        """Create instance from dictionary."""
+        return cls(kind=data.get('kind'), label=data.get('label'), aliases=data.get('aliases'), summary=data.get('summary'), properties=data.get('properties'), external=data.get('external'), owners=data.get('owners'), readers=data.get('readers'), confidence=data.get('confidence'), act_for=data.get('act_for'), utterance=data.get('utterance'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'PutEntityRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class SelfRequest:
+    label: Optional[str] = None
+    act_for: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'label') and self.label is not None:
+            result['label'] = self.label
+        if hasattr(self, 'act_for') and self.act_for is not None:
+            result['act_for'] = self.act_for
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'SelfRequest':
+        """Create instance from dictionary."""
+        return cls(label=data.get('label'), act_for=data.get('act_for'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'SelfRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class AssertRequest:
+    subject: str
+    relation: str
+    object: Optional[str] = None
+    value: Optional[str] = None
+    valid_from_ms: Optional[int] = None
+    valid_to_ms: Optional[int] = None
+    confidence: Optional[float] = None
+    authored_by: Optional[str] = None
+    derived_from: Optional[List[str]] = None
+    evidence: Optional[List[Ref]] = None
+    owners: Optional[List[str]] = None
+    readers: Optional[List[str]] = None
+    act_for: Optional[str] = None
+    utterance: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'subject') and self.subject is not None:
+            result['subject'] = self.subject
+        if hasattr(self, 'relation') and self.relation is not None:
+            result['relation'] = self.relation
+        if hasattr(self, 'object') and self.object is not None:
+            result['object'] = self.object
+        if hasattr(self, 'value') and self.value is not None:
+            result['value'] = self.value
+        if hasattr(self, 'valid_from_ms') and self.valid_from_ms is not None:
+            result['valid_from_ms'] = self.valid_from_ms
+        if hasattr(self, 'valid_to_ms') and self.valid_to_ms is not None:
+            result['valid_to_ms'] = self.valid_to_ms
+        if hasattr(self, 'confidence') and self.confidence is not None:
+            result['confidence'] = self.confidence
+        if hasattr(self, 'authored_by') and self.authored_by is not None:
+            result['authored_by'] = self.authored_by
+        if hasattr(self, 'derived_from') and self.derived_from is not None:
+            result['derived_from'] = self.derived_from
+        if hasattr(self, 'evidence') and self.evidence is not None:
+            result['evidence'] = self.evidence
+        if hasattr(self, 'owners') and self.owners is not None:
+            result['owners'] = self.owners
+        if hasattr(self, 'readers') and self.readers is not None:
+            result['readers'] = self.readers
+        if hasattr(self, 'act_for') and self.act_for is not None:
+            result['act_for'] = self.act_for
+        if hasattr(self, 'utterance') and self.utterance is not None:
+            result['utterance'] = self.utterance
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'AssertRequest':
+        """Create instance from dictionary."""
+        return cls(subject=data.get('subject'), relation=data.get('relation'), object=data.get('object'), value=data.get('value'), valid_from_ms=data.get('valid_from_ms'), valid_to_ms=data.get('valid_to_ms'), confidence=data.get('confidence'), authored_by=data.get('authored_by'), derived_from=data.get('derived_from'), evidence=data.get('evidence'), owners=data.get('owners'), readers=data.get('readers'), act_for=data.get('act_for'), utterance=data.get('utterance'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'AssertRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ChangeRequest:
+    id: str
+    operation: str
+    set: Optional[Dict[str, str]] = None
+    at_ms: Optional[int] = None
+    erase: Optional[bool] = None
+    reason: Optional[str] = None
+    act_for: Optional[str] = None
+    utterance: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'operation') and self.operation is not None:
+            result['operation'] = self.operation
+        if hasattr(self, 'set') and self.set is not None:
+            result['set'] = self.set
+        if hasattr(self, 'at_ms') and self.at_ms is not None:
+            result['at_ms'] = self.at_ms
+        if hasattr(self, 'erase') and self.erase is not None:
+            result['erase'] = self.erase
+        if hasattr(self, 'reason') and self.reason is not None:
+            result['reason'] = self.reason
+        if hasattr(self, 'act_for') and self.act_for is not None:
+            result['act_for'] = self.act_for
+        if hasattr(self, 'utterance') and self.utterance is not None:
+            result['utterance'] = self.utterance
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ChangeRequest':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), operation=data.get('operation'), set=data.get('set'), at_ms=data.get('at_ms'), erase=data.get('erase'), reason=data.get('reason'), act_for=data.get('act_for'), utterance=data.get('utterance'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ChangeRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ChangeResponse:
+    change: Change
+    entity: Optional[Entity] = None
+    claim: Optional[Claim] = None
+    episode: Optional[Episode] = None
+    procedure: Optional[Procedure] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'change') and self.change is not None:
+            result['change'] = self.change
+        if hasattr(self, 'entity') and self.entity is not None:
+            result['entity'] = self.entity
+        if hasattr(self, 'claim') and self.claim is not None:
+            result['claim'] = self.claim
+        if hasattr(self, 'episode') and self.episode is not None:
+            result['episode'] = self.episode
+        if hasattr(self, 'procedure') and self.procedure is not None:
+            result['procedure'] = self.procedure
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ChangeResponse':
+        """Create instance from dictionary."""
+        return cls(change=data.get('change'), entity=data.get('entity'), claim=data.get('claim'), episode=data.get('episode'), procedure=data.get('procedure'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ChangeResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class MergeRequest:
+    keep: str
+    merge: str
+    reason: Optional[str] = None
+    act_for: Optional[str] = None
+    utterance: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'keep') and self.keep is not None:
+            result['keep'] = self.keep
+        if hasattr(self, 'merge') and self.merge is not None:
+            result['merge'] = self.merge
+        if hasattr(self, 'reason') and self.reason is not None:
+            result['reason'] = self.reason
+        if hasattr(self, 'act_for') and self.act_for is not None:
+            result['act_for'] = self.act_for
+        if hasattr(self, 'utterance') and self.utterance is not None:
+            result['utterance'] = self.utterance
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'MergeRequest':
+        """Create instance from dictionary."""
+        return cls(keep=data.get('keep'), merge=data.get('merge'), reason=data.get('reason'), act_for=data.get('act_for'), utterance=data.get('utterance'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'MergeRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class UnmergeRequest:
+    change: str
+    act_for: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'change') and self.change is not None:
+            result['change'] = self.change
+        if hasattr(self, 'act_for') and self.act_for is not None:
+            result['act_for'] = self.act_for
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'UnmergeRequest':
+        """Create instance from dictionary."""
+        return cls(change=data.get('change'), act_for=data.get('act_for'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'UnmergeRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class RecordEpisodeRequest:
+    kind: str
+    title: str
+    id: Optional[str] = None
+    summary: Optional[str] = None
+    started_ms: Optional[int] = None
+    ended_ms: Optional[int] = None
+    participants: Optional[List[str]] = None
+    entities: Optional[List[str]] = None
+    refs: Optional[List[Ref]] = None
+    procedure: Optional[str] = None
+    outcome: Optional[str] = None
+    owners: Optional[List[str]] = None
+    readers: Optional[List[str]] = None
+    act_for: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -206,131 +832,98 @@ class PutNodeRequest:
             result['id'] = self.id
         if hasattr(self, 'kind') and self.kind is not None:
             result['kind'] = self.kind
-        if hasattr(self, 'label') and self.label is not None:
-            result['label'] = self.label
+        if hasattr(self, 'title') and self.title is not None:
+            result['title'] = self.title
         if hasattr(self, 'summary') and self.summary is not None:
             result['summary'] = self.summary
-        if hasattr(self, 'properties') and self.properties is not None:
-            result['properties'] = self.properties
-        if hasattr(self, 'external') and self.external is not None:
-            result['external'] = self.external
-        if hasattr(self, 'scope') and self.scope is not None:
-            result['scope'] = self.scope
-        if hasattr(self, 'authored_by') and self.authored_by is not None:
-            result['authored_by'] = self.authored_by
-        if hasattr(self, 'confidence') and self.confidence is not None:
-            result['confidence'] = self.confidence
-        if hasattr(self, 'owner') and self.owner is not None:
-            result['owner'] = self.owner
+        if hasattr(self, 'started_ms') and self.started_ms is not None:
+            result['started_ms'] = self.started_ms
+        if hasattr(self, 'ended_ms') and self.ended_ms is not None:
+            result['ended_ms'] = self.ended_ms
+        if hasattr(self, 'participants') and self.participants is not None:
+            result['participants'] = self.participants
+        if hasattr(self, 'entities') and self.entities is not None:
+            result['entities'] = self.entities
+        if hasattr(self, 'refs') and self.refs is not None:
+            result['refs'] = self.refs
+        if hasattr(self, 'procedure') and self.procedure is not None:
+            result['procedure'] = self.procedure
+        if hasattr(self, 'outcome') and self.outcome is not None:
+            result['outcome'] = self.outcome
+        if hasattr(self, 'owners') and self.owners is not None:
+            result['owners'] = self.owners
+        if hasattr(self, 'readers') and self.readers is not None:
+            result['readers'] = self.readers
+        if hasattr(self, 'act_for') and self.act_for is not None:
+            result['act_for'] = self.act_for
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'PutNodeRequest':
+    def from_dict(cls, data: Dict[str, Any]) -> 'RecordEpisodeRequest':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), kind=data.get('kind'), label=data.get('label'), summary=data.get('summary'), properties=data.get('properties'), external=data.get('external'), scope=data.get('scope'), authored_by=data.get('authored_by'), confidence=data.get('confidence'), owner=data.get('owner'))
+        return cls(id=data.get('id'), kind=data.get('kind'), title=data.get('title'), summary=data.get('summary'), started_ms=data.get('started_ms'), ended_ms=data.get('ended_ms'), participants=data.get('participants'), entities=data.get('entities'), refs=data.get('refs'), procedure=data.get('procedure'), outcome=data.get('outcome'), owners=data.get('owners'), readers=data.get('readers'), act_for=data.get('act_for'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
         return json.dumps(self.to_dict())
 
     @classmethod
-    def from_json(cls, json_str: str) -> 'PutNodeRequest':
+    def from_json(cls, json_str: str) -> 'RecordEpisodeRequest':
         """Create instance from JSON string."""
         return cls.from_dict(json.loads(json_str))
 
 
 @dataclass
-class GetNodeRequest:
-    id: str
+class PutProcedureRequest:
+    name: str
+    goal: str
+    steps: str
+    inputs: Optional[Dict[str, str]] = None
+    definition: Optional[str] = None
+    status: Optional[str] = None
+    entities: Optional[List[str]] = None
+    owners: Optional[List[str]] = None
+    readers: Optional[List[str]] = None
+    act_for: Optional[str] = None
+    reason: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
-        if hasattr(self, 'id') and self.id is not None:
-            result['id'] = self.id
+        if hasattr(self, 'name') and self.name is not None:
+            result['name'] = self.name
+        if hasattr(self, 'goal') and self.goal is not None:
+            result['goal'] = self.goal
+        if hasattr(self, 'inputs') and self.inputs is not None:
+            result['inputs'] = self.inputs
+        if hasattr(self, 'steps') and self.steps is not None:
+            result['steps'] = self.steps
+        if hasattr(self, 'definition') and self.definition is not None:
+            result['definition'] = self.definition
+        if hasattr(self, 'status') and self.status is not None:
+            result['status'] = self.status
+        if hasattr(self, 'entities') and self.entities is not None:
+            result['entities'] = self.entities
+        if hasattr(self, 'owners') and self.owners is not None:
+            result['owners'] = self.owners
+        if hasattr(self, 'readers') and self.readers is not None:
+            result['readers'] = self.readers
+        if hasattr(self, 'act_for') and self.act_for is not None:
+            result['act_for'] = self.act_for
+        if hasattr(self, 'reason') and self.reason is not None:
+            result['reason'] = self.reason
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'GetNodeRequest':
+    def from_dict(cls, data: Dict[str, Any]) -> 'PutProcedureRequest':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'))
+        return cls(name=data.get('name'), goal=data.get('goal'), inputs=data.get('inputs'), steps=data.get('steps'), definition=data.get('definition'), status=data.get('status'), entities=data.get('entities'), owners=data.get('owners'), readers=data.get('readers'), act_for=data.get('act_for'), reason=data.get('reason'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
         return json.dumps(self.to_dict())
 
     @classmethod
-    def from_json(cls, json_str: str) -> 'GetNodeRequest':
-        """Create instance from JSON string."""
-        return cls.from_dict(json.loads(json_str))
-
-
-@dataclass
-class NodeView:
-    node: Node
-    edges: List[Edge]
-    evidence: List[Evidence]
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for JSON serialization."""
-        result = {}
-        if hasattr(self, 'node') and self.node is not None:
-            result['node'] = self.node
-        if hasattr(self, 'edges') and self.edges is not None:
-            result['edges'] = self.edges
-        if hasattr(self, 'evidence') and self.evidence is not None:
-            result['evidence'] = self.evidence
-        return result
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'NodeView':
-        """Create instance from dictionary."""
-        return cls(node=data.get('node'), edges=data.get('edges'), evidence=data.get('evidence'))
-
-    def to_json(self) -> str:
-        """Convert to JSON string."""
-        return json.dumps(self.to_dict())
-
-    @classmethod
-    def from_json(cls, json_str: str) -> 'NodeView':
-        """Create instance from JSON string."""
-        return cls.from_dict(json.loads(json_str))
-
-
-@dataclass
-class PutEdgeRequest:
-    from_node: str
-    to_node: str
-    relation: str
-    properties: Optional[Dict[str, str]] = None
-    confidence: Optional[float] = None
-    owner: Optional[str] = None
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for JSON serialization."""
-        result = {}
-        if hasattr(self, 'from_node') and self.from_node is not None:
-            result['from_node'] = self.from_node
-        if hasattr(self, 'to_node') and self.to_node is not None:
-            result['to_node'] = self.to_node
-        if hasattr(self, 'relation') and self.relation is not None:
-            result['relation'] = self.relation
-        if hasattr(self, 'properties') and self.properties is not None:
-            result['properties'] = self.properties
-        if hasattr(self, 'confidence') and self.confidence is not None:
-            result['confidence'] = self.confidence
-        if hasattr(self, 'owner') and self.owner is not None:
-            result['owner'] = self.owner
-        return result
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'PutEdgeRequest':
-        """Create instance from dictionary."""
-        return cls(from_node=data.get('from_node'), to_node=data.get('to_node'), relation=data.get('relation'), properties=data.get('properties'), confidence=data.get('confidence'), owner=data.get('owner'))
-
-    def to_json(self) -> str:
-        """Convert to JSON string."""
-        return json.dumps(self.to_dict())
-
-    @classmethod
-    def from_json(cls, json_str: str) -> 'PutEdgeRequest':
+    def from_json(cls, json_str: str) -> 'PutProcedureRequest':
         """Create instance from JSON string."""
         return cls.from_dict(json.loads(json_str))
 
@@ -338,32 +931,29 @@ class PutEdgeRequest:
 @dataclass
 class LinkEvidenceRequest:
     subject: str
-    ref_kind: str
-    ref: str
+    ref: Ref
     stance: Optional[str] = None
     note: Optional[str] = None
-    owner: Optional[str] = None
+    act_for: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'subject') and self.subject is not None:
             result['subject'] = self.subject
-        if hasattr(self, 'ref_kind') and self.ref_kind is not None:
-            result['ref_kind'] = self.ref_kind
         if hasattr(self, 'ref') and self.ref is not None:
             result['ref'] = self.ref
         if hasattr(self, 'stance') and self.stance is not None:
             result['stance'] = self.stance
         if hasattr(self, 'note') and self.note is not None:
             result['note'] = self.note
-        if hasattr(self, 'owner') and self.owner is not None:
-            result['owner'] = self.owner
+        if hasattr(self, 'act_for') and self.act_for is not None:
+            result['act_for'] = self.act_for
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'LinkEvidenceRequest':
         """Create instance from dictionary."""
-        return cls(subject=data.get('subject'), ref_kind=data.get('ref_kind'), ref=data.get('ref'), stance=data.get('stance'), note=data.get('note'), owner=data.get('owner'))
+        return cls(subject=data.get('subject'), ref=data.get('ref'), stance=data.get('stance'), note=data.get('note'), act_for=data.get('act_for'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -376,119 +966,601 @@ class LinkEvidenceRequest:
 
 
 @dataclass
-class QueryRequest:
-    text: Optional[str] = None
-    owner: Optional[str] = None
-    kind: Optional[str] = None
-    near: Optional[str] = None
-    depth: Optional[int] = None
-    limit: Optional[int] = None
+class DisputeRequest:
+    record: str
+    reason: str
+    proposed: Optional[str] = None
+    act_for: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
-        if hasattr(self, 'text') and self.text is not None:
-            result['text'] = self.text
-        if hasattr(self, 'owner') and self.owner is not None:
-            result['owner'] = self.owner
-        if hasattr(self, 'kind') and self.kind is not None:
-            result['kind'] = self.kind
-        if hasattr(self, 'near') and self.near is not None:
-            result['near'] = self.near
-        if hasattr(self, 'depth') and self.depth is not None:
-            result['depth'] = self.depth
-        if hasattr(self, 'limit') and self.limit is not None:
-            result['limit'] = self.limit
+        if hasattr(self, 'record') and self.record is not None:
+            result['record'] = self.record
+        if hasattr(self, 'reason') and self.reason is not None:
+            result['reason'] = self.reason
+        if hasattr(self, 'proposed') and self.proposed is not None:
+            result['proposed'] = self.proposed
+        if hasattr(self, 'act_for') and self.act_for is not None:
+            result['act_for'] = self.act_for
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'QueryRequest':
+    def from_dict(cls, data: Dict[str, Any]) -> 'DisputeRequest':
         """Create instance from dictionary."""
-        return cls(text=data.get('text'), owner=data.get('owner'), kind=data.get('kind'), near=data.get('near'), depth=data.get('depth'), limit=data.get('limit'))
+        return cls(record=data.get('record'), reason=data.get('reason'), proposed=data.get('proposed'), act_for=data.get('act_for'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
         return json.dumps(self.to_dict())
 
     @classmethod
-    def from_json(cls, json_str: str) -> 'QueryRequest':
+    def from_json(cls, json_str: str) -> 'DisputeRequest':
         """Create instance from JSON string."""
         return cls.from_dict(json.loads(json_str))
 
 
 @dataclass
-class QueryResponse:
-    nodes: List[Node]
-    edges: List[Edge]
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for JSON serialization."""
-        result = {}
-        if hasattr(self, 'nodes') and self.nodes is not None:
-            result['nodes'] = self.nodes
-        if hasattr(self, 'edges') and self.edges is not None:
-            result['edges'] = self.edges
-        return result
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'QueryResponse':
-        """Create instance from dictionary."""
-        return cls(nodes=data.get('nodes'), edges=data.get('edges'))
-
-    def to_json(self) -> str:
-        """Convert to JSON string."""
-        return json.dumps(self.to_dict())
-
-    @classmethod
-    def from_json(cls, json_str: str) -> 'QueryResponse':
-        """Create instance from JSON string."""
-        return cls.from_dict(json.loads(json_str))
-
-
-@dataclass
-class DeleteRequest:
+class ResolveDisputeRequest:
     id: str
+    accept: bool
+    resolution: Optional[str] = None
+    act_for: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'id') and self.id is not None:
             result['id'] = self.id
+        if hasattr(self, 'accept') and self.accept is not None:
+            result['accept'] = self.accept
+        if hasattr(self, 'resolution') and self.resolution is not None:
+            result['resolution'] = self.resolution
+        if hasattr(self, 'act_for') and self.act_for is not None:
+            result['act_for'] = self.act_for
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'DeleteRequest':
+    def from_dict(cls, data: Dict[str, Any]) -> 'ResolveDisputeRequest':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'))
+        return cls(id=data.get('id'), accept=data.get('accept'), resolution=data.get('resolution'), act_for=data.get('act_for'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
         return json.dumps(self.to_dict())
 
     @classmethod
-    def from_json(cls, json_str: str) -> 'DeleteRequest':
+    def from_json(cls, json_str: str) -> 'ResolveDisputeRequest':
         """Create instance from JSON string."""
         return cls.from_dict(json.loads(json_str))
 
 
 @dataclass
-class DeleteResponse:
-    deleted: bool
+class ListDisputesRequest:
+    state: Optional[str] = None
+    act_for: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
-        if hasattr(self, 'deleted') and self.deleted is not None:
-            result['deleted'] = self.deleted
+        if hasattr(self, 'state') and self.state is not None:
+            result['state'] = self.state
+        if hasattr(self, 'act_for') and self.act_for is not None:
+            result['act_for'] = self.act_for
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'DeleteResponse':
+    def from_dict(cls, data: Dict[str, Any]) -> 'ListDisputesRequest':
         """Create instance from dictionary."""
-        return cls(deleted=data.get('deleted'))
+        return cls(state=data.get('state'), act_for=data.get('act_for'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
         return json.dumps(self.to_dict())
 
     @classmethod
-    def from_json(cls, json_str: str) -> 'DeleteResponse':
+    def from_json(cls, json_str: str) -> 'ListDisputesRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ListDisputesResponse:
+    disputes: List[Dispute]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'disputes') and self.disputes is not None:
+            result['disputes'] = self.disputes
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ListDisputesResponse':
+        """Create instance from dictionary."""
+        return cls(disputes=data.get('disputes'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ListDisputesResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class PutGroupRequest:
+    id: str
+    label: str
+    members: List[str]
+    owners: Optional[List[str]] = None
+    act_for: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'label') and self.label is not None:
+            result['label'] = self.label
+        if hasattr(self, 'members') and self.members is not None:
+            result['members'] = self.members
+        if hasattr(self, 'owners') and self.owners is not None:
+            result['owners'] = self.owners
+        if hasattr(self, 'act_for') and self.act_for is not None:
+            result['act_for'] = self.act_for
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'PutGroupRequest':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), label=data.get('label'), members=data.get('members'), owners=data.get('owners'), act_for=data.get('act_for'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'PutGroupRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class SearchRequest:
+    text: Optional[str] = None
+    types: Optional[List[str]] = None
+    kind: Optional[str] = None
+    relation: Optional[str] = None
+    at_ms: Optional[int] = None
+    include_ended: Optional[bool] = None
+    limit: Optional[int] = None
+    act_for: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'text') and self.text is not None:
+            result['text'] = self.text
+        if hasattr(self, 'types') and self.types is not None:
+            result['types'] = self.types
+        if hasattr(self, 'kind') and self.kind is not None:
+            result['kind'] = self.kind
+        if hasattr(self, 'relation') and self.relation is not None:
+            result['relation'] = self.relation
+        if hasattr(self, 'at_ms') and self.at_ms is not None:
+            result['at_ms'] = self.at_ms
+        if hasattr(self, 'include_ended') and self.include_ended is not None:
+            result['include_ended'] = self.include_ended
+        if hasattr(self, 'limit') and self.limit is not None:
+            result['limit'] = self.limit
+        if hasattr(self, 'act_for') and self.act_for is not None:
+            result['act_for'] = self.act_for
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'SearchRequest':
+        """Create instance from dictionary."""
+        return cls(text=data.get('text'), types=data.get('types'), kind=data.get('kind'), relation=data.get('relation'), at_ms=data.get('at_ms'), include_ended=data.get('include_ended'), limit=data.get('limit'), act_for=data.get('act_for'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'SearchRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class Hit:
+    type: str
+    id: str
+    score: float
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'type') and self.type is not None:
+            result['type'] = self.type
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'score') and self.score is not None:
+            result['score'] = self.score
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Hit':
+        """Create instance from dictionary."""
+        return cls(type=data.get('type'), id=data.get('id'), score=data.get('score'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'Hit':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class SearchResponse:
+    hits: List[Hit]
+    entities: List[Entity]
+    claims: List[Claim]
+    episodes: List[Episode]
+    procedures: List[Procedure]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'hits') and self.hits is not None:
+            result['hits'] = self.hits
+        if hasattr(self, 'entities') and self.entities is not None:
+            result['entities'] = self.entities
+        if hasattr(self, 'claims') and self.claims is not None:
+            result['claims'] = self.claims
+        if hasattr(self, 'episodes') and self.episodes is not None:
+            result['episodes'] = self.episodes
+        if hasattr(self, 'procedures') and self.procedures is not None:
+            result['procedures'] = self.procedures
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'SearchResponse':
+        """Create instance from dictionary."""
+        return cls(hits=data.get('hits'), entities=data.get('entities'), claims=data.get('claims'), episodes=data.get('episodes'), procedures=data.get('procedures'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'SearchResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class AboutRequest:
+    id: str
+    at_ms: Optional[int] = None
+    include_ended: Optional[bool] = None
+    act_for: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'at_ms') and self.at_ms is not None:
+            result['at_ms'] = self.at_ms
+        if hasattr(self, 'include_ended') and self.include_ended is not None:
+            result['include_ended'] = self.include_ended
+        if hasattr(self, 'act_for') and self.act_for is not None:
+            result['act_for'] = self.act_for
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'AboutRequest':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), at_ms=data.get('at_ms'), include_ended=data.get('include_ended'), act_for=data.get('act_for'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'AboutRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class AboutResponse:
+    entity: Entity
+    claims: List[Claim]
+    related: List[Entity]
+    episodes: List[Episode]
+    procedures: List[Procedure]
+    evidence: List[Evidence]
+    disputes: List[Dispute]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'entity') and self.entity is not None:
+            result['entity'] = self.entity
+        if hasattr(self, 'claims') and self.claims is not None:
+            result['claims'] = self.claims
+        if hasattr(self, 'related') and self.related is not None:
+            result['related'] = self.related
+        if hasattr(self, 'episodes') and self.episodes is not None:
+            result['episodes'] = self.episodes
+        if hasattr(self, 'procedures') and self.procedures is not None:
+            result['procedures'] = self.procedures
+        if hasattr(self, 'evidence') and self.evidence is not None:
+            result['evidence'] = self.evidence
+        if hasattr(self, 'disputes') and self.disputes is not None:
+            result['disputes'] = self.disputes
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'AboutResponse':
+        """Create instance from dictionary."""
+        return cls(entity=data.get('entity'), claims=data.get('claims'), related=data.get('related'), episodes=data.get('episodes'), procedures=data.get('procedures'), evidence=data.get('evidence'), disputes=data.get('disputes'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'AboutResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class NeighborsRequest:
+    id: str
+    relation: Optional[str] = None
+    depth: Optional[int] = None
+    limit: Optional[int] = None
+    act_for: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'relation') and self.relation is not None:
+            result['relation'] = self.relation
+        if hasattr(self, 'depth') and self.depth is not None:
+            result['depth'] = self.depth
+        if hasattr(self, 'limit') and self.limit is not None:
+            result['limit'] = self.limit
+        if hasattr(self, 'act_for') and self.act_for is not None:
+            result['act_for'] = self.act_for
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'NeighborsRequest':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), relation=data.get('relation'), depth=data.get('depth'), limit=data.get('limit'), act_for=data.get('act_for'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'NeighborsRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class NeighborsResponse:
+    entities: List[Entity]
+    claims: List[Claim]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'entities') and self.entities is not None:
+            result['entities'] = self.entities
+        if hasattr(self, 'claims') and self.claims is not None:
+            result['claims'] = self.claims
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'NeighborsResponse':
+        """Create instance from dictionary."""
+        return cls(entities=data.get('entities'), claims=data.get('claims'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'NeighborsResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class TimelineRequest:
+    from_ms: int
+    to_ms: int
+    entity: Optional[str] = None
+    limit: Optional[int] = None
+    act_for: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'entity') and self.entity is not None:
+            result['entity'] = self.entity
+        if hasattr(self, 'from_ms') and self.from_ms is not None:
+            result['from_ms'] = self.from_ms
+        if hasattr(self, 'to_ms') and self.to_ms is not None:
+            result['to_ms'] = self.to_ms
+        if hasattr(self, 'limit') and self.limit is not None:
+            result['limit'] = self.limit
+        if hasattr(self, 'act_for') and self.act_for is not None:
+            result['act_for'] = self.act_for
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'TimelineRequest':
+        """Create instance from dictionary."""
+        return cls(entity=data.get('entity'), from_ms=data.get('from_ms'), to_ms=data.get('to_ms'), limit=data.get('limit'), act_for=data.get('act_for'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'TimelineRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class TimelineResponse:
+    episodes: List[Episode]
+    claims: List[Claim]
+    changes: List[Change]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'episodes') and self.episodes is not None:
+            result['episodes'] = self.episodes
+        if hasattr(self, 'claims') and self.claims is not None:
+            result['claims'] = self.claims
+        if hasattr(self, 'changes') and self.changes is not None:
+            result['changes'] = self.changes
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'TimelineResponse':
+        """Create instance from dictionary."""
+        return cls(episodes=data.get('episodes'), claims=data.get('claims'), changes=data.get('changes'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'TimelineResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class HistoryRequest:
+    id: str
+    act_for: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'act_for') and self.act_for is not None:
+            result['act_for'] = self.act_for
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'HistoryRequest':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), act_for=data.get('act_for'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'HistoryRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class HistoryResponse:
+    changes: List[Change]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'changes') and self.changes is not None:
+            result['changes'] = self.changes
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'HistoryResponse':
+        """Create instance from dictionary."""
+        return cls(changes=data.get('changes'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'HistoryResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class GetRequest:
+    id: str
+    act_for: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'act_for') and self.act_for is not None:
+            result['act_for'] = self.act_for
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'GetRequest':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), act_for=data.get('act_for'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'GetRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class GetResponse:
+    entity: Optional[Entity] = None
+    claim: Optional[Claim] = None
+    episode: Optional[Episode] = None
+    procedure: Optional[Procedure] = None
+    evidence: Optional[Evidence] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'entity') and self.entity is not None:
+            result['entity'] = self.entity
+        if hasattr(self, 'claim') and self.claim is not None:
+            result['claim'] = self.claim
+        if hasattr(self, 'episode') and self.episode is not None:
+            result['episode'] = self.episode
+        if hasattr(self, 'procedure') and self.procedure is not None:
+            result['procedure'] = self.procedure
+        if hasattr(self, 'evidence') and self.evidence is not None:
+            result['evidence'] = self.evidence
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'GetResponse':
+        """Create instance from dictionary."""
+        return cls(entity=data.get('entity'), claim=data.get('claim'), episode=data.get('episode'), procedure=data.get('procedure'), evidence=data.get('evidence'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'GetResponse':
         """Create instance from JSON string."""
         return cls.from_dict(json.loads(json_str))
 

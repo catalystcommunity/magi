@@ -130,9 +130,9 @@ func (s *Store) CreateRun(ctx context.Context, run api.Run, key string, tasks []
 		if key != "" {
 			k = &key
 		}
-		tag, err := tx.Exec(ctx, `INSERT INTO workflow_runs (id, owner, definition, status, start_key, doc, created_ms, updated_ms)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (owner, start_key) WHERE start_key IS NOT NULL DO NOTHING`,
-			run.Id, run.Owner, run.Definition, run.Status, k, doc, int64(run.CreatedMs), int64(run.UpdatedMs))
+		tag, err := tx.Exec(ctx, `INSERT INTO workflow_runs (id, owner, definition, status, start_key, doc, created_ms, updated_ms, waiting_for, wait_until)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT (owner, start_key) WHERE start_key IS NOT NULL DO NOTHING`,
+			run.Id, run.Owner, run.Definition, run.Status, k, doc, int64(run.CreatedMs), int64(run.UpdatedMs), waitingFor(run), waitUntil(run))
 		if err != nil {
 			return err
 		}
@@ -154,11 +154,29 @@ func (s *Store) GetRun(ctx context.Context, id string) (api.Run, error) {
 	return scanRun(s.DB.QueryRow(ctx, `SELECT doc FROM workflow_runs WHERE id=$1`, id))
 }
 
-// ListRuns returns runs, newest first. An empty owner lists all owners.
-func (s *Store) ListRuns(ctx context.Context, owner, status, definition string, limit int) ([]api.Run, error) {
+func waitingFor(r api.Run) []string {
+	if r.Status != "waiting" || r.WaitingFor == nil {
+		return []string{}
+	}
+	return r.WaitingFor
+}
+
+func waitUntil(r api.Run) int64 {
+	if r.Status != "waiting" || r.WaitUntilMs == nil {
+		return 0
+	}
+	return int64(*r.WaitUntilMs)
+}
+
+// ListRuns returns runs, newest first. An empty owner lists all owners. A
+// decider gives the runs that wait for that subject (and owner is ignored).
+func (s *Store) ListRuns(ctx context.Context, owner, status, definition, decider string, limit int) ([]api.Run, error) {
+	if decider != "" {
+		owner = ""
+	}
 	rows, err := s.DB.Query(ctx, `SELECT doc FROM workflow_runs
-		WHERE ($1='' OR owner=$1) AND ($2='' OR status=$2) AND ($3='' OR definition=$3)
-		ORDER BY created_ms DESC, id LIMIT $4`, owner, status, definition, limit)
+		WHERE ($1='' OR owner=$1) AND ($2='' OR status=$2) AND ($3='' OR definition=$3) AND ($5='' OR $5 = ANY(waiting_for))
+		ORDER BY created_ms DESC, id LIMIT $4`, owner, status, definition, limit, decider)
 	if err != nil {
 		return nil, err
 	}
@@ -235,8 +253,8 @@ func (s *Store) UpdateRun(ctx context.Context, id string, fn func(*RunTx, *api.R
 		}
 		run.UpdatedMs = max(uint64(Now()), run.UpdatedMs+1)
 		doc, _ := json.Marshal(run)
-		if _, err := tx.Exec(ctx, `UPDATE workflow_runs SET status=$2, doc=$3, updated_ms=$4 WHERE id=$1`,
-			id, run.Status, doc, int64(run.UpdatedMs)); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE workflow_runs SET status=$2, doc=$3, updated_ms=$4, waiting_for=$5, wait_until=$6 WHERE id=$1`,
+			id, run.Status, doc, int64(run.UpdatedMs), waitingFor(run), waitUntil(run)); err != nil {
 			return err
 		}
 		for _, t := range rt.put {
@@ -299,6 +317,15 @@ func (s *Store) Due(ctx context.Context, settle, stale int64, limit int) ([]Task
 		return nil, err
 	}
 	return collectTasks(rows)
+}
+
+// WaitOver returns the waiting runs whose wait ended before now.
+func (s *Store) WaitOver(ctx context.Context, limit int) ([]string, error) {
+	rows, err := s.DB.Query(ctx, `SELECT id FROM workflow_runs WHERE status='waiting' AND wait_until > 0 AND wait_until <= $1 ORDER BY wait_until LIMIT $2`, Now(), limit)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowTo[string])
 }
 
 const taskCols = `key, run_id, idx, step, queue, state, task_uuid, revision, claim, worker, lease_until`

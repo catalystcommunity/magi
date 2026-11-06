@@ -140,4 +140,42 @@ func (s *Service) SweepOnce(ctx context.Context) {
 			s.work(ctx, t.Key)
 		}
 	}
+	over, err := s.Store.WaitOver(ctx, 64)
+	if err != nil {
+		if s.Log != nil && ctx.Err() == nil {
+			s.Log.Warn("sweep waits", "err", err)
+		}
+		return
+	}
+	for _, id := range over {
+		s.timeout(ctx, id)
+	}
+}
+
+// timeout ends a human step whose wait is over with its timeout outcome.
+func (s *Service) timeout(ctx context.Context, runID string) {
+	var tasks []store.Task
+	_, _, err := s.Store.UpdateRun(ctx, runID, func(tx *store.RunTx, r *api.Run) error {
+		cur := current(r)
+		if r.Status != RunWaiting || cur == nil || cur.Status != StepWaiting || r.WaitUntilMs == nil || *r.WaitUntilMs > now() {
+			return store.ErrSkip
+		}
+		def, err := s.definition(ctx, r.Definition, r.Revision)
+		if err != nil {
+			return err
+		}
+		ts := now()
+		out := timeoutOutcome(findStep(def, cur.Step))
+		endStep(cur, StepDone, out, ts)
+		cur.DecidedBy = ptr("workflow:timeout")
+		if nt := advance(r, def, out, "", ts); nt != nil {
+			tasks = append(tasks, *nt)
+			tx.Put(*nt)
+		}
+		return nil
+	})
+	if err != nil && storeErr(err, "") != nil && s.Log != nil {
+		s.Log.Warn("wait timeout", "run", runID, "err", err)
+	}
+	s.flush(ctx, tasks)
 }

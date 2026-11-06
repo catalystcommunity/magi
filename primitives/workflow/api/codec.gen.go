@@ -501,7 +501,7 @@ func cborAsMap(v cborValue) (cborMap, error) {
 
 // csilEncStep builds the canonical CBOR value tree for a Step.
 func csilEncStep(csilV Step) cborValue {
-	csilEntries := make(cborMap, 0, 7)
+	csilEntries := make(cborMap, 0, 10)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
 	csilEntries = append(csilEntries, cborEntry{cborText("next"), cborEncMap(csilV.Next, func(csilK string) cborValue { return cborText(csilK) }, func(csilV string) cborValue { return cborText(csilV) })})
@@ -511,11 +511,20 @@ func csilEncStep(csilV Step) cborValue {
 	if csilV.Prompt != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("prompt"), cborText((*csilV.Prompt))})
 	}
+	if csilV.WaitMs != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("wait_ms"), cborUint((*csilV.WaitMs))})
+	}
+	if csilV.Deciders != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("deciders"), cborEncArray(csilV.Deciders, func(csilElem string) cborValue { return cborText(csilElem) })})
+	}
 	if csilV.Outcomes != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("outcomes"), cborEncArray(csilV.Outcomes, func(csilElem string) cborValue { return cborText(csilElem) })})
 	}
 	if csilV.MaxAttempts != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("max_attempts"), cborUint((*csilV.MaxAttempts))})
+	}
+	if csilV.TimeoutOutcome != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("timeout_outcome"), cborText((*csilV.TimeoutOutcome))})
 	}
 	return csilEntries
 }
@@ -583,6 +592,27 @@ func csilDecStep(csilRoot cborValue) (Step, error) {
 			return csilOut, csilErr
 		}
 		csilOut.MaxAttempts = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "deciders"); csilOk {
+		csilVal, csilErr := (func(csilV cborValue) ([]string, error) { return cborDecArray(csilV, cborAsText) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Deciders = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "wait_ms"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.WaitMs = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "timeout_outcome"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.TimeoutOutcome = &csilVal
 	}
 	return csilOut, nil
 }
@@ -887,7 +917,7 @@ func DecodeStepState(csilData []byte) (StepState, error) {
 
 // csilEncRun builds the canonical CBOR value tree for a Run.
 func csilEncRun(csilV Run) cborValue {
-	csilEntries := make(cborMap, 0, 11)
+	csilEntries := make(cborMap, 0, 13)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("vars"), cborEncMap(csilV.Vars, func(csilK string) cborValue { return cborText(csilK) }, func(csilV string) cborValue { return cborText(csilV) })})
 	if csilV.Error != nil {
@@ -900,7 +930,13 @@ func csilEncRun(csilV Run) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("created_ms"), cborUint(csilV.CreatedMs)})
 	csilEntries = append(csilEntries, cborEntry{cborText("definition"), cborText(csilV.Definition)})
 	csilEntries = append(csilEntries, cborEntry{cborText("updated_ms"), cborUint(csilV.UpdatedMs)})
+	if csilV.WaitingFor != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("waiting_for"), cborEncArray(csilV.WaitingFor, func(csilElem string) cborValue { return cborText(csilElem) })})
+	}
 	csilEntries = append(csilEntries, cborEntry{cborText("current_step"), cborText(csilV.CurrentStep)})
+	if csilV.WaitUntilMs != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("wait_until_ms"), cborUint((*csilV.WaitUntilMs))})
+	}
 	return csilEntries
 }
 
@@ -994,6 +1030,20 @@ func csilDecRun(csilRoot cborValue) (Run, error) {
 			return csilOut, csilErr
 		}
 		csilOut.History = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "waiting_for"); csilOk {
+		csilVal, csilErr := (func(csilV cborValue) ([]string, error) { return cborDecArray(csilV, cborAsText) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.WaitingFor = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "wait_until_ms"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.WaitUntilMs = &csilVal
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "error"); csilOk {
 		csilVal, csilErr := (cborAsText)(csilField)
@@ -1191,7 +1241,7 @@ func DecodeGetRunRequest(csilData []byte) (GetRunRequest, error) {
 
 // csilEncListRunsRequest builds the canonical CBOR value tree for a ListRunsRequest.
 func csilEncListRunsRequest(csilV ListRunsRequest) cborValue {
-	csilEntries := make(cborMap, 0, 3)
+	csilEntries := make(cborMap, 0, 4)
 	if csilV.Limit != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("limit"), cborUint((*csilV.Limit))})
 	}
@@ -1200,6 +1250,9 @@ func csilEncListRunsRequest(csilV ListRunsRequest) cborValue {
 	}
 	if csilV.Definition != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("definition"), cborText((*csilV.Definition))})
+	}
+	if csilV.WaitingForMe != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("waiting_for_me"), cborBool((*csilV.WaitingForMe))})
 	}
 	return csilEntries
 }
@@ -1227,6 +1280,13 @@ func csilDecListRunsRequest(csilRoot cborValue) (ListRunsRequest, error) {
 			return csilOut, csilErr
 		}
 		csilOut.Limit = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "waiting_for_me"); csilOk {
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.WaitingForMe = &csilVal
 	}
 	return csilOut, nil
 }

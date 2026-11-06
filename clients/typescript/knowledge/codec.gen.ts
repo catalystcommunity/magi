@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { DeleteRequest, DeleteResponse, Edge, Evidence, ExternalRef, GetNodeRequest, LinkEvidenceRequest, Node, NodeView, PutEdgeRequest, PutNodeRequest, QueryRequest, QueryResponse } from "./types.gen.ts";
+import type { AboutRequest, AboutResponse, AssertRequest, Change, ChangeRequest, ChangeResponse, Claim, Dispute, DisputeRequest, Entity, Episode, Evidence, ExternalRef, GetRequest, GetResponse, Group, HistoryRequest, HistoryResponse, Hit, LinkEvidenceRequest, ListDisputesRequest, ListDisputesResponse, MergeRequest, NeighborsRequest, NeighborsResponse, Procedure, PutEntityRequest, PutGroupRequest, PutProcedureRequest, RecordEpisodeRequest, Ref, ResolveDisputeRequest, SearchRequest, SearchResponse, SelfRequest, TimelineRequest, TimelineResponse, UnmergeRequest } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -364,91 +364,229 @@ export function fromExternalRefCbor(bytes: Uint8Array): ExternalRef {
   return fromExternalRefCborValue(decode(bytes));
 }
 
-export function toNodeCborValue(v: Node): CborValue {
+export function toRefCborValue(v: Ref): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("ref", v.ref);
+  csilMap.set("kind", v.kind);
+  if (v.title !== undefined) csilMap.set("title", v.title);
+  return csilMap;
+}
+
+export function fromRefCborValue(value: CborValue): Ref {
+  return {
+    kind: asString(requireKey(value, "kind")),
+    ref: asString(requireKey(value, "ref")),
+    title: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "title")),
+  };
+}
+
+export function toRefCbor(v: Ref): Uint8Array {
+  return encodeValue(toRefCborValue(v));
+}
+
+export function fromRefCbor(bytes: Uint8Array): Ref {
+  return fromRefCborValue(decode(bytes));
+}
+
+export function toEntityCborValue(v: Entity): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("id", v.id);
   csilMap.set("kind", v.kind);
   csilMap.set("label", v.label);
-  csilMap.set("owner", v.owner);
-  csilMap.set("scope", v.scope);
+  csilMap.set("owners", v.owners);
+  csilMap.set("aliases", v.aliases);
+  csilMap.set("readers", v.readers);
   csilMap.set("summary", v.summary);
   if (v.external !== undefined) csilMap.set("external", toExternalRefCborValue(v.external));
   csilMap.set("confidence", v.confidence);
   csilMap.set("created_ms", v.createdMs);
   csilMap.set("properties", new Map<CborValue, CborValue>(Object.entries(v.properties).map(([csilK, csilV]): [CborValue, CborValue] => [csilK, csilV])));
   csilMap.set("updated_ms", v.updatedMs);
-  if (v.authoredBy !== undefined) csilMap.set("authored_by", v.authoredBy);
+  if (v.mergedInto !== undefined) csilMap.set("merged_into", v.mergedInto);
   return csilMap;
 }
 
-export function fromNodeCborValue(value: CborValue): Node {
+export function fromEntityCborValue(value: CborValue): Entity {
   return {
     id: asString(requireKey(value, "id")),
     kind: asString(requireKey(value, "kind")),
     label: asString(requireKey(value, "label")),
+    aliases: asArray(requireKey(value, "aliases")).map((csilE) => asString(csilE)),
     summary: asString(requireKey(value, "summary")),
     properties: Object.fromEntries(Array.from(asMap(requireKey(value, "properties")), ([csilK, csilV]): [string, string] => [asString(csilK), asString(csilV)])),
     external: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromExternalRefCborValue(csilV))(mapGet(value, "external")),
-    owner: asString(requireKey(value, "owner")),
-    scope: asString(requireKey(value, "scope")),
-    authoredBy: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "authored_by")),
+    owners: asArray(requireKey(value, "owners")).map((csilE) => asString(csilE)),
+    readers: asArray(requireKey(value, "readers")).map((csilE) => asString(csilE)),
     confidence: asNumber(requireKey(value, "confidence")),
+    mergedInto: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "merged_into")),
     createdMs: asNumber(requireKey(value, "created_ms")),
     updatedMs: asNumber(requireKey(value, "updated_ms")),
   };
 }
 
-export function toNodeCbor(v: Node): Uint8Array {
-  return encodeValue(toNodeCborValue(v));
+export function toEntityCbor(v: Entity): Uint8Array {
+  return encodeValue(toEntityCborValue(v));
 }
 
-export function fromNodeCbor(bytes: Uint8Array): Node {
-  return fromNodeCborValue(decode(bytes));
+export function fromEntityCbor(bytes: Uint8Array): Entity {
+  return fromEntityCborValue(decode(bytes));
 }
 
-export function toEdgeCborValue(v: Edge): CborValue {
+export function toClaimCborValue(v: Claim): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("id", v.id);
-  csilMap.set("owner", v.owner);
-  csilMap.set("to_node", v.toNode);
+  csilMap.set("stale", v.stale);
+  if (v.value !== undefined) csilMap.set("value", v.value);
+  if (v.object !== undefined) csilMap.set("object", v.object);
+  csilMap.set("owners", v.owners);
+  csilMap.set("status", v.status);
+  csilMap.set("readers", v.readers);
+  csilMap.set("subject", v.subject);
   csilMap.set("relation", v.relation);
-  csilMap.set("from_node", v.fromNode);
+  csilMap.set("supported", v.supported);
   csilMap.set("confidence", v.confidence);
   csilMap.set("created_ms", v.createdMs);
-  csilMap.set("properties", new Map<CborValue, CborValue>(Object.entries(v.properties).map(([csilK, csilV]): [CborValue, CborValue] => [csilK, csilV])));
+  csilMap.set("updated_ms", v.updatedMs);
+  if (v.authoredBy !== undefined) csilMap.set("authored_by", v.authoredBy);
+  if (v.replacedBy !== undefined) csilMap.set("replaced_by", v.replacedBy);
+  if (v.validToMs !== undefined) csilMap.set("valid_to_ms", v.validToMs);
+  csilMap.set("derived_from", v.derivedFrom);
+  if (v.validFromMs !== undefined) csilMap.set("valid_from_ms", v.validFromMs);
   return csilMap;
 }
 
-export function fromEdgeCborValue(value: CborValue): Edge {
+export function fromClaimCborValue(value: CborValue): Claim {
   return {
     id: asString(requireKey(value, "id")),
-    fromNode: asString(requireKey(value, "from_node")),
-    toNode: asString(requireKey(value, "to_node")),
+    subject: asString(requireKey(value, "subject")),
     relation: asString(requireKey(value, "relation")),
-    properties: Object.fromEntries(Array.from(asMap(requireKey(value, "properties")), ([csilK, csilV]): [string, string] => [asString(csilK), asString(csilV)])),
-    owner: asString(requireKey(value, "owner")),
+    object: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "object")),
+    value: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "value")),
+    validFromMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "valid_from_ms")),
+    validToMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "valid_to_ms")),
+    status: asString(requireKey(value, "status")),
+    replacedBy: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "replaced_by")),
     confidence: asNumber(requireKey(value, "confidence")),
+    authoredBy: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "authored_by")),
+    derivedFrom: asArray(requireKey(value, "derived_from")).map((csilE) => asString(csilE)),
+    stale: asBool(requireKey(value, "stale")),
+    supported: asBool(requireKey(value, "supported")),
+    owners: asArray(requireKey(value, "owners")).map((csilE) => asString(csilE)),
+    readers: asArray(requireKey(value, "readers")).map((csilE) => asString(csilE)),
     createdMs: asNumber(requireKey(value, "created_ms")),
+    updatedMs: asNumber(requireKey(value, "updated_ms")),
   };
 }
 
-export function toEdgeCbor(v: Edge): Uint8Array {
-  return encodeValue(toEdgeCborValue(v));
+export function toClaimCbor(v: Claim): Uint8Array {
+  return encodeValue(toClaimCborValue(v));
 }
 
-export function fromEdgeCbor(bytes: Uint8Array): Edge {
-  return fromEdgeCborValue(decode(bytes));
+export function fromClaimCbor(bytes: Uint8Array): Claim {
+  return fromClaimCborValue(decode(bytes));
+}
+
+export function toEpisodeCborValue(v: Episode): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  csilMap.set("kind", v.kind);
+  csilMap.set("refs", v.refs.map((csilE): CborValue => toRefCborValue(csilE)));
+  csilMap.set("title", v.title);
+  csilMap.set("owners", v.owners);
+  if (v.outcome !== undefined) csilMap.set("outcome", v.outcome);
+  csilMap.set("readers", v.readers);
+  csilMap.set("summary", v.summary);
+  if (v.endedMs !== undefined) csilMap.set("ended_ms", v.endedMs);
+  csilMap.set("entities", v.entities);
+  if (v.procedure !== undefined) csilMap.set("procedure", v.procedure);
+  csilMap.set("created_ms", v.createdMs);
+  csilMap.set("started_ms", v.startedMs);
+  csilMap.set("updated_ms", v.updatedMs);
+  csilMap.set("participants", v.participants);
+  return csilMap;
+}
+
+export function fromEpisodeCborValue(value: CborValue): Episode {
+  return {
+    id: asString(requireKey(value, "id")),
+    kind: asString(requireKey(value, "kind")),
+    title: asString(requireKey(value, "title")),
+    summary: asString(requireKey(value, "summary")),
+    startedMs: asNumber(requireKey(value, "started_ms")),
+    endedMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "ended_ms")),
+    participants: asArray(requireKey(value, "participants")).map((csilE) => asString(csilE)),
+    entities: asArray(requireKey(value, "entities")).map((csilE) => asString(csilE)),
+    refs: asArray(requireKey(value, "refs")).map((csilE) => fromRefCborValue(csilE)),
+    procedure: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "procedure")),
+    outcome: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "outcome")),
+    owners: asArray(requireKey(value, "owners")).map((csilE) => asString(csilE)),
+    readers: asArray(requireKey(value, "readers")).map((csilE) => asString(csilE)),
+    createdMs: asNumber(requireKey(value, "created_ms")),
+    updatedMs: asNumber(requireKey(value, "updated_ms")),
+  };
+}
+
+export function toEpisodeCbor(v: Episode): Uint8Array {
+  return encodeValue(toEpisodeCborValue(v));
+}
+
+export function fromEpisodeCbor(bytes: Uint8Array): Episode {
+  return fromEpisodeCborValue(decode(bytes));
+}
+
+export function toProcedureCborValue(v: Procedure): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  csilMap.set("goal", v.goal);
+  csilMap.set("name", v.name);
+  csilMap.set("uses", new Map<CborValue, CborValue>(Object.entries(v.uses).map(([csilK, csilV]): [CborValue, CborValue] => [csilK, csilV])));
+  csilMap.set("steps", v.steps);
+  csilMap.set("inputs", new Map<CborValue, CborValue>(Object.entries(v.inputs).map(([csilK, csilV]): [CborValue, CborValue] => [csilK, csilV])));
+  csilMap.set("owners", v.owners);
+  csilMap.set("status", v.status);
+  csilMap.set("readers", v.readers);
+  csilMap.set("entities", v.entities);
+  csilMap.set("revision", v.revision);
+  csilMap.set("created_ms", v.createdMs);
+  if (v.definition !== undefined) csilMap.set("definition", v.definition);
+  csilMap.set("updated_ms", v.updatedMs);
+  return csilMap;
+}
+
+export function fromProcedureCborValue(value: CborValue): Procedure {
+  return {
+    id: asString(requireKey(value, "id")),
+    name: asString(requireKey(value, "name")),
+    goal: asString(requireKey(value, "goal")),
+    inputs: Object.fromEntries(Array.from(asMap(requireKey(value, "inputs")), ([csilK, csilV]): [string, string] => [asString(csilK), asString(csilV)])),
+    steps: asString(requireKey(value, "steps")),
+    definition: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "definition")),
+    revision: asNumber(requireKey(value, "revision")),
+    status: asString(requireKey(value, "status")),
+    uses: Object.fromEntries(Array.from(asMap(requireKey(value, "uses")), ([csilK, csilV]): [string, number] => [asString(csilK), asNumber(csilV)])),
+    entities: asArray(requireKey(value, "entities")).map((csilE) => asString(csilE)),
+    owners: asArray(requireKey(value, "owners")).map((csilE) => asString(csilE)),
+    readers: asArray(requireKey(value, "readers")).map((csilE) => asString(csilE)),
+    createdMs: asNumber(requireKey(value, "created_ms")),
+    updatedMs: asNumber(requireKey(value, "updated_ms")),
+  };
+}
+
+export function toProcedureCbor(v: Procedure): Uint8Array {
+  return encodeValue(toProcedureCborValue(v));
+}
+
+export function fromProcedureCbor(bytes: Uint8Array): Procedure {
+  return fromProcedureCborValue(decode(bytes));
 }
 
 export function toEvidenceCborValue(v: Evidence): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("id", v.id);
-  csilMap.set("ref", v.ref);
+  csilMap.set("ref", toRefCborValue(v.ref));
   if (v.note !== undefined) csilMap.set("note", v.note);
-  csilMap.set("owner", v.owner);
   csilMap.set("stance", v.stance);
   csilMap.set("subject", v.subject);
-  csilMap.set("ref_kind", v.refKind);
   csilMap.set("created_ms", v.createdMs);
   return csilMap;
 }
@@ -457,11 +595,9 @@ export function fromEvidenceCborValue(value: CborValue): Evidence {
   return {
     id: asString(requireKey(value, "id")),
     subject: asString(requireKey(value, "subject")),
-    refKind: asString(requireKey(value, "ref_kind")),
-    ref: asString(requireKey(value, "ref")),
+    ref: fromRefCborValue(requireKey(value, "ref")),
     stance: asString(requireKey(value, "stance")),
     note: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "note")),
-    owner: asString(requireKey(value, "owner")),
     createdMs: asNumber(requireKey(value, "created_ms")),
   };
 }
@@ -474,137 +610,431 @@ export function fromEvidenceCbor(bytes: Uint8Array): Evidence {
   return fromEvidenceCborValue(decode(bytes));
 }
 
-export function toPutNodeRequestCborValue(v: PutNodeRequest): CborValue {
+export function toChangeCborValue(v: Change): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
-  if (v.id !== undefined) csilMap.set("id", v.id);
-  csilMap.set("kind", v.kind);
-  csilMap.set("label", v.label);
-  if (v.owner !== undefined) csilMap.set("owner", v.owner);
-  if (v.scope !== undefined) csilMap.set("scope", v.scope);
-  if (v.summary !== undefined) csilMap.set("summary", v.summary);
-  if (v.external !== undefined) csilMap.set("external", toExternalRefCborValue(v.external));
-  if (v.confidence !== undefined) csilMap.set("confidence", v.confidence);
-  if (v.properties !== undefined) csilMap.set("properties", new Map<CborValue, CborValue>(Object.entries(v.properties).map(([csilK, csilV]): [CborValue, CborValue] => [csilK, csilV])));
-  if (v.authoredBy !== undefined) csilMap.set("authored_by", v.authoredBy);
+  csilMap.set("id", v.id);
+  csilMap.set("actor", v.actor);
+  if (v.after !== undefined) csilMap.set("after", v.after);
+  csilMap.set("at_ms", v.atMs);
+  if (v.before !== undefined) csilMap.set("before", v.before);
+  if (v.reason !== undefined) csilMap.set("reason", v.reason);
+  csilMap.set("record", v.record);
+  csilMap.set("operation", v.operation);
+  if (v.utterance !== undefined) csilMap.set("utterance", v.utterance);
   return csilMap;
 }
 
-export function fromPutNodeRequestCborValue(value: CborValue): PutNodeRequest {
+export function fromChangeCborValue(value: CborValue): Change {
   return {
-    id: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "id")),
+    id: asString(requireKey(value, "id")),
+    record: asString(requireKey(value, "record")),
+    operation: asString(requireKey(value, "operation")),
+    actor: asString(requireKey(value, "actor")),
+    reason: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "reason")),
+    before: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "before")),
+    after: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "after")),
+    utterance: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "utterance")),
+    atMs: asNumber(requireKey(value, "at_ms")),
+  };
+}
+
+export function toChangeCbor(v: Change): Uint8Array {
+  return encodeValue(toChangeCborValue(v));
+}
+
+export function fromChangeCbor(bytes: Uint8Array): Change {
+  return fromChangeCborValue(decode(bytes));
+}
+
+export function toDisputeCborValue(v: Dispute): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("by", v.by);
+  csilMap.set("id", v.id);
+  csilMap.set("state", v.state);
+  csilMap.set("owners", v.owners);
+  csilMap.set("reason", v.reason);
+  csilMap.set("record", v.record);
+  if (v.proposed !== undefined) csilMap.set("proposed", v.proposed);
+  csilMap.set("created_ms", v.createdMs);
+  if (v.resolution !== undefined) csilMap.set("resolution", v.resolution);
+  csilMap.set("updated_ms", v.updatedMs);
+  return csilMap;
+}
+
+export function fromDisputeCborValue(value: CborValue): Dispute {
+  return {
+    id: asString(requireKey(value, "id")),
+    record: asString(requireKey(value, "record")),
+    by: asString(requireKey(value, "by")),
+    reason: asString(requireKey(value, "reason")),
+    proposed: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "proposed")),
+    state: asString(requireKey(value, "state")),
+    resolution: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "resolution")),
+    owners: asArray(requireKey(value, "owners")).map((csilE) => asString(csilE)),
+    createdMs: asNumber(requireKey(value, "created_ms")),
+    updatedMs: asNumber(requireKey(value, "updated_ms")),
+  };
+}
+
+export function toDisputeCbor(v: Dispute): Uint8Array {
+  return encodeValue(toDisputeCborValue(v));
+}
+
+export function fromDisputeCbor(bytes: Uint8Array): Dispute {
+  return fromDisputeCborValue(decode(bytes));
+}
+
+export function toGroupCborValue(v: Group): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  csilMap.set("label", v.label);
+  csilMap.set("owners", v.owners);
+  csilMap.set("members", v.members);
+  csilMap.set("updated_ms", v.updatedMs);
+  return csilMap;
+}
+
+export function fromGroupCborValue(value: CborValue): Group {
+  return {
+    id: asString(requireKey(value, "id")),
+    label: asString(requireKey(value, "label")),
+    members: asArray(requireKey(value, "members")).map((csilE) => asString(csilE)),
+    owners: asArray(requireKey(value, "owners")).map((csilE) => asString(csilE)),
+    updatedMs: asNumber(requireKey(value, "updated_ms")),
+  };
+}
+
+export function toGroupCbor(v: Group): Uint8Array {
+  return encodeValue(toGroupCborValue(v));
+}
+
+export function fromGroupCbor(bytes: Uint8Array): Group {
+  return fromGroupCborValue(decode(bytes));
+}
+
+export function toPutEntityRequestCborValue(v: PutEntityRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("kind", v.kind);
+  csilMap.set("label", v.label);
+  if (v.owners !== undefined) csilMap.set("owners", v.owners);
+  if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
+  if (v.aliases !== undefined) csilMap.set("aliases", v.aliases);
+  if (v.readers !== undefined) csilMap.set("readers", v.readers);
+  if (v.summary !== undefined) csilMap.set("summary", v.summary);
+  if (v.external !== undefined) csilMap.set("external", toExternalRefCborValue(v.external));
+  if (v.utterance !== undefined) csilMap.set("utterance", v.utterance);
+  if (v.confidence !== undefined) csilMap.set("confidence", v.confidence);
+  if (v.properties !== undefined) csilMap.set("properties", new Map<CborValue, CborValue>(Object.entries(v.properties).map(([csilK, csilV]): [CborValue, CborValue] => [csilK, csilV])));
+  return csilMap;
+}
+
+export function fromPutEntityRequestCborValue(value: CborValue): PutEntityRequest {
+  return {
     kind: asString(requireKey(value, "kind")),
     label: asString(requireKey(value, "label")),
+    aliases: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "aliases")),
     summary: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "summary")),
     properties: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : Object.fromEntries(Array.from(asMap(csilV), ([csilK, csilV]): [string, string] => [asString(csilK), asString(csilV)])))(mapGet(value, "properties")),
     external: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromExternalRefCborValue(csilV))(mapGet(value, "external")),
-    scope: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "scope")),
-    authoredBy: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "authored_by")),
+    owners: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "owners")),
+    readers: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "readers")),
     confidence: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "confidence")),
-    owner: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "owner")),
+    actFor: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "act_for")),
+    utterance: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "utterance")),
   };
 }
 
-export function toPutNodeRequestCbor(v: PutNodeRequest): Uint8Array {
-  return encodeValue(toPutNodeRequestCborValue(v));
+export function toPutEntityRequestCbor(v: PutEntityRequest): Uint8Array {
+  return encodeValue(toPutEntityRequestCborValue(v));
 }
 
-export function fromPutNodeRequestCbor(bytes: Uint8Array): PutNodeRequest {
-  return fromPutNodeRequestCborValue(decode(bytes));
+export function fromPutEntityRequestCbor(bytes: Uint8Array): PutEntityRequest {
+  return fromPutEntityRequestCborValue(decode(bytes));
 }
 
-export function toGetNodeRequestCborValue(v: GetNodeRequest): CborValue {
+export function toSelfRequestCborValue(v: SelfRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.label !== undefined) csilMap.set("label", v.label);
+  if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
+  return csilMap;
+}
+
+export function fromSelfRequestCborValue(value: CborValue): SelfRequest {
+  return {
+    label: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "label")),
+    actFor: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "act_for")),
+  };
+}
+
+export function toSelfRequestCbor(v: SelfRequest): Uint8Array {
+  return encodeValue(toSelfRequestCborValue(v));
+}
+
+export function fromSelfRequestCbor(bytes: Uint8Array): SelfRequest {
+  return fromSelfRequestCborValue(decode(bytes));
+}
+
+export function toAssertRequestCborValue(v: AssertRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.value !== undefined) csilMap.set("value", v.value);
+  if (v.object !== undefined) csilMap.set("object", v.object);
+  if (v.owners !== undefined) csilMap.set("owners", v.owners);
+  if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
+  if (v.readers !== undefined) csilMap.set("readers", v.readers);
+  csilMap.set("subject", v.subject);
+  if (v.evidence !== undefined) csilMap.set("evidence", v.evidence.map((csilE): CborValue => toRefCborValue(csilE)));
+  csilMap.set("relation", v.relation);
+  if (v.utterance !== undefined) csilMap.set("utterance", v.utterance);
+  if (v.confidence !== undefined) csilMap.set("confidence", v.confidence);
+  if (v.authoredBy !== undefined) csilMap.set("authored_by", v.authoredBy);
+  if (v.validToMs !== undefined) csilMap.set("valid_to_ms", v.validToMs);
+  if (v.derivedFrom !== undefined) csilMap.set("derived_from", v.derivedFrom);
+  if (v.validFromMs !== undefined) csilMap.set("valid_from_ms", v.validFromMs);
+  return csilMap;
+}
+
+export function fromAssertRequestCborValue(value: CborValue): AssertRequest {
+  return {
+    subject: asString(requireKey(value, "subject")),
+    relation: asString(requireKey(value, "relation")),
+    object: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "object")),
+    value: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "value")),
+    validFromMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "valid_from_ms")),
+    validToMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "valid_to_ms")),
+    confidence: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "confidence")),
+    authoredBy: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "authored_by")),
+    derivedFrom: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "derived_from")),
+    evidence: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => fromRefCborValue(csilE)))(mapGet(value, "evidence")),
+    owners: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "owners")),
+    readers: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "readers")),
+    actFor: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "act_for")),
+    utterance: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "utterance")),
+  };
+}
+
+export function toAssertRequestCbor(v: AssertRequest): Uint8Array {
+  return encodeValue(toAssertRequestCborValue(v));
+}
+
+export function fromAssertRequestCbor(bytes: Uint8Array): AssertRequest {
+  return fromAssertRequestCborValue(decode(bytes));
+}
+
+export function toChangeRequestCborValue(v: ChangeRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("id", v.id);
+  if (v.set !== undefined) csilMap.set("set", new Map<CborValue, CborValue>(Object.entries(v.set).map(([csilK, csilV]): [CborValue, CborValue] => [csilK, csilV])));
+  if (v.atMs !== undefined) csilMap.set("at_ms", v.atMs);
+  if (v.erase !== undefined) csilMap.set("erase", v.erase);
+  if (v.reason !== undefined) csilMap.set("reason", v.reason);
+  if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
+  csilMap.set("operation", v.operation);
+  if (v.utterance !== undefined) csilMap.set("utterance", v.utterance);
   return csilMap;
 }
 
-export function fromGetNodeRequestCborValue(value: CborValue): GetNodeRequest {
+export function fromChangeRequestCborValue(value: CborValue): ChangeRequest {
   return {
     id: asString(requireKey(value, "id")),
+    operation: asString(requireKey(value, "operation")),
+    set: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : Object.fromEntries(Array.from(asMap(csilV), ([csilK, csilV]): [string, string] => [asString(csilK), asString(csilV)])))(mapGet(value, "set")),
+    atMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "at_ms")),
+    erase: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "erase")),
+    reason: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "reason")),
+    actFor: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "act_for")),
+    utterance: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "utterance")),
   };
 }
 
-export function toGetNodeRequestCbor(v: GetNodeRequest): Uint8Array {
-  return encodeValue(toGetNodeRequestCborValue(v));
+export function toChangeRequestCbor(v: ChangeRequest): Uint8Array {
+  return encodeValue(toChangeRequestCborValue(v));
 }
 
-export function fromGetNodeRequestCbor(bytes: Uint8Array): GetNodeRequest {
-  return fromGetNodeRequestCborValue(decode(bytes));
+export function fromChangeRequestCbor(bytes: Uint8Array): ChangeRequest {
+  return fromChangeRequestCborValue(decode(bytes));
 }
 
-export function toNodeViewCborValue(v: NodeView): CborValue {
+export function toChangeResponseCborValue(v: ChangeResponse): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
-  csilMap.set("node", toNodeCborValue(v.node));
-  csilMap.set("edges", v.edges.map((csilE): CborValue => toEdgeCborValue(csilE)));
-  csilMap.set("evidence", v.evidence.map((csilE): CborValue => toEvidenceCborValue(csilE)));
+  if (v.claim !== undefined) csilMap.set("claim", toClaimCborValue(v.claim));
+  csilMap.set("change", toChangeCborValue(v.change));
+  if (v.entity !== undefined) csilMap.set("entity", toEntityCborValue(v.entity));
+  if (v.episode !== undefined) csilMap.set("episode", toEpisodeCborValue(v.episode));
+  if (v.procedure !== undefined) csilMap.set("procedure", toProcedureCborValue(v.procedure));
   return csilMap;
 }
 
-export function fromNodeViewCborValue(value: CborValue): NodeView {
+export function fromChangeResponseCborValue(value: CborValue): ChangeResponse {
   return {
-    node: fromNodeCborValue(requireKey(value, "node")),
-    edges: asArray(requireKey(value, "edges")).map((csilE) => fromEdgeCborValue(csilE)),
-    evidence: asArray(requireKey(value, "evidence")).map((csilE) => fromEvidenceCborValue(csilE)),
+    change: fromChangeCborValue(requireKey(value, "change")),
+    entity: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromEntityCborValue(csilV))(mapGet(value, "entity")),
+    claim: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromClaimCborValue(csilV))(mapGet(value, "claim")),
+    episode: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromEpisodeCborValue(csilV))(mapGet(value, "episode")),
+    procedure: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromProcedureCborValue(csilV))(mapGet(value, "procedure")),
   };
 }
 
-export function toNodeViewCbor(v: NodeView): Uint8Array {
-  return encodeValue(toNodeViewCborValue(v));
+export function toChangeResponseCbor(v: ChangeResponse): Uint8Array {
+  return encodeValue(toChangeResponseCborValue(v));
 }
 
-export function fromNodeViewCbor(bytes: Uint8Array): NodeView {
-  return fromNodeViewCborValue(decode(bytes));
+export function fromChangeResponseCbor(bytes: Uint8Array): ChangeResponse {
+  return fromChangeResponseCborValue(decode(bytes));
 }
 
-export function toPutEdgeRequestCborValue(v: PutEdgeRequest): CborValue {
+export function toMergeRequestCborValue(v: MergeRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
-  if (v.owner !== undefined) csilMap.set("owner", v.owner);
-  csilMap.set("to_node", v.toNode);
-  csilMap.set("relation", v.relation);
-  csilMap.set("from_node", v.fromNode);
-  if (v.confidence !== undefined) csilMap.set("confidence", v.confidence);
-  if (v.properties !== undefined) csilMap.set("properties", new Map<CborValue, CborValue>(Object.entries(v.properties).map(([csilK, csilV]): [CborValue, CborValue] => [csilK, csilV])));
+  csilMap.set("keep", v.keep);
+  csilMap.set("merge", v.merge);
+  if (v.reason !== undefined) csilMap.set("reason", v.reason);
+  if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
+  if (v.utterance !== undefined) csilMap.set("utterance", v.utterance);
   return csilMap;
 }
 
-export function fromPutEdgeRequestCborValue(value: CborValue): PutEdgeRequest {
+export function fromMergeRequestCborValue(value: CborValue): MergeRequest {
   return {
-    fromNode: asString(requireKey(value, "from_node")),
-    toNode: asString(requireKey(value, "to_node")),
-    relation: asString(requireKey(value, "relation")),
-    properties: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : Object.fromEntries(Array.from(asMap(csilV), ([csilK, csilV]): [string, string] => [asString(csilK), asString(csilV)])))(mapGet(value, "properties")),
-    confidence: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "confidence")),
-    owner: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "owner")),
+    keep: asString(requireKey(value, "keep")),
+    merge: asString(requireKey(value, "merge")),
+    reason: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "reason")),
+    actFor: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "act_for")),
+    utterance: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "utterance")),
   };
 }
 
-export function toPutEdgeRequestCbor(v: PutEdgeRequest): Uint8Array {
-  return encodeValue(toPutEdgeRequestCborValue(v));
+export function toMergeRequestCbor(v: MergeRequest): Uint8Array {
+  return encodeValue(toMergeRequestCborValue(v));
 }
 
-export function fromPutEdgeRequestCbor(bytes: Uint8Array): PutEdgeRequest {
-  return fromPutEdgeRequestCborValue(decode(bytes));
+export function fromMergeRequestCbor(bytes: Uint8Array): MergeRequest {
+  return fromMergeRequestCborValue(decode(bytes));
+}
+
+export function toUnmergeRequestCborValue(v: UnmergeRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("change", v.change);
+  if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
+  return csilMap;
+}
+
+export function fromUnmergeRequestCborValue(value: CborValue): UnmergeRequest {
+  return {
+    change: asString(requireKey(value, "change")),
+    actFor: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "act_for")),
+  };
+}
+
+export function toUnmergeRequestCbor(v: UnmergeRequest): Uint8Array {
+  return encodeValue(toUnmergeRequestCborValue(v));
+}
+
+export function fromUnmergeRequestCbor(bytes: Uint8Array): UnmergeRequest {
+  return fromUnmergeRequestCborValue(decode(bytes));
+}
+
+export function toRecordEpisodeRequestCborValue(v: RecordEpisodeRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.id !== undefined) csilMap.set("id", v.id);
+  csilMap.set("kind", v.kind);
+  if (v.refs !== undefined) csilMap.set("refs", v.refs.map((csilE): CborValue => toRefCborValue(csilE)));
+  csilMap.set("title", v.title);
+  if (v.owners !== undefined) csilMap.set("owners", v.owners);
+  if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
+  if (v.outcome !== undefined) csilMap.set("outcome", v.outcome);
+  if (v.readers !== undefined) csilMap.set("readers", v.readers);
+  if (v.summary !== undefined) csilMap.set("summary", v.summary);
+  if (v.endedMs !== undefined) csilMap.set("ended_ms", v.endedMs);
+  if (v.entities !== undefined) csilMap.set("entities", v.entities);
+  if (v.procedure !== undefined) csilMap.set("procedure", v.procedure);
+  if (v.startedMs !== undefined) csilMap.set("started_ms", v.startedMs);
+  if (v.participants !== undefined) csilMap.set("participants", v.participants);
+  return csilMap;
+}
+
+export function fromRecordEpisodeRequestCborValue(value: CborValue): RecordEpisodeRequest {
+  return {
+    id: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "id")),
+    kind: asString(requireKey(value, "kind")),
+    title: asString(requireKey(value, "title")),
+    summary: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "summary")),
+    startedMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "started_ms")),
+    endedMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "ended_ms")),
+    participants: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "participants")),
+    entities: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "entities")),
+    refs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => fromRefCborValue(csilE)))(mapGet(value, "refs")),
+    procedure: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "procedure")),
+    outcome: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "outcome")),
+    owners: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "owners")),
+    readers: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "readers")),
+    actFor: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "act_for")),
+  };
+}
+
+export function toRecordEpisodeRequestCbor(v: RecordEpisodeRequest): Uint8Array {
+  return encodeValue(toRecordEpisodeRequestCborValue(v));
+}
+
+export function fromRecordEpisodeRequestCbor(bytes: Uint8Array): RecordEpisodeRequest {
+  return fromRecordEpisodeRequestCborValue(decode(bytes));
+}
+
+export function toPutProcedureRequestCborValue(v: PutProcedureRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("goal", v.goal);
+  csilMap.set("name", v.name);
+  csilMap.set("steps", v.steps);
+  if (v.inputs !== undefined) csilMap.set("inputs", new Map<CborValue, CborValue>(Object.entries(v.inputs).map(([csilK, csilV]): [CborValue, CborValue] => [csilK, csilV])));
+  if (v.owners !== undefined) csilMap.set("owners", v.owners);
+  if (v.reason !== undefined) csilMap.set("reason", v.reason);
+  if (v.status !== undefined) csilMap.set("status", v.status);
+  if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
+  if (v.readers !== undefined) csilMap.set("readers", v.readers);
+  if (v.entities !== undefined) csilMap.set("entities", v.entities);
+  if (v.definition !== undefined) csilMap.set("definition", v.definition);
+  return csilMap;
+}
+
+export function fromPutProcedureRequestCborValue(value: CborValue): PutProcedureRequest {
+  return {
+    name: asString(requireKey(value, "name")),
+    goal: asString(requireKey(value, "goal")),
+    inputs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : Object.fromEntries(Array.from(asMap(csilV), ([csilK, csilV]): [string, string] => [asString(csilK), asString(csilV)])))(mapGet(value, "inputs")),
+    steps: asString(requireKey(value, "steps")),
+    definition: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "definition")),
+    status: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "status")),
+    entities: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "entities")),
+    owners: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "owners")),
+    readers: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "readers")),
+    actFor: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "act_for")),
+    reason: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "reason")),
+  };
+}
+
+export function toPutProcedureRequestCbor(v: PutProcedureRequest): Uint8Array {
+  return encodeValue(toPutProcedureRequestCborValue(v));
+}
+
+export function fromPutProcedureRequestCbor(bytes: Uint8Array): PutProcedureRequest {
+  return fromPutProcedureRequestCborValue(decode(bytes));
 }
 
 export function toLinkEvidenceRequestCborValue(v: LinkEvidenceRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
-  csilMap.set("ref", v.ref);
+  csilMap.set("ref", toRefCborValue(v.ref));
   if (v.note !== undefined) csilMap.set("note", v.note);
-  if (v.owner !== undefined) csilMap.set("owner", v.owner);
   if (v.stance !== undefined) csilMap.set("stance", v.stance);
+  if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
   csilMap.set("subject", v.subject);
-  csilMap.set("ref_kind", v.refKind);
   return csilMap;
 }
 
 export function fromLinkEvidenceRequestCborValue(value: CborValue): LinkEvidenceRequest {
   return {
     subject: asString(requireKey(value, "subject")),
-    refKind: asString(requireKey(value, "ref_kind")),
-    ref: asString(requireKey(value, "ref")),
+    ref: fromRefCborValue(requireKey(value, "ref")),
     stance: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "stance")),
     note: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "note")),
-    owner: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "owner")),
+    actFor: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "act_for")),
   };
 }
 
@@ -616,95 +1046,463 @@ export function fromLinkEvidenceRequestCbor(bytes: Uint8Array): LinkEvidenceRequ
   return fromLinkEvidenceRequestCborValue(decode(bytes));
 }
 
-export function toQueryRequestCborValue(v: QueryRequest): CborValue {
+export function toDisputeRequestCborValue(v: DisputeRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
-  if (v.kind !== undefined) csilMap.set("kind", v.kind);
-  if (v.near !== undefined) csilMap.set("near", v.near);
-  if (v.text !== undefined) csilMap.set("text", v.text);
-  if (v.depth !== undefined) csilMap.set("depth", v.depth);
-  if (v.limit !== undefined) csilMap.set("limit", v.limit);
-  if (v.owner !== undefined) csilMap.set("owner", v.owner);
+  csilMap.set("reason", v.reason);
+  csilMap.set("record", v.record);
+  if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
+  if (v.proposed !== undefined) csilMap.set("proposed", v.proposed);
   return csilMap;
 }
 
-export function fromQueryRequestCborValue(value: CborValue): QueryRequest {
+export function fromDisputeRequestCborValue(value: CborValue): DisputeRequest {
   return {
-    text: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "text")),
-    owner: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "owner")),
-    kind: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "kind")),
-    near: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "near")),
-    depth: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "depth")),
-    limit: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
+    record: asString(requireKey(value, "record")),
+    reason: asString(requireKey(value, "reason")),
+    proposed: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "proposed")),
+    actFor: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "act_for")),
   };
 }
 
-export function toQueryRequestCbor(v: QueryRequest): Uint8Array {
-  return encodeValue(toQueryRequestCborValue(v));
+export function toDisputeRequestCbor(v: DisputeRequest): Uint8Array {
+  return encodeValue(toDisputeRequestCborValue(v));
 }
 
-export function fromQueryRequestCbor(bytes: Uint8Array): QueryRequest {
-  return fromQueryRequestCborValue(decode(bytes));
+export function fromDisputeRequestCbor(bytes: Uint8Array): DisputeRequest {
+  return fromDisputeRequestCborValue(decode(bytes));
 }
 
-export function toQueryResponseCborValue(v: QueryResponse): CborValue {
-  const csilMap = new Map<CborValue, CborValue>();
-  csilMap.set("edges", v.edges.map((csilE): CborValue => toEdgeCborValue(csilE)));
-  csilMap.set("nodes", v.nodes.map((csilE): CborValue => toNodeCborValue(csilE)));
-  return csilMap;
-}
-
-export function fromQueryResponseCborValue(value: CborValue): QueryResponse {
-  return {
-    nodes: asArray(requireKey(value, "nodes")).map((csilE) => fromNodeCborValue(csilE)),
-    edges: asArray(requireKey(value, "edges")).map((csilE) => fromEdgeCborValue(csilE)),
-  };
-}
-
-export function toQueryResponseCbor(v: QueryResponse): Uint8Array {
-  return encodeValue(toQueryResponseCborValue(v));
-}
-
-export function fromQueryResponseCbor(bytes: Uint8Array): QueryResponse {
-  return fromQueryResponseCborValue(decode(bytes));
-}
-
-export function toDeleteRequestCborValue(v: DeleteRequest): CborValue {
+export function toResolveDisputeRequestCborValue(v: ResolveDisputeRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("id", v.id);
+  csilMap.set("accept", v.accept);
+  if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
+  if (v.resolution !== undefined) csilMap.set("resolution", v.resolution);
   return csilMap;
 }
 
-export function fromDeleteRequestCborValue(value: CborValue): DeleteRequest {
+export function fromResolveDisputeRequestCborValue(value: CborValue): ResolveDisputeRequest {
   return {
     id: asString(requireKey(value, "id")),
+    accept: asBool(requireKey(value, "accept")),
+    resolution: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "resolution")),
+    actFor: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "act_for")),
   };
 }
 
-export function toDeleteRequestCbor(v: DeleteRequest): Uint8Array {
-  return encodeValue(toDeleteRequestCborValue(v));
+export function toResolveDisputeRequestCbor(v: ResolveDisputeRequest): Uint8Array {
+  return encodeValue(toResolveDisputeRequestCborValue(v));
 }
 
-export function fromDeleteRequestCbor(bytes: Uint8Array): DeleteRequest {
-  return fromDeleteRequestCborValue(decode(bytes));
+export function fromResolveDisputeRequestCbor(bytes: Uint8Array): ResolveDisputeRequest {
+  return fromResolveDisputeRequestCborValue(decode(bytes));
 }
 
-export function toDeleteResponseCborValue(v: DeleteResponse): CborValue {
+export function toListDisputesRequestCborValue(v: ListDisputesRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
-  csilMap.set("deleted", v.deleted);
+  if (v.state !== undefined) csilMap.set("state", v.state);
+  if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
   return csilMap;
 }
 
-export function fromDeleteResponseCborValue(value: CborValue): DeleteResponse {
+export function fromListDisputesRequestCborValue(value: CborValue): ListDisputesRequest {
   return {
-    deleted: asBool(requireKey(value, "deleted")),
+    state: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "state")),
+    actFor: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "act_for")),
   };
 }
 
-export function toDeleteResponseCbor(v: DeleteResponse): Uint8Array {
-  return encodeValue(toDeleteResponseCborValue(v));
+export function toListDisputesRequestCbor(v: ListDisputesRequest): Uint8Array {
+  return encodeValue(toListDisputesRequestCborValue(v));
 }
 
-export function fromDeleteResponseCbor(bytes: Uint8Array): DeleteResponse {
-  return fromDeleteResponseCborValue(decode(bytes));
+export function fromListDisputesRequestCbor(bytes: Uint8Array): ListDisputesRequest {
+  return fromListDisputesRequestCborValue(decode(bytes));
+}
+
+export function toListDisputesResponseCborValue(v: ListDisputesResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("disputes", v.disputes.map((csilE): CborValue => toDisputeCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromListDisputesResponseCborValue(value: CborValue): ListDisputesResponse {
+  return {
+    disputes: asArray(requireKey(value, "disputes")).map((csilE) => fromDisputeCborValue(csilE)),
+  };
+}
+
+export function toListDisputesResponseCbor(v: ListDisputesResponse): Uint8Array {
+  return encodeValue(toListDisputesResponseCborValue(v));
+}
+
+export function fromListDisputesResponseCbor(bytes: Uint8Array): ListDisputesResponse {
+  return fromListDisputesResponseCborValue(decode(bytes));
+}
+
+export function toPutGroupRequestCborValue(v: PutGroupRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  csilMap.set("label", v.label);
+  if (v.owners !== undefined) csilMap.set("owners", v.owners);
+  if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
+  csilMap.set("members", v.members);
+  return csilMap;
+}
+
+export function fromPutGroupRequestCborValue(value: CborValue): PutGroupRequest {
+  return {
+    id: asString(requireKey(value, "id")),
+    label: asString(requireKey(value, "label")),
+    members: asArray(requireKey(value, "members")).map((csilE) => asString(csilE)),
+    owners: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "owners")),
+    actFor: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "act_for")),
+  };
+}
+
+export function toPutGroupRequestCbor(v: PutGroupRequest): Uint8Array {
+  return encodeValue(toPutGroupRequestCborValue(v));
+}
+
+export function fromPutGroupRequestCbor(bytes: Uint8Array): PutGroupRequest {
+  return fromPutGroupRequestCborValue(decode(bytes));
+}
+
+export function toSearchRequestCborValue(v: SearchRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.kind !== undefined) csilMap.set("kind", v.kind);
+  if (v.text !== undefined) csilMap.set("text", v.text);
+  if (v.atMs !== undefined) csilMap.set("at_ms", v.atMs);
+  if (v.limit !== undefined) csilMap.set("limit", v.limit);
+  if (v.types !== undefined) csilMap.set("types", v.types);
+  if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
+  if (v.relation !== undefined) csilMap.set("relation", v.relation);
+  if (v.includeEnded !== undefined) csilMap.set("include_ended", v.includeEnded);
+  return csilMap;
+}
+
+export function fromSearchRequestCborValue(value: CborValue): SearchRequest {
+  return {
+    text: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "text")),
+    types: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "types")),
+    kind: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "kind")),
+    relation: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "relation")),
+    atMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "at_ms")),
+    includeEnded: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "include_ended")),
+    limit: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
+    actFor: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "act_for")),
+  };
+}
+
+export function toSearchRequestCbor(v: SearchRequest): Uint8Array {
+  return encodeValue(toSearchRequestCborValue(v));
+}
+
+export function fromSearchRequestCbor(bytes: Uint8Array): SearchRequest {
+  return fromSearchRequestCborValue(decode(bytes));
+}
+
+export function toHitCborValue(v: Hit): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  csilMap.set("type", v.type);
+  csilMap.set("score", v.score);
+  return csilMap;
+}
+
+export function fromHitCborValue(value: CborValue): Hit {
+  return {
+    type: asString(requireKey(value, "type")),
+    id: asString(requireKey(value, "id")),
+    score: asNumber(requireKey(value, "score")),
+  };
+}
+
+export function toHitCbor(v: Hit): Uint8Array {
+  return encodeValue(toHitCborValue(v));
+}
+
+export function fromHitCbor(bytes: Uint8Array): Hit {
+  return fromHitCborValue(decode(bytes));
+}
+
+export function toSearchResponseCborValue(v: SearchResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("hits", v.hits.map((csilE): CborValue => toHitCborValue(csilE)));
+  csilMap.set("claims", v.claims.map((csilE): CborValue => toClaimCborValue(csilE)));
+  csilMap.set("entities", v.entities.map((csilE): CborValue => toEntityCborValue(csilE)));
+  csilMap.set("episodes", v.episodes.map((csilE): CborValue => toEpisodeCborValue(csilE)));
+  csilMap.set("procedures", v.procedures.map((csilE): CborValue => toProcedureCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromSearchResponseCborValue(value: CborValue): SearchResponse {
+  return {
+    hits: asArray(requireKey(value, "hits")).map((csilE) => fromHitCborValue(csilE)),
+    entities: asArray(requireKey(value, "entities")).map((csilE) => fromEntityCborValue(csilE)),
+    claims: asArray(requireKey(value, "claims")).map((csilE) => fromClaimCborValue(csilE)),
+    episodes: asArray(requireKey(value, "episodes")).map((csilE) => fromEpisodeCborValue(csilE)),
+    procedures: asArray(requireKey(value, "procedures")).map((csilE) => fromProcedureCborValue(csilE)),
+  };
+}
+
+export function toSearchResponseCbor(v: SearchResponse): Uint8Array {
+  return encodeValue(toSearchResponseCborValue(v));
+}
+
+export function fromSearchResponseCbor(bytes: Uint8Array): SearchResponse {
+  return fromSearchResponseCborValue(decode(bytes));
+}
+
+export function toAboutRequestCborValue(v: AboutRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  if (v.atMs !== undefined) csilMap.set("at_ms", v.atMs);
+  if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
+  if (v.includeEnded !== undefined) csilMap.set("include_ended", v.includeEnded);
+  return csilMap;
+}
+
+export function fromAboutRequestCborValue(value: CborValue): AboutRequest {
+  return {
+    id: asString(requireKey(value, "id")),
+    atMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "at_ms")),
+    includeEnded: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "include_ended")),
+    actFor: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "act_for")),
+  };
+}
+
+export function toAboutRequestCbor(v: AboutRequest): Uint8Array {
+  return encodeValue(toAboutRequestCborValue(v));
+}
+
+export function fromAboutRequestCbor(bytes: Uint8Array): AboutRequest {
+  return fromAboutRequestCborValue(decode(bytes));
+}
+
+export function toAboutResponseCborValue(v: AboutResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("claims", v.claims.map((csilE): CborValue => toClaimCborValue(csilE)));
+  csilMap.set("entity", toEntityCborValue(v.entity));
+  csilMap.set("related", v.related.map((csilE): CborValue => toEntityCborValue(csilE)));
+  csilMap.set("disputes", v.disputes.map((csilE): CborValue => toDisputeCborValue(csilE)));
+  csilMap.set("episodes", v.episodes.map((csilE): CborValue => toEpisodeCborValue(csilE)));
+  csilMap.set("evidence", v.evidence.map((csilE): CborValue => toEvidenceCborValue(csilE)));
+  csilMap.set("procedures", v.procedures.map((csilE): CborValue => toProcedureCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromAboutResponseCborValue(value: CborValue): AboutResponse {
+  return {
+    entity: fromEntityCborValue(requireKey(value, "entity")),
+    claims: asArray(requireKey(value, "claims")).map((csilE) => fromClaimCborValue(csilE)),
+    related: asArray(requireKey(value, "related")).map((csilE) => fromEntityCborValue(csilE)),
+    episodes: asArray(requireKey(value, "episodes")).map((csilE) => fromEpisodeCborValue(csilE)),
+    procedures: asArray(requireKey(value, "procedures")).map((csilE) => fromProcedureCborValue(csilE)),
+    evidence: asArray(requireKey(value, "evidence")).map((csilE) => fromEvidenceCborValue(csilE)),
+    disputes: asArray(requireKey(value, "disputes")).map((csilE) => fromDisputeCborValue(csilE)),
+  };
+}
+
+export function toAboutResponseCbor(v: AboutResponse): Uint8Array {
+  return encodeValue(toAboutResponseCborValue(v));
+}
+
+export function fromAboutResponseCbor(bytes: Uint8Array): AboutResponse {
+  return fromAboutResponseCborValue(decode(bytes));
+}
+
+export function toNeighborsRequestCborValue(v: NeighborsRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  if (v.depth !== undefined) csilMap.set("depth", v.depth);
+  if (v.limit !== undefined) csilMap.set("limit", v.limit);
+  if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
+  if (v.relation !== undefined) csilMap.set("relation", v.relation);
+  return csilMap;
+}
+
+export function fromNeighborsRequestCborValue(value: CborValue): NeighborsRequest {
+  return {
+    id: asString(requireKey(value, "id")),
+    relation: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "relation")),
+    depth: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "depth")),
+    limit: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
+    actFor: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "act_for")),
+  };
+}
+
+export function toNeighborsRequestCbor(v: NeighborsRequest): Uint8Array {
+  return encodeValue(toNeighborsRequestCborValue(v));
+}
+
+export function fromNeighborsRequestCbor(bytes: Uint8Array): NeighborsRequest {
+  return fromNeighborsRequestCborValue(decode(bytes));
+}
+
+export function toNeighborsResponseCborValue(v: NeighborsResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("claims", v.claims.map((csilE): CborValue => toClaimCborValue(csilE)));
+  csilMap.set("entities", v.entities.map((csilE): CborValue => toEntityCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromNeighborsResponseCborValue(value: CborValue): NeighborsResponse {
+  return {
+    entities: asArray(requireKey(value, "entities")).map((csilE) => fromEntityCborValue(csilE)),
+    claims: asArray(requireKey(value, "claims")).map((csilE) => fromClaimCborValue(csilE)),
+  };
+}
+
+export function toNeighborsResponseCbor(v: NeighborsResponse): Uint8Array {
+  return encodeValue(toNeighborsResponseCborValue(v));
+}
+
+export function fromNeighborsResponseCbor(bytes: Uint8Array): NeighborsResponse {
+  return fromNeighborsResponseCborValue(decode(bytes));
+}
+
+export function toTimelineRequestCborValue(v: TimelineRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.limit !== undefined) csilMap.set("limit", v.limit);
+  csilMap.set("to_ms", v.toMs);
+  if (v.entity !== undefined) csilMap.set("entity", v.entity);
+  if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
+  csilMap.set("from_ms", v.fromMs);
+  return csilMap;
+}
+
+export function fromTimelineRequestCborValue(value: CborValue): TimelineRequest {
+  return {
+    entity: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "entity")),
+    fromMs: asNumber(requireKey(value, "from_ms")),
+    toMs: asNumber(requireKey(value, "to_ms")),
+    limit: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
+    actFor: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "act_for")),
+  };
+}
+
+export function toTimelineRequestCbor(v: TimelineRequest): Uint8Array {
+  return encodeValue(toTimelineRequestCborValue(v));
+}
+
+export function fromTimelineRequestCbor(bytes: Uint8Array): TimelineRequest {
+  return fromTimelineRequestCborValue(decode(bytes));
+}
+
+export function toTimelineResponseCborValue(v: TimelineResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("claims", v.claims.map((csilE): CborValue => toClaimCborValue(csilE)));
+  csilMap.set("changes", v.changes.map((csilE): CborValue => toChangeCborValue(csilE)));
+  csilMap.set("episodes", v.episodes.map((csilE): CborValue => toEpisodeCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromTimelineResponseCborValue(value: CborValue): TimelineResponse {
+  return {
+    episodes: asArray(requireKey(value, "episodes")).map((csilE) => fromEpisodeCborValue(csilE)),
+    claims: asArray(requireKey(value, "claims")).map((csilE) => fromClaimCborValue(csilE)),
+    changes: asArray(requireKey(value, "changes")).map((csilE) => fromChangeCborValue(csilE)),
+  };
+}
+
+export function toTimelineResponseCbor(v: TimelineResponse): Uint8Array {
+  return encodeValue(toTimelineResponseCborValue(v));
+}
+
+export function fromTimelineResponseCbor(bytes: Uint8Array): TimelineResponse {
+  return fromTimelineResponseCborValue(decode(bytes));
+}
+
+export function toHistoryRequestCborValue(v: HistoryRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
+  return csilMap;
+}
+
+export function fromHistoryRequestCborValue(value: CborValue): HistoryRequest {
+  return {
+    id: asString(requireKey(value, "id")),
+    actFor: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "act_for")),
+  };
+}
+
+export function toHistoryRequestCbor(v: HistoryRequest): Uint8Array {
+  return encodeValue(toHistoryRequestCborValue(v));
+}
+
+export function fromHistoryRequestCbor(bytes: Uint8Array): HistoryRequest {
+  return fromHistoryRequestCborValue(decode(bytes));
+}
+
+export function toHistoryResponseCborValue(v: HistoryResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("changes", v.changes.map((csilE): CborValue => toChangeCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromHistoryResponseCborValue(value: CborValue): HistoryResponse {
+  return {
+    changes: asArray(requireKey(value, "changes")).map((csilE) => fromChangeCborValue(csilE)),
+  };
+}
+
+export function toHistoryResponseCbor(v: HistoryResponse): Uint8Array {
+  return encodeValue(toHistoryResponseCborValue(v));
+}
+
+export function fromHistoryResponseCbor(bytes: Uint8Array): HistoryResponse {
+  return fromHistoryResponseCborValue(decode(bytes));
+}
+
+export function toGetRequestCborValue(v: GetRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
+  return csilMap;
+}
+
+export function fromGetRequestCborValue(value: CborValue): GetRequest {
+  return {
+    id: asString(requireKey(value, "id")),
+    actFor: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "act_for")),
+  };
+}
+
+export function toGetRequestCbor(v: GetRequest): Uint8Array {
+  return encodeValue(toGetRequestCborValue(v));
+}
+
+export function fromGetRequestCbor(bytes: Uint8Array): GetRequest {
+  return fromGetRequestCborValue(decode(bytes));
+}
+
+export function toGetResponseCborValue(v: GetResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.claim !== undefined) csilMap.set("claim", toClaimCborValue(v.claim));
+  if (v.entity !== undefined) csilMap.set("entity", toEntityCborValue(v.entity));
+  if (v.episode !== undefined) csilMap.set("episode", toEpisodeCborValue(v.episode));
+  if (v.evidence !== undefined) csilMap.set("evidence", toEvidenceCborValue(v.evidence));
+  if (v.procedure !== undefined) csilMap.set("procedure", toProcedureCborValue(v.procedure));
+  return csilMap;
+}
+
+export function fromGetResponseCborValue(value: CborValue): GetResponse {
+  return {
+    entity: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromEntityCborValue(csilV))(mapGet(value, "entity")),
+    claim: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromClaimCborValue(csilV))(mapGet(value, "claim")),
+    episode: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromEpisodeCborValue(csilV))(mapGet(value, "episode")),
+    procedure: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromProcedureCborValue(csilV))(mapGet(value, "procedure")),
+    evidence: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromEvidenceCborValue(csilV))(mapGet(value, "evidence")),
+  };
+}
+
+export function toGetResponseCbor(v: GetResponse): Uint8Array {
+  return encodeValue(toGetResponseCborValue(v));
+}
+
+export function fromGetResponseCbor(bytes: Uint8Array): GetResponse {
+  return fromGetResponseCborValue(decode(bytes));
 }
 

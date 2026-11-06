@@ -12,10 +12,10 @@ Contract: `contracts/workflow.csil`, service `WorkflowService`.
 | `put-definition` | Any caller. The first writer of a name owns it. Later writers must be the owner or have `workflow:act-as` or `workflow:admin`. | Validates the definition and stores the next revision. |
 | `get-definition` | Any caller | Returns the latest revision. |
 | `start` | Any caller. Set `owner` only with `workflow:act-as` or `workflow:admin`. | Starts a run on the latest revision. The run keeps that revision. The same `owner` and `key` return the same run. |
-| `get-run`, `watch-run` | The owner, or `workflow:act-as`, `workflow:admin`, `workflow:decide`, `workflow:worker` | `watch-run` waits up to 30 seconds for `updated_ms` to become greater than `after_ms`. |
-| `list-runs` | Any caller | Returns the caller's runs. With `workflow:act-as` or `workflow:admin`, returns all runs. |
+| `get-run`, `watch-run` | The owner, a decider of the waiting step, or `workflow:act-as`, `workflow:admin`, `workflow:decide`, `workflow:worker` | `watch-run` waits up to 30 seconds for `updated_ms` to become greater than `after_ms`. |
+| `list-runs` | Any caller | Returns the caller's runs. With `workflow:act-as` or `workflow:admin`, returns all runs. With `waiting_for_me`, returns the runs that wait for a decision of the caller. |
 | `claim`, `heartbeat`, `progress`, `complete` | `workflow:worker` or `workflow:admin` | Claim takes a task from a queue and waits up to `wait_ms` (maximum 30 seconds). The lease is `lease_ms` (default 60 seconds). |
-| `decide` | The owner, or `workflow:decide`, `workflow:act-as`, `workflow:admin` | Decides a waiting human step. The comment goes into `vars` as `<step>.comment`. |
+| `decide` | The owner, a decider of the step, or `workflow:decide`, `workflow:act-as`, `workflow:admin` | Decides a waiting human step. The comment goes into `vars` as `<step>.comment`. |
 | `cancel` | The owner, or `workflow:act-as`, `workflow:admin` | Cancels the run and closes its queue tasks. |
 
 Step rules:
@@ -29,6 +29,13 @@ Step rules:
   `max_attempts` the run fails.
 - A claim token is good for one attempt only. A stale token gets error 409.
 - Task outputs merge into `vars`.
+- A human step can name `deciders`: subjects, or run variables as
+  `${name}`. The run lists them in `waiting_for` while it waits. A decider
+  can read the run and decide the step; after the step, the decider cannot
+  read the run. An investigation uses this to ask another person.
+- A human step with `wait_ms` ends after that time with `timeout_outcome`
+  (default `timeout`). `decided_by` is `workflow:timeout`. The sweep does
+  this.
 
 ## Design
 

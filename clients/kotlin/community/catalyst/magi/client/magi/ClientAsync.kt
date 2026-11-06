@@ -112,8 +112,20 @@ class MagiAsyncClient(private val transport: AsyncTransport) {
     suspend fun queryKnowledge(request: QueryKnowledgeRequest): QueryKnowledgeResponse {
         return decode<QueryKnowledgeResponse>(transport.call("MagiService", "query-knowledge", encode(request)))
     }
-    suspend fun remember(request: RememberRequest): KnowledgeItem {
-        return decode<KnowledgeItem>(transport.call("MagiService", "remember", encode(request)))
+    suspend fun remember(request: RememberRequest): RememberResponse {
+        return decode<RememberResponse>(transport.call("MagiService", "remember", encode(request)))
+    }
+    suspend fun changeKnowledge(request: ChangeKnowledgeRequest): ChangeKnowledgeResponse {
+        return decode<ChangeKnowledgeResponse>(transport.call("MagiService", "change-knowledge", encode(request)))
+    }
+    suspend fun knowledgeHistory(request: KnowledgeHistoryRequest): KnowledgeHistoryResponse {
+        return decode<KnowledgeHistoryResponse>(transport.call("MagiService", "knowledge-history", encode(request)))
+    }
+    suspend fun mergeKnowledge(request: MergeKnowledgeRequest): ChangeKnowledgeResponse {
+        return decode<ChangeKnowledgeResponse>(transport.call("MagiService", "merge-knowledge", encode(request)))
+    }
+    suspend fun unmergeKnowledge(request: UnmergeKnowledgeRequest): ChangeKnowledgeResponse {
+        return decode<ChangeKnowledgeResponse>(transport.call("MagiService", "unmerge-knowledge", encode(request)))
     }
     suspend fun listVoices(request: ListVoicesRequest): ListVoicesResponse {
         return decode<ListVoicesResponse>(transport.call("MagiService", "list-voices", encode(request)))

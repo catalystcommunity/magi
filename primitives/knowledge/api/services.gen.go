@@ -9,10 +9,23 @@ import (
 
 // KnowledgeService defines the service interface
 type KnowledgeService interface {
-	PutNode(ctx context.Context, req PutNodeRequest) (Node, error)
-	GetNode(ctx context.Context, req GetNodeRequest) (NodeView, error)
-	PutEdge(ctx context.Context, req PutEdgeRequest) (Edge, error)
+	PutEntity(ctx context.Context, req PutEntityRequest) (Entity, error)
+	Self(ctx context.Context, req SelfRequest) (Entity, error)
+	Assert(ctx context.Context, req AssertRequest) (Claim, error)
+	Change(ctx context.Context, req ChangeRequest) (ChangeResponse, error)
+	Merge(ctx context.Context, req MergeRequest) (Change, error)
+	Unmerge(ctx context.Context, req UnmergeRequest) (Change, error)
+	RecordEpisode(ctx context.Context, req RecordEpisodeRequest) (Episode, error)
+	PutProcedure(ctx context.Context, req PutProcedureRequest) (Procedure, error)
 	LinkEvidence(ctx context.Context, req LinkEvidenceRequest) (Evidence, error)
-	Query(ctx context.Context, req QueryRequest) (QueryResponse, error)
-	Delete(ctx context.Context, req DeleteRequest) (DeleteResponse, error)
+	Dispute(ctx context.Context, req DisputeRequest) (Dispute, error)
+	ResolveDispute(ctx context.Context, req ResolveDisputeRequest) (Dispute, error)
+	ListDisputes(ctx context.Context, req ListDisputesRequest) (ListDisputesResponse, error)
+	PutGroup(ctx context.Context, req PutGroupRequest) (Group, error)
+	Search(ctx context.Context, req SearchRequest) (SearchResponse, error)
+	About(ctx context.Context, req AboutRequest) (AboutResponse, error)
+	Neighbors(ctx context.Context, req NeighborsRequest) (NeighborsResponse, error)
+	Timeline(ctx context.Context, req TimelineRequest) (TimelineResponse, error)
+	History(ctx context.Context, req HistoryRequest) (HistoryResponse, error)
+	Get(ctx context.Context, req GetRequest) (GetResponse, error)
 }

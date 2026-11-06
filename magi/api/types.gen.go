@@ -484,40 +484,128 @@ type CancelTaskRequest struct {
 	Confirm *bool   `json:"confirm,omitempty" yaml:"confirm,omitempty"`
 }
 
+// KnowledgeFact represents a structured data type
+type KnowledgeFact struct {
+	Id          string  `json:"id" yaml:"id"`
+	Relation    string  `json:"relation" yaml:"relation"`
+	Direction   string  `json:"direction" yaml:"direction"`
+	Other       *string `json:"other,omitempty" yaml:"other,omitempty"`
+	OtherId     *string `json:"other_id,omitempty" yaml:"other_id,omitempty"`
+	Value       *string `json:"value,omitempty" yaml:"value,omitempty"`
+	Status      string  `json:"status" yaml:"status"`
+	ValidFromMs *uint64 `json:"valid_from_ms,omitempty" yaml:"valid_from_ms,omitempty"`
+	ValidToMs   *uint64 `json:"valid_to_ms,omitempty" yaml:"valid_to_ms,omitempty"`
+	Supported   bool    `json:"supported" yaml:"supported"`
+	Stale       bool    `json:"stale" yaml:"stale"`
+	Mine        bool    `json:"mine" yaml:"mine"`
+	Disputed    bool    `json:"disputed" yaml:"disputed"`
+}
+
 // KnowledgeItem represents a structured data type
 type KnowledgeItem struct {
 	Id         string            `json:"id" yaml:"id"`
 	Kind       string            `json:"kind" yaml:"kind"`
 	Label      string            `json:"label" yaml:"label"`
+	Aliases    []string          `json:"aliases" yaml:"aliases"`
 	Summary    string            `json:"summary" yaml:"summary"`
 	Properties map[string]string `json:"properties" yaml:",inline"`
 	System     *string           `json:"system,omitempty" yaml:"system,omitempty"`
 	Locator    *string           `json:"locator,omitempty" yaml:"locator,omitempty"`
-	Relations  []string          `json:"relations" yaml:"relations"`
+	Facts      []KnowledgeFact   `json:"facts" yaml:"facts"`
+	Mine       bool              `json:"mine" yaml:"mine"`
+}
+
+// KnowledgeRecord represents a structured data type
+type KnowledgeRecord struct {
+	Id      string `json:"id" yaml:"id"`
+	Type    string `json:"type" yaml:"type"`
+	Kind    string `json:"kind" yaml:"kind"`
+	Title   string `json:"title" yaml:"title"`
+	Summary string `json:"summary" yaml:"summary"`
+	AtMs    uint64 `json:"at_ms" yaml:"at_ms"`
 }
 
 // QueryKnowledgeRequest represents a structured data type
 type QueryKnowledgeRequest struct {
-	Text  *string `json:"text,omitempty" yaml:"text,omitempty"`
-	Kind  *string `json:"kind,omitempty" yaml:"kind,omitempty"`
-	Limit *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+	Text         *string `json:"text,omitempty" yaml:"text,omitempty"`
+	Kind         *string `json:"kind,omitempty" yaml:"kind,omitempty"`
+	Limit        *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+	IncludeEnded *bool   `json:"include_ended,omitempty" yaml:"include_ended,omitempty"`
 }
 
 // QueryKnowledgeResponse represents a structured data type
 type QueryKnowledgeResponse struct {
-	Items []KnowledgeItem `json:"items" yaml:"items"`
+	Items   []KnowledgeItem   `json:"items" yaml:"items"`
+	Records []KnowledgeRecord `json:"records" yaml:"records"`
 }
 
 // RememberRequest represents a structured data type
 type RememberRequest struct {
-	Kind       string            `json:"kind" yaml:"kind"`
-	Label      string            `json:"label" yaml:"label"`
-	Summary    *string           `json:"summary,omitempty" yaml:"summary,omitempty"`
-	Properties map[string]string `json:"properties,omitempty" yaml:",inline"`
-	System     *string           `json:"system,omitempty" yaml:"system,omitempty"`
-	Locator    *string           `json:"locator,omitempty" yaml:"locator,omitempty"`
-	RelatedTo  *string           `json:"related_to,omitempty" yaml:"related_to,omitempty"`
-	Relation   *string           `json:"relation,omitempty" yaml:"relation,omitempty"`
+	Subject     string  `json:"subject" yaml:"subject"`
+	SubjectKind *string `json:"subject_kind,omitempty" yaml:"subject_kind,omitempty"`
+	Relation    string  `json:"relation" yaml:"relation"`
+	Object      *string `json:"object,omitempty" yaml:"object,omitempty"`
+	ObjectKind  *string `json:"object_kind,omitempty" yaml:"object_kind,omitempty"`
+	Value       *string `json:"value,omitempty" yaml:"value,omitempty"`
+	Summary     *string `json:"summary,omitempty" yaml:"summary,omitempty"`
+	Also        *bool   `json:"also,omitempty" yaml:"also,omitempty"`
+}
+
+// RememberResponse represents a structured data type
+type RememberResponse struct {
+	Recorded bool          `json:"recorded" yaml:"recorded"`
+	Note     *string       `json:"note,omitempty" yaml:"note,omitempty"`
+	Item     KnowledgeItem `json:"item" yaml:"item"`
+}
+
+// ChangeKnowledgeRequest represents a structured data type
+type ChangeKnowledgeRequest struct {
+	Id        string  `json:"id" yaml:"id"`
+	Operation string  `json:"operation" yaml:"operation"`
+	Field     *string `json:"field,omitempty" yaml:"field,omitempty"`
+	Value     *string `json:"value,omitempty" yaml:"value,omitempty"`
+	Reason    *string `json:"reason,omitempty" yaml:"reason,omitempty"`
+	Erase     *bool   `json:"erase,omitempty" yaml:"erase,omitempty"`
+}
+
+// KnowledgeChange represents a structured data type
+type KnowledgeChange struct {
+	Id        string  `json:"id" yaml:"id"`
+	Record    string  `json:"record" yaml:"record"`
+	Operation string  `json:"operation" yaml:"operation"`
+	Actor     string  `json:"actor" yaml:"actor"`
+	Reason    *string `json:"reason,omitempty" yaml:"reason,omitempty"`
+	Before    *string `json:"before,omitempty" yaml:"before,omitempty"`
+	After     *string `json:"after,omitempty" yaml:"after,omitempty"`
+	AtMs      uint64  `json:"at_ms" yaml:"at_ms"`
+}
+
+// ChangeKnowledgeResponse represents a structured data type
+type ChangeKnowledgeResponse struct {
+	Change KnowledgeChange `json:"change" yaml:"change"`
+	Item   *KnowledgeItem  `json:"item,omitempty" yaml:"item,omitempty"`
+}
+
+// MergeKnowledgeRequest represents a structured data type
+type MergeKnowledgeRequest struct {
+	Keep   string  `json:"keep" yaml:"keep"`
+	Merge  string  `json:"merge" yaml:"merge"`
+	Reason *string `json:"reason,omitempty" yaml:"reason,omitempty"`
+}
+
+// UnmergeKnowledgeRequest represents a structured data type
+type UnmergeKnowledgeRequest struct {
+	Change string `json:"change" yaml:"change"`
+}
+
+// KnowledgeHistoryRequest represents a structured data type
+type KnowledgeHistoryRequest struct {
+	Id string `json:"id" yaml:"id"`
+}
+
+// KnowledgeHistoryResponse represents a structured data type
+type KnowledgeHistoryResponse struct {
+	Changes []KnowledgeChange `json:"changes" yaml:"changes"`
 }
 
 // VoiceInfo represents a structured data type

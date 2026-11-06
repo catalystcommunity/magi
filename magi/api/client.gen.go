@@ -331,13 +331,49 @@ func (c *MagiClient) QueryKnowledge(ctx context.Context, req QueryKnowledgeReque
 	return DecodeQueryKnowledgeResponse(csilResp)
 }
 
-func (c *MagiClient) Remember(ctx context.Context, req RememberRequest) (KnowledgeItem, error) {
-	var csilZero KnowledgeItem
+func (c *MagiClient) Remember(ctx context.Context, req RememberRequest) (RememberResponse, error) {
+	var csilZero RememberResponse
 	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "remember", EncodeRememberRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeKnowledgeItem(csilResp)
+	return DecodeRememberResponse(csilResp)
+}
+
+func (c *MagiClient) ChangeKnowledge(ctx context.Context, req ChangeKnowledgeRequest) (ChangeKnowledgeResponse, error) {
+	var csilZero ChangeKnowledgeResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "change-knowledge", EncodeChangeKnowledgeRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeChangeKnowledgeResponse(csilResp)
+}
+
+func (c *MagiClient) KnowledgeHistory(ctx context.Context, req KnowledgeHistoryRequest) (KnowledgeHistoryResponse, error) {
+	var csilZero KnowledgeHistoryResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "knowledge-history", EncodeKnowledgeHistoryRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeKnowledgeHistoryResponse(csilResp)
+}
+
+func (c *MagiClient) MergeKnowledge(ctx context.Context, req MergeKnowledgeRequest) (ChangeKnowledgeResponse, error) {
+	var csilZero ChangeKnowledgeResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "merge-knowledge", EncodeMergeKnowledgeRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeChangeKnowledgeResponse(csilResp)
+}
+
+func (c *MagiClient) UnmergeKnowledge(ctx context.Context, req UnmergeKnowledgeRequest) (ChangeKnowledgeResponse, error) {
+	var csilZero ChangeKnowledgeResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "unmerge-knowledge", EncodeUnmergeKnowledgeRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeChangeKnowledgeResponse(csilResp)
 }
 
 func (c *MagiClient) ListVoices(ctx context.Context, req ListVoicesRequest) (ListVoicesResponse, error) {

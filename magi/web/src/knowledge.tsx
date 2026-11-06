@@ -1,20 +1,25 @@
 // What Magi knows about the household, and how Magi says and hears words.
 import { createSignal } from "solid-js";
 import { For, Show } from "./flow.ts";
-import type { KnowledgeItem, LexiconWord } from "../../../clients/typescript/magi/types.gen.ts";
+import type { KnowledgeChange, KnowledgeFact, KnowledgeItem, KnowledgeRecord, LexiconWord } from "../../../clients/typescript/magi/types.gen.ts";
 import { magi, fail, errText, shortDay, who } from "./api.ts";
 
 export function Knowledge() {
   const [items, setItems] = createSignal<KnowledgeItem[] | null>(null);
+  const [records, setRecords] = createSignal<KnowledgeRecord[]>([]);
   const [query, setQuery] = createSignal("");
+  const [past, setPast] = createSignal(false);
   const [error, setError] = createSignal("");
+  const [note, setNote] = createSignal("");
+  const [history, setHistory] = createSignal<{ id: string; changes: KnowledgeChange[] } | null>(null);
   let q: HTMLInputElement | undefined;
   let add: HTMLFormElement | undefined;
   const search = (text: string) => {
     setQuery(text);
     if (q) q.value = text;
     setError("");
-    magi.queryKnowledge({ text: text || undefined, limit: 50 }).then((r) => setItems(r.items), (e) => setError(errText(e)));
+    magi.queryKnowledge({ text: text || undefined, limit: 50, includeEnded: past() || undefined })
+      .then((r) => { setItems(r.items); setRecords(r.records); }, (e) => setError(errText(e)));
   };
   search("");
   const remember = async (e: SubmitEvent) => {
@@ -22,49 +27,105 @@ export function Knowledge() {
     const f = new FormData(add);
     const v = (k: string) => String(f.get(k) ?? "").trim() || undefined;
     try {
-      const it = await magi.remember({ kind: v("kind")!, label: v("label")!, summary: v("summary"), relatedTo: v("related"), relation: v("relation") });
-      add!.reset();
-      search(it.label);
+      const r = await magi.remember({ subject: v("subject")!, relation: v("relation")!, object: v("object"), value: v("value") });
+      setNote(r.note ?? "");
+      if (r.recorded) add!.reset();
+      search(r.item.label);
     } catch (err) { fail("Could not remember it")(err); }
   };
-  // A relation such as "works-at Maple Street Dental" or "← hosted-in
-  // Maple Street Dental". A click searches for the other item.
-  const other = (r: string) => r.replace(/^← /, "").replace(/^\S+\s+/, "");
+  // fix: it was wrong. update: it was true and changed. retract: it was
+  // never true, or forget it.
+  const change = async (id: string, operation: "fix" | "update" | "retract", current: string) => {
+    let value: string | undefined;
+    if (operation !== "retract") {
+      const v = prompt(operation === "fix" ? "The correct value (the old value was wrong):" : "The new value (the old value was true until now):", current);
+      if (v === null || !v.trim()) return;
+      value = v.trim();
+    } else if (!confirm("Retract this record? Magi will not use it again.")) return;
+    try {
+      await magi.changeKnowledge({ id, operation, value });
+      search(query());
+    } catch (err) { fail("Could not change it")(err); }
+  };
+  const showHistory = (id: string) => magi.knowledgeHistory({ id }).then((r) => setHistory({ id, changes: r.changes }), fail("Could not read the history"));
+  const factText = (it: KnowledgeItem, f: KnowledgeFact) => {
+    const other = f.other ?? f.value ?? "";
+    return f.direction === "in" ? `${other} ${f.relation} ${it.label}` : `${f.relation} ${other}`;
+  };
   return <section class="page">
     <h1>Knowledge</h1>
     <form class="search-row" role="search" onSubmit={(e: SubmitEvent) => { e.preventDefault(); search(q!.value.trim()); }}>
       <input ref={(el: HTMLInputElement) => (q = el)} type="search" placeholder="Search what Magi knows" aria-label="Search what Magi knows" />
       <button>Search</button>
     </form>
+    <label class="quiet"><input type="checkbox" onChange={(e: Event) => { setPast((e.target as HTMLInputElement).checked); search(query()); }} /> Also facts that are no longer true</label>
     <Show when={error}><p class="error">Could not search: {error}</p></Show>
     <Show when={items} fallback={<Show when={() => !error()}><p class="quiet">Loading.</p></Show>}>
-      <Show when={() => items()!.length} fallback={<p class="empty">{() => query()
+      <Show when={() => items()!.length + records().length} fallback={<p class="empty">{() => query()
         ? `Magi knows nothing that matches “${query()}”.`
         : "Magi knows nothing about you yet. Tell Magi a fact, for example “Remember that my dentist is Dr. Rivera”, or add one below."}</p>}>
         <ul class="facts">
           <For each={() => items()!}>{(it: KnowledgeItem) =>
             <li class="fact">
-              <p><span class="fact-label">{it.label}</span> <span class="kind">{it.kind}</span></p>
+              <p><span class="fact-label">{it.label}</span> <span class="kind">{it.kind}</span>{it.aliases.length ? <span class="quiet"> also {it.aliases.join(", ")}</span> : ""}</p>
               {it.summary ? <p>{it.summary}</p> : ""}
               {it.system ? <p class="quiet">In {it.system}: {it.locator ?? ""}</p> : ""}
-              <div class="relations"><For each={it.relations}>{(r: string) => <button class="about" onClick={() => search(other(r))}>{r}</button>}</For></div>
+              <ul class="relations">
+                <For each={it.facts}>{(f: KnowledgeFact) =>
+                  <li class={f.status === "current" ? "" : "quiet"}>
+                    <button class="about" onClick={() => search(f.other ?? f.value ?? "")}>{factText(it, f)}</button>
+                    {f.status !== "current" ? <span class="quiet"> no longer true</span> : ""}
+                    {!f.supported ? <span class="quiet"> no evidence</span> : ""}
+                    {f.stale ? <span class="quiet"> from a fact that changed</span> : ""}
+                    {f.disputed ? <span class="quiet"> disputed</span> : ""}
+                    <Show when={() => f.mine && f.status === "current"}>
+                      <span class="word-actions">
+                        <button class="text-button" title="It was wrong" onClick={() => change(f.id, "fix", f.other ?? f.value ?? "")}>Fix</button>
+                        <button class="text-button" title="It was true and changed" onClick={() => change(f.id, "update", f.other ?? f.value ?? "")}>Update</button>
+                        <button class="text-button" title="It was never true, or forget it" onClick={() => change(f.id, "retract", "")}>Retract</button>
+                        <button class="text-button" onClick={() => showHistory(f.id)}>History</button>
+                      </span>
+                    </Show>
+                  </li>}
+                </For>
+              </ul>
+              <Show when={() => it.mine}>
+                <span class="word-actions">
+                  <button class="text-button" title="The name was wrong" onClick={() => change(it.id, "fix", it.label)}>Rename</button>
+                  <button class="text-button" onClick={() => change(it.id, "retract", "")}>Retract</button>
+                  <button class="text-button" onClick={() => showHistory(it.id)}>History</button>
+                </span>
+              </Show>
             </li>}
+          </For>
+          <For each={records}>{(r: KnowledgeRecord) =>
+            <li class="fact"><p><span class="fact-label">{r.title}</span> <span class="kind">{r.kind}</span> <span class="quiet">{shortDay(r.atMs)}</span></p>{r.summary ? <p>{r.summary}</p> : ""}</li>}
           </For>
         </ul>
       </Show>
     </Show>
+    <Show when={history}>
+      <section class="add">
+        <h2>Changes</h2>
+        <ul class="facts">
+          <For each={() => history()!.changes}>{(c: KnowledgeChange) =>
+            <li class="fact"><p>{c.operation} by {who(c.actor)} on {shortDay(c.atMs)}{c.reason ? `: ${c.reason}` : ""}</p>
+              {c.before ? <p class="quiet">Before: {c.before}</p> : ""}{c.after ? <p class="quiet">After: {c.after}</p> : ""}</li>}
+          </For>
+        </ul>
+        <button class="text-button" onClick={() => setHistory(null)}>Close</button>
+      </section>
+    </Show>
     <details class="add">
       <summary>Add a fact</summary>
       <form class="grid-form" ref={(el: HTMLFormElement) => (add = el)} onSubmit={remember}>
-        <label>Kind<select name="kind">
-          <option>person</option><option>place</option><option>system</option><option>calendar</option><option>thing</option><option>fact</option>
-        </select></label>
-        <label>Name<input name="label" required placeholder="Dr. Rivera" /></label>
-        <label>Summary<input name="summary" placeholder="My dentist" /></label>
-        <label>Related to<input name="related" placeholder="Name of another item (optional)" /></label>
-        <label>Relation<input name="relation" placeholder="works-at (optional)" /></label>
+        <label>About<input name="subject" required placeholder="me, Dana, the router" /></label>
+        <label>Relation<input name="relation" required placeholder="dentist, lives-in, located-in" /></label>
+        <label>Name of a thing<input name="object" placeholder="Dr. Rivera (or give a value)" /></label>
+        <label>Value<input name="value" placeholder="March 3, the garage (or give a thing)" /></label>
         <div class="actions"><button class="primary">Remember</button></div>
       </form>
+      <Show when={note}><p class="quiet">{note}</p></Show>
     </details>
   </section>;
 }

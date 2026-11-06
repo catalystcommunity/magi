@@ -5,13 +5,16 @@ package workflowapi
 
 // Step represents a structured data type
 type Step struct {
-	Id          string            `json:"id" yaml:"id"`
-	Kind        string            `json:"kind" yaml:"kind"`
-	Queue       *string           `json:"queue,omitempty" yaml:"queue,omitempty"`
-	Prompt      *string           `json:"prompt,omitempty" yaml:"prompt,omitempty"`
-	Outcomes    []string          `json:"outcomes,omitempty" yaml:"outcomes,omitempty"`
-	Next        map[string]string `json:"next" yaml:",inline"`
-	MaxAttempts *uint64           `json:"max_attempts,omitempty" yaml:"max_attempts,omitempty"`
+	Id             string            `json:"id" yaml:"id"`
+	Kind           string            `json:"kind" yaml:"kind"`
+	Queue          *string           `json:"queue,omitempty" yaml:"queue,omitempty"`
+	Prompt         *string           `json:"prompt,omitempty" yaml:"prompt,omitempty"`
+	Outcomes       []string          `json:"outcomes,omitempty" yaml:"outcomes,omitempty"`
+	Next           map[string]string `json:"next" yaml:",inline"`
+	MaxAttempts    *uint64           `json:"max_attempts,omitempty" yaml:"max_attempts,omitempty"`
+	Deciders       []string          `json:"deciders,omitempty" yaml:"deciders,omitempty"`
+	WaitMs         *uint64           `json:"wait_ms,omitempty" yaml:"wait_ms,omitempty"`
+	TimeoutOutcome *string           `json:"timeout_outcome,omitempty" yaml:"timeout_outcome,omitempty"`
 }
 
 // Definition represents a structured data type
@@ -54,6 +57,8 @@ type Run struct {
 	CurrentStep string            `json:"current_step" yaml:"current_step"`
 	Vars        map[string]string `json:"vars" yaml:",inline"`
 	History     []StepState       `json:"history" yaml:"history"`
+	WaitingFor  []string          `json:"waiting_for,omitempty" yaml:"waiting_for,omitempty"`
+	WaitUntilMs *uint64           `json:"wait_until_ms,omitempty" yaml:"wait_until_ms,omitempty"`
 	Error       *string           `json:"error,omitempty" yaml:"error,omitempty"`
 	CreatedMs   uint64            `json:"created_ms" yaml:"created_ms"`
 	UpdatedMs   uint64            `json:"updated_ms" yaml:"updated_ms"`
@@ -79,9 +84,10 @@ type GetRunRequest struct {
 
 // ListRunsRequest represents a structured data type
 type ListRunsRequest struct {
-	Status     *string `json:"status,omitempty" yaml:"status,omitempty"`
-	Definition *string `json:"definition,omitempty" yaml:"definition,omitempty"`
-	Limit      *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+	Status       *string `json:"status,omitempty" yaml:"status,omitempty"`
+	Definition   *string `json:"definition,omitempty" yaml:"definition,omitempty"`
+	Limit        *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+	WaitingForMe *bool   `json:"waiting_for_me,omitempty" yaml:"waiting_for_me,omitempty"`
 }
 
 // ListRunsResponse represents a structured data type

@@ -363,12 +363,21 @@ def _encode_step_value(v: "Step") -> Dict[Any, Any]:
     csil_x = v.prompt
     if csil_x is not None:
         csil_m["prompt"] = csil_x
+    csil_x = v.wait_ms
+    if csil_x is not None:
+        csil_m["wait_ms"] = csil_x
+    csil_x = v.deciders
+    if csil_x is not None:
+        csil_m["deciders"] = csil_x
     csil_x = v.outcomes
     if csil_x is not None:
         csil_m["outcomes"] = csil_x
     csil_x = v.max_attempts
     if csil_x is not None:
         csil_m["max_attempts"] = csil_x
+    csil_x = v.timeout_outcome
+    if csil_x is not None:
+        csil_m["timeout_outcome"] = csil_x
     return csil_m
 
 def _decode_step_value(tree: Any) -> "Step":
@@ -381,6 +390,9 @@ def _decode_step_value(tree: Any) -> "Step":
         outcomes=(None if tree.get("outcomes") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["outcomes"])]),
         next={_csil_expect_text(csil_k): _csil_expect_text(csil_v) for csil_k, csil_v in _csil_expect_map(tree["next"]).items()},
         max_attempts=(None if tree.get("max_attempts") is None else _csil_expect_uint(tree["max_attempts"])),
+        deciders=(None if tree.get("deciders") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["deciders"])]),
+        wait_ms=(None if tree.get("wait_ms") is None else _csil_expect_uint(tree["wait_ms"])),
+        timeout_outcome=(None if tree.get("timeout_outcome") is None else _csil_expect_text(tree["timeout_outcome"])),
     )
 
 
@@ -522,7 +534,13 @@ def _encode_run_value(v: "Run") -> Dict[Any, Any]:
     csil_m["created_ms"] = v.created_ms
     csil_m["definition"] = v.definition
     csil_m["updated_ms"] = v.updated_ms
+    csil_x = v.waiting_for
+    if csil_x is not None:
+        csil_m["waiting_for"] = csil_x
     csil_m["current_step"] = v.current_step
+    csil_x = v.wait_until_ms
+    if csil_x is not None:
+        csil_m["wait_until_ms"] = csil_x
     return csil_m
 
 def _decode_run_value(tree: Any) -> "Run":
@@ -536,6 +554,8 @@ def _decode_run_value(tree: Any) -> "Run":
         current_step=_csil_expect_text(tree["current_step"]),
         vars={_csil_expect_text(csil_k): _csil_expect_text(csil_v) for csil_k, csil_v in _csil_expect_map(tree["vars"]).items()},
         history=[_decode_step_state_value(csil_e) for csil_e in _csil_expect_array(tree["history"])],
+        waiting_for=(None if tree.get("waiting_for") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["waiting_for"])]),
+        wait_until_ms=(None if tree.get("wait_until_ms") is None else _csil_expect_uint(tree["wait_until_ms"])),
         error=(None if tree.get("error") is None else _csil_expect_text(tree["error"])),
         created_ms=_csil_expect_uint(tree["created_ms"]),
         updated_ms=_csil_expect_uint(tree["updated_ms"]),
@@ -645,6 +665,9 @@ def _encode_list_runs_request_value(v: "ListRunsRequest") -> Dict[Any, Any]:
     csil_x = v.definition
     if csil_x is not None:
         csil_m["definition"] = csil_x
+    csil_x = v.waiting_for_me
+    if csil_x is not None:
+        csil_m["waiting_for_me"] = csil_x
     return csil_m
 
 def _decode_list_runs_request_value(tree: Any) -> "ListRunsRequest":
@@ -653,6 +676,7 @@ def _decode_list_runs_request_value(tree: Any) -> "ListRunsRequest":
         status=(None if tree.get("status") is None else _csil_expect_text(tree["status"])),
         definition=(None if tree.get("definition") is None else _csil_expect_text(tree["definition"])),
         limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
+        waiting_for_me=(None if tree.get("waiting_for_me") is None else _csil_expect_bool(tree["waiting_for_me"])),
     )
 
 

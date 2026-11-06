@@ -15,6 +15,11 @@ export interface ServiceError {
  * next, or that maps to "", finishes the run. Outcome "fail" fails the run
  * unless next maps it. max_attempts limits retries of a task step that
  * returns outcome "retry" or whose claim lease expires.
+ * deciders (human steps) names the subjects who must decide, for example
+ * a person whom an investigation asks a question. An item can be a run
+ * variable as ${name}. The owner can also decide. wait_ms limits the wait:
+ * then the step ends with timeout_outcome (default "timeout") and
+ * decided_by "workflow:timeout".
  */
 export interface Step {
   id: string;
@@ -24,6 +29,9 @@ export interface Step {
   outcomes?: string[];
   next: Record<string, string>;
   maxAttempts?: number;
+  deciders?: string[];
+  waitMs?: number;
+  timeoutOutcome?: string;
 }
 
 /**
@@ -63,6 +71,7 @@ export interface StepState {
  * status: "running", "waiting", "succeeded", "failed", "cancelled".
  * vars holds run data. Task outputs and human comments merge into vars.
  * history lists step states in order; the last one is the current step.
+ * waiting_for: the deciders of the waiting step. A decider can read the run.
  */
 export interface Run {
   id: string;
@@ -73,6 +82,8 @@ export interface Run {
   currentStep: string;
   vars: Record<string, string>;
   history: StepState[];
+  waitingFor?: string[];
+  waitUntilMs?: number;
   error?: string;
   createdMs: number;
   updatedMs: number;
@@ -96,10 +107,14 @@ export interface GetRunRequest {
   id: string;
 }
 
+/**
+ * waiting_for_me: the runs that wait for a decision of the caller.
+ */
 export interface ListRunsRequest {
   status?: string;
   definition?: string;
   limit?: number;
+  waitingForMe?: boolean;
 }
 
 export interface ListRunsResponse {
@@ -171,8 +186,8 @@ export interface CompleteRequest {
 }
 
 /**
- * Decides a waiting human step. The caller must own the run or hold
- * the "workflow:decide" scope.
+ * Decides a waiting human step. The caller must own the run, be a decider
+ * of the step, or hold the "workflow:decide" scope.
  */
 export interface DecideRequest {
   run: string;

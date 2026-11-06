@@ -43,6 +43,9 @@ func Validate(d api.Definition) error {
 		ids[s.Id] = true
 		switch s.Kind {
 		case "task":
+			if len(s.Deciders) > 0 || s.WaitMs != nil || s.TimeoutOutcome != nil {
+				return rpc.Invalid("task step %q: deciders, wait_ms, and timeout_outcome are for human steps", s.Id)
+			}
 			if s.Queue == nil || *s.Queue == "" {
 				return rpc.Invalid("task step %q needs a queue", s.Id)
 			}
@@ -50,6 +53,17 @@ func Validate(d api.Definition) error {
 				return rpc.Invalid("task step %q: a queue may name run variables only as ${name}", s.Id)
 			}
 		case "human":
+			for _, d := range s.Deciders {
+				if !deciderRE.MatchString(d) {
+					return rpc.Invalid("step %q: decider %q must be a subject (user:..., service:...) or ${name}", s.Id, d)
+				}
+			}
+			if s.TimeoutOutcome != nil && len(s.Outcomes) > 0 && !slices.Contains(s.Outcomes, *s.TimeoutOutcome) {
+				return rpc.Invalid("step %q: timeout_outcome %q is not in outcomes", s.Id, *s.TimeoutOutcome)
+			}
+			if s.TimeoutOutcome != nil && s.WaitMs == nil {
+				return rpc.Invalid("step %q: timeout_outcome needs wait_ms", s.Id)
+			}
 		default:
 			return rpc.Invalid("step %q: kind must be task or human", s.Id)
 		}
@@ -99,6 +113,7 @@ func ptr[T any](v T) *T { return &v }
 // enter makes stepID the current step. It returns the task row to create for
 // a task step. An empty stepID finishes the run as succeeded.
 func enter(r *api.Run, d *api.Definition, stepID string, attempt uint64, now uint64) *store.Task {
+	r.WaitingFor, r.WaitUntilMs = nil, nil
 	if stepID == "" {
 		r.Status, r.CurrentStep = RunSucceeded, ""
 		return nil
@@ -109,6 +124,19 @@ func enter(r *api.Run, d *api.Definition, stepID string, attempt uint64, now uin
 	if s.Kind == "human" {
 		st.Status, r.Status = StepWaiting, RunWaiting
 		r.History = append(r.History, st)
+		for _, dec := range s.Deciders {
+			v, err := expandQueue(dec, r.Vars)
+			if err != nil || !subjectRE.MatchString(v) {
+				fail(r, fmt.Sprintf("step %s: decider %q is not a subject", stepID, dec))
+				return nil
+			}
+			if !slices.Contains(r.WaitingFor, v) {
+				r.WaitingFor = append(r.WaitingFor, v)
+			}
+		}
+		if s.WaitMs != nil && *s.WaitMs > 0 {
+			r.WaitUntilMs = ptr(now + *s.WaitMs)
+		}
 		return nil
 	}
 	queue, err := expandQueue(*s.Queue, r.Vars)
@@ -125,6 +153,19 @@ func enter(r *api.Run, d *api.Definition, stepID string, attempt uint64, now uin
 }
 
 var queueVarRE = regexp.MustCompile(`\$\{([A-Za-z0-9_.-]+)\}`)
+
+var (
+	subjectRE = regexp.MustCompile(`^(user|service|runner):[^\s${}]{1,250}$`)
+	deciderRE = regexp.MustCompile(`^((user|service|runner):[^\s${}]{1,250}|\$\{[A-Za-z0-9_.-]+\})$`)
+)
+
+// timeoutOutcome is the outcome of a human step whose wait is over.
+func timeoutOutcome(s *api.Step) string {
+	if s.TimeoutOutcome != nil {
+		return *s.TimeoutOutcome
+	}
+	return "timeout"
+}
 
 // expandQueue replaces each ${name} in a queue with the run variable name.
 // A variable that is not set is an error.
@@ -150,6 +191,7 @@ func expandQueue(q string, vars map[string]string) (string, error) {
 // fail ends the run as failed.
 func fail(r *api.Run, msg string) {
 	r.Status, r.CurrentStep, r.Error = RunFailed, "", &msg
+	r.WaitingFor, r.WaitUntilMs = nil, nil
 }
 
 // retry offers the current task step again, or fails the run when the step

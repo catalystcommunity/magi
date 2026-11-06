@@ -2276,19 +2276,78 @@ def _cancel_task_request_from_cbor(data: bytes) -> "CancelTaskRequest":
 CancelTaskRequest.to_cbor = _cancel_task_request_to_cbor
 CancelTaskRequest.from_cbor = staticmethod(_cancel_task_request_from_cbor)
 
+def _encode_knowledge_fact_value(v: "KnowledgeFact") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["mine"] = v.mine
+    csil_x = v.other
+    if csil_x is not None:
+        csil_m["other"] = csil_x
+    csil_m["stale"] = v.stale
+    csil_x = v.value
+    if csil_x is not None:
+        csil_m["value"] = csil_x
+    csil_m["status"] = v.status
+    csil_m["disputed"] = v.disputed
+    csil_x = v.other_id
+    if csil_x is not None:
+        csil_m["other_id"] = csil_x
+    csil_m["relation"] = v.relation
+    csil_m["direction"] = v.direction
+    csil_m["supported"] = v.supported
+    csil_x = v.valid_to_ms
+    if csil_x is not None:
+        csil_m["valid_to_ms"] = csil_x
+    csil_x = v.valid_from_ms
+    if csil_x is not None:
+        csil_m["valid_from_ms"] = csil_x
+    return csil_m
+
+def _decode_knowledge_fact_value(tree: Any) -> "KnowledgeFact":
+    tree = _csil_expect_map(tree)
+    return KnowledgeFact(
+        id=_csil_expect_text(tree["id"]),
+        relation=_csil_expect_text(tree["relation"]),
+        direction=_csil_expect_text(tree["direction"]),
+        other=(None if tree.get("other") is None else _csil_expect_text(tree["other"])),
+        other_id=(None if tree.get("other_id") is None else _csil_expect_text(tree["other_id"])),
+        value=(None if tree.get("value") is None else _csil_expect_text(tree["value"])),
+        status=_csil_expect_text(tree["status"]),
+        valid_from_ms=(None if tree.get("valid_from_ms") is None else _csil_expect_uint(tree["valid_from_ms"])),
+        valid_to_ms=(None if tree.get("valid_to_ms") is None else _csil_expect_uint(tree["valid_to_ms"])),
+        supported=_csil_expect_bool(tree["supported"]),
+        stale=_csil_expect_bool(tree["stale"]),
+        mine=_csil_expect_bool(tree["mine"]),
+        disputed=_csil_expect_bool(tree["disputed"]),
+    )
+
+
+def _knowledge_fact_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_knowledge_fact_value(self))
+
+
+def _knowledge_fact_from_cbor(data: bytes) -> "KnowledgeFact":
+    return _decode_knowledge_fact_value(cbor_decode(data))
+
+
+KnowledgeFact.to_cbor = _knowledge_fact_to_cbor
+KnowledgeFact.from_cbor = staticmethod(_knowledge_fact_from_cbor)
+
 def _encode_knowledge_item_value(v: "KnowledgeItem") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["id"] = v.id
     csil_m["kind"] = v.kind
+    csil_m["mine"] = v.mine
+    csil_m["facts"] = [_encode_knowledge_fact_value(csil_e) for csil_e in v.facts]
     csil_m["label"] = v.label
     csil_x = v.system
     if csil_x is not None:
         csil_m["system"] = csil_x
+    csil_m["aliases"] = v.aliases
     csil_x = v.locator
     if csil_x is not None:
         csil_m["locator"] = csil_x
     csil_m["summary"] = v.summary
-    csil_m["relations"] = v.relations
     csil_m["properties"] = v.properties
     return csil_m
 
@@ -2298,11 +2357,13 @@ def _decode_knowledge_item_value(tree: Any) -> "KnowledgeItem":
         id=_csil_expect_text(tree["id"]),
         kind=_csil_expect_text(tree["kind"]),
         label=_csil_expect_text(tree["label"]),
+        aliases=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["aliases"])],
         summary=_csil_expect_text(tree["summary"]),
         properties={_csil_expect_text(csil_k): _csil_expect_text(csil_v) for csil_k, csil_v in _csil_expect_map(tree["properties"]).items()},
         system=(None if tree.get("system") is None else _csil_expect_text(tree["system"])),
         locator=(None if tree.get("locator") is None else _csil_expect_text(tree["locator"])),
-        relations=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["relations"])],
+        facts=[_decode_knowledge_fact_value(csil_e) for csil_e in _csil_expect_array(tree["facts"])],
+        mine=_csil_expect_bool(tree["mine"]),
     )
 
 
@@ -2317,6 +2378,39 @@ def _knowledge_item_from_cbor(data: bytes) -> "KnowledgeItem":
 KnowledgeItem.to_cbor = _knowledge_item_to_cbor
 KnowledgeItem.from_cbor = staticmethod(_knowledge_item_from_cbor)
 
+def _encode_knowledge_record_value(v: "KnowledgeRecord") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["kind"] = v.kind
+    csil_m["type"] = v.type
+    csil_m["at_ms"] = v.at_ms
+    csil_m["title"] = v.title
+    csil_m["summary"] = v.summary
+    return csil_m
+
+def _decode_knowledge_record_value(tree: Any) -> "KnowledgeRecord":
+    tree = _csil_expect_map(tree)
+    return KnowledgeRecord(
+        id=_csil_expect_text(tree["id"]),
+        type=_csil_expect_text(tree["type"]),
+        kind=_csil_expect_text(tree["kind"]),
+        title=_csil_expect_text(tree["title"]),
+        summary=_csil_expect_text(tree["summary"]),
+        at_ms=_csil_expect_uint(tree["at_ms"]),
+    )
+
+
+def _knowledge_record_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_knowledge_record_value(self))
+
+
+def _knowledge_record_from_cbor(data: bytes) -> "KnowledgeRecord":
+    return _decode_knowledge_record_value(cbor_decode(data))
+
+
+KnowledgeRecord.to_cbor = _knowledge_record_to_cbor
+KnowledgeRecord.from_cbor = staticmethod(_knowledge_record_from_cbor)
+
 def _encode_query_knowledge_request_value(v: "QueryKnowledgeRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_x = v.kind
@@ -2328,6 +2422,9 @@ def _encode_query_knowledge_request_value(v: "QueryKnowledgeRequest") -> Dict[An
     csil_x = v.limit
     if csil_x is not None:
         csil_m["limit"] = csil_x
+    csil_x = v.include_ended
+    if csil_x is not None:
+        csil_m["include_ended"] = csil_x
     return csil_m
 
 def _decode_query_knowledge_request_value(tree: Any) -> "QueryKnowledgeRequest":
@@ -2336,6 +2433,7 @@ def _decode_query_knowledge_request_value(tree: Any) -> "QueryKnowledgeRequest":
         text=(None if tree.get("text") is None else _csil_expect_text(tree["text"])),
         kind=(None if tree.get("kind") is None else _csil_expect_text(tree["kind"])),
         limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
+        include_ended=(None if tree.get("include_ended") is None else _csil_expect_bool(tree["include_ended"])),
     )
 
 
@@ -2353,12 +2451,14 @@ QueryKnowledgeRequest.from_cbor = staticmethod(_query_knowledge_request_from_cbo
 def _encode_query_knowledge_response_value(v: "QueryKnowledgeResponse") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["items"] = [_encode_knowledge_item_value(csil_e) for csil_e in v.items]
+    csil_m["records"] = [_encode_knowledge_record_value(csil_e) for csil_e in v.records]
     return csil_m
 
 def _decode_query_knowledge_response_value(tree: Any) -> "QueryKnowledgeResponse":
     tree = _csil_expect_map(tree)
     return QueryKnowledgeResponse(
         items=[_decode_knowledge_item_value(csil_e) for csil_e in _csil_expect_array(tree["items"])],
+        records=[_decode_knowledge_record_value(csil_e) for csil_e in _csil_expect_array(tree["records"])],
     )
 
 
@@ -2375,39 +2475,39 @@ QueryKnowledgeResponse.from_cbor = staticmethod(_query_knowledge_response_from_c
 
 def _encode_remember_request_value(v: "RememberRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
-    csil_m["kind"] = v.kind
-    csil_m["label"] = v.label
-    csil_x = v.system
+    csil_x = v.also
     if csil_x is not None:
-        csil_m["system"] = csil_x
-    csil_x = v.locator
+        csil_m["also"] = csil_x
+    csil_x = v.value
     if csil_x is not None:
-        csil_m["locator"] = csil_x
+        csil_m["value"] = csil_x
+    csil_x = v.object
+    if csil_x is not None:
+        csil_m["object"] = csil_x
+    csil_m["subject"] = v.subject
     csil_x = v.summary
     if csil_x is not None:
         csil_m["summary"] = csil_x
-    csil_x = v.relation
+    csil_m["relation"] = v.relation
+    csil_x = v.object_kind
     if csil_x is not None:
-        csil_m["relation"] = csil_x
-    csil_x = v.properties
+        csil_m["object_kind"] = csil_x
+    csil_x = v.subject_kind
     if csil_x is not None:
-        csil_m["properties"] = csil_x
-    csil_x = v.related_to
-    if csil_x is not None:
-        csil_m["related_to"] = csil_x
+        csil_m["subject_kind"] = csil_x
     return csil_m
 
 def _decode_remember_request_value(tree: Any) -> "RememberRequest":
     tree = _csil_expect_map(tree)
     return RememberRequest(
-        kind=_csil_expect_text(tree["kind"]),
-        label=_csil_expect_text(tree["label"]),
+        subject=_csil_expect_text(tree["subject"]),
+        subject_kind=(None if tree.get("subject_kind") is None else _csil_expect_text(tree["subject_kind"])),
+        relation=_csil_expect_text(tree["relation"]),
+        object=(None if tree.get("object") is None else _csil_expect_text(tree["object"])),
+        object_kind=(None if tree.get("object_kind") is None else _csil_expect_text(tree["object_kind"])),
+        value=(None if tree.get("value") is None else _csil_expect_text(tree["value"])),
         summary=(None if tree.get("summary") is None else _csil_expect_text(tree["summary"])),
-        properties=(None if tree.get("properties") is None else {_csil_expect_text(csil_k): _csil_expect_text(csil_v) for csil_k, csil_v in _csil_expect_map(tree["properties"]).items()}),
-        system=(None if tree.get("system") is None else _csil_expect_text(tree["system"])),
-        locator=(None if tree.get("locator") is None else _csil_expect_text(tree["locator"])),
-        related_to=(None if tree.get("related_to") is None else _csil_expect_text(tree["related_to"])),
-        relation=(None if tree.get("relation") is None else _csil_expect_text(tree["relation"])),
+        also=(None if tree.get("also") is None else _csil_expect_bool(tree["also"])),
     )
 
 
@@ -2421,6 +2521,244 @@ def _remember_request_from_cbor(data: bytes) -> "RememberRequest":
 
 RememberRequest.to_cbor = _remember_request_to_cbor
 RememberRequest.from_cbor = staticmethod(_remember_request_from_cbor)
+
+def _encode_remember_response_value(v: "RememberResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["item"] = _encode_knowledge_item_value(v.item)
+    csil_x = v.note
+    if csil_x is not None:
+        csil_m["note"] = csil_x
+    csil_m["recorded"] = v.recorded
+    return csil_m
+
+def _decode_remember_response_value(tree: Any) -> "RememberResponse":
+    tree = _csil_expect_map(tree)
+    return RememberResponse(
+        recorded=_csil_expect_bool(tree["recorded"]),
+        note=(None if tree.get("note") is None else _csil_expect_text(tree["note"])),
+        item=_decode_knowledge_item_value(tree["item"]),
+    )
+
+
+def _remember_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_remember_response_value(self))
+
+
+def _remember_response_from_cbor(data: bytes) -> "RememberResponse":
+    return _decode_remember_response_value(cbor_decode(data))
+
+
+RememberResponse.to_cbor = _remember_response_to_cbor
+RememberResponse.from_cbor = staticmethod(_remember_response_from_cbor)
+
+def _encode_change_knowledge_request_value(v: "ChangeKnowledgeRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_x = v.erase
+    if csil_x is not None:
+        csil_m["erase"] = csil_x
+    csil_x = v.field
+    if csil_x is not None:
+        csil_m["field"] = csil_x
+    csil_x = v.value
+    if csil_x is not None:
+        csil_m["value"] = csil_x
+    csil_x = v.reason
+    if csil_x is not None:
+        csil_m["reason"] = csil_x
+    csil_m["operation"] = v.operation
+    return csil_m
+
+def _decode_change_knowledge_request_value(tree: Any) -> "ChangeKnowledgeRequest":
+    tree = _csil_expect_map(tree)
+    return ChangeKnowledgeRequest(
+        id=_csil_expect_text(tree["id"]),
+        operation=_csil_expect_text(tree["operation"]),
+        field=(None if tree.get("field") is None else _csil_expect_text(tree["field"])),
+        value=(None if tree.get("value") is None else _csil_expect_text(tree["value"])),
+        reason=(None if tree.get("reason") is None else _csil_expect_text(tree["reason"])),
+        erase=(None if tree.get("erase") is None else _csil_expect_bool(tree["erase"])),
+    )
+
+
+def _change_knowledge_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_change_knowledge_request_value(self))
+
+
+def _change_knowledge_request_from_cbor(data: bytes) -> "ChangeKnowledgeRequest":
+    return _decode_change_knowledge_request_value(cbor_decode(data))
+
+
+ChangeKnowledgeRequest.to_cbor = _change_knowledge_request_to_cbor
+ChangeKnowledgeRequest.from_cbor = staticmethod(_change_knowledge_request_from_cbor)
+
+def _encode_knowledge_change_value(v: "KnowledgeChange") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["actor"] = v.actor
+    csil_x = v.after
+    if csil_x is not None:
+        csil_m["after"] = csil_x
+    csil_m["at_ms"] = v.at_ms
+    csil_x = v.before
+    if csil_x is not None:
+        csil_m["before"] = csil_x
+    csil_x = v.reason
+    if csil_x is not None:
+        csil_m["reason"] = csil_x
+    csil_m["record"] = v.record
+    csil_m["operation"] = v.operation
+    return csil_m
+
+def _decode_knowledge_change_value(tree: Any) -> "KnowledgeChange":
+    tree = _csil_expect_map(tree)
+    return KnowledgeChange(
+        id=_csil_expect_text(tree["id"]),
+        record=_csil_expect_text(tree["record"]),
+        operation=_csil_expect_text(tree["operation"]),
+        actor=_csil_expect_text(tree["actor"]),
+        reason=(None if tree.get("reason") is None else _csil_expect_text(tree["reason"])),
+        before=(None if tree.get("before") is None else _csil_expect_text(tree["before"])),
+        after=(None if tree.get("after") is None else _csil_expect_text(tree["after"])),
+        at_ms=_csil_expect_uint(tree["at_ms"]),
+    )
+
+
+def _knowledge_change_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_knowledge_change_value(self))
+
+
+def _knowledge_change_from_cbor(data: bytes) -> "KnowledgeChange":
+    return _decode_knowledge_change_value(cbor_decode(data))
+
+
+KnowledgeChange.to_cbor = _knowledge_change_to_cbor
+KnowledgeChange.from_cbor = staticmethod(_knowledge_change_from_cbor)
+
+def _encode_change_knowledge_response_value(v: "ChangeKnowledgeResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.item
+    if csil_x is not None:
+        csil_m["item"] = _encode_knowledge_item_value(csil_x)
+    csil_m["change"] = _encode_knowledge_change_value(v.change)
+    return csil_m
+
+def _decode_change_knowledge_response_value(tree: Any) -> "ChangeKnowledgeResponse":
+    tree = _csil_expect_map(tree)
+    return ChangeKnowledgeResponse(
+        change=_decode_knowledge_change_value(tree["change"]),
+        item=(None if tree.get("item") is None else _decode_knowledge_item_value(tree["item"])),
+    )
+
+
+def _change_knowledge_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_change_knowledge_response_value(self))
+
+
+def _change_knowledge_response_from_cbor(data: bytes) -> "ChangeKnowledgeResponse":
+    return _decode_change_knowledge_response_value(cbor_decode(data))
+
+
+ChangeKnowledgeResponse.to_cbor = _change_knowledge_response_to_cbor
+ChangeKnowledgeResponse.from_cbor = staticmethod(_change_knowledge_response_from_cbor)
+
+def _encode_merge_knowledge_request_value(v: "MergeKnowledgeRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["keep"] = v.keep
+    csil_m["merge"] = v.merge
+    csil_x = v.reason
+    if csil_x is not None:
+        csil_m["reason"] = csil_x
+    return csil_m
+
+def _decode_merge_knowledge_request_value(tree: Any) -> "MergeKnowledgeRequest":
+    tree = _csil_expect_map(tree)
+    return MergeKnowledgeRequest(
+        keep=_csil_expect_text(tree["keep"]),
+        merge=_csil_expect_text(tree["merge"]),
+        reason=(None if tree.get("reason") is None else _csil_expect_text(tree["reason"])),
+    )
+
+
+def _merge_knowledge_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_merge_knowledge_request_value(self))
+
+
+def _merge_knowledge_request_from_cbor(data: bytes) -> "MergeKnowledgeRequest":
+    return _decode_merge_knowledge_request_value(cbor_decode(data))
+
+
+MergeKnowledgeRequest.to_cbor = _merge_knowledge_request_to_cbor
+MergeKnowledgeRequest.from_cbor = staticmethod(_merge_knowledge_request_from_cbor)
+
+def _encode_unmerge_knowledge_request_value(v: "UnmergeKnowledgeRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["change"] = v.change
+    return csil_m
+
+def _decode_unmerge_knowledge_request_value(tree: Any) -> "UnmergeKnowledgeRequest":
+    tree = _csil_expect_map(tree)
+    return UnmergeKnowledgeRequest(
+        change=_csil_expect_text(tree["change"]),
+    )
+
+
+def _unmerge_knowledge_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_unmerge_knowledge_request_value(self))
+
+
+def _unmerge_knowledge_request_from_cbor(data: bytes) -> "UnmergeKnowledgeRequest":
+    return _decode_unmerge_knowledge_request_value(cbor_decode(data))
+
+
+UnmergeKnowledgeRequest.to_cbor = _unmerge_knowledge_request_to_cbor
+UnmergeKnowledgeRequest.from_cbor = staticmethod(_unmerge_knowledge_request_from_cbor)
+
+def _encode_knowledge_history_request_value(v: "KnowledgeHistoryRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    return csil_m
+
+def _decode_knowledge_history_request_value(tree: Any) -> "KnowledgeHistoryRequest":
+    tree = _csil_expect_map(tree)
+    return KnowledgeHistoryRequest(
+        id=_csil_expect_text(tree["id"]),
+    )
+
+
+def _knowledge_history_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_knowledge_history_request_value(self))
+
+
+def _knowledge_history_request_from_cbor(data: bytes) -> "KnowledgeHistoryRequest":
+    return _decode_knowledge_history_request_value(cbor_decode(data))
+
+
+KnowledgeHistoryRequest.to_cbor = _knowledge_history_request_to_cbor
+KnowledgeHistoryRequest.from_cbor = staticmethod(_knowledge_history_request_from_cbor)
+
+def _encode_knowledge_history_response_value(v: "KnowledgeHistoryResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["changes"] = [_encode_knowledge_change_value(csil_e) for csil_e in v.changes]
+    return csil_m
+
+def _decode_knowledge_history_response_value(tree: Any) -> "KnowledgeHistoryResponse":
+    tree = _csil_expect_map(tree)
+    return KnowledgeHistoryResponse(
+        changes=[_decode_knowledge_change_value(csil_e) for csil_e in _csil_expect_array(tree["changes"])],
+    )
+
+
+def _knowledge_history_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_knowledge_history_response_value(self))
+
+
+def _knowledge_history_response_from_cbor(data: bytes) -> "KnowledgeHistoryResponse":
+    return _decode_knowledge_history_response_value(cbor_decode(data))
+
+
+KnowledgeHistoryResponse.to_cbor = _knowledge_history_response_to_cbor
+KnowledgeHistoryResponse.from_cbor = staticmethod(_knowledge_history_response_from_cbor)
 
 def _encode_voice_info_value(v: "VoiceInfo") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}

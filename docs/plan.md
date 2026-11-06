@@ -69,7 +69,7 @@ Each slice must work through the API before the next one starts.
 | Slice | Status on 2026-10-28 |
 | --- | --- |
 | 1. Text conversation with the model | Works through the public API |
-| 2. Knowledge: remember and recall external records with evidence | Works; calendars link to system nodes and to the source utterance |
+| 2. Knowledge: remember and recall external records with evidence | Works. On 2026-11-06: entities, claims, episodes, procedures, and fix/update/retract changes (`docs/knowledge.md`) |
 | 3. Code change: environment, apprentice, checks, diff in the conversation | Works; a chat request produced a checked change |
 | 4. Decision through the API, then merge | Works |
 | 5. Build and release with health check and rollback | Works; Magi released a change to itself; a bad image rolled back |
@@ -102,7 +102,9 @@ inference host, speech engines). See `magi/README.md`.
 - Run one code change end to end on the Pi, published by ht0-studiodt.
 - Install the Android build with the updater over USB once; later builds
   come from `magi app-release`.
-- Knowledge graph next: topics with summaries, episodic and procedural
-  records, with evidence links to utterances.
+- Knowledge: see `docs/knowledge.md` and `evals/knowledge/`. Next:
+  investigations (episodes and procedures from workflow runs), a human step
+  addressed to named people, groups for shared personas, and read-only
+  runners.
 - Production: an admin-only way to make runner tokens at install, or fleet
   tokens.

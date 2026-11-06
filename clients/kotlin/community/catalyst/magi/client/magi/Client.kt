@@ -122,8 +122,20 @@ class MagiClient(private val transport: Transport) {
     fun queryKnowledge(request: QueryKnowledgeRequest): QueryKnowledgeResponse {
         return decode<QueryKnowledgeResponse>(transport.call("MagiService", "query-knowledge", encode(request)))
     }
-    fun remember(request: RememberRequest): KnowledgeItem {
-        return decode<KnowledgeItem>(transport.call("MagiService", "remember", encode(request)))
+    fun remember(request: RememberRequest): RememberResponse {
+        return decode<RememberResponse>(transport.call("MagiService", "remember", encode(request)))
+    }
+    fun changeKnowledge(request: ChangeKnowledgeRequest): ChangeKnowledgeResponse {
+        return decode<ChangeKnowledgeResponse>(transport.call("MagiService", "change-knowledge", encode(request)))
+    }
+    fun knowledgeHistory(request: KnowledgeHistoryRequest): KnowledgeHistoryResponse {
+        return decode<KnowledgeHistoryResponse>(transport.call("MagiService", "knowledge-history", encode(request)))
+    }
+    fun mergeKnowledge(request: MergeKnowledgeRequest): ChangeKnowledgeResponse {
+        return decode<ChangeKnowledgeResponse>(transport.call("MagiService", "merge-knowledge", encode(request)))
+    }
+    fun unmergeKnowledge(request: UnmergeKnowledgeRequest): ChangeKnowledgeResponse {
+        return decode<ChangeKnowledgeResponse>(transport.call("MagiService", "unmerge-knowledge", encode(request)))
     }
     fun listVoices(request: ListVoicesRequest): ListVoicesResponse {
         return decode<ListVoicesResponse>(transport.call("MagiService", "list-voices", encode(request)))

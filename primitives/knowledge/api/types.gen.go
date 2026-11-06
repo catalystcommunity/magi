@@ -10,114 +10,388 @@ type ExternalRef struct {
 	Context *string `json:"context,omitempty" yaml:"context,omitempty"`
 }
 
-// Node represents a structured data type
-type Node struct {
+// Ref represents a structured data type
+type Ref struct {
+	Kind  string  `json:"kind" yaml:"kind"`
+	Ref   string  `json:"ref" yaml:"ref"`
+	Title *string `json:"title,omitempty" yaml:"title,omitempty"`
+}
+
+// Entity represents a structured data type
+type Entity struct {
 	Id         string            `json:"id" yaml:"id"`
 	Kind       string            `json:"kind" yaml:"kind"`
 	Label      string            `json:"label" yaml:"label"`
+	Aliases    []string          `json:"aliases" yaml:"aliases"`
 	Summary    string            `json:"summary" yaml:"summary"`
 	Properties map[string]string `json:"properties" yaml:",inline"`
 	External   *ExternalRef      `json:"external,omitempty" yaml:"external,omitempty"`
-	Owner      string            `json:"owner" yaml:"owner"`
-	Scope      string            `json:"scope" yaml:"scope"`
-	AuthoredBy *string           `json:"authored_by,omitempty" yaml:"authored_by,omitempty"`
+	Owners     []string          `json:"owners" yaml:"owners"`
+	Readers    []string          `json:"readers" yaml:"readers"`
 	Confidence float64           `json:"confidence" yaml:"confidence"`
+	MergedInto *string           `json:"merged_into,omitempty" yaml:"merged_into,omitempty"`
 	CreatedMs  uint64            `json:"created_ms" yaml:"created_ms"`
 	UpdatedMs  uint64            `json:"updated_ms" yaml:"updated_ms"`
 }
 
-// Edge represents a structured data type
-type Edge struct {
+// Claim represents a structured data type
+type Claim struct {
+	Id          string   `json:"id" yaml:"id"`
+	Subject     string   `json:"subject" yaml:"subject"`
+	Relation    string   `json:"relation" yaml:"relation"`
+	Object      *string  `json:"object,omitempty" yaml:"object,omitempty"`
+	Value       *string  `json:"value,omitempty" yaml:"value,omitempty"`
+	ValidFromMs *uint64  `json:"valid_from_ms,omitempty" yaml:"valid_from_ms,omitempty"`
+	ValidToMs   *uint64  `json:"valid_to_ms,omitempty" yaml:"valid_to_ms,omitempty"`
+	Status      string   `json:"status" yaml:"status"`
+	ReplacedBy  *string  `json:"replaced_by,omitempty" yaml:"replaced_by,omitempty"`
+	Confidence  float64  `json:"confidence" yaml:"confidence"`
+	AuthoredBy  *string  `json:"authored_by,omitempty" yaml:"authored_by,omitempty"`
+	DerivedFrom []string `json:"derived_from" yaml:"derived_from"`
+	Stale       bool     `json:"stale" yaml:"stale"`
+	Supported   bool     `json:"supported" yaml:"supported"`
+	Owners      []string `json:"owners" yaml:"owners"`
+	Readers     []string `json:"readers" yaml:"readers"`
+	CreatedMs   uint64   `json:"created_ms" yaml:"created_ms"`
+	UpdatedMs   uint64   `json:"updated_ms" yaml:"updated_ms"`
+}
+
+// Episode represents a structured data type
+type Episode struct {
+	Id           string   `json:"id" yaml:"id"`
+	Kind         string   `json:"kind" yaml:"kind"`
+	Title        string   `json:"title" yaml:"title"`
+	Summary      string   `json:"summary" yaml:"summary"`
+	StartedMs    uint64   `json:"started_ms" yaml:"started_ms"`
+	EndedMs      *uint64  `json:"ended_ms,omitempty" yaml:"ended_ms,omitempty"`
+	Participants []string `json:"participants" yaml:"participants"`
+	Entities     []string `json:"entities" yaml:"entities"`
+	Refs         []Ref    `json:"refs" yaml:"refs"`
+	Procedure    *string  `json:"procedure,omitempty" yaml:"procedure,omitempty"`
+	Outcome      *string  `json:"outcome,omitempty" yaml:"outcome,omitempty"`
+	Owners       []string `json:"owners" yaml:"owners"`
+	Readers      []string `json:"readers" yaml:"readers"`
+	CreatedMs    uint64   `json:"created_ms" yaml:"created_ms"`
+	UpdatedMs    uint64   `json:"updated_ms" yaml:"updated_ms"`
+}
+
+// Procedure represents a structured data type
+type Procedure struct {
 	Id         string            `json:"id" yaml:"id"`
-	FromNode   string            `json:"from_node" yaml:"from_node"`
-	ToNode     string            `json:"to_node" yaml:"to_node"`
-	Relation   string            `json:"relation" yaml:"relation"`
-	Properties map[string]string `json:"properties" yaml:",inline"`
-	Owner      string            `json:"owner" yaml:"owner"`
-	Confidence float64           `json:"confidence" yaml:"confidence"`
+	Name       string            `json:"name" yaml:"name"`
+	Goal       string            `json:"goal" yaml:"goal"`
+	Inputs     map[string]string `json:"inputs" yaml:",inline"`
+	Steps      string            `json:"steps" yaml:"steps"`
+	Definition *string           `json:"definition,omitempty" yaml:"definition,omitempty"`
+	Revision   uint64            `json:"revision" yaml:"revision"`
+	Status     string            `json:"status" yaml:"status"`
+	Uses       map[string]uint64 `json:"uses" yaml:",inline"`
+	Entities   []string          `json:"entities" yaml:"entities"`
+	Owners     []string          `json:"owners" yaml:"owners"`
+	Readers    []string          `json:"readers" yaml:"readers"`
 	CreatedMs  uint64            `json:"created_ms" yaml:"created_ms"`
+	UpdatedMs  uint64            `json:"updated_ms" yaml:"updated_ms"`
 }
 
 // Evidence represents a structured data type
 type Evidence struct {
 	Id        string  `json:"id" yaml:"id"`
 	Subject   string  `json:"subject" yaml:"subject"`
-	RefKind   string  `json:"ref_kind" yaml:"ref_kind"`
-	Ref       string  `json:"ref" yaml:"ref"`
+	Ref       Ref     `json:"ref" yaml:"ref"`
 	Stance    string  `json:"stance" yaml:"stance"`
 	Note      *string `json:"note,omitempty" yaml:"note,omitempty"`
-	Owner     string  `json:"owner" yaml:"owner"`
 	CreatedMs uint64  `json:"created_ms" yaml:"created_ms"`
 }
 
-// PutNodeRequest represents a structured data type
-type PutNodeRequest struct {
-	Id         *string           `json:"id,omitempty" yaml:"id,omitempty"`
+// Change represents a structured data type
+type Change struct {
+	Id        string  `json:"id" yaml:"id"`
+	Record    string  `json:"record" yaml:"record"`
+	Operation string  `json:"operation" yaml:"operation"`
+	Actor     string  `json:"actor" yaml:"actor"`
+	Reason    *string `json:"reason,omitempty" yaml:"reason,omitempty"`
+	Before    *string `json:"before,omitempty" yaml:"before,omitempty"`
+	After     *string `json:"after,omitempty" yaml:"after,omitempty"`
+	Utterance *string `json:"utterance,omitempty" yaml:"utterance,omitempty"`
+	AtMs      uint64  `json:"at_ms" yaml:"at_ms"`
+}
+
+// Dispute represents a structured data type
+type Dispute struct {
+	Id         string   `json:"id" yaml:"id"`
+	Record     string   `json:"record" yaml:"record"`
+	By         string   `json:"by" yaml:"by"`
+	Reason     string   `json:"reason" yaml:"reason"`
+	Proposed   *string  `json:"proposed,omitempty" yaml:"proposed,omitempty"`
+	State      string   `json:"state" yaml:"state"`
+	Resolution *string  `json:"resolution,omitempty" yaml:"resolution,omitempty"`
+	Owners     []string `json:"owners" yaml:"owners"`
+	CreatedMs  uint64   `json:"created_ms" yaml:"created_ms"`
+	UpdatedMs  uint64   `json:"updated_ms" yaml:"updated_ms"`
+}
+
+// Group represents a structured data type
+type Group struct {
+	Id        string   `json:"id" yaml:"id"`
+	Label     string   `json:"label" yaml:"label"`
+	Members   []string `json:"members" yaml:"members"`
+	Owners    []string `json:"owners" yaml:"owners"`
+	UpdatedMs uint64   `json:"updated_ms" yaml:"updated_ms"`
+}
+
+// PutEntityRequest represents a structured data type
+type PutEntityRequest struct {
 	Kind       string            `json:"kind" yaml:"kind"`
 	Label      string            `json:"label" yaml:"label"`
+	Aliases    []string          `json:"aliases,omitempty" yaml:"aliases,omitempty"`
 	Summary    *string           `json:"summary,omitempty" yaml:"summary,omitempty"`
 	Properties map[string]string `json:"properties,omitempty" yaml:",inline"`
 	External   *ExternalRef      `json:"external,omitempty" yaml:"external,omitempty"`
-	Scope      *string           `json:"scope,omitempty" yaml:"scope,omitempty"`
-	AuthoredBy *string           `json:"authored_by,omitempty" yaml:"authored_by,omitempty"`
+	Owners     []string          `json:"owners,omitempty" yaml:"owners,omitempty"`
+	Readers    []string          `json:"readers,omitempty" yaml:"readers,omitempty"`
 	Confidence *float64          `json:"confidence,omitempty" yaml:"confidence,omitempty"`
-	Owner      *string           `json:"owner,omitempty" yaml:"owner,omitempty"`
+	ActFor     *string           `json:"act_for,omitempty" yaml:"act_for,omitempty"`
+	Utterance  *string           `json:"utterance,omitempty" yaml:"utterance,omitempty"`
 }
 
-// GetNodeRequest represents a structured data type
-type GetNodeRequest struct {
-	Id string `json:"id" yaml:"id"`
+// SelfRequest represents a structured data type
+type SelfRequest struct {
+	Label  *string `json:"label,omitempty" yaml:"label,omitempty"`
+	ActFor *string `json:"act_for,omitempty" yaml:"act_for,omitempty"`
 }
 
-// NodeView represents a structured data type
-type NodeView struct {
-	Node     Node       `json:"node" yaml:"node"`
-	Edges    []Edge     `json:"edges" yaml:"edges"`
-	Evidence []Evidence `json:"evidence" yaml:"evidence"`
+// AssertRequest represents a structured data type
+type AssertRequest struct {
+	Subject     string   `json:"subject" yaml:"subject"`
+	Relation    string   `json:"relation" yaml:"relation"`
+	Object      *string  `json:"object,omitempty" yaml:"object,omitempty"`
+	Value       *string  `json:"value,omitempty" yaml:"value,omitempty"`
+	ValidFromMs *uint64  `json:"valid_from_ms,omitempty" yaml:"valid_from_ms,omitempty"`
+	ValidToMs   *uint64  `json:"valid_to_ms,omitempty" yaml:"valid_to_ms,omitempty"`
+	Confidence  *float64 `json:"confidence,omitempty" yaml:"confidence,omitempty"`
+	AuthoredBy  *string  `json:"authored_by,omitempty" yaml:"authored_by,omitempty"`
+	DerivedFrom []string `json:"derived_from,omitempty" yaml:"derived_from,omitempty"`
+	Evidence    []Ref    `json:"evidence,omitempty" yaml:"evidence,omitempty"`
+	Owners      []string `json:"owners,omitempty" yaml:"owners,omitempty"`
+	Readers     []string `json:"readers,omitempty" yaml:"readers,omitempty"`
+	ActFor      *string  `json:"act_for,omitempty" yaml:"act_for,omitempty"`
+	Utterance   *string  `json:"utterance,omitempty" yaml:"utterance,omitempty"`
 }
 
-// PutEdgeRequest represents a structured data type
-type PutEdgeRequest struct {
-	FromNode   string            `json:"from_node" yaml:"from_node"`
-	ToNode     string            `json:"to_node" yaml:"to_node"`
-	Relation   string            `json:"relation" yaml:"relation"`
-	Properties map[string]string `json:"properties,omitempty" yaml:",inline"`
-	Confidence *float64          `json:"confidence,omitempty" yaml:"confidence,omitempty"`
-	Owner      *string           `json:"owner,omitempty" yaml:"owner,omitempty"`
+// ChangeRequest represents a structured data type
+type ChangeRequest struct {
+	Id        string            `json:"id" yaml:"id"`
+	Operation string            `json:"operation" yaml:"operation"`
+	Set       map[string]string `json:"set,omitempty" yaml:",inline"`
+	AtMs      *uint64           `json:"at_ms,omitempty" yaml:"at_ms,omitempty"`
+	Erase     *bool             `json:"erase,omitempty" yaml:"erase,omitempty"`
+	Reason    *string           `json:"reason,omitempty" yaml:"reason,omitempty"`
+	ActFor    *string           `json:"act_for,omitempty" yaml:"act_for,omitempty"`
+	Utterance *string           `json:"utterance,omitempty" yaml:"utterance,omitempty"`
+}
+
+// ChangeResponse represents a structured data type
+type ChangeResponse struct {
+	Change    Change     `json:"change" yaml:"change"`
+	Entity    *Entity    `json:"entity,omitempty" yaml:"entity,omitempty"`
+	Claim     *Claim     `json:"claim,omitempty" yaml:"claim,omitempty"`
+	Episode   *Episode   `json:"episode,omitempty" yaml:"episode,omitempty"`
+	Procedure *Procedure `json:"procedure,omitempty" yaml:"procedure,omitempty"`
+}
+
+// MergeRequest represents a structured data type
+type MergeRequest struct {
+	Keep      string  `json:"keep" yaml:"keep"`
+	Merge     string  `json:"merge" yaml:"merge"`
+	Reason    *string `json:"reason,omitempty" yaml:"reason,omitempty"`
+	ActFor    *string `json:"act_for,omitempty" yaml:"act_for,omitempty"`
+	Utterance *string `json:"utterance,omitempty" yaml:"utterance,omitempty"`
+}
+
+// UnmergeRequest represents a structured data type
+type UnmergeRequest struct {
+	Change string  `json:"change" yaml:"change"`
+	ActFor *string `json:"act_for,omitempty" yaml:"act_for,omitempty"`
+}
+
+// RecordEpisodeRequest represents a structured data type
+type RecordEpisodeRequest struct {
+	Id           *string  `json:"id,omitempty" yaml:"id,omitempty"`
+	Kind         string   `json:"kind" yaml:"kind"`
+	Title        string   `json:"title" yaml:"title"`
+	Summary      *string  `json:"summary,omitempty" yaml:"summary,omitempty"`
+	StartedMs    *uint64  `json:"started_ms,omitempty" yaml:"started_ms,omitempty"`
+	EndedMs      *uint64  `json:"ended_ms,omitempty" yaml:"ended_ms,omitempty"`
+	Participants []string `json:"participants,omitempty" yaml:"participants,omitempty"`
+	Entities     []string `json:"entities,omitempty" yaml:"entities,omitempty"`
+	Refs         []Ref    `json:"refs,omitempty" yaml:"refs,omitempty"`
+	Procedure    *string  `json:"procedure,omitempty" yaml:"procedure,omitempty"`
+	Outcome      *string  `json:"outcome,omitempty" yaml:"outcome,omitempty"`
+	Owners       []string `json:"owners,omitempty" yaml:"owners,omitempty"`
+	Readers      []string `json:"readers,omitempty" yaml:"readers,omitempty"`
+	ActFor       *string  `json:"act_for,omitempty" yaml:"act_for,omitempty"`
+}
+
+// PutProcedureRequest represents a structured data type
+type PutProcedureRequest struct {
+	Name       string            `json:"name" yaml:"name"`
+	Goal       string            `json:"goal" yaml:"goal"`
+	Inputs     map[string]string `json:"inputs,omitempty" yaml:",inline"`
+	Steps      string            `json:"steps" yaml:"steps"`
+	Definition *string           `json:"definition,omitempty" yaml:"definition,omitempty"`
+	Status     *string           `json:"status,omitempty" yaml:"status,omitempty"`
+	Entities   []string          `json:"entities,omitempty" yaml:"entities,omitempty"`
+	Owners     []string          `json:"owners,omitempty" yaml:"owners,omitempty"`
+	Readers    []string          `json:"readers,omitempty" yaml:"readers,omitempty"`
+	ActFor     *string           `json:"act_for,omitempty" yaml:"act_for,omitempty"`
+	Reason     *string           `json:"reason,omitempty" yaml:"reason,omitempty"`
 }
 
 // LinkEvidenceRequest represents a structured data type
 type LinkEvidenceRequest struct {
 	Subject string  `json:"subject" yaml:"subject"`
-	RefKind string  `json:"ref_kind" yaml:"ref_kind"`
-	Ref     string  `json:"ref" yaml:"ref"`
+	Ref     Ref     `json:"ref" yaml:"ref"`
 	Stance  *string `json:"stance,omitempty" yaml:"stance,omitempty"`
 	Note    *string `json:"note,omitempty" yaml:"note,omitempty"`
-	Owner   *string `json:"owner,omitempty" yaml:"owner,omitempty"`
+	ActFor  *string `json:"act_for,omitempty" yaml:"act_for,omitempty"`
 }
 
-// QueryRequest represents a structured data type
-type QueryRequest struct {
-	Text  *string `json:"text,omitempty" yaml:"text,omitempty"`
-	Owner *string `json:"owner,omitempty" yaml:"owner,omitempty"`
-	Kind  *string `json:"kind,omitempty" yaml:"kind,omitempty"`
-	Near  *string `json:"near,omitempty" yaml:"near,omitempty"`
-	Depth *uint64 `json:"depth,omitempty" yaml:"depth,omitempty"`
-	Limit *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+// DisputeRequest represents a structured data type
+type DisputeRequest struct {
+	Record   string  `json:"record" yaml:"record"`
+	Reason   string  `json:"reason" yaml:"reason"`
+	Proposed *string `json:"proposed,omitempty" yaml:"proposed,omitempty"`
+	ActFor   *string `json:"act_for,omitempty" yaml:"act_for,omitempty"`
 }
 
-// QueryResponse represents a structured data type
-type QueryResponse struct {
-	Nodes []Node `json:"nodes" yaml:"nodes"`
-	Edges []Edge `json:"edges" yaml:"edges"`
+// ResolveDisputeRequest represents a structured data type
+type ResolveDisputeRequest struct {
+	Id         string  `json:"id" yaml:"id"`
+	Accept     bool    `json:"accept" yaml:"accept"`
+	Resolution *string `json:"resolution,omitempty" yaml:"resolution,omitempty"`
+	ActFor     *string `json:"act_for,omitempty" yaml:"act_for,omitempty"`
 }
 
-// DeleteRequest represents a structured data type
-type DeleteRequest struct {
-	Id string `json:"id" yaml:"id"`
+// ListDisputesRequest represents a structured data type
+type ListDisputesRequest struct {
+	State  *string `json:"state,omitempty" yaml:"state,omitempty"`
+	ActFor *string `json:"act_for,omitempty" yaml:"act_for,omitempty"`
 }
 
-// DeleteResponse represents a structured data type
-type DeleteResponse struct {
-	Deleted bool `json:"deleted" yaml:"deleted"`
+// ListDisputesResponse represents a structured data type
+type ListDisputesResponse struct {
+	Disputes []Dispute `json:"disputes" yaml:"disputes"`
+}
+
+// PutGroupRequest represents a structured data type
+type PutGroupRequest struct {
+	Id      string   `json:"id" yaml:"id"`
+	Label   string   `json:"label" yaml:"label"`
+	Members []string `json:"members" yaml:"members"`
+	Owners  []string `json:"owners,omitempty" yaml:"owners,omitempty"`
+	ActFor  *string  `json:"act_for,omitempty" yaml:"act_for,omitempty"`
+}
+
+// SearchRequest represents a structured data type
+type SearchRequest struct {
+	Text         *string  `json:"text,omitempty" yaml:"text,omitempty"`
+	Types        []string `json:"types,omitempty" yaml:"types,omitempty"`
+	Kind         *string  `json:"kind,omitempty" yaml:"kind,omitempty"`
+	Relation     *string  `json:"relation,omitempty" yaml:"relation,omitempty"`
+	AtMs         *uint64  `json:"at_ms,omitempty" yaml:"at_ms,omitempty"`
+	IncludeEnded *bool    `json:"include_ended,omitempty" yaml:"include_ended,omitempty"`
+	Limit        *uint64  `json:"limit,omitempty" yaml:"limit,omitempty"`
+	ActFor       *string  `json:"act_for,omitempty" yaml:"act_for,omitempty"`
+}
+
+// Hit represents a structured data type
+type Hit struct {
+	Type  string  `json:"type" yaml:"type"`
+	Id    string  `json:"id" yaml:"id"`
+	Score float64 `json:"score" yaml:"score"`
+}
+
+// SearchResponse represents a structured data type
+type SearchResponse struct {
+	Hits       []Hit       `json:"hits" yaml:"hits"`
+	Entities   []Entity    `json:"entities" yaml:"entities"`
+	Claims     []Claim     `json:"claims" yaml:"claims"`
+	Episodes   []Episode   `json:"episodes" yaml:"episodes"`
+	Procedures []Procedure `json:"procedures" yaml:"procedures"`
+}
+
+// AboutRequest represents a structured data type
+type AboutRequest struct {
+	Id           string  `json:"id" yaml:"id"`
+	AtMs         *uint64 `json:"at_ms,omitempty" yaml:"at_ms,omitempty"`
+	IncludeEnded *bool   `json:"include_ended,omitempty" yaml:"include_ended,omitempty"`
+	ActFor       *string `json:"act_for,omitempty" yaml:"act_for,omitempty"`
+}
+
+// AboutResponse represents a structured data type
+type AboutResponse struct {
+	Entity     Entity      `json:"entity" yaml:"entity"`
+	Claims     []Claim     `json:"claims" yaml:"claims"`
+	Related    []Entity    `json:"related" yaml:"related"`
+	Episodes   []Episode   `json:"episodes" yaml:"episodes"`
+	Procedures []Procedure `json:"procedures" yaml:"procedures"`
+	Evidence   []Evidence  `json:"evidence" yaml:"evidence"`
+	Disputes   []Dispute   `json:"disputes" yaml:"disputes"`
+}
+
+// NeighborsRequest represents a structured data type
+type NeighborsRequest struct {
+	Id       string  `json:"id" yaml:"id"`
+	Relation *string `json:"relation,omitempty" yaml:"relation,omitempty"`
+	Depth    *uint64 `json:"depth,omitempty" yaml:"depth,omitempty"`
+	Limit    *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+	ActFor   *string `json:"act_for,omitempty" yaml:"act_for,omitempty"`
+}
+
+// NeighborsResponse represents a structured data type
+type NeighborsResponse struct {
+	Entities []Entity `json:"entities" yaml:"entities"`
+	Claims   []Claim  `json:"claims" yaml:"claims"`
+}
+
+// TimelineRequest represents a structured data type
+type TimelineRequest struct {
+	Entity *string `json:"entity,omitempty" yaml:"entity,omitempty"`
+	FromMs uint64  `json:"from_ms" yaml:"from_ms"`
+	ToMs   uint64  `json:"to_ms" yaml:"to_ms"`
+	Limit  *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+	ActFor *string `json:"act_for,omitempty" yaml:"act_for,omitempty"`
+}
+
+// TimelineResponse represents a structured data type
+type TimelineResponse struct {
+	Episodes []Episode `json:"episodes" yaml:"episodes"`
+	Claims   []Claim   `json:"claims" yaml:"claims"`
+	Changes  []Change  `json:"changes" yaml:"changes"`
+}
+
+// HistoryRequest represents a structured data type
+type HistoryRequest struct {
+	Id     string  `json:"id" yaml:"id"`
+	ActFor *string `json:"act_for,omitempty" yaml:"act_for,omitempty"`
+}
+
+// HistoryResponse represents a structured data type
+type HistoryResponse struct {
+	Changes []Change `json:"changes" yaml:"changes"`
+}
+
+// GetRequest represents a structured data type
+type GetRequest struct {
+	Id     string  `json:"id" yaml:"id"`
+	ActFor *string `json:"act_for,omitempty" yaml:"act_for,omitempty"`
+}
+
+// GetResponse represents a structured data type
+type GetResponse struct {
+	Entity    *Entity    `json:"entity,omitempty" yaml:"entity,omitempty"`
+	Claim     *Claim     `json:"claim,omitempty" yaml:"claim,omitempty"`
+	Episode   *Episode   `json:"episode,omitempty" yaml:"episode,omitempty"`
+	Procedure *Procedure `json:"procedure,omitempty" yaml:"procedure,omitempty"`
+	Evidence  *Evidence  `json:"evidence,omitempty" yaml:"evidence,omitempty"`
 }

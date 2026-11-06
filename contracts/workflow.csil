@@ -9,6 +9,11 @@ options {
 ;;; next, or that maps to "", finishes the run. Outcome "fail" fails the run
 ;;; unless next maps it. max_attempts limits retries of a task step that
 ;;; returns outcome "retry" or whose claim lease expires.
+;;; deciders (human steps) names the subjects who must decide, for example
+;;; a person whom an investigation asks a question. An item can be a run
+;;; variable as ${name}. The owner can also decide. wait_ms limits the wait:
+;;; then the step ends with timeout_outcome (default "timeout") and
+;;; decided_by "workflow:timeout".
 Step = {
   id: text,
   kind: text,
@@ -17,6 +22,9 @@ Step = {
   ? outcomes: [* text],
   next: { * text => text },
   ? max_attempts: uint,
+  ? deciders: [* text],
+  ? wait_ms: uint,
+  ? timeout_outcome: text,
 }
 
 ;;; A reusable workflow. revision increases on each put.
@@ -51,6 +59,7 @@ StepState = {
 ;;; status: "running", "waiting", "succeeded", "failed", "cancelled".
 ;;; vars holds run data. Task outputs and human comments merge into vars.
 ;;; history lists step states in order; the last one is the current step.
+;;; waiting_for: the deciders of the waiting step. A decider can read the run.
 Run = {
   id: text,
   definition: text,
@@ -60,6 +69,8 @@ Run = {
   current_step: text,
   vars: { * text => text },
   history: [* StepState],
+  ? waiting_for: [* text],
+  ? wait_until_ms: uint,
   ? error: text,
   created_ms: uint,
   updated_ms: uint,
@@ -75,7 +86,8 @@ StartRequest = {
   ? key: text,
 }
 GetRunRequest = { id: text }
-ListRunsRequest = { ? status: text, ? definition: text, ? limit: uint }
+;;; waiting_for_me: the runs that wait for a decision of the caller.
+ListRunsRequest = { ? status: text, ? definition: text, ? limit: uint, ? waiting_for_me: bool }
 ListRunsResponse = { runs: [* Run] }
 
 ;;; Returns the run when updated_ms is greater than after_ms, or waits up
@@ -113,8 +125,8 @@ CompleteRequest = {
   ? error: text,
 }
 
-;;; Decides a waiting human step. The caller must own the run or hold
-;;; the "workflow:decide" scope.
+;;; Decides a waiting human step. The caller must own the run, be a decider
+;;; of the step, or hold the "workflow:decide" scope.
 DecideRequest = {
   run: text,
   step: text,

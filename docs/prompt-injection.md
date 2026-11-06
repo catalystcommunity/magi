@@ -209,9 +209,11 @@ This gap remains:
 
 ### 5.2 Persona turn
 
-The tools are recall, remember, search_conversation, start_code_change,
-list_tasks, and cancel_task. Search results and memory can contain
-untrusted text now. `remember` can make an injection permanent.
+The tools are recall, remember, change_knowledge, search_conversation,
+start_code_change, list_tasks, and cancel_task. Search results and memory
+can contain untrusted text now. `remember` can make an injection permanent,
+and `change_knowledge` can change a correct record. Both act only on the
+records of the person, and the history keeps each change.
 `start_code_change` can turn attacker text into a task. A web fetch tool
 will add a way to send data out: a URL that the model makes can carry data
 in the request.

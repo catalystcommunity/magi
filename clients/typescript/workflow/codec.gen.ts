@@ -347,8 +347,11 @@ export function toStepCborValue(v: Step): CborValue {
   csilMap.set("next", new Map<CborValue, CborValue>(Object.entries(v.next).map(([csilK, csilV]): [CborValue, CborValue] => [csilK, csilV])));
   if (v.queue !== undefined) csilMap.set("queue", v.queue);
   if (v.prompt !== undefined) csilMap.set("prompt", v.prompt);
+  if (v.waitMs !== undefined) csilMap.set("wait_ms", v.waitMs);
+  if (v.deciders !== undefined) csilMap.set("deciders", v.deciders);
   if (v.outcomes !== undefined) csilMap.set("outcomes", v.outcomes);
   if (v.maxAttempts !== undefined) csilMap.set("max_attempts", v.maxAttempts);
+  if (v.timeoutOutcome !== undefined) csilMap.set("timeout_outcome", v.timeoutOutcome);
   return csilMap;
 }
 
@@ -361,6 +364,9 @@ export function fromStepCborValue(value: CborValue): Step {
     outcomes: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "outcomes")),
     next: Object.fromEntries(Array.from(asMap(requireKey(value, "next")), ([csilK, csilV]): [string, string] => [asString(csilK), asString(csilV)])),
     maxAttempts: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "max_attempts")),
+    deciders: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "deciders")),
+    waitMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "wait_ms")),
+    timeoutOutcome: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "timeout_outcome")),
   };
 }
 
@@ -474,7 +480,9 @@ export function toRunCborValue(v: Run): CborValue {
   csilMap.set("created_ms", v.createdMs);
   csilMap.set("definition", v.definition);
   csilMap.set("updated_ms", v.updatedMs);
+  if (v.waitingFor !== undefined) csilMap.set("waiting_for", v.waitingFor);
   csilMap.set("current_step", v.currentStep);
+  if (v.waitUntilMs !== undefined) csilMap.set("wait_until_ms", v.waitUntilMs);
   return csilMap;
 }
 
@@ -488,6 +496,8 @@ export function fromRunCborValue(value: CborValue): Run {
     currentStep: asString(requireKey(value, "current_step")),
     vars: Object.fromEntries(Array.from(asMap(requireKey(value, "vars")), ([csilK, csilV]): [string, string] => [asString(csilK), asString(csilV)])),
     history: asArray(requireKey(value, "history")).map((csilE) => fromStepStateCborValue(csilE)),
+    waitingFor: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "waiting_for")),
+    waitUntilMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "wait_until_ms")),
     error: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "error")),
     createdMs: asNumber(requireKey(value, "created_ms")),
     updatedMs: asNumber(requireKey(value, "updated_ms")),
@@ -573,6 +583,7 @@ export function toListRunsRequestCborValue(v: ListRunsRequest): CborValue {
   if (v.limit !== undefined) csilMap.set("limit", v.limit);
   if (v.status !== undefined) csilMap.set("status", v.status);
   if (v.definition !== undefined) csilMap.set("definition", v.definition);
+  if (v.waitingForMe !== undefined) csilMap.set("waiting_for_me", v.waitingForMe);
   return csilMap;
 }
 
@@ -581,6 +592,7 @@ export function fromListRunsRequestCborValue(value: CborValue): ListRunsRequest 
     status: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "status")),
     definition: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "definition")),
     limit: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
+    waitingForMe: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "waiting_for_me")),
   };
 }
 

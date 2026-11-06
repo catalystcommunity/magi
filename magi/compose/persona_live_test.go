@@ -14,8 +14,8 @@ import (
 )
 
 // TestLivePersonaTools checks that a model follows the persona rules for
-// tools: recall before an answer about the person's things, remember new
-// facts, start a code change, list tasks, and no tool for small talk. It
+// tools: recall before an answer about the person's things and before a
+// change of a fact, remember new facts, start a code change, list tasks, and no tool for small talk. It
 // checks the first model call only. Set MAGI_TEST_PERSONA_URL and
 // MAGI_TEST_PERSONA_MODEL, and MAGI_TEST_PERSONA_KEY_FILE for a key (a
 // provider key or an inference:use token). MAGI_TEST_PERSONA_RUNS (default
@@ -45,9 +45,11 @@ func TestLivePersonaTools(t *testing.T) {
 		{"Please add a health endpoint summary to the Magi README.", "start_code_change"},
 		{"Please add a health endpoint summary to the Magi Readme.", "start_code_change"}, // as Parakeet transcribes it
 		{"How are my tasks going?", "list_tasks"},
+		{"We switched dentists. My dentist is now Dr. Chen.", "recall"},
+		{"That's wrong, my sister lives in Phoenix, not Tucson.", "recall"},
 		{"Hello! How are you today?", ""},
 	}
-	system := fmt.Sprintf(personaPrompt, "Magi", "Alex", time.Now().Format("Monday 2 January 2006 15:04 MST"))
+	system := fmt.Sprintf(profileFor(Persona).prompt, "Magi", "Alex", time.Now().Format("Monday 2 January 2006 15:04 MST"))
 	failed := 0
 	for _, tc := range cases {
 		pass := 0

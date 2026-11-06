@@ -8,6 +8,7 @@ import (
 	"errors"
 	"log/slog"
 	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -73,7 +74,7 @@ func storeErr(err error, what string) error {
 func actAs(p authn.Principal) bool { return p.Has(ScopeAdmin) || p.Has(ScopeActAs) }
 
 func canRead(p authn.Principal, r *api.Run) bool {
-	return r.Owner == p.Subject || actAs(p) || p.Has(ScopeDecide) || p.Has(ScopeWorker)
+	return r.Owner == p.Subject || actAs(p) || p.Has(ScopeDecide) || p.Has(ScopeWorker) || slices.Contains(r.WaitingFor, p.Subject)
 }
 
 func worker(ctx context.Context) error {
@@ -212,7 +213,11 @@ func (s *Service) ListRuns(ctx context.Context, req api.ListRunsRequest) (api.Li
 		}
 		return *v
 	}
-	runs, err := s.Store.ListRuns(ctx, owner, deref(req.Status), deref(req.Definition), limit)
+	decider := ""
+	if req.WaitingForMe != nil && *req.WaitingForMe {
+		decider = p.Subject
+	}
+	runs, err := s.Store.ListRuns(ctx, owner, deref(req.Status), deref(req.Definition), decider, limit)
 	return api.ListRunsResponse{Runs: runs}, err
 }
 
@@ -432,8 +437,8 @@ func (s *Service) Decide(ctx context.Context, req api.DecideRequest) (api.Run, e
 	}
 	var tasks []store.Task
 	r, _, err := s.Store.UpdateRun(ctx, req.Run, func(tx *store.RunTx, r *api.Run) error {
-		if r.Owner != p.Subject && !actAs(p) && !p.Has(ScopeDecide) {
-			return rpc.Denied("only the run owner or scope %s may decide", ScopeDecide)
+		if r.Owner != p.Subject && !actAs(p) && !p.Has(ScopeDecide) && !slices.Contains(r.WaitingFor, p.Subject) {
+			return rpc.Denied("only the run owner, a decider of the step, or scope %s may decide", ScopeDecide)
 		}
 		cur := current(r)
 		if r.Status != RunWaiting || cur == nil || cur.Step != req.Step || cur.Status != StepWaiting {
@@ -484,7 +489,7 @@ func (s *Service) Cancel(ctx context.Context, req api.CancelRequest) (api.Run, e
 		if cur := current(r); cur != nil && cur.EndedMs == nil {
 			endStep(cur, StepCancelled, "", now())
 		}
-		r.Status, r.CurrentStep = RunCancelled, ""
+		r.Status, r.CurrentStep, r.WaitingFor, r.WaitUntilMs = RunCancelled, "", nil, nil
 		msg := "cancelled by " + p.Subject
 		if req.Reason != nil && *req.Reason != "" {
 			msg += ": " + *req.Reason

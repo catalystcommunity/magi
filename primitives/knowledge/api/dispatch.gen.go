@@ -7,38 +7,93 @@ import "context"
 // KnowledgeServiceOps returns the server dispatch table for KnowledgeService.
 func KnowledgeServiceOps(impl KnowledgeService) map[string]func(context.Context, []byte) ([]byte, error) {
 	return map[string]func(context.Context, []byte) ([]byte, error){
-		"put-node": func(ctx context.Context, b []byte) ([]byte, error) {
-			req, err := DecodePutNodeRequest(b)
+		"put-entity": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodePutEntityRequest(b)
 			if err != nil {
 				return nil, &DecodeError{Err: err}
 			}
-			resp, err := impl.PutNode(ctx, req)
+			resp, err := impl.PutEntity(ctx, req)
 			if err != nil {
 				return nil, err
 			}
-			return EncodeNode(resp), nil
+			return EncodeEntity(resp), nil
 		},
-		"get-node": func(ctx context.Context, b []byte) ([]byte, error) {
-			req, err := DecodeGetNodeRequest(b)
+		"self": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeSelfRequest(b)
 			if err != nil {
 				return nil, &DecodeError{Err: err}
 			}
-			resp, err := impl.GetNode(ctx, req)
+			resp, err := impl.Self(ctx, req)
 			if err != nil {
 				return nil, err
 			}
-			return EncodeNodeView(resp), nil
+			return EncodeEntity(resp), nil
 		},
-		"put-edge": func(ctx context.Context, b []byte) ([]byte, error) {
-			req, err := DecodePutEdgeRequest(b)
+		"assert": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeAssertRequest(b)
 			if err != nil {
 				return nil, &DecodeError{Err: err}
 			}
-			resp, err := impl.PutEdge(ctx, req)
+			resp, err := impl.Assert(ctx, req)
 			if err != nil {
 				return nil, err
 			}
-			return EncodeEdge(resp), nil
+			return EncodeClaim(resp), nil
+		},
+		"change": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeChangeRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Change(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeChangeResponse(resp), nil
+		},
+		"merge": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeMergeRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Merge(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeChange(resp), nil
+		},
+		"unmerge": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeUnmergeRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Unmerge(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeChange(resp), nil
+		},
+		"record-episode": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeRecordEpisodeRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.RecordEpisode(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeEpisode(resp), nil
+		},
+		"put-procedure": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodePutProcedureRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.PutProcedure(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeProcedure(resp), nil
 		},
 		"link-evidence": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeLinkEvidenceRequest(b)
@@ -51,27 +106,115 @@ func KnowledgeServiceOps(impl KnowledgeService) map[string]func(context.Context,
 			}
 			return EncodeEvidence(resp), nil
 		},
-		"query": func(ctx context.Context, b []byte) ([]byte, error) {
-			req, err := DecodeQueryRequest(b)
+		"dispute": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeDisputeRequest(b)
 			if err != nil {
 				return nil, &DecodeError{Err: err}
 			}
-			resp, err := impl.Query(ctx, req)
+			resp, err := impl.Dispute(ctx, req)
 			if err != nil {
 				return nil, err
 			}
-			return EncodeQueryResponse(resp), nil
+			return EncodeDispute(resp), nil
 		},
-		"delete": func(ctx context.Context, b []byte) ([]byte, error) {
-			req, err := DecodeDeleteRequest(b)
+		"resolve-dispute": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeResolveDisputeRequest(b)
 			if err != nil {
 				return nil, &DecodeError{Err: err}
 			}
-			resp, err := impl.Delete(ctx, req)
+			resp, err := impl.ResolveDispute(ctx, req)
 			if err != nil {
 				return nil, err
 			}
-			return EncodeDeleteResponse(resp), nil
+			return EncodeDispute(resp), nil
+		},
+		"list-disputes": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListDisputesRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListDisputes(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListDisputesResponse(resp), nil
+		},
+		"put-group": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodePutGroupRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.PutGroup(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeGroup(resp), nil
+		},
+		"search": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeSearchRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Search(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeSearchResponse(resp), nil
+		},
+		"about": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeAboutRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.About(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeAboutResponse(resp), nil
+		},
+		"neighbors": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeNeighborsRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Neighbors(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeNeighborsResponse(resp), nil
+		},
+		"timeline": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeTimelineRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Timeline(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeTimelineResponse(resp), nil
+		},
+		"history": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeHistoryRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.History(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeHistoryResponse(resp), nil
+		},
+		"get": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeGetRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Get(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeGetResponse(resp), nil
 		},
 	}
 }
