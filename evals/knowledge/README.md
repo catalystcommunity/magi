@@ -88,6 +88,7 @@ questions. "Checks" counts the 5 checks after the changes. The note taker
 | glm-5.3 (Zen), no local model | on | 10, 12 | 1, 2 | 8 s | 28 s |
 | glm-5.3 (Zen), no local model | off | 11, 12 | 3, 3 | 8 s | 33 s |
 | gemma-4-12b, default, orphan removal | on | 14, 14 | 4, 4 | 8 s | 84 s |
+| gemma-4-12b, default2, records after the notes | on | 14, 14 | 4, 4 | 8 s | 62 s |
 
 The files `glm-5.3-nolocal-*` were runs for gpt-oss-20b and qwen3.6-35b-a3b
 in which the inference host did not start; all turns used Zen. The runs of
@@ -106,8 +107,11 @@ Findings:
   the fix of Dana's city. The fix removed the claim but not the old place.
   With the removal (`primitives/knowledge`, `fix`), no old value stays.
 - The retract c03 ("There is no chores calendar. Forget it.") failed in
-  both default runs. The persona said that it did not find the record, but
-  the next answer names the chores calendar. The match of the records for
-  that message must be examined.
+  the default runs. The note taker retracted the claim, but the persona got
+  the records from before the change and said that it did not find the
+  record. Now Magi gives the records after the changes, and the persona
+  confirms the retract (runs `default2`). The check c03.1 still fails: the
+  store has no chores calendar, but the asking persona repeats its own
+  answer to the same question (q08), which is in its history.
 
 Gemma 4 12B with the note taker is the default local model.

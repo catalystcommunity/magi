@@ -422,7 +422,9 @@ records. It asks `MAGI_LIBRARIAN_MODELS` for the knowledge operations of
 the message, as JSON that agrees with a schema: `remember`, `update`,
 `fix`, or `retract`, with the arguments of the tools. Magi applies them
 with the tool functions, before the persona model writes the reply, and
-tells the persona model what it did. Thus a fact is recorded also when the
+tells the persona model what it did, with the line of each changed record.
+Then Magi finds the matching records again, so that the persona model gets
+the records after the changes. Thus a fact is recorded also when the
 persona model does not call a tool. The turn annotation has each call with
 `"by": "note-taker"` and the model call in `notes`.
 `MAGI_NOTE_TAKER=false` turns it off. See `docs/knowledge.md`.

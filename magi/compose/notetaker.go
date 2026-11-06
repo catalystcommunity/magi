@@ -168,8 +168,22 @@ func (s *System) applyNotes(ctx context.Context, a workflowapi.Assignment, as co
 			*refs = append(*refs, *ref)
 		}
 		if !strings.HasPrefix(out, "error") && !strings.HasPrefix(out, "Not recorded") {
-			done = append(done, out)
+			done = append(done, out+recordOf(notes, it.Id))
 		}
 	}
 	return done
+}
+
+// recordOf gives " (the record: ...)" with the line of the notes that has
+// the id, so that the persona knows what was changed or retracted.
+func recordOf(notes, id string) string {
+	if id == "" {
+		return ""
+	}
+	for _, l := range strings.Split(notes, "\n") {
+		if strings.Contains(l, id) {
+			return " (the record was: " + strings.TrimSpace(l) + ")"
+		}
+	}
+	return ""
 }

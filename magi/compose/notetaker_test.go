@@ -37,3 +37,13 @@ func TestNoteItemToolCall(t *testing.T) {
 		}
 	}
 }
+
+func TestRecordOf(t *testing.T) {
+	notes := "ent_a  [person] me\n      clm_b  me chores-calendar-location Nextcloud"
+	if got := recordOf(notes, "clm_b"); got != " (the record was: clm_b  me chores-calendar-location Nextcloud)" {
+		t.Fatalf("got %q", got)
+	}
+	if recordOf(notes, "clm_x") != "" || recordOf(notes, "") != "" {
+		t.Fatal("no match must give nothing")
+	}
+}
