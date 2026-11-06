@@ -194,9 +194,35 @@ func (s *Store) fix(ctx context.Context, tx pgx.Tx, w Who, t string, owners []st
 		if err := s.markStale(ctx, tx, []string{in.ID}); err != nil {
 			return "", err
 		}
+		// The wrong object can be an entity that exists only because of
+		// this claim ("Tucson" of "Dana lives in Tucson"). Remove it too:
+		// else the error stays in the store as a thing with no facts.
+		if old, ok := before["object"].(*string); ok && old != nil {
+			if gone, err := s.dropOrphan(ctx, tx, *old, owners); err != nil {
+				return "", err
+			} else if gone {
+				after["removed"] = []string{*old}
+			}
+		}
 	}
 	id, _, err := s.change(ctx, tx, in.ID, "fix", w, owners, in.Reason, in.Utterance, before, after)
 	return id, err
+}
+
+// dropOrphan retracts entity id when it has the same owners, no external
+// reference, no merged entity, no summary, no current claim, and no episode
+// or procedure. It reports whether it retracted the entity.
+func (s *Store) dropOrphan(ctx context.Context, tx pgx.Tx, id string, owners []string) (bool, error) {
+	tag, err := tx.Exec(ctx, `UPDATE entities e SET status = 'retracted', updated_ms = $3
+		WHERE e.id = $1 AND e.status = 'current' AND e.owners = $2 AND e.ext_system IS NULL AND e.summary = ''
+		  AND NOT EXISTS (SELECT 1 FROM claims c WHERE (c.subject = e.id OR c.object = e.id) AND c.status <> 'retracted')
+		  AND NOT EXISTS (SELECT 1 FROM entities m WHERE m.merged_into = e.id)
+		  AND NOT EXISTS (SELECT 1 FROM episodes p WHERE e.id = ANY(p.entities))
+		  AND NOT EXISTS (SELECT 1 FROM procedures p WHERE e.id = ANY(p.entities))`, id, owners, s.now())
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() == 1, nil
 }
 
 func (s *Store) reindex(ctx context.Context, tx pgx.Tx, t, id string) error {

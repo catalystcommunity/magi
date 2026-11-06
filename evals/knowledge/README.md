@@ -65,3 +65,49 @@ The substring check has known errors: "google" passes "It is likely in
 Google Calendar", which is a guess. a03 in r3b fails because the reply
 names Tucson ("the records show that Dana lives in Tucson") while it says
 that it does not know.
+
+### Local model comparison (round0-v2, 2026-11-06)
+
+Two runs of each model, at the same time, on one RTX 4080 (16 GB). Each run
+has a new subject. "Questions" counts the 16 questions, with the 3 abstain
+questions. "Checks" counts the 5 checks after the changes. The note taker
+(`MAGI_NOTE_TAKER`, see `magi/README.md`) uses the same local model.
+
+| Model | Note taker | Questions | Checks | Median turn | Longest turn |
+| --- | --- | --- | --- | --- | --- |
+| qwen3.5-9b | on | 10, 6 | 2, 1 | 4 s | 9 s |
+| qwen3.5-9b | off | 5, 5 | 1, 1 | 2 s | 7 s |
+| gemma-4-12b | on | 14, 13 | 4, 5 | 7 s | 66 s |
+| gemma-4-12b | off | 10, 10 | 3, 4 | 5 s | 94 s |
+| gpt-oss-20b | on | 13, 8 | 5, 2 | 5 s | 17 s |
+| gpt-oss-20b | off | 12, 9 | 3, 2 | 3 s | 11 s |
+| qwen3.6-35b-a3b | on | 13, 13 | 2, 2 | 26 s | 50 s |
+| qwen3.6-35b-a3b | off | 9, 11 | 3, 5 | 22 s | 37 s |
+| qwen3.8-flash-next (IQ3_XXS) | on | 15, 15 | 5, 4 | 60 s | 146 s |
+| qwen3.8-flash-next (IQ3_XXS) | off | stopped | stopped | | over 300 s |
+| glm-5.3 (Zen), no local model | on | 10, 12 | 1, 2 | 8 s | 28 s |
+| glm-5.3 (Zen), no local model | off | 11, 12 | 3, 3 | 8 s | 33 s |
+| gemma-4-12b, default, orphan removal | on | 14, 14 | 4, 4 | 8 s | 84 s |
+
+The files `glm-5.3-nolocal-*` were runs for gpt-oss-20b and qwen3.6-35b-a3b
+in which the inference host did not start; all turns used Zen. The runs of
+Qwen3.8-Flash-Next with the note taker off stopped at the 300 s limit of the
+runner (10/12 and 9/11 passed before the stop).
+
+Findings:
+
+- The note taker helps the small models most (gemma-4-12b +4 questions,
+  qwen3.5-9b +3). With the note taker off, the persona must call the tools,
+  and these models often say "I've updated" with no call.
+- Qwen3.8-Flash-Next gives the best answers, but its turns are 60 s and
+  more. It does not fit in 16 GB: part of the model and the n-gram table
+  are in system memory.
+- In all runs before the orphan removal, "tucson" stayed in the store after
+  the fix of Dana's city. The fix removed the claim but not the old place.
+  With the removal (`primitives/knowledge`, `fix`), no old value stays.
+- The retract c03 ("There is no chores calendar. Forget it.") failed in
+  both default runs. The persona said that it did not find the record, but
+  the next answer names the chores calendar. The match of the records for
+  that message must be examined.
+
+Gemma 4 12B with the note taker is the default local model.

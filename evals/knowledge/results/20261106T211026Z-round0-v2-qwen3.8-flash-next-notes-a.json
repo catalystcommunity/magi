@@ -1,0 +1,411 @@
+{
+ "summary": {
+  "set": "round0-v2",
+  "label": "qwen3.8-flash-next-notes-a",
+  "when": "2026-11-06T21:10:26+00:00",
+  "models": [
+   "qwen3.8-flash-next"
+  ],
+  "errors": 0,
+  "store": {
+   "st1": {
+    "missing": [],
+    "present": []
+   },
+   "st2": {
+    "missing": [],
+    "present": [
+     "tucson",
+     "basement"
+    ]
+   }
+  },
+  "question": "15/16",
+  "check": "5/5",
+  "abstain": "2/3",
+  "by_change_kind": {
+   "update": [
+    2,
+    2
+   ],
+   "fix": [
+    2,
+    2
+   ],
+   "retract": [
+    1,
+    1
+   ]
+  }
+ },
+ "log": [
+  {
+   "reply": "Recorded: your dentist is Dr. Rivera, at Maple Street Dental.\n  -> knowledge-node ent_p8p786CoiXhruq-y5-ft me\n  -> knowledge-node ent_dMxR-vjh4LJbpJBPgz7k Dr. Rivera\n  about: me\n  about: Dr. Rivera",
+   "model": "qwen3.8-flash-next",
+   "ms": 38247,
+   "kind": "seed",
+   "id": "s01",
+   "say": "Remember that my dentist is Dr. Rivera at Maple Street Dental."
+  },
+  {
+   "reply": "Recorded: Maple Street Dental books through Zocdoc.\n  -> knowledge-node ent_7NTijmLbHT-J6X_nNk2Z Maple Street Dental\n  about: Maple Street Dental",
+   "model": "qwen3.8-flash-next",
+   "ms": 66527,
+   "kind": "seed",
+   "id": "s02",
+   "say": "Maple Street Dental takes bookings through Zocdoc."
+  },
+  {
+   "reply": "Recorded: your vet is Dr. Okafor at Birch Lane Animal Clinic, and they book through PetDesk.\n  -> knowledge-node ent_p8p786CoiXhruq-y5-ft me\n  -> knowledge-node ent_hiDsyQ8i75ZJUosfjePN Dr. Okafor\n  -> knowledge-node ent_dmLsativepxt2VydtaWy Birch Lane Animal Clinic\n  about: me\n  about: Dr. Okafor\n  about: Birch Lane Animal Clinic",
+   "model": "qwen3.8-flash-next",
+   "ms": 72208,
+   "kind": "seed",
+   "id": "s03",
+   "say": "My vet is Dr. Okafor at Birch Lane Animal Clinic. They book through PetDesk."
+  },
+  {
+   "reply": "Recorded: your family calendar is in the household Nextcloud.\n  -> knowledge-node ent_p8p786CoiXhruq-y5-ft me\n  about: me",
+   "model": "qwen3.8-flash-next",
+   "ms": 76286,
+   "kind": "seed",
+   "id": "s04",
+   "say": "My family calendar is in the household Nextcloud."
+  },
+  {
+   "reply": "Recorded: the kids sports calendar and the chores calendar are both in the household Nextcloud, alongside the family calendar.\n  -> knowledge-node ent_p8p786CoiXhruq-y5-ft kg-eval-qwen3.8-flash-next-notes-a-203153@example.local\n  -> knowledge-node ent_p8p786CoiXhruq-y5-ft kg-eval-qwen3.8-flash-next-notes-a-203153@example.local\n  -> knowledge-node ent_LIerMs5zB8zFGofrEp6a kids sports calendar\n  -> knowledge-node ent_kfPSrA5ZplrOi07B_6D_ chores calendar\n  about: chores calendar\n  about: kg-eval-qwen3.8-flash-next-notes-a-203153@example.local\n  about: kids sports calendar\n  about: kg-eval-qwen3.8-flash-next-notes-a-203153@example.local",
+   "model": "qwen3.8-flash-next",
+   "ms": 82135,
+   "kind": "seed",
+   "id": "s05",
+   "say": "The kids sports calendar and the chores calendar are in Nextcloud too."
+  },
+  {
+   "reply": "Recorded: your work calendar is in the company Google Workspace.\n  -> knowledge-node ent_p8p786CoiXhruq-y5-ft me\n  about: me",
+   "model": "qwen3.8-flash-next",
+   "ms": 86391,
+   "kind": "seed",
+   "id": "s06",
+   "say": "My work calendar is in the company Google Workspace."
+  },
+  {
+   "reply": "Recorded: your sister Dana lives in Tucson.\n  -> knowledge-node ent_p8p786CoiXhruq-y5-ft me\n  -> knowledge-node ent_dzp1kURTLABAh3uGw6xq Dana\n  about: Dana\n  about: me",
+   "model": "qwen3.8-flash-next",
+   "ms": 73924,
+   "kind": "seed",
+   "id": "s07",
+   "say": "My sister Dana lives in Tucson."
+  },
+  {
+   "reply": "Recorded: Dana's birthday is March 3.\n  -> knowledge-node ent_dzp1kURTLABAh3uGw6xq Dana\n  about: Dana",
+   "model": "qwen3.8-flash-next",
+   "ms": 69041,
+   "kind": "seed",
+   "id": "s08",
+   "say": "Dana's birthday is March 3."
+  },
+  {
+   "reply": "Recorded: you work at Brightline Logistics as an operations manager.\n  -> knowledge-node ent_p8p786CoiXhruq-y5-ft me\n  -> knowledge-node ent_p8p786CoiXhruq-y5-ft me\n  about: me\n  about: me",
+   "model": "qwen3.8-flash-next",
+   "ms": 73594,
+   "kind": "seed",
+   "id": "s09",
+   "say": "I work at Brightline Logistics as an operations manager."
+  },
+  {
+   "reply": "Recorded: your router is a Ubiquiti Dream Machine, located in the basement closet.\n  -> knowledge-node ent_p8p786CoiXhruq-y5-ft me\n  -> knowledge-node ent_8HvKtLqVnpfoHZIRHeE- Ubiquiti Dream Machine\n  about: Ubiquiti Dream Machine\n  about: me",
+   "model": "qwen3.8-flash-next",
+   "ms": 74912,
+   "kind": "seed",
+   "id": "s10",
+   "say": "Our router is a Ubiquiti Dream Machine in the basement closet."
+  },
+  {
+   "kind": "store",
+   "id": "st1",
+   "say": "(store)",
+   "reply": "ent_pFxsZRG3ih5nvbtJTbWg  [place] basement closet\n      clm_oVlLK6V8ykNSMJEnLTil  Ubiquiti Dream Machine located-in basement closet\nent_8HvKtLqVnpfoHZIRHeE-  [device] Ubiquiti Dream Machine\n      clm_muMHWsVwOEsecHjucqNE  kg-eval-qwen3.8-flash-next-notes-a-203153@example.local router Ubiquiti Dream Machine\nent_YrGgLobD-sToqN_JEkjM  [organization] Brightline Logistics\n      clm_1-VIKxysVAWrISBmA2Kb  kg-eval-qwen3.8-flash-next-notes-a-203153@example.local works-at Brightline Logistics\nent_dzp1kURTLABAh3uGw6xq  [person] Dana\n      clm_6IyYEKqJtnpXxMx3S0GL  kg-eval-qwen3.8-flash-next-notes-a-203153@example.local sister Dana\n      clm__7rU-sP25axTX9bNLtnj  Dana lives-in Tucson\n      clm_c52Ys-frAj-uCeaqfD6G  Dana birthday March 3\nent_StayLDOT2MzAx-1qwtxA  [place] Tucson\nent_l8HC9yKBgnjsVTsz8VrH  [organization] company Google Workspace\n      clm_uNTZdGPjJerCZQteqVwL  kg-eval-qwen3.8-flash-next-notes-a-203153@example.local hosted-in company Google Workspace\nent_xq8VVY1mtGvTBh4ggJAI  [thing] household Nextcloud\n      clm_v5pUzPGrBakB3ZPpmJeR  kg-eval-qwen3.8-flash-next-notes-a-203153@example.local family-calendar-in household Nextcloud\n      clm_cpGOzLcXuqu1fy8oDM2A  kids sports calendar hosted-in household Nextcloud\n      clm_AvhUDjaD9hIk_d6FdQqI  chores calendar hosted-in household Nextcloud\nent_kfPSrA5ZplrOi07B_6D_  [thing] chores calendar\nent_LIerMs5zB8zFGofrEp6a  [thing] kids sports calendar\nent_AdTGOUACH4l2RwR_LEJy  [system] PetDesk\n      clm_9bI7iStZ3tRTmEENUC2z  Birch Lane Animal Clinic books-through PetDesk\nent_dmLsativepxt2VydtaWy  [organization] Birch Lane Animal Clinic\n      clm_9Y5v8u2Lag9adqXLX8Fd  Dr. Okafor works-at Birch Lane Animal Clinic\nent_hiDsyQ8i75ZJUosfjePN  [person] Dr. Okafor\n      clm_G_km3-PsjppWLq0W21oP  kg-eval-qwen3.8-flash-next-notes-a-203153@example.local vet Dr. Okafor\nent_HhyfM86n_saAhDFH0_0Q  [system] Zocdoc\n      clm_Fayteqx-s1tdY6I9VBg9  Maple Street Dental books-through Zocdoc\nent_7NTijmLbHT-J6X_nNk2Z  [organization] Maple Street Dental\n      clm_oCQzPYJ-6mBBucjXpukD  Dr. Rivera works-at Maple Street Dental\nent_dMxR-vjh4LJbpJBPgz7k  [person] Dr. Rivera\n      clm_WYOz2YAm1dH6Ke_DDqAy  kg-eval-qwen3.8-flash-next-notes-a-203153@example.local dentist Dr. Rivera\nent_p8p786CoiXhruq-y5-ft  [person] kg-eval-qwen3.8-flash-next-notes-a-203153@example.local (me, myself)\n      clm_cq_0PLXBuaTK5yBj4opb  kg-eval-qwen3.8-flash-next-notes-a-203153@example.local job operations manager",
+   "ms": 0,
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Your dentist is Dr. Rivera, at Maple Street Dental.",
+   "model": "qwen3.8-flash-next",
+   "ms": 62726,
+   "kind": "question",
+   "id": "q01",
+   "say": "Who is my dentist?",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Dr. Rivera works at Maple Street Dental.",
+   "model": "qwen3.8-flash-next",
+   "ms": 51442,
+   "kind": "question",
+   "id": "q02",
+   "say": "Where does my dentist work?",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "You book with Maple Street Dental through Zocdoc.",
+   "model": "qwen3.8-flash-next",
+   "ms": 50347,
+   "kind": "question",
+   "id": "q03",
+   "say": "How do I book a dentist appointment?",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Your vet is Dr. Okafor, at Birch Lane Animal Clinic.",
+   "model": "qwen3.8-flash-next",
+   "ms": 48285,
+   "kind": "question",
+   "id": "q04",
+   "say": "Who is my vet?",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "You book with Birch Lane Animal Clinic through PetDesk.",
+   "model": "qwen3.8-flash-next",
+   "ms": 63015,
+   "kind": "question",
+   "id": "q05",
+   "say": "How do I book the vet?",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Your family calendar is on your household Nextcloud. The chores and kids sports calendars live there too.",
+   "model": "qwen3.8-flash-next",
+   "ms": 70203,
+   "kind": "question",
+   "id": "q06",
+   "say": "Where is my family calendar?",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "I don't have a record of a work calendar. I know you work at Brightline Logistics as operations manager, and your account lives in the company Google Workspace, but I don't know where your work calendar is kept.",
+   "model": "qwen3.8-flash-next",
+   "ms": 57842,
+   "kind": "question",
+   "id": "q07",
+   "say": "Where is my work calendar?",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Three of them: your family calendar, the chores calendar, and the kids sports calendar \u2014 all on your household Nextcloud.",
+   "model": "qwen3.8-flash-next",
+   "ms": 61323,
+   "kind": "question",
+   "id": "q08",
+   "say": "Which of my calendars are in Nextcloud?",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Your sister Dana lives in Tucson.",
+   "model": "qwen3.8-flash-next",
+   "ms": 55740,
+   "kind": "question",
+   "id": "q09",
+   "say": "Where does my sister live?",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Dana's birthday is March 3.",
+   "model": "qwen3.8-flash-next",
+   "ms": 58947,
+   "kind": "question",
+   "id": "q10",
+   "say": "When is Dana's birthday?",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "You work at Brightline Logistics, as operations manager.",
+   "model": "qwen3.8-flash-next",
+   "ms": 48520,
+   "kind": "question",
+   "id": "q11",
+   "say": "Where do I work?",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Your Ubiquiti Dream Machine router is in the basement closet.",
+   "model": "qwen3.8-flash-next",
+   "ms": 55916,
+   "kind": "question",
+   "id": "q12",
+   "say": "Where is the router?",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Birch Lane Animal Clinic books through PetDesk.",
+   "model": "qwen3.8-flash-next",
+   "ms": 51467,
+   "kind": "question",
+   "id": "q13",
+   "say": "What booking system does Birch Lane use?",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "I don't have a record of an eye doctor. If you tell me who it is, I'll note it down.",
+   "model": "qwen3.8-flash-next",
+   "ms": 54073,
+   "kind": "question",
+   "id": "a01",
+   "say": "Who is my eye doctor?",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "I don't have your car's license plate on record. If you give it to me, I'll save it.",
+   "model": "qwen3.8-flash-next",
+   "ms": 48874,
+   "kind": "question",
+   "id": "a02",
+   "say": "What is my car's license plate?",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "I don't have a record of a brother \u2014 only your sister Dana, who lives in Tucson.",
+   "model": "qwen3.8-flash-next",
+   "ms": 56462,
+   "kind": "question",
+   "id": "a03",
+   "say": "Where does my brother live?",
+   "ok": false,
+   "missing": [],
+   "present": [
+    "tucson"
+   ]
+  },
+  {
+   "reply": "Updated: your dentist is now Dr. Chen at Oak Hill Dental. Dr. Rivera and Maple Street Dental are no longer your dentist.\n\nOne thing I don't have: does Oak Hill Dental also book through Zocdoc, or a different system?\n  -> knowledge-node ent_WkPzpER8YMENjbgNTvTj Dr. Chen\n  about: Dr. Chen",
+   "model": "qwen3.8-flash-next",
+   "ms": 99129,
+   "kind": "change",
+   "id": "c01",
+   "say": "We switched dentists. My dentist is now Dr. Chen at Oak Hill Dental."
+  },
+  {
+   "reply": "Your dentist is Dr. Chen, at Oak Hill Dental.",
+   "model": "qwen3.8-flash-next",
+   "ms": 104190,
+   "kind": "check",
+   "id": "c01.1",
+   "say": "Who is my dentist?",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Before Dr. Chen, your dentist was Dr. Rivera, at Maple Street Dental.",
+   "model": "qwen3.8-flash-next",
+   "ms": 59851,
+   "kind": "check",
+   "id": "c01.2",
+   "say": "Who was my dentist before Dr. Chen?",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Fixed: Dana lives in Phoenix. Her birthday is still March 3.",
+   "model": "qwen3.8-flash-next",
+   "ms": 84182,
+   "kind": "change",
+   "id": "c02",
+   "say": "That's wrong, I misspoke earlier: Dana lives in Phoenix, not Tucson."
+  },
+  {
+   "reply": "Your sister Dana lives in Phoenix.",
+   "model": "qwen3.8-flash-next",
+   "ms": 79648,
+   "kind": "check",
+   "id": "c02.1",
+   "say": "Where does my sister live?",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Done \u2014 the chores calendar is forgotten. The family calendar and the kids sports calendar are still in the household Nextcloud.",
+   "model": "qwen3.8-flash-next",
+   "ms": 62993,
+   "kind": "change",
+   "id": "c03",
+   "say": "There is no chores calendar. Forget it."
+  },
+  {
+   "reply": "Two of them: your family calendar and the kids sports calendar.",
+   "model": "qwen3.8-flash-next",
+   "ms": 72809,
+   "kind": "check",
+   "id": "c03.1",
+   "say": "Which of my calendars are in Nextcloud?",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Fixed: your Ubiquiti Dream Machine is in the garage.",
+   "model": "qwen3.8-flash-next",
+   "ms": 89036,
+   "kind": "change",
+   "id": "c04",
+   "say": "Correction: the router is in the garage, not the basement. It was always in the garage."
+  },
+  {
+   "reply": "Your Ubiquiti Dream Machine router is in the garage.",
+   "model": "qwen3.8-flash-next",
+   "ms": 52125,
+   "kind": "check",
+   "id": "c04.1",
+   "say": "Where is the router?",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "kind": "store",
+   "id": "st2",
+   "say": "(store)",
+   "reply": "ent_hfc1b7sVawWA0vcCa8yi  [place] garage\n      clm_oVlLK6V8ykNSMJEnLTil  Ubiquiti Dream Machine located-in garage\nent_SzCYm1gWuzfne00GVc48  [place] Phoenix\n      clm__7rU-sP25axTX9bNLtnj  Dana lives-in Phoenix\nent_WkPzpER8YMENjbgNTvTj  [person] Dr. Chen\n      clm_XUuvFkWM3uw8APnggRDU  Dr. Chen works-at Oak Hill Dental\n      clm_ABilvh5LcxWR3OZR7ldw  kg-eval-qwen3.8-flash-next-notes-a-203153@example.local dentist Dr. Chen\nent_Akc0X7VelBFOySVI7n3V  [organization] Oak Hill Dental\nent_pFxsZRG3ih5nvbtJTbWg  [place] basement closet\nent_8HvKtLqVnpfoHZIRHeE-  [device] Ubiquiti Dream Machine\n      clm_muMHWsVwOEsecHjucqNE  kg-eval-qwen3.8-flash-next-notes-a-203153@example.local router Ubiquiti Dream Machine\nent_YrGgLobD-sToqN_JEkjM  [organization] Brightline Logistics\n      clm_1-VIKxysVAWrISBmA2Kb  kg-eval-qwen3.8-flash-next-notes-a-203153@example.local works-at Brightline Logistics\nent_dzp1kURTLABAh3uGw6xq  [person] Dana\n      clm_6IyYEKqJtnpXxMx3S0GL  kg-eval-qwen3.8-flash-next-notes-a-203153@example.local sister Dana\n      clm_c52Ys-frAj-uCeaqfD6G  Dana birthday March 3\nent_StayLDOT2MzAx-1qwtxA  [place] Tucson\nent_l8HC9yKBgnjsVTsz8VrH  [organization] company Google Workspace\n      clm_uNTZdGPjJerCZQteqVwL  kg-eval-qwen3.8-flash-next-notes-a-203153@example.local hosted-in company Google Workspace\nent_xq8VVY1mtGvTBh4ggJAI  [thing] household Nextcloud\n      clm_cpGOzLcXuqu1fy8oDM2A  kids sports calendar hosted-in household Nextcloud\n      clm_v5pUzPGrBakB3ZPpmJeR  kg-eval-qwen3.8-flash-next-notes-a-203153@example.local family-calendar-in household Nextcloud\nent_LIerMs5zB8zFGofrEp6a  [thing] kids sports calendar\nent_AdTGOUACH4l2RwR_LEJy  [system] PetDesk\n      clm_9bI7iStZ3tRTmEENUC2z  Birch Lane Animal Clinic books-through PetDesk\nent_dmLsativepxt2VydtaWy  [organization] Birch Lane Animal Clinic\n      clm_9Y5v8u2Lag9adqXLX8Fd  Dr. Okafor works-at Birch Lane Animal Clinic\nent_hiDsyQ8i75ZJUosfjePN  [person] Dr. Okafor\n      clm_G_km3-PsjppWLq0W21oP  kg-eval-qwen3.8-flash-next-notes-a-203153@example.local vet Dr. Okafor\nent_HhyfM86n_saAhDFH0_0Q  [system] Zocdoc\n      clm_Fayteqx-s1tdY6I9VBg9  Maple Street Dental books-through Zocdoc\nent_7NTijmLbHT-J6X_nNk2Z  [organization] Maple Street Dental\n      clm_oCQzPYJ-6mBBucjXpukD  Dr. Rivera works-at Maple Street Dental\nent_dMxR-vjh4LJbpJBPgz7k  [person] Dr. Rivera\nent_p8p786CoiXhruq-y5-ft  [person] kg-eval-qwen3.8-flash-next-notes-a-203153@example.local (me, myself)\n      clm_cq_0PLXBuaTK5yBj4opb  kg-eval-qwen3.8-flash-next-notes-a-203153@example.local job operations manager",
+   "ms": 0,
+   "ok": false,
+   "missing": [],
+   "present": [
+    "tucson",
+    "basement"
+   ]
+  }
+ ]
+}

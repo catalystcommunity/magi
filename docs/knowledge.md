@@ -68,6 +68,11 @@ Each change has one of three operations.
 | `update` | The record was true, and now it is not. Example: "We changed dentists." | Ends the old claim (`valid_to_ms`) and adds a new claim. Only claims have updates. | The current claim. The old claim is in a question about the past. |
 | `retract` | The record was never true, or the person wants Magi to forget it. | Removes the record from all queries. With `erase`, the history keeps no copy of the content. Claims derived from it become stale. | Nothing. |
 
+A fix of the object of a claim also retracts the old object, when only that
+claim used it. Example: "Dana lives in Tucson" becomes "Dana lives in
+Phoenix", and "Tucson" was made only for the wrong claim. Else the error
+stays in the store as a thing with no facts.
+
 Evidence has the same operations. When the last supporting evidence of a
 claim is retracted, and no person wrote the claim, the claim is marked
 unsupported. The persona does not tell an unsupported claim as a fact. It

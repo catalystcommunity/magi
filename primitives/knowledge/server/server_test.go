@@ -258,6 +258,28 @@ func TestChanges(t *testing.T) {
 		t.Fatalf("history: %+v", h.Changes)
 	}
 
+	// fix of an object: the wrong object goes too when nothing else names
+	// it; an object that another claim names stays.
+	closet := must(e.alice.PutEntity(ctx, api.PutEntityRequest{Kind: "place", Label: "basement closet"}))
+	garage := must(e.alice.PutEntity(ctx, api.PutEntityRequest{Kind: "place", Label: "garage"}))
+	router := must(e.alice.PutEntity(ctx, api.PutEntityRequest{Kind: "device", Label: "router"}))
+	at := must(e.alice.Assert(ctx, api.AssertRequest{Subject: router.Id, Relation: "located-in", Object: &closet.Id}))
+	home := must(e.alice.PutEntity(ctx, api.PutEntityRequest{Kind: "place", Label: "Elm house"}))
+	sam := must(e.alice.PutEntity(ctx, api.PutEntityRequest{Kind: "person", Label: "Sam"}))
+	must(e.alice.Assert(ctx, api.AssertRequest{Subject: sam.Id, Relation: "owns", Object: &home.Id}))
+	visits := must(e.alice.Assert(ctx, api.AssertRequest{Subject: router.Id, Relation: "shipped-to", Object: &home.Id}))
+	must(e.alice.Change(ctx, api.ChangeRequest{Id: at.Id, Operation: "fix", Set: map[string]string{"object": garage.Id}}))
+	must(e.alice.Change(ctx, api.ChangeRequest{Id: visits.Id, Operation: "fix", Set: map[string]string{"object": garage.Id}}))
+	if s := must(e.alice.Search(ctx, api.SearchRequest{Text: ptr("closet")})); len(s.Entities) != 0 {
+		t.Errorf("the wrong object is still there: %+v", s.Entities)
+	}
+	if s := must(e.alice.Search(ctx, api.SearchRequest{Text: ptr("Elm house")})); !slices.ContainsFunc(s.Entities, func(x api.Entity) bool { return x.Id == home.Id }) {
+		t.Errorf("an object that another claim names is gone: %+v", s.Entities)
+	}
+	if h := must(e.alice.History(ctx, api.HistoryRequest{Id: at.Id})); !strings.Contains(*h.Changes[len(h.Changes)-1].After, closet.Id) {
+		t.Errorf("the fix does not name the removed object: %+v", h.Changes)
+	}
+
 	// update: the old claim ends, the new one is current; the past is a query.
 	before := uint64(time.Now().UnixMilli())
 	time.Sleep(5 * time.Millisecond)

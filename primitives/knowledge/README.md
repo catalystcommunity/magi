@@ -44,7 +44,7 @@ Contract: `contracts/knowledge.csil`, service `KnowledgeService`.
 
 | Operation | Records | Effect |
 | --- | --- | --- |
-| `fix` | all | Changes the fields in `set` in place. The history keeps the old values. |
+| `fix` | all | Changes the fields in `set` in place. The history keeps the old values. When a fix changes the object of a claim, the old object entity is retracted too if nothing else uses it (same owners, no external reference, no summary, no other claim, episode, procedure, or merged entity). The change names it in `after.removed`. |
 | `update` | claims | Ends the claim (`valid_to_ms`, status `ended`, `replaced_by`) and makes the claim that replaces it. |
 | `retract` | all | Removes the record from all queries. An entity takes its claims with it. With `erase`, the rows are deleted and the history keeps no content. |
 
