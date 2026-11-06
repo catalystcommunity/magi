@@ -8,8 +8,9 @@ use std::time::Duration;
 
 use common::*;
 use k8s_openapi::api::apps::v1::Deployment;
-use kube::api::{Api, DeleteParams, PostParams};
-use magi_release::cluster::{ANN_ID, ANN_PREVIOUS, KubeCluster};
+use k8s_openapi::api::core::v1::Pod;
+use kube::api::{Api, DeleteParams, ListParams, PostParams};
+use magi_release::cluster::{ANN_ID, ANN_PREVIOUS, KubeCluster, LABEL_PREFLIGHT};
 use magi_release::controller::Cluster;
 
 const NS: &str = "magi-release-test";
@@ -73,9 +74,17 @@ async fn scenario(cluster: KubeCluster, api: Api<Deployment>) {
     let mut strict = probe.clone();
     strict.name = "probe-strict".into();
     strict.health_path = Some("/magi-missing".into());
+    // The nginx entrypoint runs arguments that are not "nginx" as a command.
+    let mut pre_bad = probe.clone();
+    pre_bad.name = "probe-preflight-bad".into();
+    pre_bad.preflight_args = Some(vec!["sh".into(), "-c".into(), "echo preflight-says-no; exit 3".into()]);
+    pre_bad.preflight_timeout_seconds = Some(90);
+    let mut pre_ok = pre_bad.clone();
+    pre_ok.name = "probe-preflight-ok".into();
+    pre_ok.preflight_args = Some(vec!["true".into()]);
     cluster.wait_rollout(&probe, Duration::from_secs(150)).await.expect("initial deployment is ready");
 
-    let s = start(cluster.clone(), vec![probe, strict], 150, 8).await;
+    let s = start(cluster.clone(), vec![probe, strict, pre_bad, pre_ok], 150, 8).await;
     let op = token("operator");
     let image = |d: &Deployment| d.spec.as_ref().unwrap().template.spec.as_ref().unwrap().containers[0].image.clone().unwrap();
 
@@ -106,4 +115,25 @@ async fn scenario(cluster: KubeCluster, api: Api<Deployment>) {
     assert_eq!(r.status, "rolled-back");
     assert!(r.items[0].message.as_deref().unwrap().contains("health"));
     assert_eq!(image(&api.get(NAME).await.unwrap()), GOOD_2);
+
+    // 4. A preflight that fails changes nothing, and its pod is removed.
+    let r = s.create(&op, &[("probe-preflight-bad", GOOD_1)]).await.unwrap();
+    let r = s.wait(&op, &r.id, Duration::from_secs(300)).await;
+    eprintln!("preflight fails: {r:?}");
+    assert_eq!(r.status, "rolled-back");
+    let msg = r.items[0].message.clone().unwrap();
+    assert!(msg.contains("preflight") && msg.contains("preflight-says-no"), "{msg}");
+    assert_eq!(image(&api.get(NAME).await.unwrap()), GOOD_2);
+
+    // 5. A preflight that passes lets the release continue.
+    let r = s.create(&op, &[("probe-preflight-ok", GOOD_1)]).await.unwrap();
+    let r = s.wait(&op, &r.id, Duration::from_secs(300)).await;
+    eprintln!("preflight passes: {r:?}");
+    assert_eq!(r.status, "succeeded");
+    assert_eq!(image(&api.get(NAME).await.unwrap()), GOOD_1);
+
+    let pods: Api<Pod> = Api::namespaced(cluster.client.clone(), NS);
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    let left = pods.list(&ListParams::default().labels(LABEL_PREFLIGHT)).await.unwrap().items;
+    assert!(left.iter().all(|p| p.metadata.deletion_timestamp.is_some()), "preflight pods remain: {}", left.len());
 }

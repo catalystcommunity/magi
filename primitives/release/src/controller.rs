@@ -36,6 +36,9 @@ pub trait Cluster: Send + Sync + 'static {
     fn set_image(&self, t: &TargetConfig, image: &str, release: &str, previous: &str) -> impl Future<Output = anyhow::Result<()>> + Send;
     fn wait_rollout(&self, t: &TargetConfig, timeout: Duration) -> impl Future<Output = anyhow::Result<()>> + Send;
     fn verify(&self, t: &TargetConfig, window: Duration) -> impl Future<Output = anyhow::Result<()>> + Send;
+    /// Runs `image` once with the preflight arguments of `t`, before any
+    /// change. A target without `preflight_args` passes.
+    fn preflight(&self, t: &TargetConfig, image: &str, release: &str) -> impl Future<Output = anyhow::Result<()>> + Send;
 }
 
 fn err(code: i32, message: impl Into<String>) -> ServiceError {
@@ -186,7 +189,7 @@ impl<C: Cluster> Worker<C> {
                 s if !is_terminal(s) => {
                     tracing::warn!(id = %rec.release.id, status = s, "release was interrupted; restoring previous images");
                     let mut rec = rec;
-                    self.restore(&mut rec, "controller restarted during the release").await;
+                    self.restore(&mut rec, "controller restarted during the release", None).await;
                 }
                 _ => {}
             }
@@ -235,25 +238,29 @@ impl<C: Cluster> Worker<C> {
         }
         self.save(&mut rec);
 
-        // Apply every image, then wait for every rollout.
+        // In the order of the items: preflight, apply, and wait for the
+        // rollout. An item thus runs its preflight against the items before
+        // it (a server before its clients). A preflight failure of the
+        // first item changes nothing.
         let mut failure = None;
+        let mut not_applied = None;
         for i in 0..rec.release.items.len() {
             let item = rec.release.items[i].clone();
             rec.release.items[i].status = ROLLING.into();
             self.save(&mut rec);
             let t = match self.target(&item.target) { Ok(t) => t, Err(e) => { failure = Some((i, format!("{e:#}"))); break } };
+            if let Err(e) = self.cluster.preflight(t, &item.image, &rec.release.id).await {
+                failure = Some((i, format!("preflight: {e:#}")));
+                not_applied = Some(i);
+                break;
+            }
             if let Err(e) = self.cluster.set_image(t, &item.image, &rec.release.id, &item.previous_image).await {
                 failure = Some((i, format!("apply image: {e:#}")));
                 break;
             }
-        }
-        if failure.is_none() {
-            for i in 0..rec.release.items.len() {
-                let t = self.target(&rec.release.items[i].target).unwrap();
-                if let Err(e) = self.cluster.wait_rollout(t, Duration::from_secs(t.timeout_seconds.unwrap_or(self.timeout.as_secs()))).await {
-                    failure = Some((i, format!("rollout: {e:#}")));
-                    break;
-                }
+            if let Err(e) = self.cluster.wait_rollout(t, Duration::from_secs(t.timeout_seconds.unwrap_or(self.timeout.as_secs()))).await {
+                failure = Some((i, format!("rollout: {e:#}")));
+                break;
             }
         }
         if failure.is_none() {
@@ -292,19 +299,32 @@ impl<C: Cluster> Worker<C> {
                 rec.release.items[i].status = FAILED.into();
                 rec.release.items[i].message = Some(msg.clone());
                 let cause = format!("{} failed: {msg}", rec.release.items[i].target);
-                self.restore(&mut rec, &cause).await;
+                self.restore(&mut rec, &cause, not_applied).await;
             }
         }
     }
 
-    /// Restores the previous image of every item, then waits for each rollout.
-    async fn restore(&self, rec: &mut Record, cause: &str) {
+    /// Restores the previous image of every item that the release applied,
+    /// then waits for each rollout. `skip` is an item that failed before it
+    /// was applied.
+    async fn restore(&self, rec: &mut Record, cause: &str, skip: Option<usize>) {
         rec.release.status = ROLLING_BACK.into();
         self.save(rec);
         let mut ok = true;
         for i in 0..rec.release.items.len() {
             let item = rec.release.items[i].clone();
             if item.previous_image.is_empty() {
+                continue;
+            }
+            // Items are applied in order: an item that the release did not
+            // reach has nothing to restore.
+            if skip == Some(i) {
+                continue;
+            }
+            if item.status == PENDING {
+                let it = &mut rec.release.items[i];
+                it.status = ROLLED_BACK.into();
+                it.message = Some(format!("not applied: {cause}"));
                 continue;
             }
             let res = async {

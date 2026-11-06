@@ -247,7 +247,13 @@ def render(img, v):
         {"name": "MAGI_LINKKEYS_RUNTIME", "value": "/etc/magi/linkkeys/runtime.json"}],
         secrets=[("magi-issuer", "/etc/magi/issuer"), ("magi-linkkeys", "/etc/magi/linkkeys")])
     # The release controller changes the magi Deployment; magi releases itself.
-    targets = {"targets": [{"name": "magi", "namespace": ns, "deployment": "magi", "container": "magi", "health_path": "/healthz", "health_port": 8080}]}
+    # Before the change, the new image runs "magi-server preflight": it calls
+    # each service that Magi uses. During the stabilization window, each new
+    # pod must answer /healthz/deps (the same calls). The readiness probe
+    # stays /healthz, so that one service that stops does not stop Magi.
+    targets = {"targets": [{"name": "magi", "namespace": ns, "deployment": "magi", "container": "magi",
+                            "health_path": "/healthz/deps", "health_port": 8080,
+                            "preflight_args": ["preflight"], "preflight_timeout_seconds": 90}]}
     out += [
         {"apiVersion": "v1", "kind": "ConfigMap", "metadata": {"name": "release-targets", "namespace": ns, "labels": LABELS},
          "data": {"targets.json": json.dumps(targets)}},

@@ -22,6 +22,14 @@ pub struct TargetConfig {
     pub timeout_seconds: Option<u64>,
     /// Stabilization window in seconds.
     pub stabilize_seconds: Option<u64>,
+    /// Arguments of a preflight run: before the controller changes the
+    /// Deployment, it runs the new image once with these arguments, in a
+    /// pod with the pod spec of the Deployment. Exit code 0 passes.
+    #[serde(default)]
+    pub preflight_args: Option<Vec<String>>,
+    /// Time limit of the preflight run in seconds (default 120).
+    #[serde(default)]
+    pub preflight_timeout_seconds: Option<u64>,
 }
 
 impl TargetConfig {
@@ -55,6 +63,9 @@ pub fn parse_targets(text: &str) -> anyhow::Result<Vec<TargetConfig>> {
             anyhow::ensure!(!v.is_empty(), "target {:?}: {k} is required", t.name);
         }
         anyhow::ensure!(seen.insert(t.name.clone()), "target {:?} is listed twice", t.name);
+        if let Some(a) = &t.preflight_args {
+            anyhow::ensure!(!a.is_empty(), "target {:?}: preflight_args must not be empty", t.name);
+        }
         if let Some(p) = &t.health_path {
             anyhow::ensure!(p.starts_with('/'), "target {:?}: health_path must start with /", t.name);
         }

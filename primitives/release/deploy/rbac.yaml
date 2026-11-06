@@ -22,6 +22,15 @@ rules:
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["get", "list"]
+  # Only for targets with preflight_args: the controller makes one pod with
+  # the pod spec of the Deployment and the new image, reads its log, and
+  # deletes it. This gives no more access than the patch of a Deployment.
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["create", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
   # Only for MAGI_RELEASE_HEALTH=proxy:
   # - apiGroups: [""]
   #   resources: ["pods/proxy"]

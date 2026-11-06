@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -21,6 +22,17 @@ import (
 )
 
 func main() {
+	// "magi-server preflight": the release controller runs this build once
+	// before it changes the Deployment (primitives/release, "Preflight").
+	if len(os.Args) > 1 && os.Args[1] == "preflight" {
+		log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+		if err := preflight(log); err != nil {
+			log.Error("preflight failed", "err", err)
+			os.Exit(1)
+		}
+		log.Info("preflight passed")
+		return
+	}
 	listen := flag.String("listen", envOr("MAGI_LISTEN", ":8080"), "listen address")
 	keys := flag.String("auth-keys", os.Getenv("MAGI_AUTH_KEYS"), "comma-separated issuer key files")
 	workers := flag.Bool("workers", envOr("MAGI_WORKERS", "true") == "true", "run background workers")
@@ -107,6 +119,9 @@ func run(listen, keys string, workers bool, log *slog.Logger) error {
 	srv.Register("RunnerService", magiapi.RunnerServiceOps(&compose.Runners{S: sys}))
 	srv.Register("EgressAskService", magiapi.EgressAskServiceOps(&compose.Egress{S: sys}))
 	mux := rpc.Mux(srv, nil)
+	// The release controller checks the services that Magi needs here. The
+	// readiness probe stays /healthz.
+	mux.Handle("/healthz/deps", sys.DepsHandler())
 	// Runners use the coding model through Magi, so they hold no provider key.
 	mux.Handle("/runner/v1/chat/completions", compose.ModelProxy(ver, m))
 	// Runner sandboxes reach the egress proxy through Magi.
@@ -114,6 +129,41 @@ func run(listen, keys string, workers bool, log *slog.Logger) error {
 	mux.Handle("/", web.Handler())
 	log.Info("listening", "addr", listen)
 	return rpc.ListenAndServe(ctx, listen, mux)
+}
+
+// preflight reads the configuration as the server does, and calls one read
+// operation of each service with the clients of this build. It starts no
+// workers and changes nothing.
+func preflight(log *slog.Logger) error {
+	cfg, err := compose.ConfigFromEnv()
+	if err != nil {
+		return err
+	}
+	m, err := model.FromEnv()
+	if err != nil {
+		return err
+	}
+	for _, v := range []string{"MAGI_PERSONA_MODELS", "MAGI_LIBRARIAN_MODELS"} {
+		if os.Getenv(v) != "" {
+			if _, err := model.ChainFromEnv(v, m); err != nil {
+				return fmt.Errorf("%s: %w", v, err)
+			}
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	checks := compose.New(cfg, m, log).CheckDeps(ctx)
+	for _, c := range checks {
+		if c.Err != nil {
+			log.Error("dependency", "service", c.Name, "ms", c.Ms, "err", c.Err.Error())
+		} else {
+			log.Info("dependency", "service", c.Name, "ms", c.Ms)
+		}
+	}
+	if bad := compose.DepsFailed(checks); bad != nil {
+		return fmt.Errorf("%d of %d dependency checks failed: %s", len(bad), len(checks), strings.Join(bad, "; "))
+	}
+	return nil
 }
 
 func envOr(k, d string) string {

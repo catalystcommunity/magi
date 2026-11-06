@@ -11,8 +11,8 @@ use magi_release::api;
 use magi_release::config::TargetConfig;
 use magi_release::controller::Cluster;
 
-/// Images named "*:bad-rollout" fail the rollout; "*:unhealthy" fail the
-/// health check. With `break_restore`, restoring any image fails.
+/// Images named "*:bad-preflight" fail the preflight, "*:bad-rollout" fail
+/// the rollout, and "*:unhealthy" fail the health check. With `break_restore`, restoring any image fails.
 #[derive(Clone, Default)]
 struct Fake {
     images: Arc<Mutex<HashMap<String, String>>>,
@@ -47,6 +47,11 @@ impl Cluster for Fake {
     }
     async fn wait_rollout(&self, t: &TargetConfig, _: Duration) -> anyhow::Result<()> {
         if self.image(&t.deployment).ends_with(":bad-rollout") { anyhow::bail!("ImagePullBackOff") }
+        Ok(())
+    }
+    async fn preflight(&self, t: &TargetConfig, image: &str, _release: &str) -> anyhow::Result<()> {
+        self.log.lock().unwrap().push(format!("preflight {}={image}", t.deployment));
+        if image.ends_with(":bad-preflight") { anyhow::bail!("exit code 1: workflow: missing field") }
         Ok(())
     }
     async fn verify(&self, t: &TargetConfig, _: Duration) -> anyhow::Result<()> {
@@ -129,7 +134,42 @@ async fn releases_run_one_at_a_time_in_order() {
     let b = s.create(&op, &[("web", "web:3")]).await.unwrap();
     assert_eq!(s.wait(&op, &b.id, LONG).await.items[0].previous_image, "web:2");
     assert_eq!(s.wait(&op, &a.id, LONG).await.status, "succeeded");
-    assert_eq!(*f.log.lock().unwrap(), ["web=web:2", "web=web:3"]);
+    assert_eq!(*f.log.lock().unwrap(), ["preflight web=web:2", "web=web:2", "preflight web=web:3", "web=web:3"]);
+}
+
+#[tokio::test]
+async fn items_roll_out_in_order_with_preflight() {
+    let f = Fake::with(&[("web", "web:1"), ("api", "api:1")]);
+    let s = start(f.clone(), targets(), 5, 0).await;
+    let op = token("operator");
+    let r = s.create(&op, &[("api", "api:2"), ("web", "web:2")]).await.unwrap();
+    assert_eq!(s.wait(&op, &r.id, LONG).await.status, "succeeded");
+    assert_eq!(*f.log.lock().unwrap(), ["preflight api=api:2", "api=api:2", "preflight web=web:2", "web=web:2"]);
+}
+
+#[tokio::test]
+async fn failed_preflight_changes_nothing() {
+    let f = Fake::with(&[("web", "web:1"), ("api", "api:1")]);
+    let s = start(f.clone(), targets(), 5, 0).await;
+    let op = token("operator");
+    let r = s.create(&op, &[("web", "web:bad-preflight"), ("api", "api:2")]).await.unwrap();
+    let r = s.wait(&op, &r.id, LONG).await;
+    assert_eq!(r.status, "rolled-back");
+    assert!(r.items[0].message.as_deref().unwrap().contains("preflight: exit code 1"));
+    assert!(r.items[1].message.as_deref().unwrap().starts_with("not applied"));
+    assert_eq!(*f.log.lock().unwrap(), ["preflight web=web:bad-preflight"]);
+}
+
+#[tokio::test]
+async fn failed_preflight_restores_the_items_before() {
+    let f = Fake::with(&[("web", "web:1"), ("api", "api:1")]);
+    let s = start(f.clone(), targets(), 5, 0).await;
+    let op = token("operator");
+    let r = s.create(&op, &[("web", "web:2"), ("api", "api:bad-preflight")]).await.unwrap();
+    let r = s.wait(&op, &r.id, LONG).await;
+    assert_eq!(r.status, "rolled-back");
+    assert_eq!((f.image("web"), f.image("api")), ("web:1".into(), "api:1".into()));
+    assert_eq!(*f.log.lock().unwrap(), ["preflight web=web:2", "web=web:2", "preflight api=api:bad-preflight", "web=web:1"]);
 }
 
 #[tokio::test]

@@ -30,21 +30,34 @@ issuer, the key ID, the Ed25519 signature, and the expiry.
 1. Validate the targets and images. Reject an unknown or repeated target.
 2. In the queue, run one release at a time.
 3. Read and record the current image of each item (`previous_image`).
-4. Patch the container image of each Deployment. Add the annotations
-   `magi.release/id` and `magi.release/previous-image`.
-5. Wait for each rollout: `observedGeneration`, `updatedReplicas`,
-   `replicas`, and `availableReplicas`. Stop at the timeout, at
-   `ProgressDeadlineExceeded`, or when a new pod shows `ImagePullBackOff`,
-   `InvalidImageName`, `CrashLoopBackOff`, or `CreateContainerConfigError`.
-6. During the stabilization window, check all pods of the new ReplicaSet
-   every 2 seconds. Each pod must be ready and must not restart. If the target
-   has `health_path`, each pod must answer `GET <health_path>` with 2xx.
-7. Set the status to `succeeded`.
+4. For each item, in the order of the list:
+   1. Preflight, when the target has `preflight_args`: make one pod with
+      the pod spec of the Deployment, only the target container, the new
+      image, and the preflight arguments. The pod has no probes, no
+      restart, no Deployment labels (no Service sends requests to it), and
+      the label `magi.release/preflight`. Exit code 0 passes. The `message`
+      of a failure has the last 5 lines of the log. The controller deletes
+      the pod.
+   2. Patch the container image of the Deployment. Add the annotations
+      `magi.release/id` and `magi.release/previous-image`.
+   3. Wait for the rollout: `observedGeneration`, `updatedReplicas`,
+      `replicas`, and `availableReplicas`. Stop at the timeout, at
+      `ProgressDeadlineExceeded`, or when a new pod shows `ImagePullBackOff`,
+      `InvalidImageName`, `CrashLoopBackOff`, or `CreateContainerConfigError`.
+
+   Thus the preflight of an item runs against the items before it. List a
+   server before its clients.
+5. During the stabilization window, check all pods of the new ReplicaSet of
+   each item every 2 seconds. Each pod must be ready and must not restart.
+   If the target has `health_path`, each pod must answer `GET <health_path>`
+   with 2xx.
+6. Set the status to `succeeded`.
 
 If one item fails, the controller sets `rolling-back`, restores the previous
-image of all items, and waits for each rollout. The result is `rolled-back`.
-If a restore fails, the result is `failed`. The `message` of an item gives
-the cause.
+image of each item that it applied, and waits for each rollout. An item that
+it did not reach gets `rolled-back` with the message `not applied: ...`. The
+result is `rolled-back`. If a restore fails, the result is `failed`. The
+`message` of an item gives the cause.
 
 Status values: `pending`, `rolling`, `verifying`, `succeeded`,
 `rolling-back`, `rolled-back`, `failed`.
@@ -81,6 +94,8 @@ targets:
     container: web
     health_path: /healthz    # optional; must start with /
     health_port: 8080        # optional; default: first containerPort, else 8080
+    preflight_args: [preflight]     # optional; the arguments of the preflight run
+    preflight_timeout_seconds: 120  # optional; default 120
     timeout_seconds: 180     # optional; local only
     stabilize_seconds: 20    # optional; local only
 ```
@@ -118,13 +133,15 @@ MAGI_TEST_KUBE=1 cargo test    # also the live test
   `cd testdata/gen && GOWORK=off go run . > ../authn-vector.json`.
 - `tests/service.rs` calls every operation through the HTTP transport with
   a fake cluster. It tests success, manual rollback, rollout failure, health
-  failure, restore failure, queue order, restart recovery, validation, and
-  authorization.
+  failure, restore failure, queue order, item order with preflight,
+  preflight failure of the first and of a later item, restart recovery,
+  validation, and authorization.
 - `tests/kube.rs` uses kube context `default` (`MAGI_TEST_KUBE_CONTEXT`) and
   namespace `magi-release-test` only. It creates Deployment `release-probe`
   with a public image. It releases a good image, then a missing image tag,
-  then an image with a failed health path. It makes sure that the last two
-  roll back. It deletes the Deployment at the end. It uses `proxy` health
+  then an image with a failed health path, then a failed and a passed
+  preflight. It makes sure that the failed ones roll back and that no
+  preflight pod stays. It deletes the Deployment at the end. It uses `proxy` health
   checks, because the test host cannot reach pod IPs.
 
 ## Limits

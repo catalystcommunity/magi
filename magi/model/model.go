@@ -176,6 +176,7 @@ type request struct {
 }
 
 type response struct {
+	Model   string `json:"model"`
 	Choices []struct {
 		Message      Message `json:"message"`
 		FinishReason string  `json:"finish_reason"`
@@ -225,7 +226,9 @@ func (c *Client) send(ctx context.Context, req request) (Message, error) {
 		}
 		m, retry, err := c.once(ctx, body)
 		if err == nil {
-			m.Served = c.Model
+			if m.Served == "" {
+				m.Served = c.Model
+			}
 			return m, nil
 		}
 		last = err
@@ -269,5 +272,8 @@ func (c *Client) once(ctx context.Context, body []byte) (Message, bool, error) {
 	}
 	m := out.Choices[0].Message
 	m.Role = "assistant"
+	// The model that answered, as the server names it: an inference host
+	// can serve another model than the name in the request.
+	m.Served = out.Model
 	return m, false, nil
 }

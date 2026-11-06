@@ -82,5 +82,6 @@ pub fn target(name: &str, ns: &str, dep: &str, container: &str, path: Option<&st
     TargetConfig {
         name: name.into(), namespace: ns.into(), deployment: dep.into(), container: container.into(),
         health_path: path.map(Into::into), health_port: port, timeout_seconds: None, stabilize_seconds: None,
+        preflight_args: None, preflight_timeout_seconds: None,
     }
 }

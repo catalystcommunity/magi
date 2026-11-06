@@ -414,11 +414,40 @@ one-time code. Paste it into the terminal, and the client gets its token.
 The client does not listen on a local address, so the browser does not have
 to be on the same machine.
 
+## Note taker
+
+In a persona turn that can record knowledge (`remember`), the note taker
+reads the newest message, the two messages before it, and the matching
+records. It asks `MAGI_LIBRARIAN_MODELS` for the knowledge operations of
+the message, as JSON that agrees with a schema: `remember`, `update`,
+`fix`, or `retract`, with the arguments of the tools. Magi applies them
+with the tool functions, before the persona model writes the reply, and
+tells the persona model what it did. Thus a fact is recorded also when the
+persona model does not call a tool. The turn annotation has each call with
+`"by": "note-taker"` and the model call in `notes`.
+`MAGI_NOTE_TAKER=false` turns it off. See `docs/knowledge.md`.
+
+## Health and release checks
+
+- `GET /healthz`: the process is ready. The readiness probe uses it.
+- `GET /healthz/deps`: one read operation of each service that Magi uses
+  (workflow, conversation, knowledge, artifacts, execution, source, speech,
+  release), with the clients of this build. 200, or 503 when one fails.
+  The answer has only `name ok|fail time`; the log has the errors. The
+  result is kept for 2 seconds. The release controller uses it during the
+  stabilization window.
+- `magi-server preflight`: the same calls, then exit code 0 or 1. It starts
+  no workers. The release controller runs it before it changes the
+  Deployment (`primitives/release`, `deploy/README.md`).
+
+An answer that this build cannot decode fails the check. This finds a
+client of a newer contract and a server of an older one.
+
 ## Configuration
 
 `MAGI_LISTEN`, `MAGI_AUTH_KEYS`, `MAGI_SERVICE_TOKEN_FILE`, the `MAGI_*_URL`
 endpoints of each primitive, `MAGI_MODEL_BASE_URL`, `MAGI_MODEL_NAME`,
-`MAGI_MODEL_API_KEY_FILE`, `MAGI_ADMINS`, `MAGI_LEXICON_EDITORS`, `MAGI_REPO`, `MAGI_ENV_IMAGE`, `MAGI_CHECK_COMMAND`,
+`MAGI_MODEL_API_KEY_FILE`, `MAGI_NOTE_TAKER`, `MAGI_ADMINS`, `MAGI_LEXICON_EDITORS`, `MAGI_REPO`, `MAGI_ENV_IMAGE`, `MAGI_CHECK_COMMAND`,
 `MAGI_RELEASE_URL`, `MAGI_IMAGE_REGISTRY`, `MAGI_IMAGE_PULL_REGISTRY`,
 `MAGI_IMAGE_CREDENTIALS_FILE`, `MAGI_IMAGE_BASE`, `MAGI_RELEASE_TARGET`,
 `MAGI_EGRESS_URL` (the egress proxy API; set it when the installation has

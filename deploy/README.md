@@ -158,6 +158,7 @@ tools/build-web.sh                       # when the web client changed (builds t
 tools/build-images.sh                    # builds and pushes; writes .build/images.env
 python3 deploy/render.py --base --values VALUES.env | kubectl apply -f -   # PostgreSQL and the registry
 kubectl apply -f primitives/execution/deploy/rbac.yaml
+kubectl apply -f primitives/release/deploy/rbac.yaml
 python3 deploy/render.py --images .build/images.env --values VALUES.env > out.json
 kubectl apply -f out.json
 ```
@@ -204,6 +205,25 @@ A restart or release of a service without a volume drops no request:
 A service with a volume (`artifacts`, `source`, `release`, `corndogs`) uses
 `Recreate`, because its volume is ReadWriteOnce. Calls to it fail while its
 pod restarts.
+
+## Release order and checks
+
+Apply a service before the services that call it, also by hand. A client
+that is built from a newer contract can need a field that an older server
+does not send ("csil cbor: missing field").
+
+Each release of `magi` through the release controller does these checks:
+
+1. Preflight: the new image runs `magi-server preflight` in one pod, with
+   the pod spec of the Deployment. It calls one read operation of each
+   service that Magi uses. When a call fails, the release stops before it
+   changes the Deployment.
+2. Stabilization: each new pod must answer `GET /healthz/deps` (the same
+   calls) with 200. Else the controller rolls back.
+
+The readiness probe stays `/healthz`. A release with more items applies
+them in the order of the list, and runs the preflight of each item after
+the items before it are applied: list a server before its clients.
 
 ## Limits
 

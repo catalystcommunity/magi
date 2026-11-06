@@ -129,6 +129,26 @@ that a model that writes the search did not help. Thus links are made when
 data comes in, and the search is simple. Embedding search is the next step
 when a test set shows that it is necessary.
 
+## Note taker
+
+A persona model can say "I recorded it" and not call a tool. A small local
+model does this often. A second request to the model does not repair it:
+the model then apologizes in later replies. Thus Magi records facts in a
+separate step, the note taker:
+
+1. Magi finds the records that match the newest message.
+2. The note taker model gets the records, the two messages before, and the
+   newest message. It gives a list of operations: `remember`, `update`,
+   `fix`, or `retract`, as JSON that agrees with a schema.
+3. Magi applies each operation with the functions of the tools. The access
+   rules and the conflict rule of `remember` apply.
+4. The persona model gets a list of what Magi did, and writes the reply.
+
+The note taker gives no operation when the words do not make clear if a
+fact changed or was wrong. Then the persona asks. `update`, `fix`, and
+`retract` need an id from the records. The persona tools stay: the
+persona can record and change facts, also in later turns.
+
 ## Investigations
 
 A question that needs data from many systems, calculations, or answers of

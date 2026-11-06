@@ -6,7 +6,7 @@ use std::time::Duration;
 use anyhow::{Context, anyhow, bail};
 use k8s_openapi::api::apps::v1::{Deployment, ReplicaSet};
 use k8s_openapi::api::core::v1::Pod;
-use kube::api::{Api, ListParams, Patch, PatchParams};
+use kube::api::{Api, DeleteParams, ListParams, LogParams, Patch, PatchParams, PostParams};
 use tokio::time::{Instant, sleep};
 
 use crate::config::TargetConfig;
@@ -14,6 +14,9 @@ use crate::controller::Cluster;
 
 pub const ANN_ID: &str = "magi.release/id";
 pub const ANN_PREVIOUS: &str = "magi.release/previous-image";
+/// Label of preflight pods. It is not a label of the Deployment, so no
+/// Service sends requests to a preflight pod.
+pub const LABEL_PREFLIGHT: &str = "magi.release/preflight";
 const REVISION: &str = "deployment.kubernetes.io/revision";
 const POLL: Duration = Duration::from_secs(2);
 /// Waiting reasons that do not recover without a change.
@@ -112,6 +115,32 @@ fn fatal_reason(p: &Pod) -> Option<String> {
     })
 }
 
+/// The pod of a preflight run: the pod spec of the Deployment, only the
+/// target container, the new image and the preflight arguments, no probes,
+/// no restart, and a time limit.
+fn preflight_pod(d: &Deployment, t: &TargetConfig, image: &str, release: &str, args: &[String], limit: Duration) -> anyhow::Result<Pod> {
+    let mut spec = d.spec.as_ref().and_then(|s| s.template.spec.clone())
+        .ok_or_else(|| anyhow!("deployment {}/{} has no pod spec", t.namespace, t.deployment))?;
+    let mut c = spec.containers.iter().find(|c| c.name == t.container).cloned()
+        .ok_or_else(|| anyhow!("deployment {}/{} has no container {}", t.namespace, t.deployment, t.container))?;
+    c.image = Some(image.into());
+    c.args = Some(args.to_vec());
+    c.readiness_probe = None;
+    c.liveness_probe = None;
+    c.startup_probe = None;
+    c.ports = None;
+    spec.containers = vec![c];
+    spec.restart_policy = Some("Never".into());
+    spec.active_deadline_seconds = Some(limit.as_secs() as i64);
+    let mut pod = Pod::default();
+    pod.metadata.generate_name = Some(format!("{}-preflight-", t.deployment));
+    pod.metadata.namespace = Some(t.namespace.clone());
+    pod.metadata.labels = Some(BTreeMap::from([(LABEL_PREFLIGHT.to_string(), t.deployment.clone())]));
+    pod.metadata.annotations = Some(BTreeMap::from([(ANN_ID.to_string(), release.to_string())]));
+    pod.spec = Some(spec);
+    Ok(pod)
+}
+
 fn container_port(d: &Deployment, container: &str) -> Option<u64> {
     let c = d.spec.as_ref()?.template.spec.as_ref()?.containers.iter().find(|c| c.name == container)?;
     Some(c.ports.as_ref()?.first()?.container_port as u64)
@@ -163,6 +192,45 @@ impl Cluster for KubeCluster {
             }
             sleep(POLL).await;
         }
+    }
+
+    async fn preflight(&self, t: &TargetConfig, image: &str, release: &str) -> anyhow::Result<()> {
+        let Some(args) = &t.preflight_args else { return Ok(()) };
+        let limit = Duration::from_secs(t.preflight_timeout_seconds.unwrap_or(120));
+        let d = self.deployments(&t.namespace).get(&t.deployment).await
+            .with_context(|| format!("deployment {}/{}", t.namespace, t.deployment))?;
+        let pods: Api<Pod> = Api::namespaced(self.client.clone(), &t.namespace);
+        let pod = pods.create(&PostParams::default(), &preflight_pod(&d, t, image, release, args, limit)?).await
+            .context("create preflight pod")?;
+        let name = pod.metadata.name.clone().unwrap_or_default();
+        let res = async {
+            // The image pull counts too: wait a little longer than the
+            // deadline of the pod.
+            let deadline = Instant::now() + limit + Duration::from_secs(30);
+            loop {
+                let p = pods.get(&name).await?;
+                match p.status.as_ref().and_then(|s| s.phase.as_deref()) {
+                    Some("Succeeded") => return Ok(()),
+                    Some("Failed") => {
+                        let reason = p.status.as_ref().and_then(|s| s.reason.clone()).unwrap_or_else(|| "exit code not 0".into());
+                        let tail = pods.logs(&name, &LogParams { tail_lines: Some(5), ..Default::default() }).await.unwrap_or_default();
+                        bail!("pod {name}: {reason}: {}", tail.trim());
+                    }
+                    _ => {}
+                }
+                if let Some(r) = fatal_reason(&p) {
+                    bail!("pod {name}: {r}");
+                }
+                if Instant::now() >= deadline {
+                    bail!("pod {name}: no result after {}s", limit.as_secs());
+                }
+                sleep(POLL).await;
+            }
+        }.await;
+        if let Err(e) = pods.delete(&name, &DeleteParams::background()).await {
+            tracing::warn!(pod = %name, error = %e, "delete preflight pod");
+        }
+        res
     }
 
     async fn verify(&self, t: &TargetConfig, window: Duration) -> anyhow::Result<()> {

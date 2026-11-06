@@ -52,6 +52,9 @@ type Config struct {
 	// LexiconEditors are user subjects that can change the household
 	// lexicon. Empty means the admins.
 	LexiconEditors []string
+	// NoteTaker turns on the note taker (notetaker.go) in persona turns
+	// that can record knowledge. MAGI_NOTE_TAKER=false turns it off.
+	NoteTaker bool
 	// CheckCommand runs in the repository after the apprentice works.
 	CheckCommand string
 	// Release is the release controller endpoint; empty turns releases off.
@@ -103,6 +106,7 @@ func ConfigFromEnv() (Config, error) {
 		Runner:       os.Getenv("MAGI_RUNNER"),
 		Publisher:    os.Getenv("MAGI_PUBLISHER"),
 		CheckCommand: env("MAGI_CHECK_COMMAND", "./tools/check.sh"),
+		NoteTaker:    env("MAGI_NOTE_TAKER", "true") != "false",
 	}
 	c.Admins = list(os.Getenv("MAGI_ADMINS"))
 	c.LexiconEditors = list(os.Getenv("MAGI_LEXICON_EDITORS"))
