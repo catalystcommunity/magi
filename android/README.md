@@ -55,10 +55,22 @@ about once an hour in the background (a `JobScheduler` job, any network).
 A build with a higher version code is downloaded, checked against its
 SHA-256 digest, and installed with `PackageInstaller`.
 
-- Android asks you to confirm the first update. Install the first build
-  with the updater over USB (`adb install -r`), open the app, and confirm.
-  After that the app is the installer of record of itself, and updates
-  install without a question.
+- Updates install without a question only when the app is the installer
+  of record of itself. Install the first build over USB with the app as
+  the installer, and let it install apps:
+
+  ```sh
+  P=community.catalyst.magi.dev
+  adb push android/app/build/outputs/apk/debug/app-debug.apk /data/local/tmp/magi.apk
+  adb shell pm install -r -i $P /data/local/tmp/magi.apk
+  adb shell rm /data/local/tmp/magi.apk
+  adb shell appops set $P REQUEST_INSTALL_PACKAGES allow
+  ```
+
+  `pm install -i` needs a build of the app already on the phone. On a new
+  phone, use `adb install` first, then the commands above. With a plain
+  `adb install -r`, Android asks you to confirm the first update; after
+  that update, the app is the installer of record.
 - A confirmation that Android asks for while the app is in the background
   waits until you open the app.
 - Updates keep the signing key: build on the same machine (the debug key in

@@ -107,7 +107,7 @@ class MainActivity : Activity() {
         player = Player(this)
         player.onIdle = { speechEnded("done") }
         handsFree = HandsFree(this, voice)
-        Updater.schedule(this)
+        runCatching { Updater.schedule(this) }.onFailure { android.util.Log.w("MagiUpdater", "schedule: $it") }
         if (!handleReturn(intent)) start()
         openNotice(intent)
     }
