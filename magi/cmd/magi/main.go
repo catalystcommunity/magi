@@ -916,6 +916,9 @@ func printMessage(m magiapi.Message) {
 	}
 	fmt.Printf("\n%s %s%s:\n%s\n", time.UnixMilli(int64(m.CreatedMs)).Format("15:04:05"), who, extra, m.Text)
 	for _, r := range m.Refs {
+		if r.Kind == "knowledge-record" {
+			continue // the records that the persona read: for Magi, not for people
+		}
 		fmt.Printf("  -> %s %s %s\n", r.Kind, r.Ref, deref(r.Title))
 	}
 	for _, l := range m.Links {

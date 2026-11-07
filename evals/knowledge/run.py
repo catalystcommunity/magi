@@ -31,6 +31,11 @@ def dump(args):
     return (p.stdout if p.returncode == 0 else "error: " + p.stderr).strip()
 
 
+# Lines "  -> kind ref title" (attachments) and "  about: ..." (links) are
+# not the reply. Their titles can have the words that a check looks for.
+META = re.compile(r"^  (-> |[a-z][a-z ]*: )")
+
+
 def say(args, text, persona):
     start = time.monotonic()
     p = magi(args, "say", "-persona", persona, text)
@@ -41,7 +46,8 @@ def say(args, text, persona):
     lines = p.stdout.strip().splitlines()
     head = max((i for i, l in enumerate(lines) if re.match(r"^\d\d:\d\d:\d\d .*\[utt_[^]]+\].*:$", l)), default=-1)
     model = re.search(r"\(([^)]+)\):$", lines[head]) if head >= 0 else None
-    return {"reply": "\n".join(lines[head + 1:]).strip(), "model": model.group(1) if model else "", "ms": ms}
+    body = [l for l in lines[head + 1:] if not META.match(l)]
+    return {"reply": "\n".join(body).strip(), "model": model.group(1) if model else "", "ms": ms}
 
 
 def score(case, reply, abstain_words):

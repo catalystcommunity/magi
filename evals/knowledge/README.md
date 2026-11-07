@@ -90,6 +90,7 @@ questions. "Checks" counts the 5 checks after the changes. The note taker
 | gemma-4-12b, default, orphan removal | on | 14, 14 | 4, 4 | 8 s | 84 s |
 | gemma-4-12b, default2, records after the notes | on | 14, 14 | 4, 4 | 8 s | 62 s |
 | gemma-4-12b, default3, earlier answers marked | on | 12, 14 | 5, 4 | 7 s | 58 s |
+| gemma-4-12b, default4, superseded answers replaced | on | 13, 14, 14, 14 | 4, 5, 5, 5 | 8 s | 51 s |
 
 The files `glm-5.3-nolocal-*` were runs for gpt-oss-20b and qwen3.6-35b-a3b
 in which the inference host did not start; all turns used Zen. The runs of
@@ -117,6 +118,15 @@ Findings:
   each earlier answer before a change of the records (runs `default3`).
   c03.1 passed in one of the two runs; in the other, the persona copied its
   q08 answer word for word.
+- Now each reply keeps the records that it got. An earlier answer that used
+  a record that changed after it is replaced with a note of the change
+  (runs `default4`, `magi/README.md`). c03.1 passed in 3 of 4 runs. No run
+  named the chores calendar. The failed run named only the sports
+  calendar, not the family calendar.
+- The CLI printed the new record attachments under each reply, and
+  `run.py` scored them as reply text. `run.py` now removes the attachment
+  and link lines. Only the `default4` runs changed (rescored): in a03 the
+  attachments named Dana, the sister, which made a correct abstain fail.
 - In two Gemma runs, the reply started with the template text
   `<|channel>thought<channel|>`. `magi/model` now removes this text.
 
