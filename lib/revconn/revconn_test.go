@@ -175,3 +175,27 @@ func TestBusyAgentWaits(t *testing.T) {
 	}
 	res.Body.Close()
 }
+
+// TestCloseMovesAgents: after Close, the agent connects to the next server.
+func TestCloseMovesAgents(t *testing.T) {
+	p1, p2 := &Pool{}, &Pool{}
+	cur := p1
+	var mu sync.Mutex
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		p := cur
+		mu.Unlock()
+		p.Handler(func(*http.Request) (string, error) { return "box", nil }).ServeHTTP(w, r)
+	}))
+	defer srv.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	a := &Agent{URL: srv.URL, Idle: 1, HTTP: srv.Client()}
+	go a.Serve(ctx, http.NotFoundHandler())
+	waitIdle(t, p1, 1)
+	mu.Lock()
+	cur = p2
+	mu.Unlock()
+	p1.Close()
+	waitIdle(t, p2, 1)
+}

@@ -46,6 +46,24 @@ type Pool struct {
 	idle   map[string][]*idleConn
 	notify map[string]chan struct{}
 	seen   map[string]time.Time // the last new connection of each agent
+	closed bool
+}
+
+// Close closes all idle connections and refuses new ones. Call it when the
+// server stops: a taken-over connection does not close with the server, and
+// the agents then connect to the next server at once.
+func (p *Pool) Close() {
+	p.mu.Lock()
+	p.closed = true
+	var all []*idleConn
+	for a, l := range p.idle {
+		all = append(all, l...)
+		delete(p.idle, a)
+	}
+	p.mu.Unlock()
+	for _, c := range all {
+		c.Close()
+	}
 }
 
 type idleConn struct {
@@ -62,6 +80,13 @@ func (p *Pool) Handler(name func(r *http.Request) (string, error)) http.Handler 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet || !strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
 			http.Error(w, "expected an upgrade", http.StatusBadRequest)
+			return
+		}
+		p.mu.Lock()
+		closed := p.closed
+		p.mu.Unlock()
+		if closed {
+			http.Error(w, "the server stops", http.StatusServiceUnavailable)
 			return
 		}
 		agent, err := name(r)

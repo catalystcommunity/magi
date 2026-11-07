@@ -136,6 +136,7 @@ func run(listen, keys string, workers bool, log *slog.Logger) error {
 	// Runner sandboxes reach the egress proxy through Magi.
 	mux.Handle("/runner/egress", compose.EgressTunnel(ver, sys.EgressProxy))
 	mux.Handle("/inference/connect", hosts.Handler(compose.InferenceHostName(ver)))
+	context.AfterFunc(ctx, hosts.Close)
 	mux.Handle("/", web.Handler())
 	log.Info("listening", "addr", listen)
 	return rpc.ListenAndServe(ctx, listen, mux)
