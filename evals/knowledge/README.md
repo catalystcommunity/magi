@@ -118,6 +118,6 @@ Findings:
   c03.1 passed in one of the two runs; in the other, the persona copied its
   q08 answer word for word.
 - In two Gemma runs, the reply started with the template text
-  `<|channel>thought<channel|>`.
+  `<|channel>thought<channel|>`. `magi/model` now removes this text.
 
 Gemma 4 12B with the note taker is the default local model.

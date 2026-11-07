@@ -41,3 +41,13 @@ func TestChainFallsBack(t *testing.T) {
 		t.Fatalf("local tried %d times; one try is enough to fall back", n)
 	}
 }
+
+func TestStripTemplate(t *testing.T) {
+	in := "<|channel>thought<channel|><|channel>thought<channel|><channel|>I've removed the record."
+	if got := stripTemplate(in); got != "I've removed the record." {
+		t.Fatalf("got %q", got)
+	}
+	if got := stripTemplate("The channel is 5."); got != "The channel is 5." {
+		t.Fatalf("got %q", got)
+	}
+}

@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -272,8 +273,20 @@ func (c *Client) once(ctx context.Context, body []byte) (Message, bool, error) {
 	}
 	m := out.Choices[0].Message
 	m.Role = "assistant"
+	m.Content = stripTemplate(m.Content)
 	// The model that answered, as the server names it: an inference host
 	// can serve another model than the name in the request.
 	m.Served = out.Model
 	return m, false, nil
+}
+
+// templateText is chat template text that some engines leave in the
+// content, such as the empty thought channel of Gemma 4.
+var templateText = regexp.MustCompile(`<\|channel>thought<channel\|>|<channel\|>`)
+
+func stripTemplate(s string) string {
+	if !strings.Contains(s, "channel") {
+		return s
+	}
+	return strings.TrimSpace(templateText.ReplaceAllString(s, ""))
 }
