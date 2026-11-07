@@ -405,3 +405,24 @@ func EgressTunnel(ver *authn.Verifier, p *EgressProxy) http.Handler {
 		envd.Splice(conn, up)
 	})
 }
+
+// ScopeInferenceHost is the scope of the token of an inference host that
+// connects out to Magi (subject inference:<name>).
+const ScopeInferenceHost = "inference:host"
+
+// InferenceHostName gives the name of the inference host of a connection
+// request (/inference/connect), from its token.
+func InferenceHostName(ver *authn.Verifier) func(r *http.Request) (string, error) {
+	return func(r *http.Request) (string, error) {
+		tok, _ := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+		p, err := ver.Verify(tok)
+		if err != nil {
+			return "", errors.New("an inference host token is required")
+		}
+		name, ok := strings.CutPrefix(p.Subject, "inference:")
+		if !ok || name == "" || strings.ContainsAny(name, "./:@ ") || p.Kind != authn.KindService || !p.Has(ScopeInferenceHost) {
+			return "", fmt.Errorf("an inference host token (subject inference:<name>, scope %s) is required", ScopeInferenceHost)
+		}
+		return name, nil
+	}
+}

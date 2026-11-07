@@ -4,10 +4,7 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -15,12 +12,12 @@ import (
 
 // Sample is one look at the machine. A GPU value below zero is unknown.
 type Sample struct {
-	CPULoad     float64 // 1-minute load average divided by the CPU count
+	CPULoad     float64 // Linux: 1-minute load average divided by the CPU count; Windows: CPU use, 0 to 1
 	GPUUtil     int     // percent
 	GPUUsedMiB  int     // all processes, also the engine
 	GPUTotalMiB int
 	EngineMiB   int      // GPU memory that the engine process uses
-	Processes   []string // command names (/proc/<pid>/comm)
+	Processes   []string // command names (/proc/<pid>/comm; on Windows the image name without ".exe")
 }
 
 // Sampler takes samples. enginePID is 0 when the engine does not run.
@@ -41,12 +38,7 @@ type Rules struct {
 func DefaultRules() Rules {
 	return Rules{
 		CPULoad: 0.6, GPUUtil: 40, NeedMiB: 7000, QuietFor: Duration(60 * time.Second),
-		Processes: []string{
-			// compilers and linkers
-			"cc1", "cc1plus", "rustc", "compile", "ld", "ld.lld", "mold", "javac",
-			// games
-			"gamescope", "reaper", "wineserver",
-		},
+		Processes: defaultProcesses,
 	}
 }
 
@@ -74,25 +66,16 @@ func (r Rules) busyReason(s Sample, engineRunning, engineActive bool) string {
 	return ""
 }
 
-// System samples Linux /proc and nvidia-smi. It works in a VM with a
+// System samples the machine (sample_unix.go: Linux /proc;
+// sample_windows.go: Windows) and nvidia-smi. It works in a VM with a
 // passed-through GPU in the same way. Without nvidia-smi, GPU values are
 // unknown.
 type System struct{ NvidiaSMI string }
 
 func (sys System) Sample(ctx context.Context, enginePID int) Sample {
 	s := Sample{GPUUtil: -1, GPUUsedMiB: -1, GPUTotalMiB: -1}
-	if b, err := os.ReadFile("/proc/loadavg"); err == nil {
-		if f := strings.Fields(string(b)); len(f) > 0 {
-			l, _ := strconv.ParseFloat(f[0], 64)
-			s.CPULoad = l / float64(runtime.NumCPU())
-		}
-	}
-	dirs, _ := filepath.Glob("/proc/[0-9]*/comm")
-	for _, d := range dirs {
-		if b, err := os.ReadFile(d); err == nil {
-			s.Processes = append(s.Processes, strings.TrimSpace(string(b)))
-		}
-	}
+	s.CPULoad = cpuLoad()
+	s.Processes = processes(ctx)
 	smi := sys.NvidiaSMI
 	if smi == "" {
 		smi = "nvidia-smi"

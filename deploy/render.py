@@ -10,8 +10,10 @@ The repository holds no private values. The values file supplies them:
   GATEWAY_NAMESPACE, GATEWAY_SECTION, ENV_IMAGE.
 Optional: STORAGE_CLASS for the volumes (empty: the default class of the
 cluster).
-Optional: PERSONA_LOCAL_URL and PERSONA_LOCAL_MODEL (an inference host that
-the persona tries first; it needs the secret magi-inference-token).
+Optional: PERSONA_LOCAL_URL and PERSONA_LOCAL_MODEL (inference hosts that
+the persona tries first, comma-separated in order, one model for each URL;
+they need the secret magi-inference-token). http://<name>.revconn/v1 is a
+host that connects out to Magi.
 Optional: EGRESS=true adds the egress proxy (primitives/egress) and the
 "proxy" network for task environments; see deploy/README.md for its secrets
 and ConfigMaps. MODEL_EGRESS=true (with EGRESS) sends the model calls of
@@ -27,6 +29,7 @@ Secrets are created separately (see deploy/README.md).
 import argparse
 import collections
 import json
+import sys
 import pathlib
 
 
@@ -272,16 +275,21 @@ def render(img, v):
     # MODEL_* is the fallback when the host is busy, starting, or down.
     persona, persona_secrets = [], []
     if v.get("PERSONA_LOCAL_URL"):
-        chain = [
-            {"base_url": v["PERSONA_LOCAL_URL"], "model": v.get("PERSONA_LOCAL_MODEL", "local"),
-             "key_file": "/etc/magi/inference/token", "attempts": 1, "timeout_s": 120},
-            {"base_url": v["MODEL_BASE_URL"], "model": v["MODEL_NAME"],
-             **({"key": MODEL_PLACEHOLDER} if model_egress else {"key_file": "/etc/magi/model/api-key"})},
-        ]
+        # Comma-separated, in order of preference, with one model name for
+        # each URL. http://<name>.revconn/v1 is a host that connects out to
+        # Magi (primitives/inference, "Connect out").
+        urls_l = [u.strip() for u in v["PERSONA_LOCAL_URL"].split(",") if u.strip()]
+        names = [m.strip() for m in v.get("PERSONA_LOCAL_MODEL", "local").split(",")]
+        if len(names) != len(urls_l):
+            sys.exit("PERSONA_LOCAL_MODEL needs one model name for each URL of PERSONA_LOCAL_URL")
+        local = [{"base_url": u, "model": m, "key_file": "/etc/magi/inference/token", "attempts": 1, "timeout_s": 120}
+                 for u, m in zip(urls_l, names)]
+        chain = [*local, {"base_url": v["MODEL_BASE_URL"], "model": v["MODEL_NAME"],
+                          **({"key": MODEL_PLACEHOLDER} if model_egress else {"key_file": "/etc/magi/model/api-key"})}]
         # The librarian works in the background, so it waits for the local
-        # host instead of using the provider.
+        # hosts instead of using the provider.
         persona = [{"name": "MAGI_PERSONA_MODELS", "value": json.dumps(chain)},
-                   {"name": "MAGI_LIBRARIAN_MODELS", "value": json.dumps(chain[:1])}]
+                   {"name": "MAGI_LIBRARIAN_MODELS", "value": json.dumps(local)}]
         persona_secrets = [("magi-inference-token", "/etc/magi/inference")]
     egress_env = []
     if egress:
@@ -362,6 +370,9 @@ def render(img, v):
         # The egress tunnel of runner sandboxes: an upgraded connection that
         # stays open, so it has no request timeout.
         route_rules.insert(0, {"matches": [{"path": {"type": "Exact", "value": "/runner/egress"}}], "backendRefs": [{"name": "magi", "port": 8080}]})
+    # Inference hosts connect out and keep idle connections (lib/revconn):
+    # no request timeout.
+    route_rules.insert(0, {"matches": [{"path": {"type": "Exact", "value": "/inference/connect"}}], "backendRefs": [{"name": "magi", "port": 8080}]})
     if v.get("PUBLIC_ROUTE") == "true":
         out.append({"apiVersion": "gateway.networking.k8s.io/v1", "kind": "HTTPRoute",
                     "metadata": {"name": "magi", "namespace": ns, "labels": LABELS},

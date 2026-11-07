@@ -15,7 +15,6 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/catalystcommunity/magi/lib/authn"
@@ -144,7 +143,7 @@ func (h *Host) startLocked() {
 	}
 	c := h.cfg.Engine.Command
 	cmd := exec.Command(c[0], c[1:]...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	setGroup(cmd)
 	if h.cfg.LogFile != "" {
 		if f, err := os.OpenFile(h.cfg.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600); err == nil {
 			cmd.Stdout, cmd.Stderr = f, f
@@ -215,13 +214,13 @@ func (h *Host) stopLocked(why string) {
 	h.cmd, h.ready, h.reason = nil, false, why
 	closeOnce(h.readyCh)
 	h.log.Info("engine stopping", "reason", why)
-	pgid := cmd.Process.Pid
-	syscall.Kill(-pgid, syscall.SIGTERM)
+	pid := cmd.Process.Pid
+	stopGroup(pid, false)
 	go func() {
 		select {
 		case <-exited:
 		case <-time.After(15 * time.Second):
-			syscall.Kill(-pgid, syscall.SIGKILL)
+			stopGroup(pid, true)
 		}
 	}()
 }

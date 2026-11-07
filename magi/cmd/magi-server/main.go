@@ -14,6 +14,9 @@ import (
 	"time"
 
 	"github.com/catalystcommunity/magi/lib/authn"
+	"net/http"
+
+	"github.com/catalystcommunity/magi/lib/revconn"
 	"github.com/catalystcommunity/magi/lib/rpc"
 	magiapi "github.com/catalystcommunity/magi/magi/api"
 	"github.com/catalystcommunity/magi/magi/compose"
@@ -82,6 +85,7 @@ func run(listen, keys string, workers bool, log *slog.Logger) error {
 	// MAGI_MODEL_EGRESS=true: all model calls of Magi go through the egress
 	// proxy, as the proxy user svc_magi. Then the provider key can be a
 	// proxy secret, and Magi holds only its placeholder.
+	var modelTransport http.RoundTripper
 	if os.Getenv("MAGI_MODEL_EGRESS") == "true" {
 		if cfg.EgressProxy == nil {
 			return errors.New("MAGI_MODEL_EGRESS needs MAGI_EGRESS_PROXY")
@@ -90,12 +94,17 @@ func run(listen, keys string, workers bool, log *slog.Logger) error {
 		if err != nil {
 			return err
 		}
-		for _, c := range []model.Chatter{model.Chain{m}, persona, sys.LibrarianModel} {
-			if ch, ok := c.(model.Chain); ok {
-				ch.SetTransport(t)
-			}
-		}
+		modelTransport = t
 		log.Info("model calls go through the egress proxy", "proxy", cfg.EgressProxy.Addr)
+	}
+	// Inference hosts connect out to Magi (/inference/connect) and keep
+	// idle connections; a model endpoint http://<host>.revconn/v1 uses
+	// them. Other endpoints use modelTransport.
+	hosts := &revconn.Pool{Log: log}
+	for _, c := range []model.Chatter{model.Chain{m}, persona, sys.LibrarianModel} {
+		if ch, ok := c.(model.Chain); ok {
+			ch.SetTransport(hosts.Transport(modelTransport))
+		}
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -126,6 +135,7 @@ func run(listen, keys string, workers bool, log *slog.Logger) error {
 	mux.Handle("/runner/v1/chat/completions", compose.ModelProxy(ver, m))
 	// Runner sandboxes reach the egress proxy through Magi.
 	mux.Handle("/runner/egress", compose.EgressTunnel(ver, sys.EgressProxy))
+	mux.Handle("/inference/connect", hosts.Handler(compose.InferenceHostName(ver)))
 	mux.Handle("/", web.Handler())
 	log.Info("listening", "addr", listen)
 	return rpc.ListenAndServe(ctx, listen, mux)

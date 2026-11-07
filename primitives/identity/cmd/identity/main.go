@@ -99,7 +99,7 @@ func keygen(args []string) error {
 func mint(args []string) error {
 	fs := flag.NewFlagSet("mint", flag.ExitOnError)
 	key := fs.String("key", env("MAGI_ISSUER_KEY", ""), "issuer key file")
-	subject := fs.String("subject", "", "service:<name> or user:<name>@<domain>")
+	subject := fs.String("subject", "", "service:<name>, runner:<name>, inference:<name>, or user:<name>@<domain>")
 	scopes := fs.String("scopes", "", "comma-separated scopes")
 	ttl := fs.Duration("ttl", 720*time.Hour, "token lifetime")
 	out := fs.String("out", "", "token file to create (mode 600)")
@@ -110,10 +110,11 @@ func mint(args []string) error {
 	kind := authn.KindService
 	if strings.HasPrefix(*subject, "user:") {
 		kind = authn.KindUser
-	} else if !strings.HasPrefix(*subject, "service:") && !strings.HasPrefix(*subject, "runner:") {
-		// A runner token is a service token for one machine (see the
-		// RunnerService in contracts/magi.csil).
-		return errors.New("subject must start with service:, runner:, or user:")
+	} else if !strings.HasPrefix(*subject, "service:") && !strings.HasPrefix(*subject, "runner:") && !strings.HasPrefix(*subject, "inference:") {
+		// A runner or inference host token is a service token for one
+		// machine (see the RunnerService in contracts/magi.csil and
+		// primitives/inference, "Connect out").
+		return errors.New("subject must start with service:, runner:, inference:, or user:")
 	}
 	iss, err := authn.LoadIssuer(*key)
 	if err != nil {

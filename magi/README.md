@@ -236,6 +236,12 @@ three parts in it:
   `GET /runner/egress` (runner token) is an HTTP upgrade that becomes one
   TCP connection to the proxy port. The runner machine thus connects only
   to Magi.
+- **Inference hosts.** `GET /inference/connect` (subject
+  `inference:<name>`, scope `inference:host`) is an HTTP upgrade. Magi
+  keeps the idle connection, and a model endpoint
+  `http://<name>.revconn/v1` sends each request on one of them
+  (`lib/revconn`, `primitives/inference`, "Connect out"). These requests
+  do not go through the egress proxy.
 
 A runner sandbox (bubblewrap) with the proxy has its own network
 namespace with no real interface. Its proxy variables point to
