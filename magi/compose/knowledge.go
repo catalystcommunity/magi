@@ -419,3 +419,28 @@ func (s *System) knowledgeContext(ctx context.Context, owner, text string) strin
 	}
 	return strings.TrimSpace(strings.Join(lines, "\n"))
 }
+
+// staleMark starts an earlier answer of the persona that came before a
+// change of the records.
+const staleMark = "[Before a change of the records: this answer can be out of date.] "
+
+// changeOps are the operations that can make an earlier answer wrong.
+var changeOps = []string{"fix", "update", "retract", "merge", "unmerge"}
+
+// lastChange gives the time of the newest change (changeOps) of the
+// knowledge of owner since from (ms), or 0.
+func (s *System) lastChange(ctx context.Context, owner string, from uint64) uint64 {
+	res, err := s.Knowledge.Timeline(ctx, knowledgeapi.TimelineRequest{FromMs: from, ToMs: uint64(time.Now().UnixMilli()) + 1,
+		Limit: ptr(uint64(1000)), ActFor: &owner})
+	if err != nil {
+		s.Log.Warn("knowledge changes", "err", err)
+		return 0
+	}
+	var last uint64
+	for _, c := range res.Changes {
+		if slices.Contains(changeOps, c.Operation) {
+			last = max(last, c.AtMs)
+		}
+	}
+	return last
+}

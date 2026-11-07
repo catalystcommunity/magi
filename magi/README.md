@@ -425,7 +425,15 @@ with the tool functions, before the persona model writes the reply, and
 tells the persona model what it did, with the line of each changed record.
 Then Magi finds the matching records again, so that the persona model gets
 the records after the changes. Thus a fact is recorded also when the
-persona model does not call a tool. The turn annotation has each call with
+persona model does not call a tool.
+
+An earlier answer of the persona can be wrong after a change of the
+records. Magi gets the newest `fix`, `update`, `retract`, `merge`, or
+`unmerge` of the person's knowledge since the oldest message of the history
+(`timeline`). Each earlier answer before that change starts with "[Before a
+change of the records: this answer can be out of date.]". The heading of the
+earlier, related messages says the same. Magi removes this mark from a reply
+that copies it. The turn annotation has each call with
 `"by": "note-taker"` and the model call in `notes`.
 `MAGI_NOTE_TAKER=false` turns it off. See `docs/knowledge.md`.
 

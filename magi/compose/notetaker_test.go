@@ -1,6 +1,15 @@
 package compose
 
-import "testing"
+import (
+	"context"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	knowledgeapi "github.com/catalystcommunity/magi/primitives/knowledge/api"
+)
 
 func TestNoteItemToolCall(t *testing.T) {
 	cases := []struct {
@@ -45,5 +54,21 @@ func TestRecordOf(t *testing.T) {
 	}
 	if recordOf(notes, "clm_x") != "" || recordOf(notes, "") != "" {
 		t.Fatal("no match must give nothing")
+	}
+}
+
+// TestLastChange: only operations that can make an earlier answer wrong
+// count; a create or a dispute does not.
+func TestLastChange(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/cbor")
+		w.Write(knowledgeapi.EncodeTimelineResponse(knowledgeapi.TimelineResponse{Episodes: []knowledgeapi.Episode{}, Claims: []knowledgeapi.Claim{},
+			Changes: []knowledgeapi.Change{{Id: "c1", Operation: "create", AtMs: 50}, {Id: "c2", Operation: "retract", AtMs: 9},
+				{Id: "c3", Operation: "dispute", AtMs: 70}, {Id: "c4", Operation: "fix", AtMs: 30}}}))
+	}))
+	defer srv.Close()
+	sys := New(Config{Knowledge: srv.URL, ServiceToken: "t"}, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if got := sys.lastChange(context.Background(), "user:a", 1); got != 30 {
+		t.Fatalf("got %d, want 30", got)
 	}
 }
