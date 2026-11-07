@@ -428,12 +428,28 @@ the records after the changes. Thus a fact is recorded also when the
 persona model does not call a tool.
 
 An earlier answer of the persona can be wrong after a change of the
-records. Magi gets the newest `fix`, `update`, `retract`, `merge`, or
-`unmerge` of the person's knowledge since the oldest message of the history
-(`timeline`). Each earlier answer before that change starts with "[Before a
-change of the records: this answer can be out of date.]". The heading of the
-earlier, related messages says the same. Magi removes this mark from a reply
-that copies it. The turn annotation has each call with
+records. Each persona reply keeps the records that it got (the records of
+the prompt and the `recall` results) as attachments of kind
+`knowledge-record`: the record ID, and the line of the record as the title.
+At most 60 are kept. They are not links. For each turn, Magi gets each
+`fix`, `update`, `retract`, `merge`, and `unmerge` of the person's knowledge
+since the oldest message of the history (`timeline`). A retract also covers
+the records in its `after.records`.
+
+- An earlier answer that used a record that changed after the answer: Magi
+  does not give its text to the model. It gives a note in its place, for
+  example: "[This answer was superseded by a later change of the records
+  (the person said: "There is no chores calendar. Forget it.") retracts it:
+  it was never true, or the person asked to forget it. The record was:
+  chores calendar (calendar). Do not repeat the earlier answer; use the
+  current records.]"
+- An earlier answer with no `knowledge-record` attachments (a reply from
+  before this change), before the newest change: it starts with "[Before a
+  change of the records: this answer can be out of date.]".
+
+The heading of the earlier, related messages tells that the records
+changed. Magi removes the note and the mark from a reply that copies them.
+The turn annotation has each call with
 `"by": "note-taker"` and the model call in `notes`.
 `MAGI_NOTE_TAKER=false` turns it off. See `docs/knowledge.md`.
 

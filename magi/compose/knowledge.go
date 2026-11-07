@@ -2,13 +2,16 @@ package compose
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
 
 	magiapi "github.com/catalystcommunity/magi/magi/api"
 	"github.com/catalystcommunity/magi/magi/model"
+	conversationapi "github.com/catalystcommunity/magi/primitives/conversation/api"
 	knowledgeapi "github.com/catalystcommunity/magi/primitives/knowledge/api"
 )
 
@@ -421,26 +424,151 @@ func (s *System) knowledgeContext(ctx context.Context, owner, text string) strin
 }
 
 // staleMark starts an earlier answer of the persona that came before a
-// change of the records.
+// change of the records, when Magi does not know which records the answer
+// used (an answer from before record refs).
 const staleMark = "[Before a change of the records: this answer can be out of date.] "
+
+// recordRefKind is the kind of an attachment of a persona reply: a record
+// that the persona got before the reply (the records of the prompt, or a
+// recall result). The title is the line of the record.
+const recordRefKind = "knowledge-record"
 
 // changeOps are the operations that can make an earlier answer wrong.
 var changeOps = []string{"fix", "update", "retract", "merge", "unmerge"}
 
-// lastChange gives the time of the newest change (changeOps) of the
-// knowledge of owner since from (ms), or 0.
-func (s *System) lastChange(ctx context.Context, owner string, from uint64) uint64 {
+var recordID = regexp.MustCompile(`\[((?:clm|ent)_[^\]\s]+)\]`)
+
+// recordRefs gives a ref for each record id in text (describeKnowledge),
+// with the line of the record as the title.
+func recordRefs(text string) []conversationapi.Ref {
+	var refs []conversationapi.Ref
+	seen := map[string]bool{}
+	for _, l := range strings.Split(text, "\n") {
+		for _, m := range recordID.FindAllStringSubmatch(l, -1) {
+			if seen[m[1]] {
+				continue
+			}
+			seen[m[1]] = true
+			title := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(recordID.ReplaceAllString(l, "")), "-"))
+			if len(title) > 200 {
+				title = title[:200]
+			}
+			refs = append(refs, conversationapi.Ref{Kind: recordRefKind, Ref: m[1], Title: &title})
+		}
+	}
+	return refs
+}
+
+// recordChanges gives the newest change (changeOps) of each record of
+// owner since from (ms), and the time of the newest change, or 0.
+func (s *System) recordChanges(ctx context.Context, owner string, from uint64) (map[string]knowledgeapi.Change, uint64) {
 	res, err := s.Knowledge.Timeline(ctx, knowledgeapi.TimelineRequest{FromMs: from, ToMs: uint64(time.Now().UnixMilli()) + 1,
 		Limit: ptr(uint64(1000)), ActFor: &owner})
 	if err != nil {
 		s.Log.Warn("knowledge changes", "err", err)
-		return 0
+		return nil, 0
 	}
+	changes := map[string]knowledgeapi.Change{}
 	var last uint64
 	for _, c := range res.Changes {
-		if slices.Contains(changeOps, c.Operation) {
-			last = max(last, c.AtMs)
+		if !slices.Contains(changeOps, c.Operation) {
+			continue
+		}
+		last = max(last, c.AtMs)
+		ids := []string{c.Record}
+		// A retract also removes the facts of a retracted entity.
+		if c.After != nil {
+			var after struct {
+				Records []string `json:"records"`
+			}
+			if json.Unmarshal([]byte(*c.After), &after) == nil {
+				ids = append(ids, after.Records...)
+			}
+		}
+		for _, id := range ids {
+			if old, ok := changes[id]; !ok || c.AtMs >= old.AtMs {
+				changes[id] = c
+			}
 		}
 	}
-	return last
+	return changes, last
+}
+
+var opWords = map[string]string{
+	"retract": "retracts it: it was never true, or the person asked to forget it",
+	"fix":     "fixes it: it was wrong",
+	"update":  "updates it: it changed",
+	"merge":   "merges it with another record of the same thing",
+	"unmerge": "separates it from a record that it was merged with",
+}
+
+// supersededPrefix starts the note that replaces an earlier answer.
+const supersededPrefix = "[This answer was superseded"
+
+// supersededCopy matches a superseded note that a model copied.
+var supersededCopy = regexp.MustCompile(`\[This answer was superseded[^\]]*\]`)
+
+// supersededNote gives the text that replaces an earlier answer u when a
+// record that u used changed after u, or "". The answer text is not given:
+// a small model copies its own earlier answer.
+func supersededNote(u conversationapi.Utterance, changes map[string]knowledgeapi.Change) string {
+	type hit struct {
+		c      knowledgeapi.Change
+		titles []string
+	}
+	var hits []*hit
+	byID := map[string]*hit{}
+	for _, r := range u.Attachments {
+		c, ok := changes[r.Ref]
+		if r.Kind != recordRefKind || !ok || c.AtMs <= u.CreatedMs {
+			continue
+		}
+		h := byID[c.Id]
+		if h == nil {
+			h = &hit{c: c}
+			byID[c.Id] = h
+			hits = append(hits, h)
+		}
+		if r.Title != nil && *r.Title != "" && !slices.Contains(h.titles, *r.Title) {
+			h.titles = append(h.titles, *r.Title)
+		}
+	}
+	if len(hits) == 0 {
+		return ""
+	}
+	var parts []string
+	for _, h := range hits {
+		p := "a later change of the records"
+		if h.c.Reason != nil && strings.TrimSpace(*h.c.Reason) != "" {
+			p += fmt.Sprintf(" (the person said: %q)", strings.TrimSpace(*h.c.Reason))
+		}
+		p += " " + opWords[h.c.Operation]
+		if len(h.titles) > 0 {
+			p += ". The record was: " + strings.Join(h.titles, "; ")
+		}
+		parts = append(parts, p)
+	}
+	return supersededPrefix + " by " + strings.Join(parts, ". Also by ") + ". Do not repeat the earlier answer; use the current records.]"
+}
+
+// capRecordRefs keeps the first n record refs (recordRefKind) and all
+// other refs, and drops repeated record refs.
+func capRecordRefs(refs []conversationapi.Ref, n int) []conversationapi.Ref {
+	out := refs[:0:0]
+	seen := map[string]bool{}
+	for _, r := range refs {
+		if r.Kind == recordRefKind {
+			if seen[r.Ref] || len(seen) >= n {
+				continue
+			}
+			seen[r.Ref] = true
+		}
+		out = append(out, r)
+	}
+	return out
+}
+
+// hasRecordRefs tells if Magi knows the records that u used.
+func hasRecordRefs(u conversationapi.Utterance) bool {
+	return slices.ContainsFunc(u.Attachments, func(r conversationapi.Ref) bool { return r.Kind == recordRefKind })
 }
