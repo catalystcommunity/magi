@@ -102,6 +102,8 @@ questions. "Checks" counts the 5 checks after the changes. The note taker
 | qwen3.6-35b-a3b, RTX 3090 | on | 13, 12 | 2, 1 | 7 s | 28 s |
 | gemma-4-12b, RTX 3090, KV cache q8_0 | on | 12, 14 | 5, 5 | 12 s | 48 s |
 | gemma-4-12b, RTX 3090, KV cache f16 | on | 13, 14 | 5, 5 | 9 s | 35 s |
+| gemma-4-12b, RTX 3090, web search tools (round0-v3) | on | 12, 13 | 4, 4 | 10 s | 35 s |
+| gemma-4-12b, RTX 3090, web search, note taker object/value fix (round0-v3) | on | 13, 13 | 4, 4 | 10 s | 51 s |
 
 The files `glm-5.3-nolocal-*` were runs for gpt-oss-20b and qwen3.6-35b-a3b
 in which the inference host did not start; all turns used Zen. The runs of
@@ -150,3 +152,14 @@ Findings:
 
 Gemma 4 12B with the note taker is the default local model. The persona
 tries the 3090 host first, then the 4080 host, then Zen.
+
+- Web search (round0-v3, 2026-11-08): the eval asks only private facts, so
+  the personas made no web search; the judge refused one (a private eye
+  doctor). Abstain stays 3/3. In the first two runs the note taker gave
+  `remember` an object and a value for "The kids sports calendar and the
+  chores calendar are in Nextcloud too", and `remember` refused both facts
+  (the Magi check said so correctly). Then "There is no chores calendar"
+  retracted the family calendar, the only matching record. The note taker
+  now records such an item about its object; after the fix both store
+  checks pass. c03.1 still fails: Gemma names only the sports calendar.
+
