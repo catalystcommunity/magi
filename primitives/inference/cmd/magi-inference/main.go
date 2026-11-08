@@ -33,6 +33,7 @@ type config struct {
 	Engine    host.Engine   `json:"engine"`
 	Rules     *host.Rules   `json:"rules"`
 	IdleStop  host.Duration `json:"idle_stop"`
+	KeepWarm  bool          `json:"keep_warm"`
 	StartWait host.Duration `json:"start_wait"`
 	LogFile   string        `json:"engine_log"`
 }
@@ -107,7 +108,7 @@ func run(ctx context.Context, path string, log *slog.Logger) error {
 	ctx, stop := context.WithCancel(ctx)
 	defer stop()
 	h := host.New(host.Config{
-		Engine: cfg.Engine, Rules: rules, IdleStop: time.Duration(cfg.IdleStop),
+		Engine: cfg.Engine, Rules: rules, IdleStop: time.Duration(cfg.IdleStop), KeepWarm: cfg.KeepWarm,
 		StartWait: time.Duration(cfg.StartWait), LogFile: cfg.LogFile,
 	}, host.System{}, ver, log)
 	done := make(chan struct{})

@@ -73,7 +73,7 @@ type env struct {
 	stop context.CancelFunc
 }
 
-func setup(t *testing.T, startWait time.Duration) *env {
+func setup(t *testing.T, startWait time.Duration, opts ...func(*Config)) *env {
 	pub, priv, _ := ed25519.GenerateKey(nil)
 	iss := &authn.Issuer{Name: "test", KeyID: "k1", Key: priv}
 	ver := &authn.Verifier{Issuer: "test", Keys: map[string]ed25519.PublicKey{"k1": pub}}
@@ -83,10 +83,14 @@ func setup(t *testing.T, startWait time.Duration) *env {
 	e := &env{s: &fakeSampler{s: Sample{GPUUtil: 0, GPUUsedMiB: 1000, GPUTotalMiB: 16000}}, now: time.Now()}
 	rules := DefaultRules()
 	rules.QuietFor = Duration(30 * time.Second)
-	e.h = New(Config{
+	cfg := Config{
 		Engine: Engine{Command: []string{os.Args[0]}, Port: port, Model: "local"}, Rules: rules,
 		IdleStop: 10 * time.Minute, StartWait: startWait, Interval: time.Hour,
-	}, e.s, ver, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	}
+	for _, o := range opts {
+		o(&cfg)
+	}
+	e.h = New(cfg, e.s, ver, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	e.h.now = func() time.Time { e.mu.Lock(); defer e.mu.Unlock(); return e.now }
 	ctx, cancel := context.WithCancel(context.Background())
 	e.stop = cancel
@@ -254,4 +258,28 @@ func TestRules(t *testing.T) {
 			t.Errorf("case %d: busy = %v", i, got)
 		}
 	}
+}
+
+// KeepWarm loads the engine when the host starts, keeps it through idle
+// time, gives the GPU back when the machine is busy, and loads it again
+// when the machine is quiet.
+func TestKeepWarm(t *testing.T) {
+	e := setup(t, 0, func(c *Config) { c.KeepWarm = true })
+	waitState(t, e, "ready")
+	if code, _, body := e.chat(t, e.tok(Scope)); code != 200 {
+		t.Fatalf("first request must not wait: %d %s", code, body)
+	}
+	e.advance(time.Hour)
+	e.h.check(context.Background())
+	if st := e.state(); st != "ready" {
+		t.Fatalf("idle: %s", st)
+	}
+	e.s.set(Sample{GPUUtil: 0, GPUUsedMiB: 9000, GPUTotalMiB: 16000, Processes: []string{"rustc"}})
+	e.h.check(context.Background())
+	waitState(t, e, "busy")
+	e.s.set(Sample{GPUUtil: 0, GPUUsedMiB: 1000, GPUTotalMiB: 16000})
+	e.h.check(context.Background())
+	e.advance(31 * time.Second)
+	e.h.check(context.Background())
+	waitState(t, e, "ready")
 }

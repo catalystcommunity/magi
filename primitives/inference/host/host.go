@@ -34,9 +34,13 @@ type Engine struct {
 }
 
 type Config struct {
-	Engine     Engine
-	Rules      Rules
-	IdleStop   time.Duration // stop the engine after this time without requests
+	Engine   Engine
+	Rules    Rules
+	IdleStop time.Duration // stop the engine after this time without requests
+	// KeepWarm: start the engine when the host starts and each time the
+	// machine becomes quiet, and do not stop it for idle time. Then the
+	// first request does not wait for the model to load.
+	KeepWarm   bool
 	StartWait  time.Duration // a request waits this long for a cold engine; 0 refuses at once
 	Interval   time.Duration // how often to sample the machine
 	StartLimit time.Duration // the engine must be ready in this time
@@ -62,7 +66,12 @@ type Host struct {
 	busy      string    // current busy reason, or ""
 	quietFrom time.Time // when the machine became quiet
 	reason    string    // last reason the engine stopped or failed
+	failed    time.Time // when the engine last failed to start or exited
 }
+
+// retryFail is how long KeepWarm waits after the engine failed before it
+// starts the engine again.
+const retryFail = time.Minute
 
 func New(cfg Config, s Sampler, v *authn.Verifier, log *slog.Logger) *Host {
 	if cfg.Interval == 0 {
@@ -131,8 +140,12 @@ func (h *Host) check(ctx context.Context) {
 			h.busy = ""
 		}
 	}
-	if h.cmd != nil && h.inFlight == 0 && h.cfg.IdleStop > 0 && now.Sub(h.lastUsed) >= h.cfg.IdleStop {
+	if !h.cfg.KeepWarm && h.cmd != nil && h.inFlight == 0 && h.cfg.IdleStop > 0 && now.Sub(h.lastUsed) >= h.cfg.IdleStop {
 		h.stopLocked("idle")
+	}
+	if h.cfg.KeepWarm && h.cmd == nil && h.busy == "" && now.Sub(h.failed) >= retryFail {
+		h.log.Info("keep warm: starting the engine")
+		h.startLocked()
 	}
 }
 
@@ -151,7 +164,7 @@ func (h *Host) startLocked() {
 		}
 	}
 	if err := cmd.Start(); err != nil {
-		h.reason = "engine did not start: " + err.Error()
+		h.reason, h.failed = "engine did not start: "+err.Error(), h.now()
 		h.log.Error("engine start", "err", err)
 		return
 	}
@@ -165,7 +178,7 @@ func (h *Host) startLocked() {
 		h.mu.Lock()
 		defer h.mu.Unlock()
 		if h.cmd == cmd {
-			h.reason = fmt.Sprintf("engine exited: %v", err)
+			h.reason, h.failed = fmt.Sprintf("engine exited: %v", err), h.now()
 			h.log.Warn("engine exited", "err", err)
 			h.cmd, h.ready = nil, false
 			closeOnce(readyCh)
@@ -200,6 +213,7 @@ func (h *Host) waitReady(cmd *exec.Cmd, readyCh, exited chan struct{}) {
 	}
 	h.mu.Lock()
 	if h.cmd == cmd {
+		h.failed = h.now()
 		h.stopLocked("engine was not ready in time")
 	}
 	h.mu.Unlock()

@@ -2,7 +2,8 @@
 
 The inference primitive runs a model engine on a machine that also does
 other work, such as a desktop. It starts the engine when a request comes,
-and stops it after an idle time. When the machine is busy with other work,
+and stops it after an idle time. With `keep_warm`, it starts the engine
+before the first request and keeps it loaded. When the machine is busy with other work,
 it refuses new work, so that callers use a different provider.
 
 The host is a plain process. It runs in the same way on a host and in a VM.
@@ -76,6 +77,7 @@ One JSON file, given with `-config` or `MAGI_INFERENCE_CONFIG`:
     "model": "model-name"
   },
   "idle_stop": "15m",
+  "keep_warm": true,
   "start_wait": "10s",
   "engine_log": "/path/to/engine.log",
   "rules": {"cpu_load": 0.6, "gpu_util": 40, "need_mib": 7000, "quiet_for": "60s",
@@ -92,6 +94,13 @@ One JSON file, given with `-config` or `MAGI_INFERENCE_CONFIG`:
   provider. A 9B model on one GPU starts in about 2 s, and a hosted
   provider can take 8 to 10 s to answer. Thus a short wait gives a faster
   reply than the fallback.
+- `keep_warm`: the host starts the engine when the host starts, and each
+  time the machine becomes quiet. It does not stop the engine for idle time
+  (it ignores `idle_stop`). The busy rules still apply: when the machine is
+  busy, the host stops the engine and gives the GPU back. Use this on the
+  host of the model that Magi uses most, so that a reply does not wait for
+  the model to load. If the engine fails, the host waits 1 minute before
+  it starts the engine again.
 - `rules` replaces all default rules when it is given.
 
 ## Run as a user service
