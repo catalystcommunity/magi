@@ -91,6 +91,11 @@ questions. "Checks" counts the 5 checks after the changes. The note taker
 | gemma-4-12b, default2, records after the notes | on | 14, 14 | 4, 4 | 8 s | 62 s |
 | gemma-4-12b, default3, earlier answers marked | on | 12, 14 | 5, 4 | 7 s | 58 s |
 | gemma-4-12b, default4, superseded answers replaced | on | 13, 14, 14, 14 | 4, 5, 5, 5 | 8 s | 51 s |
+| qwen3.8-flash-next (IQ3_XXS), RTX 3090 (Windows) | on | 14, 15 | 4, 5 | 70 s | 159 s |
+| qwen3.8-27b (IQ3_S), RTX 3090 | on | 10, 9 | 2, 1 | 18 s | 69 s |
+| qwen3.6-35b-a3b, RTX 3090 | on | 13, 12 | 2, 1 | 7 s | 28 s |
+| gemma-4-12b, RTX 3090, KV cache q8_0 | on | 12, 14 | 5, 5 | 12 s | 48 s |
+| gemma-4-12b, RTX 3090, KV cache f16 | on | 13, 14 | 5, 5 | 9 s | 35 s |
 
 The files `glm-5.3-nolocal-*` were runs for gpt-oss-20b and qwen3.6-35b-a3b
 in which the inference host did not start; all turns used Zen. The runs of
@@ -130,4 +135,12 @@ Findings:
 - In two Gemma runs, the reply started with the template text
   `<|channel>thought<channel|>`. `magi/model` now removes this text.
 
-Gemma 4 12B with the note taker is the default local model.
+- RTX 3090 (24 GB, Windows host `ht0-vr1`, through `/inference/connect`):
+  Qwen3.8-Flash-Next is not faster than on the 4080. The model is 76 GB,
+  thus most of it is in system memory, and the CPU sets the speed.
+  Qwen3.8-27B fits in the GPU, but it fails most changes. Qwen3.6-35B-A3B
+  is fast, but fails most changes too. Gemma 4 12B gives the same results
+  as on the 4080. A KV cache of q8_0 makes it slower on the 3090: use f16.
+
+Gemma 4 12B with the note taker is the default local model. The persona
+tries the 3090 host first, then the 4080 host, then Zen.
