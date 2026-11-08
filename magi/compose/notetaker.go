@@ -77,6 +77,16 @@ func (n noteItem) toolCall(reason string) (string, map[string]string) {
 		if strings.TrimSpace(n.Subject) == "" || strings.TrimSpace(n.Relation) == "" || (n.Object == "" && n.Value == "") {
 			return "", nil
 		}
+		// remember takes an object or a value, not both. A small model gives
+		// "me, located-in, object: kids sports calendar, value: Nextcloud"
+		// for "the kids sports calendar is in Nextcloud": the fact is about
+		// the object. Else the object stays and the value goes.
+		if strings.TrimSpace(n.Object) != "" && strings.TrimSpace(n.Value) != "" {
+			if strings.EqualFold(strings.TrimSpace(n.Subject), "me") {
+				n.Subject, n.SubjectKind, n.Object, n.ObjectKind = n.Object, n.ObjectKind, n.Value, ""
+			}
+			n.Value = ""
+		}
 		args := map[string]string{"subject": n.Subject, "subject_kind": n.SubjectKind, "relation": n.Relation,
 			"object": n.Object, "object_kind": n.ObjectKind, "value": n.Value}
 		if n.Also {

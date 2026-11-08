@@ -24,6 +24,11 @@ func TestNoteItemToolCall(t *testing.T) {
 		{noteItem{Op: "remember", Subject: "Dana", Relation: "birthday", Value: "March 3", Also: true}, "remember",
 			map[string]string{"subject": "Dana", "relation": "birthday", "value": "March 3", "also": "true"}},
 		{noteItem{Op: "remember", Subject: "me", Relation: "dentist"}, "", nil},
+		// Object and value: the fact is about the object (eval round0 s05).
+		{noteItem{Op: "remember", Subject: "me", SubjectKind: "person", Relation: "located-in", Object: "kids sports calendar", ObjectKind: "calendar", Value: "Nextcloud"}, "remember",
+			map[string]string{"subject": "kids sports calendar", "subject_kind": "calendar", "relation": "located-in", "object": "Nextcloud"}},
+		{noteItem{Op: "remember", Subject: "Dana", Relation: "lives-in", Object: "Tucson", ObjectKind: "place", Value: "a city"}, "remember",
+			map[string]string{"subject": "Dana", "relation": "lives-in", "object": "Tucson", "object_kind": "place"}},
 		{noteItem{Op: "fix", Id: "clm_x", Value: "Phoenix", Field: "object"}, "change_knowledge",
 			map[string]string{"id": "clm_x", "operation": "fix", "value": "Phoenix", "field": "object", "reason": "r"}},
 		{noteItem{Op: "update", Id: "Dr. Rivera", Value: "Dr. Chen"}, "", nil},
