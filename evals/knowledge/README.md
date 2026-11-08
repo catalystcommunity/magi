@@ -104,6 +104,8 @@ questions. "Checks" counts the 5 checks after the changes. The note taker
 | gemma-4-12b, RTX 3090, KV cache f16 | on | 13, 14 | 5, 5 | 9 s | 35 s |
 | gemma-4-12b, RTX 3090, web search tools (round0-v3) | on | 12, 13 | 4, 4 | 10 s | 35 s |
 | gemma-4-12b, RTX 3090, web search, note taker object/value fix (round0-v3) | on | 13, 13 | 4, 4 | 10 s | 51 s |
+| gemma-4-12b, RTX 3090, fact shape and retract guard (round0-v3, `gemma-shape`) | on | 13, 14 | 4, 5 | 7 s | 29 s |
+| gemma-4-12b, RTX 3090, fact shape, self first, hub facts, no search push after empty recall (`gemma-shape5`) | on | 16, 15 | 5, 5 | 7 s | 37 s |
 
 The files `glm-5.3-nolocal-*` were runs for gpt-oss-20b and qwen3.6-35b-a3b
 in which the inference host did not start; all turns used Zen. The runs of
@@ -162,4 +164,25 @@ tries the 3090 host first, then the 4080 host, then Zen.
   retracted the family calendar, the only matching record. The note taker
   now records such an item about its object; after the fix both store
   checks pass. c03.1 still fails: Gemma names only the sports calendar.
+
+- Fact shape (round0-v3, 2026-11-08, runs `gemma-shape` to `gemma-shape5`):
+  the misses were in the shape of the records, not in the search. Read the
+  `store` dump of a result first. The store had "Dr. Okafor at Birch Lane
+  Animal Clinic" as one person, "me work calendar" as a name, dates as
+  things, "household Nextcloud" beside "Nextcloud", a copy of Dana's
+  birthday on the person, and "Brightline Logistics works-at operations
+  manager" (from the object/value change above). `magi/compose/factshape.go`
+  now shapes each fact (docs/knowledge.md, "Fact shape"). Then the store
+  checks passed in all runs. The next misses were in the context: the
+  self entity was cut by the limit of four entities ("Where do I work?"
+  found "work calendar" first), and each fact showed once, so "household
+  Nextcloud" did not list all its calendars. With the self first and the
+  facts listed again under the thing that they point to, both runs passed
+  all checks. Run `shape3-a` failed a02: after "I don't know", the search
+  push came, and the model answered the push. Magi now does not push after
+  a recall that found nothing. One miss remains: q05 ("How do I book the
+  vet?") needs two steps (vet, then the clinic, then books-through).
+- The c04 fix in `gemma-shape4` changed `me router Ubiquiti Dream Machine`
+  to `me router garage`: the note taker gave the id of the wrong fact. The
+  check passed because "garage" was in the reply.
 

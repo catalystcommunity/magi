@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -21,10 +22,10 @@ import (
 const noteTakerPrompt = `You keep the notes of one person. Read the newest message of the person and give the changes to the notes that it asks for. Give no items when the message only asks a question, greets, or talks about something that is not a fact about the person, their people, things, places, accounts, calendars, or plans.
 
 Operations:
-- "remember": a new fact. subject: "me" for the person, or a name. relation: short, lower case, with "-" (dentist, vet, sister, lives-in, works-at, job, hosted-in, located-in, birthday, books-through, model). object: a thing with a name (a person, place, organization, system, device). value: a date, number, or description when there is no object. Give one item for each fact. When the person names a person or thing that relates to them, also give that fact ("my sister Dana lives in Tucson": me sister Dana, and Dana lives-in Tucson). "also": true only for a second fact with the same subject and relation (a second sister).
+- "remember": a new fact. subject: "me" for the person, or a name. relation: short, lower case, with "-" (dentist, vet, sister, lives-in, works-at, job, hosted-in, located-in, birthday, books-through, model). object: a thing with a name (a person, place, organization, system, device). value: a date, number, or description when there is no object. Give one item for each fact. When the person names a person or thing that relates to them, also give that fact ("my sister Dana lives in Tucson": me sister Dana, and Dana lives-in Tucson). "also": true only for a second fact with the same subject and relation (a second sister). A thing of the person is the subject of its own facts: "my photo library is in iCloud": photo library located-in iCloud; "our printer is a Brother HL-L2350 in the office": me printer Brother HL-L2350, and Brother HL-L2350 located-in office. A person at a place is two facts: "my doctor is Dr. Lee at Elm Clinic": me doctor Dr. Lee, and Dr. Lee works-at Elm Clinic. Give object or value, not both.
 - "update": a fact of the notes was true and is now different ("we switched", "now", "we moved", "it changed to"). id: the id of that fact from the notes. value: the new object or value.
 - "fix": a fact of the notes was wrong ("that's wrong", "I misspoke", "it was always", "not X"). id: the id of the fact. value: the right object or value. field: "object" or "value" (the field that holds the wrong part).
-- "retract": a fact or thing of the notes was never true, or the person wants it forgotten ("there is no", "forget it"). id: the id.
+- "retract": a fact or thing of the notes was never true, or the person wants it forgotten ("there is no", "forget it"). id: the id. object: the name of the thing or fact to forget, in the words of the person ("chores calendar"). When no record of the notes names that thing, give no item.
 
 Rules:
 - Use only the words of the person. Do not add details.
@@ -80,9 +81,16 @@ func (n noteItem) toolCall(reason string) (string, map[string]string) {
 		// remember takes an object or a value, not both. A small model gives
 		// "me, located-in, object: kids sports calendar, value: Nextcloud"
 		// for "the kids sports calendar is in Nextcloud": the fact is about
-		// the object. Else the object stays and the value goes.
+		// the object. That holds only for a relation of a thing: for "me,
+		// works-at, object: Brightline Logistics, value: operations manager"
+		// the object stays and the value goes.
 		if strings.TrimSpace(n.Object) != "" && strings.TrimSpace(n.Value) != "" {
-			if strings.EqualFold(strings.TrimSpace(n.Subject), "me") {
+			switch {
+			case strings.EqualFold(strings.TrimSpace(n.Subject), strings.TrimSpace(n.Object)):
+				// "kids sports calendar, located-in, object: kids sports
+				// calendar, value: Nextcloud": the value is the object.
+				n.Object, n.ObjectKind = n.Value, ""
+			case isSelf(n.Subject) && thingRelation[strings.ToLower(strings.TrimSpace(n.Relation))]:
 				n.Subject, n.SubjectKind, n.Object, n.ObjectKind = n.Object, n.ObjectKind, n.Value, ""
 			}
 			n.Value = ""
@@ -166,10 +174,16 @@ func (s *System) applyNotes(ctx context.Context, a workflowapi.Assignment, as co
 	if len(reason) > 200 {
 		reason = reason[:200]
 	}
+	items = dropSelfCopies(items, utt.Text)
 	var done []string
 	for _, it := range items {
 		tool, args := it.toolCall(reason)
 		if tool == "" {
+			continue
+		}
+		if it.Op == "retract" && !namesRecord(notes, it) {
+			log.Calls = append(log.Calls, map[string]any{"tool": tool, "args": args, "by": "note-taker",
+				"result": fmt.Sprintf("Not changed: the record %s does not name %q.", it.Id, it.named())})
 			continue
 		}
 		out, ref := s.personaTool(ctx, a, as, utt, tool, args)
@@ -196,4 +210,94 @@ func recordOf(notes, id string) string {
 		}
 	}
 	return ""
+}
+
+// named gives the thing that a retract item names: the object, else a
+// subject that is not the person.
+func (n noteItem) named() string {
+	if o := strings.TrimSpace(n.Object); o != "" {
+		return o
+	}
+	if sub := strings.TrimSpace(n.Subject); sub != "" && !strings.EqualFold(sub, "me") {
+		return sub
+	}
+	return ""
+}
+
+// namesRecord reports whether the record line of the item's id has each
+// word of the name that the item gives. A small model retracts the only
+// record of a kind when the person names a thing that the notes do not
+// have ("There is no chores calendar" retracted the family calendar).
+// An item with no name passes.
+func namesRecord(notes string, it noteItem) bool {
+	name := it.named()
+	if name == "" {
+		return true
+	}
+	line := ""
+	for _, l := range strings.Split(notes, "\n") {
+		if strings.Contains(l, it.Id) {
+			line = l
+			break
+		}
+	}
+	have := words(line)
+	for _, w := range words(name) {
+		if nameStop[w] {
+			continue
+		}
+		stem := strings.TrimSuffix(w, "s")
+		ok := false
+		for _, h := range have {
+			if strings.HasPrefix(h, stem) {
+				ok = true
+				break
+			}
+		}
+		if !ok {
+			return false
+		}
+	}
+	return true
+}
+
+var nameStop = map[string]bool{"the": true, "a": true, "an": true, "my": true, "our": true, "of": true, "me": true, "i": true}
+
+func words(s string) []string {
+	return strings.FieldsFunc(strings.ToLower(s), func(r rune) bool {
+		return !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r > 127)
+	})
+}
+
+// thingRelation is a relation that tells about a thing, not a person.
+var thingRelation = map[string]bool{"located-in": true, "hosted-in": true, "stored-in": true, "kept-in": true, "in": true,
+	"books-through": true, "model": true, "runs-on": true, "synced-to": true, "part-of": true}
+
+var shared = regexp.MustCompile(`(?i)\b(both|and i|and me|we|us|our)\b`)
+
+// dropSelfCopies removes a remember item about the person that repeats the
+// relation and the object or value of an item about another subject in the
+// same message: for "Dana's birthday is March 3" a small model also gives
+// "me birthday March 3". Words such as "both" or "we" keep it.
+func dropSelfCopies(items []noteItem, text string) []noteItem {
+	if shared.MatchString(text) {
+		return items
+	}
+	key := func(n noteItem) string {
+		return strings.ToLower(strings.TrimSpace(n.Relation) + "\x00" + strings.TrimSpace(n.Object) + "\x00" + strings.TrimSpace(n.Value))
+	}
+	other := map[string]bool{}
+	for _, n := range items {
+		if n.Op == "remember" && !isSelf(n.Subject) {
+			other[key(n)] = true
+		}
+	}
+	out := items[:0:0]
+	for _, n := range items {
+		if n.Op == "remember" && isSelf(n.Subject) && other[key(n)] {
+			continue
+		}
+		out = append(out, n)
+	}
+	return out
 }

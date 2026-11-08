@@ -220,8 +220,11 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 				continue
 			}
 			// A reply that says that the persona cannot answer, when it did
-			// not search: one push to look it up (cantAnswerNote).
-			if searchable && !pushed && ts.searched == 0 && cantAnswer.MatchString(reply) {
+			// not search: one push to look it up (cantAnswerNote). Not when
+			// recall found nothing: that is a private fact that Magi does
+			// not have, and the reply asks the person (eval a02: after the
+			// push, the model answered the note).
+			if searchable && !pushed && ts.searched == 0 && !recallEmpty(log.Calls) && cantAnswer.MatchString(reply) {
 				pushed = true
 				msgs = append(msgs, model.Message{Role: "user", Content: cantAnswerNote})
 				reply = ""
@@ -455,4 +458,14 @@ func displayName(a workflowapi.Assignment) string {
 func promptTime(now time.Time) string {
 	return now.Format("Monday 2 January 2006 15:04 MST") + " (yesterday was " + now.AddDate(0, 0, -1).Format("Monday 2 January") +
 		"; tomorrow is " + now.AddDate(0, 0, 1).Format("Monday 2 January") + ")"
+}
+
+// recallEmpty reports whether a recall of the turn found nothing.
+func recallEmpty(calls []map[string]any) bool {
+	for _, c := range calls {
+		if r, _ := c["result"].(string); c["tool"] == "recall" && strings.HasPrefix(r, "Nothing found") {
+			return true
+		}
+	}
+	return false
 }

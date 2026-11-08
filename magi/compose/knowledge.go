@@ -58,6 +58,8 @@ func knowledgeTools(obj func(map[string]any, ...string) map[string]any, str func
 	}
 }
 
+var firstPerson = regexp.MustCompile(`(?i)\b(i|my|me|mine|myself)\b`)
+
 var selfNames = []string{"me", "i", "my", "myself", "mine", "the person", "user", "the user"}
 
 func (s *System) selfEntity(ctx context.Context, owner, name string) (knowledgeapi.Entity, error) {
@@ -76,6 +78,9 @@ func (s *System) entityFor(ctx context.Context, owner, ownerName, name, kind str
 			return *r.Entity, nil
 		}
 	}
+	if e := s.sameEntity(ctx, owner, name); e != nil {
+		return *e, nil
+	}
 	if kind = strings.ToLower(strings.TrimSpace(kind)); kind == "" {
 		kind = "thing"
 	}
@@ -93,6 +98,7 @@ type fact struct {
 // and the note names that fact.
 func (s *System) remember(ctx context.Context, owner, ownerName string, f fact, authored bool, utt *string) (knowledgeapi.Claim, string, error) {
 	f.relation = strings.ToLower(strings.Join(strings.Fields(strings.TrimSpace(f.relation)), "-"))
+	f, more := shapeFact(f)
 	if f.subject == "" || f.relation == "" || (f.object == "") == (f.value == "") {
 		return knowledgeapi.Claim{}, "", fmt.Errorf("give a subject, a relation, and an object or a value")
 	}
@@ -140,7 +146,13 @@ func (s *System) remember(ctx context.Context, owner, ownerName string, f fact, 
 	if other == "" {
 		other = f.value
 	}
-	return c, fmt.Sprintf("Recorded [%s] %s %s %s.", c.Id, subj.Label, f.relation, other), nil
+	msg := fmt.Sprintf("Recorded [%s] %s %s %s.", c.Id, subj.Label, f.relation, other)
+	for _, m := range more {
+		if _, note, err := s.remember(ctx, owner, ownerName, m, authored, utt); err == nil && note != "" && !strings.HasPrefix(note, "Not recorded") {
+			msg += " " + note
+		}
+	}
+	return c, msg, nil
 }
 
 func labelsOf(a knowledgeapi.AboutResponse) map[string]string {
@@ -256,6 +268,31 @@ func (s *System) knowledgeView(ctx context.Context, owner, text, kind string, li
 			}
 		}
 	}
+	// A question about the person ("Where do I work?") needs the facts
+	// of the self, which other entities with the same words can push out
+	// of the limit ("work calendar").
+	if firstPerson.MatchString(text) && len(ids) > 1 {
+		// The self is the entity of the person with the alias "me"
+		// (knowledge Self). Search gives the entities of the claims.
+		for _, e := range res.Entities {
+			if !slices.Contains(e.Owners, owner) || !slices.Contains(e.Aliases, "me") {
+				continue
+			}
+			// The self first, then the things that its matching facts name
+			// ("my dentist" gives Dr. Rivera, who has the works-at fact).
+			first := []string{e.Id}
+			for _, h := range res.Hits {
+				if c, ok := claims[h.Id]; ok && h.Type == "claim" && c.Subject == e.Id && c.Object != nil && slices.Contains(ids, *c.Object) && !slices.Contains(first, *c.Object) {
+					first = append(first, *c.Object)
+				}
+			}
+			if len(first) > 1 || slices.Index(ids, e.Id) > 0 {
+				rest := slices.DeleteFunc(slices.Clone(ids), func(id string) bool { return slices.Contains(first, id) })
+				ids = append(first, rest...)
+			}
+			break
+		}
+	}
 	if len(ids) > limit {
 		ids = ids[:limit]
 	}
@@ -318,8 +355,8 @@ func knowledgeItem(a knowledgeapi.AboutResponse, owner string, matched map[strin
 	return it
 }
 
-// describeKnowledge is the text of a view for the model. Each fact is
-// given once, with its id.
+// describeKnowledge is the text of a view for the model, with the id of
+// each fact.
 func describeKnowledge(items []magiapi.KnowledgeItem, records []magiapi.KnowledgeRecord, now time.Time) string {
 	var b strings.Builder
 	seen := map[string]bool{}
@@ -336,7 +373,10 @@ func describeKnowledge(items []magiapi.KnowledgeItem, records []magiapi.Knowledg
 		}
 		b.WriteString("\n")
 		for _, f := range it.Facts {
-			if seen[f.Id] {
+			// A fact shows once, except under the thing that it points to:
+			// then that thing lists all that is in it ("household
+			// Nextcloud" lists each calendar in it).
+			if seen[f.Id] && f.Direction != "in" {
 				continue
 			}
 			seen[f.Id] = true

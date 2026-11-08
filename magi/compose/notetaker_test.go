@@ -25,6 +25,10 @@ func TestNoteItemToolCall(t *testing.T) {
 			map[string]string{"subject": "Dana", "relation": "birthday", "value": "March 3", "also": "true"}},
 		{noteItem{Op: "remember", Subject: "me", Relation: "dentist"}, "", nil},
 		// Object and value: the fact is about the object (eval round0 s05).
+		{noteItem{Op: "remember", Subject: "chores calendar", Relation: "located-in", Object: "chores calendar", Value: "Nextcloud"}, "remember",
+			map[string]string{"subject": "chores calendar", "relation": "located-in", "object": "Nextcloud", "value": ""}},
+		{noteItem{Op: "remember", Subject: "me", Relation: "works-at", Object: "Brightline Logistics", Value: "operations manager"}, "remember",
+			map[string]string{"subject": "me", "subject_kind": "", "relation": "works-at", "object": "Brightline Logistics", "object_kind": "", "value": ""}},
 		{noteItem{Op: "remember", Subject: "me", SubjectKind: "person", Relation: "located-in", Object: "kids sports calendar", ObjectKind: "calendar", Value: "Nextcloud"}, "remember",
 			map[string]string{"subject": "kids sports calendar", "subject_kind": "calendar", "relation": "located-in", "object": "Nextcloud"}},
 		{noteItem{Op: "remember", Subject: "Dana", Relation: "lives-in", Object: "Tucson", ObjectKind: "place", Value: "a city"}, "remember",
@@ -130,5 +134,36 @@ func TestSupersededNote(t *testing.T) {
 	many = append(many, conversationapi.Ref{Kind: "workflow-run", Ref: "run_1"})
 	if got := capRecordRefs(many, 2); len(got) != 3 || got[2].Kind != "workflow-run" {
 		t.Errorf("cap %+v", got)
+	}
+}
+
+func TestRetractMustNameRecord(t *testing.T) {
+	notes := "ent_f  [calendar] family calendar\n      clm_f  family calendar located-in Nextcloud\n      clm_s  kids-sports-calendar located-in Nextcloud"
+	for _, c := range []struct {
+		it   noteItem
+		want bool
+	}{
+		{noteItem{Op: "retract", Id: "clm_f", Object: "chores calendar"}, false},
+		{noteItem{Op: "retract", Id: "ent_f", Object: "the family calendar"}, true},
+		{noteItem{Op: "retract", Id: "clm_s", Object: "kids' sports calendars"}, true},
+		{noteItem{Op: "retract", Id: "clm_s", Subject: "me"}, true},
+		{noteItem{Op: "retract", Id: "clm_x", Object: "router"}, false},
+	} {
+		if got := namesRecord(notes, c.it); got != c.want {
+			t.Errorf("%+v: %v, want %v", c.it, got, c.want)
+		}
+	}
+}
+
+func TestDropSelfCopies(t *testing.T) {
+	items := []noteItem{
+		{Op: "remember", Subject: "Dana", Relation: "birthday", Value: "March 3"},
+		{Op: "remember", Subject: "me", Relation: "birthday", Value: "March 3"},
+	}
+	if got := dropSelfCopies(items, "Dana's birthday is March 3."); len(got) != 1 || got[0].Subject != "Dana" {
+		t.Fatalf("copy kept: %+v", got)
+	}
+	if got := dropSelfCopies(items, "Dana and I both have our birthday on March 3."); len(got) != 2 {
+		t.Fatalf("shared fact dropped: %+v", got)
 	}
 }

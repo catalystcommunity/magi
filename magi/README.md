@@ -491,9 +491,10 @@ At most 6 searches and 4 pages in one turn.
 The personas look things up and do not say that they cannot answer
 (`lookupRules`). When a reply says "I don't know", "I can't look that up",
 or "I don't have real-time access", and the turn made no search, Magi asks
-the model one time to search and answer (`cantAnswerNote`). A private fact
-that the records do not have stays "I don't know" (the judge refuses the
-search). For a question that no one can answer for certain, the persona
+the model one time to search and answer (`cantAnswerNote`). Magi does not
+ask when a `recall` of the turn found nothing: that is a private fact that
+the records do not have, and the reply stays "I don't know" with a
+question to the person. For a question that no one can answer for certain, the persona
 gives the main views and the reasoning.
 
 Without `MAGI_SEARCH_URL`, the personas have no web tools.

@@ -169,3 +169,12 @@ func TestPromptTime(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+func TestRecallEmpty(t *testing.T) {
+	if !recallEmpty([]map[string]any{{"tool": "recall", "result": "Nothing found. Do not guess; say that you do not know."}}) {
+		t.Fatal("empty recall")
+	}
+	if recallEmpty([]map[string]any{{"tool": "recall", "result": "- [ent_a] Dr. Rivera (person)"}, {"tool": "web_search", "result": "Nothing found."}}) {
+		t.Fatal("recall with records")
+	}
+}

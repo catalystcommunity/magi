@@ -141,7 +141,12 @@ model does this often. A second request to the model does not repair it:
 the model then apologizes in later replies. Thus Magi records facts in a
 separate step, the note taker:
 
-1. Magi finds the records that match the newest message.
+1. Magi finds the records that match the newest message: at most four
+   entities with their facts. When the message speaks of the person ("I",
+   "my") and the person's own entity matches, that entity is first, then
+   the things that its matching facts name ("my dentist": Dr. Rivera).
+   A fact shows once, and again under the thing that it points to, so
+   that a thing lists all that is in it.
 2. The note taker model gets the records, the two messages before, and the
    newest message. It gives a list of operations: `remember`, `update`,
    `fix`, or `retract`, as JSON that agrees with a schema.
@@ -153,6 +158,39 @@ The note taker gives no operation when the words do not make clear if a
 fact changed or was wrong. Then the persona asks. `update`, `fix`, and
 `retract` need an id from the records. The persona tools stay: the
 persona can record and change facts, also in later turns.
+
+A `retract` item also names the thing to forget. Magi does not apply it
+when the record of the id does not have each word of that name. Example:
+"There is no chores calendar" must not retract the family calendar.
+
+## Fact shape
+
+Small models give facts in shapes that the graph cannot use. Before
+`remember` records a fact (from the persona or from the note taker), Magi
+changes the fact to the shape of the graph:
+
+| Model gives | Magi records |
+| --- | --- |
+| `me vet "Dr. Okafor at Birch Lane Animal Clinic"` | `me vet Dr. Okafor` and `Dr. Okafor works-at Birch Lane Animal Clinic` |
+| subject `my work calendar` | subject `work calendar` |
+| object `March 3` | value `March 3` (a date or a number is a value) |
+| object `household Nextcloud` when `Nextcloud` exists | object `Nextcloud` (the same entity) |
+| `me job Brightline Logistics` (an object) | `me works-at Brightline Logistics` |
+| `family calendar located-in` value `household Nextcloud` | object `household Nextcloud` (a relation of a thing points to a thing; a date stays a value) |
+
+Two names are the same entity when they have the same proper name and
+differ only in the lower-case words before it. "family calendar" has no
+proper name, thus it does not join other calendars.
+
+When a note taker item has both an object and a value, Magi keeps one:
+for a relation of a thing (`located-in`, `hosted-in`, `books-through`), the
+object becomes the subject and the value the object. For other relations
+(`works-at`), the value goes. When the subject and the object are the
+same, the value is the object.
+
+When the note taker gives the same fact about the person and about another
+subject in one message ("Dana's birthday is March 3"), Magi keeps only the
+other subject. Words such as "both" or "we" keep both.
 
 ## Investigations
 
