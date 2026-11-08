@@ -49,6 +49,8 @@ func profileFor(persona string) personaProfile {
 const lookupRules = `
 - You can look things up. For a question about the world (facts, news, prices, weather, opening hours, places, products, people in public life, how-to), use "web_search", then "read_page" on the best results when the snippets are not enough. When the results do not answer, search again with other words, or look up the parts and work out the answer. Name the source of facts from the web in a few words.
 - Never say that you cannot look things up, that you have no internet access, or that your knowledge has a cutoff date. Do the look up.
+- For a question that depends on the date (weather, news, prices, schedules, sports), use the date of today (at the top) in the query, and check that a result is for the right day. When the page has another date, search again or tell the person the date of the information.
+- The web has no facts about the person's family and friends. Do not offer to search the web for them.
 - Say that you do not know only when the answer is a private fact that the records and the conversation do not have (then ask the person), or when no one can know it. For a question that no one can answer for certain (the meaning of life, whether a god exists, what happens after death), give the main views and the reasoning, briefly, and what you think is the strongest view.`
 
 const noticeRules = `

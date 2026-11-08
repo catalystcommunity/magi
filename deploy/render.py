@@ -149,7 +149,9 @@ def egress_proxy(img, v):
                           "ingress": [
                               {"from": [{"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": v["ENV_NAMESPACE"]}}},
                                         {"podSelector": {"matchLabels": {"app.kubernetes.io/name": "magi"}}},
-                                        {"podSelector": {"matchLabels": {"app.kubernetes.io/name": "apprentice"}}}],
+                                        {"podSelector": {"matchLabels": {"app.kubernetes.io/name": "apprentice"}}},
+                                        # SearXNG (SEARCH=true) sends the queries to the engines.
+                                        {"podSelector": {"matchLabels": {"app.kubernetes.io/name": "search"}}}],
                                "ports": [{"protocol": "TCP", "port": 3128}]},
                               {"from": [{"podSelector": {"matchLabels": {"app.kubernetes.io/name": "magi"}}}],
                                "ports": [{"protocol": "TCP", "port": 8080}]}]}})
@@ -165,7 +167,11 @@ def search(v):
     labels = {**LABELS, "app.kubernetes.io/name": "search"}
     container = {
         "name": "search", "image": v["SEARCH_IMAGE"],
-        "env": [{"name": "SEARXNG_BASE_URL", "value": f"http://search.{ns}.svc:8080/"}],
+        # All its traffic goes through the egress proxy, so it trusts only
+        # the proxy CA. SearXNG gives SSL_CERT_FILE to curl over the
+        # "verify" setting.
+        "env": [{"name": "SEARXNG_BASE_URL", "value": f"http://search.{ns}.svc:8080/"},
+                {"name": "SSL_CERT_FILE", "value": "/etc/magi/egress-ca/ca.crt"}, {"name": "SSL_CERT_DIR", "value": ""}],
         "ports": [{"name": "http", "containerPort": 8080}],
         "readinessProbe": {"httpGet": {"path": "/healthz", "port": "http"}, "periodSeconds": 10},
         "resources": {"requests": {"cpu": "20m", "memory": "96Mi"}, "limits": {"cpu": "1", "memory": "512Mi"}},
