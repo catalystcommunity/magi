@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/catalystcommunity/magi/magi/model"
 )
@@ -159,5 +160,12 @@ func TestCantAnswer(t *testing.T) {
 		if got := cantAnswer.MatchString(reply); got != want {
 			t.Errorf("%q: %v, want %v", reply, got, want)
 		}
+	}
+}
+
+func TestPromptTime(t *testing.T) {
+	now := time.Date(2026, 11, 8, 14, 5, 0, 0, time.UTC)
+	if got := promptTime(now); got != "Sunday 8 November 2026 14:05 UTC (yesterday was Saturday 7 November; tomorrow is Monday 9 November)" {
+		t.Fatal(got)
 	}
 }

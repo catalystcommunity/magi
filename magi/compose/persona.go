@@ -102,7 +102,7 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 		name = p.Name
 	}
 	now := time.Now()
-	msgs := []model.Message{{Role: "system", Content: fmt.Sprintf(prof.prompt, name, displayName(a), now.Format("Monday 2 January 2006 15:04 MST"))}}
+	msgs := []model.Message{{Role: "system", Content: fmt.Sprintf(prof.prompt, name, displayName(a), promptTime(now))}}
 	// An answer before a change of the records can be wrong now. A small
 	// model copies its own earlier answer to the same question. An answer
 	// that used a changed record is replaced with a note of the change.
@@ -447,4 +447,12 @@ func displayName(a workflowapi.Assignment) string {
 		return n
 	}
 	return strings.TrimPrefix(a.Owner, "user:")
+}
+
+// promptTime gives the time for the system prompt, with the dates of
+// yesterday and tomorrow: a small model does not count days well
+// ("tomorrow" in a weather question).
+func promptTime(now time.Time) string {
+	return now.Format("Monday 2 January 2006 15:04 MST") + " (yesterday was " + now.AddDate(0, 0, -1).Format("Monday 2 January") +
+		"; tomorrow is " + now.AddDate(0, 0, 1).Format("Monday 2 January") + ")"
 }
