@@ -80,6 +80,7 @@ class MainActivity : Activity() {
         const val RETURN_URL = "community.catalyst.magi:/signed-in"
         const val MIC_REQUEST = 1
         const val NOTIFY_REQUEST = 2
+        const val WORKING_MS = 3 * 60 * 1000L
     }
 
     private lateinit var settings: Settings
@@ -99,6 +100,10 @@ class MainActivity : Activity() {
     @Volatile private var readGen = 0
     @Volatile private var voiceTurn = false
     private lateinit var messages: LinearLayout
+    /** Shows that Magi builds a reply to the newest message of a person. */
+    private var workingRow: View? = null
+    private var waitingSince = 0L
+    private val hideWorking = Runnable { updateWorking() }
     private lateinit var scroll: ScrollView
 
     override fun onCreate(state: Bundle?) {
@@ -285,6 +290,15 @@ class MainActivity : Activity() {
             layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f)
         }
         val status = TextView(this)
+        val working = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            visibility = View.GONE
+            addView(android.widget.ProgressBar(this@MainActivity, null, android.R.attr.progressBarStyleSmall))
+            addView(TextView(this@MainActivity).apply { text = "${personaName(persona)} is working on it"; setPadding(16, 0, 0, 0) })
+        }
+        workingRow = working
+        waitingSince = 0L
         val send = Button(this).apply { text = "Send" }
         val mic = Button(this).apply { text = "Talk" }
         val speak = CheckBox(this).apply {
@@ -344,6 +358,7 @@ class MainActivity : Activity() {
             addView(bar0)
             addView(personaRow)
             addView(scroll, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
+            addView(working)
             addView(status)
             addView(speak)
             addView(wake)
@@ -380,6 +395,9 @@ class MainActivity : Activity() {
         background(status) {
             val r = client().magi.say(req)
             if (r.ignored == true) { runOnUiThread { status.text = "" }; return@background }
+            // The tone says that Magi heard the person and builds the reply:
+            // for speech, and for text when replies are spoken.
+            if (req.audio != null || req.speakReply == true) runOnUiThread { Ack.play(player.communication) }
             // A message that names another persona ("Engineering, ...") went to that persona.
             val p = r.message.persona
             runOnUiThread { status.text = ""; if (p.isNotEmpty() && p != persona) showConversation(p) }
@@ -469,7 +487,19 @@ class MainActivity : Activity() {
         }
         shown[m.id] = box
         messages.addView(box)
+        // A reply links to the message; a notice does not answer one.
+        if (m.authorKind == "human") waitingSince = m.createdMs.toLong()
+        else if (m.authorKind == "persona" && m.modality != "notice") waitingSince = 0L
+        updateWorking()
         scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
+    }
+
+    /** Shows the working row for 3 minutes after a message of a person, until a reply comes. */
+    private fun updateWorking() {
+        main.removeCallbacks(hideWorking)
+        val left = if (waitingSince > 0) waitingSince + WORKING_MS - System.currentTimeMillis() else 0L
+        workingRow?.visibility = if (left > 0) View.VISIBLE else View.GONE
+        if (left > 0) main.postDelayed(hideWorking, left)
     }
 
     /** Shows the links of a message and who can read it, for correction. */

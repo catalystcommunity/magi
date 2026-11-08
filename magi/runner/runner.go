@@ -13,6 +13,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/catalystcommunity/magi/primitives/identity/renew"
 	"log/slog"
 	"net"
 	"os"
@@ -46,10 +47,14 @@ type Config struct {
 	// Server is the Magi base URL, for example https://magi.example.com.
 	Server string `json:"server"`
 	// Name is the runner name; the token subject is runner:<name>.
-	Name      string          `json:"name"`
-	TokenFile string          `json:"token_file"`
-	StateDir  string          `json:"state_dir"`
-	Repos     map[string]Repo `json:"repos"`
+	Name      string `json:"name"`
+	TokenFile string `json:"token_file"`
+	// NoRenew: do not renew the token. By default the runner replaces
+	// token_file with a renewed token before it expires
+	// (primitives/identity/renew).
+	NoRenew  bool            `json:"no_renew"`
+	StateDir string          `json:"state_dir"`
+	Repos    map[string]Repo `json:"repos"`
 	// Author is the Git author of the commits that the runner makes.
 	Author struct {
 		Name  string `json:"name"`
@@ -200,6 +205,9 @@ func (r *Runner) Run(ctx context.Context) error {
 	}
 	ctx, stopAll := context.WithCancel(ctx)
 	defer stopAll()
+	if !r.Cfg.NoRenew {
+		go (&renew.Renewer{File: r.Cfg.TokenFile, URL: r.Cfg.Server, Log: r.Log}).Run(ctx)
+	}
 	restart := make(chan struct{})
 	go r.helloLoop(ctx, func() { close(restart) })
 	stopExec, err := r.startExec()

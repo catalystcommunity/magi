@@ -284,3 +284,11 @@ button.about:hover { color: var(--harbor); }
   .word { grid-template-columns: 1fr auto; }
   .word-how { grid-column: 1 / -1; grid-row: 2; }
 }
+
+/* --- Magi builds a reply: the orb turns, and a line shows under the
+   newest message. */
+.orb.small { width: 18px; height: 18px; }
+.orb.working { animation: turn 1.4s linear infinite; }
+@keyframes turn { to { transform: rotate(360deg); } }
+.working { display: inline-flex; align-items: center; gap: 0.5rem; margin: 0.25rem 0; color: var(--slate); font-size: 0.92rem; }
+@media (prefers-reduced-motion: reduce) { .orb.working { animation: none; outline: 2px dashed var(--apricot); outline-offset: 2px; } }

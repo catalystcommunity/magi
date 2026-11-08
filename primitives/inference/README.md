@@ -132,6 +132,10 @@ the machine needs no open port.
   `inference:host`:
   `identity mint -subject inference:<name> -scopes inference:host -ttl 8760h -out <file>`.
   The host reads the file for each connection.
+- The host renews the token before it expires (`primitives/identity`,
+  "Machine tokens") and replaces the file. The account of the host must
+  be able to write the directory of the file. `"no_renew": true` turns
+  this off.
 - The host keeps `idle` (2) idle connections. Each connection carries one
   request. Magi closes an idle connection after 4 minutes, and the host
   opens a new one. When Magi is not available, the host tries again after
@@ -159,16 +163,23 @@ starts, also when no person logs in, and starts it again after a failure.
 Install, in PowerShell as Administrator:
 
 ```powershell
-sc.exe create magi-inference binPath= "C:\magi\bin\magi-inference.exe -config C:\magi\config\config.json -log C:\magi\logs\host.log" start= delayed-auto obj= "NT SERVICE\magi-inference"
+sc.exe create magi-inference binPath= "C:\magi\bin\magi-inference.exe -config C:\magi\config\config.json -log C:\magi\logs\host.log" start= auto obj= "NT SERVICE\magi-inference"
 sc.exe failure magi-inference reset= 86400 actions= restart/5000/restart/30000/restart/60000
 icacls C:\magi /grant "NT SERVICE\magi-inference:(OI)(CI)RX"
 icacls C:\magi\logs /grant "NT SERVICE\magi-inference:(OI)(CI)M"
+# The token: only the service and Administrators, and the service can replace it.
+New-Item -ItemType Directory C:\magi\state
+icacls C:\magi\state /inheritance:r /grant:r "NT SERVICE\magi-inference:(OI)(CI)M" "Administrators:(OI)(CI)F" "SYSTEM:(OI)(CI)F"
 sc.exe start magi-inference
 ```
 
+Put the token in `C:\magi\state\host-token` (`connect.token_file`).
+
 `NT SERVICE\magi-inference` is a virtual account: it has no password and
-only the rights of the folders above. `delayed-auto` starts the service
-after the other automatic services, so the network is up.
+only the rights of the folders above. `start= auto` starts the service
+when Windows starts, before a person logs in. Until the network is up, the
+host tries again to connect (see "Connect out"). With `delayed-auto`, the
+service started 2 minutes and 17 seconds after Windows (measured).
 
 ## Use from Magi
 

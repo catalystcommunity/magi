@@ -1,11 +1,11 @@
 // The conversation. There are no chats: the person has one stream with
 // each persona. The librarian links each message to the earlier messages it
 // relates to, and the view shows those links under the message.
-import { createSignal, createEffect, createRoot } from "solid-js";
+import { createSignal, createEffect, createRoot, onCleanup } from "solid-js";
 import { For, Show, aria } from "./flow.ts";
 import type { Message, MessageLink } from "../../../clients/typescript/magi/types.gen.ts";
 import { magi, me, persona, setPersona, personas, personaName, loadPersonas, refreshCounts, go, store, fail, errText, time, day, shortDay, who } from "./api.ts";
-import { speak, speaking, word, unlock, interrupt } from "./speech.ts";
+import { speak, speaking, word, unlock, interrupt, ack } from "./speech.ts";
 import { handsFree, hearing, startListening, stopListening } from "./listen.ts";
 
 const [messages, setMessages] = createSignal<Message[]>([]);
@@ -23,6 +23,27 @@ createRoot(() => createEffect((was: string | null) => { const now = speaking(); 
 export const playing = () => clipPlaying() || speaking() !== null;
 // The orb listens while hands-free talk is on.
 export const recording = () => handsFree();
+
+// working: Magi builds a reply to the newest message of a person. A reply
+// links to the message that it answers (reply-to); a notice does not
+// answer. After 3 minutes without a reply the view stops waiting. All the
+// clients see the same stream, so they all show the same state.
+const workingMs = 3 * 60 * 1000;
+const [now, setNow] = createSignal(Date.now());
+export const working = () => {
+  const ms = messages();
+  for (let i = ms.length - 1; i >= 0; i--) {
+    const m = ms[i];
+    if (m.authorKind === "persona" && m.modality !== "notice") return false;
+    if (m.authorKind === "human") return now() - m.createdMs < workingMs;
+  }
+  return false;
+};
+createRoot(() => createEffect(() => {
+  if (!working()) return;
+  const t = setInterval(() => setNow(Date.now()), 5000);
+  onCleanup(() => clearInterval(t));
+}));
 
 type Context = { title: string; messages: Message[]; loading?: boolean; error?: string };
 const [context, setContext] = createSignal<Context | null>(null);
@@ -116,6 +137,10 @@ async function play(digest: string) {
 async function send(text: string | undefined, audioBody?: Uint8Array, audioType?: string, wake = false) {
   const r = await magi.say({ persona: persona(), text, audio: audioBody, audioType, speakReply: speakReplies() || !!audioBody, wakeWord: wake || undefined });
   if (r.ignored) return;
+  setNow(Date.now());
+  // The tone says that Magi heard the person and builds the reply: for
+  // speech, and for text when replies are spoken.
+  if (audioBody || speakReplies()) ack();
   if (r.message.persona && r.message.persona !== persona()) openStream(r.message.persona);
 }
 
@@ -259,8 +284,8 @@ function Details(props: { m: Message; close: (_: unknown) => void }) {
 }
 
 // --- The view -----------------------------------------------------------
-export function PersonaOrb(props: { size?: "large" }) {
-  return <span class={() => "orb" + (props.size ? " " + props.size : "") + (playing() ? " speaking" : "") + (recording() ? " listening" : "") + (hearing() ? " hearing" : "")} aria-hidden="true" />;
+export function PersonaOrb(props: { size?: "large" | "small" }) {
+  return <span class={() => "orb" + (props.size ? " " + props.size : "") + (playing() ? " speaking" : "") + (recording() ? " listening" : "") + (hearing() ? " hearing" : "") + (working() && !playing() ? " working" : "")} aria-hidden="true" />;
 }
 
 export function PersonaList() {
@@ -318,6 +343,11 @@ export function Conversation() {
               <MessageView m={m} />
             </div>}
           </For>
+          <Show when={working}>
+            <div class="turn theirs">
+              <p class="working" role="status"><PersonaOrb size="small" /> {() => personaName(persona())} is working on it</p>
+            </div>
+          </Show>
         </div>
       </div>
       <form class="composer" onSubmit={submit}>

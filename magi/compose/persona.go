@@ -176,8 +176,13 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 		msgs = append(msgs[:len(msgs)-1], model.Message{Role: "user", Content: "Magi already did this for the newest message. Do not do it again. You can tell the person what was recorded or changed:\n- " + strings.Join(done, "\n- ")}, last)
 	}
 	var reply string
-	tools, ts := prof.toolList(), &turnState{hist: hist.Utterances}
-	corrected := false
+	tools, ts := prof.toolList(), &turnState{hist: hist.Utterances, pages: map[string]bool{}}
+	if s.Search == nil {
+		// Without a search service the persona has no web tools.
+		tools = slices.DeleteFunc(tools, func(t model.Tool) bool { return t.Name == "web_search" || t.Name == "read_page" })
+	}
+	searchable := s.Search != nil && slices.Contains(prof.tools, "web_search")
+	corrected, pushed := false, false
 	for round := 0; round < 8; round++ {
 		start := time.Now()
 		m, err := s.Model.Chat(ctx, msgs, tools, 1024)
@@ -214,6 +219,14 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 				reply = ""
 				continue
 			}
+			// A reply that says that the persona cannot answer, when it did
+			// not search: one push to look it up (cantAnswerNote).
+			if searchable && !pushed && ts.searched == 0 && cantAnswer.MatchString(reply) {
+				pushed = true
+				msgs = append(msgs, model.Message{Role: "user", Content: cantAnswerNote})
+				reply = ""
+				continue
+			}
 			break
 		}
 		for i, tc := range m.ToolCalls {
@@ -228,7 +241,7 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 			ok := !slices.Contains(prof.tools, tc.Function.Name)
 			if ok {
 				out = "error: unknown tool " + tc.Function.Name
-			} else {
+			} else if out, ok = s.webTool(ctx, utt.Text, ts, tc.Function.Name, args); !ok {
 				out, ref, ok = s.extraTool(ctx, a, as, utt, ts, tc.Function.Name, args)
 			}
 			if !ok {

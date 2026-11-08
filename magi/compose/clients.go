@@ -180,6 +180,9 @@ type System struct {
 	Cfg   Config
 	Log   *slog.Logger
 	Model model.Chatter // the persona model; often a chain of local then remote
+	// Search runs web searches for the personas (search.go); nil turns
+	// the web tools off.
+	Search *Searcher
 	// LibrarianModel classifies utterances (see Librarian); nil turns the
 	// librarian off. A local model is best: the work is in the background.
 	LibrarianModel model.Chatter

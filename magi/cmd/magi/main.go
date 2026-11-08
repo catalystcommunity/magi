@@ -148,6 +148,7 @@ type cli struct {
 	ctx  context.Context
 	magi *magiapi.MagiClient
 	id   *identityapi.IdentityClient
+	spin *spinner // while a reply is built (waitReply)
 }
 
 func ptr[T any](v T) *T { return &v }
@@ -797,6 +798,8 @@ func openBrowser(u string) error {
 // waitReply prints messages after sent until a persona reply to it arrives.
 func (c *cli) waitReply(persona string, sent magiapi.Message) error {
 	done := false
+	c.spin = startSpinner("Magi is working")
+	defer func() { c.spin.done(); c.spin = nil }()
 	return c.read(persona, sent.Seq, true, func(m magiapi.Message) bool {
 		for _, l := range m.Links {
 			if m.AuthorKind == "persona" && l.Kind == "reply-to" && l.Target.Ref == sent.Id {
@@ -820,7 +823,7 @@ func (c *cli) read(persona string, after uint64, follow bool, stop func(magiapi.
 			return err
 		}
 		for _, m := range res.Messages {
-			printMessage(m)
+			c.spin.clear(func() { printMessage(m) })
 			after = m.Seq
 			if stop != nil && stop(m) {
 				return nil

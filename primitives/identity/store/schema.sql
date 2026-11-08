@@ -36,3 +36,13 @@ CREATE INDEX IF NOT EXISTS identity_sessions_subject ON identity_sessions (subje
 ALTER TABLE identity_sessions ADD COLUMN IF NOT EXISTS name text NOT NULL DEFAULT '';
 ALTER TABLE identity_logins ADD COLUMN IF NOT EXISTS return_url text NOT NULL DEFAULT '';
 ALTER TABLE identity_logins ADD COLUMN IF NOT EXISTS code_hash text NOT NULL DEFAULT '';
+
+-- Machine subjects (inference:<name>, runner:<name>) that renew their own
+-- tokens. A token issued before not_before_ms cannot renew: set it to the
+-- current time to stop a machine at the expiry of its current token.
+CREATE TABLE IF NOT EXISTS identity_machines (
+  subject       text   PRIMARY KEY,
+  first_ms      bigint NOT NULL,
+  renewed_ms    bigint NOT NULL,
+  not_before_ms bigint NOT NULL DEFAULT 0
+);

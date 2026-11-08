@@ -97,6 +97,21 @@ func run(listen, keys string, workers bool, log *slog.Logger) error {
 		modelTransport = t
 		log.Info("model calls go through the egress proxy", "proxy", cfg.EgressProxy.Addr)
 	}
+	// MAGI_SEARCH_URL: the SearXNG service of web_search. Pages that the
+	// personas read go through the egress proxy as svc_search when it is
+	// set; the proxy policy must permit that user.
+	if u := os.Getenv("MAGI_SEARCH_URL"); u != "" {
+		web := &http.Client{Timeout: 25 * time.Second}
+		if cfg.EgressProxy != nil {
+			t, err := cfg.EgressProxy.Transport(compose.ServiceUser("search"))
+			if err != nil {
+				return err
+			}
+			web.Transport = t
+		}
+		sys.Search = &compose.Searcher{URL: u, HTTP: &http.Client{Timeout: 20 * time.Second}, Web: web}
+		log.Info("web search on", "url", u, "pages_through_proxy", cfg.EgressProxy != nil)
+	}
 	// Inference hosts connect out to Magi (/inference/connect) and keep
 	// idle connections; a model endpoint http://<host>.revconn/v1 uses
 	// them. Other endpoints use modelTransport.

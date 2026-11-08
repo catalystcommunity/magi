@@ -329,8 +329,11 @@ func (s *Service) Refresh(ctx context.Context, req api.RefreshRequest) (api.Toke
 	if err != nil {
 		return api.TokenResponse{}, err
 	}
+	if machine(p) {
+		return s.renewMachine(ctx, p, req)
+	}
 	if p.Kind != authn.KindUser {
-		return api.TokenResponse{}, rpc.Denied("only user tokens can be refreshed")
+		return api.TokenResponse{}, rpc.Denied("only user and machine tokens can be refreshed")
 	}
 	ttl := s.tokenTTL()
 	if req.TtlSeconds != nil && *req.TtlSeconds > 0 {
@@ -341,6 +344,38 @@ func (s *Service) Refresh(ctx context.Context, req api.RefreshRequest) (api.Toke
 		return api.TokenResponse{}, err
 	}
 	return api.TokenResponse{Token: tok, Subject: p.Subject, ExpiresMs: exp}, nil
+}
+
+// MachineTokenTTL is the lifetime of a renewed machine token. A machine
+// renews before the end, so a short lifetime costs nothing, and a stopped
+// machine (store.StopMachine) loses access at most this long after.
+const MachineTokenTTL = 30 * 24 * time.Hour
+
+// machine reports whether p is a host that renews its own token: an
+// inference host (inference:<name>) or a task runner (runner:<name>).
+func machine(p authn.Principal) bool {
+	return p.Kind == authn.KindService && (strings.HasPrefix(p.Subject, "inference:") || strings.HasPrefix(p.Subject, "runner:"))
+}
+
+// renewMachine issues a new token with the same subject and scopes. It
+// cannot add scopes, and it is refused after StopMachine.
+func (s *Service) renewMachine(ctx context.Context, p authn.Principal, req api.RefreshRequest) (api.TokenResponse, error) {
+	ttl := MachineTokenTTL
+	if req.TtlSeconds != nil && *req.TtlSeconds > 0 {
+		ttl = min(ttl, time.Duration(*req.TtlSeconds)*time.Second)
+	}
+	now := s.now()
+	if err := s.DB.RenewMachine(ctx, p.Subject, p.IssuedAt*1000, now.UnixMilli()); errors.Is(err, store.ErrMachineStopped) {
+		return api.TokenResponse{}, rpc.Denied("renewal of %s is stopped; mint a new token", p.Subject)
+	} else if err != nil {
+		return api.TokenResponse{}, err
+	}
+	tok, err := s.issuer(now).Issue(authn.Principal{Subject: p.Subject, Kind: authn.KindService, Scopes: p.Scopes}, ttl)
+	if err != nil {
+		return api.TokenResponse{}, err
+	}
+	s.log().Info("machine token renewed", "subject", p.Subject, "ttl_s", int(ttl.Seconds()))
+	return api.TokenResponse{Token: tok, Subject: p.Subject, ExpiresMs: uint64(now.Add(ttl).Unix() * 1000)}, nil
 }
 
 func ptr[T any](v T) *T { return &v }

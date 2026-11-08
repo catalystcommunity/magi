@@ -129,6 +129,16 @@ func TestFalseClaim(t *testing.T) {
 	if got := falseClaim("I approved it.", nil, profiles[Persona].tools); got != "" {
 		t.Errorf("magi persona: %q", got)
 	}
+	// A correction of a fact without a record is recorded with remember
+	// (by the note taker): "I've corrected" is true.
+	pt := profiles[Persona].tools
+	noted := []map[string]any{{"tool": "remember", "result": "Recorded: router located-in garage", "by": "note-taker"}}
+	if got := falseClaim("I've corrected that. The router is in the garage.", noted, pt); got != "" {
+		t.Errorf("correction by remember: %q", got)
+	}
+	if got := falseClaim("I've corrected that.", []map[string]any{{"tool": "remember", "result": "Not recorded: no fact"}}, pt); got != "change_knowledge" {
+		t.Errorf("failed remember: %q", got)
+	}
 }
 
 func TestAskedInReply(t *testing.T) {

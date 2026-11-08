@@ -13,7 +13,7 @@ Contract: `contracts/identity.csil`, service `IdentityService`.
 | `begin-login` | none | `login_id` (secret), `url`, `expires_ms` (10 minutes). Optional `return_url`: a page on the Magi origin, or a reverse-DNS app scheme (`org.example.app:/path`, RFC 8252). Loopback addresses are refused: the browser is often on another machine. After the sign in, the browser goes there with the query parameter `code`. Without `return_url`, the page shows the code. |
 | `poll-login` | none | Waits up to `wait_ms` (default 25 s, maximum 30 s). Status `pending`, `needs_code`, `complete`, `failed`, or `expired`. `needs_code`: the browser part is complete; poll again with `code`. The token comes once, on the first poll with the correct code. A wrong code fails the login. |
 | `who-am-i` | any | Subject, kind, scopes, and expiry of the caller |
-| `refresh` | user | New user token for the same subject. The login session must be active (7 days from login). |
+| `refresh` | user or machine | New token for the same subject. User: the login session must be active (7 days from login). Machine (`inference:<name>`, `runner:<name>`): same scopes, 30 days; see "Machine tokens". |
 | `issue-service-token` | `identity:admin` | Token for `service:<name>` with the given scopes |
 
 User tokens last 12 hours and have no scopes. The subject is
@@ -95,6 +95,29 @@ identity keygen --issuer magi --out key.json --public key.pub.json
 identity mint --key key.json --subject service:magi --scopes a,b --ttl 720h --out token.txt
 identity mint --key key.json --subject runner:NAME --scopes magi:runner --ttl 2160h --out runner.token
 ```
+
+## Machine tokens
+
+An inference host (`inference:<name>`) and a runner (`runner:<name>`)
+renew their own tokens. Package `renew` keeps the token file valid: when
+2/3 of the life of the token has passed, it calls `refresh` with the
+current token and replaces the file (a new file, then a rename). A minted
+token that lasts more than 31 days renews at once, so a minted one-year
+token becomes a 30-day token at the first start.
+
+- The new token has the same subject and the same scopes. Renewal cannot
+  add scopes.
+- An expired token cannot renew. Then mint a new token.
+- Table `identity_machines` records each machine and its last renewal.
+- To stop a machine, run `identity stop-machine --subject inference:<name>`
+  (with `MAGI_DATABASE_URL`, for example in the identity pod). No token of
+  that machine issued before that time renews. Its current token stays
+  valid until it expires: at most 30 days. A token that you mint after the
+  stop renews again.
+
+Why: a long token that leaks is valid for a long time, and a token that
+nobody renews stops a host without a clear error. A short token that
+renews has neither problem.
 
 Both commands make files with mode 600 and do not overwrite files. Give
 `key.pub.json` to other services in `MAGI_AUTH_KEYS`.

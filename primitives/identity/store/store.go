@@ -183,3 +183,31 @@ func (db *DB) Prune(ctx context.Context, cutoffMs int64) error {
 	_, err := db.pool.Exec(ctx, "DELETE FROM identity_sessions WHERE expires_ms < $1", cutoffMs)
 	return err
 }
+
+// ErrMachineStopped: the token of a machine was issued before its
+// not_before_ms.
+var ErrMachineStopped = errors.New("machine renewal is stopped")
+
+// RenewMachine records a renewal of subject by a token issued at issuedMs.
+// It returns ErrMachineStopped when the token was issued before the
+// not_before_ms of the subject.
+func (db *DB) RenewMachine(ctx context.Context, subject string, issuedMs, nowMs int64) error {
+	var notBefore int64
+	err := db.pool.QueryRow(ctx, `INSERT INTO identity_machines (subject, first_ms, renewed_ms) VALUES ($1, $2, $2)
+	  ON CONFLICT (subject) DO UPDATE SET renewed_ms = CASE WHEN identity_machines.not_before_ms <= $3 THEN $2 ELSE identity_machines.renewed_ms END
+	  RETURNING not_before_ms`, subject, nowMs, issuedMs).Scan(&notBefore)
+	if err != nil {
+		return err
+	}
+	if issuedMs < notBefore {
+		return ErrMachineStopped
+	}
+	return nil
+}
+
+// StopMachine refuses renewal to every token of subject issued before nowMs.
+func (db *DB) StopMachine(ctx context.Context, subject string, nowMs int64) error {
+	_, err := db.pool.Exec(ctx, `INSERT INTO identity_machines (subject, first_ms, renewed_ms, not_before_ms) VALUES ($1, $2, $2, $2)
+	  ON CONFLICT (subject) DO UPDATE SET not_before_ms = $2`, subject, nowMs)
+	return err
+}

@@ -66,6 +66,12 @@ Google Calendar", which is a guess. a03 in r3b fails because the reply
 names Tucson ("the records show that Dana lives in Tucson") while it says
 that it does not know.
 
+`round0-v3` corrects this: `none_unless` fails a reply for a word only
+when no excuse word is in it too (`"tucson"` unless `"dana"` or
+`"sister"`). With v3 scoring, every a03 failure of the v2 runs (12 runs)
+is a pass: each reply said that there is no brother on record. The
+questions and changes of v3 are the same as v2.
+
 ### Local model comparison (round0-v2, 2026-11-06)
 
 Two runs of each model, at the same time, on one RTX 4080 (16 GB). Each run

@@ -1,0 +1,268 @@
+{
+ "version": "round0-v3",
+ "about": "Personal facts said in conversation to one persona, questions to another persona (so the answer must come from knowledge, not from the conversation), changes of three kinds (fix, update, retract), and checks of what the store holds. Synthetic data. Do not change a frozen version; make a new one. v1 asked the questions in the same conversation, and the persona answered from the conversation. v3: a03 uses none_unless, so that a correct abstain that names the sister Dana (Tucson) passes.",
+ "seed": [
+  "Remember that my dentist is Dr. Rivera at Maple Street Dental.",
+  "Maple Street Dental takes bookings through Zocdoc.",
+  "My vet is Dr. Okafor at Birch Lane Animal Clinic. They book through PetDesk.",
+  "My family calendar is in the household Nextcloud.",
+  "The kids sports calendar and the chores calendar are in Nextcloud too.",
+  "My work calendar is in the company Google Workspace.",
+  "My sister Dana lives in Tucson.",
+  "Dana's birthday is March 3.",
+  "I work at Brightline Logistics as an operations manager.",
+  "Our router is a Ubiquiti Dream Machine in the basement closet."
+ ],
+ "questions": [
+  {
+   "id": "q01",
+   "say": "Who is my dentist?",
+   "all": [
+    "rivera"
+   ]
+  },
+  {
+   "id": "q02",
+   "say": "Where does my dentist work?",
+   "all": [
+    "maple street"
+   ]
+  },
+  {
+   "id": "q03",
+   "say": "How do I book a dentist appointment?",
+   "all": [
+    "zocdoc"
+   ]
+  },
+  {
+   "id": "q04",
+   "say": "Who is my vet?",
+   "all": [
+    "okafor"
+   ]
+  },
+  {
+   "id": "q05",
+   "say": "How do I book the vet?",
+   "all": [
+    "petdesk"
+   ]
+  },
+  {
+   "id": "q06",
+   "say": "Where is my family calendar?",
+   "all": [
+    "nextcloud"
+   ]
+  },
+  {
+   "id": "q07",
+   "say": "Where is my work calendar?",
+   "all": [
+    "google"
+   ]
+  },
+  {
+   "id": "q08",
+   "say": "Which of my calendars are in Nextcloud?",
+   "all": [
+    "family",
+    "sports",
+    "chore"
+   ]
+  },
+  {
+   "id": "q09",
+   "say": "Where does my sister live?",
+   "all": [
+    "tucson"
+   ]
+  },
+  {
+   "id": "q10",
+   "say": "When is Dana's birthday?",
+   "all": [
+    "march 3"
+   ]
+  },
+  {
+   "id": "q11",
+   "say": "Where do I work?",
+   "all": [
+    "brightline"
+   ]
+  },
+  {
+   "id": "q12",
+   "say": "Where is the router?",
+   "all": [
+    "basement"
+   ]
+  },
+  {
+   "id": "q13",
+   "say": "What booking system does Birch Lane use?",
+   "all": [
+    "petdesk"
+   ]
+  },
+  {
+   "id": "a01",
+   "say": "Who is my eye doctor?",
+   "abstain": true,
+   "none": [
+    "rivera",
+    "okafor"
+   ]
+  },
+  {
+   "id": "a02",
+   "say": "What is my car's license plate?",
+   "abstain": true
+  },
+  {
+   "id": "a03",
+   "say": "Where does my brother live?",
+   "abstain": true,
+   "none_unless": {
+    "tucson": [
+     "dana",
+     "sister"
+    ]
+   }
+  }
+ ],
+ "changes": [
+  {
+   "id": "c01",
+   "kind": "update",
+   "say": "We switched dentists. My dentist is now Dr. Chen at Oak Hill Dental.",
+   "check": [
+    {
+     "say": "Who is my dentist?",
+     "all": [
+      "chen"
+     ],
+     "none": [
+      "rivera"
+     ]
+    },
+    {
+     "say": "Who was my dentist before Dr. Chen?",
+     "all": [
+      "rivera"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "c02",
+   "kind": "fix",
+   "say": "That's wrong, I misspoke earlier: Dana lives in Phoenix, not Tucson.",
+   "check": [
+    {
+     "say": "Where does my sister live?",
+     "all": [
+      "phoenix"
+     ],
+     "none": [
+      "tucson"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "c03",
+   "kind": "retract",
+   "say": "There is no chores calendar. Forget it.",
+   "check": [
+    {
+     "say": "Which of my calendars are in Nextcloud?",
+     "all": [
+      "family",
+      "sports"
+     ],
+     "none": [
+      "chore"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "c04",
+   "kind": "fix",
+   "say": "Correction: the router is in the garage, not the basement. It was always in the garage.",
+   "check": [
+    {
+     "say": "Where is the router?",
+     "all": [
+      "garage"
+     ],
+     "none": [
+      "basement"
+     ]
+    }
+   ]
+  }
+ ],
+ "abstain_words": [
+  "don't know",
+  "do not know",
+  "don't have",
+  "do not have",
+  "no record",
+  "not recorded",
+  "haven't",
+  "have not",
+  "no information",
+  "not sure",
+  "nothing",
+  "isn't in",
+  "not in my",
+  "no details",
+  "doesn't",
+  "can't find",
+  "cannot find",
+  "couldn't find",
+  "not found",
+  "no knowledge",
+  "unknown"
+ ],
+ "tell_persona": "persona:magi",
+ "ask_persona": "persona:engineering",
+ "store_after_seed": {
+  "all": [
+   "rivera",
+   "maple street",
+   "zocdoc",
+   "okafor",
+   "birch lane",
+   "petdesk",
+   "nextcloud",
+   "google",
+   "sports",
+   "chore",
+   "dana",
+   "tucson",
+   "march 3",
+   "brightline",
+   "router",
+   "basement"
+  ]
+ },
+ "store_after_changes": {
+  "all": [
+   "chen",
+   "oak hill",
+   "phoenix",
+   "garage",
+   "sports"
+  ],
+  "none": [
+   "tucson",
+   "chore",
+   "basement"
+  ]
+ }
+}

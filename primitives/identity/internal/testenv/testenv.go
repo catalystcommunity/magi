@@ -88,9 +88,9 @@ func (k Keys) Verifier(t testing.TB) *authn.Verifier {
 // "service:" get the service kind.
 func (k Keys) Token(t testing.TB, subject string, scopes ...string) string {
 	t.Helper()
-	kind := authn.KindUser
-	if len(subject) > 8 && subject[:8] == "service:" {
-		kind = authn.KindService
+	kind := authn.KindService
+	if len(subject) > 5 && subject[:5] == "user:" {
+		kind = authn.KindUser
 	}
 	tok, err := k.Issuer.Issue(authn.Principal{Subject: subject, Kind: kind, Scopes: scopes}, time.Hour)
 	if err != nil {

@@ -459,6 +459,59 @@ The turn annotation has each call with
 `"by": "note-taker"` and the model call in `notes`.
 `MAGI_NOTE_TAKER=false` turns it off. See `docs/knowledge.md`.
 
+## Web search
+
+A persona can look up facts with two tools. It does not reach the web
+itself; Magi does it, in these steps:
+
+1. `web_search` (query, why). Magi gives the query, the reason, and the
+   newest message of the person to `MAGI_LIBRARIAN_MODELS` (the judge, a
+   schema answer). The judge refuses a private fact of the person ("where
+   does my brother live": the records are the source), a query with
+   private details that the search does not need (it writes the query
+   again without them), and searches for serious harm. Magi also removes
+   email addresses, phone numbers, and record IDs. When the judge does not
+   answer, there is no search (fail closed).
+2. Magi sends the query of the judge to SearXNG (`MAGI_SEARCH_URL`). SearXNG
+   calls the engines through the egress proxy as `svc_searxng`.
+3. Magi keeps at most 8 results: only `http` and `https` on ports 80 and
+   443, public host names and addresses, no duplicates, short text. The
+   judge model keeps the results that relate (at most 6) and drops text
+   that gives orders to an AI. The persona gets the results as data, with
+   the instruction to name the source.
+4. `read_page` (url) reads only a page from the results of this turn or a
+   page that the person sent. Magi refuses a host that resolves to an
+   address that is not public, and a redirect to one. The page goes
+   through the egress proxy as `svc_search` (the injection detector of the
+   proxy scans it). Magi gives only the visible text (no scripts, styles,
+   or hidden elements), at most 8,000 characters.
+
+At most 6 searches and 4 pages in one turn.
+
+The personas look things up and do not say that they cannot answer
+(`lookupRules`). When a reply says "I don't know", "I can't look that up",
+or "I don't have real-time access", and the turn made no search, Magi asks
+the model one time to search and answer (`cantAnswerNote`). A private fact
+that the records do not have stays "I don't know" (the judge refuses the
+search). For a question that no one can answer for certain, the persona
+gives the main views and the reasoning.
+
+Without `MAGI_SEARCH_URL`, the personas have no web tools.
+
+## Working indicator
+
+A client shows that Magi builds a reply: the newest message of the stream
+is from a person, it is less than 3 minutes old, and no persona reply came
+after it (a notice is not a reply). Every client reads the same stream, so
+every device shows the same state. The web client turns the orb and shows
+"<persona> is working on it"; the Android client shows a progress bar; the
+command line shows a spinner on standard error (on a terminal only).
+
+When Magi accepts a spoken message, or a typed message with spoken
+replies, the device that sent it plays the acknowledgement tone: one short
+rising tone (880 to 1320 Hz, 0.1 s). It is different from the notice tone
+(two tones). A message that the wake word filter drops gets no tone.
+
 ## Health and release checks
 
 - `GET /healthz`: the process is ready. The readiness probe uses it.
@@ -491,7 +544,8 @@ sandboxes), `MAGI_EGRESS_ENV_KEY_FILE` and `MAGI_EGRESS_CA` (the
 environment key and the CA certificate of the proxy; with
 `MAGI_EGRESS_PROXY`), `MAGI_MODEL_EGRESS` (`true`: the model calls go
 through the proxy; see Egress), `MAGI_MODEL_API_KEY` (a key placeholder
-for the proxy, in place of `MAGI_MODEL_API_KEY_FILE`).
+for the proxy, in place of `MAGI_MODEL_API_KEY_FILE`), `MAGI_SEARCH_URL`
+(SearXNG for web search; see Web search).
 
 ## Model check
 

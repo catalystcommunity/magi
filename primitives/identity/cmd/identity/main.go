@@ -3,6 +3,7 @@
 //	identity [serve]                    run the service
 //	identity keygen --issuer magi --out key.json [--public key.pub.json]
 //	identity mint --key key.json --subject service:x --scopes a,b --ttl 720h --out token.txt
+//	identity stop-machine --subject inference:x  refuse renewal to its current tokens
 package main
 
 import (
@@ -47,8 +48,10 @@ func main() {
 		err = keygen(args)
 	case "mint":
 		err = mint(args)
+	case "stop-machine":
+		err = stopMachine(args)
 	default:
-		err = fmt.Errorf("unknown command %q (serve, keygen, mint)", cmd)
+		err = fmt.Errorf("unknown command %q (serve, keygen, mint, stop-machine)", cmd)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "identity:", err)
@@ -218,4 +221,27 @@ func durEnv(name string, def time.Duration) time.Duration {
 		return d
 	}
 	return def
+}
+
+// stopMachine refuses renewal to every current token of a machine subject.
+// The tokens stay valid until they expire (at most server.MachineTokenTTL).
+func stopMachine(args []string) error {
+	fs := flag.NewFlagSet("stop-machine", flag.ExitOnError)
+	subject := fs.String("subject", "", "inference:<name> or runner:<name>")
+	dbURL := fs.String("database-url", env("MAGI_DATABASE_URL", ""), "PostgreSQL URL")
+	fs.Parse(args)
+	if !strings.HasPrefix(*subject, "inference:") && !strings.HasPrefix(*subject, "runner:") {
+		return errors.New("subject must start with inference: or runner:")
+	}
+	ctx := context.Background()
+	db, err := store.Open(ctx, *dbURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	if err := db.StopMachine(ctx, *subject, time.Now().UnixMilli()); err != nil {
+		return err
+	}
+	fmt.Printf("renewal stopped for %s; its tokens expire in at most %s\n", *subject, server.MachineTokenTTL)
+	return nil
 }

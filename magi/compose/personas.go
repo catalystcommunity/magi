@@ -29,11 +29,12 @@ type personaProfile struct {
 }
 
 var profiles = map[string]personaProfile{
-	Persona: {name: "Magi", prompt: personaPrompt + knowledgeRules + noticeRules, tools: []string{
-		"recall", "remember", "change_knowledge", "start_code_change", "search_conversation", "list_tasks", "cancel_task", "send_notice", "list_devices"}},
-	Engineering: {name: "Engineering manager", prompt: engineeringPrompt + knowledgeRules + noticeRules, tools: []string{
+	Persona: {name: "Magi", prompt: personaPrompt + knowledgeRules + lookupRules + noticeRules, tools: []string{
+		"recall", "remember", "change_knowledge", "start_code_change", "search_conversation", "list_tasks", "cancel_task", "send_notice", "list_devices",
+		"web_search", "read_page"}},
+	Engineering: {name: "Engineering manager", prompt: engineeringPrompt + knowledgeRules + lookupRules + noticeRules, tools: []string{
 		"list_tasks", "task_status", "task_diff", "start_code_change", "decide_task", "cancel_task", "list_runners",
-		"send_notice", "list_devices", "search_conversation", "recall", "remember", "change_knowledge"}},
+		"send_notice", "list_devices", "search_conversation", "recall", "remember", "change_knowledge", "web_search", "read_page"}},
 }
 
 func profileFor(persona string) personaProfile {
@@ -42,6 +43,13 @@ func profileFor(persona string) personaProfile {
 	}
 	return profiles[Persona]
 }
+
+// lookupRules: the persona looks things up instead of saying that it
+// cannot answer (search.go).
+const lookupRules = `
+- You can look things up. For a question about the world (facts, news, prices, weather, opening hours, places, products, people in public life, how-to), use "web_search", then "read_page" on the best results when the snippets are not enough. When the results do not answer, search again with other words, or look up the parts and work out the answer. Name the source of facts from the web in a few words.
+- Never say that you cannot look things up, that you have no internet access, or that your knowledge has a cutoff date. Do the look up.
+- Say that you do not know only when the answer is a private fact that the records and the conversation do not have (then ask the person), or when no one can know it. For a question that no one can answer for certain (the meaning of life, whether a god exists, what happens after death), give the main views and the reasoning, briefly, and what you think is the strongest view.`
 
 const noticeRules = `
 - The person can get notices on their devices (phone, browser, computer). When the person asks you to send something somewhere ("send it to my phone", "put the report on my laptop"), write the full text of what they asked for and use "send_notice" with that device. When they want to be told later or when you finish something long, also use "send_notice". Say where you sent it.
@@ -68,7 +76,7 @@ func toolDefs() map[string]model.Tool {
 	}
 	str := func(d string) map[string]any { return map[string]any{"type": "string", "description": d} }
 	defs := map[string]model.Tool{}
-	for _, t := range personaTools() {
+	for _, t := range append(personaTools(), searchTools()...) {
 		defs[t.Name] = t
 	}
 	for _, t := range []model.Tool{
@@ -114,6 +122,10 @@ type turnState struct {
 	// notes). Then the turn cannot approve or reject: the text could ask
 	// for it (docs/prompt-injection.md).
 	readTask bool
+	// pages are the addresses that web_search gave in this turn; read_page
+	// reads only those and the ones in the message of the person.
+	pages           map[string]bool
+	searched, reads int
 }
 
 // extraTool runs the tools of personas.go. ok is false for other tools.
@@ -378,6 +390,14 @@ var claimNote = map[string]string{
 	"change_knowledge":  "nothing was changed.",
 }
 
+// sameAction: remember and change_knowledge both write the records. A
+// correction of a fact that has no record is recorded with remember (often
+// by the note taker), and the reply "I corrected it" is then true.
+func sameAction(called any, tool string) bool {
+	writes := func(t any) bool { return t == "remember" || t == "change_knowledge" }
+	return called == tool || (writes(called) && writes(tool))
+}
+
 // falseClaim returns the tool of an action that reply says was done, when
 // that tool (of the persona) did not succeed in this turn, or "".
 func falseClaim(reply string, calls []map[string]any, tools []string) string {
@@ -388,7 +408,7 @@ func falseClaim(reply string, calls []map[string]any, tools []string) string {
 		done := false
 		for _, call := range calls {
 			res, _ := call["result"].(string)
-			if call["tool"] == c.tool && !strings.HasPrefix(res, "error") && !strings.HasPrefix(res, "Not recorded") {
+			if sameAction(call["tool"], c.tool) && !strings.HasPrefix(res, "error") && !strings.HasPrefix(res, "Not recorded") {
 				done = true
 			}
 		}

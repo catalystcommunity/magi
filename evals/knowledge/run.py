@@ -54,6 +54,10 @@ def score(case, reply, abstain_words):
     text = reply.lower().replace("’", "'")
     missing = [w for w in case.get("all", []) if w not in text]
     present = [w for w in case.get("none", []) if w in text]
+    # none_unless: a word fails the reply only when no excuse word is also
+    # present, such as "tucson" in "no brother on record; your sister Dana
+    # lives in Tucson".
+    present += [w for w, ok in case.get("none_unless", {}).items() if w in text and not any(o in text for o in ok)]
     ok = not missing and not present
     if case.get("abstain"):
         ok = ok and any(w in text for w in abstain_words)

@@ -47,7 +47,6 @@ require (
 	github.com/vbatts/tar-split v0.11.3 // indirect
 	github.com/vishvananda/netlink v1.3.1 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
-	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 )
@@ -56,6 +55,7 @@ require (
 	github.com/catalystcommunity/magi/lib/revconn v0.0.0
 	github.com/catalystcommunity/magi/primitives/release/goapi v0.0.0
 	github.com/google/go-containerregistry v0.20.2
+	golang.org/x/net v0.62.0
 	golang.org/x/term v0.47.0
 )
 

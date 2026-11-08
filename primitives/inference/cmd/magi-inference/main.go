@@ -11,6 +11,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/catalystcommunity/magi/lib/authn"
 	"github.com/catalystcommunity/magi/lib/revconn"
 	"github.com/catalystcommunity/magi/lib/rpc"
+	"github.com/catalystcommunity/magi/primitives/identity/renew"
 	api "github.com/catalystcommunity/magi/primitives/inference/api"
 	"github.com/catalystcommunity/magi/primitives/inference/host"
 )
@@ -41,6 +43,10 @@ type connect struct {
 	URL       string `json:"url"`        // https://<magi>/inference/connect
 	TokenFile string `json:"token_file"` // token: subject inference:<name>, scope inference:host
 	Idle      int    `json:"idle"`       // idle connections; default 2
+	// NoRenew: do not renew the token. By default the host replaces
+	// token_file with a renewed token (primitives/identity/renew), so the
+	// service account needs write access to its directory.
+	NoRenew bool `json:"no_renew"`
 }
 
 func main() {
@@ -121,6 +127,14 @@ func run(ctx context.Context, path string, log *slog.Logger) error {
 		}}
 		log.Info("inference connecting out", "url", cfg.Connect.URL, "model", cfg.Engine.Model)
 		go func() { a.Serve(ctx, mux) }()
+		if !cfg.Connect.NoRenew {
+			u, err := url.Parse(cfg.Connect.URL)
+			if err != nil {
+				return err
+			}
+			r := &renew.Renewer{File: cfg.Connect.TokenFile, URL: u.Scheme + "://" + u.Host, Log: log}
+			go r.Run(ctx)
+		}
 	}
 	if listen == "" {
 		<-ctx.Done()

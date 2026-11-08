@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/catalystcommunity/magi/lib/authn"
 	"github.com/catalystcommunity/magi/lib/rpc"
 	api "github.com/catalystcommunity/magi/primitives/identity/api"
 	"github.com/catalystcommunity/magi/primitives/identity/internal/fakelk"
@@ -461,5 +462,47 @@ func TestReturnURLAppScheme(t *testing.T) {
 		if p := e.pollCode(r.LoginId, 0, code); p.Status != "complete" || p.Token == nil {
 			t.Fatalf("poll = %+v", p)
 		}
+	}
+}
+
+func TestMachineRenewal(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	host := e.client(e.keys.Token(t, "inference:box", "inference:host"))
+	nt, err := host.Refresh(ctx, api.RefreshRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	who, err := e.client(nt.Token).WhoAmI(ctx, api.WhoAmIRequest{})
+	if err != nil || who.Subject != "inference:box" || who.Kind != "service" || len(who.Scopes) != 1 || who.Scopes[0] != "inference:host" {
+		t.Fatalf("renewed = %+v, %v", who, err)
+	}
+	if left := time.Until(time.UnixMilli(int64(nt.ExpiresMs))); left < server.MachineTokenTTL-time.Minute {
+		t.Fatalf("ttl %v", left)
+	}
+	// The renewed token renews again.
+	if _, err := e.client(nt.Token).Refresh(ctx, api.RefreshRequest{}); err != nil {
+		t.Fatal(err)
+	}
+	// After stop, no current token renews; a token minted later does.
+	e.offset.Store(2000)
+	if err := e.svc.DB.StopMachine(ctx, "inference:box", e.svc.Now().UnixMilli()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.client(nt.Token).Refresh(ctx, api.RefreshRequest{}); rpc.CodeOf(err) != 403 {
+		t.Fatalf("stopped renewal err = %v", err)
+	}
+	later := *e.keys.Issuer
+	later.Now = func() time.Time { return time.Now().Add(5 * time.Second) }
+	tok, err := later.Issue(authn.Principal{Subject: "inference:box", Kind: authn.KindService, Scopes: []string{"inference:host"}}, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.client(tok).Refresh(ctx, api.RefreshRequest{}); err != nil {
+		t.Fatalf("new token after stop: %v", err)
+	}
+	// Other service tokens still cannot refresh.
+	if _, err := e.client(e.keys.Token(t, "service:worker")).Refresh(ctx, api.RefreshRequest{}); rpc.CodeOf(err) != 403 {
+		t.Fatalf("service refresh err = %v", err)
 	}
 }

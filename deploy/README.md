@@ -151,6 +151,28 @@ proxy is its only route out. Read `docs/egress-proxy.md` first.
    Put the hosts that the checks need (module proxies, crate registries)
    in the policy destinations.
 
+## Web search
+
+`SEARCH=true` (with `EGRESS=true`) adds the SearXNG service `search`. Only
+the Magi pod can reach it (NetworkPolicy). `SEARCH_IMAGE` is the image, for
+example a copy of `docker.io/searxng/searxng:<tag>@sha256:<digest>` in the
+Magi registry.
+
+1. Write the settings and make the Secret. The file has the proxy
+   credential of `svc_searxng`; the script does not print it:
+
+   ```sh
+   deploy/search-settings.py --namespace magi --env-key <egress env.key> --out settings.yml
+   kubectl -n magi create secret generic magi-search-settings --from-file=settings.yml
+   ```
+
+2. Add to the egress policy the engine hosts for `svc_searxng`
+   (`deploy/search-settings.py --hosts --namespace x --env-key x --out x`
+   prints them) and `{"host": "*", "environments": ["svc_search"]}` for
+   the pages that the personas read. Magi refuses private addresses for
+   `svc_search` (`magi/compose/search.go`).
+3. Restart the egress proxy, so that it reads the policy.
+
 ## Install or update
 
 ```sh

@@ -22,6 +22,8 @@ proxy secret "model", and Magi holds only its placeholder.
 Optional: DETECTOR_URL is the prompt injection detector engine (the engine
 "detect" of primitives/speech/engine, with the speech engine token);
 DETECTOR_MODE is "flag" (default) or "review", DETECTOR_THRESHOLD 0.98.
+Optional: SEARCH=true (with EGRESS) adds SearXNG for web_search (image
+SEARCH_IMAGE, Secret magi-search-settings); see deploy/README.md.
 Optional: SPEECH_TURN_URL is the speech detection and turn classifier engine
 (the engine "turn"), for detect-speech and classify-turn.
 Secrets are created separately (see deploy/README.md).
@@ -152,6 +154,44 @@ def egress_proxy(img, v):
                               {"from": [{"podSelector": {"matchLabels": {"app.kubernetes.io/name": "magi"}}}],
                                "ports": [{"protocol": "TCP", "port": 8080}]}]}})
     return objs
+
+
+def search(v):
+    """SearXNG for web_search (magi/compose/search.go). Only Magi calls it.
+    The Secret magi-search-settings has settings.yml: its outgoing proxy is
+    the egress proxy as svc_searxng (the URL holds the credential), so the
+    engine hosts must be in the policy for that user (deploy/README.md)."""
+    ns = v["NAMESPACE"]
+    labels = {**LABELS, "app.kubernetes.io/name": "search"}
+    container = {
+        "name": "search", "image": v["SEARCH_IMAGE"],
+        "env": [{"name": "SEARXNG_BASE_URL", "value": f"http://search.{ns}.svc:8080/"}],
+        "ports": [{"name": "http", "containerPort": 8080}],
+        "readinessProbe": {"httpGet": {"path": "/healthz", "port": "http"}, "periodSeconds": 10},
+        "resources": {"requests": {"cpu": "20m", "memory": "96Mi"}, "limits": {"cpu": "1", "memory": "512Mi"}},
+        "securityContext": {"allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]}},
+        "volumeMounts": [{"name": "settings", "mountPath": "/etc/searxng", "readOnly": True},
+                         {"name": "cache", "mountPath": "/var/cache/searxng"},
+                         {"name": "magi-egress-ca", "mountPath": "/etc/magi/egress-ca", "readOnly": True}],
+    }
+    spec = {"automountServiceAccountToken": False, "nodeSelector": {"kubernetes.io/arch": "amd64"},
+            "imagePullSecrets": [{"name": "magi-registry"}],
+            "securityContext": {"runAsNonRoot": True, "runAsUser": 977, "runAsGroup": 977, "fsGroup": 977, "seccompProfile": {"type": "RuntimeDefault"}},
+            "containers": [container],
+            "volumes": [{"name": "settings", "secret": {"secretName": "magi-search-settings", "defaultMode": 0o440}},
+                        {"name": "cache", "emptyDir": {"sizeLimit": "256Mi"}},
+                        {"name": "magi-egress-ca", "configMap": {"name": "magi-egress-ca"}}]}
+    return [
+        {"apiVersion": "apps/v1", "kind": "Deployment", "metadata": {"name": "search", "namespace": ns, "labels": labels},
+         "spec": {"replicas": 1, "selector": {"matchLabels": {"app.kubernetes.io/name": "search"}},
+                  "template": {"metadata": {"labels": labels}, "spec": spec}}},
+        {"apiVersion": "v1", "kind": "Service", "metadata": {"name": "search", "namespace": ns, "labels": labels},
+         "spec": {"selector": {"app.kubernetes.io/name": "search"}, "ports": [{"name": "http", "port": 8080, "targetPort": "http"}]}},
+        {"apiVersion": "networking.k8s.io/v1", "kind": "NetworkPolicy", "metadata": {"name": "search", "namespace": ns, "labels": LABELS},
+         "spec": {"podSelector": {"matchLabels": {"app.kubernetes.io/name": "search"}}, "policyTypes": ["Ingress"],
+                  "ingress": [{"from": [{"podSelector": {"matchLabels": {"app.kubernetes.io/name": "magi"}}}],
+                               "ports": [{"protocol": "TCP", "port": 8080}]}]}},
+    ]
 
 
 def pvc(v, name, size):
@@ -313,8 +353,14 @@ def render(img, v):
                         {"name": "MAGI_DETECTOR_MODE", "value": v.get("DETECTOR_MODE", "flag")},
                         {"name": "MAGI_DETECTOR_THRESHOLD", "value": v.get("DETECTOR_THRESHOLD", "0.98")}]
         detector_secrets = [("magi-speech-engine", "/etc/magi/detector")]
+    search_env = []
+    if v.get("SEARCH") == "true":
+        if not egress:
+            sys.exit("SEARCH needs EGRESS: SearXNG and the pages go through the egress proxy")
+        search_env = [{"name": "MAGI_SEARCH_URL", "value": f"http://search.{ns}.svc:8080"}]
+        out += search(v)
     mg = service(v, "magi", img["IMAGE_MAGI"], [
-        *model, *svc_token, *persona, *egress_env, *detector_env,
+        *model, *svc_token, *persona, *egress_env, *detector_env, *search_env,
         *[{"name": f"MAGI_{k.upper()}_URL", "value": u} for k, u in urls.items()],
         {"name": "MAGI_ENV_IMAGE", "value": v["ENV_IMAGE"]},
         # RUNNER: the default runner for code changes (RunnerService).

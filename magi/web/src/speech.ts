@@ -171,3 +171,21 @@ export function chime(high = false) {
   });
   return new Promise<void>((ok) => setTimeout(ok, (tones.length * 90 + 120)));
 }
+
+// ack plays a short rising tone when Magi accepts a message and starts to
+// build the reply, so that the person knows it heard them. It differs from
+// the notice chime (two tones): one glide, softer.
+export function ack() {
+  if (!ctx || ctx.state !== "running") return;
+  const t = ctx.currentTime + 0.01;
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = "sine";
+  o.frequency.setValueAtTime(880, t);
+  o.frequency.exponentialRampToValueAtTime(1320, t + 0.07);
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(0.12, t + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.11);
+  o.connect(g).connect(ctx.destination);
+  o.start(t);
+  o.stop(t + 0.12);
+}
