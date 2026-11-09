@@ -5,9 +5,11 @@ import (
 	"crypto/rand"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/catalystcommunity/magi/lib/rpc"
 	api "github.com/catalystcommunity/magi/primitives/identity/api"
+	"github.com/catalystcommunity/magi/primitives/identity/store"
 )
 
 const person = "user:019d6ac9-58bf-7303-8a5a-e60fba633239@example.local"
@@ -91,5 +93,35 @@ func TestGrantsNeedConfiguration(t *testing.T) {
 	list, err := user.ListGrants(ctx, api.ListGrantsRequest{})
 	if err != nil || len(list.Grants) != 0 {
 		t.Fatalf("list: %+v %v", list, err)
+	}
+}
+
+// RenewableGrants: active grants near expiry that the domain can renew.
+func TestRenewableGrants(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	now := time.Now().UnixMilli()
+	h := int64(time.Hour / time.Millisecond)
+	for _, g := range []store.Grant{
+		{ID: "soon", State: "active", ExpiresMs: now + h, RenewableUntilMs: now + 700*h},
+		{ID: "later", State: "active", ExpiresMs: now + 20*h, RenewableUntilMs: now + 700*h},
+		{ID: "final", State: "active", ExpiresMs: now + h, RenewableUntilMs: now + h},
+		{ID: "gone", State: "active", ExpiresMs: now - h, RenewableUntilMs: now + 700*h},
+		{ID: "revoked", State: "revoked", ExpiresMs: now + h, RenewableUntilMs: now + 700*h},
+	} {
+		g.Owner, g.Domain, g.Audience, g.Scopes, g.Bytes, g.CreatedMs, g.UpdatedMs = person, "example.local", "a", []string{"s"}, []byte{1}, now, now
+		if err := e.svc.DB.PutGrant(ctx, g); err != nil {
+			t.Fatal(err)
+		}
+		if g.State != "active" {
+			e.svc.DB.SetGrantState(ctx, g.ID, g.State, now)
+		}
+	}
+	rows, err := e.svc.DB.RenewableGrants(ctx, now+12*h, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || rows[0].ID != "soon" {
+		t.Fatalf("renewable: %+v", rows)
 	}
 }

@@ -332,7 +332,11 @@ func (s *Service) BeginGrant(ctx context.Context, req api.BeginGrantRequest) (ap
 	nonce := token()
 	now := s.now().UTC()
 	exp := now.Add(GrantRequestTTL)
-	signedReq, err := rp.SignGrantRequest(lk.ActAsGrantRequest{Grantee: g.ref(), ScopeSet: signed, CallbackUrl: s.PublicURL + "/login/grant/callback", Nonce: nonce, RequestedAt: now.Format(time.RFC3339), ExpiresAt: exp.Format(time.RFC3339)}, g.signer)
+	// Ask for the longest terms; the home domain gives its maximum or less.
+	// Without them a grant lives one hour and cannot be renewed.
+	life, window := int64(GrantLifetime/time.Second), int64(GrantRenewalWindow/time.Second)
+	signedReq, err := rp.SignGrantRequest(lk.ActAsGrantRequest{Grantee: g.ref(), ScopeSet: signed, CallbackUrl: s.PublicURL + "/login/grant/callback", Nonce: nonce, RequestedAt: now.Format(time.RFC3339), ExpiresAt: exp.Format(time.RFC3339),
+		RequestedLifetimeSeconds: &life, RequestedRenewalWindowSeconds: &window}, g.signer)
 	if err != nil {
 		return api.BeginGrantResponse{}, err
 	}
@@ -427,6 +431,54 @@ func grantRow(owner, domain, audience string, g rp.RefreshedGrant, now time.Time
 		Scopes: g.Decoded.ApprovedScope, Bytes: lk.EncodeSignedActAsGrant(g.Grant),
 		ExpiresMs: ms(g.Decoded.ExpiresAt), RenewableUntilMs: ms(g.Decoded.RenewableUntil),
 		CreatedMs: now.UnixMilli(), UpdatedMs: now.UnixMilli()}, nil
+}
+
+// GrantLifetime and GrantRenewalWindow are the terms that Magi asks for (the
+// LinkKeys maximums). A grant then lives a day; RenewGrants renews it until
+// the end of the window, after which the person connects again.
+const (
+	GrantLifetime      = 24 * time.Hour
+	GrantRenewalWindow = 30 * 24 * time.Hour
+)
+
+// RenewGrants renews the active grants that have less than half of their
+// lifetime left. The home domain renews only after half the lifetime, so a
+// grant that nobody uses does not expire. It gives the number renewed.
+func (s *Service) RenewGrants(ctx context.Context) (int, error) {
+	g, err := s.grantee()
+	if err != nil {
+		return 0, err
+	}
+	now := s.now()
+	rows, err := s.DB.RenewableGrants(ctx, now.Add(GrantLifetime/2).UnixMilli(), now.UnixMilli())
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, use := range rows {
+		fresh, err := s.refresh(ctx, g, use.Domain, use.ID)
+		if errors.Is(err, errGrantGone) {
+			s.DB.SetGrantState(ctx, use.ID, "revoked", now.UnixMilli())
+			s.log().Info("grant ended", "owner", use.Owner, "grant_id", use.ID, "err", err)
+			continue
+		}
+		if err != nil {
+			s.log().Warn("renew grant", "owner", use.Owner, "grant_id", use.ID, "err", err)
+			continue
+		}
+		if fresh.Decoded.GrantId != use.ID || !strings.EqualFold(fresh.Decoded.SubjectDomain, use.Domain) {
+			continue
+		}
+		if fresh.Signed {
+			if row, err := grantRow(use.Owner, use.Domain, use.Audience, fresh, now); err == nil {
+				row.CreatedMs = use.CreatedMs
+				if s.DB.PutGrant(ctx, row) == nil {
+					n++
+				}
+			}
+		}
+	}
+	return n, nil
 }
 
 // errGrantGone: the home domain says the grant is revoked or expired.

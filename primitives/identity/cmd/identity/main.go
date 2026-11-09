@@ -229,6 +229,21 @@ func serve(args []string) error {
 		}
 		svc.Grantee = g
 		go func() {
+			// Renew the act-as grants before they expire (RenewGrants).
+			for t := time.NewTicker(15 * time.Minute); ; {
+				if n, err := svc.RenewGrants(ctx); err != nil {
+					log.Error("grant renewal failed", "err", err)
+				} else if n > 0 {
+					log.Info("grants renewed", "grants", n)
+				}
+				select {
+				case <-ctx.Done():
+					return
+				case <-t.C:
+				}
+			}
+		}()
+		go func() {
 			for t := time.NewTicker(6 * time.Hour); ; {
 				if err := g.RenewKeys(ctx); err != nil {
 					log.Error("application key attestation renewal failed", "err", err)

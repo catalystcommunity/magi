@@ -72,6 +72,7 @@ func main() {
 	lhURL := flag.String("longhouse", "", "Longhouse URL")
 	only := flag.String("only", "", "calendar or longhouse (default both)")
 	clean := flag.Bool("clean", false, "remove the events and tasks that are not in the world (made by earlier runs), then stop")
+	extras := flag.Bool("extras", false, "print (JSON lines) the events and tasks that are not in the world, then stop; an evaluation checks its actions with this")
 	tz := flag.String("tz", "America/Denver", "time zone of the world")
 	flag.Parse()
 	var err error
@@ -85,7 +86,8 @@ func main() {
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	sys := compose.New(compose.Config{Identity: *identity, CatalystcalURL: *calURL, LonghouseURL: *lhURL, ServiceToken: strings.TrimSpace(string(tok))}, nil, log)
 	ctx := context.Background()
-	if *clean {
+	report = *extras
+	if *clean || *extras {
 		var c struct{ Me, Alex []event }
 		read(filepath.Join(*world, "calendar.json"), &c)
 		var h house
@@ -379,9 +381,11 @@ func cleanCalendar(ctx context.Context, sys *compose.System, owner string, title
 		fail(err)
 	}
 	var own []cal.CalendarID
+	names := map[cal.CalendarID]string{}
 	for _, c := range cals.Calendars {
 		if c.AccessPath == "owner" || c.AccessPath == "delegation" {
 			own = append(own, c.CalendarId)
+			names[c.CalendarId] = c.Name
 		}
 	}
 	ev := cal.NewEventClient(tr)
@@ -401,6 +405,10 @@ func cleanCalendar(ctx context.Context, sys *compose.System, owner string, title
 				continue
 			}
 			done[id] = true
+			if report {
+				emit(map[string]any{"kind": "event", "owner": owner, "calendar": names[o.Event.CalendarId], "event": o.Event})
+				continue
+			}
 			all := cal.RecurrenceScope("all")
 			if _, err := ev.DeleteEvent(ctx, cal.DeleteEventRequest{EventId: id, Scope: &all}); err != nil {
 				fmt.Printf("%s: delete %q: %v\n", owner, o.Event.Title, err)
@@ -434,6 +442,10 @@ func cleanLonghouse(ctx context.Context, sys *compose.System, me, house string, 
 			if titles[t.Title] || t.OwnerMemberId != hs.MemberId {
 				continue
 			}
+			if report {
+				emit(map[string]any{"kind": "task", "task": t})
+				continue
+			}
 			if _, err := lh.NewTaskClient(tr).DeleteTask(ctx, t.TaskId); err != nil {
 				fmt.Printf("longhouse: delete %q: %v\n", t.Title, err)
 				continue
@@ -441,6 +453,17 @@ func cleanLonghouse(ctx context.Context, sys *compose.System, me, house string, 
 			fmt.Printf("longhouse: deleted %q\n", t.Title)
 		}
 	}
+}
+
+// report: -extras prints instead of deleting.
+var report bool
+
+func emit(v any) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		fail(err)
+	}
+	fmt.Println(string(b))
 }
 
 func ptr[T any](v T) *T { return &v }

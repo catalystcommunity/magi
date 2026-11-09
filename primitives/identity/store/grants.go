@@ -90,6 +90,18 @@ func (db *DB) Grants(ctx context.Context, owner, audience string) ([]Grant, erro
 	return scanGrants(rows)
 }
 
+// RenewableGrants gives the active grants that expire before beforeMs and
+// that the home domain can still renew (renewable_until after nowMs).
+func (db *DB) RenewableGrants(ctx context.Context, beforeMs, nowMs int64) ([]Grant, error) {
+	rows, err := db.pool.Query(ctx, `SELECT `+grantCols+` FROM identity_grants
+	  WHERE state = 'active' AND expires_ms < $1 AND expires_ms > $2 AND renewable_until_ms > expires_ms
+	  ORDER BY expires_ms LIMIT 500`, beforeMs, nowMs)
+	if err != nil {
+		return nil, err
+	}
+	return scanGrants(rows)
+}
+
 // DeleteGrant removes a grant of owner.
 func (db *DB) DeleteGrant(ctx context.Context, grantID, owner string) error {
 	tag, err := db.pool.Exec(ctx, `DELETE FROM identity_grants WHERE grant_id = $1 AND owner = $2`, grantID, owner)
