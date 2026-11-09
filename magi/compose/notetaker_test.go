@@ -318,6 +318,9 @@ func TestBirthdayFrom(t *testing.T) {
 	if !ok || v != "April 3, 1987" {
 		t.Errorf("%q %v", v, ok)
 	}
+	if v, ok := birthdayFrom(noteItem{Op: "remember", Subject: "me", Relation: "birthday", Value: "April 2"}, "It's my birthday today, I turned 37.", at); !ok || v != "April 3, 1987" {
+		t.Errorf("no year: %q %v", v, ok)
+	}
 	if _, ok := birthdayFrom(noteItem{Relation: "birthday", Value: "September 3, 2016"}, "Ruby's birthday, she turned 8", at); ok {
 		t.Error("a date was changed")
 	}

@@ -619,9 +619,7 @@
    "abstain": true,
    "kind": "abstain",
    "truth": "Not known",
-   "re_none": [
-    "\\d{3,}"
-   ]
+   "re_none": []
   },
   {
    "id": "a02",
@@ -630,7 +628,8 @@
    "kind": "abstain",
    "truth": "Not known",
    "re_none": [
-    "\\d{3,}"
+    "\\b[a-z]{2,3}[- ]?\\d{3,4}\\b",
+    "\\b\\d{3}[- ]?[a-z]{3}\\b"
    ]
   },
   {
@@ -640,7 +639,7 @@
    "kind": "abstain",
    "truth": "Not known",
    "re_none": [
-    "\\d{3,}"
+    "\\b\\d{9,15}\\b"
    ]
   },
   {

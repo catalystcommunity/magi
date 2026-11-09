@@ -14,6 +14,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	cal "github.com/catalystcommunity/catalystcal/clients/go"
@@ -925,11 +926,19 @@ func (s *System) longhouseTool(ctx context.Context, owner, name string, args map
 			}
 		}
 		var lines []string
+		var keep []lh.Task
 		for _, t := range tasks {
 			if w := args["text"]; w != "" && !anyWord(t.Title+" "+deref(t.Description)+" "+deref(t.Tag), w) {
 				continue
 			}
-			lines = append(lines, s.describeTask(t, h, in))
+			keep = append(keep, t)
+		}
+		notes := map[lh.TaskID]string{}
+		if len(keep) <= 15 {
+			notes = taskComments(ctx, tr, h, keep)
+		}
+		for _, t := range keep {
+			lines = append(lines, s.describeTask(t, h, in)+notes[t.TaskId])
 		}
 		if len(lines) == 0 {
 			return "House " + h.name + ": no tasks match.", nil
@@ -1267,12 +1276,11 @@ func (s *System) longhouseContext(ctx context.Context, owner, text string) strin
 		if len(l.Tasks) == 0 {
 			lines = append(lines, "  no open tasks")
 		}
-		for i, t := range l.Tasks {
-			if i == 12 {
-				break
-			}
+		top := l.Tasks[:min(len(l.Tasks), 12)]
+		notes := taskComments(ctx, tr, h, top)
+		for _, t := range top {
 			shown[t.TaskId] = true
-			lines = append(lines, "  open task: "+s.describeTask(t, h, in))
+			lines = append(lines, "  open task: "+s.describeTask(t, h, in)+notes[t.TaskId])
 		}
 	}
 	if l, err := lh.NewTaskClient(tr).ListTasks(ctx, lh.TaskListRequest{HouseId: lh.HouseID(h.id), Limit: &lim, State: open}); err == nil {
@@ -1286,4 +1294,39 @@ func (s *System) longhouseContext(ctx context.Context, owner, text string) strin
 		}
 	}
 	return strings.Join(lines, "\n")
+}
+
+// taskComments gives, for each task, its newest comments (at most three)
+// as text to put after the task line ("11 of 14 families paid" is in a
+// comment, not in the task). The calls run at the same time.
+func taskComments(ctx context.Context, tr cal.Transport, h lhHouse, tasks []lh.Task) map[lh.TaskID]string {
+	out := map[lh.TaskID]string{}
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	cc := lh.NewCommentClient(tr)
+	lim := uint64(20)
+	for _, t := range tasks {
+		wg.Add(1)
+		go func(t lh.Task) {
+			defer wg.Done()
+			cs, err := cc.ListComments(ctx, lh.CommentListRequest{TargetType: "task", TargetId: string(t.TaskId), Limit: &lim})
+			if err != nil || len(cs) == 0 {
+				return
+			}
+			cs = cs[max(0, len(cs)-3):]
+			var parts []string
+			for _, c := range cs {
+				who := h.members[c.MemberId]
+				if who == "" {
+					who = "someone"
+				}
+				parts = append(parts, fmt.Sprintf("%s: %q", who, clip(c.Body, 300)))
+			}
+			mu.Lock()
+			out[t.TaskId] = "; comments: " + strings.Join(parts, "; ")
+			mu.Unlock()
+		}(t)
+	}
+	wg.Wait()
+	return out
 }

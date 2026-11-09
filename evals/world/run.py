@@ -100,7 +100,7 @@ EXCUSE = re.compile(r"\b(slipped|moved|was|were|originally|earlier|previous|prev
 
 # Set v3: no "now", "current", "after", or "joined" ("the launch is now due
 # December 1" is not excused).
-EXCUSE_V3 = re.compile(r"\b(slipped|moved|was|were|originally|earlier|previous|previously|old|before|used to|former|formerly|no longer|anymore|until|left|sold|not yet|wasn't|was not)\b")
+EXCUSE_V3 = re.compile(r"\b(from|slipped|moved|was|were|originally|earlier|previous|previously|old|before|used to|former|formerly|no longer|anymore|until|left|sold|not yet|wasn't|was not)\b")
 
 
 def near(text, m, n):

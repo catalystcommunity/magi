@@ -549,6 +549,8 @@ func startsWithOther(notes, text string, selfLabels ...string) bool {
 	return false
 }
 
+var yearLike = regexp.MustCompile(`\b(19|20)\d\d\b`)
+
 var turned = regexp.MustCompile(`(?i)\b(?:turned|turn|turns|i'm now|i am now)\s+(\d{1,3})\b`)
 
 // birthdayFrom: "It's my birthday today, I turned 37" gives the birthday
@@ -558,7 +560,9 @@ func birthdayFrom(it noteItem, text string, at time.Time) (string, bool) {
 	if !strings.Contains(r, "birth") || !strings.Contains(strings.ToLower(text), "birthday") {
 		return "", false
 	}
-	if v := strings.TrimSpace(it.Value + it.Object); v != "" && strings.Trim(v, "0123456789") != "" {
+	// A number ("37") or a date without a year ("April 2") gets the
+	// year; a date with a year stays.
+	if v := strings.TrimSpace(it.Value + it.Object); v != "" && strings.Trim(v, "0123456789") != "" && (yearLike.MatchString(v) || !hasDate.MatchString(v)) {
 		return "", false
 	}
 	m := turned.FindStringSubmatch(text)
