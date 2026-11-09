@@ -24,7 +24,7 @@ const noteTakerPrompt = `You keep the notes of one person. Read the newest messa
 
 Operations:
 - "remember": a new fact. subject: "me" for the person, or a name. relation: short, lower case, with "-" (dentist, vet, sister, lives-in, works-at, job, hosted-in, located-in, birthday, books-through, model). object: a thing with a name (a person, place, organization, system, device). value: a date, number, or description when there is no object. Give one item for each fact. When the person names a person or thing that relates to them, also give that fact ("my sister Dana lives in Tucson": me sister Dana, and Dana lives-in Tucson). "also": true only for a second fact with the same subject and relation (a second sister). A thing of the person is the subject of its own facts: "my photo library is in iCloud": photo library located-in iCloud; "our printer is a Brother HL-L2350 in the office": me printer Brother HL-L2350, and Brother HL-L2350 located-in office. A person at a place is two facts: "my doctor is Dr. Lee at Elm Clinic": me doctor Dr. Lee, and Dr. Lee works-at Elm Clinic. A name of a thing is a fact: "the shared drive is called Family Vault": shared drive name Family Vault (a value). Give object or value, not both.
-- "update": a fact of the notes was true and is now different ("we switched", "now", "we moved", "it changed to"). id: the id of that fact from the notes. value: the new object or value.
+- "update": a fact of the notes was true and is now different ("we switched", "now", "we moved", "it changed to"). id: the id of that fact from the notes. subject and relation: of that fact, as for remember. value: the new object or value. The fact must be about the same subject: "Alex works from home now" does not change a fact about the person.
 - "fix": a fact of the notes was wrong ("that's wrong", "I misspoke", "it was always", "not X"). id: the id of the fact. value: the right object or value. field: "object" or "value" (the field that holds the wrong part).
 - "end": a fact of the notes stopped being true and nothing new replaces it ("we sold the boat", "she left the band", "no longer", "doesn't anymore", "stopped"). id: the id of that fact. Magi keeps it as a past fact. Do not use retract for it.
 - "retract": a fact or thing of the notes was never true, or the person wants it forgotten ("there is no", "forget it"). id: the id. object: the name of the thing or fact to forget, in the words of the person ("chores calendar"). When no record of the notes names that thing, give no item.
@@ -203,6 +203,18 @@ func (s *System) applyNotes(ctx context.Context, a workflowapi.Assignment, as co
 		if op := changeOp(utt.Text, it.Op); op != it.Op {
 			log.Calls = append(log.Calls, map[string]any{"tool": "change-op", "by": "note-taker", "args": map[string]string{"from": it.Op, "to": op}})
 			it.Op = op
+		}
+		if (it.Op == "fix" || it.Op == "update") && it.Subject != "" && strings.HasPrefix(it.Id, "clm_") {
+			// A small model points an update at a fact of another subject
+			// ("Alex works from home" at the person's works-at). The fact of
+			// the other subject is a new fact.
+			if line := claimLine(notes, it.Id); line != "" && !aboutSubject(line, it.Subject, a.Vars["owner_name"], strings.TrimPrefix(as.person, "user:")) {
+				log.Calls = append(log.Calls, map[string]any{"tool": "wrong-subject", "by": "note-taker", "args": map[string]string{"id": it.Id, "subject": it.Subject, "record": line}})
+				if it.Relation == "" || (it.Value == "" && it.Object == "") {
+					continue
+				}
+				it = noteItem{Op: "remember", Subject: it.Subject, Relation: it.Relation, Object: it.Object, Value: it.Value}
+			}
 		}
 		if it.Op == "fix" || it.Op == "update" {
 			if id := retarget(notes, utt.Text, it.Id); id != it.Id {
@@ -434,6 +446,42 @@ func changeOp(text, op string) string {
 var entityLine = regexp.MustCompile(`^- \[(ent_[^\]\s]+)\] (.+?) \([^)]*\)`)
 
 // labelOf gives the label of the entity id in the notes (describeKnowledge).
+// claimLine gives the text of the fact id in the notes ("Jamie works-at
+// Juniper Labs"), or "".
+func claimLine(notes, id string) string {
+	for _, l := range strings.Split(notes, "\n") {
+		l = strings.TrimSpace(l)
+		if rest, ok := strings.CutPrefix(l, "- ["+id+"] "); ok {
+			return rest
+		}
+	}
+	return ""
+}
+
+// aboutSubject: the fact line starts with the subject. "me" (and "I", "my")
+// is the person: the labels of the self (their name, or their subject when
+// Magi has no name).
+func aboutSubject(line, subject string, selfLabels ...string) bool {
+	l := strings.ToLower(line)
+	sub := strings.ToLower(strings.TrimSpace(subject))
+	names := []string{sub}
+	switch sub {
+	case "me", "i", "my", "myself":
+		names = []string{"me ", "i ", "my "}
+		for _, n := range selfLabels {
+			if n != "" {
+				names = append(names, strings.ToLower(n))
+			}
+		}
+	}
+	for _, n := range names {
+		if n != "" && strings.HasPrefix(l, n) {
+			return true
+		}
+	}
+	return false
+}
+
 func labelOf(notes, id string) string {
 	for _, l := range strings.Split(notes, "\n") {
 		if m := entityLine.FindStringSubmatch(strings.TrimSpace(l)); m != nil && m[1] == id {

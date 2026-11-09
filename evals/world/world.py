@@ -1,6 +1,10 @@
 """Make the synthetic world of the world evaluation (README.md).
 
-  python3 -I evals/world/world.py OUT_DIR
+  python3 -I evals/world/world.py OUT_DIR [VERSION]
+
+VERSION 1 (the default) makes world-v1. VERSION 2 has notes that follow
+the dates and more near-miss notes (NOISE_V2); the calendar and Longhouse
+data are the same.
 
 Writes, for one person ("I") and their partner Alex, from January 2024 to
 the day before the run:
@@ -124,13 +128,71 @@ NOISE = [
 ]
 
 
-def history():
+# Version 2: each note is true only in its window (from, to), so a note
+# never says what the key facts deny (no climbing after the injury). Some
+# notes are near misses: other people's facts, plans that did not happen,
+# and questions, which must not become facts of the person.
+NOISE_V2 = [
+    ("Ruby scored two goals today for the Hornets.", "2024-03-18", None),
+    ("Theo finally swam a full length without stopping.", "2024-04-20", None),
+    ("Pepper ate a sock again. She's fine.", None, None),
+    ("Long day. Too many meetings.", None, None),
+    ("It snowed about six inches overnight.", None, None),
+    ("We had tacos for dinner, the kids loved it.", None, None),
+    ("I read most of the book club book on the train.", "2024-02-01", None),
+    ("Climbing was great this morning, sent a new V4.", "2024-02-12", "2025-12-08"),
+    ("The Atlas migration standup ran long again.", "2024-03-05", "2025-10-30"),
+    ("Alex made pancakes this morning.", None, None),
+    ("Theo lost a tooth!", "2025-01-01", None),
+    ("Ruby has a spelling test on Friday.", None, None),
+    ("Need to remember to water the tomatoes.", None, None),
+    ("Traffic on I-25 was terrible today.", None, None),
+    ("We watched a movie as a family tonight.", None, None),
+    ("Pepper loves the dog park on 32nd.", "2024-06-15", None),
+    ("We walked Pepper around Sloan's Lake.", "2024-06-15", None),
+    ("My code review queue is huge this week.", None, None),
+    ("Wen Li helped me debug the build cache today.", "2025-09-15", None),
+    ("Had a good one-on-one with my manager.", None, None),
+    ("The kitchen is a mess with the remodel going on.", "2026-03-02", None),
+    ("Ortega and Sons said the countertops arrive next week.", "2026-07-01", "2026-07-25"),
+    ("The EV9 charges fine on the garage outlet, just slowly.", "2026-01-20", None),
+    ("Physical therapy was tough today, but the shoulder feels better.", "2026-01-12", None),
+    ("Book club picked a mystery novel for next month.", "2024-02-01", None),
+    ("What's a good recipe for banana bread?", None, None),
+    ("How long should I boil an egg?", None, None),
+    ("Sven shipped his first feature today.", "2025-08-20", "2025-09-30"),
+    ("Bea is ramping up fast.", "2026-06-10", "2026-08-31"),
+    ("Nadia gave a great demo at the all-hands.", "2024-04-01", "2026-09-30"),
+    ("The Harbor launch planning doc is finally done.", "2025-11-20", "2026-01-31"),
+    ("We walked around the Boulder farmers market.", None, "2024-06-14"),
+    # Near misses.
+    ("My friend Marco just bought a Mazda CX-5, same as my old one.", "2025-12-01", None),
+    ("Alex's sister Dana moved to Chicago.", "2025-05-01", "2025-06-30"),
+    ("Thinking about switching dentists, but probably not.", "2025-03-01", "2025-03-31"),
+    ("Rafael said his own manager is Priya Raman.", "2025-04-01", None),
+    ("We might get a second dog someday. Not now.", None, None),
+    ("Sven's daughter is also on a soccer team, the Lakewood Lions.", "2025-09-01", None),
+    ("Ruby asked if she can quit soccer. We said finish the season first.", "2026-04-01", "2026-05-31"),
+    ("Theo wants a party at the climbing gym for his birthday next year.", "2025-03-01", "2025-04-30"),
+    ("Is the kitchen budget usually 10 percent over? Just wondering.", "2026-03-10", "2026-06-30"),
+    ("Wen Li might move to the data team next year, she said.", "2026-08-01", None),
+    ("Our neighbor Pat has a border collie too.", "2024-07-01", None),
+]
+
+
+def history(version=1):
     items = [{"text": t, "at_ms": at(d, h), "key": True} for d, h, t in KEY]
     day = START
     while day <= END:
         # About two notes each week.
         if rng.random() < 0.29:
-            items.append({"text": rng.choice(NOISE), "at_ms": at(day, rng.randint(7, 22), rng.choice([0, 15, 30, 45])), "key": False})
+            if version == 1:
+                text = rng.choice(NOISE)
+            else:
+                iso = day.isoformat()
+                ok = [t for t, a, b in NOISE_V2 if (a is None or a <= iso) and (b is None or iso <= b)]
+                text = rng.choice(ok)
+            items.append({"text": text, "at_ms": at(day, rng.randint(7, 22), rng.choice([0, 15, 30, 45])), "key": False})
         day += dt.timedelta(days=1)
     items.sort(key=lambda x: x["at_ms"])
     return items
@@ -261,7 +323,7 @@ def longhouse():
 def main():
     out = Path(sys.argv[1])
     out.mkdir(parents=True, exist_ok=True)
-    h = history()
+    h = history(int(sys.argv[2]) if len(sys.argv) > 2 else 1)
     (out / "history.json").write_text(json.dumps({"tz": str(TZ), "messages": h}, indent=1) + "\n")
     (out / "calendar.json").write_text(json.dumps(calendar(), indent=1) + "\n")
     (out / "longhouse.json").write_text(json.dumps(longhouse(), indent=1) + "\n")

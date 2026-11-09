@@ -441,6 +441,9 @@ func describeKnowledge(items []magiapi.KnowledgeItem, records []magiapi.Knowledg
 				line = fmt.Sprintf("%s %s %s", other, f.Relation, it.Label)
 			}
 			var notes []string
+			if n := ageNote(f.Relation, other, now); n != "" && f.Status != "ended" {
+				notes = append(notes, n)
+			}
 			if f.Status != "ended" && f.ValidFromMs != nil && *f.ValidFromMs > 0 {
 				notes = append(notes, "since "+when(time.UnixMilli(int64(*f.ValidFromMs)), now))
 			}
@@ -706,4 +709,40 @@ func (s *System) recordEvent(ctx context.Context, owner, ownerName, subject, tit
 		return "error: " + err.Error()
 	}
 	return fmt.Sprintf("Recorded the event [%s] %s on %s.", ep.Id, ep.Title, at.In(s.zone()).Format("2006-01-02"))
+}
+
+var dateForms = []string{"January 2, 2006", "January 2 2006", "2 January 2006", "2006-01-02", "Jan 2, 2006", "1/2/2006"}
+
+// ageNote: for a birthday (or an anniversary, or a wedding date) with a
+// year, the years until now and the next date. A small model gets ages
+// wrong.
+func ageNote(relation, value string, now time.Time) string {
+	r := strings.ToLower(relation)
+	if !strings.Contains(r, "birth") && !strings.Contains(r, "born") && !strings.Contains(r, "anniversary") && !strings.Contains(r, "married") && !strings.Contains(r, "wedding") {
+		return ""
+	}
+	v := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(value, "on "), "born "))
+	var d time.Time
+	var err error
+	for _, f := range dateForms {
+		if d, err = time.ParseInLocation(f, v, zone); err == nil {
+			break
+		}
+	}
+	if err != nil || d.Year() < 1900 {
+		return ""
+	}
+	now = now.In(zone)
+	years := now.Year() - d.Year()
+	next := time.Date(now.Year(), d.Month(), d.Day(), 0, 0, 0, 0, zone)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, zone)
+	if today.Before(next) {
+		years--
+	} else if !today.Equal(next) {
+		next = next.AddDate(1, 0, 0)
+	}
+	if years < 0 {
+		return ""
+	}
+	return fmt.Sprintf("%d years ago; the next one is %s, %d years", years, next.Format("Monday 2 January 2006"), next.Year()-d.Year())
 }

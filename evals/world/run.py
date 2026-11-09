@@ -58,16 +58,57 @@ def say(args, text, persona):
     return {"reply": "\n".join(body).strip(), "model": model.group(1) if model else "", "ms": ms, "busy": steps}
 
 
-def score(case, reply, abstain_words):
+def score(case, reply, abstain_words, refusal_words=()):
     text = reply.lower().replace("’", "'")
     missing = [w for w in case.get("all", []) if w not in text]
     missing += ["|".join(g) for g in case.get("any", []) if not any(w in text for w in g)]
     present = [w for w in case.get("none", []) if w in text]
     present += [w for w, ok in case.get("none_unless", {}).items() if w in text and not any(o in text for o in ok)]
+    # Version 2: regular expressions on the whole reply (dot matches new lines).
+    f = re.S
+    missing += [r for r in case.get("re_all", []) if not re.search(r, text, f)]
+    missing += ["|".join(g) for g in case.get("re_any", []) if not any(re.search(r, text, f) for r in g)]
+    present += [r for r in case.get("re_none", []) if re.search(r, text, f)]
+    if not case.get("abstain"):
+        # An answerable question: "I don't know" is a failure, not a pass.
+        present += ["refusal: " + w for w in refusal_words if w in text]
     ok = not missing and not present
     if case.get("abstain"):
         ok = ok and any(w in text for w in abstain_words)
     return {"ok": ok, "missing": missing, "present": present}
+
+
+def extras(args):
+    """The events and tasks that are not in the world (magi-world -extras)."""
+    p = subprocess.run(args.extras, shell=True, capture_output=True, text=True, timeout=300)
+    if p.returncode != 0:
+        raise RuntimeError("extras: " + (p.stderr or p.stdout)[-300:])
+    return [json.loads(l) for l in p.stdout.splitlines() if l.startswith("{")]
+
+
+def key(x):
+    return x.get("event", {}).get("event_id") or x.get("task", {}).get("task_id")
+
+
+def field(x, path):
+    v = x
+    for k in path.split("."):
+        v = v.get(k) if isinstance(v, dict) else None
+    return v if isinstance(v, str) else json.dumps(v)
+
+
+def verify(expect, new):
+    """Each expectation needs one new item whose fields match its regular expressions."""
+    out = []
+    for e in expect:
+        hit = None
+        for x in new:
+            if x.get("kind") == e["kind"] and all(re.search(r, field(x, k).lower(), re.S) for k, r in e.items() if k != "kind"):
+                hit = x
+                break
+        out.append({"expect": e, "ok": hit is not None, "found": hit,
+                    "near": None if hit else [x for x in new if x.get("kind") == e["kind"]][:3]})
+    return out
 
 
 def main():
@@ -80,6 +121,7 @@ def main():
     ap.add_argument("--label", default="")
     ap.add_argument("--only", default="")
     ap.add_argument("--no-actions", action="store_true")
+    ap.add_argument("--extras", default="", help="command that prints magi-world -extras; actions with expect are checked with it")
     args = ap.parse_args()
     s = json.loads(Path(args.set).read_text())
     only = set(filter(None, args.only.split(",")))
@@ -89,7 +131,7 @@ def main():
         r = say(args, case["say"], persona)
         r.update(kind=kind, id=cid, say=case["say"], persona=persona, about=case.get("kind", ""))
         if "reply" in r and kind != "action":
-            r.update(score(case, r["reply"], s["abstain_words"]))
+            r.update(score(case, r["reply"], s["abstain_words"], s.get("refusal_words", [])))
         log.append(r)
         mark = "" if "ok" not in r else ("PASS " if r["ok"] else "FAIL ")
         busy = ",".join(r["busy"])[:80]
@@ -102,9 +144,18 @@ def main():
         for a in s.get("actions", []):
             if only and a["id"] not in only:
                 continue
+            seen = {key(x) for x in extras(args)} if args.extras and a.get("expect") else set()
             ask("action", a["id"], a, a.get("persona", s["persona"]))
-            c = a["check"]
-            ask("check", a["id"] + ".c", c, c.get("persona", s["persona"]))
+            if a.get("expect") and args.extras:
+                time.sleep(3)
+                new = [x for x in extras(args) if key(x) not in seen]
+                v = verify(a["expect"], new)
+                ok = all(x["ok"] for x in v)
+                log.append({"kind": "check", "id": a["id"] + ".v", "about": "direct check", "ok": ok, "verify": v, "new": new})
+                print(f"{'PASS ' if ok else 'FAIL '}check    {a['id']}.v direct: {len(new)} new item(s)", flush=True)
+            if "check" in a:
+                c = a["check"]
+                ask("check", a["id"] + ".c", c, c.get("persona", s["persona"]))
     scored = [r for r in log if "ok" in r]
     summary = {"set": s["version"], "label": args.label, "when": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
                "models": sorted({r.get("model", "") for r in log if r.get("model")}), "errors": sum("error" in r for r in log)}

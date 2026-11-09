@@ -1,0 +1,335 @@
+{
+ "me": [
+  {
+   "title": "Team standup",
+   "start": "2024-01-08 09:30",
+   "calendar": "Work",
+   "minutes": 15,
+   "rrule": "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"
+  },
+  {
+   "title": "1:1 with Teodora",
+   "start": "2024-01-10 14:00",
+   "calendar": "Work",
+   "minutes": 30,
+   "rrule": "FREQ=WEEKLY;BYDAY=WE;UNTIL=20250219T235959Z"
+  },
+  {
+   "title": "1:1 with Rafael",
+   "start": "2025-03-04 10:00",
+   "calendar": "Work",
+   "minutes": 30,
+   "rrule": "FREQ=WEEKLY;BYDAY=TU"
+  },
+  {
+   "title": "1:1 with Nadia",
+   "start": "2024-03-07 15:00",
+   "calendar": "Work",
+   "minutes": 30,
+   "rrule": "FREQ=WEEKLY;BYDAY=TH;INTERVAL=2;UNTIL=20261001T235959Z"
+  },
+  {
+   "title": "1:1 with Sven",
+   "start": "2025-08-07 15:00",
+   "calendar": "Work",
+   "minutes": 30,
+   "rrule": "FREQ=WEEKLY;BYDAY=TH;INTERVAL=2"
+  },
+  {
+   "title": "1:1 with Bea",
+   "start": "2026-06-04 15:30",
+   "calendar": "Work",
+   "minutes": 30,
+   "rrule": "FREQ=WEEKLY;BYDAY=TH;INTERVAL=2"
+  },
+  {
+   "title": "Atlas migration review",
+   "start": "2024-03-12 13:00",
+   "calendar": "Work",
+   "minutes": 60,
+   "rrule": "FREQ=MONTHLY;BYDAY=2TU;UNTIL=20251031T235959Z"
+  },
+  {
+   "title": "Harbor launch sync",
+   "start": "2025-11-17 11:00",
+   "calendar": "Work",
+   "minutes": 45,
+   "rrule": "FREQ=WEEKLY;BYDAY=MO",
+   "location": "Juniper Labs, room Aspen"
+  },
+  {
+   "title": "Atlas go-live",
+   "start": "2025-10-31 08:00",
+   "calendar": "Work",
+   "minutes": 240,
+   "description": "Cutover window. Wen Li on call for the build system."
+  },
+  {
+   "title": "Harbor launch kickoff",
+   "start": "2025-11-12 10:00",
+   "calendar": "Work",
+   "minutes": 90,
+   "location": "Juniper Labs, room Aspen"
+  },
+  {
+   "title": "Harbor launch review with Rafael",
+   "start": "2026-11-18 14:00",
+   "calendar": "Work",
+   "minutes": 60,
+   "description": "Bring the new January 15 plan."
+  },
+  {
+   "title": "SREcon Montreal",
+   "start": "2026-03-16",
+   "calendar": "Work",
+   "end": "2026-03-19",
+   "all_day": true,
+   "location": "Montreal"
+  },
+  {
+   "title": "Juniper Labs all-hands",
+   "start": "2026-11-13 16:00",
+   "calendar": "Work",
+   "minutes": 60
+  },
+  {
+   "title": "Climbing at Movement RiNo",
+   "start": "2024-02-13 06:00",
+   "calendar": "main",
+   "minutes": 90,
+   "rrule": "FREQ=WEEKLY;BYDAY=TU,TH;UNTIL=20251209T235959Z"
+  },
+  {
+   "title": "Page Turners book club",
+   "start": "2024-02-01 19:00",
+   "calendar": "main",
+   "minutes": 120,
+   "rrule": "FREQ=MONTHLY;BYDAY=1TH;UNTIL=20260131T235959Z",
+   "location": "Tattered Cover, Colfax"
+  },
+  {
+   "title": "Page Turners book club",
+   "start": "2026-02-12 19:00",
+   "calendar": "main",
+   "minutes": 120,
+   "rrule": "FREQ=MONTHLY;BYDAY=2TH",
+   "location": "BookBar"
+  },
+  {
+   "title": "Physical therapy with Corinne Duval",
+   "start": "2026-01-12 07:30",
+   "calendar": "main",
+   "minutes": 45,
+   "rrule": "FREQ=WEEKLY;BYDAY=MO;UNTIL=20261221T235959Z"
+  },
+  {
+   "title": "Anniversary",
+   "start": "2024-09-27",
+   "calendar": "main",
+   "all_day": true,
+   "rrule": "FREQ=YEARLY"
+  },
+  {
+   "title": "Ruby's birthday",
+   "start": "2024-09-03",
+   "calendar": "Family",
+   "all_day": true,
+   "rrule": "FREQ=YEARLY"
+  },
+  {
+   "title": "Theo's birthday",
+   "start": "2024-02-21",
+   "calendar": "Family",
+   "all_day": true,
+   "rrule": "FREQ=YEARLY"
+  },
+  {
+   "title": "My birthday",
+   "start": "2024-04-02",
+   "calendar": "main",
+   "all_day": true,
+   "rrule": "FREQ=YEARLY"
+  },
+  {
+   "title": "Ruby soccer practice",
+   "start": "2024-03-19 17:30",
+   "calendar": "Family",
+   "minutes": 90,
+   "rrule": "FREQ=WEEKLY;BYDAY=TU,TH",
+   "location": "Highland Park field 2"
+  },
+  {
+   "title": "Theo swim lesson",
+   "start": "2024-04-20 09:00",
+   "calendar": "Family",
+   "minutes": 45,
+   "rrule": "FREQ=WEEKLY;BYDAY=SA",
+   "location": "Carla Madison Rec Center"
+  },
+  {
+   "title": "Moving day",
+   "start": "2024-06-15",
+   "calendar": "Family",
+   "all_day": true
+  },
+  {
+   "title": "Porto trip",
+   "start": "2025-04-11",
+   "calendar": "Family",
+   "end": "2025-04-19",
+   "all_day": true,
+   "location": "Porto, Portugal"
+  },
+  {
+   "title": "Flight DEN to OPO",
+   "start": "2025-04-11 16:40",
+   "calendar": "Family",
+   "minutes": 660,
+   "description": "Confirmation TAP-8QX2L"
+  },
+  {
+   "title": "Pick up the Kia EV9",
+   "start": "2026-01-20 15:00",
+   "calendar": "main",
+   "minutes": 60,
+   "location": "Kia of Denver"
+  },
+  {
+   "title": "Kitchen remodel: cabinet install",
+   "start": "2026-08-17 08:00",
+   "calendar": "Family",
+   "minutes": 480,
+   "description": "Ortega and Sons"
+  },
+  {
+   "title": "Kitchen remodel: final inspection",
+   "start": "2026-11-20 10:00",
+   "calendar": "Family",
+   "minutes": 60,
+   "description": "City inspector; Ortega and Sons on site"
+  },
+  {
+   "title": "Ruby's 10th birthday party",
+   "start": "2026-09-05 14:00",
+   "calendar": "Family",
+   "minutes": 180,
+   "location": "Highland Park pavilion"
+  },
+  {
+   "title": "Hornets end-of-season party",
+   "start": "2026-11-14 12:00",
+   "calendar": "Family",
+   "minutes": 120,
+   "location": "Highland Park pavilion"
+  },
+  {
+   "title": "Dentist, Dr. Shaw",
+   "start": "2024-02-08 08:30",
+   "calendar": "main",
+   "minutes": 60,
+   "location": "Highland Dental"
+  },
+  {
+   "title": "Dentist, Dr. Shaw",
+   "start": "2024-08-13 08:30",
+   "calendar": "main",
+   "minutes": 60,
+   "location": "Highland Dental"
+  },
+  {
+   "title": "Dentist, Dr. Shaw",
+   "start": "2025-02-11 08:30",
+   "calendar": "main",
+   "minutes": 60,
+   "location": "Highland Dental"
+  },
+  {
+   "title": "Dentist, Dr. Shaw",
+   "start": "2025-08-12 08:30",
+   "calendar": "main",
+   "minutes": 60,
+   "location": "Highland Dental"
+  },
+  {
+   "title": "Dentist, Dr. Shaw",
+   "start": "2026-02-10 08:30",
+   "calendar": "main",
+   "minutes": 60,
+   "location": "Highland Dental"
+  },
+  {
+   "title": "Dentist, Dr. Shaw",
+   "start": "2026-08-11 08:30",
+   "calendar": "main",
+   "minutes": 60,
+   "location": "Highland Dental"
+  },
+  {
+   "title": "Dentist, Dr. Shaw",
+   "start": "2027-02-09 08:30",
+   "calendar": "main",
+   "minutes": 60,
+   "location": "Highland Dental"
+  },
+  {
+   "title": "Pepper vet visit, Dr. Ito",
+   "start": "2024-03-21 17:15",
+   "calendar": "Family",
+   "minutes": 45,
+   "location": "Boulder Paws Clinic"
+  },
+  {
+   "title": "Pepper vet visit, Dr. Malik",
+   "start": "2024-07-18 17:15",
+   "calendar": "Family",
+   "minutes": 45,
+   "location": "Platte Street Vet"
+  },
+  {
+   "title": "Pepper vet visit, Dr. Malik",
+   "start": "2025-07-17 17:15",
+   "calendar": "Family",
+   "minutes": 45,
+   "location": "Platte Street Vet"
+  },
+  {
+   "title": "Pepper vet visit, Dr. Malik",
+   "start": "2026-07-16 17:15",
+   "calendar": "Family",
+   "minutes": 45,
+   "location": "Platte Street Vet"
+  }
+ ],
+ "alex": [
+  {
+   "title": "Alex: yoga",
+   "start": "2024-01-10 18:00",
+   "calendar": "Alex",
+   "minutes": 75,
+   "rrule": "FREQ=WEEKLY;BYDAY=WE",
+   "location": "CorePower Highland"
+  },
+  {
+   "title": "Alex: work from home",
+   "start": "2026-10-26",
+   "calendar": "Alex",
+   "all_day": true,
+   "rrule": "FREQ=WEEKLY;BYDAY=MO,FR"
+  },
+  {
+   "title": "Alex: Chicago work trip",
+   "start": "2026-11-16",
+   "calendar": "Alex",
+   "end": "2026-11-18",
+   "all_day": true,
+   "location": "Chicago"
+  },
+  {
+   "title": "Alex: dentist",
+   "start": "2026-11-24 09:00",
+   "calendar": "Alex",
+   "minutes": 60,
+   "location": "Highland Dental"
+  }
+ ]
+}

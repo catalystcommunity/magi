@@ -236,3 +236,21 @@ func TestLabelOf(t *testing.T) {
 		t.Fatal("unknown id")
 	}
 }
+
+func TestAboutSubject(t *testing.T) {
+	for _, c := range []struct {
+		line, subject string
+		want          bool
+	}{
+		{"Jamie works-at Juniper Labs (since 3 January 2024)", "me", true},
+		{"Jamie works-at Juniper Labs", "Alex", false},
+		{"Alex works-from-home Mondays", "Alex", true},
+		{"019f0c22-ee82@example.local manager Rafael", "me", true},
+		{"Pepper vet Dr. Ito", "pepper", true},
+		{"Ruby coach Jen Park", "Theo", false},
+	} {
+		if got := aboutSubject(c.line, c.subject, "Jamie", "019f0c22-ee82@example.local"); got != c.want {
+			t.Errorf("%q / %q: %v", c.line, c.subject, got)
+		}
+	}
+}
