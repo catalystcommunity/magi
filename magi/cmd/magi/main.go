@@ -37,6 +37,9 @@ var usage = `usage: magi [--server URL] <command> [args]
                              ("Computer, ...")
   read [-persona P] [-n N] [-follow]   print the newest N messages (default 20)
   search TEXT                find messages that you can read
+  pages                      list the pages that personas made for you (title,
+                             persona, date, and the link that opens one)
+  pages show ID              print the text of one page
   trace ID [-forward] [-depth N]   follow the links of a message
   links ID [-all]            show the links of a message (audit)
   link ID KIND TARGET [-replaces L] [-m NOTE]
@@ -214,6 +217,17 @@ func (c *cli) run(cmd string, args []string) error {
 		for _, m := range res.Messages {
 			printMessage(m)
 		}
+	case "pages":
+		if len(args) > 0 && args[0] == "show" {
+			if len(args) != 2 {
+				return errors.New("pages show ID")
+			}
+			return c.showPage(args[1])
+		}
+		if len(args) > 0 {
+			return errors.New("pages [show ID]")
+		}
+		return c.listPages()
 	case "trace":
 		fwd, depth := fs.Bool("forward", false, "follow links to the message"), fs.Uint64("depth", 2, "depth")
 		if len(args) < 1 {
@@ -1051,6 +1065,40 @@ func (c *cli) usage(since time.Time) error {
 		fmt.Printf("%-40s %6d %5.1f%%\n", name, count[m], 100*float64(count[m])/float64(total))
 	}
 	return nil
+}
+
+// listPages prints the pages that personas made for the caller: the title,
+// the persona, the date, and the link that opens the page on any device.
+func (c *cli) listPages() error {
+	res, err := c.magi.ListPages(c.ctx, magiapi.ListPagesRequest{})
+	if err != nil {
+		return err
+	}
+	if len(res.Pages) == 0 {
+		fmt.Println("no pages")
+		return nil
+	}
+	for _, p := range res.Pages {
+		fmt.Printf("%-28s %-10s %s  %s\n", p.Title, p.Persona,
+			time.UnixMilli(int64(p.CreatedMs)).Format("2006-01-02 15:04"), c.pageLink(p.Id))
+	}
+	return nil
+}
+
+// showPage prints the text of one page.
+func (c *cli) showPage(id string) error {
+	p, err := c.magi.GetPage(c.ctx, magiapi.GetPageRequest{Id: id})
+	if err != nil {
+		return err
+	}
+	fmt.Printf("%s\n%s, %s\n\n", p.Title, p.Persona, time.UnixMilli(int64(p.CreatedMs)).Format("2006-01-02 15:04"))
+	fmt.Println(p.Text)
+	return nil
+}
+
+// pageLink is the address that opens a page on any device.
+func (c *cli) pageLink(id string) string {
+	return strings.TrimRight(c.p.Server, "/") + "/#/page/" + id
 }
 
 func (c *cli) chat(persona string) error {
