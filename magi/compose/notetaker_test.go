@@ -280,6 +280,11 @@ func TestNotAboutSelf(t *testing.T) {
 	if len(got) != 1 || got[0].Subject != "Teodora Vance" {
 		t.Errorf("third person: %+v", got)
 	}
+	priya := []noteItem{{Op: "remember", Subject: "Priya Raman", Relation: "manager", Object: "Jamie"}, {Op: "remember", Subject: "Rafael Okonjo", Relation: "manager", Object: "Priya Raman"}}
+	notes2 := notes + "- [ent_3] Rafael Okonjo (person)\n"
+	if got := notAboutSelf(priya, notes2, "Rafael said his own manager is Priya Raman.", "Jamie"); len(got) != 1 || got[0].Subject != "Rafael Okonjo" {
+		t.Errorf("self as object: %+v", got)
+	}
 	if got := notAboutSelf(items, notes, "I left Juniper Labs to join Orbital Freight.", "Jamie"); len(got) != 3 {
 		t.Errorf("first person: %+v", got)
 	}

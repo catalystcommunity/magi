@@ -4,6 +4,8 @@ import (
 	"slices"
 	"testing"
 	"time"
+
+	cal "github.com/catalystcommunity/catalystcal/clients/go"
 )
 
 func TestContentWords(t *testing.T) {
@@ -35,5 +37,16 @@ func TestRepeatRule(t *testing.T) {
 	}
 	if _, err := repeatRule("whenever", "", loc); err == nil {
 		t.Error("whenever: no error")
+	}
+}
+
+func TestAllDayText(t *testing.T) {
+	one := cal.Occurrence{Event: cal.Event{AllDay: ptr(true)}, Start: "2026-09-27T00:00:00Z", End: "2026-09-28T00:00:00Z"}
+	if got := allDayText(one); got != "Sun 2026-09-27 all day" {
+		t.Errorf("one day: %q", got)
+	}
+	trip := cal.Occurrence{Event: cal.Event{AllDay: ptr(true)}, Start: "2026-11-16T00:00:00Z", End: "2026-11-19T00:00:00Z"}
+	if got := allDayText(trip); got != "Mon 2026-11-16 to Wed 2026-11-18 all day" {
+		t.Errorf("trip: %q", got)
 	}
 }

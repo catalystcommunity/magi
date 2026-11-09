@@ -240,13 +240,36 @@ func pickCalendar(cals []cal.Calendar, want string, write bool) (cal.Calendar, e
 	return cal.Calendar{}, fmt.Errorf("no calendar matches %q. Calendars: %s", want, strings.Join(names, "; "))
 }
 
+// allDayText: an all-day event has dates, not times. Its start is midnight
+// UTC of its first day, so a change to the household zone gives the day
+// before. The end is exclusive (iCalendar): the last day is one day before.
+func allDayText(o cal.Occurrence) string {
+	st, en := parseTS(o.Start).UTC(), parseTS(o.End).UTC()
+	if o.Event.StartDate != nil {
+		if d, err := time.Parse("2006-01-02", string(*o.Event.StartDate)); err == nil && o.RecurrenceId == nil {
+			st = d
+		}
+	}
+	first := time.Date(st.Year(), st.Month(), st.Day(), 0, 0, 0, 0, time.UTC)
+	last := first
+	if !en.IsZero() {
+		if l := time.Date(en.Year(), en.Month(), en.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, -1); l.After(first) {
+			last = l
+		}
+	}
+	if last.Equal(first) {
+		return first.Format("Mon 2006-01-02") + " all day"
+	}
+	return first.Format("Mon 2006-01-02") + " to " + last.Format("Mon 2006-01-02") + " all day"
+}
+
 func (s *System) describeOcc(o cal.Occurrence, names map[cal.CalendarID]string) string {
 	loc := s.zone()
 	e := o.Event
 	st, en := parseTS(o.Start).In(loc), parseTS(o.End).In(loc)
 	var b strings.Builder
 	if e.AllDay != nil && *e.AllDay {
-		b.WriteString(st.Format("Mon 2006-01-02") + " all day")
+		b.WriteString(allDayText(o))
 	} else {
 		b.WriteString(st.Format("Mon 2006-01-02 15:04") + "-" + en.Format("15:04"))
 	}

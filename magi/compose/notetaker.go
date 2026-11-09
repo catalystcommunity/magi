@@ -507,7 +507,9 @@ func notAboutSelf(items []noteItem, notes, text string, selfLabels ...string) []
 	out := items[:0:0]
 	for _, it := range items {
 		switch {
-		case it.Op == "remember" && self(it.Subject):
+		case it.Op == "remember" && (self(it.Subject) || self(it.Object)):
+			// "Rafael said his own manager is Priya Raman" is not
+			// Priya's manager the person either.
 			continue
 		case it.Id != "" && strings.HasPrefix(it.Id, "clm_"):
 			if line := claimLine(notes, it.Id); line != "" && aboutSubject(line, "me", selfLabels...) {
