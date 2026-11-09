@@ -230,6 +230,14 @@ func (l *Longhouse) await(ctx context.Context, owner, device string, every time.
 			if r.Session == nil {
 				return
 			}
+			// Anyone who has the code can approve it. The session must be
+			// of the person's own account, or Magi would act as another
+			// person in Longhouse.
+			if err := l.sameAccount(ctx, owner, r.Session.Token); err != nil {
+				l.s.Log.Warn("longhouse connect refused", "owner", owner, "err", err)
+				lh.NewAuthClient(l.http(staticToken(r.Session.Token))).RevokeSession(ctx, lh.RevokeSessionRequest{SessionId: r.Session.SessionId})
+				return
+			}
 			v := lhSession{Refresh: r.Session.RefreshToken, Session: string(r.Session.SessionId), Token: r.Session.Token,
 				Expires: tsMs(string(r.Session.ExpiresAt)), RefreshE: tsMs(string(r.Session.RefreshExpiresAt))}
 			b, _ := json.Marshal(v)
@@ -250,6 +258,26 @@ func (l *Longhouse) await(ctx context.Context, owner, device string, every time.
 		}
 	}
 }
+
+// sameAccount: the Longhouse session of token is of owner
+// (user:<id>@<domain>).
+func (l *Longhouse) sameAccount(ctx context.Context, owner, token string) error {
+	me, err := lh.NewAuthClient(l.http(staticToken(token))).Me(ctx, lh.EmptyRequest{})
+	if err != nil {
+		return fmt.Errorf("check the account: %w", err)
+	}
+	id, domain, _ := strings.Cut(strings.TrimPrefix(owner, "user:"), "@")
+	if !strings.EqualFold(me.UserId, id) || !strings.EqualFold(me.Domain, domain) {
+		return fmt.Errorf("the code was approved by %s@%s, not by %s", me.UserId, me.Domain, owner)
+	}
+	return nil
+}
+
+// staticToken is a bearer source with one token.
+type staticToken string
+
+func (t staticToken) Token(context.Context) (string, error) { return string(t), nil }
+func (t staticToken) Invalidate(string)                     {}
 
 // lhTokens is the bearer source of one person.
 type lhTokens struct {
@@ -466,11 +494,22 @@ func (m *Service) Disconnect(ctx context.Context, req magiapi.DisconnectRequest)
 		if s.Longhouse == nil {
 			return magiapi.Connection{}, rpc.Unavailable("no Longhouse service is configured")
 		}
+		// End the session at Longhouse too (best effort), then forget it.
+		detail := "Magi ended the Longhouse session and forgot it."
+		if c, err := s.Identity.GetCredential(sctx, identityapi.CredentialRef{Owner: p.Subject, System: lhSystem}); err == nil && c.Value != nil {
+			var v lhSession
+			if json.Unmarshal([]byte(*c.Value), &v) == nil && v.Session != "" {
+				if _, err := lh.NewAuthClient(s.Longhouse.transport(p.Subject)).RevokeSession(ctx, lh.RevokeSessionRequest{SessionId: lh.CliSessionID(v.Session)}); err != nil {
+					s.Log.Warn("longhouse disconnect: revoke", "owner", p.Subject, "err", err)
+					detail = "Magi forgot the session, but Longhouse did not end it. Revoke it on your Longhouse account page."
+				}
+			}
+		}
 		s.Identity.ForgetCredential(sctx, identityapi.CredentialRef{Owner: p.Subject, System: lhSystem})
 		s.Longhouse.mu.Lock()
 		delete(s.Longhouse.tokens, p.Subject)
 		s.Longhouse.mu.Unlock()
-		return magiapi.Connection{System: lhSystem, State: "none", Detail: ptr("Magi forgot the session. Revoke it on your Longhouse account page.")}, nil
+		return magiapi.Connection{System: lhSystem, State: "none", Detail: ptr(detail)}, nil
 	}
 	return magiapi.Connection{}, rpc.Invalid("system must be calendar or longhouse")
 }

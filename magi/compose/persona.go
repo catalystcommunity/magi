@@ -101,6 +101,10 @@ type modelCall struct {
 	Error   string   `json:"error,omitempty"`
 }
 
+// personaTokens is the budget of one persona model call. A reasoning
+// model uses some of it to think.
+const personaTokens = 4096
+
 func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note func(string)) (Result, error) {
 	streamID, uttID := a.Vars["stream"], a.Vars["utterance"]
 	persona := personaOr(optional(a.Vars["persona"]))
@@ -259,7 +263,13 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 			say("putting the answer together")
 		}
 		start := time.Now()
-		m, err := s.Model.Chat(ctx, msgs, tools, 1024)
+		m, err := s.Model.Chat(ctx, msgs, tools, personaTokens)
+		if err == nil && strings.TrimSpace(m.Content) == "" && len(m.ToolCalls) == 0 {
+			// A reasoning model can use all of the tokens to think and
+			// give no text (GLM-5.3 in the world eval). Ask once more
+			// with more room.
+			m, err = s.Model.Chat(ctx, msgs, tools, 2*personaTokens)
+		}
 		call := modelCall{Served: m.Served, Skipped: m.Skipped, Ms: time.Since(start).Milliseconds()}
 		ph.mark("models")
 		if err != nil {

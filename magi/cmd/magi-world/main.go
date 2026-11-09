@@ -74,6 +74,7 @@ func main() {
 	clean := flag.Bool("clean", false, "remove the events and tasks that are not in the world (made by earlier runs), then stop")
 	extras := flag.Bool("extras", false, "print (JSON lines) the events and tasks that are not in the world, then stop; an evaluation checks its actions with this")
 	tz := flag.String("tz", "America/Denver", "time zone of the world")
+	names = flag.String("name", "Jamie", "the name of the person (Longhouse display name)")
 	flag.Parse()
 	var err error
 	if loc, err = time.LoadLocation(*tz); err != nil {
@@ -296,6 +297,37 @@ func seedLonghouse(ctx context.Context, sys *compose.System, me, alex string, h 
 	if memberOf["alex"] == "" {
 		fail(errors.New("Alex is not a member of the house"))
 	}
+	// The members have the names of the world, as a household gives them
+	// (the test accounts have handles such as "myadmin").
+	mc := lh.NewMemberClient(tr)
+	for _, m := range members {
+		name := map[lh.MemberID]string{memberOf["me"]: *names, memberOf["alex"]: "Alex"}[m.MemberId]
+		if name == "" || deref(m.DisplayName) == name {
+			continue
+		}
+		m.DisplayName = &name
+		c := mc
+		if m.MemberId == memberOf["alex"] {
+			// Only a member can change their own profile: use Alex's
+			// connection, after a check that it is Alex's account.
+			atr, err := sys.LonghouseFor(alex)
+			if err != nil {
+				fmt.Printf("longhouse: name Alex: %v\n", err)
+				continue
+			}
+			who, err := lh.NewAuthClient(atr).Me(ctx, lh.EmptyRequest{})
+			if err != nil || !strings.EqualFold(who.UserId, alexID) {
+				fmt.Printf("longhouse: name Alex: the connection of Alex is not Alex's account (%s, %v)\n", who.UserId, err)
+				continue
+			}
+			c = lh.NewMemberClient(atr)
+		}
+		if _, err := c.UpdateMember(ctx, m); err != nil {
+			fmt.Printf("longhouse: name %s: %v\n", name, err)
+		} else {
+			fmt.Printf("longhouse: member named %s\n", name)
+		}
+	}
 	pc, tc, cc := lh.NewProjectClient(tr), lh.NewTaskClient(tr), lh.NewCommentClient(tr)
 	pl, err := pc.ListProjects(ctx, lh.HouseScopedListRequest{HouseId: hs.HouseId, Limit: &lim})
 	if err != nil {
@@ -453,6 +485,15 @@ func cleanLonghouse(ctx context.Context, sys *compose.System, me, house string, 
 			fmt.Printf("longhouse: deleted %q\n", t.Title)
 		}
 	}
+}
+
+var names *string
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
 
 // report: -extras prints instead of deleting.
