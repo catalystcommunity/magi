@@ -322,3 +322,16 @@ func TestBirthdayFrom(t *testing.T) {
 		t.Error("a date was changed")
 	}
 }
+
+func TestSameRelation(t *testing.T) {
+	out := "Not recorded: there is a current fact [clm_R] Jamie works-at Juniper Labs. If it changed, use change_knowledge"
+	if r := recordText(out); r != "Jamie works-at Juniper Labs" {
+		t.Errorf("record %q", r)
+	}
+	if sameRelation(recordText(out), "job") || !sameRelation(recordText(out), "works-at") {
+		t.Error("same relation")
+	}
+	if !reportsToMe.MatchString("She's the second engineer who reports to me.") || !reportsToMe.MatchString("Sven Holt joined my team today.") {
+		t.Error("reports to me")
+	}
+}

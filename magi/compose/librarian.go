@@ -188,7 +188,7 @@ func (s *System) classify(ctx context.Context, u conversationapi.Utterance) (str
 			ids = append(ids, id)
 		}
 		slices.Sort(ids)
-		m, err = sc.ChatSchema(ctx, msgs, librarianSchema(ids, persona.Sharing), 800)
+		m, err = sc.ChatSchema(ctx, msgs, librarianSchema(ids, persona.Sharing), 4096)
 	} else {
 		m, err = s.LibrarianModel.Chat(ctx, msgs, nil, 800)
 	}

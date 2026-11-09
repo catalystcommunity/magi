@@ -343,8 +343,11 @@ def render(img, v):
         chain = [provider, *local] if v.get("PERSONA_PROVIDER_FIRST") == "true" else [*local, provider]
         # The librarian works in the background, so it waits for the local
         # hosts instead of using the provider.
+        # LIBRARIAN_PROVIDER=true: the librarian and the note taker use the
+        # provider first (a model comparison of the knowledge import).
+        librarian = [provider, *local] if v.get("LIBRARIAN_PROVIDER") == "true" else local
         persona = [{"name": "MAGI_PERSONA_MODELS", "value": json.dumps(chain)},
-                   {"name": "MAGI_LIBRARIAN_MODELS", "value": json.dumps(local)}]
+                   {"name": "MAGI_LIBRARIAN_MODELS", "value": json.dumps(librarian)}]
         persona_secrets = [("magi-inference-token", "/etc/magi/inference")]
     egress_env = []
     if egress:
