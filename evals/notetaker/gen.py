@@ -291,13 +291,20 @@ def c_end(r):
 
 def c_event(r):
     w = W(r)
-    t, v, title = pick(r, [("I hurt my shoulder climbing. No climbing for a while.", "shoulder", "hurt my shoulder climbing"),
-                            ("Back from Porto. What a trip!", "porto", "back from Porto"),
-                            ("We finished the Atlas migration today.", "atlas", "finished the Atlas migration"),
-                            ("Theo lost his first tooth today!", "tooth", "Theo lost his first tooth"),
-                            ("I ran my first half marathon this morning.", "marathon", "ran my first half marathon"),
-                            ("Got my second dose of the shingles vaccine today.", "vaccine", "second dose of the shingles vaccine"),
-                            ("We got back from a week in Lisbon last night.", "lisbon", "a week in Lisbon")])
+    part, act = r.choice(["shoulder", "knee", "ankle", "wrist", "back"]), r.choice(["climbing", "skiing", "running", "playing soccer", "lifting"])
+    city = r.choice(["Porto", "Lisbon", "Kyoto", "Oslo", "Montreal", "Austin", "Mexico City", "Chicago"])
+    kid = r.choice(["Theo", "Ruby", "Ivy", "Max", "Leo", "Nora"])
+    proj = r.choice(["Atlas migration", "Harbor launch", "kitchen remodel", "garage cleanout", "data center move"])
+    race = r.choice(["half marathon", "10K", "triathlon", "century ride"])
+    t, v, title = pick(r, [
+        (f"I hurt my {part} {act}. No {act} for a while.", part, f"hurt my {part} {act}"),
+        (f"Back from {city}. What a trip!", city.lower(), f"back from {city}"),
+        (f"We finished the {proj} today.", proj.split()[0].lower(), f"finished the {proj}"),
+        (f"{kid} lost a first tooth today!", "tooth", f"{kid} lost a first tooth"),
+        (f"I ran my first {race} this morning.", race.split()[0].lower(), f"ran my first {race}"),
+        (f"Got my second dose of the {r.choice(['shingles', 'tetanus', 'hepatitis'])} vaccine today.", "vaccine", "second dose of the vaccine"),
+        (f"We got back from a week in {city} last night.", city.lower(), f"a week in {city}"),
+    ])
     return w, t, [{"op": "event", "value": v, "t": {"subject": "me", "value": title}}], [], True
 
 
@@ -477,11 +484,13 @@ def main():
     ap.add_argument("--split", default="test")
     ap.add_argument("--per-file", type=int, default=1000)
     ap.add_argument("--train", action="store_true", help="training data: leave out the held-out phrasings")
+    ap.add_argument("--only", default="", help="comma-separated categories (default: all)")
     a = ap.parse_args()
     global TRAIN
     TRAIN = a.train
     r = random.Random(a.seed)
-    cases = [make(r, cat, i) for cat in MAKERS for i in range(a.n)]
+    cats = [c for c in MAKERS if not a.only or c in a.only.split(",")]
+    cases = [make(r, cat, i) for cat in cats for i in range(a.n)]
     r.shuffle(cases)
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -489,7 +498,7 @@ def main():
         with open(out / f"{a.split}-{k // a.per_file:03d}.jsonl", "w") as f:
             for c in cases[k:k + a.per_file]:
                 f.write(json.dumps(c, ensure_ascii=False) + "\n")
-    print(f"{len(cases)} cases, {len(MAKERS)} categories")
+    print(f"{len(cases)} cases, {len(cats)} categories")
 
 
 if __name__ == "__main__":

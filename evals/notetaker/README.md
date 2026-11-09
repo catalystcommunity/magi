@@ -62,3 +62,28 @@ Local models ran on an RTX 4080 (16 GB) with llama.cpp b12020, two slots,
 no reasoning (`--reasoning-budget 0`). gemma-4-12b is the best local model.
 Its weak categories are `other-update`, `third-person`, and
 `reports-to-me`. The checks of Magi add 16 points to it.
+
+## Training
+
+The training data are cases of `gen.py` with other seeds than the test
+split and `--train` (the last phrasing of each list is held out). They are
+in `train/` as cases, not as chat records, because the chat records repeat
+the prompt (5 KB each); make the records again with `notes-eval -export`,
+so that they always have the current prompt of Magi.
+
+```sh
+python3 -I evals/notetaker/gen.py evals/notetaker/train --n 150 --seed 1001 --split cases-a --train
+python3 -I evals/notetaker/gen.py evals/notetaker/train --n 200 --seed 1002 --split cases-b --train \
+  --only other-update,third-person,event,reports-to-me,birthday,other-near-self
+./notes-eval -cases 'evals/notetaker/train/cases-*.jsonl' -oracle   # must be 100%
+./notes-eval -cases 'evals/notetaker/train/cases-*.jsonl' -export chat/
+uv venv venv --python 3.12 && VIRTUAL_ENV=venv uv pip install torch --index-url https://download.pytorch.org/whl/cu128
+VIRTUAL_ENV=venv uv pip install numpy transformers peft trl datasets accelerate bitsandbytes sentencepiece protobuf
+venv/bin/python -I evals/notetaker/train_lora.py --base google/gemma-4-12b-it --data 'chat/train-*.jsonl' --out lora/
+```
+
+Some messages of the no-op categories (small talk, questions, requests,
+plans) and a part of `event` and `birthday` are the same text in the
+training data and the test split; the notes and the ids are not. Report
+the score of a trained model on all test cases and on the test cases whose
+text is not in the training data.

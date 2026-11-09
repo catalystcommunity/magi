@@ -1,0 +1,16 @@
+0.00.027.848 I srv  llama_server: initializing ...
+0.00.027.862 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.028.187 W srv  server_setup: security: no API key is set and CORS allows all origins (see https://github.com/ggml-org/llama.cpp/pull/25655)
+0.00.030.689 I srv    load_model: loading model '/home/todhansmann/models/gemma-4-12B-it-Q4_K_M.gguf'
+0.00.501.548 W common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to 99, abort
+0.00.745.148 W load: control-looking token:    212 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.00.745.195 W load: control-looking token:     50 '<|tool_response>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.00.750.462 W load: '</s>' is a normal token here, removing it from EOG list
+0.01.160.965 E ggml_backend_cuda_buffer_type_alloc_buffer: allocating 7292.53 MiB on device 0: cudaMalloc failed: out of memory
+0.01.160.969 E ggml_backend_buft_alloc_buffer_n_default: failed to allocate CUDA0 buffer of size 7646773504
+0.01.375.119 E llama_model_load: error loading model: unable to allocate CUDA0 buffer
+0.01.375.125 E llama_model_load_from_file_impl: failed to load model
+0.01.375.130 E cmn  common_init_: failed to load model '/home/todhansmann/models/gemma-4-12B-it-Q4_K_M.gguf'
+0.01.375.134 E srv    load_model: failed to load model, '/home/todhansmann/models/gemma-4-12B-it-Q4_K_M.gguf'
+0.01.375.137 I srv    operator(): operator(): cleaning up before exit...
+0.01.375.653 E srv  server_run_i: exiting due to model loading error

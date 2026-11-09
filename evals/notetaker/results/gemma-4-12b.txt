@@ -1,0 +1,17 @@
+gemma-4-12b (gemma-4-12b): 344/400 with checks (86%), raw 302/400, errors 0, median 2631 ms
+  birthday        19/25  raw   0
+  change          25/25  raw  25
+  end             25/25  raw  23
+  event           15/25  raw  15
+  fix             25/25  raw  25
+  multi-fact      25/25  raw  25
+  new-fact        24/25  raw  24
+  other-fact      25/25  raw  25
+  other-near-self  24/25  raw  18
+  other-update     6/25  raw   5
+  plan            25/25  raw  22
+  question        25/25  raw  25
+  reports-to-me   18/25  raw  13
+  request         25/25  raw  25
+  small-talk      25/25  raw  25
+  third-person    13/25  raw   7
