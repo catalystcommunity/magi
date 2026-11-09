@@ -384,6 +384,55 @@ the egress proxy as the proxy user `svc_magi` and trust only the proxy CA.
 The provider key can then be a proxy secret: `MAGI_MODEL_API_KEY`, and
 `key` in `MAGI_PERSONA_MODELS`, hold a placeholder (`deploy/README.md`).
 
+## Terminals
+
+The owner of a task (or an admin, `MAGI_ADMINS`) can open a shell in the
+sandbox of the task while the task runs or waits for review. `Task.terminal`
+is true then. The clients:
+
+- Web: the button "Open terminal" on the task, or the link
+  `MAGI_PUBLIC_URL/#/terminal/RUN`. The link opens on any device and
+  stays through the sign in. The page fits the terminal to the screen and
+  has a row of keys that phone keyboards do not have (Esc, Tab, Ctrl, the
+  arrows). The Android app opens this page in the browser.
+- CLI: `magi terminal RUN`. The local terminal is in raw mode; Ctrl-C goes
+  to the shell. Exit the shell to end the session. The command exits with
+  the exit status of the shell.
+- Personas: the engineering persona has the tool `terminal_link`; it gives
+  the link.
+
+The path:
+
+1. The client opens the WebSocket `/api/terminal?task=RUN` on the public
+   URL. The first message is the JSON hello `{"token", "cols", "rows"}`
+   (the CLI sends its token in the `Authorization` header). Magi checks
+   the token, the owner, and the status of the task. Then each WebSocket
+   message is one terminal frame: the type byte and the payload, with no
+   length (`primitives/execution/README.md`, Terminal).
+2. A task on a runner: Magi cannot connect to the runner. Magi gives the
+   session to the runner in the long poll `RunnerService/terminals`. The
+   runner opens `GET /runner/terminal?session=ID` on Magi (an HTTP upgrade
+   with the runner token), and copies that connection to `POST /v1/pty` of
+   envd in the sandbox. Magi accepts the session only from the runner of
+   the task.
+3. A task in the cluster (no runner): Magi opens `GET /v1/pty` on the
+   execution service with its service token.
+
+Magi meets the two connections in the memory of the process. This needs
+one Magi replica: with more replicas, a runner can reach another replica,
+and the client gets an error after 20 s. When the runner does not connect
+in 20 s (it is offline, or an older release), the client gets an error
+frame; it does not wait longer.
+
+The shell runs in the sandbox only, with the network of the sandbox: its
+traffic goes through the egress proxy as the traffic of the task. Magi
+logs `terminal opened` and `terminal closed` with the run, the owner, the
+person, the runner, the reason, and the exit status. Magi closes a session
+after 30 minutes with no input and after 8 hours in all. It sends a `k`
+frame to the two sides each 30 s, so gateways do not close a quiet
+connection. A reconnect starts a new shell; the earlier shell does not
+continue.
+
 ## Librarian
 
 The librarian runs in each Magi replica. It claims utterances that are not
@@ -423,6 +472,7 @@ magi personas; magi persona persona:butler Butler public user:a@x user:b@x   # o
 magi say -speak -audio question.wav
 magi tasks; magi task RUN; magi diff RUN; magi decide RUN approve
 magi cancel RUN -m "not needed"   # stop a task; asks first at a risky step
+magi terminal RUN              # a shell in the sandbox of a running task
 magi know calendar; magi know -past dentist
 magi remember me dentist "Dr. Rivera" -object-kind person
 magi fix clm_x Phoenix -m "misheard"; magi update clm_y "Dr. Chen"; magi retract clm_z
@@ -654,3 +704,5 @@ hosts. It uses `MAGI_TEST_SETUP_URL`, `_MODEL`, `_KEY_FILE`, and `_RUNS`
   replicas, two turns of one stream can run at the same time.
 - The release step builds and releases only `magi-server`.
 - Task listings read the person's runs; there is no paging.
+- Terminal sessions meet in the memory of one Magi process (see
+  Terminals). A shell does not continue after a reconnect.

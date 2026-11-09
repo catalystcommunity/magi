@@ -248,6 +248,12 @@ func TestVoiceInBrowser(t *testing.T) {
 // /s/@/PATH.
 func runInBrowser(t *testing.T, script string, flags ...string) string {
 	t.Helper()
+	return runInBrowserWith(t, script, nil, flags...)
+}
+
+// runInBrowserWith is runInBrowser with more handlers on the test server.
+func runInBrowserWith(t *testing.T, script string, handlers map[string]http.Handler, flags ...string) string {
+	t.Helper()
 	b := browser()
 	if b == "" {
 		t.Skip("no Chromium or Chrome (set MAGI_TEST_BROWSER)")
@@ -265,6 +271,9 @@ func runInBrowser(t *testing.T, script string, flags ...string) string {
   if (t !== "RUNNING" && t !== "WAITING") fetch("/result", { method: "POST", body: t }); }).observe(document.body, { childList: true, characterData: true, subtree: true });`
 	mux := http.NewServeMux()
 	mux.Handle("/", h)
+	for p, hh := range handlers {
+		mux.Handle(p, hh)
+	}
 	mux.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Write([]byte("<!doctype html><html><head>" + m + `<script type="module">` + strings.ReplaceAll(script, "/s/@/", prefix) +

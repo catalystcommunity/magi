@@ -1490,6 +1490,8 @@ export function toTaskCborValue(v) {
     if (v.branch !== undefined)
         csilMap.set("branch", v.branch);
     csilMap.set("status", v.status);
+    if (v.terminal !== undefined)
+        csilMap.set("terminal", v.terminal);
     if (v.decisions !== undefined)
         csilMap.set("decisions", v.decisions);
     csilMap.set("created_ms", v.createdMs);
@@ -1515,6 +1517,7 @@ export function fromTaskCborValue(value) {
         error: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "error")),
         createdMs: asNumber(requireKey(value, "created_ms")),
         updatedMs: asNumber(requireKey(value, "updated_ms")),
+        terminal: ((csilV) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "terminal")),
     };
 }
 export function toTaskCbor(v) {
@@ -3494,6 +3497,8 @@ export function fromRunnerGetArtifactResponseCbor(bytes) {
 export function toRunnerEgressProxyCborValue(v) {
     const csilMap = new Map();
     csilMap.set("ca", v.ca);
+    if (v.env !== undefined)
+        csilMap.set("env", new Map(Object.entries(v.env).map(([csilK, csilV]) => [csilK, csilV])));
     csilMap.set("credential", v.credential);
     csilMap.set("environment", v.environment);
     if (v.sshKnownHosts !== undefined)
@@ -3506,6 +3511,7 @@ export function fromRunnerEgressProxyCborValue(value) {
         credential: asString(requireKey(value, "credential")),
         ca: asBytes(requireKey(value, "ca")),
         sshKnownHosts: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "ssh_known_hosts")),
+        env: ((csilV) => csilV === undefined ? undefined : Object.fromEntries(Array.from(asMap(csilV), ([csilK, csilV]) => [asString(csilK), asString(csilV)])))(mapGet(value, "env")),
     };
 }
 export function toRunnerEgressProxyCbor(v) {
@@ -3530,6 +3536,66 @@ export function toRunnerEgressAccessResponseCbor(v) {
 }
 export function fromRunnerEgressAccessResponseCbor(bytes) {
     return fromRunnerEgressAccessResponseCborValue(decode(bytes));
+}
+export function toRunnerTerminalCborValue(v) {
+    const csilMap = new Map();
+    if (v.cwd !== undefined)
+        csilMap.set("cwd", v.cwd);
+    csilMap.set("run", v.run);
+    csilMap.set("cols", v.cols);
+    csilMap.set("rows", v.rows);
+    csilMap.set("session", v.session);
+    csilMap.set("environment", v.environment);
+    return csilMap;
+}
+export function fromRunnerTerminalCborValue(value) {
+    return {
+        session: asString(requireKey(value, "session")),
+        run: asString(requireKey(value, "run")),
+        environment: asString(requireKey(value, "environment")),
+        cols: asNumber(requireKey(value, "cols")),
+        rows: asNumber(requireKey(value, "rows")),
+        cwd: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "cwd")),
+    };
+}
+export function toRunnerTerminalCbor(v) {
+    return encodeValue(toRunnerTerminalCborValue(v));
+}
+export function fromRunnerTerminalCbor(bytes) {
+    return fromRunnerTerminalCborValue(decode(bytes));
+}
+export function toRunnerTerminalsRequestCborValue(v) {
+    const csilMap = new Map();
+    if (v.waitMs !== undefined)
+        csilMap.set("wait_ms", v.waitMs);
+    return csilMap;
+}
+export function fromRunnerTerminalsRequestCborValue(value) {
+    return {
+        waitMs: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "wait_ms")),
+    };
+}
+export function toRunnerTerminalsRequestCbor(v) {
+    return encodeValue(toRunnerTerminalsRequestCborValue(v));
+}
+export function fromRunnerTerminalsRequestCbor(bytes) {
+    return fromRunnerTerminalsRequestCborValue(decode(bytes));
+}
+export function toRunnerTerminalsResponseCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("terminals", v.terminals.map((csilE) => toRunnerTerminalCborValue(csilE)));
+    return csilMap;
+}
+export function fromRunnerTerminalsResponseCborValue(value) {
+    return {
+        terminals: asArray(requireKey(value, "terminals")).map((csilE) => fromRunnerTerminalCborValue(csilE)),
+    };
+}
+export function toRunnerTerminalsResponseCbor(v) {
+    return encodeValue(toRunnerTerminalsResponseCborValue(v));
+}
+export function fromRunnerTerminalsResponseCbor(bytes) {
+    return fromRunnerTerminalsResponseCborValue(decode(bytes));
 }
 export function toEgressFlowHeaderCborValue(v) {
     const csilMap = new Map();

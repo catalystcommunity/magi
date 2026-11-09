@@ -408,6 +408,7 @@ type Task struct {
 	Error       *string    `json:"error,omitempty" yaml:"error,omitempty"`
 	CreatedMs   uint64     `json:"created_ms" yaml:"created_ms"`
 	UpdatedMs   uint64     `json:"updated_ms" yaml:"updated_ms"`
+	Terminal    *bool      `json:"terminal,omitempty" yaml:"terminal,omitempty"`
 }
 
 // StartTaskRequest represents a structured data type
@@ -1083,6 +1084,26 @@ type RunnerEgressProxy struct {
 // RunnerEgressAccessResponse represents a structured data type
 type RunnerEgressAccessResponse struct {
 	Proxy *RunnerEgressProxy `json:"proxy,omitempty" yaml:"proxy,omitempty"`
+}
+
+// RunnerTerminal represents a structured data type
+type RunnerTerminal struct {
+	Session     string  `json:"session" yaml:"session"`
+	Run         string  `json:"run" yaml:"run"`
+	Environment string  `json:"environment" yaml:"environment"`
+	Cols        uint64  `json:"cols" yaml:"cols"`
+	Rows        uint64  `json:"rows" yaml:"rows"`
+	Cwd         *string `json:"cwd,omitempty" yaml:"cwd,omitempty"`
+}
+
+// RunnerTerminalsRequest represents a structured data type
+type RunnerTerminalsRequest struct {
+	WaitMs *uint64 `json:"wait_ms,omitempty" yaml:"wait_ms,omitempty"`
+}
+
+// RunnerTerminalsResponse represents a structured data type
+type RunnerTerminalsResponse struct {
+	Terminals []RunnerTerminal `json:"terminals" yaml:"terminals"`
 }
 
 // EgressFlowHeader represents a structured data type

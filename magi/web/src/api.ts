@@ -16,6 +16,9 @@ export class RpcError extends Error { constructor(public code: number, message: 
 const TOKEN_KEY = "magi.token";
 let token = store.get(TOKEN_KEY);
 export const hasToken = () => token !== null;
+// authToken is for the one call that is not an RPC: the terminal WebSocket
+// sends it in its first message.
+export const authToken = () => token;
 export function setToken(t: string | null) { token = t; store.set(TOKEN_KEY, t); }
 
 const transport = {
@@ -41,10 +44,10 @@ export function signOut() { setToken(null); setMe(null); }
 
 // --- Views ----------------------------------------------------------------
 // The view is in the URL hash, so the back button and links work.
-export type View = "talk" | "questions" | "network" | "tasks" | "task" | "knowledge" | "words" | "page";
+export type View = "talk" | "questions" | "network" | "tasks" | "task" | "knowledge" | "words" | "page" | "terminal";
 function parse(): { view: View; arg: string } {
   const [v, ...rest] = location.hash.replace(/^#\/?/, "").split("/");
-  const views: View[] = ["talk", "questions", "network", "tasks", "task", "knowledge", "words", "page"];
+  const views: View[] = ["talk", "questions", "network", "tasks", "task", "knowledge", "words", "page", "terminal"];
   return { view: views.includes(v as View) ? (v as View) : "talk", arg: decodeURIComponent(rest.join("/")) };
 }
 export const [route, setRoute] = createSignal(parse());

@@ -3978,7 +3978,7 @@ func DecodeTaskStep(csilData []byte) (TaskStep, error) {
 
 // csilEncTask builds the canonical CBOR value tree for a Task.
 func csilEncTask(csilV Task) cborValue {
-	csilEntries := make(cborMap, 0, 14)
+	csilEntries := make(cborMap, 0, 15)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
 	csilEntries = append(csilEntries, cborEntry{cborText("refs"), cborEncArray(csilV.Refs, func(csilElem Ref) cborValue { return csilEncRef(csilElem) })})
@@ -3994,6 +3994,9 @@ func csilEncTask(csilV Task) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("branch"), cborText((*csilV.Branch))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("status"), cborText(csilV.Status)})
+	if csilV.Terminal != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("terminal"), cborBool((*csilV.Terminal))})
+	}
 	if csilV.Decisions != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("decisions"), cborEncArray(csilV.Decisions, func(csilElem string) cborValue { return cborText(csilElem) })})
 	}
@@ -4142,6 +4145,13 @@ func csilDecTask(csilRoot cborValue) (Task, error) {
 			return csilOut, csilErr
 		}
 		csilOut.UpdatedMs = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "terminal"); csilOk {
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Terminal = &csilVal
 	}
 	return csilOut, nil
 }
@@ -10075,6 +10085,179 @@ func DecodeRunnerEgressAccessResponse(csilData []byte) (RunnerEgressAccessRespon
 		return csilZero, csilErr
 	}
 	return csilDecRunnerEgressAccessResponse(csilRoot)
+}
+
+// csilEncRunnerTerminal builds the canonical CBOR value tree for a RunnerTerminal.
+func csilEncRunnerTerminal(csilV RunnerTerminal) cborValue {
+	csilEntries := make(cborMap, 0, 6)
+	if csilV.Cwd != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("cwd"), cborText((*csilV.Cwd))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("run"), cborText(csilV.Run)})
+	csilEntries = append(csilEntries, cborEntry{cborText("cols"), cborUint(csilV.Cols)})
+	csilEntries = append(csilEntries, cborEntry{cborText("rows"), cborUint(csilV.Rows)})
+	csilEntries = append(csilEntries, cborEntry{cborText("session"), cborText(csilV.Session)})
+	csilEntries = append(csilEntries, cborEntry{cborText("environment"), cborText(csilV.Environment)})
+	return csilEntries
+}
+
+// csilDecRunnerTerminal reconstructs a RunnerTerminal from a decoded CBOR value tree.
+func csilDecRunnerTerminal(csilRoot cborValue) (RunnerTerminal, error) {
+	var csilOut RunnerTerminal
+	{
+		csilField, csilErr := cborRequire(csilRoot, "session")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Session = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "run")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Run = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "environment")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Environment = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "cols")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Cols = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "rows")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Rows = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "cwd"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Cwd = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeRunnerTerminal encodes a RunnerTerminal to canonical CSIL CBOR bytes.
+func EncodeRunnerTerminal(csilV RunnerTerminal) []byte {
+	return cborEncode(csilEncRunnerTerminal(csilV))
+}
+
+// DecodeRunnerTerminal decodes canonical CSIL CBOR bytes into a RunnerTerminal.
+func DecodeRunnerTerminal(csilData []byte) (RunnerTerminal, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero RunnerTerminal
+		return csilZero, csilErr
+	}
+	return csilDecRunnerTerminal(csilRoot)
+}
+
+// csilEncRunnerTerminalsRequest builds the canonical CBOR value tree for a RunnerTerminalsRequest.
+func csilEncRunnerTerminalsRequest(csilV RunnerTerminalsRequest) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	if csilV.WaitMs != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("wait_ms"), cborUint((*csilV.WaitMs))})
+	}
+	return csilEntries
+}
+
+// csilDecRunnerTerminalsRequest reconstructs a RunnerTerminalsRequest from a decoded CBOR value tree.
+func csilDecRunnerTerminalsRequest(csilRoot cborValue) (RunnerTerminalsRequest, error) {
+	var csilOut RunnerTerminalsRequest
+	if csilField, csilOk := cborMapGet(csilRoot, "wait_ms"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.WaitMs = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeRunnerTerminalsRequest encodes a RunnerTerminalsRequest to canonical CSIL CBOR bytes.
+func EncodeRunnerTerminalsRequest(csilV RunnerTerminalsRequest) []byte {
+	return cborEncode(csilEncRunnerTerminalsRequest(csilV))
+}
+
+// DecodeRunnerTerminalsRequest decodes canonical CSIL CBOR bytes into a RunnerTerminalsRequest.
+func DecodeRunnerTerminalsRequest(csilData []byte) (RunnerTerminalsRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero RunnerTerminalsRequest
+		return csilZero, csilErr
+	}
+	return csilDecRunnerTerminalsRequest(csilRoot)
+}
+
+// csilEncRunnerTerminalsResponse builds the canonical CBOR value tree for a RunnerTerminalsResponse.
+func csilEncRunnerTerminalsResponse(csilV RunnerTerminalsResponse) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("terminals"), cborEncArray(csilV.Terminals, func(csilElem RunnerTerminal) cborValue { return csilEncRunnerTerminal(csilElem) })})
+	return csilEntries
+}
+
+// csilDecRunnerTerminalsResponse reconstructs a RunnerTerminalsResponse from a decoded CBOR value tree.
+func csilDecRunnerTerminalsResponse(csilRoot cborValue) (RunnerTerminalsResponse, error) {
+	var csilOut RunnerTerminalsResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "terminals")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]RunnerTerminal, error) { return cborDecArray(csilV, csilDecRunnerTerminal) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Terminals = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeRunnerTerminalsResponse encodes a RunnerTerminalsResponse to canonical CSIL CBOR bytes.
+func EncodeRunnerTerminalsResponse(csilV RunnerTerminalsResponse) []byte {
+	return cborEncode(csilEncRunnerTerminalsResponse(csilV))
+}
+
+// DecodeRunnerTerminalsResponse decodes canonical CSIL CBOR bytes into a RunnerTerminalsResponse.
+func DecodeRunnerTerminalsResponse(csilData []byte) (RunnerTerminalsResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero RunnerTerminalsResponse
+		return csilZero, csilErr
+	}
+	return csilDecRunnerTerminalsResponse(csilRoot)
 }
 
 // csilEncEgressFlowHeader builds the canonical CBOR value tree for a EgressFlowHeader.

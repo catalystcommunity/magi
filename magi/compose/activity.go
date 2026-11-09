@@ -24,7 +24,7 @@ func activityOf(tool string, args map[string]string) string {
 		"add_longhouse_task": "adding a Longhouse task", "update_longhouse_task": "changing a Longhouse task", "add_longhouse_project": "making a Longhouse project",
 		"list_todos": "checking the to-do list", "add_todo": "adding a to-do", "set_reminder": "setting a reminder",
 		"finish_todo": "changing a to-do", "change_todo": "changing a to-do",
-		"list_tasks": "checking the tasks", "task_status": "reading the task", "task_diff": "reading the change",
+		"list_tasks": "checking the tasks", "task_status": "reading the task", "task_diff": "reading the change", "terminal_link": "making a terminal link",
 		"start_code_change": "starting a task", "send_notice": "sending a notice", "connect_account": "making a link",
 	}
 	w, ok := words[tool]

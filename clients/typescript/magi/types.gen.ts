@@ -479,6 +479,12 @@ export interface Task {
   error?: string;
   createdMs: number;
   updatedMs: number;
+  /**
+   * terminal: the task has a sandbox now, and its owner can open a
+   * terminal in it (/api/terminal?task=ID, a WebSocket; the web client
+   * shows it at /#/terminal/ID).
+   */
+  terminal?: boolean;
 }
 
 /**
@@ -1245,6 +1251,34 @@ export interface RunnerEgressProxy {
 
 export interface RunnerEgressAccessResponse {
   proxy?: RunnerEgressProxy;
+}
+
+/**
+ * A terminal that a person opened to the sandbox of a run on this
+ * runner. The runner opens GET /runner/terminal?session=SESSION on Magi
+ * (an HTTP upgrade with the runner token) and copies that connection to
+ * the terminal route of envd in the sandbox of environment. Magi waits
+ * about 20 s for the runner.
+ * cwd is the work directory of the run, when it is known.
+ */
+export interface RunnerTerminal {
+  session: string;
+  run: string;
+  environment: string;
+  cols: number;
+  rows: number;
+  cwd?: string;
+}
+
+/**
+ * Waits up to wait_ms (at most 25000) for terminals to open.
+ */
+export interface RunnerTerminalsRequest {
+  waitMs?: number;
+}
+
+export interface RunnerTerminalsResponse {
+  terminals: RunnerTerminal[];
 }
 
 /**

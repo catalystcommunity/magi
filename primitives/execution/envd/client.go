@@ -82,3 +82,46 @@ func (c *Client) ListFiles(ctx context.Context, req api.ListFilesRequest) (out a
 	err = c.call(ctx, PathList, req, &out)
 	return
 }
+
+// PTY starts a shell on a pseudo-terminal (PathPTY) and returns the
+// connection that carries its terminal frames (frame.go). The caller
+// closes it; that ends the shell. The client timeout does not apply.
+func (c *Client) PTY(ctx context.Context, req PTYRequest) (io.ReadWriteCloser, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+	r, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(c.Base, "/")+PathPTY, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Authorization", "Bearer "+c.Token)
+	r.Header.Set("Connection", "Upgrade")
+	r.Header.Set("Upgrade", PTYUpgrade)
+	hc := http.DefaultClient
+	if c.HTTP != nil {
+		hc = c.HTTP
+	}
+	nc := *hc
+	nc.Timeout = 0
+	res, err := nc.Do(r)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != http.StatusSwitchingProtocols {
+		defer res.Body.Close()
+		b, _ := io.ReadAll(io.LimitReader(res.Body, 64<<10))
+		e := &Error{}
+		if json.Unmarshal(b, e) != nil || e.Code == 0 {
+			e = errorf(res.StatusCode, "%s", strings.TrimSpace(string(b)))
+		}
+		return nil, e
+	}
+	rwc, ok := res.Body.(io.ReadWriteCloser)
+	if !ok {
+		res.Body.Close()
+		return nil, fmt.Errorf("envd: the upgrade gave no connection")
+	}
+	return rwc, nil
+}

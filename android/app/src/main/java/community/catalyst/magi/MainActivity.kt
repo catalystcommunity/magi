@@ -878,6 +878,14 @@ class MainActivity : Activity() {
                             })
                         }
                     }
+                    // A shell in the sandbox of the task opens in the
+                    // browser (the web client shows it at /#/terminal/<id>).
+                    if (t.terminal == true) {
+                        row.addView(Button(this).apply {
+                            text = "Open terminal"
+                            setOnClickListener { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(settings.server.trimEnd('/') + "/#/terminal/" + Uri.encode(t.id)))) }
+                        })
+                    }
                     if (t.status == "running" || t.status == "waiting") {
                         row.addView(Button(this).apply { text = "Stop"; setOnClickListener { cancel(t.id, status) } })
                     }

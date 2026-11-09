@@ -171,6 +171,10 @@ func run(listen, keys string, workers bool, log *slog.Logger) error {
 	mux.Handle("/runner/v1/chat/completions", compose.ModelProxy(ver, m))
 	// Runner sandboxes reach the egress proxy through Magi.
 	mux.Handle("/runner/egress", compose.EgressTunnel(ver, sys.EgressProxy))
+	// Terminals in task sandboxes: people open /api/terminal (WebSocket);
+	// a runner brings the sandbox side to /runner/terminal.
+	mux.Handle("/api/terminal", compose.Terminal(ver, sys))
+	mux.Handle("/runner/terminal", compose.RunnerTerminal(ver, sys.Terminals))
 	mux.Handle("/inference/connect", hosts.Handler(compose.InferenceHostName(ver)))
 	context.AfterFunc(ctx, hosts.Close)
 	mux.Handle("/", web.Handler())

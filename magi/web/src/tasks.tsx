@@ -102,6 +102,7 @@ export function TaskView(props: { id: string }) {
           <button class={d === "approve" ? "primary" : d === "reject" ? "danger" : ""} onClick={() => decide(d)}>{decisionName[d] ?? d}</button>}</For></div>
       </div> : ""}
       <div class="actions">
+        {() => task().terminal ? <button onClick={() => go("terminal", props.id)} title="A shell in the sandbox of the task">Open terminal</button> : ""}
         <button onClick={showChange}>Show the change</button>
         <button onClick={load}>Refresh</button>
         {() => task().status === "running" || task().status === "waiting" ? <button class="danger" onClick={stop}>Stop the task</button> : ""}

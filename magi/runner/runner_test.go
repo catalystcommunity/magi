@@ -92,6 +92,13 @@ func (f *fakeMagi) GetArtifact(_ context.Context, req magiapi.RunnerGetArtifactR
 	}
 	return magiapi.RunnerGetArtifactResponse{MediaType: "application/octet-stream", Body: b}, nil
 }
+func (f *fakeMagi) Terminals(ctx context.Context, _ magiapi.RunnerTerminalsRequest) (magiapi.RunnerTerminalsResponse, error) {
+	select { // a long poll with no session
+	case <-ctx.Done():
+	case <-time.After(time.Second):
+	}
+	return magiapi.RunnerTerminalsResponse{Terminals: []magiapi.RunnerTerminal{}}, nil
+}
 func (f *fakeMagi) RunStatus(context.Context, magiapi.RunnerRunStatusRequest) (magiapi.RunnerRunStatusResponse, error) {
 	return magiapi.RunnerRunStatusResponse{Status: "running"}, nil
 }

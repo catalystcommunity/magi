@@ -1,21 +1,12 @@
 package runner
 
 import (
-	"bufio"
 	"context"
-	"crypto/rand"
-	"crypto/tls"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net"
-	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
-	"time"
 
 	"github.com/catalystcommunity/magi/lib/rpc"
 	magiapi "github.com/catalystcommunity/magi/magi/api"
@@ -168,72 +159,14 @@ func (r *Runner) removeBox(id string) error {
 // WebSocket upgrade, so that HTTP gateways pass it; after the 101 answer
 // the connection carries the proxy protocol, not WebSocket frames.
 func (r *Runner) dialEgress(ctx context.Context) (net.Conn, error) {
-	u, err := url.Parse(r.Cfg.Server)
-	if err != nil {
-		return nil, err
-	}
+	return r.dialMagi(ctx, "/runner/egress")
+}
+
+// dialMagi opens an HTTP upgrade to path on Magi with the runner token.
+func (r *Runner) dialMagi(ctx context.Context, path string) (net.Conn, error) {
 	tok, err := os.ReadFile(r.Cfg.TokenFile)
 	if err != nil {
 		return nil, err
 	}
-	host := u.Host
-	if u.Port() == "" {
-		host = net.JoinHostPort(u.Hostname(), map[string]string{"https": "443", "http": "80"}[u.Scheme])
-	}
-	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-	var conn net.Conn
-	switch u.Scheme {
-	case "https":
-		d := &tls.Dialer{Config: &tls.Config{ServerName: u.Hostname(), NextProtos: []string{"http/1.1"}}}
-		conn, err = d.DialContext(ctx, "tcp", host)
-	case "http":
-		var d net.Dialer
-		conn, err = d.DialContext(ctx, "tcp", host)
-	default:
-		return nil, fmt.Errorf("server %q: expected http or https", r.Cfg.Server)
-	}
-	if err != nil {
-		return nil, err
-	}
-	if dl, ok := ctx.Deadline(); ok {
-		conn.SetDeadline(dl)
-	}
-	key := make([]byte, 16)
-	rand.Read(key)
-	req := fmt.Sprintf("GET %s/runner/egress HTTP/1.1\r\nHost: %s\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n"+
-		"Sec-WebSocket-Version: 13\r\nSec-WebSocket-Key: %s\r\nAuthorization: Bearer %s\r\n\r\n",
-		strings.TrimRight(u.Path, "/"), u.Host, base64.StdEncoding.EncodeToString(key), strings.TrimSpace(string(tok)))
-	if _, err := io.WriteString(conn, req); err != nil {
-		conn.Close()
-		return nil, err
-	}
-	br := bufio.NewReader(conn)
-	res, err := http.ReadResponse(br, nil)
-	if err != nil {
-		conn.Close()
-		return nil, err
-	}
-	if res.StatusCode != http.StatusSwitchingProtocols {
-		b, _ := io.ReadAll(io.LimitReader(res.Body, 512))
-		conn.Close()
-		return nil, fmt.Errorf("egress tunnel: %s: %s", res.Status, strings.TrimSpace(string(b)))
-	}
-	conn.SetDeadline(time.Time{})
-	return &bufConn{Conn: conn, r: br}, nil
-}
-
-// bufConn is a connection with bytes that a reader already buffered.
-type bufConn struct {
-	net.Conn
-	r *bufio.Reader
-}
-
-func (c *bufConn) Read(p []byte) (int, error) { return c.r.Read(p) }
-
-func (c *bufConn) CloseWrite() error {
-	if cw, ok := c.Conn.(interface{ CloseWrite() error }); ok {
-		return cw.CloseWrite()
-	}
-	return c.Conn.Close()
+	return envd.DialUpgrade(ctx, r.Cfg.Server, path, string(tok))
 }
