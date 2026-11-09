@@ -46,6 +46,10 @@ type EgressSecretRule struct {
 	// started get the rule (for example a GitHub token for the
 	// engineering manager only). Empty means all.
 	Personas []string `json:"personas,omitempty"`
+	// Env names a variable that the task environments of the rule get,
+	// with the placeholder as its value (for example GH_TOKEN). A task
+	// that the rule does not give a secret to does not get the variable.
+	Env string `json:"env,omitempty"`
 }
 
 type EgressRule struct {
@@ -105,8 +109,30 @@ func (r *EgressRules) check() error {
 				return fmt.Errorf("egress secret rule %d: %w", i, err)
 			}
 		}
+		if s.Env != "" && !envName.MatchString(s.Env) {
+			return fmt.Errorf("egress secret rule %d: env %q is not a variable name", i, s.Env)
+		}
 	}
 	return nil
+}
+
+var envName = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)
+
+// TaskEnv gives the variables (Env of the secret rules) for a task
+// environment of owner that persona started.
+func (r *EgressRules) TaskEnv(owner, persona string) map[string]string {
+	out := map[string]string{}
+	if r == nil {
+		return out
+	}
+	for _, s := range r.Secrets {
+		if s.Env == "" || (len(s.Owners) > 0 && !slices.Contains(s.Owners, owner)) ||
+			(len(s.Personas) > 0 && !slices.Contains(s.Personas, persona)) {
+			continue
+		}
+		out[s.Env] = s.Placeholder
+	}
+	return out
 }
 
 // hostMatch has the rules of the proxy: "*", "*.a.b" (below a.b), or the

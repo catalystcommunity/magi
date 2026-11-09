@@ -140,7 +140,7 @@ func (s *System) prepare(ctx context.Context, a workflowapi.Assignment, note fun
 			Image: s.Cfg.EnvImage, CpuMillis: ptr(uint64(2000)), MemoryMb: ptr(uint64(4096)), DiskMb: ptr(uint64(8192)),
 			Network: ptr(s.Cfg.EnvNetwork), TtlSeconds: ptr(uint64(4 * 3600)), Workdir: ptr("/work"),
 			Labels: map[string]string{"magi.run": a.Run},
-			Env:    map[string]string{"GOFLAGS": "-mod=mod"},
+			Env:    s.taskEnv(a.Owner, a.Vars["persona"], map[string]string{"GOFLAGS": "-mod=mod"}),
 		},
 	})
 	if err != nil {
@@ -457,4 +457,13 @@ func (s *System) rollout(ctx context.Context, a workflowapi.Assignment, note fun
 	note(fmt.Sprintf("Runner release %s: %d packages.", rel.Version, len(rel.Packages)))
 	s.post(ctx, a, fmt.Sprintf("The runner code changed, so runners update to %s when they are idle. A runner that fails its test goes back to its old release.", rel.Version))
 	return Result{Outcome: "done", Outputs: map[string]string{"rollout.version": rel.Version}}, nil
+}
+
+// taskEnv adds the placeholder variables of the egress secret rules that
+// apply to a task of owner that persona started.
+func (s *System) taskEnv(owner, persona string, env map[string]string) map[string]string {
+	for k, v := range s.EgressRules.TaskEnv(owner, personaOr(ptr(persona))) {
+		env[k] = v
+	}
+	return env
 }

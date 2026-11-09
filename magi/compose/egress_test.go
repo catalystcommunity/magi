@@ -482,3 +482,28 @@ func TestEgressSecretPersonas(t *testing.T) {
 		}
 	}
 }
+
+func TestEgressTaskEnv(t *testing.T) {
+	r, err := LoadEgressRules(rulesFile(t, `{"secrets": [
+	  {"placeholder": "magi-secret-github", "secret": "github", "hosts": ["api.github.com"], "place": "header:authorization", "personas": ["persona:engineering"], "env": "GH_TOKEN"},
+	  {"placeholder": "magi-secret-pypi", "secret": "pypi", "hosts": ["pypi.org"], "place": "header:authorization", "owners": ["user:b@example.local"], "env": "PYPI_TOKEN"},
+	  {"placeholder": "magi-secret-x", "secret": "x", "hosts": ["x.example.local"], "place": "any"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := r.TaskEnv("user:a@example.local", "persona:engineering"); len(got) != 1 || got["GH_TOKEN"] != "magi-secret-github" {
+		t.Errorf("engineering: %v", got)
+	}
+	if got := r.TaskEnv("user:a@example.local", "persona:assistant"); len(got) != 0 {
+		t.Errorf("assistant: %v", got)
+	}
+	if got := r.TaskEnv("user:b@example.local", "persona:assistant"); len(got) != 1 || got["PYPI_TOKEN"] == "" {
+		t.Errorf("owner b: %v", got)
+	}
+	if got := (*EgressRules)(nil).TaskEnv("user:a@example.local", "persona:engineering"); len(got) != 0 {
+		t.Errorf("nil rules: %v", got)
+	}
+	if _, err := LoadEgressRules(rulesFile(t, `{"secrets": [{"placeholder": "magi-secret-a", "secret": "a", "hosts": ["h"], "place": "any", "env": "a b"}]}`)); err == nil {
+		t.Error("a bad env name was accepted")
+	}
+}

@@ -1073,10 +1073,11 @@ type RunnerGetArtifactResponse struct {
 
 // RunnerEgressProxy represents a structured data type
 type RunnerEgressProxy struct {
-	Environment   string  `json:"environment" yaml:"environment"`
-	Credential    string  `json:"credential" yaml:"credential"`
-	Ca            []byte  `json:"ca" yaml:"ca"`
-	SshKnownHosts *string `json:"ssh_known_hosts,omitempty" yaml:"ssh_known_hosts,omitempty"`
+	Environment   string            `json:"environment" yaml:"environment"`
+	Credential    string            `json:"credential" yaml:"credential"`
+	Ca            []byte            `json:"ca" yaml:"ca"`
+	SshKnownHosts *string           `json:"ssh_known_hosts,omitempty" yaml:"ssh_known_hosts,omitempty"`
+	Env           map[string]string `json:"env,omitempty" yaml:",inline"`
 }
 
 // RunnerEgressAccessResponse represents a structured data type

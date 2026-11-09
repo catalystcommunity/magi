@@ -1236,6 +1236,11 @@ export interface RunnerEgressProxy {
   credential: string;
   ca: Uint8Array;
   sshKnownHosts?: string;
+  /**
+   * env: placeholder variables for the sandbox (the env of the egress
+   * secret rules that apply to the run).
+   */
+  env?: Record<string, string>;
 }
 
 export interface RunnerEgressAccessResponse {

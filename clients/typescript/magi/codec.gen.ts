@@ -3939,6 +3939,7 @@ export function fromRunnerGetArtifactResponseCbor(bytes: Uint8Array): RunnerGetA
 export function toRunnerEgressProxyCborValue(v: RunnerEgressProxy): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("ca", v.ca);
+  if (v.env !== undefined) csilMap.set("env", new Map<CborValue, CborValue>(Object.entries(v.env).map(([csilK, csilV]): [CborValue, CborValue] => [csilK, csilV])));
   csilMap.set("credential", v.credential);
   csilMap.set("environment", v.environment);
   if (v.sshKnownHosts !== undefined) csilMap.set("ssh_known_hosts", v.sshKnownHosts);
@@ -3951,6 +3952,7 @@ export function fromRunnerEgressProxyCborValue(value: CborValue): RunnerEgressPr
     credential: asString(requireKey(value, "credential")),
     ca: asBytes(requireKey(value, "ca")),
     sshKnownHosts: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "ssh_known_hosts")),
+    env: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : Object.fromEntries(Array.from(asMap(csilV), ([csilK, csilV]): [string, string] => [asString(csilK), asString(csilV)])))(mapGet(value, "env")),
   };
 }
 

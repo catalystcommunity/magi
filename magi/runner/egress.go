@@ -33,8 +33,9 @@ import (
 // the environment, out of the sandbox, so that a restarted runner can
 // serve the environment again.
 type egressAccess struct {
-	Environment string `json:"environment"`
-	Credential  string `json:"credential"`
+	Environment string            `json:"environment"`
+	Credential  string            `json:"credential"`
+	Env         map[string]string `json:"env,omitempty"`
 }
 
 func (r *Runner) accessFile(id string) string {
@@ -73,18 +74,23 @@ func (r *Runner) startBox(env, token string, p *magiapi.RunnerEgressProxy) error
 	if p.SshKnownHosts != nil {
 		sp.SSHKnownHosts = []byte(*p.SshKnownHosts + "\n")
 	}
-	if err := r.Boxes.Start(env, token, r.proxyEnv(p.Environment, p.Credential), sp); err != nil {
+	if err := r.Boxes.Start(env, token, r.proxyEnv(p.Environment, p.Credential, p.Env), sp); err != nil {
 		return err
 	}
-	b, _ := json.Marshal(egressAccess{Environment: p.Environment, Credential: p.Credential})
+	b, _ := json.Marshal(egressAccess{Environment: p.Environment, Credential: p.Credential, Env: p.Env})
 	if err := os.WriteFile(r.accessFile(env), b, 0o600); err != nil {
 		return err
 	}
 	return r.serveProxy(env)
 }
 
-func (r *Runner) proxyEnv(env, credential string) map[string]string {
+// proxyEnv: extra are the placeholder variables of the run (the proxy
+// puts the secret in place of a placeholder only for the permitted hosts).
+func (r *Runner) proxyEnv(env, credential string, extra map[string]string) map[string]string {
 	all := r.sandboxEnv()
+	for k, v := range extra {
+		all[k] = v
+	}
 	for k, v := range egressenv.Vars(egressenv.URL(sandbox.ProxyAddr, env, credential), r.Boxes.ProxyCA()) {
 		all[k] = v
 	}
@@ -107,7 +113,7 @@ func (r *Runner) resumeBox(id string) error {
 	if err := r.serveProxy(id); err != nil {
 		return err
 	}
-	return r.Boxes.Resume(id, r.proxyEnv(a.Environment, a.Credential))
+	return r.Boxes.Resume(id, r.proxyEnv(a.Environment, a.Credential, a.Env))
 }
 
 // serveProxy serves the proxy socket of an environment until removeBox.

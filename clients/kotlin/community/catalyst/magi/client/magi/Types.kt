@@ -1371,7 +1371,8 @@ data class RunnerEgressProxy(
     val credential: String,
     val ca: ByteArray,
     // wire key: ssh_known_hosts
-    val sshKnownHosts: String? = null
+    val sshKnownHosts: String? = null,
+    val env: Map<String, String>? = null
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -1380,6 +1381,7 @@ data class RunnerEgressProxy(
         if (credential != other.credential) return false
         if (!ca.contentEquals(other.ca)) return false
         if (sshKnownHosts != other.sshKnownHosts) return false
+        if (env != other.env) return false
         return true
     }
 
@@ -1388,6 +1390,7 @@ data class RunnerEgressProxy(
         result = 31 * result + credential.hashCode()
         result = 31 * result + ca.contentHashCode()
         result = 31 * result + sshKnownHosts.hashCode()
+        result = 31 * result + env.hashCode()
         return result
     }
 }

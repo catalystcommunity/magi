@@ -9959,8 +9959,11 @@ func DecodeRunnerGetArtifactResponse(csilData []byte) (RunnerGetArtifactResponse
 
 // csilEncRunnerEgressProxy builds the canonical CBOR value tree for a RunnerEgressProxy.
 func csilEncRunnerEgressProxy(csilV RunnerEgressProxy) cborValue {
-	csilEntries := make(cborMap, 0, 4)
+	csilEntries := make(cborMap, 0, 5)
 	csilEntries = append(csilEntries, cborEntry{cborText("ca"), cborBytes(csilV.Ca)})
+	if csilV.Env != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("env"), cborEncMap(csilV.Env, func(csilK string) cborValue { return cborText(csilK) }, func(csilV string) cborValue { return cborText(csilV) })})
+	}
 	csilEntries = append(csilEntries, cborEntry{cborText("credential"), cborText(csilV.Credential)})
 	csilEntries = append(csilEntries, cborEntry{cborText("environment"), cborText(csilV.Environment)})
 	if csilV.SshKnownHosts != nil {
@@ -10011,6 +10014,13 @@ func csilDecRunnerEgressProxy(csilRoot cborValue) (RunnerEgressProxy, error) {
 			return csilOut, csilErr
 		}
 		csilOut.SshKnownHosts = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "env"); csilOk {
+		csilVal, csilErr := (func(csilV cborValue) (map[string]string, error) { return cborDecMap(csilV, cborAsText, cborAsText) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Env = csilVal
 	}
 	return csilOut, nil
 }

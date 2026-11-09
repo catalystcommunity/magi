@@ -274,7 +274,7 @@ func SelfTest(ctx context.Context, r *Runner) error {
 	env, proxy := r.sandboxEnv(), (*sandbox.Proxy)(nil)
 	if boxes.CanProxy() {
 		proxy = &sandbox.Proxy{CA: []byte("self-test")}
-		env = r.proxyEnv("selftest", "self-test")
+		env = r.proxyEnv("selftest", "self-test", nil)
 	}
 	if err := boxes.Start("selftest", strings.Repeat("s", 32), env, proxy); err != nil {
 		return fmt.Errorf("sandbox: %w", err)

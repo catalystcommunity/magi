@@ -3778,6 +3778,7 @@ fun runnerGetArtifactResponseFromCbor(bytes: ByteArray): RunnerGetArtifactRespon
 fun RunnerEgressProxy.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
     csilEntries.add(CborValue.CText("ca") to CborValue.CBytes(this.ca))
+    this.env?.let { csilV -> csilEntries.add(CborValue.CText("env") to CborValue.CMap((csilV).map { (csilK, csilV) -> CborValue.CText(csilK) to CborValue.CText(csilV) })) }
     csilEntries.add(CborValue.CText("credential") to CborValue.CText(this.credential))
     csilEntries.add(CborValue.CText("environment") to CborValue.CText(this.environment))
     this.sshKnownHosts?.let { csilV -> csilEntries.add(CborValue.CText("ssh_known_hosts") to CborValue.CText(csilV)) }
@@ -3793,7 +3794,8 @@ fun runnerEgressProxyFromCborValue(cbor: CborValue): RunnerEgressProxy {
     val credential = CsilCbor.asText(CsilCbor.require(cbor, "credential"))
     val ca = CsilCbor.asBytes(CsilCbor.require(cbor, "ca"))
     val sshKnownHosts = CsilCbor.mapGet(cbor, "ssh_known_hosts")?.let { csilV -> CsilCbor.asText(csilV) }
-    return RunnerEgressProxy(environment = environment, credential = credential, ca = ca, sshKnownHosts = sshKnownHosts)
+    val env = CsilCbor.mapGet(cbor, "env")?.let { csilV -> CsilCbor.asMap(csilV).associate { (csilK, csilV) -> CsilCbor.asText(csilK) to CsilCbor.asText(csilV) } }
+    return RunnerEgressProxy(environment = environment, credential = credential, ca = ca, sshKnownHosts = sshKnownHosts, env = env)
 }
 
 /** Decode CSIL CBOR bytes into a RunnerEgressProxy. */

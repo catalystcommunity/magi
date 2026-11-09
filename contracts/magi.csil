@@ -717,7 +717,10 @@ RunnerGetArtifactResponse = { media_type: text, body: bytes }
 ;;; Magi (an HTTP upgrade), so the runner machine connects only to Magi.
 ;;; ssh_known_hosts: the known_hosts line of the SSH host key of the
 ;;; proxy (all hosts), when the proxy ends SSH.
-RunnerEgressProxy = { environment: text, credential: text, ca: bytes, ? ssh_known_hosts: text }
+RunnerEgressProxy = { environment: text, credential: text, ca: bytes, ? ssh_known_hosts: text,
+  ;;; env: placeholder variables for the sandbox (the env of the egress
+  ;;; secret rules that apply to the run).
+  ? env: { * text => text } }
 RunnerEgressAccessResponse = { ? proxy: RunnerEgressProxy }
 
 service RunnerService {

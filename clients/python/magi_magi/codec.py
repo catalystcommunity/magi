@@ -4676,6 +4676,9 @@ RunnerGetArtifactResponse.from_cbor = staticmethod(_runner_get_artifact_response
 def _encode_runner_egress_proxy_value(v: "RunnerEgressProxy") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["ca"] = v.ca
+    csil_x = v.env
+    if csil_x is not None:
+        csil_m["env"] = csil_x
     csil_m["credential"] = v.credential
     csil_m["environment"] = v.environment
     csil_x = v.ssh_known_hosts
@@ -4690,6 +4693,7 @@ def _decode_runner_egress_proxy_value(tree: Any) -> "RunnerEgressProxy":
         credential=_csil_expect_text(tree["credential"]),
         ca=_csil_expect_bytes(tree["ca"]),
         ssh_known_hosts=(None if tree.get("ssh_known_hosts") is None else _csil_expect_text(tree["ssh_known_hosts"])),
+        env=(None if tree.get("env") is None else {_csil_expect_text(csil_k): _csil_expect_text(csil_v) for csil_k, csil_v in _csil_expect_map(tree["env"]).items()}),
     )
 
 

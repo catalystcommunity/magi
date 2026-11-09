@@ -367,6 +367,17 @@ The environment has only the placeholder (for example
 `Authorization: Bearer magi-secret-gh`). The proxy puts the value in, only
 for the hosts that its policy permits for that secret.
 
+A secret rule can have:
+
+- `personas`: only the tasks that one of these personas started get the
+  secret (for example `["persona:engineering"]` for a GitHub token).
+- `env`: a variable name (for example `GH_TOKEN`). The task environments
+  and runner sandboxes that the rule applies to get this variable, with the
+  placeholder as its value. Other tasks do not get the variable.
+
+A review rule has the verdict `pass`, `review`, or `block`. Only `default`
+can be `model`.
+
 With `MAGI_MODEL_EGRESS=true`, the model clients of Magi (the persona,
 the librarian, the review model, and `/runner/v1/chat/completions`) use
 the egress proxy as the proxy user `svc_magi` and trust only the proxy CA.

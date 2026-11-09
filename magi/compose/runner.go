@@ -333,7 +333,8 @@ func (p *EgressProxy) Transport(user string) (*http.Transport, error) {
 // is the run; EgressService/environment then answers with the owner of the
 // run.
 func (r *Runners) EgressAccess(ctx context.Context, req magiapi.RunnerStep) (magiapi.RunnerEgressAccessResponse, error) {
-	if _, err := r.held(ctx, req); err != nil {
+	sctx, err := r.held(ctx, req)
+	if err != nil {
 		return magiapi.RunnerEgressAccessResponse{}, err
 	}
 	p := r.S.EgressProxy
@@ -344,6 +345,11 @@ func (r *Runners) EgressAccess(ctx context.Context, req magiapi.RunnerStep) (mag
 	if p.SSHPub != "" {
 		// One line for all hosts: the proxy ends each SSH connection.
 		out.SshKnownHosts = ptr("* " + p.SSHPub)
+	}
+	if run, err := r.S.Workflow.GetRun(sctx, workflowapi.GetRunRequest{Id: req.Run}); err == nil {
+		if env := r.S.taskEnv(run.Owner, run.Vars["persona"], map[string]string{}); len(env) > 0 {
+			out.Env = env
+		}
 	}
 	return magiapi.RunnerEgressAccessResponse{Proxy: out}, nil
 }

@@ -4550,6 +4550,7 @@ class RunnerEgressProxy:
     credential: str
     ca: bytes
     ssh_known_hosts: Optional[str] = None
+    env: Optional[Dict[str, str]] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -4561,12 +4562,14 @@ class RunnerEgressProxy:
             result['ca'] = self.ca
         if hasattr(self, 'ssh_known_hosts') and self.ssh_known_hosts is not None:
             result['ssh_known_hosts'] = self.ssh_known_hosts
+        if hasattr(self, 'env') and self.env is not None:
+            result['env'] = self.env
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'RunnerEgressProxy':
         """Create instance from dictionary."""
-        return cls(environment=data.get('environment'), credential=data.get('credential'), ca=data.get('ca'), ssh_known_hosts=data.get('ssh_known_hosts'))
+        return cls(environment=data.get('environment'), credential=data.get('credential'), ca=data.get('ca'), ssh_known_hosts=data.get('ssh_known_hosts'), env=data.get('env'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
