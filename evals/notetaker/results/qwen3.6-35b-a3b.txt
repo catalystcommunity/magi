@@ -1,0 +1,16 @@
+qwen3.6-35b-a3b (qwen3.6-35b-a3b): 301/375 with checks (80%), raw 264/375, errors 0, median 5963 ms
+  birthday        22/25  raw   3
+  change          20/25  raw  20
+  end             25/25  raw  25
+  event           24/25  raw  24
+  fix             12/25  raw  12
+  multi-fact      25/25  raw  25
+  new-fact        20/25  raw  20
+  other-fact      21/25  raw  21
+  other-update     3/25  raw   4
+  plan            25/25  raw  25
+  question        25/25  raw  25
+  reports-to-me   15/25  raw   2
+  request         25/25  raw  25
+  small-talk      25/25  raw  25
+  third-person    14/25  raw   8

@@ -44,3 +44,21 @@ Magi applies) and the raw score (the answer of the model).
 - Do not train on the test split. Use other seeds for training data.
 - When you change the note taker or the checks, run the benchmark again on
   the models that you use, and keep the results.
+
+## Results (2026-11-09, test split seed 1, 375 cases)
+
+| Model | With checks | Raw | Median |
+| --- | --- | --- | --- |
+| gemma-4-12b Q4_K_M (local) | 93% | 77% | 2.7 s |
+| qwen3.8-27b IQ3_XXS (local) | 83% | 77% | 1.9 s |
+| qwen3.6-35b-a3b Q4_K_M (local, MoE on CPU) | 80% | 70% | 6.0 s |
+| gemma-4-e4b Q4_K_M (local) | 74% | 61% | 1.4 s |
+| qwen3.5-9b Q4_K_M (local) | 66% | 62% | 1.5 s |
+| qwen3.5-4b Q4_K_M (local) | 55% | 53% | 1.1 s |
+| gpt-oss-20b MXFP4 (local) | 51% | 42% | 0.9 s |
+| glm-5.3 (Zen, reference) | 90% (24 calls failed; 97% of the others) | 83% | 5.6 s |
+
+Local models ran on an RTX 4080 (16 GB) with llama.cpp b12020, two slots,
+no reasoning (`--reasoning-budget 0`). gemma-4-12b is the best local model.
+Its weak categories are `other-update`, `third-person`, and
+`reports-to-me`. The checks of Magi add 16 points to it.

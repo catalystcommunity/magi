@@ -1,0 +1,16 @@
+qwen3.8-27b-iq3xxs (qwen3.8-27b-iq3xxs): 313/375 with checks (83%), raw 288/375, errors 0, median 1946 ms
+  birthday         2/25  raw   0
+  change          21/25  raw  21
+  end             25/25  raw  25
+  event           18/25  raw  18
+  fix             23/25  raw  23
+  multi-fact      25/25  raw  25
+  new-fact        25/25  raw  25
+  other-fact      22/25  raw  22
+  other-update    17/25  raw  18
+  plan            25/25  raw  25
+  question        25/25  raw  25
+  reports-to-me   22/25  raw   7
+  request         25/25  raw  25
+  small-talk      25/25  raw  25
+  third-person    13/25  raw   4

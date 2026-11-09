@@ -1,0 +1,16 @@
+gpt-oss-20b (gpt-oss-20b): 192/375 with checks (51%), raw 157/375, errors 0, median 901 ms
+  birthday         8/25  raw   0
+  change          10/25  raw  10
+  end              7/25  raw   6
+  event            6/25  raw   6
+  fix             12/25  raw   4
+  multi-fact      23/25  raw  23
+  new-fact        15/25  raw  15
+  other-fact       3/25  raw   3
+  other-update     0/25  raw   1
+  plan            25/25  raw  17
+  question        25/25  raw  25
+  reports-to-me   12/25  raw   3
+  request         19/25  raw  19
+  small-talk      25/25  raw  25
+  third-person     2/25  raw   0

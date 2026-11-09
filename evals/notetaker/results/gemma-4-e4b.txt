@@ -1,0 +1,16 @@
+gemma-4-e4b (gemma-4-e4b): 279/375 with checks (74%), raw 228/375, errors 0, median 1444 ms
+  birthday        25/25  raw   0
+  change          25/25  raw  25
+  end             25/25  raw  20
+  event           15/25  raw  15
+  fix             25/25  raw  25
+  multi-fact      25/25  raw  25
+  new-fact        12/25  raw  12
+  other-fact       7/25  raw   7
+  other-update     3/25  raw   0
+  plan            25/25  raw  23
+  question        25/25  raw  25
+  reports-to-me   17/25  raw   1
+  request         25/25  raw  25
+  small-talk      25/25  raw  25
+  third-person     0/25  raw   0

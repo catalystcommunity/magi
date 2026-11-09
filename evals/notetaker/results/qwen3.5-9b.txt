@@ -1,0 +1,16 @@
+qwen3.5-9b (qwen3.5-9b): 248/375 with checks (66%), raw 234/375, errors 0, median 1522 ms
+  birthday        23/25  raw   0
+  change          16/25  raw  24
+  end             21/25  raw  21
+  event           13/25  raw  13
+  fix             21/25  raw  25
+  multi-fact      25/25  raw  25
+  new-fact        19/25  raw  19
+  other-fact       3/25  raw   3
+  other-update     0/25  raw   0
+  plan            25/25  raw  25
+  question        25/25  raw  25
+  reports-to-me    7/25  raw   4
+  request         25/25  raw  25
+  small-talk      25/25  raw  25
+  third-person     0/25  raw   0
