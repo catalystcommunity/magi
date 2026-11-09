@@ -439,6 +439,13 @@ func (c *cli) run(cmd string, args []string) error {
 		for i := *from; i < len(f.Messages); i += *batch {
 			part := f.Messages[i:min(i+*batch, len(f.Messages))]
 			r, err := c.magi.ImportHistory(c.ctx, magiapi.ImportHistoryRequest{Persona: optional(personaID(*p)), Messages: part})
+			for try := 0; err != nil && gatewayTimeout(err) && try < 5; try++ {
+				// Magi still imports the batch; the next call waits for it
+				// and skips the messages that it has.
+				fmt.Fprintf(os.Stderr, "messages %d to %d: %v; trying again\n", i, i+len(part)-1, err)
+				time.Sleep(10 * time.Second)
+				r, err = c.magi.ImportHistory(c.ctx, magiapi.ImportHistoryRequest{Persona: optional(personaID(*p)), Messages: part})
+			}
 			if err != nil {
 				return fmt.Errorf("messages %d to %d: %w (continue with -from %d)", i, i+len(part)-1, err, i)
 			}
@@ -1240,4 +1247,11 @@ func printKnowledge(items []magiapi.KnowledgeItem, records []magiapi.KnowledgeRe
 	for _, r := range records {
 		fmt.Printf("%s  [%s] %s: %s\n", r.Id, r.Kind, r.Title, r.Summary)
 	}
+}
+
+// gatewayTimeout: a gateway ended the call (502, 503, 504); the server can
+// still be at work.
+func gatewayTimeout(err error) bool {
+	m := err.Error()
+	return strings.Contains(m, "rpc 504") || strings.Contains(m, "rpc 502") || strings.Contains(m, "rpc 503")
 }

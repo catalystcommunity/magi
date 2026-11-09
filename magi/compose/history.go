@@ -7,7 +7,9 @@ package compose
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/catalystcommunity/magi/lib/rpc"
@@ -28,6 +30,8 @@ func historyTime(ctx context.Context) (time.Time, bool) {
 	t, ok := ctx.Value(historyKey{}).(time.Time)
 	return t, ok
 }
+
+var importLocks sync.Map // stream id -> *sync.Mutex
 
 func (m *Service) ImportHistory(ctx context.Context, req magiapi.ImportHistoryRequest) (magiapi.ImportHistoryResponse, error) {
 	caller, err := rpc.Caller(ctx)
@@ -53,9 +57,18 @@ func (m *Service) ImportHistory(ctx context.Context, req magiapi.ImportHistoryRe
 	}
 	s := m.S
 	persona := personaOr(req.Persona)
-	sctx := s.AsService(ctx)
+	// The batch finishes when the client goes away (a gateway timeout), and
+	// one import of a stream runs at a time: a retry waits, then skips what
+	// the first call did.
+	sctx := s.AsService(context.WithoutCancel(ctx))
 	st, err := s.Conversation.OpenStream(sctx, conversationapi.OpenStreamRequest{Persona: persona, Person: &caller.Subject})
 	if err != nil {
+		return magiapi.ImportHistoryResponse{}, err
+	}
+	lock, _ := importLocks.LoadOrStore(st.Id, &sync.Mutex{})
+	lock.(*sync.Mutex).Lock()
+	defer lock.(*sync.Mutex).Unlock()
+	if st, err = s.Conversation.GetStream(sctx, conversationapi.GetStreamRequest{Id: st.Id}); err != nil {
 		return magiapi.ImportHistoryResponse{}, err
 	}
 	prof := profileFor(persona)
@@ -66,7 +79,26 @@ func (m *Service) ImportHistory(ctx context.Context, req magiapi.ImportHistoryRe
 	}
 	a := workflowapi.Assignment{Run: "history-import", Owner: caller.Subject, Vars: vars}
 	out := magiapi.ImportHistoryResponse{Messages: []magiapi.ImportedMessage{}}
+	// A gateway can end a long call while Magi still imports; the client
+	// then sends the batch again. A message that the stream already has
+	// (same time and text, among the newest ones) is not imported twice.
+	have := map[string]string{}
+	after := uint64(0)
+	if st.LastSeq > 60 {
+		after = st.LastSeq - 60
+	}
+	if l, err := s.Conversation.ListUtterances(sctx, conversationapi.ListUtterancesRequest{Stream: st.Id, AfterSeq: &after, Limit: ptr(uint64(60))}); err == nil {
+		for _, u := range l.Utterances {
+			if u.Author == caller.Subject {
+				have[fmt.Sprintf("%d\n%s", u.CreatedMs, u.Text)] = u.Id
+			}
+		}
+	}
 	for _, h := range req.Messages {
+		if id, ok := have[fmt.Sprintf("%d\n%s", h.AtMs, h.Text)]; ok {
+			out.Messages = append(out.Messages, magiapi.ImportedMessage{Id: id, AtMs: h.AtMs, Notes: []string{"already imported"}})
+			continue
+		}
 		start := time.Now()
 		at := time.UnixMilli(int64(h.AtMs))
 		u, err := s.Conversation.Post(sctx, conversationapi.PostRequest{Stream: st.Id, Text: h.Text, Author: &caller.Subject,
