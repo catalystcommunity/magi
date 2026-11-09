@@ -843,6 +843,42 @@ type DecideEgressReviewResponse struct {
 	Rule     *string `json:"rule,omitempty" yaml:"rule,omitempty"`
 }
 
+// ConnectRequest represents a structured data type
+type ConnectRequest struct {
+	System string `json:"system" yaml:"system"`
+}
+
+// ConnectResponse represents a structured data type
+type ConnectResponse struct {
+	System    string  `json:"system" yaml:"system"`
+	Url       string  `json:"url" yaml:"url"`
+	UserCode  *string `json:"user_code,omitempty" yaml:"user_code,omitempty"`
+	ExpiresMs uint64  `json:"expires_ms" yaml:"expires_ms"`
+	Message   string  `json:"message" yaml:"message"`
+}
+
+// Connection represents a structured data type
+type Connection struct {
+	System    string  `json:"system" yaml:"system"`
+	State     string  `json:"state" yaml:"state"`
+	Detail    *string `json:"detail,omitempty" yaml:"detail,omitempty"`
+	ExpiresMs *uint64 `json:"expires_ms,omitempty" yaml:"expires_ms,omitempty"`
+}
+
+// ListConnectionsRequest represents a structured data type
+type ListConnectionsRequest struct {
+}
+
+// ListConnectionsResponse represents a structured data type
+type ListConnectionsResponse struct {
+	Connections []Connection `json:"connections" yaml:"connections"`
+}
+
+// DisconnectRequest represents a structured data type
+type DisconnectRequest struct {
+	System string `json:"system" yaml:"system"`
+}
+
 // RunnerClaimRequest represents a structured data type
 type RunnerClaimRequest struct {
 	Queue  string  `json:"queue" yaml:"queue"`

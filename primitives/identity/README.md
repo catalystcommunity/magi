@@ -15,6 +15,14 @@ Contract: `contracts/identity.csil`, service `IdentityService`.
 | `who-am-i` | any | Subject, kind, scopes, and expiry of the caller |
 | `refresh` | user or machine | New token for the same subject. User: the login session must be active (7 days from login). Machine (`inference:<name>`, `runner:<name>`): same scopes, 30 days; see "Machine tokens". |
 | `issue-service-token` | `identity:admin` | Token for `service:<name>` with the given scopes |
+| `application` | any | Magi's LinkKeys application identity (`MAGI_APP_KEYS`) |
+| `begin-grant` | user, or `identity:act-as` with `owner` | Starts an act-as grant: the owner lets Magi act as them at an audience application. Give the `signed_scope_set` that the audience signed for Magi. Result: the consent `url` at the owner's home domain (15 minutes) |
+| `list-grants` | owner, or `identity:present` | The grants of the owner: audience, scopes, expiry, state (`active`, `expired`, `revoked`) |
+| `present-grant` | `identity:present` | Checks the grant at the home domain (through the RP), then signs a CBOR `ActAsCredential` for the `request_digest` of the audience. A revoked grant fails with 403 |
+| `forget-grant` | owner, or `identity:act-as` | Deletes Magi's copy of a grant. The person revokes it at the home domain on their account page |
+| `put-credential` | owner, or `identity:act-as` | Stores an encrypted credential (for example a Longhouse CLI session). `expected_revision` makes a compare-and-set: 0 = must not exist |
+| `get-credential` | `identity:present` | The value and its revision |
+| `list-credentials`, `forget-credential` | owner, or `identity:present`/`identity:act-as` | No values in the list |
 
 User tokens last 12 hours and have no scopes. The subject is
 `user:<user_id>@<domain>`, in lowercase. `<user_id>` is the LinkKeys user
@@ -31,6 +39,7 @@ HTTP routes on the same server:
 | `GET /login/start?t=...` | Shows the identity, the program name, and a Continue button |
 | `POST /login/start` | Same origin only. Sets the browser binding cookie and redirects to the IDP |
 | `GET /login/callback` | LinkKeys returns here. Redirects to `return_url` with the code, or shows the code, or an error |
+| `GET /login/grant/callback` | The home domain returns here after an act-as approval. Magi gets the grant through its RP, checks that it names the owner and the audience, and stores it |
 | `GET /healthz` | Health check |
 
 ## Login flow and bindings
@@ -77,6 +86,8 @@ Flags have environment defaults.
 | `MAGI_DATABASE_URL` | required | PostgreSQL URL |
 | `MAGI_TOKEN_TTL` | `12h` | User token lifetime |
 | `MAGI_SESSION_TTL` | `168h` | Login session lifetime |
+| `MAGI_APP_KEYS` | empty | Magi's LinkKeys application key file. Turns on act-as grants. The application account is on the RP domain; renewal of the key attestations runs at start and every 6 hours |
+| `MAGI_CREDENTIAL_KEY` | empty | 32-byte base64 key file that encrypts credentials (AES-256-GCM). Turns on credentials |
 
 The runtime file is private. Do not put it in an image or in the repository:
 
@@ -94,7 +105,15 @@ the default. `fingerprints` are the SHA-256 pins of the RP TLS key.
 identity keygen --issuer magi --out key.json --public key.pub.json
 identity mint --key key.json --subject service:magi --scopes a,b --ttl 720h --out token.txt
 identity mint --key key.json --subject runner:NAME --scopes magi:runner --ttl 2160h --out runner.token
+identity app-keys generate --file app-keys.json --domain DOMAIN --user-id ACCOUNT_UUID --app-id magi --instance-id NAME
+identity app-keys enroll --file app-keys.json --linkkeys-runtime runtime.json [--tcp-addr HOST:4987]
+identity app-keys renew --file app-keys.json --linkkeys-runtime runtime.json
+identity credential-key --out credential-key.txt
 ```
+
+`app-keys enroll` uses the API key of the runtime file. That key must belong
+to the application account (the account of the RP). `generate` refuses to
+replace a file.
 
 ## Machine tokens
 

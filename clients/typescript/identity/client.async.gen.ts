@@ -2,8 +2,8 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { BeginLoginRequest, BeginLoginResponse, IssueServiceTokenRequest, PollLoginRequest, PollLoginResponse, RefreshRequest, TokenResponse, WhoAmIRequest, WhoAmIResponse } from "./types.gen.ts";
-import { fromBeginLoginResponseCbor, fromPollLoginResponseCbor, fromTokenResponseCbor, fromWhoAmIResponseCbor, toBeginLoginRequestCbor, toIssueServiceTokenRequestCbor, toPollLoginRequestCbor, toRefreshRequestCbor, toWhoAmIRequestCbor } from "./codec.gen.ts";
+import type { AppRef, ApplicationRequest, BeginGrantRequest, BeginGrantResponse, BeginLoginRequest, BeginLoginResponse, Credential, CredentialRef, EmptyResponse, ForgetGrantRequest, IssueServiceTokenRequest, ListCredentialsRequest, ListCredentialsResponse, ListGrantsRequest, ListGrantsResponse, PollLoginRequest, PollLoginResponse, PresentGrantRequest, PresentGrantResponse, PutCredentialRequest, RefreshRequest, TokenResponse, WhoAmIRequest, WhoAmIResponse } from "./types.gen.ts";
+import { fromAppRefCbor, fromBeginGrantResponseCbor, fromBeginLoginResponseCbor, fromCredentialCbor, fromEmptyResponseCbor, fromListCredentialsResponseCbor, fromListGrantsResponseCbor, fromPollLoginResponseCbor, fromPresentGrantResponseCbor, fromTokenResponseCbor, fromWhoAmIResponseCbor, toApplicationRequestCbor, toBeginGrantRequestCbor, toBeginLoginRequestCbor, toCredentialRefCbor, toForgetGrantRequestCbor, toIssueServiceTokenRequestCbor, toListCredentialsRequestCbor, toListGrantsRequestCbor, toPollLoginRequestCbor, toPresentGrantRequestCbor, toPutCredentialRequestCbor, toRefreshRequestCbor, toWhoAmIRequestCbor } from "./codec.gen.ts";
 
 export interface AsyncServiceTransport {
   call(service: string, op: string, req: Uint8Array): Promise<Uint8Array>;
@@ -55,6 +55,87 @@ export class IdentityAsyncClient {
   async refresh(req: RefreshRequest): Promise<TokenResponse> {
     const csilResp = await this.t.call("IdentityService", "refresh", toRefreshRequestCbor(req));
     return fromTokenResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async application(req: ApplicationRequest): Promise<AppRef> {
+    const csilResp = await this.t.call("IdentityService", "application", toApplicationRequestCbor(req));
+    return fromAppRefCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async beginGrant(req: BeginGrantRequest): Promise<BeginGrantResponse> {
+    const csilResp = await this.t.call("IdentityService", "begin-grant", toBeginGrantRequestCbor(req));
+    return fromBeginGrantResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async listGrants(req: ListGrantsRequest): Promise<ListGrantsResponse> {
+    const csilResp = await this.t.call("IdentityService", "list-grants", toListGrantsRequestCbor(req));
+    return fromListGrantsResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async presentGrant(req: PresentGrantRequest): Promise<PresentGrantResponse> {
+    const csilResp = await this.t.call("IdentityService", "present-grant", toPresentGrantRequestCbor(req));
+    return fromPresentGrantResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async forgetGrant(req: ForgetGrantRequest): Promise<EmptyResponse> {
+    const csilResp = await this.t.call("IdentityService", "forget-grant", toForgetGrantRequestCbor(req));
+    return fromEmptyResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async putCredential(req: PutCredentialRequest): Promise<Credential> {
+    const csilResp = await this.t.call("IdentityService", "put-credential", toPutCredentialRequestCbor(req));
+    return fromCredentialCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async getCredential(req: CredentialRef): Promise<Credential> {
+    const csilResp = await this.t.call("IdentityService", "get-credential", toCredentialRefCbor(req));
+    return fromCredentialCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async listCredentials(req: ListCredentialsRequest): Promise<ListCredentialsResponse> {
+    const csilResp = await this.t.call("IdentityService", "list-credentials", toListCredentialsRequestCbor(req));
+    return fromListCredentialsResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async forgetCredential(req: CredentialRef): Promise<EmptyResponse> {
+    const csilResp = await this.t.call("IdentityService", "forget-credential", toCredentialRefCbor(req));
+    return fromEmptyResponseCbor(csilResp);
   }
 }
 

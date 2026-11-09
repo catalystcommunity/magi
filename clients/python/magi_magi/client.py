@@ -239,6 +239,18 @@ class MagiClient:
         """decide-egress-review"""
         return DecideEgressReviewResponse.from_cbor(self._transport.call("MagiService", "decide-egress-review", req.to_cbor()))
 
+    def connect(self, req: ConnectRequest) -> ConnectResponse:
+        """connect"""
+        return ConnectResponse.from_cbor(self._transport.call("MagiService", "connect", req.to_cbor()))
+
+    def list_connections(self, req: ListConnectionsRequest) -> ListConnectionsResponse:
+        """list-connections"""
+        return ListConnectionsResponse.from_cbor(self._transport.call("MagiService", "list-connections", req.to_cbor()))
+
+    def disconnect(self, req: DisconnectRequest) -> Connection:
+        """disconnect"""
+        return Connection.from_cbor(self._transport.call("MagiService", "disconnect", req.to_cbor()))
+
 class RunnerClient:
     """Typed client for the RunnerService service."""
     def __init__(self, transport: Transport):

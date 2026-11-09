@@ -62,6 +62,105 @@ func IdentityServiceOps(impl IdentityService) map[string]func(context.Context, [
 			}
 			return EncodeTokenResponse(resp), nil
 		},
+		"application": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeApplicationRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Application(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeAppRef(resp), nil
+		},
+		"begin-grant": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeBeginGrantRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.BeginGrant(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeBeginGrantResponse(resp), nil
+		},
+		"list-grants": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListGrantsRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListGrants(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListGrantsResponse(resp), nil
+		},
+		"present-grant": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodePresentGrantRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.PresentGrant(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodePresentGrantResponse(resp), nil
+		},
+		"forget-grant": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeForgetGrantRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ForgetGrant(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeEmptyResponse(resp), nil
+		},
+		"put-credential": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodePutCredentialRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.PutCredential(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeCredential(resp), nil
+		},
+		"get-credential": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeCredentialRef(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.GetCredential(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeCredential(resp), nil
+		},
+		"list-credentials": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListCredentialsRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListCredentials(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListCredentialsResponse(resp), nil
+		},
+		"forget-credential": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeCredentialRef(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ForgetCredential(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeEmptyResponse(resp), nil
+		},
 	}
 }
 

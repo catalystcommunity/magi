@@ -969,6 +969,47 @@ export interface DecideEgressReviewResponse {
 }
 
 /**
+ * Connections to other applications: Magi acts for the person there.
+ * system is "calendar" (catalystcal, through a LinkKeys act-as grant) or
+ * "longhouse" (projects and tasks, through a Longhouse CLI session that
+ * the person approves). connect gives a url to open in a browser; for
+ * longhouse, user_code is the code that the page shows. Magi finishes the
+ * connection when the person approves.
+ */
+export interface ConnectRequest {
+  system: string;
+}
+
+export interface ConnectResponse {
+  system: string;
+  url: string;
+  userCode?: string;
+  expiresMs: number;
+  message: string;
+}
+
+/**
+ * state is "connected", "pending", "expired", "revoked", or "none".
+ */
+export interface Connection {
+  system: string;
+  state: string;
+  detail?: string;
+  expiresMs?: number;
+}
+
+export interface ListConnectionsRequest {
+}
+
+export interface ListConnectionsResponse {
+  connections: Connection[];
+}
+
+export interface DisconnectRequest {
+  system: string;
+}
+
+/**
  * RunnerService is for runners: programs on other machines that connect
  * to Magi, claim workflow steps from their own queues, and run them there.
  * A runner never listens on the network. A runner token has the scope

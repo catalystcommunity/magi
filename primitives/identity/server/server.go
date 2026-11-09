@@ -65,6 +65,10 @@ type Service struct {
 	Log        *slog.Logger
 	// PollInterval is the store check interval of a long poll.
 	PollInterval time.Duration
+	// Grantee holds Magi's LinkKeys application keys (act-as grants).
+	Grantee *Grantee
+	// CredentialKey encrypts stored credentials (32 bytes).
+	CredentialKey []byte
 
 	mu     sync.Mutex
 	tokens float64

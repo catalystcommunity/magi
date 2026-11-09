@@ -537,6 +537,20 @@ ListEgressReviewsResponse = { reviews: [* EgressReview] }
 DecideEgressReviewRequest = { id: text, decision: text, ? note: text }
 DecideEgressReviewResponse = { id: text, decision: text, ? rule: text }
 
+;;; Connections to other applications: Magi acts for the person there.
+;;; system is "calendar" (catalystcal, through a LinkKeys act-as grant) or
+;;; "longhouse" (projects and tasks, through a Longhouse CLI session that
+;;; the person approves). connect gives a url to open in a browser; for
+;;; longhouse, user_code is the code that the page shows. Magi finishes the
+;;; connection when the person approves.
+ConnectRequest = { system: text }
+ConnectResponse = { system: text, url: text, ? user_code: text, expires_ms: uint, message: text }
+;;; state is "connected", "pending", "expired", "revoked", or "none".
+Connection = { system: text, state: text, ? detail: text, ? expires_ms: uint }
+ListConnectionsRequest = { }
+ListConnectionsResponse = { connections: [* Connection] }
+DisconnectRequest = { system: text }
+
 service MagiService {
   say: SayRequest -> SayResponse,
   read: ReadRequest -> ReadResponse,
@@ -590,6 +604,9 @@ service MagiService {
   get-app-package: GetAppPackageRequest -> GetAppPackageResponse,
   list-egress-reviews: ListEgressReviewsRequest -> ListEgressReviewsResponse,
   decide-egress-review: DecideEgressReviewRequest -> DecideEgressReviewResponse,
+  connect: ConnectRequest -> ConnectResponse,
+  list-connections: ListConnectionsRequest -> ListConnectionsResponse,
+  disconnect: DisconnectRequest -> Connection,
 }
 
 ;;; RunnerService is for runners: programs on other machines that connect

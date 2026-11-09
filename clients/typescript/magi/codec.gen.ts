@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { AckNoticeRequest, AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, ChangeKnowledgeRequest, ChangeKnowledgeResponse, CheckOverlapRequest, CheckOverlapResponse, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideRequest, DeleteLexiconWordRequest, DeleteLexiconWordResponse, DeliverNoticeRequest, Device, EgressDestinationRequest, EgressDestinationResponse, EgressDetectRequest, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressFlow, EgressFlowHeader, EgressReportRequest, EgressReportResponse, EgressReview, EgressReviewHeader, EgressSecretRule, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, FileChange, FinishTodoRequest, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetTaskDiffRequest, GetTaskOutputRequest, GetTaskRequest, KnowledgeChange, KnowledgeFact, KnowledgeHistoryRequest, KnowledgeHistoryResponse, KnowledgeItem, KnowledgeRecord, LexiconWord, LinkRequest, ListDevicesRequest, ListDevicesResponse, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListNoticesRequest, ListNoticesResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListTodosRequest, ListTodosResponse, ListVoicesRequest, ListVoicesResponse, ListenRequest, ListenResponse, MergeKnowledgeRequest, Message, MessageLink, Notice, NoticeDelivery, PersonaInfo, PutAppReleaseRequest, PutDeviceRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, RememberResponse, RemoveDeviceRequest, ReportDeliveryRequest, ReportDeliveryResponse, ReviewItem, RunnerAck, RunnerAssignment, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerEgressProxy, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerInfo, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, RunnerUpdate, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, SpeechPart, StartTaskRequest, StopSpeechRequest, StopSpeechResponse, Task, TaskDiff, TaskOutput, TaskStep, Todo, TraceRequest, TraceResponse, UnlinkRequest, UnmergeKnowledgeRequest, VoiceInfo, WaitNoticesRequest, WaitNoticesResponse, WordTime } from "./types.gen.ts";
+import type { AckNoticeRequest, AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, ChangeKnowledgeRequest, ChangeKnowledgeResponse, CheckOverlapRequest, CheckOverlapResponse, ConnectRequest, ConnectResponse, Connection, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideRequest, DeleteLexiconWordRequest, DeleteLexiconWordResponse, DeliverNoticeRequest, Device, DisconnectRequest, EgressDestinationRequest, EgressDestinationResponse, EgressDetectRequest, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressFlow, EgressFlowHeader, EgressReportRequest, EgressReportResponse, EgressReview, EgressReviewHeader, EgressSecretRule, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, FileChange, FinishTodoRequest, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetTaskDiffRequest, GetTaskOutputRequest, GetTaskRequest, KnowledgeChange, KnowledgeFact, KnowledgeHistoryRequest, KnowledgeHistoryResponse, KnowledgeItem, KnowledgeRecord, LexiconWord, LinkRequest, ListConnectionsRequest, ListConnectionsResponse, ListDevicesRequest, ListDevicesResponse, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListNoticesRequest, ListNoticesResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListTodosRequest, ListTodosResponse, ListVoicesRequest, ListVoicesResponse, ListenRequest, ListenResponse, MergeKnowledgeRequest, Message, MessageLink, Notice, NoticeDelivery, PersonaInfo, PutAppReleaseRequest, PutDeviceRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, RememberResponse, RemoveDeviceRequest, ReportDeliveryRequest, ReportDeliveryResponse, ReviewItem, RunnerAck, RunnerAssignment, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerEgressProxy, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerInfo, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, RunnerUpdate, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, SpeechPart, StartTaskRequest, StopSpeechRequest, StopSpeechResponse, Task, TaskDiff, TaskOutput, TaskStep, Todo, TraceRequest, TraceResponse, UnlinkRequest, UnmergeKnowledgeRequest, VoiceInfo, WaitNoticesRequest, WaitNoticesResponse, WordTime } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -3128,6 +3128,138 @@ export function toDecideEgressReviewResponseCbor(v: DecideEgressReviewResponse):
 
 export function fromDecideEgressReviewResponseCbor(bytes: Uint8Array): DecideEgressReviewResponse {
   return fromDecideEgressReviewResponseCborValue(decode(bytes));
+}
+
+export function toConnectRequestCborValue(v: ConnectRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("system", v.system);
+  return csilMap;
+}
+
+export function fromConnectRequestCborValue(value: CborValue): ConnectRequest {
+  return {
+    system: asString(requireKey(value, "system")),
+  };
+}
+
+export function toConnectRequestCbor(v: ConnectRequest): Uint8Array {
+  return encodeValue(toConnectRequestCborValue(v));
+}
+
+export function fromConnectRequestCbor(bytes: Uint8Array): ConnectRequest {
+  return fromConnectRequestCborValue(decode(bytes));
+}
+
+export function toConnectResponseCborValue(v: ConnectResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("url", v.url);
+  csilMap.set("system", v.system);
+  csilMap.set("message", v.message);
+  if (v.userCode !== undefined) csilMap.set("user_code", v.userCode);
+  csilMap.set("expires_ms", v.expiresMs);
+  return csilMap;
+}
+
+export function fromConnectResponseCborValue(value: CborValue): ConnectResponse {
+  return {
+    system: asString(requireKey(value, "system")),
+    url: asString(requireKey(value, "url")),
+    userCode: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "user_code")),
+    expiresMs: asNumber(requireKey(value, "expires_ms")),
+    message: asString(requireKey(value, "message")),
+  };
+}
+
+export function toConnectResponseCbor(v: ConnectResponse): Uint8Array {
+  return encodeValue(toConnectResponseCborValue(v));
+}
+
+export function fromConnectResponseCbor(bytes: Uint8Array): ConnectResponse {
+  return fromConnectResponseCborValue(decode(bytes));
+}
+
+export function toConnectionCborValue(v: Connection): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("state", v.state);
+  if (v.detail !== undefined) csilMap.set("detail", v.detail);
+  csilMap.set("system", v.system);
+  if (v.expiresMs !== undefined) csilMap.set("expires_ms", v.expiresMs);
+  return csilMap;
+}
+
+export function fromConnectionCborValue(value: CborValue): Connection {
+  return {
+    system: asString(requireKey(value, "system")),
+    state: asString(requireKey(value, "state")),
+    detail: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "detail")),
+    expiresMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "expires_ms")),
+  };
+}
+
+export function toConnectionCbor(v: Connection): Uint8Array {
+  return encodeValue(toConnectionCborValue(v));
+}
+
+export function fromConnectionCbor(bytes: Uint8Array): Connection {
+  return fromConnectionCborValue(decode(bytes));
+}
+
+export function toListConnectionsRequestCborValue(v: ListConnectionsRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  return csilMap;
+}
+
+export function fromListConnectionsRequestCborValue(value: CborValue): ListConnectionsRequest {
+  void value;
+  return {} as ListConnectionsRequest;
+}
+
+export function toListConnectionsRequestCbor(v: ListConnectionsRequest): Uint8Array {
+  return encodeValue(toListConnectionsRequestCborValue(v));
+}
+
+export function fromListConnectionsRequestCbor(bytes: Uint8Array): ListConnectionsRequest {
+  return fromListConnectionsRequestCborValue(decode(bytes));
+}
+
+export function toListConnectionsResponseCborValue(v: ListConnectionsResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("connections", v.connections.map((csilE): CborValue => toConnectionCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromListConnectionsResponseCborValue(value: CborValue): ListConnectionsResponse {
+  return {
+    connections: asArray(requireKey(value, "connections")).map((csilE) => fromConnectionCborValue(csilE)),
+  };
+}
+
+export function toListConnectionsResponseCbor(v: ListConnectionsResponse): Uint8Array {
+  return encodeValue(toListConnectionsResponseCborValue(v));
+}
+
+export function fromListConnectionsResponseCbor(bytes: Uint8Array): ListConnectionsResponse {
+  return fromListConnectionsResponseCborValue(decode(bytes));
+}
+
+export function toDisconnectRequestCborValue(v: DisconnectRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("system", v.system);
+  return csilMap;
+}
+
+export function fromDisconnectRequestCborValue(value: CborValue): DisconnectRequest {
+  return {
+    system: asString(requireKey(value, "system")),
+  };
+}
+
+export function toDisconnectRequestCbor(v: DisconnectRequest): Uint8Array {
+  return encodeValue(toDisconnectRequestCborValue(v));
+}
+
+export function fromDisconnectRequestCbor(bytes: Uint8Array): DisconnectRequest {
+  return fromDisconnectRequestCborValue(decode(bytes));
 }
 
 export function toRunnerClaimRequestCborValue(v: RunnerClaimRequest): CborValue {

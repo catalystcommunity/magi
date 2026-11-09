@@ -1,6 +1,6 @@
 module github.com/catalystcommunity/magi/magi
 
-go 1.26.0
+go 1.26.4
 
 replace (
 	github.com/catalystcommunity/magi/lib/authn => ../lib/authn
@@ -30,6 +30,8 @@ require (
 
 require (
 	github.com/CatalystCommunity/corndogs/clients/corndogs v0.0.0-20260930033320-f1b6ec6086dd // indirect
+	github.com/catalystcommunity/catalystcal/clients/go v0.3.0 // indirect
+	github.com/catalystcommunity/longhouse/clients/go v0.0.0-20261108205303-831c2556920a // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.14.3 // indirect
 	github.com/docker/cli v27.1.1+incompatible // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect

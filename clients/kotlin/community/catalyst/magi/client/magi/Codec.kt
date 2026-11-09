@@ -3003,6 +3003,132 @@ fun decideEgressReviewResponseFromCborValue(cbor: CborValue): DecideEgressReview
 /** Decode CSIL CBOR bytes into a DecideEgressReviewResponse. */
 fun decideEgressReviewResponseFromCbor(bytes: ByteArray): DecideEgressReviewResponse = decideEgressReviewResponseFromCborValue(CsilCbor.decode(bytes))
 
+/** The CBOR value tree for a ConnectRequest (deep, canonical key order). */
+fun ConnectRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("system") to CborValue.CText(this.system))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ConnectRequest to canonical CSIL CBOR bytes. */
+fun ConnectRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ConnectRequest from a decoded CBOR value tree. */
+fun connectRequestFromCborValue(cbor: CborValue): ConnectRequest {
+    val system = CsilCbor.asText(CsilCbor.require(cbor, "system"))
+    return ConnectRequest(system = system)
+}
+
+/** Decode CSIL CBOR bytes into a ConnectRequest. */
+fun connectRequestFromCbor(bytes: ByteArray): ConnectRequest = connectRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ConnectResponse (deep, canonical key order). */
+fun ConnectResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("url") to CborValue.CText(this.url))
+    csilEntries.add(CborValue.CText("system") to CborValue.CText(this.system))
+    csilEntries.add(CborValue.CText("message") to CborValue.CText(this.message))
+    this.userCode?.let { csilV -> csilEntries.add(CborValue.CText("user_code") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("expires_ms") to CborValue.CUint(this.expiresMs))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ConnectResponse to canonical CSIL CBOR bytes. */
+fun ConnectResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ConnectResponse from a decoded CBOR value tree. */
+fun connectResponseFromCborValue(cbor: CborValue): ConnectResponse {
+    val system = CsilCbor.asText(CsilCbor.require(cbor, "system"))
+    val url = CsilCbor.asText(CsilCbor.require(cbor, "url"))
+    val userCode = CsilCbor.mapGet(cbor, "user_code")?.let { csilV -> CsilCbor.asText(csilV) }
+    val expiresMs = CsilCbor.asULong(CsilCbor.require(cbor, "expires_ms"))
+    val message = CsilCbor.asText(CsilCbor.require(cbor, "message"))
+    return ConnectResponse(system = system, url = url, userCode = userCode, expiresMs = expiresMs, message = message)
+}
+
+/** Decode CSIL CBOR bytes into a ConnectResponse. */
+fun connectResponseFromCbor(bytes: ByteArray): ConnectResponse = connectResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a Connection (deep, canonical key order). */
+fun Connection.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("state") to CborValue.CText(this.state))
+    this.detail?.let { csilV -> csilEntries.add(CborValue.CText("detail") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("system") to CborValue.CText(this.system))
+    this.expiresMs?.let { csilV -> csilEntries.add(CborValue.CText("expires_ms") to CborValue.CUint(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a Connection to canonical CSIL CBOR bytes. */
+fun Connection.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a Connection from a decoded CBOR value tree. */
+fun connectionFromCborValue(cbor: CborValue): Connection {
+    val system = CsilCbor.asText(CsilCbor.require(cbor, "system"))
+    val state = CsilCbor.asText(CsilCbor.require(cbor, "state"))
+    val detail = CsilCbor.mapGet(cbor, "detail")?.let { csilV -> CsilCbor.asText(csilV) }
+    val expiresMs = CsilCbor.mapGet(cbor, "expires_ms")?.let { csilV -> CsilCbor.asULong(csilV) }
+    return Connection(system = system, state = state, detail = detail, expiresMs = expiresMs)
+}
+
+/** Decode CSIL CBOR bytes into a Connection. */
+fun connectionFromCbor(bytes: ByteArray): Connection = connectionFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListConnectionsRequest (deep, canonical key order). */
+fun ListConnectionsRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListConnectionsRequest to canonical CSIL CBOR bytes. */
+fun ListConnectionsRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListConnectionsRequest from a decoded CBOR value tree. */
+fun listConnectionsRequestFromCborValue(cbor: CborValue): ListConnectionsRequest {
+    return ListConnectionsRequest()
+}
+
+/** Decode CSIL CBOR bytes into a ListConnectionsRequest. */
+fun listConnectionsRequestFromCbor(bytes: ByteArray): ListConnectionsRequest = listConnectionsRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListConnectionsResponse (deep, canonical key order). */
+fun ListConnectionsResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("connections") to CborValue.CArray((this.connections).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListConnectionsResponse to canonical CSIL CBOR bytes. */
+fun ListConnectionsResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListConnectionsResponse from a decoded CBOR value tree. */
+fun listConnectionsResponseFromCborValue(cbor: CborValue): ListConnectionsResponse {
+    val connections = CsilCbor.asArray(CsilCbor.require(cbor, "connections")).map { csilE -> connectionFromCborValue(csilE) }
+    return ListConnectionsResponse(connections = connections)
+}
+
+/** Decode CSIL CBOR bytes into a ListConnectionsResponse. */
+fun listConnectionsResponseFromCbor(bytes: ByteArray): ListConnectionsResponse = listConnectionsResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a DisconnectRequest (deep, canonical key order). */
+fun DisconnectRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("system") to CborValue.CText(this.system))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a DisconnectRequest to canonical CSIL CBOR bytes. */
+fun DisconnectRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a DisconnectRequest from a decoded CBOR value tree. */
+fun disconnectRequestFromCborValue(cbor: CborValue): DisconnectRequest {
+    val system = CsilCbor.asText(CsilCbor.require(cbor, "system"))
+    return DisconnectRequest(system = system)
+}
+
+/** Decode CSIL CBOR bytes into a DisconnectRequest. */
+fun disconnectRequestFromCbor(bytes: ByteArray): DisconnectRequest = disconnectRequestFromCborValue(CsilCbor.decode(bytes))
+
 /** The CBOR value tree for a RunnerClaimRequest (deep, canonical key order). */
 fun RunnerClaimRequest.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
@@ -3912,6 +4038,12 @@ private fun csilToCborValue(value: Any?): CborValue = when (value) {
     is ListEgressReviewsResponse -> value.toCborValue()
     is DecideEgressReviewRequest -> value.toCborValue()
     is DecideEgressReviewResponse -> value.toCborValue()
+    is ConnectRequest -> value.toCborValue()
+    is ConnectResponse -> value.toCborValue()
+    is Connection -> value.toCborValue()
+    is ListConnectionsRequest -> value.toCborValue()
+    is ListConnectionsResponse -> value.toCborValue()
+    is DisconnectRequest -> value.toCborValue()
     is RunnerClaimRequest -> value.toCborValue()
     is RunnerAssignment -> value.toCborValue()
     is RunnerClaimResponse -> value.toCborValue()
@@ -4066,6 +4198,12 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     ListEgressReviewsResponse::class -> listEgressReviewsResponseFromCborValue(cbor)
     DecideEgressReviewRequest::class -> decideEgressReviewRequestFromCborValue(cbor)
     DecideEgressReviewResponse::class -> decideEgressReviewResponseFromCborValue(cbor)
+    ConnectRequest::class -> connectRequestFromCborValue(cbor)
+    ConnectResponse::class -> connectResponseFromCborValue(cbor)
+    Connection::class -> connectionFromCborValue(cbor)
+    ListConnectionsRequest::class -> listConnectionsRequestFromCborValue(cbor)
+    ListConnectionsResponse::class -> listConnectionsResponseFromCborValue(cbor)
+    DisconnectRequest::class -> disconnectRequestFromCborValue(cbor)
     RunnerClaimRequest::class -> runnerClaimRequestFromCborValue(cbor)
     RunnerAssignment::class -> runnerAssignmentFromCborValue(cbor)
     RunnerClaimResponse::class -> runnerClaimResponseFromCborValue(cbor)

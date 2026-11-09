@@ -651,6 +651,39 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			}
 			return EncodeDecideEgressReviewResponse(resp), nil
 		},
+		"connect": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeConnectRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Connect(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeConnectResponse(resp), nil
+		},
+		"list-connections": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListConnectionsRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListConnections(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListConnectionsResponse(resp), nil
+		},
+		"disconnect": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeDisconnectRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Disconnect(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeConnection(resp), nil
+		},
 	}
 }
 

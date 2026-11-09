@@ -285,3 +285,502 @@ class TokenResponse:
         return cls.from_dict(json.loads(json_str))
 
 
+@dataclass
+class AppRef:
+    domain: str
+    user_id: str
+    app_id: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'domain') and self.domain is not None:
+            result['domain'] = self.domain
+        if hasattr(self, 'user_id') and self.user_id is not None:
+            result['user_id'] = self.user_id
+        if hasattr(self, 'app_id') and self.app_id is not None:
+            result['app_id'] = self.app_id
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'AppRef':
+        """Create instance from dictionary."""
+        return cls(domain=data.get('domain'), user_id=data.get('user_id'), app_id=data.get('app_id'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'AppRef':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ApplicationRequest:
+    detail: Optional[bool] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'detail') and self.detail is not None:
+            result['detail'] = self.detail
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ApplicationRequest':
+        """Create instance from dictionary."""
+        return cls(detail=data.get('detail'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ApplicationRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class BeginGrantRequest:
+    audience: AppRef
+    signed_scope_set: bytes
+    owner: Optional[str] = None
+    return_url: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'audience') and self.audience is not None:
+            result['audience'] = self.audience
+        if hasattr(self, 'signed_scope_set') and self.signed_scope_set is not None:
+            result['signed_scope_set'] = self.signed_scope_set
+        if hasattr(self, 'owner') and self.owner is not None:
+            result['owner'] = self.owner
+        if hasattr(self, 'return_url') and self.return_url is not None:
+            result['return_url'] = self.return_url
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'BeginGrantRequest':
+        """Create instance from dictionary."""
+        return cls(audience=data.get('audience'), signed_scope_set=data.get('signed_scope_set'), owner=data.get('owner'), return_url=data.get('return_url'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'BeginGrantRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class BeginGrantResponse:
+    url: str
+    expires_ms: int
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'url') and self.url is not None:
+            result['url'] = self.url
+        if hasattr(self, 'expires_ms') and self.expires_ms is not None:
+            result['expires_ms'] = self.expires_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'BeginGrantResponse':
+        """Create instance from dictionary."""
+        return cls(url=data.get('url'), expires_ms=data.get('expires_ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'BeginGrantResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class Grant:
+    grant_id: str
+    owner: str
+    audience: AppRef
+    scopes: List[str]
+    expires_ms: int
+    renewable_until_ms: int
+    created_ms: int
+    state: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'grant_id') and self.grant_id is not None:
+            result['grant_id'] = self.grant_id
+        if hasattr(self, 'owner') and self.owner is not None:
+            result['owner'] = self.owner
+        if hasattr(self, 'audience') and self.audience is not None:
+            result['audience'] = self.audience
+        if hasattr(self, 'scopes') and self.scopes is not None:
+            result['scopes'] = self.scopes
+        if hasattr(self, 'expires_ms') and self.expires_ms is not None:
+            result['expires_ms'] = self.expires_ms
+        if hasattr(self, 'renewable_until_ms') and self.renewable_until_ms is not None:
+            result['renewable_until_ms'] = self.renewable_until_ms
+        if hasattr(self, 'created_ms') and self.created_ms is not None:
+            result['created_ms'] = self.created_ms
+        if hasattr(self, 'state') and self.state is not None:
+            result['state'] = self.state
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Grant':
+        """Create instance from dictionary."""
+        return cls(grant_id=data.get('grant_id'), owner=data.get('owner'), audience=data.get('audience'), scopes=data.get('scopes'), expires_ms=data.get('expires_ms'), renewable_until_ms=data.get('renewable_until_ms'), created_ms=data.get('created_ms'), state=data.get('state'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'Grant':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ListGrantsRequest:
+    owner: Optional[str] = None
+    audience: Optional[AppRef] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'owner') and self.owner is not None:
+            result['owner'] = self.owner
+        if hasattr(self, 'audience') and self.audience is not None:
+            result['audience'] = self.audience
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ListGrantsRequest':
+        """Create instance from dictionary."""
+        return cls(owner=data.get('owner'), audience=data.get('audience'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ListGrantsRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ListGrantsResponse:
+    grants: List[Grant]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'grants') and self.grants is not None:
+            result['grants'] = self.grants
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ListGrantsResponse':
+        """Create instance from dictionary."""
+        return cls(grants=data.get('grants'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ListGrantsResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class PresentGrantRequest:
+    owner: str
+    audience: AppRef
+    request_digest: bytes
+    grant_id: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'owner') and self.owner is not None:
+            result['owner'] = self.owner
+        if hasattr(self, 'audience') and self.audience is not None:
+            result['audience'] = self.audience
+        if hasattr(self, 'request_digest') and self.request_digest is not None:
+            result['request_digest'] = self.request_digest
+        if hasattr(self, 'grant_id') and self.grant_id is not None:
+            result['grant_id'] = self.grant_id
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'PresentGrantRequest':
+        """Create instance from dictionary."""
+        return cls(owner=data.get('owner'), audience=data.get('audience'), request_digest=data.get('request_digest'), grant_id=data.get('grant_id'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'PresentGrantRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class PresentGrantResponse:
+    credential: bytes
+    grant_id: str
+    scopes: List[str]
+    expires_ms: int
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'credential') and self.credential is not None:
+            result['credential'] = self.credential
+        if hasattr(self, 'grant_id') and self.grant_id is not None:
+            result['grant_id'] = self.grant_id
+        if hasattr(self, 'scopes') and self.scopes is not None:
+            result['scopes'] = self.scopes
+        if hasattr(self, 'expires_ms') and self.expires_ms is not None:
+            result['expires_ms'] = self.expires_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'PresentGrantResponse':
+        """Create instance from dictionary."""
+        return cls(credential=data.get('credential'), grant_id=data.get('grant_id'), scopes=data.get('scopes'), expires_ms=data.get('expires_ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'PresentGrantResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ForgetGrantRequest:
+    grant_id: str
+    owner: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'grant_id') and self.grant_id is not None:
+            result['grant_id'] = self.grant_id
+        if hasattr(self, 'owner') and self.owner is not None:
+            result['owner'] = self.owner
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ForgetGrantRequest':
+        """Create instance from dictionary."""
+        return cls(grant_id=data.get('grant_id'), owner=data.get('owner'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ForgetGrantRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class EmptyResponse:
+    ok: Optional[bool] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'ok') and self.ok is not None:
+            result['ok'] = self.ok
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'EmptyResponse':
+        """Create instance from dictionary."""
+        return cls(ok=data.get('ok'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'EmptyResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class CredentialRef:
+    owner: str
+    system: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'owner') and self.owner is not None:
+            result['owner'] = self.owner
+        if hasattr(self, 'system') and self.system is not None:
+            result['system'] = self.system
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'CredentialRef':
+        """Create instance from dictionary."""
+        return cls(owner=data.get('owner'), system=data.get('system'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'CredentialRef':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class PutCredentialRequest:
+    owner: str
+    system: str
+    value: str
+    label: Optional[str] = None
+    expires_ms: Optional[int] = None
+    expected_revision: Optional[int] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'owner') and self.owner is not None:
+            result['owner'] = self.owner
+        if hasattr(self, 'system') and self.system is not None:
+            result['system'] = self.system
+        if hasattr(self, 'value') and self.value is not None:
+            result['value'] = self.value
+        if hasattr(self, 'label') and self.label is not None:
+            result['label'] = self.label
+        if hasattr(self, 'expires_ms') and self.expires_ms is not None:
+            result['expires_ms'] = self.expires_ms
+        if hasattr(self, 'expected_revision') and self.expected_revision is not None:
+            result['expected_revision'] = self.expected_revision
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'PutCredentialRequest':
+        """Create instance from dictionary."""
+        return cls(owner=data.get('owner'), system=data.get('system'), value=data.get('value'), label=data.get('label'), expires_ms=data.get('expires_ms'), expected_revision=data.get('expected_revision'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'PutCredentialRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class Credential:
+    owner: str
+    system: str
+    label: str
+    revision: int
+    expires_ms: int
+    updated_ms: int
+    value: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'owner') and self.owner is not None:
+            result['owner'] = self.owner
+        if hasattr(self, 'system') and self.system is not None:
+            result['system'] = self.system
+        if hasattr(self, 'label') and self.label is not None:
+            result['label'] = self.label
+        if hasattr(self, 'revision') and self.revision is not None:
+            result['revision'] = self.revision
+        if hasattr(self, 'expires_ms') and self.expires_ms is not None:
+            result['expires_ms'] = self.expires_ms
+        if hasattr(self, 'updated_ms') and self.updated_ms is not None:
+            result['updated_ms'] = self.updated_ms
+        if hasattr(self, 'value') and self.value is not None:
+            result['value'] = self.value
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Credential':
+        """Create instance from dictionary."""
+        return cls(owner=data.get('owner'), system=data.get('system'), label=data.get('label'), revision=data.get('revision'), expires_ms=data.get('expires_ms'), updated_ms=data.get('updated_ms'), value=data.get('value'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'Credential':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ListCredentialsRequest:
+    owner: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'owner') and self.owner is not None:
+            result['owner'] = self.owner
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ListCredentialsRequest':
+        """Create instance from dictionary."""
+        return cls(owner=data.get('owner'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ListCredentialsRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ListCredentialsResponse:
+    credentials: List[Credential]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'credentials') and self.credentials is not None:
+            result['credentials'] = self.credentials
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ListCredentialsResponse':
+        """Create instance from dictionary."""
+        return cls(credentials=data.get('credentials'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ListCredentialsResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+

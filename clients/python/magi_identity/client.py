@@ -51,3 +51,39 @@ class IdentityClient:
         """refresh"""
         return TokenResponse.from_cbor(self._transport.call("IdentityService", "refresh", req.to_cbor()))
 
+    def application(self, req: ApplicationRequest) -> AppRef:
+        """application"""
+        return AppRef.from_cbor(self._transport.call("IdentityService", "application", req.to_cbor()))
+
+    def begin_grant(self, req: BeginGrantRequest) -> BeginGrantResponse:
+        """begin-grant"""
+        return BeginGrantResponse.from_cbor(self._transport.call("IdentityService", "begin-grant", req.to_cbor()))
+
+    def list_grants(self, req: ListGrantsRequest) -> ListGrantsResponse:
+        """list-grants"""
+        return ListGrantsResponse.from_cbor(self._transport.call("IdentityService", "list-grants", req.to_cbor()))
+
+    def present_grant(self, req: PresentGrantRequest) -> PresentGrantResponse:
+        """present-grant"""
+        return PresentGrantResponse.from_cbor(self._transport.call("IdentityService", "present-grant", req.to_cbor()))
+
+    def forget_grant(self, req: ForgetGrantRequest) -> EmptyResponse:
+        """forget-grant"""
+        return EmptyResponse.from_cbor(self._transport.call("IdentityService", "forget-grant", req.to_cbor()))
+
+    def put_credential(self, req: PutCredentialRequest) -> Credential:
+        """put-credential"""
+        return Credential.from_cbor(self._transport.call("IdentityService", "put-credential", req.to_cbor()))
+
+    def get_credential(self, req: CredentialRef) -> Credential:
+        """get-credential"""
+        return Credential.from_cbor(self._transport.call("IdentityService", "get-credential", req.to_cbor()))
+
+    def list_credentials(self, req: ListCredentialsRequest) -> ListCredentialsResponse:
+        """list-credentials"""
+        return ListCredentialsResponse.from_cbor(self._transport.call("IdentityService", "list-credentials", req.to_cbor()))
+
+    def forget_credential(self, req: CredentialRef) -> EmptyResponse:
+        """forget-credential"""
+        return EmptyResponse.from_cbor(self._transport.call("IdentityService", "forget-credential", req.to_cbor()))
+

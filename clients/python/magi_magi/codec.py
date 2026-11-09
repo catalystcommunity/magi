@@ -3719,6 +3719,161 @@ def _decide_egress_review_response_from_cbor(data: bytes) -> "DecideEgressReview
 DecideEgressReviewResponse.to_cbor = _decide_egress_review_response_to_cbor
 DecideEgressReviewResponse.from_cbor = staticmethod(_decide_egress_review_response_from_cbor)
 
+def _encode_connect_request_value(v: "ConnectRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["system"] = v.system
+    return csil_m
+
+def _decode_connect_request_value(tree: Any) -> "ConnectRequest":
+    tree = _csil_expect_map(tree)
+    return ConnectRequest(
+        system=_csil_expect_text(tree["system"]),
+    )
+
+
+def _connect_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_connect_request_value(self))
+
+
+def _connect_request_from_cbor(data: bytes) -> "ConnectRequest":
+    return _decode_connect_request_value(cbor_decode(data))
+
+
+ConnectRequest.to_cbor = _connect_request_to_cbor
+ConnectRequest.from_cbor = staticmethod(_connect_request_from_cbor)
+
+def _encode_connect_response_value(v: "ConnectResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["url"] = v.url
+    csil_m["system"] = v.system
+    csil_m["message"] = v.message
+    csil_x = v.user_code
+    if csil_x is not None:
+        csil_m["user_code"] = csil_x
+    csil_m["expires_ms"] = v.expires_ms
+    return csil_m
+
+def _decode_connect_response_value(tree: Any) -> "ConnectResponse":
+    tree = _csil_expect_map(tree)
+    return ConnectResponse(
+        system=_csil_expect_text(tree["system"]),
+        url=_csil_expect_text(tree["url"]),
+        user_code=(None if tree.get("user_code") is None else _csil_expect_text(tree["user_code"])),
+        expires_ms=_csil_expect_uint(tree["expires_ms"]),
+        message=_csil_expect_text(tree["message"]),
+    )
+
+
+def _connect_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_connect_response_value(self))
+
+
+def _connect_response_from_cbor(data: bytes) -> "ConnectResponse":
+    return _decode_connect_response_value(cbor_decode(data))
+
+
+ConnectResponse.to_cbor = _connect_response_to_cbor
+ConnectResponse.from_cbor = staticmethod(_connect_response_from_cbor)
+
+def _encode_connection_value(v: "Connection") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["state"] = v.state
+    csil_x = v.detail
+    if csil_x is not None:
+        csil_m["detail"] = csil_x
+    csil_m["system"] = v.system
+    csil_x = v.expires_ms
+    if csil_x is not None:
+        csil_m["expires_ms"] = csil_x
+    return csil_m
+
+def _decode_connection_value(tree: Any) -> "Connection":
+    tree = _csil_expect_map(tree)
+    return Connection(
+        system=_csil_expect_text(tree["system"]),
+        state=_csil_expect_text(tree["state"]),
+        detail=(None if tree.get("detail") is None else _csil_expect_text(tree["detail"])),
+        expires_ms=(None if tree.get("expires_ms") is None else _csil_expect_uint(tree["expires_ms"])),
+    )
+
+
+def _connection_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_connection_value(self))
+
+
+def _connection_from_cbor(data: bytes) -> "Connection":
+    return _decode_connection_value(cbor_decode(data))
+
+
+Connection.to_cbor = _connection_to_cbor
+Connection.from_cbor = staticmethod(_connection_from_cbor)
+
+def _encode_list_connections_request_value(v: "ListConnectionsRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    return csil_m
+
+def _decode_list_connections_request_value(tree: Any) -> "ListConnectionsRequest":
+    tree = _csil_expect_map(tree)
+    return ListConnectionsRequest()
+
+
+def _list_connections_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_connections_request_value(self))
+
+
+def _list_connections_request_from_cbor(data: bytes) -> "ListConnectionsRequest":
+    return _decode_list_connections_request_value(cbor_decode(data))
+
+
+ListConnectionsRequest.to_cbor = _list_connections_request_to_cbor
+ListConnectionsRequest.from_cbor = staticmethod(_list_connections_request_from_cbor)
+
+def _encode_list_connections_response_value(v: "ListConnectionsResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["connections"] = [_encode_connection_value(csil_e) for csil_e in v.connections]
+    return csil_m
+
+def _decode_list_connections_response_value(tree: Any) -> "ListConnectionsResponse":
+    tree = _csil_expect_map(tree)
+    return ListConnectionsResponse(
+        connections=[_decode_connection_value(csil_e) for csil_e in _csil_expect_array(tree["connections"])],
+    )
+
+
+def _list_connections_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_connections_response_value(self))
+
+
+def _list_connections_response_from_cbor(data: bytes) -> "ListConnectionsResponse":
+    return _decode_list_connections_response_value(cbor_decode(data))
+
+
+ListConnectionsResponse.to_cbor = _list_connections_response_to_cbor
+ListConnectionsResponse.from_cbor = staticmethod(_list_connections_response_from_cbor)
+
+def _encode_disconnect_request_value(v: "DisconnectRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["system"] = v.system
+    return csil_m
+
+def _decode_disconnect_request_value(tree: Any) -> "DisconnectRequest":
+    tree = _csil_expect_map(tree)
+    return DisconnectRequest(
+        system=_csil_expect_text(tree["system"]),
+    )
+
+
+def _disconnect_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_disconnect_request_value(self))
+
+
+def _disconnect_request_from_cbor(data: bytes) -> "DisconnectRequest":
+    return _decode_disconnect_request_value(cbor_decode(data))
+
+
+DisconnectRequest.to_cbor = _disconnect_request_to_cbor
+DisconnectRequest.from_cbor = staticmethod(_disconnect_request_from_cbor)
+
 def _encode_runner_claim_request_value(v: "RunnerClaimRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["queue"] = v.queue

@@ -113,6 +113,26 @@ func run(listen, keys string, workers bool, log *slog.Logger) error {
 		sys.Search = &compose.Searcher{URL: u, HTTP: &http.Client{Timeout: 20 * time.Second}, Web: web}
 		log.Info("web search on", "url", u, "pages_through_proxy", cfg.EgressProxy != nil)
 	}
+	// The calendar and Longhouse calls go through the egress proxy as
+	// svc_magi when it is set: the proxy policy must permit those hosts.
+	if sys.Calendar != nil || sys.Longhouse != nil {
+		apps := &http.Client{Timeout: 30 * time.Second}
+		if cfg.EgressProxy != nil {
+			t, err := cfg.EgressProxy.Transport(compose.ServiceUser("magi"))
+			if err != nil {
+				return err
+			}
+			apps.Transport = t
+		}
+		if sys.Calendar != nil {
+			sys.Calendar.HTTP = apps
+			log.Info("calendar on", "url", sys.Calendar.URL)
+		}
+		if sys.Longhouse != nil {
+			sys.Longhouse.HTTP = apps
+			log.Info("longhouse on", "url", sys.Longhouse.URL)
+		}
+	}
 	// Inference hosts connect out to Magi (/inference/connect) and keep
 	// idle connections; a model endpoint http://<host>.revconn/v1 uses
 	// them. Other endpoints use modelTransport.

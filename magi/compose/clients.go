@@ -16,6 +16,7 @@ import (
 	artifactsapi "github.com/catalystcommunity/magi/primitives/artifacts/api"
 	conversationapi "github.com/catalystcommunity/magi/primitives/conversation/api"
 	executionapi "github.com/catalystcommunity/magi/primitives/execution/api"
+	identityapi "github.com/catalystcommunity/magi/primitives/identity/api"
 	knowledgeapi "github.com/catalystcommunity/magi/primitives/knowledge/api"
 	releaseapi "github.com/catalystcommunity/magi/primitives/release/goapi"
 	sourceapi "github.com/catalystcommunity/magi/primitives/source/api"
@@ -59,6 +60,10 @@ type Config struct {
 	// TimeZone is the time zone of the household (MAGI_TIME_ZONE): the
 	// time in the persona prompt and the times of to-dos.
 	TimeZone *time.Location
+	// Identity is the identity service (act-as grants, credentials);
+	// CatalystcalURL and LonghouseURL turn on the calendar and Longhouse
+	// tools (MAGI_IDENTITY_URL, MAGI_CATALYSTCAL_URL, MAGI_LONGHOUSE_URL).
+	Identity, CatalystcalURL, LonghouseURL string
 	// PersonaWorkers is the number of persona turns that one replica runs
 	// at the same time (MAGI_PERSONA_WORKERS, default 4).
 	PersonaWorkers int
@@ -129,6 +134,9 @@ func ConfigFromEnv() (Config, error) {
 	c.Admins = list(os.Getenv("MAGI_ADMINS"))
 	c.LexiconEditors = list(os.Getenv("MAGI_LEXICON_EDITORS"))
 	c.Release = os.Getenv("MAGI_RELEASE_URL")
+	c.Identity = os.Getenv("MAGI_IDENTITY_URL")
+	c.CatalystcalURL = os.Getenv("MAGI_CATALYSTCAL_URL")
+	c.LonghouseURL = os.Getenv("MAGI_LONGHOUSE_URL")
 	c.Egress = os.Getenv("MAGI_EGRESS_URL")
 	if addr := os.Getenv("MAGI_EGRESS_PROXY"); addr != "" {
 		key, err := os.ReadFile(os.Getenv("MAGI_EGRESS_ENV_KEY_FILE"))
@@ -226,8 +234,13 @@ type System struct {
 	Speech        *speechapi.SpeechClient
 	Workflow      *workflowapi.WorkflowClient
 	Release       *releaseapi.ReleaseClient
-	ReleaseCfg    ReleaseConfig
-	fleet         fleet
+	Identity      *identityapi.IdentityClient
+	// Calendar and Longhouse act for people in those applications
+	// (connect.go); nil turns their tools off.
+	Calendar   *Calendar
+	Longhouse  *Longhouse
+	ReleaseCfg ReleaseConfig
+	fleet      fleet
 }
 
 // New creates clients. Each call uses the token in its context (see
@@ -246,6 +259,15 @@ func New(cfg Config, m model.Chatter, log *slog.Logger) *System {
 	}
 	if cfg.Release != "" {
 		sys.Release = releaseapi.NewReleaseClient(c(cfg.Release))
+	}
+	if cfg.Identity != "" {
+		sys.Identity = identityapi.NewIdentityClient(c(cfg.Identity))
+		if cfg.CatalystcalURL != "" {
+			sys.Calendar = &Calendar{URL: strings.TrimRight(cfg.CatalystcalURL, "/"), s: sys}
+		}
+		if cfg.LonghouseURL != "" {
+			sys.Longhouse = &Longhouse{URL: strings.TrimRight(cfg.LonghouseURL, "/"), s: sys}
+		}
 	}
 	sys.EgressRules, sys.EgressProxy = cfg.EgressRules, cfg.EgressProxy
 	sys.egressReviews = &egressReviews{reported: map[string]time.Time{}}

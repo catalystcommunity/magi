@@ -4,10 +4,16 @@
 //	identity keygen --issuer magi --out key.json [--public key.pub.json]
 //	identity mint --key key.json --subject service:x --scopes a,b --ttl 720h --out token.txt
 //	identity stop-machine --subject inference:x  refuse renewal to its current tokens
+//	identity app-keys generate --file keys.json --domain d --user-id u --app-id magi --instance-id i
+//	identity app-keys enroll --file keys.json --linkkeys-runtime rt.json   (uses the runtime API key)
+//	identity app-keys renew --file keys.json --linkkeys-runtime rt.json
+//	identity credential-key --out key.txt   make a credential encryption key
 package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -20,6 +26,7 @@ import (
 	"syscall"
 	"time"
 
+	rp "github.com/catalystcommunity/linkkeys/sdks/regular-rp/go"
 	"github.com/catalystcommunity/magi/lib/authn"
 	"github.com/catalystcommunity/magi/lib/rpc"
 	"github.com/catalystcommunity/magi/primitives/identity/linkkeys"
@@ -50,8 +57,12 @@ func main() {
 		err = mint(args)
 	case "stop-machine":
 		err = stopMachine(args)
+	case "app-keys":
+		err = appKeys(args)
+	case "credential-key":
+		err = credentialKey(args)
 	default:
-		err = fmt.Errorf("unknown command %q (serve, keygen, mint, stop-machine)", cmd)
+		err = fmt.Errorf("unknown command %q (serve, keygen, mint, stop-machine, app-keys, credential-key)", cmd)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "identity:", err)
@@ -151,6 +162,8 @@ func serve(args []string) error {
 	dbURL := fs.String("database-url", env("MAGI_DATABASE_URL", ""), "PostgreSQL URL")
 	tokenTTL := fs.Duration("token-ttl", durEnv("MAGI_TOKEN_TTL", server.DefaultTokenTTL), "user token lifetime")
 	sessionTTL := fs.Duration("session-ttl", durEnv("MAGI_SESSION_TTL", server.DefaultSessionTTL), "login session lifetime")
+	appKeysFile := fs.String("app-keys", env("MAGI_APP_KEYS", ""), "optional LinkKeys application key file (act-as grants)")
+	credKeyFile := fs.String("credential-key", env("MAGI_CREDENTIAL_KEY", ""), "optional credential encryption key file")
 	fs.Parse(args)
 
 	log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
@@ -208,6 +221,32 @@ func serve(args []string) error {
 		DB: db, Issuer: iss, PublicURL: pub, Domains: allowed, TokenTTL: *tokenTTL, SessionTTL: *sessionTTL, Log: log,
 		LinkKeys: &linkkeys.Client{RP: linkkeys.NewRpClient(rt.Transport()), RPDomain: rt.RPDomain},
 	}
+	if *appKeysFile != "" {
+		g, err := grantee(*appKeysFile, rt)
+		if err != nil {
+			return err
+		}
+		svc.Grantee = g
+		go func() {
+			for t := time.NewTicker(6 * time.Hour); ; {
+				if err := g.RenewKeys(ctx); err != nil {
+					log.Error("application key attestation renewal failed", "err", err)
+				} else {
+					log.Info("application key attestations renewed", "keys", len(g.Keys.Keys))
+				}
+				select {
+				case <-ctx.Done():
+					return
+				case <-t.C:
+				}
+			}
+		}()
+	}
+	if *credKeyFile != "" {
+		if svc.CredentialKey, err = server.LoadCredentialKey(*credKeyFile); err != nil {
+			return err
+		}
+	}
 	s := &rpc.Server{Verifier: v, Log: log, MaxBody: 64 << 10}
 	server.Register(s, svc)
 	mux := rpc.Mux(s, func() error { return db.Ping(ctx) })
@@ -243,5 +282,101 @@ func stopMachine(args []string) error {
 		return err
 	}
 	fmt.Printf("renewal stopped for %s; its tokens expire in at most %s\n", *subject, server.MachineTokenTTL)
+	return nil
+}
+
+// grantee makes the act-as grantee from the key file and the RP runtime.
+// The application account lives on the RP's domain, so the RP server is
+// also the home domain for attestation renewal.
+func grantee(path string, rt linkkeys.Runtime) (*server.Grantee, error) {
+	keys, err := server.LoadAppKeys(path)
+	if err != nil {
+		return nil, err
+	}
+	rpT, err := rp.NewPinnedRpcTransport(rp.PinnedRpcTransportOptions{TCPAddress: rt.TCPAddress, Fingerprints: rt.Fingerprints, APIKey: rt.APIKey})
+	if err != nil {
+		return nil, err
+	}
+	home, err := rp.NewPinnedRpcTransport(rp.PinnedRpcTransportOptions{TCPAddress: rt.TCPAddress, Fingerprints: rt.Fingerprints, APIKey: "application-signature"})
+	if err != nil {
+		return nil, err
+	}
+	return server.NewGrantee(keys, rpT, home), nil
+}
+
+func appKeys(args []string) error {
+	if len(args) == 0 {
+		return errors.New("app-keys generate|enroll|renew")
+	}
+	action, args := args[0], args[1:]
+	fs := flag.NewFlagSet("app-keys", flag.ExitOnError)
+	file := fs.String("file", "", "application key file")
+	domain := fs.String("domain", "", "account domain (generate)")
+	userID := fs.String("user-id", "", "account user id (generate)")
+	appID := fs.String("app-id", "magi", "application id (generate)")
+	instance := fs.String("instance-id", "", "instance id (generate)")
+	runtime := fs.String("linkkeys-runtime", env("MAGI_LINKKEYS_RUNTIME", ""), "LinkKeys runtime file; its API key must belong to the application account")
+	tcp := fs.String("tcp-addr", "", "override the runtime TCP address (for example the public LinkKeys address)")
+	fs.Parse(args)
+	if *file == "" {
+		return errors.New("--file is required")
+	}
+	if action == "generate" {
+		if err := server.GenerateAppKeys(*file, *domain, *userID, *appID, *instance); err != nil {
+			return err
+		}
+		fmt.Println("application keys written to", *file)
+		return nil
+	}
+	rt, err := linkkeys.LoadRuntime(*runtime)
+	if err != nil {
+		return err
+	}
+	if *tcp != "" {
+		rt.TCPAddress = *tcp
+	}
+	g, err := grantee(*file, rt)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	switch action {
+	case "enroll":
+		account, err := rp.NewPinnedRpcTransport(rp.PinnedRpcTransportOptions{TCPAddress: rt.TCPAddress, Fingerprints: rt.Fingerprints, APIKey: rt.APIKey})
+		if err != nil {
+			return err
+		}
+		if err := g.Enroll(ctx, account); err != nil {
+			return err
+		}
+		a := g.Keys.Application
+		fmt.Printf("enrolled %s@%s/%s instance %s\n", a.SubjectUserID, a.SubjectDomain, a.ApplicationID, g.Keys.InstanceID)
+	case "renew":
+		if err := g.RenewKeys(ctx); err != nil {
+			return err
+		}
+		fmt.Println("attestations renewed")
+	default:
+		return fmt.Errorf("unknown app-keys action %q", action)
+	}
+	return nil
+}
+
+func credentialKey(args []string) error {
+	fs := flag.NewFlagSet("credential-key", flag.ExitOnError)
+	out := fs.String("out", "", "key file to create (mode 600)")
+	fs.Parse(args)
+	if *out == "" {
+		return errors.New("--out is required")
+	}
+	k := make([]byte, 32)
+	if _, err := rand.Read(k); err != nil {
+		return err
+	}
+	if err := writePrivate(*out, []byte(base64.StdEncoding.EncodeToString(k)+"\n")); err != nil {
+		return err
+	}
+	fmt.Println("credential key written to", *out)
 	return nil
 }

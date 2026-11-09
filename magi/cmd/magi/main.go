@@ -49,6 +49,8 @@ var usage = `usage: magi [--server URL] <command> [args]
   personas                   list personas
   persona ID NAME never|private|public [MEMBER...]   operator: make or change a persona
   tasks                      list tasks
+  connect calendar|longhouse      get a link that lets Magi act for you there
+  connections                     list your connections; disconnect SYSTEM forgets one
   todos [-all] [-plan P] [-json]  list your to-dos and reminders (-all: also the
                              ones that ended in the last 7 days)
   todo ID done|skip|cancel   finish a to-do or cancel a reminder
@@ -396,6 +398,43 @@ func (c *cli) run(cmd string, args []string) error {
 			return nil
 		}
 		return c.read(personaID(*persona), res.LastSeq, true, nil)
+	case "connect":
+		if len(args) != 1 {
+			return errors.New("usage: magi connect calendar|longhouse")
+		}
+		r, err := c.magi.Connect(c.ctx, magiapi.ConnectRequest{System: args[0]})
+		if err != nil {
+			return err
+		}
+		fmt.Println(r.Message)
+		fmt.Println(r.Url)
+		return nil
+	case "connections":
+		r, err := c.magi.ListConnections(c.ctx, magiapi.ListConnectionsRequest{})
+		if err != nil {
+			return err
+		}
+		for _, x := range r.Connections {
+			line := x.System + " " + x.State
+			if x.Detail != nil && *x.Detail != "" {
+				line += " (" + *x.Detail + ")"
+			}
+			if x.ExpiresMs != nil && *x.ExpiresMs > 0 {
+				line += " until " + time.UnixMilli(int64(*x.ExpiresMs)).Format("2006-01-02 15:04")
+			}
+			fmt.Println(line)
+		}
+		return nil
+	case "disconnect":
+		if len(args) != 1 {
+			return errors.New("usage: magi disconnect calendar|longhouse")
+		}
+		r, err := c.magi.Disconnect(c.ctx, magiapi.DisconnectRequest{System: args[0]})
+		if err != nil {
+			return err
+		}
+		fmt.Println(r.System, r.State, deref(r.Detail))
+		return nil
 	case "todos":
 		fs := flag.NewFlagSet("todos", flag.ContinueOnError)
 		all := fs.Bool("all", false, "also ended to-dos")

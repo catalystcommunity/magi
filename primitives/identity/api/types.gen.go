@@ -65,3 +65,116 @@ type TokenResponse struct {
 	Subject   string `json:"subject" yaml:"subject"`
 	ExpiresMs uint64 `json:"expires_ms" yaml:"expires_ms"`
 }
+
+// AppRef represents a structured data type
+type AppRef struct {
+	Domain string `json:"domain" yaml:"domain"`
+	UserId string `json:"user_id" yaml:"user_id"`
+	AppId  string `json:"app_id" yaml:"app_id"`
+}
+
+// ApplicationRequest represents a structured data type
+type ApplicationRequest struct {
+	Detail *bool `json:"detail,omitempty" yaml:"detail,omitempty"`
+}
+
+// BeginGrantRequest represents a structured data type
+type BeginGrantRequest struct {
+	Audience       AppRef  `json:"audience" yaml:"audience"`
+	SignedScopeSet []byte  `json:"signed_scope_set" yaml:"signed_scope_set"`
+	Owner          *string `json:"owner,omitempty" yaml:"owner,omitempty"`
+	ReturnUrl      *string `json:"return_url,omitempty" yaml:"return_url,omitempty"`
+}
+
+// BeginGrantResponse represents a structured data type
+type BeginGrantResponse struct {
+	Url       string `json:"url" yaml:"url"`
+	ExpiresMs uint64 `json:"expires_ms" yaml:"expires_ms"`
+}
+
+// Grant represents a structured data type
+type Grant struct {
+	GrantId          string   `json:"grant_id" yaml:"grant_id"`
+	Owner            string   `json:"owner" yaml:"owner"`
+	Audience         AppRef   `json:"audience" yaml:"audience"`
+	Scopes           []string `json:"scopes" yaml:"scopes"`
+	ExpiresMs        uint64   `json:"expires_ms" yaml:"expires_ms"`
+	RenewableUntilMs uint64   `json:"renewable_until_ms" yaml:"renewable_until_ms"`
+	CreatedMs        uint64   `json:"created_ms" yaml:"created_ms"`
+	State            string   `json:"state" yaml:"state"`
+}
+
+// ListGrantsRequest represents a structured data type
+type ListGrantsRequest struct {
+	Owner    *string `json:"owner,omitempty" yaml:"owner,omitempty"`
+	Audience *AppRef `json:"audience,omitempty" yaml:"audience,omitempty"`
+}
+
+// ListGrantsResponse represents a structured data type
+type ListGrantsResponse struct {
+	Grants []Grant `json:"grants" yaml:"grants"`
+}
+
+// PresentGrantRequest represents a structured data type
+type PresentGrantRequest struct {
+	Owner         string  `json:"owner" yaml:"owner"`
+	Audience      AppRef  `json:"audience" yaml:"audience"`
+	RequestDigest []byte  `json:"request_digest" yaml:"request_digest"`
+	GrantId       *string `json:"grant_id,omitempty" yaml:"grant_id,omitempty"`
+}
+
+// PresentGrantResponse represents a structured data type
+type PresentGrantResponse struct {
+	Credential []byte   `json:"credential" yaml:"credential"`
+	GrantId    string   `json:"grant_id" yaml:"grant_id"`
+	Scopes     []string `json:"scopes" yaml:"scopes"`
+	ExpiresMs  uint64   `json:"expires_ms" yaml:"expires_ms"`
+}
+
+// ForgetGrantRequest represents a structured data type
+type ForgetGrantRequest struct {
+	GrantId string  `json:"grant_id" yaml:"grant_id"`
+	Owner   *string `json:"owner,omitempty" yaml:"owner,omitempty"`
+}
+
+// EmptyResponse represents a structured data type
+type EmptyResponse struct {
+	Ok *bool `json:"ok,omitempty" yaml:"ok,omitempty"`
+}
+
+// CredentialRef represents a structured data type
+type CredentialRef struct {
+	Owner  string `json:"owner" yaml:"owner"`
+	System string `json:"system" yaml:"system"`
+}
+
+// PutCredentialRequest represents a structured data type
+type PutCredentialRequest struct {
+	Owner            string  `json:"owner" yaml:"owner"`
+	System           string  `json:"system" yaml:"system"`
+	Value            string  `json:"value" yaml:"value"`
+	Label            *string `json:"label,omitempty" yaml:"label,omitempty"`
+	ExpiresMs        *uint64 `json:"expires_ms,omitempty" yaml:"expires_ms,omitempty"`
+	ExpectedRevision *uint64 `json:"expected_revision,omitempty" yaml:"expected_revision,omitempty"`
+}
+
+// Credential represents a structured data type
+type Credential struct {
+	Owner     string  `json:"owner" yaml:"owner"`
+	System    string  `json:"system" yaml:"system"`
+	Label     string  `json:"label" yaml:"label"`
+	Revision  uint64  `json:"revision" yaml:"revision"`
+	ExpiresMs uint64  `json:"expires_ms" yaml:"expires_ms"`
+	UpdatedMs uint64  `json:"updated_ms" yaml:"updated_ms"`
+	Value     *string `json:"value,omitempty" yaml:"value,omitempty"`
+}
+
+// ListCredentialsRequest represents a structured data type
+type ListCredentialsRequest struct {
+	Owner *string `json:"owner,omitempty" yaml:"owner,omitempty"`
+}
+
+// ListCredentialsResponse represents a structured data type
+type ListCredentialsResponse struct {
+	Credentials []Credential `json:"credentials" yaml:"credentials"`
+}

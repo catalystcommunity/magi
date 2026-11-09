@@ -46,3 +46,49 @@ CREATE TABLE IF NOT EXISTS identity_machines (
   renewed_ms    bigint NOT NULL,
   not_before_ms bigint NOT NULL DEFAULT 0
 );
+
+-- Act-as grant requests that wait for the browser callback. The nonce is
+-- stored only as a SHA-256 hex digest.
+CREATE TABLE IF NOT EXISTS identity_grant_requests (
+  nonce_hash  text   PRIMARY KEY,
+  owner       text   NOT NULL,
+  domain      text   NOT NULL,
+  user_id     text   NOT NULL,
+  audience    text   NOT NULL,
+  return_url  text   NOT NULL DEFAULT '',
+  created_ms  bigint NOT NULL,
+  expires_ms  bigint NOT NULL,
+  grant_id    text   NOT NULL DEFAULT ''
+);
+
+-- Act-as grants that Magi holds. audience is "<user_id>@<domain>/<app_id>".
+-- grant_bytes is the newest signed grant (CBOR SignedActAsGrant). A grant
+-- is not a secret: only Magi's application keys can present it.
+CREATE TABLE IF NOT EXISTS identity_grants (
+  grant_id           text   PRIMARY KEY,
+  owner              text   NOT NULL,
+  domain             text   NOT NULL,
+  audience           text   NOT NULL,
+  scopes             text[] NOT NULL,
+  grant_bytes        bytea  NOT NULL,
+  expires_ms         bigint NOT NULL,
+  renewable_until_ms bigint NOT NULL,
+  created_ms         bigint NOT NULL,
+  updated_ms         bigint NOT NULL,
+  state              text   NOT NULL DEFAULT 'active'
+);
+CREATE INDEX IF NOT EXISTS identity_grants_owner ON identity_grants (owner, audience, created_ms DESC);
+
+-- Credentials that people gave Magi for systems without act-as grants.
+-- value_enc is AES-256-GCM (nonce || ciphertext); the additional data is
+-- "<owner>\n<system>".
+CREATE TABLE IF NOT EXISTS identity_credentials (
+  owner      text   NOT NULL,
+  system     text   NOT NULL,
+  label      text   NOT NULL DEFAULT '',
+  value_enc  bytea  NOT NULL,
+  revision   bigint NOT NULL,
+  expires_ms bigint NOT NULL DEFAULT 0,
+  updated_ms bigint NOT NULL,
+  PRIMARY KEY (owner, system)
+);

@@ -19,6 +19,7 @@ func (s *Service) Routes(m *http.ServeMux) {
 	m.HandleFunc("GET /login/start", s.startPage)
 	m.HandleFunc("POST /login/start", s.startPost)
 	m.HandleFunc("GET /login/callback", s.callback)
+	m.HandleFunc("GET /login/grant/callback", s.grantCallback)
 }
 
 var page = template.Must(template.New("p").Parse(`<!doctype html>

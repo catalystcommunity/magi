@@ -616,3 +616,463 @@ def _token_response_from_cbor(data: bytes) -> "TokenResponse":
 
 TokenResponse.to_cbor = _token_response_to_cbor
 TokenResponse.from_cbor = staticmethod(_token_response_from_cbor)
+
+def _encode_app_ref_value(v: "AppRef") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["app_id"] = v.app_id
+    csil_m["domain"] = v.domain
+    csil_m["user_id"] = v.user_id
+    return csil_m
+
+def _decode_app_ref_value(tree: Any) -> "AppRef":
+    tree = _csil_expect_map(tree)
+    return AppRef(
+        domain=_csil_expect_text(tree["domain"]),
+        user_id=_csil_expect_text(tree["user_id"]),
+        app_id=_csil_expect_text(tree["app_id"]),
+    )
+
+
+def _app_ref_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_app_ref_value(self))
+
+
+def _app_ref_from_cbor(data: bytes) -> "AppRef":
+    return _decode_app_ref_value(cbor_decode(data))
+
+
+AppRef.to_cbor = _app_ref_to_cbor
+AppRef.from_cbor = staticmethod(_app_ref_from_cbor)
+
+def _encode_application_request_value(v: "ApplicationRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.detail
+    if csil_x is not None:
+        csil_m["detail"] = csil_x
+    return csil_m
+
+def _decode_application_request_value(tree: Any) -> "ApplicationRequest":
+    tree = _csil_expect_map(tree)
+    return ApplicationRequest(
+        detail=(None if tree.get("detail") is None else _csil_expect_bool(tree["detail"])),
+    )
+
+
+def _application_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_application_request_value(self))
+
+
+def _application_request_from_cbor(data: bytes) -> "ApplicationRequest":
+    return _decode_application_request_value(cbor_decode(data))
+
+
+ApplicationRequest.to_cbor = _application_request_to_cbor
+ApplicationRequest.from_cbor = staticmethod(_application_request_from_cbor)
+
+def _encode_begin_grant_request_value(v: "BeginGrantRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.owner
+    if csil_x is not None:
+        csil_m["owner"] = csil_x
+    csil_m["audience"] = _encode_app_ref_value(v.audience)
+    csil_x = v.return_url
+    if csil_x is not None:
+        csil_m["return_url"] = csil_x
+    csil_m["signed_scope_set"] = v.signed_scope_set
+    return csil_m
+
+def _decode_begin_grant_request_value(tree: Any) -> "BeginGrantRequest":
+    tree = _csil_expect_map(tree)
+    return BeginGrantRequest(
+        audience=_decode_app_ref_value(tree["audience"]),
+        signed_scope_set=_csil_expect_bytes(tree["signed_scope_set"]),
+        owner=(None if tree.get("owner") is None else _csil_expect_text(tree["owner"])),
+        return_url=(None if tree.get("return_url") is None else _csil_expect_text(tree["return_url"])),
+    )
+
+
+def _begin_grant_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_begin_grant_request_value(self))
+
+
+def _begin_grant_request_from_cbor(data: bytes) -> "BeginGrantRequest":
+    return _decode_begin_grant_request_value(cbor_decode(data))
+
+
+BeginGrantRequest.to_cbor = _begin_grant_request_to_cbor
+BeginGrantRequest.from_cbor = staticmethod(_begin_grant_request_from_cbor)
+
+def _encode_begin_grant_response_value(v: "BeginGrantResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["url"] = v.url
+    csil_m["expires_ms"] = v.expires_ms
+    return csil_m
+
+def _decode_begin_grant_response_value(tree: Any) -> "BeginGrantResponse":
+    tree = _csil_expect_map(tree)
+    return BeginGrantResponse(
+        url=_csil_expect_text(tree["url"]),
+        expires_ms=_csil_expect_uint(tree["expires_ms"]),
+    )
+
+
+def _begin_grant_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_begin_grant_response_value(self))
+
+
+def _begin_grant_response_from_cbor(data: bytes) -> "BeginGrantResponse":
+    return _decode_begin_grant_response_value(cbor_decode(data))
+
+
+BeginGrantResponse.to_cbor = _begin_grant_response_to_cbor
+BeginGrantResponse.from_cbor = staticmethod(_begin_grant_response_from_cbor)
+
+def _encode_grant_value(v: "Grant") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["owner"] = v.owner
+    csil_m["state"] = v.state
+    csil_m["scopes"] = v.scopes
+    csil_m["audience"] = _encode_app_ref_value(v.audience)
+    csil_m["grant_id"] = v.grant_id
+    csil_m["created_ms"] = v.created_ms
+    csil_m["expires_ms"] = v.expires_ms
+    csil_m["renewable_until_ms"] = v.renewable_until_ms
+    return csil_m
+
+def _decode_grant_value(tree: Any) -> "Grant":
+    tree = _csil_expect_map(tree)
+    return Grant(
+        grant_id=_csil_expect_text(tree["grant_id"]),
+        owner=_csil_expect_text(tree["owner"]),
+        audience=_decode_app_ref_value(tree["audience"]),
+        scopes=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["scopes"])],
+        expires_ms=_csil_expect_uint(tree["expires_ms"]),
+        renewable_until_ms=_csil_expect_uint(tree["renewable_until_ms"]),
+        created_ms=_csil_expect_uint(tree["created_ms"]),
+        state=_csil_expect_text(tree["state"]),
+    )
+
+
+def _grant_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_grant_value(self))
+
+
+def _grant_from_cbor(data: bytes) -> "Grant":
+    return _decode_grant_value(cbor_decode(data))
+
+
+Grant.to_cbor = _grant_to_cbor
+Grant.from_cbor = staticmethod(_grant_from_cbor)
+
+def _encode_list_grants_request_value(v: "ListGrantsRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.owner
+    if csil_x is not None:
+        csil_m["owner"] = csil_x
+    csil_x = v.audience
+    if csil_x is not None:
+        csil_m["audience"] = _encode_app_ref_value(csil_x)
+    return csil_m
+
+def _decode_list_grants_request_value(tree: Any) -> "ListGrantsRequest":
+    tree = _csil_expect_map(tree)
+    return ListGrantsRequest(
+        owner=(None if tree.get("owner") is None else _csil_expect_text(tree["owner"])),
+        audience=(None if tree.get("audience") is None else _decode_app_ref_value(tree["audience"])),
+    )
+
+
+def _list_grants_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_grants_request_value(self))
+
+
+def _list_grants_request_from_cbor(data: bytes) -> "ListGrantsRequest":
+    return _decode_list_grants_request_value(cbor_decode(data))
+
+
+ListGrantsRequest.to_cbor = _list_grants_request_to_cbor
+ListGrantsRequest.from_cbor = staticmethod(_list_grants_request_from_cbor)
+
+def _encode_list_grants_response_value(v: "ListGrantsResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["grants"] = [_encode_grant_value(csil_e) for csil_e in v.grants]
+    return csil_m
+
+def _decode_list_grants_response_value(tree: Any) -> "ListGrantsResponse":
+    tree = _csil_expect_map(tree)
+    return ListGrantsResponse(
+        grants=[_decode_grant_value(csil_e) for csil_e in _csil_expect_array(tree["grants"])],
+    )
+
+
+def _list_grants_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_grants_response_value(self))
+
+
+def _list_grants_response_from_cbor(data: bytes) -> "ListGrantsResponse":
+    return _decode_list_grants_response_value(cbor_decode(data))
+
+
+ListGrantsResponse.to_cbor = _list_grants_response_to_cbor
+ListGrantsResponse.from_cbor = staticmethod(_list_grants_response_from_cbor)
+
+def _encode_present_grant_request_value(v: "PresentGrantRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["owner"] = v.owner
+    csil_m["audience"] = _encode_app_ref_value(v.audience)
+    csil_x = v.grant_id
+    if csil_x is not None:
+        csil_m["grant_id"] = csil_x
+    csil_m["request_digest"] = v.request_digest
+    return csil_m
+
+def _decode_present_grant_request_value(tree: Any) -> "PresentGrantRequest":
+    tree = _csil_expect_map(tree)
+    return PresentGrantRequest(
+        owner=_csil_expect_text(tree["owner"]),
+        audience=_decode_app_ref_value(tree["audience"]),
+        request_digest=_csil_expect_bytes(tree["request_digest"]),
+        grant_id=(None if tree.get("grant_id") is None else _csil_expect_text(tree["grant_id"])),
+    )
+
+
+def _present_grant_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_present_grant_request_value(self))
+
+
+def _present_grant_request_from_cbor(data: bytes) -> "PresentGrantRequest":
+    return _decode_present_grant_request_value(cbor_decode(data))
+
+
+PresentGrantRequest.to_cbor = _present_grant_request_to_cbor
+PresentGrantRequest.from_cbor = staticmethod(_present_grant_request_from_cbor)
+
+def _encode_present_grant_response_value(v: "PresentGrantResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["scopes"] = v.scopes
+    csil_m["grant_id"] = v.grant_id
+    csil_m["credential"] = v.credential
+    csil_m["expires_ms"] = v.expires_ms
+    return csil_m
+
+def _decode_present_grant_response_value(tree: Any) -> "PresentGrantResponse":
+    tree = _csil_expect_map(tree)
+    return PresentGrantResponse(
+        credential=_csil_expect_bytes(tree["credential"]),
+        grant_id=_csil_expect_text(tree["grant_id"]),
+        scopes=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["scopes"])],
+        expires_ms=_csil_expect_uint(tree["expires_ms"]),
+    )
+
+
+def _present_grant_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_present_grant_response_value(self))
+
+
+def _present_grant_response_from_cbor(data: bytes) -> "PresentGrantResponse":
+    return _decode_present_grant_response_value(cbor_decode(data))
+
+
+PresentGrantResponse.to_cbor = _present_grant_response_to_cbor
+PresentGrantResponse.from_cbor = staticmethod(_present_grant_response_from_cbor)
+
+def _encode_forget_grant_request_value(v: "ForgetGrantRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.owner
+    if csil_x is not None:
+        csil_m["owner"] = csil_x
+    csil_m["grant_id"] = v.grant_id
+    return csil_m
+
+def _decode_forget_grant_request_value(tree: Any) -> "ForgetGrantRequest":
+    tree = _csil_expect_map(tree)
+    return ForgetGrantRequest(
+        grant_id=_csil_expect_text(tree["grant_id"]),
+        owner=(None if tree.get("owner") is None else _csil_expect_text(tree["owner"])),
+    )
+
+
+def _forget_grant_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_forget_grant_request_value(self))
+
+
+def _forget_grant_request_from_cbor(data: bytes) -> "ForgetGrantRequest":
+    return _decode_forget_grant_request_value(cbor_decode(data))
+
+
+ForgetGrantRequest.to_cbor = _forget_grant_request_to_cbor
+ForgetGrantRequest.from_cbor = staticmethod(_forget_grant_request_from_cbor)
+
+def _encode_empty_response_value(v: "EmptyResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.ok
+    if csil_x is not None:
+        csil_m["ok"] = csil_x
+    return csil_m
+
+def _decode_empty_response_value(tree: Any) -> "EmptyResponse":
+    tree = _csil_expect_map(tree)
+    return EmptyResponse(
+        ok=(None if tree.get("ok") is None else _csil_expect_bool(tree["ok"])),
+    )
+
+
+def _empty_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_empty_response_value(self))
+
+
+def _empty_response_from_cbor(data: bytes) -> "EmptyResponse":
+    return _decode_empty_response_value(cbor_decode(data))
+
+
+EmptyResponse.to_cbor = _empty_response_to_cbor
+EmptyResponse.from_cbor = staticmethod(_empty_response_from_cbor)
+
+def _encode_credential_ref_value(v: "CredentialRef") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["owner"] = v.owner
+    csil_m["system"] = v.system
+    return csil_m
+
+def _decode_credential_ref_value(tree: Any) -> "CredentialRef":
+    tree = _csil_expect_map(tree)
+    return CredentialRef(
+        owner=_csil_expect_text(tree["owner"]),
+        system=_csil_expect_text(tree["system"]),
+    )
+
+
+def _credential_ref_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_credential_ref_value(self))
+
+
+def _credential_ref_from_cbor(data: bytes) -> "CredentialRef":
+    return _decode_credential_ref_value(cbor_decode(data))
+
+
+CredentialRef.to_cbor = _credential_ref_to_cbor
+CredentialRef.from_cbor = staticmethod(_credential_ref_from_cbor)
+
+def _encode_put_credential_request_value(v: "PutCredentialRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.label
+    if csil_x is not None:
+        csil_m["label"] = csil_x
+    csil_m["owner"] = v.owner
+    csil_m["value"] = v.value
+    csil_m["system"] = v.system
+    csil_x = v.expires_ms
+    if csil_x is not None:
+        csil_m["expires_ms"] = csil_x
+    csil_x = v.expected_revision
+    if csil_x is not None:
+        csil_m["expected_revision"] = csil_x
+    return csil_m
+
+def _decode_put_credential_request_value(tree: Any) -> "PutCredentialRequest":
+    tree = _csil_expect_map(tree)
+    return PutCredentialRequest(
+        owner=_csil_expect_text(tree["owner"]),
+        system=_csil_expect_text(tree["system"]),
+        value=_csil_expect_text(tree["value"]),
+        label=(None if tree.get("label") is None else _csil_expect_text(tree["label"])),
+        expires_ms=(None if tree.get("expires_ms") is None else _csil_expect_uint(tree["expires_ms"])),
+        expected_revision=(None if tree.get("expected_revision") is None else _csil_expect_uint(tree["expected_revision"])),
+    )
+
+
+def _put_credential_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_put_credential_request_value(self))
+
+
+def _put_credential_request_from_cbor(data: bytes) -> "PutCredentialRequest":
+    return _decode_put_credential_request_value(cbor_decode(data))
+
+
+PutCredentialRequest.to_cbor = _put_credential_request_to_cbor
+PutCredentialRequest.from_cbor = staticmethod(_put_credential_request_from_cbor)
+
+def _encode_credential_value(v: "Credential") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["label"] = v.label
+    csil_m["owner"] = v.owner
+    csil_x = v.value
+    if csil_x is not None:
+        csil_m["value"] = csil_x
+    csil_m["system"] = v.system
+    csil_m["revision"] = v.revision
+    csil_m["expires_ms"] = v.expires_ms
+    csil_m["updated_ms"] = v.updated_ms
+    return csil_m
+
+def _decode_credential_value(tree: Any) -> "Credential":
+    tree = _csil_expect_map(tree)
+    return Credential(
+        owner=_csil_expect_text(tree["owner"]),
+        system=_csil_expect_text(tree["system"]),
+        label=_csil_expect_text(tree["label"]),
+        revision=_csil_expect_uint(tree["revision"]),
+        expires_ms=_csil_expect_uint(tree["expires_ms"]),
+        updated_ms=_csil_expect_uint(tree["updated_ms"]),
+        value=(None if tree.get("value") is None else _csil_expect_text(tree["value"])),
+    )
+
+
+def _credential_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_credential_value(self))
+
+
+def _credential_from_cbor(data: bytes) -> "Credential":
+    return _decode_credential_value(cbor_decode(data))
+
+
+Credential.to_cbor = _credential_to_cbor
+Credential.from_cbor = staticmethod(_credential_from_cbor)
+
+def _encode_list_credentials_request_value(v: "ListCredentialsRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.owner
+    if csil_x is not None:
+        csil_m["owner"] = csil_x
+    return csil_m
+
+def _decode_list_credentials_request_value(tree: Any) -> "ListCredentialsRequest":
+    tree = _csil_expect_map(tree)
+    return ListCredentialsRequest(
+        owner=(None if tree.get("owner") is None else _csil_expect_text(tree["owner"])),
+    )
+
+
+def _list_credentials_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_credentials_request_value(self))
+
+
+def _list_credentials_request_from_cbor(data: bytes) -> "ListCredentialsRequest":
+    return _decode_list_credentials_request_value(cbor_decode(data))
+
+
+ListCredentialsRequest.to_cbor = _list_credentials_request_to_cbor
+ListCredentialsRequest.from_cbor = staticmethod(_list_credentials_request_from_cbor)
+
+def _encode_list_credentials_response_value(v: "ListCredentialsResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["credentials"] = [_encode_credential_value(csil_e) for csil_e in v.credentials]
+    return csil_m
+
+def _decode_list_credentials_response_value(tree: Any) -> "ListCredentialsResponse":
+    tree = _csil_expect_map(tree)
+    return ListCredentialsResponse(
+        credentials=[_decode_credential_value(csil_e) for csil_e in _csil_expect_array(tree["credentials"])],
+    )
+
+
+def _list_credentials_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_credentials_response_value(self))
+
+
+def _list_credentials_response_from_cbor(data: bytes) -> "ListCredentialsResponse":
+    return _decode_list_credentials_response_value(cbor_decode(data))
+
+
+ListCredentialsResponse.to_cbor = _list_credentials_response_to_cbor
+ListCredentialsResponse.from_cbor = staticmethod(_list_credentials_response_from_cbor)

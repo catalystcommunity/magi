@@ -172,6 +172,15 @@ class MagiAsyncClient(private val transport: AsyncTransport) {
     suspend fun decideEgressReview(request: DecideEgressReviewRequest): DecideEgressReviewResponse {
         return decode<DecideEgressReviewResponse>(transport.call("MagiService", "decide-egress-review", encode(request)))
     }
+    suspend fun connect(request: ConnectRequest): ConnectResponse {
+        return decode<ConnectResponse>(transport.call("MagiService", "connect", encode(request)))
+    }
+    suspend fun listConnections(request: ListConnectionsRequest): ListConnectionsResponse {
+        return decode<ListConnectionsResponse>(transport.call("MagiService", "list-connections", encode(request)))
+    }
+    suspend fun disconnect(request: DisconnectRequest): Connection {
+        return decode<Connection>(transport.call("MagiService", "disconnect", encode(request)))
+    }
 }
 
 /** Typed client for the RunnerService service. The client owns (de)serialization;

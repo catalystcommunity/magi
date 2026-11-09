@@ -3529,6 +3529,156 @@ class DecideEgressReviewResponse:
 
 
 @dataclass
+class ConnectRequest:
+    system: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'system') and self.system is not None:
+            result['system'] = self.system
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ConnectRequest':
+        """Create instance from dictionary."""
+        return cls(system=data.get('system'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ConnectRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ConnectResponse:
+    system: str
+    url: str
+    expires_ms: int
+    message: str
+    user_code: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'system') and self.system is not None:
+            result['system'] = self.system
+        if hasattr(self, 'url') and self.url is not None:
+            result['url'] = self.url
+        if hasattr(self, 'user_code') and self.user_code is not None:
+            result['user_code'] = self.user_code
+        if hasattr(self, 'expires_ms') and self.expires_ms is not None:
+            result['expires_ms'] = self.expires_ms
+        if hasattr(self, 'message') and self.message is not None:
+            result['message'] = self.message
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ConnectResponse':
+        """Create instance from dictionary."""
+        return cls(system=data.get('system'), url=data.get('url'), user_code=data.get('user_code'), expires_ms=data.get('expires_ms'), message=data.get('message'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ConnectResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class Connection:
+    system: str
+    state: str
+    detail: Optional[str] = None
+    expires_ms: Optional[int] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'system') and self.system is not None:
+            result['system'] = self.system
+        if hasattr(self, 'state') and self.state is not None:
+            result['state'] = self.state
+        if hasattr(self, 'detail') and self.detail is not None:
+            result['detail'] = self.detail
+        if hasattr(self, 'expires_ms') and self.expires_ms is not None:
+            result['expires_ms'] = self.expires_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Connection':
+        """Create instance from dictionary."""
+        return cls(system=data.get('system'), state=data.get('state'), detail=data.get('detail'), expires_ms=data.get('expires_ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'Connection':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ListConnectionsRequest:
+    pass
+
+@dataclass
+class ListConnectionsResponse:
+    connections: List[Connection]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'connections') and self.connections is not None:
+            result['connections'] = self.connections
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ListConnectionsResponse':
+        """Create instance from dictionary."""
+        return cls(connections=data.get('connections'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ListConnectionsResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class DisconnectRequest:
+    system: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'system') and self.system is not None:
+            result['system'] = self.system
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'DisconnectRequest':
+        """Create instance from dictionary."""
+        return cls(system=data.get('system'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'DisconnectRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
 class RunnerClaimRequest:
     queue: str
     wait_ms: Optional[int] = None

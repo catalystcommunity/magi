@@ -289,12 +289,18 @@ def render(img, v):
     out += ex
     if egress:
         out += egress_proxy(img, v)
+    # GRANTS=true: Magi is a LinkKeys application that holds act-as grants
+    # (Secret magi-grants: app-keys.json, credential-key.txt).
+    grants = v.get("GRANTS") == "true"
     out += service(v, "identity", img["IMAGE_IDENTITY"], db_env("identity") + [
         {"name": "MAGI_ISSUER_KEY", "value": "/etc/magi/issuer/issuer.json"},
         {"name": "MAGI_PUBLIC_URL", "value": f"https://{v['PUBLIC_HOST']}"},
         {"name": "MAGI_ALLOWED_DOMAINS", "value": v["ALLOWED_DOMAINS"]},
-        {"name": "MAGI_LINKKEYS_RUNTIME", "value": "/etc/magi/linkkeys/runtime.json"}],
-        secrets=[("magi-issuer", "/etc/magi/issuer"), ("magi-linkkeys", "/etc/magi/linkkeys")])
+        {"name": "MAGI_LINKKEYS_RUNTIME", "value": "/etc/magi/linkkeys/runtime.json"},
+        *([{"name": "MAGI_APP_KEYS", "value": "/etc/magi/grants/app-keys.json"},
+           {"name": "MAGI_CREDENTIAL_KEY", "value": "/etc/magi/grants/credential-key.txt"}] if grants else [])],
+        secrets=[("magi-issuer", "/etc/magi/issuer"), ("magi-linkkeys", "/etc/magi/linkkeys"),
+                 *([("magi-grants", "/etc/magi/grants")] if grants else [])])
     # The release controller changes the magi Deployment; magi releases itself.
     # Before the change, the new image runs "magi-server preflight": it calls
     # each service that Magi uses. During the stabilization window, each new
@@ -381,6 +387,11 @@ def render(img, v):
         # TIME_ZONE: the time zone of the household (IANA name), for the
         # time in the persona prompt and the times of tasks.
         {"name": "MAGI_TIME_ZONE", "value": v.get("TIME_ZONE", "UTC")},
+        # GRANTS=true with CATALYSTCAL_URL and LONGHOUSE_URL: the calendar
+        # and Longhouse tools (calls go through the egress proxy).
+        *([{"name": "MAGI_IDENTITY_URL", "value": f"http://identity.{ns}.svc:8080"},
+           {"name": "MAGI_CATALYSTCAL_URL", "value": v.get("CATALYSTCAL_URL", "")},
+           {"name": "MAGI_LONGHOUSE_URL", "value": v.get("LONGHOUSE_URL", "")}] if grants else []),
         {"name": "MAGI_IMAGE_REGISTRY", "value": f"registry.{ns}.svc:5000"},
         {"name": "MAGI_IMAGE_CREDENTIALS_FILE", "value": "/etc/magi/registry/registry.json"}],
         secrets=[*model_secret, ("magi-token-magi", "/etc/magi/token"), ("magi-registry-push", "/etc/magi/registry"), *persona_secrets, *detector_secrets,

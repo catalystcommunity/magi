@@ -61,6 +61,9 @@ type MagiService interface {
 	GetAppPackage(ctx context.Context, req GetAppPackageRequest) (GetAppPackageResponse, error)
 	ListEgressReviews(ctx context.Context, req ListEgressReviewsRequest) (ListEgressReviewsResponse, error)
 	DecideEgressReview(ctx context.Context, req DecideEgressReviewRequest) (DecideEgressReviewResponse, error)
+	Connect(ctx context.Context, req ConnectRequest) (ConnectResponse, error)
+	ListConnections(ctx context.Context, req ListConnectionsRequest) (ListConnectionsResponse, error)
+	Disconnect(ctx context.Context, req DisconnectRequest) (Connection, error)
 }
 
 // RunnerService defines the service interface

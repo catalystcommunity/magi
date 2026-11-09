@@ -33,16 +33,20 @@ type personaProfile struct {
 }
 
 var profiles = map[string]personaProfile{
-	Persona: {name: "Magi", prompt: personaPrompt + knowledgeRules + planRules + lookupRules + noticeRules, tools: []string{
+	Persona: {name: "Magi", prompt: personaPrompt + knowledgeRules + planRules + workRules + lookupRules + noticeRules, tools: []string{
 		"recall", "remember", "change_knowledge", "start_code_change", "search_conversation", "list_tasks", "cancel_task", "send_notice", "list_devices",
-		"web_search", "read_page", "add_todo", "set_reminder", "list_todos", "finish_todo", "change_todo"}},
-	Engineering: {name: "Engineering manager", prompt: engineeringPrompt + knowledgeRules + planRules + lookupRules + noticeRules, tools: []string{
+		"web_search", "read_page", "add_todo", "set_reminder", "list_todos", "finish_todo", "change_todo",
+		"connect_account", "calendar_events", "find_events", "create_event", "change_event", "cancel_event", "free_busy",
+		"longhouse_projects", "longhouse_tasks", "add_longhouse_task", "update_longhouse_task", "add_longhouse_project"}},
+	Engineering: {name: "Engineering manager", prompt: engineeringPrompt + knowledgeRules + planRules + workRules + lookupRules + noticeRules, tools: []string{
 		"list_tasks", "task_status", "task_diff", "start_code_change", "decide_task", "cancel_task", "list_runners",
 		"send_notice", "list_devices", "search_conversation", "recall", "remember", "change_knowledge", "web_search", "read_page",
-		"add_todo", "set_reminder", "list_todos", "finish_todo", "change_todo"}},
-	Assistant: {name: "Executive assistant", prompt: assistantPrompt + knowledgeRules + planRules + lookupRules + noticeRules, tools: []string{
+		"add_todo", "set_reminder", "list_todos", "finish_todo", "change_todo",
+		"connect_account", "calendar_events", "find_events", "free_busy", "longhouse_projects", "longhouse_tasks", "add_longhouse_task", "update_longhouse_task", "add_longhouse_project"}},
+	Assistant: {name: "Executive assistant", prompt: assistantPrompt + knowledgeRules + planRules + workRules + lookupRules + noticeRules, tools: []string{
 		"recall", "remember", "change_knowledge", "add_todo", "set_reminder", "list_todos", "finish_todo", "change_todo",
-		"send_notice", "list_devices", "search_conversation", "web_search", "read_page", "list_tasks"}},
+		"send_notice", "list_devices", "search_conversation", "web_search", "read_page", "list_tasks",
+		"connect_account", "calendar_events", "find_events", "create_event", "change_event", "cancel_event", "free_busy", "longhouse_projects", "longhouse_tasks", "add_longhouse_task", "update_longhouse_task", "add_longhouse_project"}},
 }
 
 const assistantPrompt = `You are %s, the executive assistant of %s. You keep their plans, to-dos, and reminders, and you know the facts of their life and work: people, places, accounts, calendars, and things.
@@ -73,6 +77,15 @@ func profileFor(persona string) personaProfile {
 
 // lookupRules: the persona looks things up instead of saying that it
 // cannot answer (search.go).
+// workRules: calendars and Longhouse (work.go).
+const workRules = `
+Calendars and shared work:
+- The person's calendar and the calendars that others share with them are in the calendar tools. For "what is on my calendar", "when is", "am I free", "what did I do last week": "calendar_events" with a range (from and to), or "find_events" with words when you do not know the date. Do not answer from memory: events change. Repeating events show each time.
+- "put it on my calendar", "book", "schedule", "set up a meeting": "create_event". Use "repeat" for a repeating event. To put an event on another person's calendar, name it in "calendar"; the person must have write access to it. Say back the day, time, and calendar.
+- Longhouse holds the shared projects and tasks of the person's houses (a team or a household). "what is left on the X project", "who is doing Y", "what is late": "longhouse_projects" and "longhouse_tasks". The person's private to-dos are "list_todos", not Longhouse.
+- A question can need more than one look up: find the project, then its tasks; find the event, then who attends. Look things up until you can answer, then answer in a few sentences with the facts that you found.
+- When a tool says that a system is not connected, call "connect_account" and give the person the link.`
+
 const lookupRules = `
 - You can look things up. For a question about the world (facts, news, prices, weather, opening hours, places, products, people in public life, how-to), use "web_search", then "read_page" on the best results when the snippets are not enough. When the results do not answer, search again with other words, or look up the parts and work out the answer. Name the source of facts from the web in a few words.
 - Never say that you cannot look things up, that you have no internet access, or that your knowledge has a cutoff date. Do the look up.
@@ -105,7 +118,7 @@ func toolDefs() map[string]model.Tool {
 	}
 	str := func(d string) map[string]any { return map[string]any{"type": "string", "description": d} }
 	defs := map[string]model.Tool{}
-	for _, t := range append(append(personaTools(), searchTools()...), planTools(obj, str)...) {
+	for _, t := range append(append(append(personaTools(), searchTools()...), planTools(obj, str)...), workTools(obj, str)...) {
 		defs[t.Name] = t
 	}
 	for _, t := range []model.Tool{
@@ -162,6 +175,9 @@ type turnState struct {
 // extraTool runs the tools of personas.go. ok is false for other tools.
 func (s *System) extraTool(ctx context.Context, a workflowapi.Assignment, as conversationLens, utt conversationapi.Utterance, ts *turnState, name string, args map[string]string) (out string, ref *conversationapi.Ref, ok bool) {
 	if out, ok := s.planTool(ctx, a, as, utt, ts, name, args); ok {
+		return out, nil, true
+	}
+	if out, ok := s.workTool(ctx, a.Owner, utt.Id, name, args); ok {
 		return out, nil, true
 	}
 	switch name {
@@ -425,21 +441,25 @@ var claims = []struct {
 	{"add_todo", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (?:added|created|made|put|set up)\b[^.!?\n]{0,40}\b(to-?dos?|list|plan|steps?)\b|\bI(?:'ve| have)? created a plan\b`)},
 	{"set_reminder", regexp.MustCompile(`(?i)\bI(?:'ve| have)? set (?:up )?(?:a |the |your )?reminders?\b|\bI(?:'ll| will) remind you\b`)},
 	{"finish_todo", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (?:marked|checked off|crossed off|cancell?ed (?:the |that |your )?(?:reminder|to-?do))\b`)},
+	{"create_event", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (?:added|put|booked|scheduled|created|set up)\b[^.!?\n]{0,40}\b(calendar|meeting|event|appointment)\b`)},
+	{"add_longhouse_task", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (?:added|created)\b[^.!?\n]{0,30}\btask\b[^.!?\n]{0,30}\b(Longhouse|project)\b`)},
 	{"change_todo", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (?:moved|rescheduled|pushed back)\b[^.!?\n]{0,40}\b(reminder|to-?do|due|it)\b`)},
 }
 
 // claimNote says what did not happen, for each tool of claims.
 var claimNote = map[string]string{
-	"start_code_change": "no task was started.",
-	"send_notice":       "no notice was sent.",
-	"decide_task":       "no decision was recorded.",
-	"cancel_task":       "no task was stopped.",
-	"remember":          "nothing was recorded.",
-	"change_knowledge":  "nothing was changed.",
-	"add_todo":          "no to-do was added.",
-	"set_reminder":      "no reminder was set.",
-	"finish_todo":       "no to-do was changed.",
-	"change_todo":       "no to-do was changed.",
+	"start_code_change":  "no task was started.",
+	"send_notice":        "no notice was sent.",
+	"decide_task":        "no decision was recorded.",
+	"cancel_task":        "no task was stopped.",
+	"remember":           "nothing was recorded.",
+	"change_knowledge":   "nothing was changed.",
+	"add_todo":           "no to-do was added.",
+	"set_reminder":       "no reminder was set.",
+	"finish_todo":        "no to-do was changed.",
+	"change_todo":        "no to-do was changed.",
+	"create_event":       "no event was put on a calendar.",
+	"add_longhouse_task": "no Longhouse task was added.",
 }
 
 // sameAction: remember and change_knowledge both write the records. A

@@ -76,3 +76,188 @@ data class TokenResponse(
     val expiresMs: ULong
 )
 
+/** AppRef record. */
+data class AppRef(
+    val domain: String,
+    // wire key: user_id
+    val userId: String,
+    // wire key: app_id
+    val appId: String
+)
+
+/** ApplicationRequest record. */
+data class ApplicationRequest(
+    val detail: Boolean? = null
+)
+
+/** BeginGrantRequest record. */
+data class BeginGrantRequest(
+    val audience: AppRef,
+    // wire key: signed_scope_set
+    val signedScopeSet: ByteArray,
+    val owner: String? = null,
+    // wire key: return_url
+    val returnUrl: String? = null
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is BeginGrantRequest) return false
+        if (audience != other.audience) return false
+        if (!signedScopeSet.contentEquals(other.signedScopeSet)) return false
+        if (owner != other.owner) return false
+        if (returnUrl != other.returnUrl) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = audience.hashCode()
+        result = 31 * result + signedScopeSet.contentHashCode()
+        result = 31 * result + owner.hashCode()
+        result = 31 * result + returnUrl.hashCode()
+        return result
+    }
+}
+
+/** BeginGrantResponse record. */
+data class BeginGrantResponse(
+    val url: String,
+    // wire key: expires_ms
+    val expiresMs: ULong
+)
+
+/** Grant record. */
+data class Grant(
+    // wire key: grant_id
+    val grantId: String,
+    val owner: String,
+    val audience: AppRef,
+    val scopes: List<String>,
+    // wire key: expires_ms
+    val expiresMs: ULong,
+    // wire key: renewable_until_ms
+    val renewableUntilMs: ULong,
+    // wire key: created_ms
+    val createdMs: ULong,
+    val state: String
+)
+
+/** ListGrantsRequest record. */
+data class ListGrantsRequest(
+    val owner: String? = null,
+    val audience: AppRef? = null
+)
+
+/** ListGrantsResponse record. */
+data class ListGrantsResponse(
+    val grants: List<Grant>
+)
+
+/** PresentGrantRequest record. */
+data class PresentGrantRequest(
+    val owner: String,
+    val audience: AppRef,
+    // wire key: request_digest
+    val requestDigest: ByteArray,
+    // wire key: grant_id
+    val grantId: String? = null
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is PresentGrantRequest) return false
+        if (owner != other.owner) return false
+        if (audience != other.audience) return false
+        if (!requestDigest.contentEquals(other.requestDigest)) return false
+        if (grantId != other.grantId) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = owner.hashCode()
+        result = 31 * result + audience.hashCode()
+        result = 31 * result + requestDigest.contentHashCode()
+        result = 31 * result + grantId.hashCode()
+        return result
+    }
+}
+
+/** PresentGrantResponse record. */
+data class PresentGrantResponse(
+    val credential: ByteArray,
+    // wire key: grant_id
+    val grantId: String,
+    val scopes: List<String>,
+    // wire key: expires_ms
+    val expiresMs: ULong
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is PresentGrantResponse) return false
+        if (!credential.contentEquals(other.credential)) return false
+        if (grantId != other.grantId) return false
+        if (scopes != other.scopes) return false
+        if (expiresMs != other.expiresMs) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = credential.contentHashCode()
+        result = 31 * result + grantId.hashCode()
+        result = 31 * result + scopes.hashCode()
+        result = 31 * result + expiresMs.hashCode()
+        return result
+    }
+}
+
+/** ForgetGrantRequest record. */
+data class ForgetGrantRequest(
+    // wire key: grant_id
+    val grantId: String,
+    val owner: String? = null
+)
+
+/** EmptyResponse record. */
+data class EmptyResponse(
+    val ok: Boolean? = null
+)
+
+/** CredentialRef record. */
+data class CredentialRef(
+    val owner: String,
+    val system: String
+)
+
+/** PutCredentialRequest record. */
+data class PutCredentialRequest(
+    val owner: String,
+    val system: String,
+    val value: String,
+    val label: String? = null,
+    // wire key: expires_ms
+    val expiresMs: ULong? = null,
+    // wire key: expected_revision
+    val expectedRevision: ULong? = null
+)
+
+/** Credential record. */
+data class Credential(
+    val owner: String,
+    val system: String,
+    val label: String,
+    val revision: ULong,
+    // wire key: expires_ms
+    val expiresMs: ULong,
+    // wire key: updated_ms
+    val updatedMs: ULong,
+    val value: String? = null
+)
+
+/** ListCredentialsRequest record. */
+data class ListCredentialsRequest(
+    val owner: String? = null
+)
+
+/** ListCredentialsResponse record. */
+data class ListCredentialsResponse(
+    val credentials: List<Credential>
+)
+

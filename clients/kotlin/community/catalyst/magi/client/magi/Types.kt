@@ -1080,6 +1080,44 @@ data class DecideEgressReviewResponse(
     val rule: String? = null
 )
 
+/** ConnectRequest record. */
+data class ConnectRequest(
+    val system: String
+)
+
+/** ConnectResponse record. */
+data class ConnectResponse(
+    val system: String,
+    val url: String,
+    // wire key: user_code
+    val userCode: String? = null,
+    // wire key: expires_ms
+    val expiresMs: ULong,
+    val message: String
+)
+
+/** Connection record. */
+data class Connection(
+    val system: String,
+    val state: String,
+    val detail: String? = null,
+    // wire key: expires_ms
+    val expiresMs: ULong? = null
+)
+
+/** ListConnectionsRequest record. */
+class ListConnectionsRequest
+
+/** ListConnectionsResponse record. */
+data class ListConnectionsResponse(
+    val connections: List<Connection>
+)
+
+/** DisconnectRequest record. */
+data class DisconnectRequest(
+    val system: String
+)
+
 /** RunnerClaimRequest record. */
 data class RunnerClaimRequest(
     val queue: String,

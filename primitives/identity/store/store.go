@@ -180,6 +180,9 @@ func (db *DB) Prune(ctx context.Context, cutoffMs int64) error {
 	if _, err := db.pool.Exec(ctx, "DELETE FROM identity_logins WHERE expires_ms < $1", cutoffMs); err != nil {
 		return err
 	}
+	if _, err := db.pool.Exec(ctx, "DELETE FROM identity_grant_requests WHERE expires_ms < $1", cutoffMs); err != nil {
+		return err
+	}
 	_, err := db.pool.Exec(ctx, "DELETE FROM identity_sessions WHERE expires_ms < $1", cutoffMs)
 	return err
 }

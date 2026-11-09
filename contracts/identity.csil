@@ -54,10 +54,101 @@ IssueServiceTokenRequest = {
 RefreshRequest = { ? ttl_seconds: uint }
 TokenResponse = { token: text, subject: text, expires_ms: uint }
 
+;;; An application on a LinkKeys domain: the account user id, the domain,
+;;; and the application id.
+AppRef = { domain: text, user_id: text, app_id: text }
+
+;;; Magi's own application identity. An audience (another application)
+;;; signs its act-as scope set for this grantee.
+ApplicationRequest = { ? detail: bool }
+
+;;; Starts an act-as grant: the owner lets Magi act as the owner at the
+;;; audience. signed_scope_set is the CBOR SignedActAsScopeSet that the
+;;; audience made for Magi. The owner is the caller; a service with
+;;; "identity:act-as" can name another user. Open url in the owner's
+;;; browser. The owner signs in at the home domain and approves. Then the
+;;; browser goes to return_url (a page on the Magi public origin), or a page
+;;; tells the owner to close it.
+BeginGrantRequest = {
+  audience: AppRef,
+  signed_scope_set: bytes,
+  ? owner: text,
+  ? return_url: text,
+}
+BeginGrantResponse = { url: text, expires_ms: uint }
+
+;;; state is "active", "expired", or "revoked".
+Grant = {
+  grant_id: text,
+  owner: text,
+  audience: AppRef,
+  scopes: [* text],
+  expires_ms: uint,
+  renewable_until_ms: uint,
+  created_ms: uint,
+  state: text,
+}
+ListGrantsRequest = { ? owner: text, ? audience: AppRef }
+ListGrantsResponse = { grants: [* Grant] }
+
+;;; Makes an act-as credential (CBOR ActAsCredential) for one call or bearer
+;;; exchange at the audience. request_digest is the digest that the audience
+;;; asks for. The home domain checks the grant first, so a revoked grant
+;;; fails here. Requires "identity:present".
+PresentGrantRequest = {
+  owner: text,
+  audience: AppRef,
+  request_digest: bytes,
+  ? grant_id: text,
+}
+PresentGrantResponse = {
+  credential: bytes,
+  grant_id: text,
+  scopes: [* text],
+  expires_ms: uint,
+}
+ForgetGrantRequest = { grant_id: text, ? owner: text }
+EmptyResponse = { ? ok: bool }
+
+;;; A credential that the owner gave Magi for a system without act-as
+;;; grants, such as the refresh token of a command-line session. Magi
+;;; encrypts the value at rest. A put with expected_revision fails with a
+;;; conflict when another put came first (a rotated refresh token).
+;;; Put needs the owner or "identity:act-as"; get needs "identity:present".
+CredentialRef = { owner: text, system: text }
+PutCredentialRequest = {
+  owner: text,
+  system: text,
+  value: text,
+  ? label: text,
+  ? expires_ms: uint,
+  ? expected_revision: uint,
+}
+Credential = {
+  owner: text,
+  system: text,
+  label: text,
+  revision: uint,
+  expires_ms: uint,
+  updated_ms: uint,
+  ? value: text,
+}
+ListCredentialsRequest = { ? owner: text }
+ListCredentialsResponse = { credentials: [* Credential] }
+
 service IdentityService {
   begin-login: BeginLoginRequest -> BeginLoginResponse,
   poll-login: PollLoginRequest -> PollLoginResponse,
   who-am-i: WhoAmIRequest -> WhoAmIResponse,
   issue-service-token: IssueServiceTokenRequest -> TokenResponse,
   refresh: RefreshRequest -> TokenResponse,
+  application: ApplicationRequest -> AppRef,
+  begin-grant: BeginGrantRequest -> BeginGrantResponse,
+  list-grants: ListGrantsRequest -> ListGrantsResponse,
+  present-grant: PresentGrantRequest -> PresentGrantResponse,
+  forget-grant: ForgetGrantRequest -> EmptyResponse,
+  put-credential: PutCredentialRequest -> Credential,
+  get-credential: CredentialRef -> Credential,
+  list-credentials: ListCredentialsRequest -> ListCredentialsResponse,
+  forget-credential: CredentialRef -> EmptyResponse,
 }

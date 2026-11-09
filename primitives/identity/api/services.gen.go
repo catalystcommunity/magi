@@ -14,4 +14,13 @@ type IdentityService interface {
 	WhoAmI(ctx context.Context, req WhoAmIRequest) (WhoAmIResponse, error)
 	IssueServiceToken(ctx context.Context, req IssueServiceTokenRequest) (TokenResponse, error)
 	Refresh(ctx context.Context, req RefreshRequest) (TokenResponse, error)
+	Application(ctx context.Context, req ApplicationRequest) (AppRef, error)
+	BeginGrant(ctx context.Context, req BeginGrantRequest) (BeginGrantResponse, error)
+	ListGrants(ctx context.Context, req ListGrantsRequest) (ListGrantsResponse, error)
+	PresentGrant(ctx context.Context, req PresentGrantRequest) (PresentGrantResponse, error)
+	ForgetGrant(ctx context.Context, req ForgetGrantRequest) (EmptyResponse, error)
+	PutCredential(ctx context.Context, req PutCredentialRequest) (Credential, error)
+	GetCredential(ctx context.Context, req CredentialRef) (Credential, error)
+	ListCredentials(ctx context.Context, req ListCredentialsRequest) (ListCredentialsResponse, error)
+	ForgetCredential(ctx context.Context, req CredentialRef) (EmptyResponse, error)
 }

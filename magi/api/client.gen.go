@@ -511,6 +511,33 @@ func (c *MagiClient) DecideEgressReview(ctx context.Context, req DecideEgressRev
 	return DecodeDecideEgressReviewResponse(csilResp)
 }
 
+func (c *MagiClient) Connect(ctx context.Context, req ConnectRequest) (ConnectResponse, error) {
+	var csilZero ConnectResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "connect", EncodeConnectRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeConnectResponse(csilResp)
+}
+
+func (c *MagiClient) ListConnections(ctx context.Context, req ListConnectionsRequest) (ListConnectionsResponse, error) {
+	var csilZero ListConnectionsResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-connections", EncodeListConnectionsRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListConnectionsResponse(csilResp)
+}
+
+func (c *MagiClient) Disconnect(ctx context.Context, req DisconnectRequest) (Connection, error) {
+	var csilZero Connection
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "disconnect", EncodeDisconnectRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeConnection(csilResp)
+}
+
 // RunnerClient is a typed client for the RunnerService service. The client owns
 // (de)serialization via the generated codec; the transport only moves bytes.
 type RunnerClient struct {

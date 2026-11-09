@@ -31,5 +31,32 @@ class IdentityAsyncClient(private val transport: AsyncTransport) {
     suspend fun refresh(request: RefreshRequest): TokenResponse {
         return decode<TokenResponse>(transport.call("IdentityService", "refresh", encode(request)))
     }
+    suspend fun application(request: ApplicationRequest): AppRef {
+        return decode<AppRef>(transport.call("IdentityService", "application", encode(request)))
+    }
+    suspend fun beginGrant(request: BeginGrantRequest): BeginGrantResponse {
+        return decode<BeginGrantResponse>(transport.call("IdentityService", "begin-grant", encode(request)))
+    }
+    suspend fun listGrants(request: ListGrantsRequest): ListGrantsResponse {
+        return decode<ListGrantsResponse>(transport.call("IdentityService", "list-grants", encode(request)))
+    }
+    suspend fun presentGrant(request: PresentGrantRequest): PresentGrantResponse {
+        return decode<PresentGrantResponse>(transport.call("IdentityService", "present-grant", encode(request)))
+    }
+    suspend fun forgetGrant(request: ForgetGrantRequest): EmptyResponse {
+        return decode<EmptyResponse>(transport.call("IdentityService", "forget-grant", encode(request)))
+    }
+    suspend fun putCredential(request: PutCredentialRequest): Credential {
+        return decode<Credential>(transport.call("IdentityService", "put-credential", encode(request)))
+    }
+    suspend fun getCredential(request: CredentialRef): Credential {
+        return decode<Credential>(transport.call("IdentityService", "get-credential", encode(request)))
+    }
+    suspend fun listCredentials(request: ListCredentialsRequest): ListCredentialsResponse {
+        return decode<ListCredentialsResponse>(transport.call("IdentityService", "list-credentials", encode(request)))
+    }
+    suspend fun forgetCredential(request: CredentialRef): EmptyResponse {
+        return decode<EmptyResponse>(transport.call("IdentityService", "forget-credential", encode(request)))
+    }
 }
 

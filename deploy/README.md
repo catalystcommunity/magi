@@ -151,6 +151,17 @@ proxy is its only route out. Read `docs/egress-proxy.md` first.
    Put the hosts that the checks need (module proxies, crate registries)
    in the policy destinations.
 
+## Calendar and Longhouse
+
+`GRANTS=true` makes Magi a LinkKeys application that holds act-as grants
+(`docs/connections.md`). Make the Secret `magi-grants` with the keys
+`app-keys.json` (from `identity app-keys generate` and `enroll`) and
+`credential-key.txt` (from `identity credential-key`). Set
+`CATALYSTCAL_URL` and `LONGHOUSE_URL` to the public URLs. The service token
+of Magi needs the scopes `identity:act-as` and `identity:present`. With
+`EGRESS=true`, the calls go through the egress proxy as `svc_magi`: put
+both hosts in the policy destinations with `"environments": ["svc_magi"]`.
+
 ## Web search
 
 `SEARCH=true` (with `EGRESS=true`) adds the SearXNG service `search`. Only

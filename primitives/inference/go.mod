@@ -1,6 +1,6 @@
 module github.com/catalystcommunity/magi/primitives/inference
 
-go 1.26.0
+go 1.26.4
 
 require (
 	github.com/catalystcommunity/magi/lib/authn v0.0.0

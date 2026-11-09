@@ -85,3 +85,133 @@ export interface TokenResponse {
   expiresMs: number;
 }
 
+/**
+ * An application on a LinkKeys domain: the account user id, the domain,
+ * and the application id.
+ */
+export interface AppRef {
+  domain: string;
+  userId: string;
+  appId: string;
+}
+
+/**
+ * Magi's own application identity. An audience (another application)
+ * signs its act-as scope set for this grantee.
+ */
+export interface ApplicationRequest {
+  detail?: boolean;
+}
+
+/**
+ * Starts an act-as grant: the owner lets Magi act as the owner at the
+ * audience. signed_scope_set is the CBOR SignedActAsScopeSet that the
+ * audience made for Magi. The owner is the caller; a service with
+ * "identity:act-as" can name another user. Open url in the owner's
+ * browser. The owner signs in at the home domain and approves. Then the
+ * browser goes to return_url (a page on the Magi public origin), or a page
+ * tells the owner to close it.
+ */
+export interface BeginGrantRequest {
+  audience: AppRef;
+  signedScopeSet: Uint8Array;
+  owner?: string;
+  returnUrl?: string;
+}
+
+export interface BeginGrantResponse {
+  url: string;
+  expiresMs: number;
+}
+
+/**
+ * state is "active", "expired", or "revoked".
+ */
+export interface Grant {
+  grantId: string;
+  owner: string;
+  audience: AppRef;
+  scopes: string[];
+  expiresMs: number;
+  renewableUntilMs: number;
+  createdMs: number;
+  state: string;
+}
+
+export interface ListGrantsRequest {
+  owner?: string;
+  audience?: AppRef;
+}
+
+export interface ListGrantsResponse {
+  grants: Grant[];
+}
+
+/**
+ * Makes an act-as credential (CBOR ActAsCredential) for one call or bearer
+ * exchange at the audience. request_digest is the digest that the audience
+ * asks for. The home domain checks the grant first, so a revoked grant
+ * fails here. Requires "identity:present".
+ */
+export interface PresentGrantRequest {
+  owner: string;
+  audience: AppRef;
+  requestDigest: Uint8Array;
+  grantId?: string;
+}
+
+export interface PresentGrantResponse {
+  credential: Uint8Array;
+  grantId: string;
+  scopes: string[];
+  expiresMs: number;
+}
+
+export interface ForgetGrantRequest {
+  grantId: string;
+  owner?: string;
+}
+
+export interface EmptyResponse {
+  ok?: boolean;
+}
+
+/**
+ * A credential that the owner gave Magi for a system without act-as
+ * grants, such as the refresh token of a command-line session. Magi
+ * encrypts the value at rest. A put with expected_revision fails with a
+ * conflict when another put came first (a rotated refresh token).
+ * Put needs the owner or "identity:act-as"; get needs "identity:present".
+ */
+export interface CredentialRef {
+  owner: string;
+  system: string;
+}
+
+export interface PutCredentialRequest {
+  owner: string;
+  system: string;
+  value: string;
+  label?: string;
+  expiresMs?: number;
+  expectedRevision?: number;
+}
+
+export interface Credential {
+  owner: string;
+  system: string;
+  label: string;
+  revision: number;
+  expiresMs: number;
+  updatedMs: number;
+  value?: string;
+}
+
+export interface ListCredentialsRequest {
+  owner?: string;
+}
+
+export interface ListCredentialsResponse {
+  credentials: Credential[];
+}
+

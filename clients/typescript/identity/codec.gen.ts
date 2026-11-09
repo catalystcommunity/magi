@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { BeginLoginRequest, BeginLoginResponse, IssueServiceTokenRequest, PollLoginRequest, PollLoginResponse, RefreshRequest, TokenResponse, WhoAmIRequest, WhoAmIResponse } from "./types.gen.ts";
+import type { AppRef, ApplicationRequest, BeginGrantRequest, BeginGrantResponse, BeginLoginRequest, BeginLoginResponse, Credential, CredentialRef, EmptyResponse, ForgetGrantRequest, Grant, IssueServiceTokenRequest, ListCredentialsRequest, ListCredentialsResponse, ListGrantsRequest, ListGrantsResponse, PollLoginRequest, PollLoginResponse, PresentGrantRequest, PresentGrantResponse, PutCredentialRequest, RefreshRequest, TokenResponse, WhoAmIRequest, WhoAmIResponse } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -554,5 +554,391 @@ export function toTokenResponseCbor(v: TokenResponse): Uint8Array {
 
 export function fromTokenResponseCbor(bytes: Uint8Array): TokenResponse {
   return fromTokenResponseCborValue(decode(bytes));
+}
+
+export function toAppRefCborValue(v: AppRef): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("app_id", v.appId);
+  csilMap.set("domain", v.domain);
+  csilMap.set("user_id", v.userId);
+  return csilMap;
+}
+
+export function fromAppRefCborValue(value: CborValue): AppRef {
+  return {
+    domain: asString(requireKey(value, "domain")),
+    userId: asString(requireKey(value, "user_id")),
+    appId: asString(requireKey(value, "app_id")),
+  };
+}
+
+export function toAppRefCbor(v: AppRef): Uint8Array {
+  return encodeValue(toAppRefCborValue(v));
+}
+
+export function fromAppRefCbor(bytes: Uint8Array): AppRef {
+  return fromAppRefCborValue(decode(bytes));
+}
+
+export function toApplicationRequestCborValue(v: ApplicationRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.detail !== undefined) csilMap.set("detail", v.detail);
+  return csilMap;
+}
+
+export function fromApplicationRequestCborValue(value: CborValue): ApplicationRequest {
+  return {
+    detail: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "detail")),
+  };
+}
+
+export function toApplicationRequestCbor(v: ApplicationRequest): Uint8Array {
+  return encodeValue(toApplicationRequestCborValue(v));
+}
+
+export function fromApplicationRequestCbor(bytes: Uint8Array): ApplicationRequest {
+  return fromApplicationRequestCborValue(decode(bytes));
+}
+
+export function toBeginGrantRequestCborValue(v: BeginGrantRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.owner !== undefined) csilMap.set("owner", v.owner);
+  csilMap.set("audience", toAppRefCborValue(v.audience));
+  if (v.returnUrl !== undefined) csilMap.set("return_url", v.returnUrl);
+  csilMap.set("signed_scope_set", v.signedScopeSet);
+  return csilMap;
+}
+
+export function fromBeginGrantRequestCborValue(value: CborValue): BeginGrantRequest {
+  return {
+    audience: fromAppRefCborValue(requireKey(value, "audience")),
+    signedScopeSet: asBytes(requireKey(value, "signed_scope_set")),
+    owner: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "owner")),
+    returnUrl: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "return_url")),
+  };
+}
+
+export function toBeginGrantRequestCbor(v: BeginGrantRequest): Uint8Array {
+  return encodeValue(toBeginGrantRequestCborValue(v));
+}
+
+export function fromBeginGrantRequestCbor(bytes: Uint8Array): BeginGrantRequest {
+  return fromBeginGrantRequestCborValue(decode(bytes));
+}
+
+export function toBeginGrantResponseCborValue(v: BeginGrantResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("url", v.url);
+  csilMap.set("expires_ms", v.expiresMs);
+  return csilMap;
+}
+
+export function fromBeginGrantResponseCborValue(value: CborValue): BeginGrantResponse {
+  return {
+    url: asString(requireKey(value, "url")),
+    expiresMs: asNumber(requireKey(value, "expires_ms")),
+  };
+}
+
+export function toBeginGrantResponseCbor(v: BeginGrantResponse): Uint8Array {
+  return encodeValue(toBeginGrantResponseCborValue(v));
+}
+
+export function fromBeginGrantResponseCbor(bytes: Uint8Array): BeginGrantResponse {
+  return fromBeginGrantResponseCborValue(decode(bytes));
+}
+
+export function toGrantCborValue(v: Grant): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("owner", v.owner);
+  csilMap.set("state", v.state);
+  csilMap.set("scopes", v.scopes);
+  csilMap.set("audience", toAppRefCborValue(v.audience));
+  csilMap.set("grant_id", v.grantId);
+  csilMap.set("created_ms", v.createdMs);
+  csilMap.set("expires_ms", v.expiresMs);
+  csilMap.set("renewable_until_ms", v.renewableUntilMs);
+  return csilMap;
+}
+
+export function fromGrantCborValue(value: CborValue): Grant {
+  return {
+    grantId: asString(requireKey(value, "grant_id")),
+    owner: asString(requireKey(value, "owner")),
+    audience: fromAppRefCborValue(requireKey(value, "audience")),
+    scopes: asArray(requireKey(value, "scopes")).map((csilE) => asString(csilE)),
+    expiresMs: asNumber(requireKey(value, "expires_ms")),
+    renewableUntilMs: asNumber(requireKey(value, "renewable_until_ms")),
+    createdMs: asNumber(requireKey(value, "created_ms")),
+    state: asString(requireKey(value, "state")),
+  };
+}
+
+export function toGrantCbor(v: Grant): Uint8Array {
+  return encodeValue(toGrantCborValue(v));
+}
+
+export function fromGrantCbor(bytes: Uint8Array): Grant {
+  return fromGrantCborValue(decode(bytes));
+}
+
+export function toListGrantsRequestCborValue(v: ListGrantsRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.owner !== undefined) csilMap.set("owner", v.owner);
+  if (v.audience !== undefined) csilMap.set("audience", toAppRefCborValue(v.audience));
+  return csilMap;
+}
+
+export function fromListGrantsRequestCborValue(value: CborValue): ListGrantsRequest {
+  return {
+    owner: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "owner")),
+    audience: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromAppRefCborValue(csilV))(mapGet(value, "audience")),
+  };
+}
+
+export function toListGrantsRequestCbor(v: ListGrantsRequest): Uint8Array {
+  return encodeValue(toListGrantsRequestCborValue(v));
+}
+
+export function fromListGrantsRequestCbor(bytes: Uint8Array): ListGrantsRequest {
+  return fromListGrantsRequestCborValue(decode(bytes));
+}
+
+export function toListGrantsResponseCborValue(v: ListGrantsResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("grants", v.grants.map((csilE): CborValue => toGrantCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromListGrantsResponseCborValue(value: CborValue): ListGrantsResponse {
+  return {
+    grants: asArray(requireKey(value, "grants")).map((csilE) => fromGrantCborValue(csilE)),
+  };
+}
+
+export function toListGrantsResponseCbor(v: ListGrantsResponse): Uint8Array {
+  return encodeValue(toListGrantsResponseCborValue(v));
+}
+
+export function fromListGrantsResponseCbor(bytes: Uint8Array): ListGrantsResponse {
+  return fromListGrantsResponseCborValue(decode(bytes));
+}
+
+export function toPresentGrantRequestCborValue(v: PresentGrantRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("owner", v.owner);
+  csilMap.set("audience", toAppRefCborValue(v.audience));
+  if (v.grantId !== undefined) csilMap.set("grant_id", v.grantId);
+  csilMap.set("request_digest", v.requestDigest);
+  return csilMap;
+}
+
+export function fromPresentGrantRequestCborValue(value: CborValue): PresentGrantRequest {
+  return {
+    owner: asString(requireKey(value, "owner")),
+    audience: fromAppRefCborValue(requireKey(value, "audience")),
+    requestDigest: asBytes(requireKey(value, "request_digest")),
+    grantId: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "grant_id")),
+  };
+}
+
+export function toPresentGrantRequestCbor(v: PresentGrantRequest): Uint8Array {
+  return encodeValue(toPresentGrantRequestCborValue(v));
+}
+
+export function fromPresentGrantRequestCbor(bytes: Uint8Array): PresentGrantRequest {
+  return fromPresentGrantRequestCborValue(decode(bytes));
+}
+
+export function toPresentGrantResponseCborValue(v: PresentGrantResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("scopes", v.scopes);
+  csilMap.set("grant_id", v.grantId);
+  csilMap.set("credential", v.credential);
+  csilMap.set("expires_ms", v.expiresMs);
+  return csilMap;
+}
+
+export function fromPresentGrantResponseCborValue(value: CborValue): PresentGrantResponse {
+  return {
+    credential: asBytes(requireKey(value, "credential")),
+    grantId: asString(requireKey(value, "grant_id")),
+    scopes: asArray(requireKey(value, "scopes")).map((csilE) => asString(csilE)),
+    expiresMs: asNumber(requireKey(value, "expires_ms")),
+  };
+}
+
+export function toPresentGrantResponseCbor(v: PresentGrantResponse): Uint8Array {
+  return encodeValue(toPresentGrantResponseCborValue(v));
+}
+
+export function fromPresentGrantResponseCbor(bytes: Uint8Array): PresentGrantResponse {
+  return fromPresentGrantResponseCborValue(decode(bytes));
+}
+
+export function toForgetGrantRequestCborValue(v: ForgetGrantRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.owner !== undefined) csilMap.set("owner", v.owner);
+  csilMap.set("grant_id", v.grantId);
+  return csilMap;
+}
+
+export function fromForgetGrantRequestCborValue(value: CborValue): ForgetGrantRequest {
+  return {
+    grantId: asString(requireKey(value, "grant_id")),
+    owner: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "owner")),
+  };
+}
+
+export function toForgetGrantRequestCbor(v: ForgetGrantRequest): Uint8Array {
+  return encodeValue(toForgetGrantRequestCborValue(v));
+}
+
+export function fromForgetGrantRequestCbor(bytes: Uint8Array): ForgetGrantRequest {
+  return fromForgetGrantRequestCborValue(decode(bytes));
+}
+
+export function toEmptyResponseCborValue(v: EmptyResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.ok !== undefined) csilMap.set("ok", v.ok);
+  return csilMap;
+}
+
+export function fromEmptyResponseCborValue(value: CborValue): EmptyResponse {
+  return {
+    ok: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "ok")),
+  };
+}
+
+export function toEmptyResponseCbor(v: EmptyResponse): Uint8Array {
+  return encodeValue(toEmptyResponseCborValue(v));
+}
+
+export function fromEmptyResponseCbor(bytes: Uint8Array): EmptyResponse {
+  return fromEmptyResponseCborValue(decode(bytes));
+}
+
+export function toCredentialRefCborValue(v: CredentialRef): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("owner", v.owner);
+  csilMap.set("system", v.system);
+  return csilMap;
+}
+
+export function fromCredentialRefCborValue(value: CborValue): CredentialRef {
+  return {
+    owner: asString(requireKey(value, "owner")),
+    system: asString(requireKey(value, "system")),
+  };
+}
+
+export function toCredentialRefCbor(v: CredentialRef): Uint8Array {
+  return encodeValue(toCredentialRefCborValue(v));
+}
+
+export function fromCredentialRefCbor(bytes: Uint8Array): CredentialRef {
+  return fromCredentialRefCborValue(decode(bytes));
+}
+
+export function toPutCredentialRequestCborValue(v: PutCredentialRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.label !== undefined) csilMap.set("label", v.label);
+  csilMap.set("owner", v.owner);
+  csilMap.set("value", v.value);
+  csilMap.set("system", v.system);
+  if (v.expiresMs !== undefined) csilMap.set("expires_ms", v.expiresMs);
+  if (v.expectedRevision !== undefined) csilMap.set("expected_revision", v.expectedRevision);
+  return csilMap;
+}
+
+export function fromPutCredentialRequestCborValue(value: CborValue): PutCredentialRequest {
+  return {
+    owner: asString(requireKey(value, "owner")),
+    system: asString(requireKey(value, "system")),
+    value: asString(requireKey(value, "value")),
+    label: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "label")),
+    expiresMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "expires_ms")),
+    expectedRevision: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "expected_revision")),
+  };
+}
+
+export function toPutCredentialRequestCbor(v: PutCredentialRequest): Uint8Array {
+  return encodeValue(toPutCredentialRequestCborValue(v));
+}
+
+export function fromPutCredentialRequestCbor(bytes: Uint8Array): PutCredentialRequest {
+  return fromPutCredentialRequestCborValue(decode(bytes));
+}
+
+export function toCredentialCborValue(v: Credential): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("label", v.label);
+  csilMap.set("owner", v.owner);
+  if (v.value !== undefined) csilMap.set("value", v.value);
+  csilMap.set("system", v.system);
+  csilMap.set("revision", v.revision);
+  csilMap.set("expires_ms", v.expiresMs);
+  csilMap.set("updated_ms", v.updatedMs);
+  return csilMap;
+}
+
+export function fromCredentialCborValue(value: CborValue): Credential {
+  return {
+    owner: asString(requireKey(value, "owner")),
+    system: asString(requireKey(value, "system")),
+    label: asString(requireKey(value, "label")),
+    revision: asNumber(requireKey(value, "revision")),
+    expiresMs: asNumber(requireKey(value, "expires_ms")),
+    updatedMs: asNumber(requireKey(value, "updated_ms")),
+    value: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "value")),
+  };
+}
+
+export function toCredentialCbor(v: Credential): Uint8Array {
+  return encodeValue(toCredentialCborValue(v));
+}
+
+export function fromCredentialCbor(bytes: Uint8Array): Credential {
+  return fromCredentialCborValue(decode(bytes));
+}
+
+export function toListCredentialsRequestCborValue(v: ListCredentialsRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.owner !== undefined) csilMap.set("owner", v.owner);
+  return csilMap;
+}
+
+export function fromListCredentialsRequestCborValue(value: CborValue): ListCredentialsRequest {
+  return {
+    owner: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "owner")),
+  };
+}
+
+export function toListCredentialsRequestCbor(v: ListCredentialsRequest): Uint8Array {
+  return encodeValue(toListCredentialsRequestCborValue(v));
+}
+
+export function fromListCredentialsRequestCbor(bytes: Uint8Array): ListCredentialsRequest {
+  return fromListCredentialsRequestCborValue(decode(bytes));
+}
+
+export function toListCredentialsResponseCborValue(v: ListCredentialsResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("credentials", v.credentials.map((csilE): CborValue => toCredentialCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromListCredentialsResponseCborValue(value: CborValue): ListCredentialsResponse {
+  return {
+    credentials: asArray(requireKey(value, "credentials")).map((csilE) => fromCredentialCborValue(csilE)),
+  };
+}
+
+export function toListCredentialsResponseCbor(v: ListCredentialsResponse): Uint8Array {
+  return encodeValue(toListCredentialsResponseCborValue(v));
+}
+
+export function fromListCredentialsResponseCbor(bytes: Uint8Array): ListCredentialsResponse {
+  return fromListCredentialsResponseCborValue(decode(bytes));
 }
 

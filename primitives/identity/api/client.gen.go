@@ -87,3 +87,84 @@ func (c *IdentityClient) Refresh(ctx context.Context, req RefreshRequest) (Token
 	}
 	return DecodeTokenResponse(csilResp)
 }
+
+func (c *IdentityClient) Application(ctx context.Context, req ApplicationRequest) (AppRef, error) {
+	var csilZero AppRef
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "application", EncodeApplicationRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeAppRef(csilResp)
+}
+
+func (c *IdentityClient) BeginGrant(ctx context.Context, req BeginGrantRequest) (BeginGrantResponse, error) {
+	var csilZero BeginGrantResponse
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "begin-grant", EncodeBeginGrantRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeBeginGrantResponse(csilResp)
+}
+
+func (c *IdentityClient) ListGrants(ctx context.Context, req ListGrantsRequest) (ListGrantsResponse, error) {
+	var csilZero ListGrantsResponse
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "list-grants", EncodeListGrantsRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListGrantsResponse(csilResp)
+}
+
+func (c *IdentityClient) PresentGrant(ctx context.Context, req PresentGrantRequest) (PresentGrantResponse, error) {
+	var csilZero PresentGrantResponse
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "present-grant", EncodePresentGrantRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodePresentGrantResponse(csilResp)
+}
+
+func (c *IdentityClient) ForgetGrant(ctx context.Context, req ForgetGrantRequest) (EmptyResponse, error) {
+	var csilZero EmptyResponse
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "forget-grant", EncodeForgetGrantRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeEmptyResponse(csilResp)
+}
+
+func (c *IdentityClient) PutCredential(ctx context.Context, req PutCredentialRequest) (Credential, error) {
+	var csilZero Credential
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "put-credential", EncodePutCredentialRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeCredential(csilResp)
+}
+
+func (c *IdentityClient) GetCredential(ctx context.Context, req CredentialRef) (Credential, error) {
+	var csilZero Credential
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "get-credential", EncodeCredentialRef(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeCredential(csilResp)
+}
+
+func (c *IdentityClient) ListCredentials(ctx context.Context, req ListCredentialsRequest) (ListCredentialsResponse, error) {
+	var csilZero ListCredentialsResponse
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "list-credentials", EncodeListCredentialsRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListCredentialsResponse(csilResp)
+}
+
+func (c *IdentityClient) ForgetCredential(ctx context.Context, req CredentialRef) (EmptyResponse, error) {
+	var csilZero EmptyResponse
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "forget-credential", EncodeCredentialRef(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeEmptyResponse(csilResp)
+}
