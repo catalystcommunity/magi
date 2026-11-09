@@ -66,10 +66,14 @@ func codeChangeDefinition(runners bool) workflowapi.Definition {
 			// The pull request waits on GitHub. Each 10 minutes the
 			// publishing runner checks it. The owner can also say that it
 			// was merged or closed.
-			{Id: "pr-wait", Kind: "human", Prompt: ptr("The pull request (pr.url) waits for review. Magi checks it every 10 minutes."),
-				Outcomes: []string{"check", "merged", "closed"}, WaitMs: ptr(uint64(10 * 60 * 1000)), TimeoutOutcome: ptr("check"),
-				Next: map[string]string{"check": "pr-check", "merged": "pr-check", "closed": "cleanup"}},
+			{Id: "pr-wait", Kind: "human", Prompt: ptr("The pull request (pr.url) waits for review. Magi checks it every 10 minutes. merge: Magi merges it on GitHub."),
+				Outcomes: []string{"check", "merged", "closed", "merge"}, WaitMs: ptr(uint64(10 * 60 * 1000)), TimeoutOutcome: ptr("check"),
+				Next: map[string]string{"check": "pr-check", "merged": "pr-check", "closed": "cleanup", "merge": "pr-merge"}},
 			task("pr-check", "magi.pr-check", map[string]string{"merged": "rollout", "closed": "cleanup", "open": "pr-wait"}, 3),
+			// pr-merge runs in the sandbox of the task: the request goes
+			// through the egress proxy, which puts in the GitHub token only
+			// for a task of the engineering persona (GH_TOKEN placeholder).
+			task("pr-merge", "magi.pr-merge", map[string]string{"merged": "pr-check", "fail": "pr-wait"}, 2),
 		},
 	}
 }

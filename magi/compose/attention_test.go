@@ -150,6 +150,8 @@ func TestFalseClaim(t *testing.T) {
 		{"Three tasks are running and one waits for review.", nil, ""},
 		{"I approved it.", nil, "decide_task"},
 		{"Should I approve it?", nil, ""},
+		{"I've merged the PR and updated the Longhouse task to done.", nil, "decide_task"},
+		{"The pull request is merged.", nil, "decide_task"},
 	} {
 		if got := falseClaim(tc.reply, tc.calls, em); got != tc.want {
 			t.Errorf("falseClaim(%q) = %q, want %q", tc.reply, got, tc.want)

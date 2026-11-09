@@ -143,9 +143,9 @@ func toolDefs() map[string]model.Tool {
 		{Name: "task_diff", Description: "The change of a task: changed files with sizes, and the start of the patch.", Parameters: obj(map[string]any{
 			"task": str("Task id, from list_tasks."),
 		}, "task")},
-		{Name: "decide_task", Description: "Decide a task that waits for review: approve (merge and release), revise (back to the apprentice with a comment), or reject. approve and reject need confirm true after the person agrees.", Parameters: obj(map[string]any{
+		{Name: "decide_task", Description: "Decide a task that waits for a person. At the review step: approve (merge and release), revise (back to the apprentice with a comment), or reject. At the pr-wait step (an open pull request on GitHub): merge (Magi merges the pull request on GitHub). approve, reject, and merge need confirm true after the person agrees.", Parameters: obj(map[string]any{
 			"task":    str("Task id."),
-			"outcome": map[string]any{"type": "string", "enum": []string{"approve", "revise", "reject"}},
+			"outcome": map[string]any{"type": "string", "enum": []string{"approve", "revise", "reject", "merge"}},
 			"comment": str("For revise: what the apprentice must change. Optional otherwise."),
 			"confirm": map[string]any{"type": "boolean", "description": "True only when the person agreed in a new message after you asked."},
 		}, "task", "outcome")},
@@ -274,12 +274,15 @@ func (s *System) extraTool(ctx context.Context, a workflowapi.Assignment, as con
 		if run.Status != "waiting" {
 			return fmt.Sprintf("error: the task is not waiting for a decision (status %s, step %s)", run.Status, run.CurrentStep), nil, true
 		}
+		if (outcome == "merge") != (run.CurrentStep == "pr-wait") {
+			return fmt.Sprintf("error: at step %s the outcome %s is not possible (merge is for an open pull request, step pr-wait; approve, revise, and reject are for review)", run.CurrentStep, outcome), nil, true
+		}
 		switch outcome {
 		case "revise":
 			if strings.TrimSpace(args["comment"]) == "" {
 				return "error: revise needs a comment for the apprentice", nil, true
 			}
-		case "approve", "reject":
+		case "approve", "reject", "merge":
 			if args["confirm"] != "true" {
 				return fmt.Sprintf("confirmation needed: tell the person that you will %s task %s %q (branch %s), and ask them to agree. Then call again with confirm true.",
 					outcome, run.Id, run.Vars["title"], run.Vars["branch"]), nil, true
@@ -291,7 +294,7 @@ func (s *System) extraTool(ctx context.Context, a workflowapi.Assignment, as con
 				return "confirmation needed: no earlier request for this decision in the conversation. Tell the person what you will do and ask them to agree. Then call again with confirm true.", nil, true
 			}
 		default:
-			return "error: outcome must be approve, revise, or reject", nil, true
+			return "error: outcome must be approve, revise, reject, or merge", nil, true
 		}
 		comment := strings.TrimSpace(args["comment"])
 		note := "decided by " + displayName(a) + " through " + as.persona
@@ -302,6 +305,9 @@ func (s *System) extraTool(ctx context.Context, a workflowapi.Assignment, as con
 			return "error: " + err.Error(), nil, true
 		}
 		res := fmt.Sprintf("Task %s: %s.", run.Id, outcome)
+		if outcome == "merge" {
+			res += " Magi merges the pull request on GitHub now; the merge can fail (a conflict, a review rule). Say only that you asked for the merge and that Magi tells the person when it is merged. Do not say that it is merged, and do not mark tracking tasks done yet."
+		}
 		if outcome == "approve" {
 			// The merge, build, release, and publish take minutes and can
 			// fail (a model said "merged and released" at once).
@@ -466,6 +472,7 @@ var claims = []struct {
 	{"set_reminder", regexp.MustCompile(`(?i)\bI(?:'ve| have)? set (?:up )?(?:a |the |your )?reminders?\b|\bI(?:'ll| will) remind you\b`)},
 	{"finish_todo", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (?:marked|checked off|crossed off|cancell?ed (?:the |that |your )?(?:reminder|to-?do))\b`)},
 	{"create_event", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (?:added|put|booked|scheduled|created|set up)\b[^.!?\n]{0,40}\b(calendar|meeting|event|appointment)\b|\b(?:is|are) now on (?:\w+'s |the |your |my )?(?:\w+ )?calendar\b|^\s*(?:done|all set)\b[^.!?\n]{0,80}\bcalendar\b`)},
+	{"decide_task", regexp.MustCompile(`(?i)\bI(?:'ve| have)? merged\b|\b(?:PR|pull request)[^.!?\n]{0,30}\b(?:is|was|has been) merged\b`)},
 	{"add_longhouse_task", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (?:added|created)\b[^.!?\n]{0,30}\btask\b[^.!?\n]{0,30}\b(Longhouse|project)\b`)},
 	{"change_todo", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (?:moved|rescheduled|pushed back)\b[^.!?\n]{0,40}\b(reminder|to-?do|due|it)\b`)},
 }

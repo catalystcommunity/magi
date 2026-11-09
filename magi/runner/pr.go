@@ -105,6 +105,46 @@ func (r *Runner) prCheck(ctx context.Context, a magiapi.RunnerAssignment, st mag
 	return res, nil
 }
 
+var prURL = regexp.MustCompile(`^https://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)/pull/(\d+)$`)
+
+// prMerge merges the pull request through the GitHub API, from the sandbox
+// of the task. The sandbox reaches GitHub only through the egress proxy and
+// has only a placeholder in GH_TOKEN; the proxy puts the token in for a
+// task of a persona that the egress rules permit (the engineering persona).
+// The runner's own GitHub login is not used.
+func (r *Runner) prMerge(ctx context.Context, a magiapi.RunnerAssignment, st magiapi.RunnerStep) (Result, error) {
+	m := prURL.FindStringSubmatch(a.Vars["pr.url"])
+	if m == nil {
+		return Result{}, fmt.Errorf("the task has no GitHub pull request URL")
+	}
+	env := a.Vars["environment"]
+	script := fmt.Sprintf(`set -e
+if [ -z "$GH_TOKEN" ]; then echo "no GH_TOKEN: this task may not use the GitHub token"; exit 3; fi
+curl -sS -X PUT -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+  -d '{"merge_method":"merge"}' https://api.github.com/repos/%s/%s/pulls/%s/merge`, m[1], m[2], m[3])
+	res, err := r.exec(ctx, env, a.Vars["workdir"], script, 120000)
+	if err != nil {
+		return Result{}, err
+	}
+	out := strings.TrimSpace(string(res.Stdout) + string(res.Stderr))
+	var v struct {
+		Merged  bool   `json:"merged"`
+		Sha     string `json:"sha"`
+		Message string `json:"message"`
+	}
+	json.Unmarshal(res.Stdout, &v)
+	if res.ExitCode != 0 || !v.Merged {
+		msg := v.Message
+		if msg == "" {
+			msg = tail(out, 300)
+		}
+		r.report(ctx, st, "normal", "Merge failed", "I could not merge the pull request "+a.Vars["pr.url"]+": "+msg)
+		return Result{Outcome: "fail", Outputs: map[string]string{"pr.merge_error": msg}}, nil
+	}
+	r.report(ctx, st, "normal", "Merged", "I merged the pull request: "+a.Vars["pr.url"])
+	return Result{Outcome: "merged", Outputs: map[string]string{"publish.commit": v.Sha}}, nil
+}
+
 // prCheckState gives the outcome of pr-check for the state on GitHub.
 func (r *Runner) prCheckState(ctx context.Context, url string) (Result, error) {
 	out, err := gh(ctx, "pr", "view", url, "--json", "state,mergeCommit")
