@@ -459,8 +459,11 @@ var selfWords = regexp.MustCompile(`(?i)\b(i|i'm|i've|i'd|my|me|mine|myself|we|w
 // message has no word of the person ("Teodora left Juniper Labs to join
 // Orbital Freight" is not a new job of the person).
 func notAboutSelf(items []noteItem, notes, text string, selfLabels ...string) []noteItem {
-	if selfWords.MatchString(text) || !startsWithOther(notes, text, selfLabels...) {
+	if selfWords.MatchString(text) {
 		return items
+	}
+	if !startsWithOther(notes, text, selfLabels...) {
+		return noSelfChanges(items, notes, text, selfLabels...)
 	}
 	self := func(name string) bool {
 		if isSelf(name) {
@@ -488,6 +491,82 @@ func notAboutSelf(items []noteItem, notes, text string, selfLabels ...string) []
 		out = append(out, it)
 	}
 	return out
+}
+
+// otherPerson: a full name ("Xavier Castillo") or a pronoun of another
+// person ("they", "she") in a message.
+var otherPronoun = regexp.MustCompile(`(?i)\b(they|them|their|he|him|his|she|her)\b`)
+
+// namesOther: the text has a pronoun of another person, or the name of a
+// person of the notes who is not the person.
+func namesOther(notes, text string, selfLabels ...string) bool {
+	if otherPronoun.MatchString(text) {
+		return true
+	}
+	t := strings.ToLower(text)
+	for _, l := range strings.Split(notes, "\n") {
+		m := entityLine.FindStringSubmatch(strings.TrimSpace(l))
+		if m == nil || !strings.Contains(l, "(person)") || aboutSubject(m[2], "me", selfLabels...) {
+			continue
+		}
+		if strings.Contains(t, strings.ToLower(m[2])) {
+			return true
+		}
+	}
+	return false
+}
+
+// noSelfChanges: a message without a word of the person that names another
+// person ("Coffee with Xavier Castillo; they live near Coors Field now")
+// cannot change or end a fact of the person. It gave "Jamie lives-in Xavier
+// Castillo" in the load test and ended the true home. A message with no
+// other person ("Moved today; the new place is on Zuni Street") can.
+func noSelfChanges(items []noteItem, notes, text string, selfLabels ...string) []noteItem {
+	if !namesOther(notes, text, selfLabels...) {
+		return items
+	}
+	out := items[:0:0]
+	for _, it := range items {
+		if (it.Op == "update" || it.Op == "fix" || it.Op == "end" || it.Op == "retract") && strings.HasPrefix(it.Id, "clm_") {
+			if line := claimLine(notes, it.Id); line != "" && aboutSubject(line, "me", selfLabels...) {
+				continue
+			}
+		}
+		out = append(out, it)
+	}
+	return out
+}
+
+// placeRel: relations whose object is a place, not a person.
+var placeRel = regexp.MustCompile(`(?i)^(lives-in|lives-on|lives-at|home|address|located-in|located-at)$|^lives`)
+
+// relationOf gives the relation of a fact line of the person ("Jamie
+// lives-in Pine Street" gives "lives-in"), or "".
+func relationOf(line string, selfLabels ...string) string {
+	l := strings.TrimSpace(line)
+	for _, n := range append([]string{"me"}, selfLabels...) {
+		if n != "" && len(l) > len(n) && strings.EqualFold(l[:len(n)], n) {
+			rest := strings.Fields(l[len(n):])
+			if len(rest) > 0 {
+				return rest[0]
+			}
+		}
+	}
+	return ""
+}
+
+// personLabel: the label of a person of the notes that v names.
+func personLabel(notes, v string) bool {
+	v = strings.ToLower(strings.TrimSpace(v))
+	if v == "" {
+		return false
+	}
+	for _, l := range strings.Split(notes, "\n") {
+		if m := entityLine.FindStringSubmatch(strings.TrimSpace(l)); m != nil && strings.Contains(l, "(person)") && strings.ToLower(m[2]) == v {
+			return true
+		}
+	}
+	return false
 }
 
 // startsWithOther: the message starts with the name (or the first name)
@@ -722,6 +801,14 @@ func guardNotes(items []noteItem, notes, text string, at time.Time, selfLabels .
 					continue
 				}
 				it = noteItem{Op: "remember", Subject: it.Subject, Relation: it.Relation, Object: it.Object, Value: it.Value}
+			}
+		}
+		if (it.Op == "update" || it.Op == "fix") && strings.HasPrefix(it.Id, "clm_") {
+			// A home is a place: "lives-in Xavier Castillo" (a person of
+			// the notes) is not a move.
+			if line := claimLine(notes, it.Id); line != "" && relationOf(line, selfLabels...) != "" && placeRel.MatchString(relationOf(line, selfLabels...)) && personLabel(notes, it.Value+it.Object) {
+				log = append(log, map[string]any{"tool": "not-a-place", "by": "note-taker", "args": map[string]string{"id": it.Id, "value": it.Value + it.Object}})
+				continue
 			}
 		}
 		if it.Op == "update" && strings.HasPrefix(it.Id, "clm_") {

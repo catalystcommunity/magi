@@ -1,0 +1,417 @@
+{
+ "summary": {
+  "set": "load-v1",
+  "label": "gemma-load-rerun",
+  "when": "2026-11-09T22:36:50+00:00",
+  "models": [
+   "gemma-4-12b"
+  ],
+  "errors": 0,
+  "unfinished": 0,
+  "scorer": "043a1d8",
+  "question": "9/18",
+  "check": "0/0",
+  "by_kind": {
+   "change": [
+    1,
+    3
+   ],
+   "subject": [
+    2,
+    2
+   ],
+   "near miss": [
+    2,
+    2
+   ],
+   "time": [
+    3,
+    3
+   ],
+   "multi-hop": [
+    0,
+    1
+   ],
+   "date math": [
+    0,
+    2
+   ],
+   "load near miss": [
+    1,
+    4
+   ],
+   "load change": [
+    0,
+    1
+   ]
+  },
+  "busy_seen": "18/18",
+  "busy_over_10s": "1/1",
+  "ms": {
+   "median": 6780,
+   "p90": 8928,
+   "max": 13673
+  }
+ },
+ "log": [
+  {
+   "reply": "You live in Xavier Castillo's place.",
+   "model": "gemma-4-12b",
+   "ms": 8317,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "looking in the notes: Jamie lives-in",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "v01",
+   "say": "Where do we live now?",
+   "persona": "assistant",
+   "about": "change",
+   "truth": "Zuni Street, Highland, Denver (since 15 Jun 2024)",
+   "ok": false,
+   "missing": [
+    "zuni"
+   ],
+   "present": []
+  },
+  {
+   "reply": "You work at Juniper Labs.",
+   "model": "gemma-4-12b",
+   "ms": 5011,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "v02",
+   "say": "Where do I work?",
+   "persona": "assistant",
+   "about": "subject",
+   "truth": "Juniper Labs",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "No, Priya Raman does not report to you. I don't have any record of a Priya Raman in your contacts, though there is a Priya Ramos.",
+   "model": "gemma-4-12b",
+   "ms": 5342,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "v03",
+   "say": "Does Priya Raman report to me?",
+   "persona": "assistant",
+   "about": "near miss",
+   "truth": "No; she is Rafael's manager",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Marco has your old Mazda (a 2018 Mazda CX-5).",
+   "model": "gemma-4-12b",
+   "ms": 8928,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "v04",
+   "say": "Who has my old Mazda?",
+   "persona": "assistant",
+   "about": "near miss",
+   "truth": "Not known; Marco bought his own CX-5",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "In June 2026, the Harbor launch was still due on December 1, 2026. It wasn't until September 8, 2026, that the date slipped to January 15, 2027.",
+   "model": "gemma-4-12b",
+   "ms": 7376,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "looking in the notes: Harbor launch due date",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "v05",
+   "say": "What was the Harbor launch due date in June 2026?",
+   "persona": "assistant",
+   "about": "time",
+   "truth": "1 Dec 2026",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "The Harbor launch slipped from December 1, 2026, to January 15, 2027, which is a delay of 45 days.",
+   "model": "gemma-4-12b",
+   "ms": 5827,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "v06",
+   "say": "How much did the Harbor launch slip?",
+   "persona": "assistant",
+   "about": "change",
+   "truth": "1 Dec 2026 to 15 Jan 2027: 45 days, about six weeks",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Your manager when you got the EV9 was Teodora Vance.",
+   "model": "gemma-4-12b",
+   "ms": 6780,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "v09",
+   "say": "Who was my manager when we got the EV9?",
+   "persona": "assistant",
+   "about": "multi-hop",
+   "truth": "Rafael Okonjo (EV9 on 20 Jan 2026)",
+   "ok": false,
+   "missing": [
+    "rafael"
+   ],
+   "present": []
+  },
+  {
+   "reply": "I'm sorry, I don't have a record of when you went to Porto. I tried to check your calendar, but it isn't connected yet.",
+   "model": "gemma-4-12b",
+   "ms": 13673,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "v10",
+   "say": "How old was Theo when we went to Porto?",
+   "persona": "assistant",
+   "about": "date math",
+   "truth": "6",
+   "ok": false,
+   "missing": [
+    "\\b6\\b|six"
+   ],
+   "present": []
+  },
+  {
+   "reply": "I'm sorry, I don't have a record of your birthday.",
+   "model": "gemma-4-12b",
+   "ms": 6874,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "v11",
+   "say": "When is my next birthday, and how old will I be?",
+   "persona": "assistant",
+   "about": "date math",
+   "truth": "Fri 2 Apr 2027; 40",
+   "ok": false,
+   "missing": [
+    "april 2|apr\\.? 2\\b|2 april",
+    "\\b40\\b|forty"
+   ],
+   "present": []
+  },
+  {
+   "reply": "The kitchen budget was $44,000 when the cabinets were changed.",
+   "model": "gemma-4-12b",
+   "ms": 4429,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "v16",
+   "say": "What was the kitchen budget when the cabinets went in?",
+   "persona": "assistant",
+   "about": "time",
+   "truth": "$44,000 (changed 9 Jul; install 17 Aug)",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "No, her coach is still Jen Park.",
+   "model": "gemma-4-12b",
+   "ms": 5063,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "v22",
+   "say": "Did Ruby's coach change when she moved up to U12?",
+   "persona": "assistant",
+   "about": "change",
+   "truth": "No, Jen Parks (only the spelling was fixed in Aug 2026)",
+   "ok": false,
+   "missing": [
+    "parks"
+   ],
+   "present": []
+  },
+  {
+   "reply": "The Atlas migration was finished on October 31, 2025. However, I don't have a record of when it started, so I can't tell you exactly how long it took.",
+   "model": "gemma-4-12b",
+   "ms": 8311,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "v24",
+   "say": "How long did the Atlas migration take?",
+   "persona": "assistant",
+   "about": "time",
+   "truth": "Mar 2024 to 31 Oct 2025, about 20 months",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "I'm sorry, I don't have a record of where Alex works.",
+   "model": "gemma-4-12b",
+   "ms": 6741,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "v25",
+   "say": "Where does Alex work?",
+   "persona": "assistant",
+   "about": "subject",
+   "truth": "Not known (works from home on Mondays and Fridays)",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "You've been seeing Dr. Ellery Shaw at Highland Dental since January 15, 2024.",
+   "model": "gemma-4-12b",
+   "ms": 6660,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "L01",
+   "say": "Who is my dentist?",
+   "persona": "assistant",
+   "about": "load near miss",
+   "truth": "Dr. Ellery Shaw at Highland Dental",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "I'm sorry, I don't have a record of what car you drive. Could you tell me?",
+   "model": "gemma-4-12b",
+   "ms": 4587,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "L02",
+   "say": "What car do I drive?",
+   "persona": "assistant",
+   "about": "load near miss",
+   "truth": "2026 Kia EV9",
+   "ok": false,
+   "missing": [
+    "ev9"
+   ],
+   "present": []
+  },
+  {
+   "reply": "Based on the records, the following people are listed as being at your workplace:\n\n*   Uma Castillo\n*   Greta Dunn\n*   Felix Wolfe\n*   Kira Quist\n*   Elena Eklund\n*   Greta Nakamura\n*   Olga Osei\n*   Niko Eklund\n*   Yusuf Osei\n*   Niko Quist\n*   Bianca Lindqvist\n*   Amara Wolfe\n*   Rosa Castillo\n*   Greta Tran\n*   Keiko Quist\n*   Quinn Tran\n*   Bruno Nakamura\n*   Xavier Lindqvist\n*   Zoe Petrov\n*   Zoe Dunn",
+   "model": "gemma-4-12b",
+   "ms": 8537,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "L03",
+   "say": "Who is on my team at work right now?",
+   "persona": "assistant",
+   "about": "load near miss",
+   "truth": "Sven Holt and Bea Moreau",
+   "ok": false,
+   "missing": [
+    "sven",
+    "\\bbea\\b"
+   ],
+   "present": [
+    "aiden|bianca|carlos|dmitri|elena|farah|hiro|ingrid|jonas|keiko|luis|mara|niko|olga|quinn|rosa|sami|tomas|uma|viktor|wanda|xavier|yusuf|zoe"
+   ]
+  },
+  {
+   "reply": "You have a new puppy named Maple, which was recorded on October 26, 2026.",
+   "model": "gemma-4-12b",
+   "ms": 5549,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "L04",
+   "say": "Do we have a new puppy?",
+   "persona": "assistant",
+   "about": "load near miss",
+   "truth": "No; Pepper is the dog; puppies in the notes belong to other people",
+   "ok": false,
+   "missing": [
+    "\\bno\\b|don't|do not|pepper"
+   ],
+   "present": []
+  },
+  {
+   "reply": "You live in Xavier Castillo's place.",
+   "model": "gemma-4-12b",
+   "ms": 7391,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "L05",
+   "say": "Where do I live?",
+   "persona": "assistant",
+   "about": "load change",
+   "truth": "Zuni Street, Highland, Denver",
+   "ok": false,
+   "missing": [
+    "zuni|highland"
+   ],
+   "present": []
+  }
+ ]
+}

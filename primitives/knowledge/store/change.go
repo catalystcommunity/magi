@@ -168,9 +168,13 @@ func (s *Store) fix(ctx context.Context, tx pgx.Tx, w Who, t string, owners []st
 			if o != nil {
 				before[other], after[other] = o, nil
 			}
-			if _, err := tx.Exec(ctx, fmt.Sprintf(`UPDATE claims SET %s = NULL WHERE id = $1`, other), in.ID); err != nil {
+			// One statement: the check constraint (an object or a value)
+			// holds after each statement, so clearing the other first
+			// failed for a value fixed to an object.
+			if _, err := tx.Exec(ctx, fmt.Sprintf(`UPDATE claims SET %s = $2, %s = NULL WHERE id = $1`, k, other), in.ID, val); err != nil {
 				return "", err
 			}
+			continue
 		}
 		if _, err := tx.Exec(ctx, fmt.Sprintf(`UPDATE %s SET %s = $2 WHERE id = $1`, table, k), in.ID, val); err != nil {
 			return "", err

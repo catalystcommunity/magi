@@ -1,0 +1,209 @@
+{
+ "score": "19/30",
+ "items": [
+  {
+   "id": "home",
+   "ok": false,
+   "missing": [
+    "lives.*zuni"
+   ],
+   "wrong": []
+  },
+  {
+   "id": "employer",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "job",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "manager",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "car",
+   "ok": false,
+   "missing": [
+    "ev9"
+   ],
+   "wrong": []
+  },
+  {
+   "id": "dentist",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "vet",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "book club",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "coach",
+   "ok": false,
+   "missing": [
+    "coach .*jen parks"
+   ],
+   "wrong": [
+    "ruby coach jen park"
+   ]
+  },
+  {
+   "id": "team",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "harbor",
+   "ok": false,
+   "missing": [
+    "harbor.*(january 15|2027-01-15|jan 15)"
+   ],
+   "wrong": []
+  },
+  {
+   "id": "budget",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "sven",
+   "ok": false,
+   "missing": [
+    "sven holt (manager|reports-to) jamie|jamie (report|direct-report|team-member|team) .*sven"
+   ],
+   "wrong": []
+  },
+  {
+   "id": "bea",
+   "ok": false,
+   "missing": [
+    "bea moreau (manager|reports-to) jamie|jamie (report|direct-report|team-member|team) .*bea"
+   ],
+   "wrong": []
+  },
+  {
+   "id": "nadia",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "alex wfh",
+   "ok": false,
+   "missing": [
+    "alex .*(monday|mondays)"
+   ],
+   "wrong": []
+  },
+  {
+   "id": "wifi",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "insurance",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "agent",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "married",
+   "ok": false,
+   "missing": [
+    "(2014|september 27)"
+   ],
+   "wrong": []
+  },
+  {
+   "id": "ruby birthday",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "theo birthday",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "my birthday",
+   "ok": false,
+   "missing": [
+    "jamie birthday .*april 2, 1987"
+   ],
+   "wrong": []
+  },
+  {
+   "id": "climbing",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "pt",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "wen",
+   "ok": false,
+   "missing": [],
+   "wrong": [
+    "wen li might-move-to data team"
+   ]
+  },
+  {
+   "id": "teodora",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "restaurant",
+   "ok": false,
+   "missing": [
+    "avillez"
+   ],
+   "wrong": []
+  },
+  {
+   "id": "priya",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "marco",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  }
+ ]
+}

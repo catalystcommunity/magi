@@ -270,6 +270,15 @@ func TestChanges(t *testing.T) {
 	visits := must(e.alice.Assert(ctx, api.AssertRequest{Subject: router.Id, Relation: "shipped-to", Object: &home.Id}))
 	must(e.alice.Change(ctx, api.ChangeRequest{Id: at.Id, Operation: "fix", Set: map[string]string{"object": garage.Id}}))
 	must(e.alice.Change(ctx, api.ChangeRequest{Id: visits.Id, Operation: "fix", Set: map[string]string{"object": garage.Id}}))
+	// A value fixed to an object (and back): one of the two at all times.
+	coach := must(e.alice.Assert(ctx, api.AssertRequest{Subject: sam.Id, Relation: "coach", Value: ptr("Jen Park")}))
+	parks := must(e.alice.PutEntity(ctx, api.PutEntityRequest{Kind: "person", Label: "Jen Parks"}))
+	if c := must(e.alice.Change(ctx, api.ChangeRequest{Id: coach.Id, Operation: "fix", Set: map[string]string{"object": parks.Id}})); c.Claim == nil || c.Claim.Object == nil || *c.Claim.Object != parks.Id || c.Claim.Value != nil {
+		t.Fatalf("value to object: %+v", c.Claim)
+	}
+	if c := must(e.alice.Change(ctx, api.ChangeRequest{Id: coach.Id, Operation: "fix", Set: map[string]string{"value": "Jen Parks"}})); c.Claim == nil || c.Claim.Value == nil || c.Claim.Object != nil {
+		t.Fatalf("object to value: %+v", c.Claim)
+	}
 	if s := must(e.alice.Search(ctx, api.SearchRequest{Text: ptr("closet")})); len(s.Entities) != 0 {
 		t.Errorf("the wrong object is still there: %+v", s.Entities)
 	}

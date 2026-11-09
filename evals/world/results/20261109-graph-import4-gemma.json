@@ -1,0 +1,193 @@
+{
+ "score": "26/30",
+ "items": [
+  {
+   "id": "home",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "employer",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "job",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "manager",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "car",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "dentist",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "vet",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "book club",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "coach",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "team",
+   "ok": false,
+   "missing": [
+    "ruby (team|plays-for|plays-on) .*u12"
+   ],
+   "wrong": []
+  },
+  {
+   "id": "harbor",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "budget",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "sven",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "bea",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "nadia",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "alex wfh",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "wifi",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "insurance",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "agent",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "married",
+   "ok": false,
+   "missing": [
+    "(2014|september 27)"
+   ],
+   "wrong": []
+  },
+  {
+   "id": "ruby birthday",
+   "ok": false,
+   "missing": [
+    "ruby birthday .*september 3, 2016"
+   ],
+   "wrong": []
+  },
+  {
+   "id": "theo birthday",
+   "ok": false,
+   "missing": [
+    "theo birthday .*february 21, 2019"
+   ],
+   "wrong": []
+  },
+  {
+   "id": "my birthday",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "climbing",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "pt",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "wen",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "teodora",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "restaurant",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "priya",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  },
+  {
+   "id": "marco",
+   "ok": true,
+   "missing": [],
+   "wrong": []
+  }
+ ]
+}

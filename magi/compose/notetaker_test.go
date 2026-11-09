@@ -366,3 +366,20 @@ func TestGuardShapes(t *testing.T) {
 		t.Errorf("hedge: %+v", got)
 	}
 }
+
+func TestNoSelfChangesFromOthers(t *testing.T) {
+	notes := "- [ent_1] Jamie (person), also called me\n  - [clm_h] Jamie lives-in Zuni Street in Highland, Denver\n- [ent_2] Xavier Castillo (person)\n"
+	at := time.Date(2026, 3, 2, 20, 0, 0, 0, time.UTC)
+	got, _ := guardNotes([]noteItem{{Op: "update", Id: "clm_h", Value: "near Coors Field"}}, notes, "Coffee with Xavier Castillo this morning; they live near Coors Field now.", at, "Jamie")
+	if len(got) != 0 {
+		t.Errorf("a message about Xavier changed the home: %+v", got)
+	}
+	got, _ = guardNotes([]noteItem{{Op: "update", Id: "clm_h", Value: "Xavier Castillo"}}, notes, "Moved again, the new place is near Xavier Castillo.", at, "Jamie")
+	if len(got) != 0 {
+		t.Errorf("a person as a home: %+v", got)
+	}
+	got, _ = guardNotes([]noteItem{{Op: "update", Id: "clm_h", Value: "Elm Avenue in Golden"}}, notes, "Moved today; the new place is on Elm Avenue in Golden.", at, "Jamie")
+	if len(got) != 1 {
+		t.Errorf("a real move was dropped: %+v", got)
+	}
+}

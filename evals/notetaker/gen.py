@@ -395,11 +395,32 @@ def c_other_update(r):
     return w, t, [{"op": "remember", "subject": p, "t": {"relation": "works-from-home", "value": "Mondays and Fridays"}}], [{"op": "update", "id": mine}, {"op": "fix", "id": mine}, {"op": "end", "id": mine}], True
 
 
+def c_other_near(r):
+    """A note about another person near the person's own facts (the load
+    world): it must not change the person's home, job, or pet."""
+    w = W(r)
+    home = w.fact(w.self, "lives-in", f"{r.choice(STREETS)} in {r.choice(CITIES)}", since=since(r))
+    job = w.fact(w.self, "works-at", r.choice(ORGS), since=since(r))
+    p = w.person()
+    w.eid(p)
+    place, org = r.choice(["Coors Field", "Wash Park", "Union Station", "Red Rocks"]), r.choice(ORGS)
+    t, ex = pick(r, [
+        (f"Coffee with {p} this morning; they live near {place} now.", [{"op": "remember", "subject": p, "relation": ["lives", "lives-near", "lives-in"], "t": {"relation": "lives-near", "value": place}}]),
+        (f"Had lunch with {p} at Sushi Den.", []),
+        (f"{p} is moving to {r.choice(TEAMS)} next month, they said.", []),
+        (f"Ran into {p} at {place}; they work at {org} these days.", [{"op": "remember", "subject": p, "relation": ["works-at", "employer", "works-for"], "t": {"relation": "works-at", "object": org}}]),
+        (f"{p} got a new puppy named Juniper.", [{"op": "remember", "subject": p, "t": {"relation": "puppy", "value": "Juniper"}}]),
+    ])
+    return w, t, ex, [{"op": "update", "id": home}, {"op": "end", "id": home}, {"op": "fix", "id": home},
+                      {"op": "update", "id": job}, {"op": "end", "id": job}, {"op": "fix", "id": job},
+                      {"op": "remember", "subject": me(), "relation": ["lives-in", "works-at", "pet", "puppy", "dog"]}], True
+
+
 MAKERS = {
     "new-fact": c_new_fact, "change": c_change, "fix": c_fix, "end": c_end, "event": c_event,
     "third-person": c_third_person, "other-fact": c_other_fact, "small-talk": c_small_talk, "question": c_question,
     "request": c_request, "plan": c_plan, "reports-to-me": c_reports, "birthday": c_birthday, "multi-fact": c_multi,
-    "other-update": c_other_update,
+    "other-update": c_other_update, "other-near-self": c_other_near,
 }
 
 
