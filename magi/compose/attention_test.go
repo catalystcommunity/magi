@@ -113,6 +113,27 @@ func TestAddressed(t *testing.T) {
 	}
 }
 
+// The assistant (Beatrice) can write calendars; a claim needs the call.
+func TestFalseClaimCalendar(t *testing.T) {
+	as := profiles[Assistant].tools
+	made := []map[string]any{{"tool": "create_event", "result": "Created: Wed 2026-11-11 17:30-18:30 Haircut"}}
+	for _, tc := range []struct {
+		reply string
+		calls []map[string]any
+		want  string
+	}{
+		{"Done — the haircut is on Alex's calendar this Wednesday, November 11, at 5:30 in the evening.", nil, "create_event"},
+		{"Done — the haircut is on Alex's calendar this Wednesday.", made, ""},
+		{"The swim meet is now on the family calendar.", nil, "create_event"},
+		{"Book club is on your calendar for Thursday.", nil, ""},
+		{"All set: the budget review repeats on the Family calendar.", nil, "create_event"},
+	} {
+		if got := falseClaim(tc.reply, tc.calls, as); got != tc.want {
+			t.Errorf("falseClaim(%q) = %q, want %q", tc.reply, got, tc.want)
+		}
+	}
+}
+
 func TestFalseClaim(t *testing.T) {
 	em := profiles[Engineering].tools
 	started := []map[string]any{{"tool": "start_code_change", "result": "Task run_1 started."}}

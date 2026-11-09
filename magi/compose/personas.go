@@ -459,7 +459,7 @@ var claims = []struct {
 	{"add_todo", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (?:added|created|made|put|set up)\b[^.!?\n]{0,40}\b(to-?dos?|list|plan|steps?)\b|\bI(?:'ve| have)? created a plan\b`)},
 	{"set_reminder", regexp.MustCompile(`(?i)\bI(?:'ve| have)? set (?:up )?(?:a |the |your )?reminders?\b|\bI(?:'ll| will) remind you\b`)},
 	{"finish_todo", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (?:marked|checked off|crossed off|cancell?ed (?:the |that |your )?(?:reminder|to-?do))\b`)},
-	{"create_event", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (?:added|put|booked|scheduled|created|set up)\b[^.!?\n]{0,40}\b(calendar|meeting|event|appointment)\b`)},
+	{"create_event", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (?:added|put|booked|scheduled|created|set up)\b[^.!?\n]{0,40}\b(calendar|meeting|event|appointment)\b|\b(?:is|are) now on (?:\w+'s |the |your |my )?(?:\w+ )?calendar\b|^\s*(?:done|all set)\b[^.!?\n]{0,80}\bcalendar\b`)},
 	{"add_longhouse_task", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (?:added|created)\b[^.!?\n]{0,30}\btask\b[^.!?\n]{0,30}\b(Longhouse|project)\b`)},
 	{"change_todo", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (?:moved|rescheduled|pushed back)\b[^.!?\n]{0,40}\b(reminder|to-?do|due|it)\b`)},
 }
