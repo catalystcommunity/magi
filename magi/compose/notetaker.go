@@ -766,3 +766,10 @@ func NoteItems(ctx context.Context, sc model.SchemaChatter, text, notes string, 
 
 // SetHouseholdZone sets the zone of dates (the benchmark has no System).
 func SetHouseholdZone(loc *time.Location) { zone = loc }
+
+// GuardNoteItems applies the checks of NoteItems to items that did not come
+// from a model (the oracle of the benchmark).
+func GuardNoteItems(items []NoteItem, text, notes string, when time.Time, selfLabels ...string) []NoteItem {
+	out, _ := guardNotes(items, notes, text, when, selfLabels...)
+	return out
+}

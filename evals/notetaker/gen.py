@@ -158,11 +158,11 @@ def c_new_fact(r):
         ins, agent = r.choice(INSURERS), w.person()
         t = f"Home and auto insurance is with {ins}. Our agent is {agent}."
         return w, t, [{"op": "remember", "subject": me(), "relation": ["insurance", "insurer", "home-and-auto-insurance", "insured-by", "home-insurance", "auto-insurance"], "value_or_object": ins},
-                      {"op": "remember", "relation": ["agent", "insurance-agent"], "value_or_object": agent}], [], True
+                      {"op": "remember", "relation": ["agent", "insurance-agent"], "value_or_object": agent, "t": {"subject": "me", "relation": "insurance-agent", "object": agent}}], [], True
     if k == "wifi":
         name = r.choice(WIFI)
         t = f"Our home wifi network is called {name}."
-        return w, t, [{"op": "remember", "relation": ["name", "wifi", "network", "wifi-name", "called", "ssid"], "value_or_object": name}], [], True
+        return w, t, [{"op": "remember", "relation": ["name", "wifi", "network", "wifi-name", "called", "ssid"], "value_or_object": name, "t": {"subject": "home wifi", "relation": "name", "value": name}}], [], True
     if k == "partner":
         p = r.choice(OTHER)
         t = f"My partner is {p}."
@@ -184,20 +184,20 @@ def c_change(r):
             new = r.choice(STREETS)
         cid = w.fact(w.self, "lives-in", f"{old} in {r.choice(CITIES)}", since=since(r))
         t = r.choice([f"We moved today. The new place is on {new} in {city}.", f"We moved to {new} in {city} this weekend."])
-        return w, t, [{"op": "update", "id": cid, "value_or_object": new}], [{"op": "remember", "subject": me(), "relation": ["lives-in"], "value_or_object": old}], True
+        return w, t, [{"op": "update", "id": cid, "value_or_object": new, "t": {"value": f"{new} in {city}"}}], [{"op": "remember", "subject": me(), "relation": ["lives-in"], "value_or_object": old}], True
     if k == "manager":
         old, new = w.person(), w.person()
         w.eid(old)
         cid = w.fact(w.self, "manager", old, "person", since(r))
         t = r.choice([f"My new manager is {new}.", f"I got promoted to engineering lead. My new manager is {new}."])
-        return w, t, [{"op": "update", "id": cid, "value_or_object": new.split()[0]}], [], True
+        return w, t, [{"op": "update", "id": cid, "value_or_object": new.split()[0], "t": {"value": new}}], [], True
     if k == "vet":
         pet, kind = r.choice(PETS)
         old, new = "Dr. " + r.choice(LAST), "Dr. " + r.choice(OTHER) + " " + r.choice(LAST)
         w.fact(w.self, kind, pet, "animal")
         cid = w.fact(pet, "vet", old, "animal", since(r))
         t = f"{pet} has a new vet now: {new} at {r.choice(VETS)}."
-        return w, t, [{"op": "update", "id": cid, "value_or_object": new.split()[-1]}], [], True
+        return w, t, [{"op": "update", "id": cid, "value_or_object": new.split()[-1], "t": {"value": new}}], [], True
     if k == "work":
         old, new = r.sample(ORGS, 2)
         cid = w.fact(w.self, "works-at", old, since=since(r))
@@ -213,11 +213,11 @@ def c_change(r):
         w.eid("kitchen remodel", "project")
         cid = w.fact("kitchen remodel", "budget", f"${a},000", "project", since(r))
         t = f"Kitchen remodel update: we changed the cabinets, so the budget is now ${b},000."
-        return w, t, [{"op": "update", "id": cid, "value_or_object": str(b)}], [], True
+        return w, t, [{"op": "update", "id": cid, "value_or_object": str(b), "t": {"value": f"${b},000"}}], [], True
     w.eid("Harbor launch", "project")
     cid = w.fact("Harbor launch", "due", "December 1, 2026", "project", since(r))
     t = "Harbor launch slipped. The new date is January 15, 2027."
-    return w, t, [{"op": "update", "id": cid, "value_or_object": "January 15"}], [], True
+    return w, t, [{"op": "update", "id": cid, "value_or_object": "January 15", "t": {"value": "January 15, 2027"}}], [], True
 
 
 def c_fix(r):
@@ -229,18 +229,18 @@ def c_fix(r):
         last = r.choice(LAST)
         cid = w.fact(kid, "coach", f"Jen {last}", "person", since(r))
         t = f"Correction: {kid}'s soccer coach is Jen {last}s, with an s, not Jen {last}."
-        return w, t, [{"op": "fix", "id": cid, "value_or_object": last + "s"}], [{"op": "update", "id": cid}], True
+        return w, t, [{"op": "fix", "id": cid, "value_or_object": last + "s", "t": {"value": f"Jen {last}s", "field": "object"}}], [{"op": "update", "id": cid}], True
     if k == "misspoke":
         a, b = "Dr. " + r.choice(LAST), "Dr. " + r.choice(LAST)
         while a == b:
             b = "Dr. " + r.choice(LAST)
         cid = w.fact(w.self, "dentist", a, "person", since(r))
         t = f"I misspoke earlier: my dentist is {b}, not {a}."
-        return w, t, [{"op": "fix", "id": cid, "value_or_object": b.split()[-1]}], [], True
+        return w, t, [{"op": "fix", "id": cid, "value_or_object": b.split()[-1], "t": {"value": b, "field": "object"}}], [], True
     d1, d2 = "September 3", "September 13"
     cid = w.fact(kid, "birthday", d1 + ", 2016", "person", since(r))
     t = f"{kid}'s birthday was always {d2}, 2016; I had it wrong."
-    return w, t, [{"op": "fix", "id": cid, "value_or_object": "13"}], [], True
+    return w, t, [{"op": "fix", "id": cid, "value_or_object": "13", "t": {"value": f"{d2}, 2016", "field": "value"}}], [], True
 
 
 def c_end(r):
@@ -270,12 +270,12 @@ def c_end(r):
 
 def c_event(r):
     w = W(r)
-    t, v = r.choice([("I hurt my shoulder climbing. No climbing for a while.", "shoulder"),
-                     ("Back from Porto. What a trip!", "porto"),
-                     ("We finished the Atlas migration today.", "atlas"),
-                     ("Theo lost his first tooth today!", "tooth"),
-                     ("I ran my first half marathon this morning.", "marathon")])
-    return w, t, [{"op": "event", "value": v}], [], True
+    t, v, title = r.choice([("I hurt my shoulder climbing. No climbing for a while.", "shoulder", "hurt my shoulder climbing"),
+                            ("Back from Porto. What a trip!", "porto", "back from Porto"),
+                            ("We finished the Atlas migration today.", "atlas", "finished the Atlas migration"),
+                            ("Theo lost his first tooth today!", "tooth", "Theo lost his first tooth"),
+                            ("I ran my first half marathon this morning.", "marathon", "ran my first half marathon")])
+    return w, t, [{"op": "event", "value": v, "t": {"subject": "me", "value": title}}], [], True
 
 
 def c_third_person(r):
@@ -297,12 +297,13 @@ def c_other_fact(r):
     w.fact(w.self, "car", car, since=since(r))
     f = r.choice(OTHER)
     other = r.choice([c for c in CARS if c != car])
+    boss = w.person()
     t, ex, fb = r.choice([
-        (f"My friend {f} just bought a {other}.", [{"op": "remember", "subject": f, "relation": ["car", "bought", "drives", "owns"]}],
+        (f"My friend {f} just bought a {other}.", [{"op": "remember", "subject": f, "relation": ["car", "bought", "drives", "owns"], "t": {"relation": "car", "object": other}}],
          [{"op": "remember", "subject": me(), "relation": ["car"]}]),
-        (f"{f} said their own manager is {w.person()}.", [{"op": "remember", "subject": f, "relation": ["manager"]}],
+        (f"{f} said their own manager is {boss}.", [{"op": "remember", "subject": f, "relation": ["manager"], "t": {"object": boss}}],
          [{"op": "remember", "object": me()}, {"op": "remember", "subject": me(), "relation": ["manager"]}]),
-        (f"Our neighbor {f} has a border collie too.", [{"op": "remember", "subject": f}], [{"op": "remember", "subject": me(), "relation": ["dog", "pet"]}]),
+        (f"Our neighbor {f} has a border collie too.", [{"op": "remember", "subject": f, "t": {"relation": "dog", "value": "border collie"}}], [{"op": "remember", "subject": me(), "relation": ["dog", "pet"]}]),
     ])
     return w, t, ex, fb, True
 
@@ -361,7 +362,7 @@ def c_other_update(r):
     w.fact(w.self, "partner", p, "person")
     mine = w.fact(w.self, "works-at", r.choice(ORGS), since=since(r))
     t = f"{p}'s work schedule changed: {p} works from home on Mondays and Fridays now."
-    return w, t, [{"op": "remember", "subject": p}], [{"op": "update", "id": mine}, {"op": "fix", "id": mine}, {"op": "end", "id": mine}], True
+    return w, t, [{"op": "remember", "subject": p, "t": {"relation": "works-from-home", "value": "Mondays and Fridays"}}], [{"op": "update", "id": mine}, {"op": "fix", "id": mine}, {"op": "end", "id": mine}], True
 
 
 MAKERS = {
@@ -380,7 +381,41 @@ def make(r, cat, i):
             n = e.pop("n")
             e["value"] = f"{when.strftime('%B')} {when.day}, {when.year - n}"
     return {"id": f"{cat}-{i:05d}", "category": cat, "when": when.isoformat(), "self": w.self, "notes": w.notes(),
-            "text": text, "expect": expect, "forbid": forbid, "allow_extra": extra}
+            "text": text, "expect": [{k: v for k, v in e.items() if k != "t"} for e in expect], "forbid": forbid,
+            "allow_extra": extra, "target": {"items": [target(e) for e in expect]}}
+
+
+FIELDS = ["op", "id", "subject", "subject_kind", "relation", "object", "object_kind", "value", "field", "also"]
+
+
+def looks_like_name(v):
+    return bool(v) and v[0].isupper() and not any(ch.isdigit() for ch in v)
+
+
+def target(e):
+    """The answer item of a perfect note taker for an expected item: the
+    first relation name, the whole values, and the fields of "t"."""
+    it = {k: "" for k in FIELDS}
+    it["also"] = False
+    it["op"] = e["op"]
+    it["id"] = e.get("id", "")
+    it["subject"] = e.get("subject", "")
+    rel = e.get("relation") or []
+    it["relation"] = rel[0] if rel else ""
+    if e.get("object"):
+        it["object"] = e["object"]
+    if e.get("value"):
+        it["value"] = e["value"]
+    if e.get("value_or_object"):
+        v = e["value_or_object"]
+        it["object" if looks_like_name(v) and e["op"] == "remember" else "value"] = v
+    for k, v in e.get("t", {}).items():
+        it[k] = v
+    if it["op"] in ("update", "fix", "end", "retract"):
+        it["subject"] = it["subject"] or ""
+    if it["op"] == "fix" and not it["field"]:
+        it["field"] = "value"
+    return it
 
 
 def main():

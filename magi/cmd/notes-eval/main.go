@@ -46,6 +46,9 @@ type Case struct {
 	Expect     []Item `json:"expect"`
 	Forbid     []Item `json:"forbid"`
 	AllowExtra bool   `json:"allow_extra"`
+	Target     struct {
+		Items []compose.NoteItem `json:"items"`
+	} `json:"target"`
 }
 
 type Result struct {
@@ -70,6 +73,9 @@ func main() {
 	label := flag.String("label", "", "label for the summary")
 	limit := flag.Int("limit", 0, "at most this many cases (0: all)")
 	flag.String("tz", "America/Denver", "household time zone (the cases are in it)")
+	oracle := flag.Bool("oracle", false, "score the target answers of the cases (no model): a check of gen.py")
+	export := flag.String("export", "", "write training records (chat messages: the prompt, the input, the target) to this directory, then stop")
+	perFile := flag.Int("per-file", 2000, "records in each exported file")
 	flag.Parse()
 	tz := flag.Lookup("tz").Value.String()
 	loc, err := time.LoadLocation(tz)
@@ -83,6 +89,12 @@ func main() {
 	}
 	if *limit > 0 && *limit < len(cases) {
 		cases = cases[:*limit]
+	}
+	if *export != "" {
+		if err := exportCases(*export, cases, *perFile); err != nil {
+			fail(err)
+		}
+		return
 	}
 	c := &model.Client{BaseURL: strings.TrimRight(*url, "/"), Model: *name, HTTP: &http.Client{Timeout: 10 * time.Minute}, Attempts: 2}
 	if *keyFile != "" {
@@ -102,7 +114,11 @@ func main() {
 		go func() {
 			defer wg.Done()
 			for i := range next {
-				res[i] = run(c, cases[i])
+				if *oracle {
+					res[i] = runOracle(cases[i])
+				} else {
+					res[i] = run(c, cases[i])
+				}
 				mu.Lock()
 				done++
 				if done%25 == 0 {
@@ -144,6 +160,16 @@ func run(c *model.Client, k Case) Result {
 		r.Why = "error"
 		return r
 	}
+	r.RawOK, _ = score(k, raw)
+	r.OK, r.Why = score(k, items)
+	return r
+}
+
+func runOracle(k Case) Result {
+	when, _ := time.Parse(time.RFC3339, k.When)
+	raw := k.Target.Items
+	items := compose.GuardNoteItems(raw, k.Text, k.Notes, when, k.Self)
+	r := Result{Id: k.Id, Category: k.Category, Raw: raw, Items: items}
 	r.RawOK, _ = score(k, raw)
 	r.OK, r.Why = score(k, items)
 	return r
@@ -306,6 +332,50 @@ func load(glob string) ([]Case, error) {
 		}
 	}
 	return out, nil
+}
+
+// exportCases writes one chat record for each case: the system prompt and
+// the input of the note taker of Magi, and the target answer.
+func exportCases(dir string, cases []Case, per int) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	var f *os.File
+	for i, k := range cases {
+		if i%per == 0 {
+			if f != nil {
+				f.Close()
+			}
+			var err error
+			if f, err = os.Create(filepath.Join(dir, fmt.Sprintf("train-%03d.jsonl", i/per))); err != nil {
+				return err
+			}
+		}
+		when, err := time.Parse(time.RFC3339, k.When)
+		if err != nil {
+			return err
+		}
+		answer, _ := json.Marshal(map[string]any{"items": nonNil(k.Target.Items)})
+		rec := map[string]any{"id": k.Id, "messages": []map[string]string{
+			{"role": "system", "content": compose.NoteTakerPrompt()},
+			{"role": "user", "content": compose.NoteInput(k.Text, k.Notes, when)},
+			{"role": "assistant", "content": string(answer)},
+		}}
+		b, _ := json.Marshal(rec)
+		f.Write(append(b, '\n'))
+	}
+	if f != nil {
+		f.Close()
+	}
+	fmt.Printf("%d records in %s\n", len(cases), dir)
+	return nil
+}
+
+func nonNil(v []compose.NoteItem) []compose.NoteItem {
+	if v == nil {
+		return []compose.NoteItem{}
+	}
+	return v
 }
 
 func fail(err error) {
