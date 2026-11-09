@@ -165,7 +165,7 @@ func TestCantAnswer(t *testing.T) {
 
 func TestPromptTime(t *testing.T) {
 	now := time.Date(2026, 11, 8, 14, 5, 0, 0, time.UTC)
-	if got := promptTime(now); got != "Sunday 8 November 2026 14:05 UTC (yesterday was Saturday 7 November; tomorrow is Monday 9 November)" {
+	if got := promptTime(now); got != "Sunday 8 November 2026 14:05 UTC (yesterday was Saturday 7 November; tomorrow is Monday 9 November; then Tue 10 Nov, Wed 11 Nov, Thu 12 Nov, Fri 13 Nov, Sat 14 Nov, Sun 15 Nov, Mon 16 Nov)" {
 		t.Fatal(got)
 	}
 }

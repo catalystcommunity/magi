@@ -77,7 +77,12 @@ func describeUtterances(us []conversationapi.Utterance, person string, now time.
 }
 
 // when is a short, relative time.
+// zone is the time zone of the household (MAGI_TIME_ZONE) for the times
+// that the models read; New sets it.
+var zone = time.UTC
+
 func when(t, now time.Time) string {
+	t, now = t.In(zone), now.In(zone)
 	switch d := now.Sub(t); {
 	case d < 24*time.Hour && t.Day() == now.Day():
 		return "today " + t.Format("15:04")

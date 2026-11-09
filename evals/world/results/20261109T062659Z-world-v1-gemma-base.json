@@ -1,0 +1,700 @@
+{
+ "summary": {
+  "set": "world-v1",
+  "label": "gemma-base",
+  "when": "2026-11-09T06:26:59+00:00",
+  "models": [
+   "gemma-4-12b"
+  ],
+  "errors": 0,
+  "question": "20/28",
+  "check": "3/3",
+  "by_kind": {
+   "time+calendar": [
+    1,
+    1
+   ],
+   "time": [
+    3,
+    4
+   ],
+   "calendar+time": [
+    1,
+    1
+   ],
+   "change": [
+    2,
+    2
+   ],
+   "fix": [
+    1,
+    1
+   ],
+   "order": [
+    1,
+    1
+   ],
+   "fact": [
+    3,
+    3
+   ],
+   "date math": [
+    1,
+    2
+   ],
+   "calendar": [
+    3,
+    5
+   ],
+   "calendar count": [
+    0,
+    1
+   ],
+   "calendar+calendar": [
+    0,
+    1
+   ],
+   "longhouse+fact": [
+    0,
+    1
+   ],
+   "longhouse": [
+    2,
+    2
+   ],
+   "calendar via Archimedes": [
+    0,
+    1
+   ],
+   "abstain": [
+    2,
+    2
+   ],
+   "check": [
+    3,
+    3
+   ]
+  },
+  "busy_seen": "34/34",
+  "busy_over_10s": "12/12",
+  "ms": {
+   "median": 8912,
+   "p90": 18904,
+   "max": 26936
+  }
+ },
+ "log": [
+  {
+   "reply": "Your manager when you went to Porto was Rafael Okonjo.",
+   "model": "gemma-4-12b",
+   "ms": 14238,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "t01",
+   "say": "Who was my manager when we went to Porto?",
+   "persona": "assistant",
+   "about": "time+calendar",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Before you moved to Denver, Pepper saw Dr. Hana Ito at Boulder Paws Clinic.",
+   "model": "gemma-4-12b",
+   "ms": 10667,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "t02",
+   "say": "Which vet did Pepper see before we moved to Denver?",
+   "persona": "assistant",
+   "about": "time",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "I don't have a record of which car you had before the EV9.",
+   "model": "gemma-4-12b",
+   "ms": 5552,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "t03",
+   "say": "What car did I have before the EV9?",
+   "persona": "assistant",
+   "about": "time",
+   "ok": false,
+   "missing": [
+    "mazda"
+   ],
+   "present": []
+  },
+  {
+   "reply": "No, the book club used to meet at Tattered Cover, but that changed in February 2026. Now it meets on the second Thursday of the month.",
+   "model": "gemma-4-12b",
+   "ms": 6572,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "t04",
+   "say": "Did book club always meet where it meets now?",
+   "persona": "assistant",
+   "about": "time",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "You stopped climbing for a while on December 10, 2025, because you hurt your shoulder.",
+   "model": "gemma-4-12b",
+   "ms": 6193,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "t05",
+   "say": "When did I stop climbing, and why?",
+   "persona": "assistant",
+   "about": "time",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "I don't have a record of who you used to have one-on-ones with specifically on Wednesdays. I do know that your manager was Teodora Vance in early 2024, and you've had Rafael Okonjo as your manager since March 2025.",
+   "model": "gemma-4-12b",
+   "ms": 18904,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "t06",
+   "say": "Who did I use to have one-on-ones with on Wednesdays?",
+   "persona": "assistant",
+   "about": "calendar+time",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Bea Moreau and Sven report to you.",
+   "model": "gemma-4-12b",
+   "ms": 21219,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "k01",
+   "say": "Who reports to me right now?",
+   "persona": "assistant",
+   "about": "change",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "The Harbor launch is due on January 15, 2027.",
+   "model": "gemma-4-12b",
+   "ms": 4007,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "k02",
+   "say": "When is the Harbor launch due?",
+   "persona": "assistant",
+   "about": "change",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Ruby's soccer coach is Jen Parks.",
+   "model": "gemma-4-12b",
+   "ms": 4584,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "k03",
+   "say": "Who's Ruby's soccer coach?",
+   "persona": "assistant",
+   "about": "fix",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Bea Moreau joined your team most recently, on June 2, 2026.",
+   "model": "gemma-4-12b",
+   "ms": 9996,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "k04",
+   "say": "Who on my team joined most recently?",
+   "persona": "assistant",
+   "about": "order",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Wen Li looks after the build system.",
+   "model": "gemma-4-12b",
+   "ms": 3994,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "k05",
+   "say": "Who looks after our build system at work?",
+   "persona": "assistant",
+   "about": "fact",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "The restaurant you liked in Porto was Cantinho do Avillez.",
+   "model": "gemma-4-12b",
+   "ms": 5828,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "k06",
+   "say": "What was the name of that restaurant we liked in Porto?",
+   "persona": "assistant",
+   "about": "fact",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Alex works from home on Mondays and Fridays.",
+   "model": "gemma-4-12b",
+   "ms": 4203,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "k07",
+   "say": "Which days does Alex work from home?",
+   "persona": "assistant",
+   "about": "fact",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "You and Alex have been married for 12 years.",
+   "model": "gemma-4-12b",
+   "ms": 7593,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "k08",
+   "say": "How long have Alex and I been married?",
+   "persona": "assistant",
+   "about": "date math",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Theo will be 7 years old on his next birthday.",
+   "model": "gemma-4-12b",
+   "ms": 5489,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "looking in the notes: Theo birthday",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "k09",
+   "say": "How old will Theo be on his next birthday?",
+   "persona": "assistant",
+   "about": "date math",
+   "ok": false,
+   "missing": [
+    "turns 8|be 8|eight|8 years|8 on"
+   ],
+   "present": []
+  },
+  {
+   "reply": "This week you have a busy schedule with several work and family commitments:\n\n**Work:**\n*   **Daily:** Team standups every morning at 9:30 AM.\n*   **Monday:** Harbor launch sync at 11:00 AM.\n*   **Tuesday:** 1:1 with Rafael at 10:00 AM.\n*   **Thursday:** 1:1 with Sven at 3:00 PM.\n*   **Friday:** Juniper Labs all-hands at 4:00 PM.\n\n**Family & Personal:**\n*   **Monday:** Physical therapy with Corinne Duval at 7:30 AM.\n*   **Tuesday & Thursday:** Ruby's soccer practice at 5:30 PM.\n*   **Wednesday:** Alex has yoga at 6:00 PM.\n*   **Thursday:** Page Turners book club at 7:00 PM.\n*   **Saturday:** Theo has a swim lesson at 9:00 AM, followed by the Hornets end-of-season party at noon.\n\nAlex is working from home on Monday, Thursday, and Sunday, and has a Chicago work trip on Sunday.",
+   "model": "gemma-4-12b",
+   "ms": 11486,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "c01",
+   "say": "What's going on this week?",
+   "persona": "assistant",
+   "about": "calendar",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "The book club meets this month on Thursday, November 12th, at BookBar.",
+   "model": "gemma-4-12b",
+   "ms": 7649,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "c02",
+   "say": "When is book club this month, and where?",
+   "persona": "assistant",
+   "about": "calendar",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "I don't have a record of how many times you've visited the dentist this year.",
+   "model": "gemma-4-12b",
+   "ms": 4653,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "c03",
+   "say": "How many times did I go to the dentist this year?",
+   "persona": "assistant",
+   "about": "calendar count",
+   "ok": false,
+   "missing": [
+    "twice|two times|2 times|two visits|2 visits|two appointments|2 appointments|two dentist"
+   ],
+   "present": []
+  },
+  {
+   "reply": "I don't see any dentist appointments on your calendar for the next week.",
+   "model": "gemma-4-12b",
+   "ms": 11917,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "c04",
+   "say": "When's my next dentist appointment?",
+   "persona": "assistant",
+   "about": "calendar",
+   "ok": false,
+   "missing": [
+    "february",
+    "9|ninth"
+   ],
+   "present": []
+  },
+  {
+   "reply": "You have the Juniper Labs all-hands at 4:00 PM on Friday.",
+   "model": "gemma-4-12b",
+   "ms": 6845,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "c05",
+   "say": "What do I have on Friday?",
+   "persona": "assistant",
+   "about": "calendar",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "I'm sorry, I don't have a record of the date for the final kitchen inspection. Could you tell me when it's scheduled?",
+   "model": "gemma-4-12b",
+   "ms": 15783,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "c06",
+   "say": "When is the final kitchen inspection?",
+   "persona": "assistant",
+   "about": "calendar",
+   "ok": false,
+   "missing": [
+    "november 20|nov 20|20th|friday"
+   ],
+   "present": []
+  },
+  {
+   "reply": "There are no events on the family calendar while Alex is in Chicago.",
+   "model": "gemma-4-12b",
+   "ms": 7616,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "c07",
+   "say": "Is there anything on the family calendar while Alex is in Chicago?",
+   "persona": "assistant",
+   "about": "calendar+calendar",
+   "ok": false,
+   "missing": [
+    "soccer"
+   ],
+   "present": []
+  },
+  {
+   "reply": "The kitchen remodel is currently budgeted at $44,000. As for what's left to do, I don't have a specific list of remaining tasks for that project in Longhouse. Would you like me to check the tasks for that project?",
+   "model": "gemma-4-12b",
+   "ms": 9511,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "l01",
+   "say": "Is the kitchen remodel still on budget, and what's left to do?",
+   "persona": "assistant",
+   "about": "longhouse+fact",
+   "ok": false,
+   "missing": [
+    "paint|pendant|lights|final payment"
+   ],
+   "present": []
+  },
+  {
+   "reply": "There are three tasks left for the Hornets party:\n- Collect money for the coach gift is in progress and was due yesterday; the admin is handling that.\n- You need to buy the coach gift for Jen Parks by Thursday.\n- You also need to bring the folding tables by Saturday.",
+   "model": "gemma-4-12b",
+   "ms": 13774,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "l02",
+   "say": "What's left for the Hornets party, and who's doing what?",
+   "persona": "assistant",
+   "about": "longhouse",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "You have two tasks left for the garage cleanout:\n- Install the wall rack for the bikes, which is due on December 6th.\n- Get a quote for a 240 V outlet, which is due on November 30th.",
+   "model": "gemma-4-12b",
+   "ms": 12655,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "l03",
+   "say": "What do I still need to do in the garage?",
+   "persona": "assistant",
+   "about": "longhouse",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Tomorrow, Monday, November 9, you have three events on your work calendar:\n\n*   **Physical therapy with Corinne Duval**: 7:30 AM - 8:15 AM\n*   **Team standup**: 9:30 AM - 9:45 AM\n*   **Harbor launch sync @ Juniper Labs**: 11:00 AM - 11:45 AM",
+   "model": "gemma-4-12b",
+   "ms": 9367,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "e01",
+   "say": "What's on my work calendar tomorrow?",
+   "persona": "engineering",
+   "about": "calendar via Archimedes",
+   "ok": false,
+   "missing": [
+    "rafael"
+   ],
+   "present": []
+  },
+  {
+   "reply": "I don't have a record of Alex's mother's name.",
+   "model": "gemma-4-12b",
+   "ms": 6915,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "a01",
+   "say": "What's Alex's mother's name?",
+   "persona": "assistant",
+   "about": "abstain",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "I don't have a record of the plate number for the EV9.",
+   "model": "gemma-4-12b",
+   "ms": 4863,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "a02",
+   "say": "What's the plate number of the EV9?",
+   "persona": "assistant",
+   "about": "abstain",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "I've added Theo's swim meet to Alex's calendar for Saturday, November 7th at 8:00 AM at the Carla Madison Rec Center.",
+   "model": "gemma-4-12b",
+   "ms": 26936,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "action",
+   "id": "w01",
+   "say": "Put Theo's swim meet on Alex's calendar this Saturday at 8 in the morning, at Carla Madison Rec Center.",
+   "persona": "assistant",
+   "about": ""
+  },
+  {
+   "reply": "Alex had Theo's swim meet at Carla Madison Rec Center from 8:00 to 9:00 AM.",
+   "model": "gemma-4-12b",
+   "ms": 9677,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "check",
+   "id": "w01.c",
+   "say": "What's on Alex's calendar this Saturday?",
+   "persona": "magi",
+   "about": "",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "I've scheduled a monthly budget review with Alex on the Family calendar, starting on December 6th at 7:00 PM.",
+   "model": "gemma-4-12b",
+   "ms": 24626,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "action",
+   "id": "w02",
+   "say": "Set up a monthly budget review with Alex on the Family calendar, the first Sunday of each month at 7 pm, starting in December.",
+   "persona": "assistant",
+   "about": ""
+  },
+  {
+   "reply": "There is a monthly budget review with Alex from 7:00 to 8:00 PM on the Family calendar.",
+   "model": "gemma-4-12b",
+   "ms": 8912,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "check",
+   "id": "w02.c",
+   "say": "What's on the family calendar on Sunday December 6?",
+   "persona": "magi",
+   "about": "",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "I've added the task to buy a bike pump to the garage cleanout project, due next Friday, November 13th.",
+   "model": "gemma-4-12b",
+   "ms": 7979,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "action",
+   "id": "w03",
+   "say": "Add a task to the garage cleanout project for me to buy a bike pump by next Friday.",
+   "persona": "assistant",
+   "about": ""
+  },
+  {
+   "reply": "The open tasks in the Garage cleanout project are:\n- Install the wall rack for the bikes (due December 6)\n- Get a quote for a 240 V outlet (due November 30)\n- Buy a bike pump (due November 13)",
+   "model": "gemma-4-12b",
+   "ms": 11368,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "check",
+   "id": "w03.c",
+   "say": "What are the open tasks in the Garage cleanout project?",
+   "persona": "magi",
+   "about": "",
+   "ok": true,
+   "missing": [],
+   "present": []
+  }
+ ]
+}

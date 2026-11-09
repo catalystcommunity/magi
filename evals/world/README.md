@@ -69,4 +69,24 @@ activity showed while the reply was made.
 
 ## Results
 
-See the table at the end of this file.
+| Run | Score (automatic) | Score (review) | Notes |
+| --- | --- | --- | --- |
+| v1 `gemma-base` (2026-11-09, local Sunday 8 November) | 20/28, checks 3/3 | about 13 right, 6 partly, 9 wrong; w01 wrong | Busy signal on every question. Import: 35/42 key messages recorded, 20/286 noise messages recorded (as false facts). See the `.review.md` file. |
+
+Findings of the baseline (fixed in the code after it, not yet measured):
+
+- "We sold the Mazda" was a retract: the history lost the car. New note
+  operation `end` keeps a past fact. One-time happenings are `event`
+  items (episodes with the date), not facts.
+- Dates in the context were UTC (an evening message showed the next day).
+  `when()` now uses the household zone; facts show "since <date>".
+- catalystcal search matches one substring; `find_events` now searches
+  each word and ranks. The turn context has the calendar events and the
+  Longhouse tasks that the words of the message find.
+- "This Saturday" on a Sunday gave the past Saturday. The prompt lists the
+  dates of the next days, and `create_event` refuses a past time.
+
+Known defects of v1 itself: relative dates ("tomorrow", "this week")
+depend on the day of the run; action checks ask the same model; abstaining
+on an answerable question can pass; the noise does not follow the dates
+(climbing after the injury). v2 fixes these.

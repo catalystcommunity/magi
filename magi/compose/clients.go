@@ -274,6 +274,9 @@ func New(cfg Config, m model.Chatter, log *slog.Logger) *System {
 		}
 	}
 	sys.EgressRules, sys.EgressProxy = cfg.EgressRules, cfg.EgressProxy
+	if cfg.TimeZone != nil {
+		zone = cfg.TimeZone
+	}
 	sys.egressReviews = &egressReviews{reported: map[string]time.Time{}}
 	return sys
 }

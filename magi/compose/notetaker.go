@@ -26,13 +26,17 @@ Operations:
 - "remember": a new fact. subject: "me" for the person, or a name. relation: short, lower case, with "-" (dentist, vet, sister, lives-in, works-at, job, hosted-in, located-in, birthday, books-through, model). object: a thing with a name (a person, place, organization, system, device). value: a date, number, or description when there is no object. Give one item for each fact. When the person names a person or thing that relates to them, also give that fact ("my sister Dana lives in Tucson": me sister Dana, and Dana lives-in Tucson). "also": true only for a second fact with the same subject and relation (a second sister). A thing of the person is the subject of its own facts: "my photo library is in iCloud": photo library located-in iCloud; "our printer is a Brother HL-L2350 in the office": me printer Brother HL-L2350, and Brother HL-L2350 located-in office. A person at a place is two facts: "my doctor is Dr. Lee at Elm Clinic": me doctor Dr. Lee, and Dr. Lee works-at Elm Clinic. A name of a thing is a fact: "the shared drive is called Family Vault": shared drive name Family Vault (a value). Give object or value, not both.
 - "update": a fact of the notes was true and is now different ("we switched", "now", "we moved", "it changed to"). id: the id of that fact from the notes. value: the new object or value.
 - "fix": a fact of the notes was wrong ("that's wrong", "I misspoke", "it was always", "not X"). id: the id of the fact. value: the right object or value. field: "object" or "value" (the field that holds the wrong part).
+- "end": a fact of the notes stopped being true and nothing new replaces it ("we sold the boat", "she left the band", "no longer", "doesn't anymore", "stopped"). id: the id of that fact. Magi keeps it as a past fact. Do not use retract for it.
 - "retract": a fact or thing of the notes was never true, or the person wants it forgotten ("there is no", "forget it"). id: the id. object: the name of the thing or fact to forget, in the words of the person ("chores calendar"). When no record of the notes names that thing, give no item.
+- "event": something that happened at one time and that the person can ask about later: a move, a trip, a first, an injury, a finished project, a sale, a new job. subject: "me" or the person it is about. value: a short title in the words of the person ("hurt my shoulder climbing"). Magi keeps the date of the message. A one-time happening is an event, not a fact: do not give "remember" for it. When it also changes a lasting fact, give the event and the change.
 
 Rules:
 - Use only the words of the person. Do not add details.
 - update, fix, and retract need an id from the notes below. When no fact of the notes matches, use "remember" for the new fact.
 - Do not give a fact that the notes already have.
 - When the words do not make clear if a fact changed or was wrong, give no item for it: the assistant asks.
+- One message can change more than one fact; give one item for each (a new day and a new place of a meeting are two facts). A move changes where the person lives; a new employer changes works-at; "X no longer reports to me" ends that fact.
+- Small talk, feelings, meals, weather, and routine days get no item.
 - Leave fields that do not apply empty ("").`
 
 var noteSchema = map[string]any{
@@ -43,7 +47,7 @@ var noteSchema = map[string]any{
 			"type": "object", "additionalProperties": false,
 			"required": []string{"op", "id", "subject", "subject_kind", "relation", "object", "object_kind", "value", "field", "also"},
 			"properties": map[string]any{
-				"op":           map[string]any{"type": "string", "enum": []string{"remember", "update", "fix", "retract"}},
+				"op":           map[string]any{"type": "string", "enum": []string{"remember", "update", "fix", "end", "retract", "event"}},
 				"id":           map[string]any{"type": "string"},
 				"subject":      map[string]any{"type": "string"},
 				"subject_kind": map[string]any{"type": "string", "enum": []string{"", "person", "place", "organization", "system", "calendar", "device", "account", "project", "thing"}},
@@ -102,11 +106,16 @@ func (n noteItem) toolCall(reason string) (string, map[string]string) {
 			args["also"] = "true"
 		}
 		return "remember", args
-	case "update", "fix", "retract":
+	case "event":
+		if strings.TrimSpace(n.Value) == "" {
+			return "", nil
+		}
+		return "record_event", map[string]string{"subject": n.Subject, "title": n.Value}
+	case "update", "fix", "retract", "end":
 		if !strings.HasPrefix(n.Id, "clm_") && !strings.HasPrefix(n.Id, "ent_") {
 			return "", nil
 		}
-		if n.Op != "retract" && n.Value == "" {
+		if n.Op != "retract" && n.Op != "end" && n.Value == "" {
 			return "", nil
 		}
 		return "change_knowledge", map[string]string{"id": n.Id, "operation": n.Op, "value": n.Value, "field": n.Field, "reason": reason}

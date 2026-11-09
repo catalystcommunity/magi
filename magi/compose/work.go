@@ -395,15 +395,18 @@ func (s *System) calendarTool(ctx context.Context, owner, key, name string, args
 			head += " The calendar cut the list: ask for a shorter range."
 		}
 		if len(lines) == 0 {
+			if args["text"] != "" {
+				return head + " none. find_events searches all dates by words.", nil
+			}
 			return head + " none.", nil
 		}
 		return head + "\n" + strings.Join(lines, "\n"), nil
 	case "find_events":
-		lim := uint64(40)
-		l, err := ev.SearchEvents(ctx, cal.SearchEventsRequest{Query: args["text"], Limit: &lim})
+		events, err := searchEvents(ctx, ev, args["text"], 40)
 		if err != nil {
 			return "", err
 		}
+		l := cal.EventList{Events: events}
 		cals, _ := s.calendars(ctx, tr)
 		names := map[cal.CalendarID]string{}
 		for _, c := range cals {
@@ -437,6 +440,14 @@ func (s *System) calendarTool(ctx context.Context, owner, key, name string, args
 		st, date, err := localTime(args["start"], loc)
 		if err != nil {
 			return "", fmt.Errorf("start: %v", err)
+		}
+		today := time.Date(now.In(loc).Year(), now.In(loc).Month(), now.In(loc).Day(), 0, 0, 0, 0, loc)
+		if (date && st.Before(today)) || (!date && st.Before(now.Add(-time.Hour))) {
+			var days []string
+			for i := 0; i < 7; i++ {
+				days = append(days, today.AddDate(0, 0, i).Format("Mon 2006-01-02"))
+			}
+			return "", fmt.Errorf("%s is in the past; the time now is %s. The next days are %s. Use a future date, or ask the person", st.Format("Mon 2006-01-02 15:04"), now.In(loc).Format("Mon 2006-01-02 15:04"), strings.Join(days, ", "))
 		}
 		cals, err := s.calendars(ctx, tr)
 		if err != nil {
@@ -1011,4 +1022,245 @@ func (s *System) longhouseTool(ctx context.Context, owner, name string, args map
 		return "Created project " + got.Name + " in " + h.name + " id " + string(got.ProjectId), nil
 	}
 	return "", fmt.Errorf("unknown tool %s", name)
+}
+
+// Words that say nothing about which event: they are not searched.
+var stopWords = map[string]bool{}
+
+func init() {
+	for _, w := range strings.Fields(`a an and are as at be been but by can could did do does for from had has have how i if in into is it its me
+	my of on or our so than that the their them then there these they this to us was we were what when where which while who whom why will
+	with would you your am any anything about after again all also before between both during each few more most next last other over same
+	some such through under until up very just now ever often times many much going get got go see saw tell show put let make made
+	calendar calendars event events meeting meetings appointment appointments today tomorrow yesterday week weeks month months year years
+	day days time schedule scheduled still left need there's what's when's who's i'm i've we're`) {
+		stopWords[w] = true
+	}
+}
+
+// contentWords gives the words of text that can find an event or a
+// project: no stop words, no short words; "one-on-one" also as "1:1".
+func contentWords(text string) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, w := range strings.FieldsFunc(strings.ToLower(text), func(r rune) bool {
+		return !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-' || r == ':' || r == '\'' || r > 127)
+	}) {
+		w = strings.Trim(w, "-:'")
+		w = strings.TrimSuffix(w, "'s")
+		if strings.HasPrefix(w, "one-on-one") || w == "1:1s" {
+			w = "1:1"
+		}
+		if len([]rune(w)) < 3 && w != "1:1" || stopWords[w] || seen[w] {
+			continue
+		}
+		// "dentists" and "inspections" match "dentist" and "inspection".
+		if len(w) > 4 && strings.HasSuffix(w, "s") && !strings.HasSuffix(w, "ss") {
+			w = strings.TrimSuffix(w, "s")
+		}
+		seen[w] = true
+		out = append(out, w)
+	}
+	return out
+}
+
+// searchEvents finds events by each content word of text (catalystcal
+// matches one substring) and ranks them by the number of words they match.
+func searchEvents(ctx context.Context, ev *cal.EventClient, text string, limit int) ([]cal.Event, error) {
+	words := contentWords(text)
+	if len(words) == 0 {
+		words = []string{strings.TrimSpace(text)}
+	}
+	if len(words) > 6 {
+		words = words[:6]
+	}
+	type hit struct {
+		e cal.Event
+		n int
+	}
+	hits := map[cal.EventID]*hit{}
+	var order []cal.EventID
+	lim := uint64(50)
+	for _, w := range words {
+		l, err := ev.SearchEvents(ctx, cal.SearchEventsRequest{Query: w, Limit: &lim})
+		if err != nil {
+			return nil, err
+		}
+		for _, e := range l.Events {
+			if h := hits[e.EventId]; h != nil {
+				h.n++
+				continue
+			}
+			hits[e.EventId] = &hit{e: e, n: 1}
+			order = append(order, e.EventId)
+		}
+	}
+	best := 0
+	for _, h := range hits {
+		best = max(best, h.n)
+	}
+	var out []cal.Event
+	// The events that match the most words; with one word each, all.
+	for _, id := range order {
+		if h := hits[id]; h.n == best {
+			out = append(out, h.e)
+		}
+	}
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
+// calendarContext gives the events that the words of text find, for the
+// turn context: the last time and the next times of each, so that "when is
+// the inspection" or "while Alex is in Chicago" has the dates without a
+// tool call. "" when the person has no calendar connection.
+func (s *System) calendarContext(ctx context.Context, owner, text string) string {
+	if s.Calendar == nil || len(contentWords(text)) == 0 {
+		return ""
+	}
+	tr, err := s.Calendar.transport(ctx, owner)
+	if err != nil {
+		return ""
+	}
+	ev := cal.NewEventClient(tr)
+	found, err := searchEvents(ctx, ev, text, 12)
+	if err != nil || len(found) == 0 {
+		return ""
+	}
+	loc, now := s.zone(), time.Now()
+	cals, _ := s.calendars(ctx, tr)
+	names := map[cal.CalendarID]string{}
+	for _, c := range cals {
+		names[c.CalendarId] = calName(c)
+	}
+	want := map[cal.EventID]bool{}
+	for _, e := range found {
+		want[e.EventId] = true
+	}
+	// Each occurrence in a window around now; singles outside it as they are.
+	from, to := now.AddDate(0, -6, 0), now.AddDate(0, 6, 0)
+	yes := true
+	occ, _ := ev.ListEvents(ctx, cal.ListEventsRequest{RangeStart: ts(from), RangeEnd: ts(to), IncludeInvitations: &yes})
+	type seen struct{ past, next []cal.Occurrence }
+	by := map[cal.EventID]*seen{}
+	for _, o := range occ.Occurrences {
+		id := o.Event.EventId
+		if o.Event.MasterEventId != nil {
+			id = *o.Event.MasterEventId
+		}
+		if !want[id] {
+			continue
+		}
+		x := by[id]
+		if x == nil {
+			x = &seen{}
+			by[id] = x
+		}
+		if parseTS(o.Start).Before(now) {
+			x.past = append(x.past, o)
+		} else {
+			x.next = append(x.next, o)
+		}
+	}
+	var lines []string
+	for _, e := range found {
+		x := by[e.EventId]
+		if x == nil {
+			o := cal.Occurrence{Event: e, Access: "read"}
+			if e.Start != nil {
+				o.Start, o.End = *e.Start, *e.End
+			} else if e.StartDate != nil {
+				d, _ := time.ParseInLocation("2006-01-02", string(*e.StartDate), loc)
+				o.Start, o.End = ts(d), ts(d.AddDate(0, 0, 1))
+			}
+			lines = append(lines, s.describeOcc(o, names))
+			continue
+		}
+		if n := len(x.past); n > 0 {
+			lines = append(lines, "last: "+s.describeOcc(x.past[n-1], names))
+		}
+		for i, o := range x.next {
+			if i == 3 {
+				break
+			}
+			lines = append(lines, "next: "+s.describeOcc(o, names))
+		}
+	}
+	if len(lines) > 24 {
+		lines = lines[:24]
+	}
+	return strings.Join(lines, "\n")
+}
+
+// longhouseContext gives the Longhouse projects whose name shares a word
+// with text, with their open tasks, and open tasks whose title does.
+func (s *System) longhouseContext(ctx context.Context, owner, text string) string {
+	words := contentWords(text)
+	if s.Longhouse == nil || len(words) == 0 {
+		return ""
+	}
+	tr := s.Longhouse.transport(owner)
+	h, err := s.lhHouse(ctx, tr, "")
+	if err != nil {
+		return ""
+	}
+	ps, err := s.lhProjects(ctx, tr, h)
+	if err != nil {
+		return ""
+	}
+	match := func(name string) bool {
+		n := strings.ToLower(name)
+		for _, w := range words {
+			if len(w) > 3 && strings.Contains(n, w) {
+				return true
+			}
+		}
+		return false
+	}
+	pc := lh.NewProjectClient(tr)
+	lim := uint64(200)
+	open := ptr(lh.TaskState("open"))
+	var lines []string
+	shown := map[lh.TaskID]bool{}
+	for _, p := range ps {
+		if (p.Personal != nil && *p.Personal) || !match(p.Name) {
+			continue
+		}
+		line := "Project " + p.Name
+		if p.Description != nil && *p.Description != "" {
+			line += ": " + clip(*p.Description, 200)
+		}
+		lines = append(lines, line)
+		l, err := pc.ListProjectTasks(ctx, lh.ProjectScopedListRequest{HouseId: lh.HouseID(h.id), ProjectId: p.ProjectId, Limit: &lim, State: open})
+		if err != nil {
+			continue
+		}
+		in := map[lh.TaskID][]string{}
+		for _, t := range l.Tasks {
+			in[t.TaskId] = []string{p.Name}
+		}
+		if len(l.Tasks) == 0 {
+			lines = append(lines, "  no open tasks")
+		}
+		for i, t := range l.Tasks {
+			if i == 12 {
+				break
+			}
+			shown[t.TaskId] = true
+			lines = append(lines, "  open task: "+s.describeTask(t, h, in))
+		}
+	}
+	if l, err := lh.NewTaskClient(tr).ListTasks(ctx, lh.TaskListRequest{HouseId: lh.HouseID(h.id), Limit: &lim, State: open}); err == nil {
+		n := 0
+		for _, t := range l.Tasks {
+			if shown[t.TaskId] || !match(t.Title) || n == 8 {
+				continue
+			}
+			n++
+			lines = append(lines, "open task: "+s.describeTask(t, h, nil))
+		}
+	}
+	return strings.Join(lines, "\n")
 }

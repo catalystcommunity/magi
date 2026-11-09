@@ -50,7 +50,7 @@ func knowledgeTools(obj func(map[string]any, ...string) map[string]any, str func
 		}, "subject", "relation")},
 		{Name: "change_knowledge", Description: "Fix, update, or retract a record that recall gave (by id).", Parameters: obj(map[string]any{
 			"id":        str("The id of the fact or thing, from recall."),
-			"operation": map[string]any{"type": "string", "enum": []string{"fix", "update", "retract"}, "description": "fix: it was wrong. update: it was true and changed. retract: it was never true, or forget it."},
+			"operation": map[string]any{"type": "string", "enum": []string{"fix", "update", "end", "retract"}, "description": "fix: it was wrong. update: it was true and changed. end: it stopped being true and nothing replaces it (kept as a past fact). retract: it was never true, or forget it."},
 			"value":     str("The new value or the new name of the object (for fix and update)."),
 			"field":     str("Optional. For a fact: value, object, or relation. For a thing: label, summary, or kind."),
 			"reason":    str("The words of the person, short."),
@@ -186,6 +186,19 @@ func (s *System) changeRecord(ctx context.Context, owner, ownerName, id, op, fie
 	var more []fact
 	if erase {
 		req.Erase = ptr(true)
+	}
+	if op == "end" {
+		// A fact that stopped being true: it keeps its history and ends now
+		// (or at the time of an imported message).
+		at := time.Now()
+		if t, ok := historyTime(ctx); ok {
+			at = t
+		}
+		req.Operation, req.Set = "fix", map[string]string{"valid_to_ms": fmt.Sprint(at.UnixMilli())}
+		if !strings.HasPrefix(id, "clm_") {
+			return knowledgeapi.ChangeResponse{}, fmt.Errorf("end needs the id of a fact (clm_)")
+		}
+		return s.Knowledge.Change(ctx, req)
 	}
 	if op != "retract" {
 		if value == "" {
@@ -428,6 +441,9 @@ func describeKnowledge(items []magiapi.KnowledgeItem, records []magiapi.Knowledg
 				line = fmt.Sprintf("%s %s %s", other, f.Relation, it.Label)
 			}
 			var notes []string
+			if f.Status != "ended" && f.ValidFromMs != nil && *f.ValidFromMs > 0 {
+				notes = append(notes, "since "+when(time.UnixMilli(int64(*f.ValidFromMs)), now))
+			}
 			if f.Status == "ended" {
 				n := "no longer true"
 				if f.ValidToMs != nil {
@@ -454,7 +470,11 @@ func describeKnowledge(items []magiapi.KnowledgeItem, records []magiapi.Knowledg
 		}
 	}
 	for _, r := range records {
-		fmt.Fprintf(&b, "- [%s] %s %q: %s\n", r.Id, r.Kind, r.Title, r.Summary)
+		at := ""
+		if r.AtMs > 0 {
+			at = " on " + when(time.UnixMilli(int64(r.AtMs)), now)
+		}
+		fmt.Fprintf(&b, "- [%s] %s %q%s: %s\n", r.Id, r.Kind, r.Title, at, r.Summary)
 	}
 	return b.String()
 }
@@ -659,4 +679,31 @@ func capRecordRefs(refs []conversationapi.Ref, n int) []conversationapi.Ref {
 // hasRecordRefs tells if Magi knows the records that u used.
 func hasRecordRefs(u conversationapi.Utterance) bool {
 	return slices.ContainsFunc(u.Attachments, func(r conversationapi.Ref) bool { return r.Kind == recordRefKind })
+}
+
+// recordEvent keeps a one-time happening as an episode at the time of the
+// message (or of an imported message), with the entity it is about.
+func (s *System) recordEvent(ctx context.Context, owner, ownerName, subject, title string, utt *string) string {
+	title = strings.TrimSpace(title)
+	if title == "" {
+		return "error: an event needs a title"
+	}
+	at := time.Now()
+	if t, ok := historyTime(ctx); ok {
+		at = t
+	}
+	req := knowledgeapi.RecordEpisodeRequest{Kind: "event", Title: clip(title, 200), StartedMs: ptr(uint64(at.UnixMilli())), Owners: []string{owner}, ActFor: &owner}
+	if subject = strings.TrimSpace(subject); subject != "" {
+		if e, err := s.entityFor(ctx, owner, ownerName, subject, "", utt); err == nil {
+			req.Entities = []string{e.Id}
+		}
+	}
+	if utt != nil {
+		req.Refs = []knowledgeapi.Ref{{Kind: "utterance", Ref: *utt}}
+	}
+	ep, err := s.Knowledge.RecordEpisode(ctx, req)
+	if err != nil {
+		return "error: " + err.Error()
+	}
+	return fmt.Sprintf("Recorded the event [%s] %s on %s.", ep.Id, ep.Title, at.In(s.zone()).Format("2006-01-02"))
 }

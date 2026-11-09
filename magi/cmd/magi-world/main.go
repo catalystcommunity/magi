@@ -71,6 +71,7 @@ func main() {
 	calURL := flag.String("calendar", "", "catalystcal URL")
 	lhURL := flag.String("longhouse", "", "Longhouse URL")
 	only := flag.String("only", "", "calendar or longhouse (default both)")
+	clean := flag.Bool("clean", false, "remove the events and tasks that are not in the world (made by earlier runs), then stop")
 	tz := flag.String("tz", "America/Denver", "time zone of the world")
 	flag.Parse()
 	var err error
@@ -84,6 +85,29 @@ func main() {
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	sys := compose.New(compose.Config{Identity: *identity, CatalystcalURL: *calURL, LonghouseURL: *lhURL, ServiceToken: strings.TrimSpace(string(tok))}, nil, log)
 	ctx := context.Background()
+	if *clean {
+		var c struct{ Me, Alex []event }
+		read(filepath.Join(*world, "calendar.json"), &c)
+		var h house
+		read(filepath.Join(*world, "longhouse.json"), &h)
+		titles := map[string]bool{}
+		for _, e := range append(c.Me, c.Alex...) {
+			titles[e.Title] = true
+		}
+		cleanCalendar(ctx, sys, *me, titles)
+		cleanCalendar(ctx, sys, *alex, titles)
+		tasks := map[string]bool{}
+		for _, p := range h.Projects {
+			for _, t := range p.Tasks {
+				tasks[t.Title] = true
+			}
+		}
+		for _, t := range h.Loose {
+			tasks[t.Title] = true
+		}
+		cleanLonghouse(ctx, sys, *me, h.House, tasks)
+		return
+	}
 	if *only == "" || *only == "calendar" {
 		var c struct{ Me, Alex []event }
 		read(filepath.Join(*world, "calendar.json"), &c)
@@ -340,6 +364,82 @@ func seedLonghouse(ctx context.Context, sys *compose.System, me, alex string, h 
 	}
 	for _, t := range h.Loose {
 		add(t, "")
+	}
+}
+
+// cleanCalendar deletes the events of the owner's own calendars that have a
+// title that the world does not have.
+func cleanCalendar(ctx context.Context, sys *compose.System, owner string, titles map[string]bool) {
+	tr, err := sys.CalendarFor(ctx, owner)
+	if err != nil {
+		fail(err)
+	}
+	cals, err := cal.NewCalendarClient(tr).ListCalendars(ctx, cal.EmptyRequest{})
+	if err != nil {
+		fail(err)
+	}
+	var own []cal.CalendarID
+	for _, c := range cals.Calendars {
+		if c.AccessPath == "owner" || c.AccessPath == "delegation" {
+			own = append(own, c.CalendarId)
+		}
+	}
+	ev := cal.NewEventClient(tr)
+	done := map[cal.EventID]bool{}
+	for y := 2023; y <= 2028; y++ {
+		from := time.Date(y, 1, 1, 0, 0, 0, 0, loc)
+		l, err := ev.ListEvents(ctx, cal.ListEventsRequest{RangeStart: cal.Timestamp(from.UTC().Format(time.RFC3339)), RangeEnd: cal.Timestamp(from.AddDate(1, 0, 0).UTC().Format(time.RFC3339)), CalendarIds: own})
+		if err != nil {
+			fail(err)
+		}
+		for _, o := range l.Occurrences {
+			id := o.Event.EventId
+			if o.Event.MasterEventId != nil {
+				id = *o.Event.MasterEventId
+			}
+			if titles[o.Event.Title] || done[id] {
+				continue
+			}
+			done[id] = true
+			all := cal.RecurrenceScope("all")
+			if _, err := ev.DeleteEvent(ctx, cal.DeleteEventRequest{EventId: id, Scope: &all}); err != nil {
+				fmt.Printf("%s: delete %q: %v\n", owner, o.Event.Title, err)
+				continue
+			}
+			fmt.Printf("%s: deleted %q\n", owner, o.Event.Title)
+		}
+	}
+}
+
+// cleanLonghouse deletes the tasks of the house that the world does not have.
+func cleanLonghouse(ctx context.Context, sys *compose.System, me, house string, titles map[string]bool) {
+	tr, err := sys.LonghouseFor(me)
+	if err != nil {
+		fail(err)
+	}
+	who, err := lh.NewAuthClient(tr).Me(ctx, lh.EmptyRequest{})
+	if err != nil {
+		fail(err)
+	}
+	for _, hs := range who.Houses {
+		if hs.Name != house {
+			continue
+		}
+		lim := uint64(500)
+		l, err := lh.NewTaskClient(tr).ListTasks(ctx, lh.TaskListRequest{HouseId: hs.HouseId, Limit: &lim})
+		if err != nil {
+			fail(err)
+		}
+		for _, t := range l.Tasks {
+			if titles[t.Title] || t.OwnerMemberId != hs.MemberId {
+				continue
+			}
+			if _, err := lh.NewTaskClient(tr).DeleteTask(ctx, t.TaskId); err != nil {
+				fmt.Printf("longhouse: delete %q: %v\n", t.Title, err)
+				continue
+			}
+			fmt.Printf("longhouse: deleted %q\n", t.Title)
+		}
 	}
 }
 
