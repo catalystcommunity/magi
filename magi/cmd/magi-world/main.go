@@ -470,12 +470,26 @@ func cleanLonghouse(ctx context.Context, sys *compose.System, me, house string, 
 		if err != nil {
 			fail(err)
 		}
+		// The project of each task, for -extras (an action check names it).
+		inProject := map[lh.TaskID]string{}
+		if report {
+			pc := lh.NewProjectClient(tr)
+			if pl, err := pc.ListProjects(ctx, lh.HouseScopedListRequest{HouseId: hs.HouseId, Limit: &lim}); err == nil {
+				for _, p := range pl.Projects {
+					if pt, err := pc.ListProjectTasks(ctx, lh.ProjectScopedListRequest{HouseId: hs.HouseId, ProjectId: p.ProjectId, Limit: &lim}); err == nil {
+						for _, t := range pt.Tasks {
+							inProject[t.TaskId] = p.Name
+						}
+					}
+				}
+			}
+		}
 		for _, t := range l.Tasks {
 			if titles[t.Title] || t.OwnerMemberId != hs.MemberId {
 				continue
 			}
 			if report {
-				emit(map[string]any{"kind": "task", "task": t})
+				emit(map[string]any{"kind": "task", "task": t, "project": inProject[t.TaskId]})
 				continue
 			}
 			if _, err := lh.NewTaskClient(tr).DeleteTask(ctx, t.TaskId); err != nil {

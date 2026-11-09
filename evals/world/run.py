@@ -58,7 +58,9 @@ def say(args, text, persona):
     return {"reply": "\n".join(body).strip(), "model": model.group(1) if model else "", "ms": ms, "busy": steps}
 
 
-def score(case, reply, abstain_words, refusal_words=()):
+def score(case, reply, abstain_words, refusal_words=(), window=0):
+    """window > 0 (set v3): an excuse word must be within window words of
+    a re_none match, from the question's "excuse" list or EXCUSE_V3."""
     text = reply.lower().replace("’", "'")
     missing = [w for w in case.get("all", []) if w not in text]
     missing += ["|".join(g) for g in case.get("any", []) if not any(w in text for w in g)]
@@ -72,10 +74,16 @@ def score(case, reply, abstain_words, refusal_words=()):
     # old ("slipped from December 1", "Ito, before the move"): the words
     # can come before or after the match.
     for r in case.get("re_none", []):
-        bad = [m for m in re.finditer(r, text, f) if not EXCUSE.search(sentence(text, m.start()))]
+        if window:
+            ex = re.compile(r"\b(" + "|".join(map(re.escape, case.get("excuse", []))) + r")\b") if case.get("excuse") else EXCUSE_V3
+            bad = [m for m in re.finditer(r, text, f) if not ex.search(near(text, m, window))]
+        else:
+            bad = [m for m in re.finditer(r, text, f) if not EXCUSE.search(sentence(text, m.start()))]
         if bad:
             present.append(r)
-    if not case.get("abstain"):
+    if window and truncated(reply):
+        present.append("truncated reply")
+    if not case.get("abstain") and not case.get("allow_refusal"):
         # An answerable question: "I don't know" as the answer (the first
         # sentence) is a failure, not a pass. "No record of her quitting"
         # later in a reply is not a refusal.
@@ -88,6 +96,28 @@ def score(case, reply, abstain_words, refusal_words=()):
 
 
 EXCUSE = re.compile(r"\b(slipped|moved|was|were|originally|earlier|previous|previously|old|before|used to|former|formerly|no longer|anymore|until|left|sold|later|after|now|current|currently|not yet|wasn't|was not|joined)\b")
+
+
+# Set v3: no "now", "current", "after", or "joined" ("the launch is now due
+# December 1" is not excused).
+EXCUSE_V3 = re.compile(r"\b(slipped|moved|was|were|originally|earlier|previous|previously|old|before|used to|former|formerly|no longer|anymore|until|left|sold|not yet|wasn't|was not)\b")
+
+
+def near(text, m, n):
+    """The n words before and after the match m, in its sentence."""
+    s = sentence(text, m.start())
+    i = s.find(m.group(0))
+    before, after = s[:max(i, 0)].split()[-n:], s[max(i, 0) + len(m.group(0)):].split()[:n]
+    return " ".join(before + after)
+
+
+def truncated(reply):
+    """A reply that stops in a sentence ("Pepper has had 3 vet")."""
+    t = reply.rstrip()
+    if not t or t.startswith("I could not finish"):
+        return False
+    last = t.splitlines()[-1].strip()
+    return not (t[-1] in ".!?)\"'*:" or last[:1] in "-*•" or re.match(r"^\d+\.", last) or t.endswith("```"))
 
 
 def sentence(text, i):
@@ -130,27 +160,83 @@ def verify(expect, new):
     return out
 
 
+def summarize(log, s, label, when=None):
+    scored = [r for r in log if "ok" in r]
+    summary = {"set": s["version"], "label": label,
+               "when": when or datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+               "models": sorted({r.get("model", "") for r in log if r.get("model")}), "errors": sum("error" in r for r in log),
+               "unfinished": sum(r.get("unfinished", 0) for r in log), "scorer": scorer_commit()}
+    for kind in ["question", "check"]:
+        rs = [r for r in scored if r["kind"] == kind]
+        summary[kind] = f"{sum(r['ok'] for r in rs)}/{len(rs)}"
+    summary["by_kind"] = {}
+    for r in scored:
+        k = summary["by_kind"].setdefault(r["about"] or r["kind"], [0, 0])
+        k[0] += r["ok"]
+        k[1] += 1
+    timed = [r for r in log if "reply" in r]
+    summary["busy_seen"] = f"{sum(bool(r['busy']) for r in timed)}/{len(timed)}"
+    summary["busy_over_10s"] = f"{sum(bool(r['busy']) for r in timed if r['ms'] > 10000)}/{sum(r['ms'] > 10000 for r in timed)}"
+    ms = sorted(r["ms"] for r in timed)
+    if ms:
+        summary["ms"] = {"median": ms[len(ms) // 2], "p90": ms[min(len(ms) - 1, int(len(ms) * 0.9))], "max": ms[-1]}
+    return summary
+
+
+def scorer_commit():
+    p = subprocess.run(["git", "-C", str(Path(__file__).parent), "log", "-1", "--format=%h", "--", "run.py"], capture_output=True, text=True)
+    return p.stdout.strip()
+
+
+def rescore(path, s, window):
+    """Score the replies of a result file again (the set and this scorer)."""
+    d = json.loads(Path(path).read_text())
+    cases = {c["id"]: c for c in s["questions"]}
+    acts = {a["id"]: a for a in s.get("actions", [])}
+    for r in d["log"]:
+        if r["kind"] == "question" and "reply" in r and r["id"] in cases:
+            r.update(score(cases[r["id"]], r["reply"], s["abstain_words"], s.get("refusal_words", []), window))
+        elif r.get("about") == "direct check" and r["id"][:-2] in acts:
+            v = verify(acts[r["id"][:-2]]["expect"], r.get("new", []))
+            r.update(verify=v, ok=all(x["ok"] for x in v))
+    old = d["summary"]
+    d["summary"] = summarize(d["log"], s, old.get("label", ""), old.get("when"))
+    d["summary"]["rescored"] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    Path(path).write_text(json.dumps(d, indent=1) + "\n")
+    print(json.dumps(d["summary"]))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("set")
     ap.add_argument("--magi", default="magi")
-    ap.add_argument("--token-file", required=True)
+    ap.add_argument("--token-file", default="")
     ap.add_argument("--server")
     ap.add_argument("--out", default=str(Path(__file__).parent / "results"))
     ap.add_argument("--label", default="")
     ap.add_argument("--only", default="")
     ap.add_argument("--no-actions", action="store_true")
     ap.add_argument("--extras", default="", help="command that prints magi-world -extras; actions with expect are checked with it")
+    ap.add_argument("--rescore", default="", help="a result file: score its replies again with this scorer and SET, and write it back")
     args = ap.parse_args()
     s = json.loads(Path(args.set).read_text())
+    window = s.get("excuse_window", 0)
+    if args.rescore:
+        return rescore(args.rescore, s, window)
     only = set(filter(None, args.only.split(",")))
     log = []
 
     def ask(kind, cid, case, persona):
         r = say(args, case["say"], persona)
+        if window and r.get("reply", "").startswith("I could not finish"):
+            # Not finished is a failure of the turn, not a wrong answer:
+            # count it and ask once more.
+            r = dict(say(args, case["say"], persona), unfinished=1)
         r.update(kind=kind, id=cid, say=case["say"], persona=persona, about=case.get("kind", ""))
+        if case.get("truth"):
+            r["truth"] = case["truth"]
         if "reply" in r and kind != "action":
-            r.update(score(case, r["reply"], s["abstain_words"], s.get("refusal_words", [])))
+            r.update(score(case, r["reply"], s["abstain_words"], s.get("refusal_words", []), window))
         log.append(r)
         mark = "" if "ok" not in r else ("PASS " if r["ok"] else "FAIL ")
         busy = ",".join(r["busy"])[:80]
@@ -175,23 +261,7 @@ def main():
             if "check" in a:
                 c = a["check"]
                 ask("check", a["id"] + ".c", c, c.get("persona", s["persona"]))
-    scored = [r for r in log if "ok" in r]
-    summary = {"set": s["version"], "label": args.label, "when": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
-               "models": sorted({r.get("model", "") for r in log if r.get("model")}), "errors": sum("error" in r for r in log)}
-    for kind in ["question", "check"]:
-        rs = [r for r in scored if r["kind"] == kind]
-        summary[kind] = f"{sum(r['ok'] for r in rs)}/{len(rs)}"
-    summary["by_kind"] = {}
-    for r in scored:
-        k = summary["by_kind"].setdefault(r["about"] or r["kind"], [0, 0])
-        k[0] += r["ok"]
-        k[1] += 1
-    timed = [r for r in log if "reply" in r]
-    summary["busy_seen"] = f"{sum(bool(r['busy']) for r in timed)}/{len(timed)}"
-    summary["busy_over_10s"] = f"{sum(bool(r['busy']) for r in timed if r['ms'] > 10000)}/{sum(r['ms'] > 10000 for r in timed)}"
-    ms = sorted(r["ms"] for r in timed)
-    if ms:
-        summary["ms"] = {"median": ms[len(ms) // 2], "p90": ms[min(len(ms) - 1, int(len(ms) * 0.9))], "max": ms[-1]}
+    summary = summarize(log, s, args.label)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     stem = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + s["version"] + (f"-{args.label}" if args.label else "")

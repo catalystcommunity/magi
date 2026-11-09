@@ -7,6 +7,8 @@
    "gemma-4-12b"
   ],
   "errors": 0,
+  "unfinished": 0,
+  "scorer": "951da7a",
   "question": "39/51",
   "check": "4/4",
   "by_kind": {
@@ -83,7 +85,7 @@
     3
    ],
    "direct check": [
-    0,
+    4,
     4
    ]
   },
@@ -94,8 +96,7 @@
    "p90": 15851,
    "max": 32156
   },
-  "note": "checks re-scored after a checker fix (case of the T in timestamps)",
-  "rescored": "sentence excuses for re_none; refusal only in the first sentence"
+  "rescored": "2026-11-09T17:22:46+00:00"
  },
  "log": [
   {

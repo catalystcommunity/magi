@@ -1,0 +1,1006 @@
+{
+ "version": "world-v3",
+ "about": "Questions on world-v2 (set v3, after the review 20261109-world-v2-gemma-glm.review.md) (history.json with notes that follow the dates). Today is Monday 9 November 2026 in America/Denver; the questions give dates, except w04, which tests 'this Wednesday'. Scores use regular expressions (re_all, re_any, re_none) on the lower-case reply. A reply that says it does not know fails an answerable question. Actions are checked in catalystcal and Longhouse (magi-world -extras), not by a model. Do not change this file after a run; make a new version. Each question has 'truth' (the answer from world.py). re_none matches are excused only by an excuse word within 6 words (the question's 'excuse' list, or the short global list).",
+ "today": "2026-11-09",
+ "persona": "assistant",
+ "abstain_words": [
+  "don't know",
+  "do not know",
+  "don't have",
+  "do not have",
+  "no record",
+  "not sure",
+  "couldn't find",
+  "could not find",
+  "no information",
+  "isn't in",
+  "not in my",
+  "can't find",
+  "cannot find",
+  "not recorded",
+  "no note"
+ ],
+ "refusal_words": [
+  "don't know",
+  "do not know",
+  "no record",
+  "couldn't find",
+  "could not find",
+  "no information",
+  "can't find",
+  "cannot find",
+  "not recorded",
+  "i don't have that",
+  "i don't have any information"
+ ],
+ "questions": [
+  {
+   "id": "t01",
+   "say": "Who was my manager when we went to Porto?",
+   "re_all": [
+    "rafael"
+   ],
+   "kind": "time+calendar",
+   "truth": "Rafael Okonjo (manager since 3 Mar 2025; Porto 11-19 Apr 2025)"
+  },
+  {
+   "id": "t02",
+   "say": "Who was my manager when I joined the book club?",
+   "re_all": [
+    "teodora"
+   ],
+   "re_none": [
+    "\\brafael\\b(?!.*(later|after|now|current))"
+   ],
+   "kind": "time",
+   "truth": "Teodora Vance"
+  },
+  {
+   "id": "t03",
+   "say": "Which vet did Pepper see before we moved to Denver?",
+   "re_any": [
+    [
+     "\\bito\\b",
+     "boulder paws"
+    ]
+   ],
+   "kind": "time",
+   "truth": "Dr. Hana Ito, Boulder Paws Clinic"
+  },
+  {
+   "id": "t04",
+   "say": "Who is Pepper's vet now?",
+   "re_all": [
+    "malik"
+   ],
+   "re_none": [
+    "\\bito\\b(?!.*(before|previous|used to|was|boulder))"
+   ],
+   "kind": "change",
+   "truth": "Dr. Omar Malik, Platte Street Vet"
+  },
+  {
+   "id": "t05",
+   "say": "What car did I have before the EV9, and when did we sell it?",
+   "re_all": [
+    "mazda",
+    "november 22|nov\\.? 22|22 nov|2025-11-22"
+   ],
+   "kind": "time",
+   "truth": "2018 Mazda CX-5, sold 22 Nov 2025",
+   "re_none": [
+    "marco (bought|has) (it|your)",
+    "left the family"
+   ]
+  },
+  {
+   "id": "t06",
+   "say": "Where does book club meet now, and where did it meet before?",
+   "re_all": [
+    "bookbar",
+    "tattered cover"
+   ],
+   "kind": "time",
+   "truth": "BookBar now; Tattered Cover on Colfax before Feb 2026"
+  },
+  {
+   "id": "t07",
+   "say": "When did I stop climbing, and why?",
+   "re_all": [
+    "shoulder",
+    "december|dec\\.? 9|2025-12"
+   ],
+   "kind": "time",
+   "truth": "9 Dec 2025, a shoulder injury"
+  },
+  {
+   "id": "t08",
+   "say": "Who did I use to have one-on-ones with on Wednesdays?",
+   "re_all": [
+    "teodora"
+   ],
+   "kind": "calendar+time",
+   "truth": "Teodora Vance"
+  },
+  {
+   "id": "t09",
+   "say": "When did we move to Denver?",
+   "re_all": [
+    "june 15|15 june|jun\\.? 15|2024-06-15"
+   ],
+   "re_none": [
+    "june 16|16 june"
+   ],
+   "kind": "time",
+   "truth": "15 Jun 2024"
+  },
+  {
+   "id": "t10",
+   "say": "Where did we live when Theo started swimming lessons?",
+   "re_all": [
+    "boulder"
+   ],
+   "kind": "time",
+   "truth": "Pine Street, Boulder"
+  },
+  {
+   "id": "t11",
+   "say": "Who was on my team when Atlas went live?",
+   "re_all": [
+    "nadia",
+    "sven"
+   ],
+   "re_none": [
+    "\\bbea\\b(?!.*(later|after|joined|not yet|wasn't|was not))",
+    "\\bwen\\b"
+   ],
+   "kind": "time",
+   "truth": "Nadia Kerr and Sven Holt"
+  },
+  {
+   "id": "t12",
+   "say": "What did we do in April 2025?",
+   "re_all": [
+    "porto",
+    "april 11|11 april|apr\\.? 11"
+   ],
+   "kind": "time",
+   "truth": "Porto, 11-19 Apr 2025",
+   "re_none": [
+    "april 10",
+    "april 1(st)?\\b"
+   ]
+  },
+  {
+   "id": "t13",
+   "say": "When and how did the kitchen budget change?",
+   "re_all": [
+    "38",
+    "44",
+    "july|jul\\.? 9|2026-07"
+   ],
+   "kind": "change",
+   "truth": "9 Jul 2026, $38,000 to $44,000 (new cabinets)"
+  },
+  {
+   "id": "k01",
+   "say": "Who reports to me right now?",
+   "re_all": [
+    "sven",
+    "\\bbea\\b"
+   ],
+   "re_none": [
+    "nadia(?!.*(moved|data team|no longer|anymore|former|used to|left))",
+    "priya"
+   ],
+   "kind": "change",
+   "truth": "Sven Holt and Bea Moreau"
+  },
+  {
+   "id": "k02",
+   "say": "When is the Harbor launch due?",
+   "re_any": [
+    [
+     "january 15|jan\\.? 15|15 january|2027-01-15"
+    ]
+   ],
+   "re_none": [
+    "december 1(?!.*(slipped|moved|was|originally|earlier|previous|old))"
+   ],
+   "kind": "change",
+   "truth": "15 Jan 2027 (slipped from 1 Dec 2026)",
+   "excuse": [
+    "slipped",
+    "originally",
+    "was",
+    "old",
+    "previous",
+    "from",
+    "moved"
+   ]
+  },
+  {
+   "id": "k03",
+   "say": "Who's Ruby's soccer coach?",
+   "re_all": [
+    "parks"
+   ],
+   "kind": "fix",
+   "truth": "Jen Parks"
+  },
+  {
+   "id": "k04",
+   "say": "Who on my team joined most recently, and when?",
+   "re_all": [
+    "\\bbea\\b",
+    "june|2026-06"
+   ],
+   "kind": "order",
+   "truth": "Bea Moreau, 1 Jun 2026"
+  },
+  {
+   "id": "k05",
+   "say": "Who looks after our build system at work?",
+   "re_all": [
+    "wen"
+   ],
+   "kind": "fact",
+   "truth": "Wen Li"
+  },
+  {
+   "id": "k06",
+   "say": "What was the name of that restaurant we liked in Porto?",
+   "re_all": [
+    "avillez"
+   ],
+   "kind": "fact",
+   "truth": "Cantinho do Avillez"
+  },
+  {
+   "id": "k07",
+   "say": "Which days does Alex work from home?",
+   "re_all": [
+    "monday",
+    "friday"
+   ],
+   "kind": "fact",
+   "truth": "Monday and Friday"
+  },
+  {
+   "id": "k08",
+   "say": "What's my job title, and where do I work?",
+   "re_all": [
+    "lead",
+    "juniper"
+   ],
+   "re_none": [
+    "you work from home",
+    "you work at home",
+    "orbital"
+   ],
+   "kind": "subject",
+   "truth": "engineering lead at Juniper Labs"
+  },
+  {
+   "id": "k09",
+   "say": "How long have Alex and I been married?",
+   "re_any": [
+    [
+     "12 years",
+     "twelve years"
+    ]
+   ],
+   "kind": "date math",
+   "truth": "12 years (27 Sep 2014)"
+  },
+  {
+   "id": "k10",
+   "say": "How old will Theo be on his next birthday, and when is it?",
+   "re_all": [
+    "\\b8\\b|eight",
+    "february 21|feb\\.? 21|21 feb"
+   ],
+   "kind": "date math",
+   "truth": "8, on Sun 21 Feb 2027"
+  },
+  {
+   "id": "k11",
+   "say": "How old was Ruby when we moved to Denver?",
+   "re_all": [
+    "\\b7\\b|seven"
+   ],
+   "kind": "date math",
+   "truth": "7"
+  },
+  {
+   "id": "k12",
+   "say": "How old am I?",
+   "re_all": [
+    "\\b39\\b|thirty-nine"
+   ],
+   "kind": "date math",
+   "truth": "39"
+  },
+  {
+   "id": "n01",
+   "say": "What car do I drive?",
+   "re_all": [
+    "ev9"
+   ],
+   "re_none": [
+    "mazda(?!.*(sold|before|used to|previous|old|marco))"
+   ],
+   "kind": "near miss",
+   "truth": "2026 Kia EV9",
+   "excuse": [
+    "sold",
+    "before",
+    "used to",
+    "previous",
+    "old",
+    "marco"
+   ]
+  },
+  {
+   "id": "n02",
+   "say": "Did I switch dentists?",
+   "re_all": [
+    "shaw"
+   ],
+   "re_none": [
+    "new dentist is"
+   ],
+   "kind": "near miss",
+   "truth": "No, Dr. Ellery Shaw"
+  },
+  {
+   "id": "n03",
+   "say": "Is Wen Li on the data team?",
+   "re_any": [
+    [
+     "platform",
+     "not yet",
+     "might",
+     "no,",
+     "no "
+    ]
+   ],
+   "re_none": [
+    "^yes"
+   ],
+   "kind": "near miss",
+   "truth": "No, platform team (she might move next year)"
+  },
+  {
+   "id": "n04",
+   "say": "Did Ruby quit soccer?",
+   "re_any": [
+    [
+     "\\bno\\b",
+     "still",
+     "u12"
+    ]
+   ],
+   "re_none": [
+    "^yes",
+    "she quit"
+   ],
+   "kind": "near miss",
+   "truth": "No, she plays on the U12 team"
+  },
+  {
+   "id": "c01",
+   "say": "What's on my calendar for the week of November 9 to 15?",
+   "re_all": [
+    "book club|page turners",
+    "all-hands|all hands",
+    "hornets",
+    "swim"
+   ],
+   "kind": "calendar",
+   "truth": "Mon: standup, PT 7:30, Harbor sync 11:00; Tue: Rafael 1:1 10:00, soccer; Wed: (Alex yoga); Thu 12: book club 19:00 BookBar, Sven 1:1, soccer; Fri 13: all-hands 16:00; Sat 14: Theo swim 9:00, Hornets party 12:00",
+   "re_none": [
+    "sunday[^\\n]*(work from home|chicago)"
+   ]
+  },
+  {
+   "id": "c02",
+   "say": "When is book club in November 2026, and where?",
+   "re_all": [
+    "\\b12\\b|12th",
+    "bookbar"
+   ],
+   "re_none": [
+    "tattered"
+   ],
+   "kind": "calendar",
+   "truth": "Thu 12 Nov 2026, 19:00, BookBar"
+  },
+  {
+   "id": "c03",
+   "say": "How many times did I go to the dentist in 2026?",
+   "re_any": [
+    [
+     "twice",
+     "two times",
+     "2 times",
+     "two visits",
+     "2 visits",
+     "two appointments",
+     "2 appointments",
+     "two dentist"
+    ]
+   ],
+   "kind": "calendar count",
+   "truth": "Twice (10 Feb, 11 Aug)"
+  },
+  {
+   "id": "c04",
+   "say": "When's my next dentist appointment?",
+   "re_all": [
+    "feb(ruary)?\\.? 9\\b|9 feb|2027-02-09"
+   ],
+   "kind": "calendar",
+   "truth": "Tue 9 Feb 2027, 8:30"
+  },
+  {
+   "id": "c05",
+   "say": "What do I have on Friday November 13?",
+   "re_all": [
+    "all-hands|all hands"
+   ],
+   "kind": "calendar",
+   "truth": "Standup 9:30 and all-hands 16:00"
+  },
+  {
+   "id": "c06",
+   "say": "When is the final kitchen inspection?",
+   "re_all": [
+    "nov(ember)?\\.? 20|20 nov|2026-11-20"
+   ],
+   "kind": "calendar",
+   "truth": "Fri 20 Nov 2026, 10:00"
+  },
+  {
+   "id": "c07",
+   "say": "Is there anything on the family calendar while Alex is in Chicago?",
+   "re_all": [
+    "soccer"
+   ],
+   "kind": "calendar+calendar",
+   "truth": "Ruby's soccer practice Tue 17 Nov 17:30 (Chicago 16-18 Nov)"
+  },
+  {
+   "id": "c08",
+   "say": "When does my physical therapy end?",
+   "re_all": [
+    "dec(ember)?\\.? 21|21 dec|2026-12-21"
+   ],
+   "kind": "calendar",
+   "truth": "21 Dec 2026"
+  },
+  {
+   "id": "c09",
+   "say": "When was Pepper's last vet visit?",
+   "re_all": [
+    "july|jul\\.? 16|2026-07-16"
+   ],
+   "kind": "calendar",
+   "truth": "16 Jul 2026, Dr. Malik"
+  },
+  {
+   "id": "c10",
+   "say": "How many vet visits has Pepper had since we moved to Denver?",
+   "re_any": [
+    [
+     "three",
+     "\\b3\\b"
+    ]
+   ],
+   "kind": "calendar count",
+   "truth": "3"
+  },
+  {
+   "id": "c11",
+   "say": "Did I have a one-on-one with Nadia after she moved to the data team?",
+   "re_any": [
+    [
+     "\\bno\\b",
+     "didn't",
+     "did not"
+    ]
+   ],
+   "kind": "calendar+change",
+   "truth": "No; the last was Thu 1 Oct 2026",
+   "re_none": [
+    "^yes"
+   ]
+  },
+  {
+   "id": "c12",
+   "say": "Alex has a dentist appointment on November 24. Am I free then?",
+   "re_all": [
+    "standup|stand-up|9:30|09:30"
+   ],
+   "kind": "calendar+calendar",
+   "truth": "No: standup 9:30-9:45 (and the Rafael 1:1 at 10:00)"
+  },
+  {
+   "id": "l01",
+   "say": "Is the kitchen remodel still on budget, and what's left to do?",
+   "re_all": [
+    "44",
+    "38|cabinet|raised|went up|increase",
+    "paint|pendant|final payment"
+   ],
+   "kind": "longhouse+fact",
+   "truth": "$44,000 (was $38,000); left: paint the walls, pendant lights (Alex), final payment",
+   "re_none": [
+    "on budget at"
+   ],
+   "allow_refusal": true
+  },
+  {
+   "id": "l02",
+   "say": "What's left for the Hornets party, and who's doing what?",
+   "re_all": [
+    "gift",
+    "tables",
+    "alex"
+   ],
+   "kind": "longhouse",
+   "truth": "Collect money (Alex, 11/14 paid), buy the coach gift (me), bring the tables (me)"
+  },
+  {
+   "id": "l03",
+   "say": "What do I still need to do in the garage?",
+   "re_all": [
+    "bike|rack",
+    "240|outlet|quote"
+   ],
+   "re_none": [
+    "camping(?!.*cancel)"
+   ],
+   "kind": "longhouse",
+   "truth": "Wall rack for the bikes, quote for a 240 V outlet"
+  },
+  {
+   "id": "l04",
+   "say": "Who's installing the pendant lights, and by when?",
+   "re_all": [
+    "alex",
+    "nov(ember)?\\.? 18|18 nov|2026-11-18"
+   ],
+   "kind": "longhouse",
+   "truth": "Alex, due Wed 18 Nov"
+  },
+  {
+   "id": "l05",
+   "say": "Is anything overdue as of today, November 9?",
+   "re_any": [
+    [
+     "nothing",
+     "no tasks",
+     "none",
+     "no overdue",
+     "not overdue",
+     "nothing is overdue",
+     "no, "
+    ]
+   ],
+   "kind": "longhouse",
+   "truth": "Nothing"
+  },
+  {
+   "id": "e01",
+   "say": "What's on my work calendar on Tuesday November 10?",
+   "persona": "engineering",
+   "re_all": [
+    "rafael",
+    "standup|stand-up"
+   ],
+   "kind": "calendar via Archimedes",
+   "truth": "Standup 9:30, 1:1 with Rafael 10:00"
+  },
+  {
+   "id": "e02",
+   "say": "When is my Harbor launch review with Rafael, and what should I bring?",
+   "persona": "engineering",
+   "re_all": [
+    "nov(ember)?\\.? 18|18 nov|2026-11-18",
+    "january 15|jan\\.? 15"
+   ],
+   "kind": "calendar via Archimedes",
+   "truth": "Wed 18 Nov 14:00; the January 15 plan"
+  },
+  {
+   "id": "a01",
+   "say": "What's Alex's mother's name?",
+   "abstain": true,
+   "kind": "abstain",
+   "truth": "Not known",
+   "re_none": [
+    "\\d{3,}"
+   ]
+  },
+  {
+   "id": "a02",
+   "say": "What's the plate number of the EV9?",
+   "abstain": true,
+   "kind": "abstain",
+   "truth": "Not known",
+   "re_none": [
+    "\\d{3,}"
+   ]
+  },
+  {
+   "id": "a03",
+   "say": "What's Pepper's microchip number?",
+   "abstain": true,
+   "kind": "abstain",
+   "truth": "Not known",
+   "re_none": [
+    "\\d{3,}"
+   ]
+  },
+  {
+   "id": "v01",
+   "say": "Where do we live now?",
+   "truth": "Zuni Street, Highland, Denver (since 15 Jun 2024)",
+   "kind": "change",
+   "re_all": [
+    "zuni"
+   ],
+   "re_none": [
+    "pine street(?!.*(before|used|was|previous))"
+   ]
+  },
+  {
+   "id": "v02",
+   "say": "Where do I work?",
+   "truth": "Juniper Labs",
+   "kind": "subject",
+   "re_all": [
+    "juniper"
+   ],
+   "re_none": [
+    "orbital"
+   ]
+  },
+  {
+   "id": "v03",
+   "say": "Does Priya Raman report to me?",
+   "truth": "No; she is Rafael's manager",
+   "kind": "near miss",
+   "re_any": [
+    [
+     "\\bno\\b",
+     "doesn't",
+     "does not"
+    ]
+   ],
+   "re_none": [
+    "^yes"
+   ]
+  },
+  {
+   "id": "v04",
+   "say": "Who has my old Mazda?",
+   "truth": "Not known; Marco bought his own CX-5",
+   "kind": "near miss",
+   "re_none": [
+    "marco (has|bought|got) (it|your|the mazda)"
+   ],
+   "allow_refusal": true
+  },
+  {
+   "id": "v05",
+   "say": "What was the Harbor launch due date in June 2026?",
+   "truth": "1 Dec 2026",
+   "kind": "time",
+   "re_all": [
+    "december 1|dec\\.? 1\\b|1 dec"
+   ]
+  },
+  {
+   "id": "v06",
+   "say": "How much did the Harbor launch slip?",
+   "truth": "1 Dec 2026 to 15 Jan 2027: 45 days, about six weeks",
+   "kind": "change",
+   "re_all": [
+    "january 15|jan\\.? 15|15 jan"
+   ],
+   "re_any": [
+    [
+     "45",
+     "six weeks",
+     "6 weeks",
+     "a month and a half"
+    ]
+   ]
+  },
+  {
+   "id": "v07",
+   "say": "Who did I have one-on-ones with in March 2025?",
+   "truth": "Rafael (Tuesdays from 4 Mar), Nadia (every other Thursday)",
+   "kind": "calendar+time",
+   "re_all": [
+    "rafael",
+    "nadia"
+   ],
+   "re_none": [
+    "teodora(?!.*(ended|until|before|stopped|last|left))"
+   ]
+  },
+  {
+   "id": "v08",
+   "say": "When was my last one-on-one with Teodora?",
+   "truth": "Wed 19 Feb 2025",
+   "kind": "calendar+time",
+   "re_all": [
+    "feb(ruary)?\\.? 19|19 feb"
+   ]
+  },
+  {
+   "id": "v09",
+   "say": "Who was my manager when we got the EV9?",
+   "truth": "Rafael Okonjo (EV9 on 20 Jan 2026)",
+   "kind": "multi-hop",
+   "re_all": [
+    "rafael"
+   ],
+   "re_none": [
+    "teodora(?!.*(before|earlier|previous))"
+   ]
+  },
+  {
+   "id": "v10",
+   "say": "How old was Theo when we went to Porto?",
+   "truth": "6",
+   "kind": "date math",
+   "re_all": [
+    "\\b6\\b|six"
+   ]
+  },
+  {
+   "id": "v11",
+   "say": "When is my next birthday, and how old will I be?",
+   "truth": "Fri 2 Apr 2027; 40",
+   "kind": "date math",
+   "re_all": [
+    "april 2|apr\\.? 2\\b|2 april",
+    "\\b40\\b|forty"
+   ]
+  },
+  {
+   "id": "v12",
+   "say": "What day did we fly to Porto?",
+   "truth": "Fri 11 Apr 2025 (flight 16:40)",
+   "kind": "time+calendar",
+   "re_all": [
+    "april 11|11 april|apr\\.? 11"
+   ],
+   "re_none": [
+    "april 10"
+   ]
+  },
+  {
+   "id": "v13",
+   "say": "Was I away at SREcon during one of Theo's swim lessons?",
+   "truth": "No: SREcon Mon 16 to Thu 19 Mar 2026; the lessons are on Saturdays",
+   "kind": "calendar+calendar",
+   "re_any": [
+    [
+     "\\bno\\b",
+     "didn't",
+     "did not",
+     "wasn't",
+     "was not"
+    ]
+   ],
+   "re_none": [
+    "^yes"
+   ]
+  },
+  {
+   "id": "v14",
+   "say": "How many book club meetings have there been at BookBar so far?",
+   "truth": "9 (12 Feb to 8 Oct 2026); the 10th is Thu 12 Nov",
+   "kind": "calendar count",
+   "re_any": [
+    [
+     "\\b9\\b",
+     "nine"
+    ]
+   ]
+  },
+  {
+   "id": "v15",
+   "say": "How many physical therapy sessions are left?",
+   "truth": "6 (16, 23, 30 Nov; 7, 14, 21 Dec)",
+   "kind": "calendar count",
+   "re_any": [
+    [
+     "\\b6\\b",
+     "six"
+    ]
+   ]
+  },
+  {
+   "id": "v16",
+   "say": "What was the kitchen budget when the cabinets went in?",
+   "truth": "$44,000 (changed 9 Jul; install 17 Aug)",
+   "kind": "time",
+   "re_all": [
+    "44"
+   ]
+  },
+  {
+   "id": "v17",
+   "say": "Which tasks does Alex have open?",
+   "truth": "Collect money for the coach gift (in progress), pendant lights (18 Nov), Pepper's dental cleaning (30 Nov)",
+   "kind": "longhouse",
+   "re_all": [
+    "pendant",
+    "coach gift|collect",
+    "pepper"
+   ]
+  },
+  {
+   "id": "v18",
+   "say": "Does Alex have a task due while in Chicago?",
+   "truth": "Yes: the pendant lights, due Wed 18 Nov; Chicago is 16-18 Nov",
+   "kind": "calendar+tasks",
+   "re_all": [
+    "pendant"
+   ],
+   "re_none": [
+    "^no\\b"
+   ]
+  },
+  {
+   "id": "v19",
+   "say": "What do I need to do before Alex leaves for Chicago?",
+   "truth": "Buy the coach gift (Thu 12), bring the tables (Sat 14), paint the walls (Sun 15)",
+   "kind": "calendar+tasks",
+   "re_all": [
+    "gift",
+    "tables",
+    "paint"
+   ]
+  },
+  {
+   "id": "v20",
+   "say": "When can I pay Ortega and Sons?",
+   "truth": "After the inspection on Fri 20 Nov 10:00; due 25 Nov",
+   "kind": "calendar+tasks",
+   "re_all": [
+    "inspection",
+    "nov(ember)?\\.? 20|20 nov|nov(ember)?\\.? 25|25 nov"
+   ]
+  },
+  {
+   "id": "v21",
+   "say": "How many families paid for the coach gift, and who is it for?",
+   "truth": "11 of 14; Jen Parks",
+   "kind": "longhouse comments",
+   "re_all": [
+    "11",
+    "parks"
+   ]
+  },
+  {
+   "id": "v22",
+   "say": "Did Ruby's coach change when she moved up to U12?",
+   "truth": "No, Jen Parks (only the spelling was fixed in Aug 2026)",
+   "kind": "change",
+   "re_all": [
+    "parks"
+   ],
+   "re_any": [
+    [
+     "\\bno\\b",
+     "still",
+     "same",
+     "didn't",
+     "did not"
+    ]
+   ]
+  },
+  {
+   "id": "v23",
+   "say": "When is Alex's Chicago trip?",
+   "truth": "Mon 16 to Wed 18 Nov 2026",
+   "kind": "calendar",
+   "re_all": [
+    "nov(ember)?\\.? 16|16 nov|monday"
+   ],
+   "re_none": [
+    "sunday",
+    "nov(ember)?\\.? 15"
+   ]
+  },
+  {
+   "id": "v24",
+   "say": "How long did the Atlas migration take?",
+   "truth": "Mar 2024 to 31 Oct 2025, about 20 months",
+   "kind": "time",
+   "re_all": [
+    "oct(ober)? (31|2025)|2025-10-31"
+   ],
+   "re_any": [
+    [
+     "19",
+     "20",
+     "twenty",
+     "nineteen",
+     "a year and a half",
+     "year and a half"
+    ]
+   ]
+  },
+  {
+   "id": "v25",
+   "say": "Where does Alex work?",
+   "truth": "Not known (works from home on Mondays and Fridays)",
+   "kind": "subject",
+   "re_none": [
+    "alex works (at|for) home"
+   ],
+   "allow_refusal": true
+  }
+ ],
+ "actions": [
+  {
+   "id": "w01",
+   "say": "Put Theo's swim meet on Alex's calendar on Saturday November 21 at 8 in the morning, at Carla Madison Rec Center.",
+   "expect": [
+    {
+     "kind": "event",
+     "calendar": "^alex$",
+     "event.title": "swim",
+     "event.start": "2026-11-21T(15:00|08:00:00-07)",
+     "event.location": "carla madison"
+    }
+   ]
+  },
+  {
+   "id": "w02",
+   "say": "Set up a monthly budget review with Alex on the Family calendar, the first Sunday of each month at 7 pm, starting Sunday December 6.",
+   "expect": [
+    {
+     "kind": "event",
+     "calendar": "^family$",
+     "event.title": "budget",
+     "event.start": "2026-12-0(7T02:00|6T19:00:00-07)",
+     "event.recurrence": "monthly.*(1su|setpos.*1|bysetpos)|(1su|bysetpos=1).*monthly"
+    }
+   ]
+  },
+  {
+   "id": "w03",
+   "say": "Add a task to the Garage cleanout project for me to buy a bike pump by Friday November 20.",
+   "expect": [
+    {
+     "kind": "task",
+     "task.title": "pump",
+     "task.due_at": "2026-11-(20|21T0[0-6])",
+     "project": "garage"
+    }
+   ]
+  },
+  {
+   "id": "w04",
+   "say": "Alex asked me to put a haircut on Alex's calendar this Wednesday at 5:30 pm.",
+   "expect": [
+    {
+     "kind": "event",
+     "calendar": "^alex$",
+     "event.title": "haircut",
+     "event.start": "2026-11-(12T00:30|11T17:30:00-07)"
+    }
+   ]
+  }
+ ],
+ "excuse_window": 6
+}
