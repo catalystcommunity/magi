@@ -181,6 +181,12 @@ class MagiAsyncClient(private val transport: AsyncTransport) {
     suspend fun disconnect(request: DisconnectRequest): Connection {
         return decode<Connection>(transport.call("MagiService", "disconnect", encode(request)))
     }
+    suspend fun importHistory(request: ImportHistoryRequest): ImportHistoryResponse {
+        return decode<ImportHistoryResponse>(transport.call("MagiService", "import-history", encode(request)))
+    }
+    suspend fun activity(request: ActivityRequest): Activity {
+        return decode<Activity>(transport.call("MagiService", "activity", encode(request)))
+    }
 }
 
 /** Typed client for the RunnerService service. The client owns (de)serialization;

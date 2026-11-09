@@ -50,6 +50,7 @@ var usage = `usage: magi [--server URL] <command> [args]
   persona ID NAME never|private|public [MEMBER...]   operator: make or change a persona
   tasks                      list tasks
   connect calendar|longhouse      get a link that lets Magi act for you there
+  activity [-persona P]           what Magi does now for you (a reply in progress)
   connections                     list your connections; disconnect SYSTEM forgets one
   todos [-all] [-plan P] [-json]  list your to-dos and reminders (-all: also the
                              ones that ended in the last 7 days)
@@ -408,6 +409,22 @@ func (c *cli) run(cmd string, args []string) error {
 		}
 		fmt.Println(r.Message)
 		fmt.Println(r.Url)
+		return nil
+	case "activity":
+		fs := flag.NewFlagSet("activity", flag.ContinueOnError)
+		p := fs.String("persona", "", "only this persona")
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		a, err := c.magi.Activity(c.ctx, magiapi.ActivityRequest{Persona: optional(personaID(*p))})
+		if err != nil {
+			return err
+		}
+		if !a.Working {
+			fmt.Println("idle")
+			return nil
+		}
+		fmt.Printf("%s is %s\n", deref(a.Persona), deref(a.Text))
 		return nil
 	case "connections":
 		r, err := c.magi.ListConnections(c.ctx, magiapi.ListConnectionsRequest{})
@@ -877,8 +894,26 @@ func openBrowser(u string) error {
 // waitReply prints messages after sent until a persona reply to it arrives.
 func (c *cli) waitReply(persona string, sent magiapi.Message) error {
 	done := false
-	c.spin = startSpinner("Magi is working")
-	defer func() { c.spin.done(); c.spin = nil }()
+	spin := startSpinner("Magi is working")
+	c.spin = spin
+	defer func() { spin.done(); c.spin = nil }()
+	// The activity tells the step ("checking the calendar").
+	stopActivity := make(chan struct{})
+	defer close(stopActivity)
+	if spin.on {
+		go func() {
+			for {
+				select {
+				case <-stopActivity:
+					return
+				case <-time.After(2 * time.Second):
+				}
+				if a, err := c.magi.Activity(c.ctx, magiapi.ActivityRequest{Persona: optional(persona)}); err == nil && a.Working && a.Text != nil {
+					spin.set("Magi is " + *a.Text)
+				}
+			}
+		}()
+	}
 	return c.read(persona, sent.Seq, true, func(m magiapi.Message) bool {
 		for _, l := range m.Links {
 			if m.AuthorKind == "persona" && l.Kind == "reply-to" && l.Target.Ref == sent.Id {

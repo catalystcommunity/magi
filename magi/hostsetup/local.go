@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"os"
@@ -418,13 +419,20 @@ func waitHealth(ctx context.Context, base string, limit time.Duration, done <-ch
 	return fmt.Errorf("the engine was not healthy after %s", limit)
 }
 
+// freePort picks a free port below the ephemeral range (Linux 32768 and
+// up), so that a connection of another program does not take the port
+// between this check and the start of the engine.
 func freePort() (int, error) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return 0, err
+	for i := 0; i < 64; i++ {
+		p := 20000 + rand.IntN(10000)
+		ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", p))
+		if err != nil {
+			continue
+		}
+		ln.Close()
+		return p, nil
 	}
-	defer ln.Close()
-	return ln.Addr().(*net.TCPAddr).Port, nil
+	return 0, errors.New("no free port in 20000-29999")
 }
 
 func tail(p string, n int) string {

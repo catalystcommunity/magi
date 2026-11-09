@@ -284,6 +284,10 @@ export interface PostRequest {
   generatedBy?: string;
   links?: NewLink[];
   visibility?: string;
+  /**
+   * The time of an imported utterance (history), not after now. Needs act-as.
+   */
+  createdMs?: number;
 }
 
 /**

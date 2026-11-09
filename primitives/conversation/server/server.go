@@ -355,6 +355,15 @@ func (s *Service) Post(ctx context.Context, req api.PostRequest) (api.Utterance,
 	if (u.Author != p.Subject || u.AuthorKind != defaultKind(p)) && !privileged(p) {
 		return api.Utterance{}, rpc.Denied("author or author_kind override needs %s", ScopeActAs)
 	}
+	if req.CreatedMs != nil && *req.CreatedMs > 0 {
+		if !privileged(p) {
+			return api.Utterance{}, rpc.Denied("created_ms on post needs %s", ScopeActAs)
+		}
+		if *req.CreatedMs > s.nowMs()+60_000 {
+			return api.Utterance{}, rpc.Invalid("created_ms is in the future")
+		}
+		u.CreatedMs = *req.CreatedMs
+	}
 	classified := false
 	if v := deref(req.Visibility); v != "" {
 		if !privileged(p) {

@@ -251,6 +251,14 @@ class MagiClient:
         """disconnect"""
         return Connection.from_cbor(self._transport.call("MagiService", "disconnect", req.to_cbor()))
 
+    def import_history(self, req: ImportHistoryRequest) -> ImportHistoryResponse:
+        """import-history"""
+        return ImportHistoryResponse.from_cbor(self._transport.call("MagiService", "import-history", req.to_cbor()))
+
+    def activity(self, req: ActivityRequest) -> Activity:
+        """activity"""
+        return Activity.from_cbor(self._transport.call("MagiService", "activity", req.to_cbor()))
+
 class RunnerClient:
     """Typed client for the RunnerService service."""
     def __init__(self, transport: Transport):

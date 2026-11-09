@@ -3874,6 +3874,182 @@ def _disconnect_request_from_cbor(data: bytes) -> "DisconnectRequest":
 DisconnectRequest.to_cbor = _disconnect_request_to_cbor
 DisconnectRequest.from_cbor = staticmethod(_disconnect_request_from_cbor)
 
+def _encode_history_message_value(v: "HistoryMessage") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["text"] = v.text
+    csil_m["at_ms"] = v.at_ms
+    return csil_m
+
+def _decode_history_message_value(tree: Any) -> "HistoryMessage":
+    tree = _csil_expect_map(tree)
+    return HistoryMessage(
+        text=_csil_expect_text(tree["text"]),
+        at_ms=_csil_expect_uint(tree["at_ms"]),
+    )
+
+
+def _history_message_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_history_message_value(self))
+
+
+def _history_message_from_cbor(data: bytes) -> "HistoryMessage":
+    return _decode_history_message_value(cbor_decode(data))
+
+
+HistoryMessage.to_cbor = _history_message_to_cbor
+HistoryMessage.from_cbor = staticmethod(_history_message_from_cbor)
+
+def _encode_import_history_request_value(v: "ImportHistoryRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.persona
+    if csil_x is not None:
+        csil_m["persona"] = csil_x
+    csil_m["messages"] = [_encode_history_message_value(csil_e) for csil_e in v.messages]
+    return csil_m
+
+def _decode_import_history_request_value(tree: Any) -> "ImportHistoryRequest":
+    tree = _csil_expect_map(tree)
+    return ImportHistoryRequest(
+        persona=(None if tree.get("persona") is None else _csil_expect_text(tree["persona"])),
+        messages=[_decode_history_message_value(csil_e) for csil_e in _csil_expect_array(tree["messages"])],
+    )
+
+
+def _import_history_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_import_history_request_value(self))
+
+
+def _import_history_request_from_cbor(data: bytes) -> "ImportHistoryRequest":
+    return _decode_import_history_request_value(cbor_decode(data))
+
+
+ImportHistoryRequest.to_cbor = _import_history_request_to_cbor
+ImportHistoryRequest.from_cbor = staticmethod(_import_history_request_from_cbor)
+
+def _encode_imported_message_value(v: "ImportedMessage") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["ms"] = v.ms
+    csil_m["at_ms"] = v.at_ms
+    csil_x = v.error
+    if csil_x is not None:
+        csil_m["error"] = csil_x
+    csil_m["notes"] = v.notes
+    return csil_m
+
+def _decode_imported_message_value(tree: Any) -> "ImportedMessage":
+    tree = _csil_expect_map(tree)
+    return ImportedMessage(
+        id=_csil_expect_text(tree["id"]),
+        at_ms=_csil_expect_uint(tree["at_ms"]),
+        notes=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["notes"])],
+        error=(None if tree.get("error") is None else _csil_expect_text(tree["error"])),
+        ms=_csil_expect_uint(tree["ms"]),
+    )
+
+
+def _imported_message_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_imported_message_value(self))
+
+
+def _imported_message_from_cbor(data: bytes) -> "ImportedMessage":
+    return _decode_imported_message_value(cbor_decode(data))
+
+
+ImportedMessage.to_cbor = _imported_message_to_cbor
+ImportedMessage.from_cbor = staticmethod(_imported_message_from_cbor)
+
+def _encode_import_history_response_value(v: "ImportHistoryResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["messages"] = [_encode_imported_message_value(csil_e) for csil_e in v.messages]
+    return csil_m
+
+def _decode_import_history_response_value(tree: Any) -> "ImportHistoryResponse":
+    tree = _csil_expect_map(tree)
+    return ImportHistoryResponse(
+        messages=[_decode_imported_message_value(csil_e) for csil_e in _csil_expect_array(tree["messages"])],
+    )
+
+
+def _import_history_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_import_history_response_value(self))
+
+
+def _import_history_response_from_cbor(data: bytes) -> "ImportHistoryResponse":
+    return _decode_import_history_response_value(cbor_decode(data))
+
+
+ImportHistoryResponse.to_cbor = _import_history_response_to_cbor
+ImportHistoryResponse.from_cbor = staticmethod(_import_history_response_from_cbor)
+
+def _encode_activity_request_value(v: "ActivityRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.persona
+    if csil_x is not None:
+        csil_m["persona"] = csil_x
+    return csil_m
+
+def _decode_activity_request_value(tree: Any) -> "ActivityRequest":
+    tree = _csil_expect_map(tree)
+    return ActivityRequest(
+        persona=(None if tree.get("persona") is None else _csil_expect_text(tree["persona"])),
+    )
+
+
+def _activity_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_activity_request_value(self))
+
+
+def _activity_request_from_cbor(data: bytes) -> "ActivityRequest":
+    return _decode_activity_request_value(cbor_decode(data))
+
+
+ActivityRequest.to_cbor = _activity_request_to_cbor
+ActivityRequest.from_cbor = staticmethod(_activity_request_from_cbor)
+
+def _encode_activity_value(v: "Activity") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.text
+    if csil_x is not None:
+        csil_m["text"] = csil_x
+    csil_x = v.message
+    if csil_x is not None:
+        csil_m["message"] = csil_x
+    csil_x = v.persona
+    if csil_x is not None:
+        csil_m["persona"] = csil_x
+    csil_m["working"] = v.working
+    csil_x = v.started_ms
+    if csil_x is not None:
+        csil_m["started_ms"] = csil_x
+    csil_x = v.updated_ms
+    if csil_x is not None:
+        csil_m["updated_ms"] = csil_x
+    return csil_m
+
+def _decode_activity_value(tree: Any) -> "Activity":
+    tree = _csil_expect_map(tree)
+    return Activity(
+        working=_csil_expect_bool(tree["working"]),
+        persona=(None if tree.get("persona") is None else _csil_expect_text(tree["persona"])),
+        text=(None if tree.get("text") is None else _csil_expect_text(tree["text"])),
+        message=(None if tree.get("message") is None else _csil_expect_text(tree["message"])),
+        started_ms=(None if tree.get("started_ms") is None else _csil_expect_uint(tree["started_ms"])),
+        updated_ms=(None if tree.get("updated_ms") is None else _csil_expect_uint(tree["updated_ms"])),
+    )
+
+
+def _activity_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_activity_value(self))
+
+
+def _activity_from_cbor(data: bytes) -> "Activity":
+    return _decode_activity_value(cbor_decode(data))
+
+
+Activity.to_cbor = _activity_to_cbor
+Activity.from_cbor = staticmethod(_activity_from_cbor)
+
 def _encode_runner_claim_request_value(v: "RunnerClaimRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["queue"] = v.queue

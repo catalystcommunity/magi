@@ -110,6 +110,9 @@ func (s *System) remember(ctx context.Context, owner, ownerName string, f fact, 
 		s.Knowledge.PutEntity(ctx, knowledgeapi.PutEntityRequest{Kind: subj.Kind, Label: subj.Label, Summary: &f.summary, Owners: subj.Owners, ActFor: &owner})
 	}
 	req := knowledgeapi.AssertRequest{Subject: subj.Id, Relation: f.relation, ActFor: &owner, Utterance: utt, Confidence: ptr(0.8)}
+	if t, ok := historyTime(ctx); ok {
+		req.ValidFromMs = ptr(uint64(t.UnixMilli()))
+	}
 	var objLabel string
 	if f.object != "" {
 		obj, err := s.entityFor(ctx, owner, ownerName, f.object, f.objectKind, utt)
@@ -177,6 +180,9 @@ func describeClaim(c knowledgeapi.Claim, label map[string]string) string {
 // for a fact with an object, the name of the new object.
 func (s *System) changeRecord(ctx context.Context, owner, ownerName, id, op, field, value, reason string, erase bool, utt *string) (knowledgeapi.ChangeResponse, error) {
 	req := knowledgeapi.ChangeRequest{Id: id, Operation: op, Reason: optional(reason), ActFor: &owner, Utterance: utt}
+	if t, ok := historyTime(ctx); ok {
+		req.AtMs = ptr(uint64(t.UnixMilli()))
+	}
 	var more []fact
 	if erase {
 		req.Erase = ptr(true)

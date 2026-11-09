@@ -1092,6 +1092,9 @@ def _encode_post_request_value(v: "PostRequest") -> Dict[Any, Any]:
     csil_x = v.modality
     if csil_x is not None:
         csil_m["modality"] = csil_x
+    csil_x = v.created_ms
+    if csil_x is not None:
+        csil_m["created_ms"] = csil_x
     csil_x = v.visibility
     if csil_x is not None:
         csil_m["visibility"] = csil_x
@@ -1123,6 +1126,7 @@ def _decode_post_request_value(tree: Any) -> "PostRequest":
         generated_by=(None if tree.get("generated_by") is None else _csil_expect_text(tree["generated_by"])),
         links=(None if tree.get("links") is None else [_decode_new_link_value(csil_e) for csil_e in _csil_expect_array(tree["links"])]),
         visibility=(None if tree.get("visibility") is None else _csil_expect_text(tree["visibility"])),
+        created_ms=(None if tree.get("created_ms") is None else _csil_expect_uint(tree["created_ms"])),
     )
 
 

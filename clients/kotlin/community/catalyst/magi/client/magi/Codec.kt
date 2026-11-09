@@ -3129,6 +3129,142 @@ fun disconnectRequestFromCborValue(cbor: CborValue): DisconnectRequest {
 /** Decode CSIL CBOR bytes into a DisconnectRequest. */
 fun disconnectRequestFromCbor(bytes: ByteArray): DisconnectRequest = disconnectRequestFromCborValue(CsilCbor.decode(bytes))
 
+/** The CBOR value tree for a HistoryMessage (deep, canonical key order). */
+fun HistoryMessage.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("text") to CborValue.CText(this.text))
+    csilEntries.add(CborValue.CText("at_ms") to CborValue.CUint(this.atMs))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a HistoryMessage to canonical CSIL CBOR bytes. */
+fun HistoryMessage.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a HistoryMessage from a decoded CBOR value tree. */
+fun historyMessageFromCborValue(cbor: CborValue): HistoryMessage {
+    val text = CsilCbor.asText(CsilCbor.require(cbor, "text"))
+    val atMs = CsilCbor.asULong(CsilCbor.require(cbor, "at_ms"))
+    return HistoryMessage(text = text, atMs = atMs)
+}
+
+/** Decode CSIL CBOR bytes into a HistoryMessage. */
+fun historyMessageFromCbor(bytes: ByteArray): HistoryMessage = historyMessageFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ImportHistoryRequest (deep, canonical key order). */
+fun ImportHistoryRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.persona?.let { csilV -> csilEntries.add(CborValue.CText("persona") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("messages") to CborValue.CArray((this.messages).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ImportHistoryRequest to canonical CSIL CBOR bytes. */
+fun ImportHistoryRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ImportHistoryRequest from a decoded CBOR value tree. */
+fun importHistoryRequestFromCborValue(cbor: CborValue): ImportHistoryRequest {
+    val persona = CsilCbor.mapGet(cbor, "persona")?.let { csilV -> CsilCbor.asText(csilV) }
+    val messages = CsilCbor.asArray(CsilCbor.require(cbor, "messages")).map { csilE -> historyMessageFromCborValue(csilE) }
+    return ImportHistoryRequest(persona = persona, messages = messages)
+}
+
+/** Decode CSIL CBOR bytes into a ImportHistoryRequest. */
+fun importHistoryRequestFromCbor(bytes: ByteArray): ImportHistoryRequest = importHistoryRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ImportedMessage (deep, canonical key order). */
+fun ImportedMessage.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    csilEntries.add(CborValue.CText("ms") to CborValue.CUint(this.ms))
+    csilEntries.add(CborValue.CText("at_ms") to CborValue.CUint(this.atMs))
+    this.error?.let { csilV -> csilEntries.add(CborValue.CText("error") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("notes") to CborValue.CArray((this.notes).map { csilE -> CborValue.CText(csilE) }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ImportedMessage to canonical CSIL CBOR bytes. */
+fun ImportedMessage.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ImportedMessage from a decoded CBOR value tree. */
+fun importedMessageFromCborValue(cbor: CborValue): ImportedMessage {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val atMs = CsilCbor.asULong(CsilCbor.require(cbor, "at_ms"))
+    val notes = CsilCbor.asArray(CsilCbor.require(cbor, "notes")).map { csilE -> CsilCbor.asText(csilE) }
+    val error = CsilCbor.mapGet(cbor, "error")?.let { csilV -> CsilCbor.asText(csilV) }
+    val ms = CsilCbor.asULong(CsilCbor.require(cbor, "ms"))
+    return ImportedMessage(id = id, atMs = atMs, notes = notes, error = error, ms = ms)
+}
+
+/** Decode CSIL CBOR bytes into a ImportedMessage. */
+fun importedMessageFromCbor(bytes: ByteArray): ImportedMessage = importedMessageFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ImportHistoryResponse (deep, canonical key order). */
+fun ImportHistoryResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("messages") to CborValue.CArray((this.messages).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ImportHistoryResponse to canonical CSIL CBOR bytes. */
+fun ImportHistoryResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ImportHistoryResponse from a decoded CBOR value tree. */
+fun importHistoryResponseFromCborValue(cbor: CborValue): ImportHistoryResponse {
+    val messages = CsilCbor.asArray(CsilCbor.require(cbor, "messages")).map { csilE -> importedMessageFromCborValue(csilE) }
+    return ImportHistoryResponse(messages = messages)
+}
+
+/** Decode CSIL CBOR bytes into a ImportHistoryResponse. */
+fun importHistoryResponseFromCbor(bytes: ByteArray): ImportHistoryResponse = importHistoryResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ActivityRequest (deep, canonical key order). */
+fun ActivityRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.persona?.let { csilV -> csilEntries.add(CborValue.CText("persona") to CborValue.CText(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ActivityRequest to canonical CSIL CBOR bytes. */
+fun ActivityRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ActivityRequest from a decoded CBOR value tree. */
+fun activityRequestFromCborValue(cbor: CborValue): ActivityRequest {
+    val persona = CsilCbor.mapGet(cbor, "persona")?.let { csilV -> CsilCbor.asText(csilV) }
+    return ActivityRequest(persona = persona)
+}
+
+/** Decode CSIL CBOR bytes into a ActivityRequest. */
+fun activityRequestFromCbor(bytes: ByteArray): ActivityRequest = activityRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a Activity (deep, canonical key order). */
+fun Activity.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.text?.let { csilV -> csilEntries.add(CborValue.CText("text") to CborValue.CText(csilV)) }
+    this.message?.let { csilV -> csilEntries.add(CborValue.CText("message") to CborValue.CText(csilV)) }
+    this.persona?.let { csilV -> csilEntries.add(CborValue.CText("persona") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("working") to CborValue.CBool(this.working))
+    this.startedMs?.let { csilV -> csilEntries.add(CborValue.CText("started_ms") to CborValue.CUint(csilV)) }
+    this.updatedMs?.let { csilV -> csilEntries.add(CborValue.CText("updated_ms") to CborValue.CUint(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a Activity to canonical CSIL CBOR bytes. */
+fun Activity.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a Activity from a decoded CBOR value tree. */
+fun activityFromCborValue(cbor: CborValue): Activity {
+    val working = CsilCbor.asBoolean(CsilCbor.require(cbor, "working"))
+    val persona = CsilCbor.mapGet(cbor, "persona")?.let { csilV -> CsilCbor.asText(csilV) }
+    val text = CsilCbor.mapGet(cbor, "text")?.let { csilV -> CsilCbor.asText(csilV) }
+    val message = CsilCbor.mapGet(cbor, "message")?.let { csilV -> CsilCbor.asText(csilV) }
+    val startedMs = CsilCbor.mapGet(cbor, "started_ms")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val updatedMs = CsilCbor.mapGet(cbor, "updated_ms")?.let { csilV -> CsilCbor.asULong(csilV) }
+    return Activity(working = working, persona = persona, text = text, message = message, startedMs = startedMs, updatedMs = updatedMs)
+}
+
+/** Decode CSIL CBOR bytes into a Activity. */
+fun activityFromCbor(bytes: ByteArray): Activity = activityFromCborValue(CsilCbor.decode(bytes))
+
 /** The CBOR value tree for a RunnerClaimRequest (deep, canonical key order). */
 fun RunnerClaimRequest.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
@@ -4044,6 +4180,12 @@ private fun csilToCborValue(value: Any?): CborValue = when (value) {
     is ListConnectionsRequest -> value.toCborValue()
     is ListConnectionsResponse -> value.toCborValue()
     is DisconnectRequest -> value.toCborValue()
+    is HistoryMessage -> value.toCborValue()
+    is ImportHistoryRequest -> value.toCborValue()
+    is ImportedMessage -> value.toCborValue()
+    is ImportHistoryResponse -> value.toCborValue()
+    is ActivityRequest -> value.toCborValue()
+    is Activity -> value.toCborValue()
     is RunnerClaimRequest -> value.toCborValue()
     is RunnerAssignment -> value.toCborValue()
     is RunnerClaimResponse -> value.toCborValue()
@@ -4204,6 +4346,12 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     ListConnectionsRequest::class -> listConnectionsRequestFromCborValue(cbor)
     ListConnectionsResponse::class -> listConnectionsResponseFromCborValue(cbor)
     DisconnectRequest::class -> disconnectRequestFromCborValue(cbor)
+    HistoryMessage::class -> historyMessageFromCborValue(cbor)
+    ImportHistoryRequest::class -> importHistoryRequestFromCborValue(cbor)
+    ImportedMessage::class -> importedMessageFromCborValue(cbor)
+    ImportHistoryResponse::class -> importHistoryResponseFromCborValue(cbor)
+    ActivityRequest::class -> activityRequestFromCborValue(cbor)
+    Activity::class -> activityFromCborValue(cbor)
     RunnerClaimRequest::class -> runnerClaimRequestFromCborValue(cbor)
     RunnerAssignment::class -> runnerAssignmentFromCborValue(cbor)
     RunnerClaimResponse::class -> runnerClaimResponseFromCborValue(cbor)

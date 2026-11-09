@@ -222,8 +222,18 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 	}
 	searchable := s.Search != nil && slices.Contains(prof.tools, "web_search")
 	corrected, pushed := false, false
+	say := func(text string) {
+		if note != nil {
+			note(text)
+		}
+	}
 	for round := 0; round < 8; round++ {
 		ph.mark("tools")
+		if round == 0 {
+			say("thinking")
+		} else {
+			say("putting the answer together")
+		}
 		start := time.Now()
 		m, err := s.Model.Chat(ctx, msgs, tools, 1024)
 		call := modelCall{Served: m.Served, Skipped: m.Skipped, Ms: time.Since(start).Milliseconds()}
@@ -280,6 +290,7 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 				continue
 			}
 			args := toolArgs(tc.Function.Arguments)
+			say(activityOf(tc.Function.Name, args))
 			var out string
 			var ref *conversationapi.Ref
 			ok := !slices.Contains(prof.tools, tc.Function.Name)

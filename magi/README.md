@@ -520,6 +520,23 @@ every device shows the same state. The web client turns the orb and shows
 "<persona> is working on it"; the Android client shows a progress bar; the
 command line shows a spinner on standard error (on a terminal only).
 
+A persona turn notes each step in its workflow run ("thinking", "checking
+the calendar", "reading the Longhouse tasks", "putting the answer
+together"). `activity` gives the newest note of the caller's running turn.
+The clients read it every 2.5 seconds while they wait and show it in place
+of "working on it" ("Beatrice is checking the calendar"). A turn that still
+notes keeps the indicator on after 3 minutes, so a long look up shows as
+busy. `magi activity` prints it.
+
+## History import
+
+`import-history` takes the caller's earlier messages (at most 20 in one
+call) with their times. Each message goes into the stream with its time
+(modality `import`), and the note taker records its facts as of that time:
+a new fact is valid from the time of the message, and a change happens at
+that time. Magi makes no reply. The note taker always gets the date of the
+message, also in live turns, so that "next Tuesday" has a date.
+
 When Magi accepts a spoken message, or a typed message with spoken
 replies, the device that sent it plays the acknowledgement tone: one short
 rising tone (880 to 1320 Hz, 0.1 s). It is different from the notice tone

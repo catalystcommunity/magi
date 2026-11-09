@@ -551,6 +551,29 @@ ListConnectionsRequest = { }
 ListConnectionsResponse = { connections: [* Connection] }
 DisconnectRequest = { system: text }
 
+;;; Imports the caller's own earlier messages (a journal, an old chat) with
+;;; their times, oldest first, at most 20 in one call. Each message goes
+;;; into the stream with its time, and the note taker records its facts as
+;;; of that time (valid from it, changes at it). No reply is made. Times
+;;; must be in the past and not before the newest imported message.
+HistoryMessage = { text: text, at_ms: uint }
+ImportHistoryRequest = { ? persona: text, messages: [* HistoryMessage] }
+ImportedMessage = { id: text, at_ms: uint, notes: [* text], ? error: text, ms: uint }
+ImportHistoryResponse = { messages: [* ImportedMessage] }
+
+;;; What Magi does now for the caller: a reply that is in progress, with the
+;;; latest step in plain words ("checking the calendar"). Clients show it
+;;; while they wait for a reply. persona: only that persona.
+ActivityRequest = { ? persona: text }
+Activity = {
+  working: bool,
+  ? persona: text,
+  ? text: text,
+  ? message: text,
+  ? started_ms: uint,
+  ? updated_ms: uint,
+}
+
 service MagiService {
   say: SayRequest -> SayResponse,
   read: ReadRequest -> ReadResponse,
@@ -607,6 +630,8 @@ service MagiService {
   connect: ConnectRequest -> ConnectResponse,
   list-connections: ListConnectionsRequest -> ListConnectionsResponse,
   disconnect: DisconnectRequest -> Connection,
+  import-history: ImportHistoryRequest -> ImportHistoryResponse,
+  activity: ActivityRequest -> Activity,
 }
 
 ;;; RunnerService is for runners: programs on other machines that connect

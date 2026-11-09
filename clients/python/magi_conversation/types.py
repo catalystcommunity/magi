@@ -814,6 +814,7 @@ class PostRequest:
     generated_by: Optional[str] = None
     links: Optional[List[NewLink]] = None
     visibility: Optional[str] = None
+    created_ms: Optional[int] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -839,12 +840,14 @@ class PostRequest:
             result['links'] = self.links
         if hasattr(self, 'visibility') and self.visibility is not None:
             result['visibility'] = self.visibility
+        if hasattr(self, 'created_ms') and self.created_ms is not None:
+            result['created_ms'] = self.created_ms
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'PostRequest':
         """Create instance from dictionary."""
-        return cls(stream=data.get('stream'), text=data.get('text'), author=data.get('author'), author_kind=data.get('author_kind'), modality=data.get('modality'), audio=data.get('audio'), transcript_confidence=data.get('transcript_confidence'), attachments=data.get('attachments'), generated_by=data.get('generated_by'), links=data.get('links'), visibility=data.get('visibility'))
+        return cls(stream=data.get('stream'), text=data.get('text'), author=data.get('author'), author_kind=data.get('author_kind'), modality=data.get('modality'), audio=data.get('audio'), transcript_confidence=data.get('transcript_confidence'), attachments=data.get('attachments'), generated_by=data.get('generated_by'), links=data.get('links'), visibility=data.get('visibility'), created_ms=data.get('created_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

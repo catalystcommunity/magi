@@ -684,6 +684,28 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			}
 			return EncodeConnection(resp), nil
 		},
+		"import-history": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeImportHistoryRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ImportHistory(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeImportHistoryResponse(resp), nil
+		},
+		"activity": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeActivityRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Activity(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeActivity(resp), nil
+		},
 	}
 }
 

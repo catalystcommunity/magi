@@ -879,6 +879,47 @@ type DisconnectRequest struct {
 	System string `json:"system" yaml:"system"`
 }
 
+// HistoryMessage represents a structured data type
+type HistoryMessage struct {
+	Text string `json:"text" yaml:"text"`
+	AtMs uint64 `json:"at_ms" yaml:"at_ms"`
+}
+
+// ImportHistoryRequest represents a structured data type
+type ImportHistoryRequest struct {
+	Persona  *string          `json:"persona,omitempty" yaml:"persona,omitempty"`
+	Messages []HistoryMessage `json:"messages" yaml:"messages"`
+}
+
+// ImportedMessage represents a structured data type
+type ImportedMessage struct {
+	Id    string   `json:"id" yaml:"id"`
+	AtMs  uint64   `json:"at_ms" yaml:"at_ms"`
+	Notes []string `json:"notes" yaml:"notes"`
+	Error *string  `json:"error,omitempty" yaml:"error,omitempty"`
+	Ms    uint64   `json:"ms" yaml:"ms"`
+}
+
+// ImportHistoryResponse represents a structured data type
+type ImportHistoryResponse struct {
+	Messages []ImportedMessage `json:"messages" yaml:"messages"`
+}
+
+// ActivityRequest represents a structured data type
+type ActivityRequest struct {
+	Persona *string `json:"persona,omitempty" yaml:"persona,omitempty"`
+}
+
+// Activity represents a structured data type
+type Activity struct {
+	Working   bool    `json:"working" yaml:"working"`
+	Persona   *string `json:"persona,omitempty" yaml:"persona,omitempty"`
+	Text      *string `json:"text,omitempty" yaml:"text,omitempty"`
+	Message   *string `json:"message,omitempty" yaml:"message,omitempty"`
+	StartedMs *uint64 `json:"started_ms,omitempty" yaml:"started_ms,omitempty"`
+	UpdatedMs *uint64 `json:"updated_ms,omitempty" yaml:"updated_ms,omitempty"`
+}
+
 // RunnerClaimRequest represents a structured data type
 type RunnerClaimRequest struct {
 	Queue  string  `json:"queue" yaml:"queue"`

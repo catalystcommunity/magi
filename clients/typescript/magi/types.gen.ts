@@ -1010,6 +1010,53 @@ export interface DisconnectRequest {
 }
 
 /**
+ * Imports the caller's own earlier messages (a journal, an old chat) with
+ * their times, oldest first, at most 20 in one call. Each message goes
+ * into the stream with its time, and the note taker records its facts as
+ * of that time (valid from it, changes at it). No reply is made. Times
+ * must be in the past and not before the newest imported message.
+ */
+export interface HistoryMessage {
+  text: string;
+  atMs: number;
+}
+
+export interface ImportHistoryRequest {
+  persona?: string;
+  messages: HistoryMessage[];
+}
+
+export interface ImportedMessage {
+  id: string;
+  atMs: number;
+  notes: string[];
+  error?: string;
+  ms: number;
+}
+
+export interface ImportHistoryResponse {
+  messages: ImportedMessage[];
+}
+
+/**
+ * What Magi does now for the caller: a reply that is in progress, with the
+ * latest step in plain words ("checking the calendar"). Clients show it
+ * while they wait for a reply. persona: only that persona.
+ */
+export interface ActivityRequest {
+  persona?: string;
+}
+
+export interface Activity {
+  working: boolean;
+  persona?: string;
+  text?: string;
+  message?: string;
+  startedMs?: number;
+  updatedMs?: number;
+}
+
+/**
  * RunnerService is for runners: programs on other machines that connect
  * to Magi, claim workflow steps from their own queues, and run them there.
  * A runner never listens on the network. A runner token has the scope

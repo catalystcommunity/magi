@@ -59,6 +59,19 @@ func (s *spinner) clear(f func()) {
 	f()
 }
 
+// set changes the text of the spinner.
+func (s *spinner) set(text string) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	if s.on && text != s.text {
+		fmt.Fprint(os.Stderr, "\r\033[K")
+	}
+	s.text = text
+	s.mu.Unlock()
+}
+
 // done stops the spinner and removes its line.
 func (s *spinner) done() {
 	if s == nil || s.stop == nil {

@@ -1118,6 +1118,51 @@ data class DisconnectRequest(
     val system: String
 )
 
+/** HistoryMessage record. */
+data class HistoryMessage(
+    val text: String,
+    // wire key: at_ms
+    val atMs: ULong
+)
+
+/** ImportHistoryRequest record. */
+data class ImportHistoryRequest(
+    val persona: String? = null,
+    val messages: List<HistoryMessage>
+)
+
+/** ImportedMessage record. */
+data class ImportedMessage(
+    val id: String,
+    // wire key: at_ms
+    val atMs: ULong,
+    val notes: List<String>,
+    val error: String? = null,
+    val ms: ULong
+)
+
+/** ImportHistoryResponse record. */
+data class ImportHistoryResponse(
+    val messages: List<ImportedMessage>
+)
+
+/** ActivityRequest record. */
+data class ActivityRequest(
+    val persona: String? = null
+)
+
+/** Activity record. */
+data class Activity(
+    val working: Boolean,
+    val persona: String? = null,
+    val text: String? = null,
+    val message: String? = null,
+    // wire key: started_ms
+    val startedMs: ULong? = null,
+    // wire key: updated_ms
+    val updatedMs: ULong? = null
+)
+
 /** RunnerClaimRequest record. */
 data class RunnerClaimRequest(
     val queue: String,

@@ -960,6 +960,7 @@ export function toPostRequestCborValue(v: PostRequest): CborValue {
   if (v.author !== undefined) csilMap.set("author", v.author);
   csilMap.set("stream", v.stream);
   if (v.modality !== undefined) csilMap.set("modality", v.modality);
+  if (v.createdMs !== undefined) csilMap.set("created_ms", v.createdMs);
   if (v.visibility !== undefined) csilMap.set("visibility", v.visibility);
   if (v.attachments !== undefined) csilMap.set("attachments", v.attachments.map((csilE): CborValue => toRefCborValue(csilE)));
   if (v.authorKind !== undefined) csilMap.set("author_kind", v.authorKind);
@@ -981,6 +982,7 @@ export function fromPostRequestCborValue(value: CborValue): PostRequest {
     generatedBy: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "generated_by")),
     links: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => fromNewLinkCborValue(csilE)))(mapGet(value, "links")),
     visibility: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "visibility")),
+    createdMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "created_ms")),
   };
 }
 

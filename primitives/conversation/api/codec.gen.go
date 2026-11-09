@@ -2422,7 +2422,7 @@ func DecodeNewLink(csilData []byte) (NewLink, error) {
 
 // csilEncPostRequest builds the canonical CBOR value tree for a PostRequest.
 func csilEncPostRequest(csilV PostRequest) cborValue {
-	csilEntries := make(cborMap, 0, 11)
+	csilEntries := make(cborMap, 0, 12)
 	csilEntries = append(csilEntries, cborEntry{cborText("text"), cborText(csilV.Text)})
 	if csilV.Audio != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("audio"), cborText((*csilV.Audio))})
@@ -2436,6 +2436,9 @@ func csilEncPostRequest(csilV PostRequest) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("stream"), cborText(csilV.Stream)})
 	if csilV.Modality != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("modality"), cborText((*csilV.Modality))})
+	}
+	if csilV.CreatedMs != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("created_ms"), cborUint((*csilV.CreatedMs))})
 	}
 	if csilV.Visibility != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("visibility"), cborText((*csilV.Visibility))})
@@ -2542,6 +2545,13 @@ func csilDecPostRequest(csilRoot cborValue) (PostRequest, error) {
 			return csilOut, csilErr
 		}
 		csilOut.Visibility = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "created_ms"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.CreatedMs = &csilVal
 	}
 	return csilOut, nil
 }

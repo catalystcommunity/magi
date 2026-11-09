@@ -3679,6 +3679,189 @@ class DisconnectRequest:
 
 
 @dataclass
+class HistoryMessage:
+    text: str
+    at_ms: int
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'text') and self.text is not None:
+            result['text'] = self.text
+        if hasattr(self, 'at_ms') and self.at_ms is not None:
+            result['at_ms'] = self.at_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'HistoryMessage':
+        """Create instance from dictionary."""
+        return cls(text=data.get('text'), at_ms=data.get('at_ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'HistoryMessage':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ImportHistoryRequest:
+    messages: List[HistoryMessage]
+    persona: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'persona') and self.persona is not None:
+            result['persona'] = self.persona
+        if hasattr(self, 'messages') and self.messages is not None:
+            result['messages'] = self.messages
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ImportHistoryRequest':
+        """Create instance from dictionary."""
+        return cls(persona=data.get('persona'), messages=data.get('messages'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ImportHistoryRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ImportedMessage:
+    id: str
+    at_ms: int
+    notes: List[str]
+    ms: int
+    error: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'at_ms') and self.at_ms is not None:
+            result['at_ms'] = self.at_ms
+        if hasattr(self, 'notes') and self.notes is not None:
+            result['notes'] = self.notes
+        if hasattr(self, 'error') and self.error is not None:
+            result['error'] = self.error
+        if hasattr(self, 'ms') and self.ms is not None:
+            result['ms'] = self.ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ImportedMessage':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), at_ms=data.get('at_ms'), notes=data.get('notes'), error=data.get('error'), ms=data.get('ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ImportedMessage':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ImportHistoryResponse:
+    messages: List[ImportedMessage]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'messages') and self.messages is not None:
+            result['messages'] = self.messages
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ImportHistoryResponse':
+        """Create instance from dictionary."""
+        return cls(messages=data.get('messages'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ImportHistoryResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ActivityRequest:
+    persona: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'persona') and self.persona is not None:
+            result['persona'] = self.persona
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ActivityRequest':
+        """Create instance from dictionary."""
+        return cls(persona=data.get('persona'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ActivityRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class Activity:
+    working: bool
+    persona: Optional[str] = None
+    text: Optional[str] = None
+    message: Optional[str] = None
+    started_ms: Optional[int] = None
+    updated_ms: Optional[int] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'working') and self.working is not None:
+            result['working'] = self.working
+        if hasattr(self, 'persona') and self.persona is not None:
+            result['persona'] = self.persona
+        if hasattr(self, 'text') and self.text is not None:
+            result['text'] = self.text
+        if hasattr(self, 'message') and self.message is not None:
+            result['message'] = self.message
+        if hasattr(self, 'started_ms') and self.started_ms is not None:
+            result['started_ms'] = self.started_ms
+        if hasattr(self, 'updated_ms') and self.updated_ms is not None:
+            result['updated_ms'] = self.updated_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Activity':
+        """Create instance from dictionary."""
+        return cls(working=data.get('working'), persona=data.get('persona'), text=data.get('text'), message=data.get('message'), started_ms=data.get('started_ms'), updated_ms=data.get('updated_ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'Activity':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
 class RunnerClaimRequest:
     queue: str
     wait_ms: Optional[int] = None

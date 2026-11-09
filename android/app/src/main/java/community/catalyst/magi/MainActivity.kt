@@ -26,6 +26,7 @@ import android.widget.TextView
 import community.catalyst.magi.client.identity.BeginLoginRequest
 import community.catalyst.magi.client.identity.PollLoginRequest
 import community.catalyst.magi.client.identity.RefreshRequest
+import community.catalyst.magi.client.magi.ActivityRequest
 import community.catalyst.magi.client.magi.CancelTaskRequest
 import community.catalyst.magi.client.magi.DecideEgressReviewRequest
 import community.catalyst.magi.client.magi.DecideRequest
@@ -102,6 +103,10 @@ class MainActivity : Activity() {
     private lateinit var messages: LinearLayout
     /** Shows that Magi builds a reply to the newest message of a person. */
     private var workingRow: View? = null
+    private var workingText: TextView? = null
+    /** When the activity of Magi last said that it works on a reply. */
+    private var activitySeen = 0L
+    private val pollActivity = Runnable { readActivity() }
     private var waitingSince = 0L
     private val hideWorking = Runnable { updateWorking() }
     private lateinit var scroll: ScrollView
@@ -295,7 +300,7 @@ class MainActivity : Activity() {
             gravity = android.view.Gravity.CENTER_VERTICAL
             visibility = View.GONE
             addView(android.widget.ProgressBar(this@MainActivity, null, android.R.attr.progressBarStyleSmall))
-            addView(TextView(this@MainActivity).apply { text = "${personaName(persona)} is working on it"; setPadding(16, 0, 0, 0) })
+            addView(TextView(this@MainActivity).apply { text = "${personaName(persona)} is working on it"; setPadding(16, 0, 0, 0); workingText = this })
         }
         workingRow = working
         waitingSince = 0L
@@ -497,9 +502,30 @@ class MainActivity : Activity() {
     /** Shows the working row for 3 minutes after a message of a person, until a reply comes. */
     private fun updateWorking() {
         main.removeCallbacks(hideWorking)
-        val left = if (waitingSince > 0) waitingSince + WORKING_MS - System.currentTimeMillis() else 0L
-        workingRow?.visibility = if (left > 0) View.VISIBLE else View.GONE
+        main.removeCallbacks(pollActivity)
+        val now = System.currentTimeMillis()
+        val left = if (waitingSince > 0) waitingSince + WORKING_MS - now else 0L
+        // A long look up keeps the row while the activity says that Magi works.
+        val active = waitingSince > 0 && now - activitySeen < 60_000L
+        workingRow?.visibility = if (left > 0 || active) View.VISIBLE else View.GONE
         if (left > 0) main.postDelayed(hideWorking, left)
+        if (waitingSince > 0 && now - waitingSince < 30 * 60_000L) main.postDelayed(pollActivity, 2500)
+        if (waitingSince == 0L) workingText?.text = "${personaName(persona)} is working on it"
+    }
+
+    /** Reads what Magi does now ("checking the calendar") for the working row. */
+    private fun readActivity() {
+        if (waitingSince == 0L) return
+        background(null) {
+            val a = client().magi.activity(ActivityRequest(persona = persona))
+            runOnUiThread {
+                if (a.working) {
+                    activitySeen = System.currentTimeMillis()
+                    workingText?.text = "${personaName(persona)} is ${a.text ?: "working on it"}"
+                }
+                updateWorking()
+            }
+        }
     }
 
     /** Shows the links of a message and who can read it, for correction. */

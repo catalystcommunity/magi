@@ -64,6 +64,8 @@ type MagiService interface {
 	Connect(ctx context.Context, req ConnectRequest) (ConnectResponse, error)
 	ListConnections(ctx context.Context, req ListConnectionsRequest) (ListConnectionsResponse, error)
 	Disconnect(ctx context.Context, req DisconnectRequest) (Connection, error)
+	ImportHistory(ctx context.Context, req ImportHistoryRequest) (ImportHistoryResponse, error)
+	Activity(ctx context.Context, req ActivityRequest) (Activity, error)
 }
 
 // RunnerService defines the service interface

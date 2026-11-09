@@ -191,6 +191,12 @@ class MagiClient(private val transport: Transport) {
     fun disconnect(request: DisconnectRequest): Connection {
         return decode<Connection>(transport.call("MagiService", "disconnect", encode(request)))
     }
+    fun importHistory(request: ImportHistoryRequest): ImportHistoryResponse {
+        return decode<ImportHistoryResponse>(transport.call("MagiService", "import-history", encode(request)))
+    }
+    fun activity(request: ActivityRequest): Activity {
+        return decode<Activity>(transport.call("MagiService", "activity", encode(request)))
+    }
 }
 
 /** Typed client for the RunnerService service. The client owns (de)serialization;

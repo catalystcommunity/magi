@@ -228,6 +228,8 @@ PostRequest = {
   ? generated_by: text,
   ? links: [* NewLink],
   ? visibility: text,
+  ;;; The time of an imported utterance (history), not after now. Needs act-as.
+  ? created_ms: uint,
 }
 
 ;;; Returns utterances of a stream with seq greater than after_seq, oldest

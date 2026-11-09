@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { AckNoticeRequest, AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, ChangeKnowledgeRequest, ChangeKnowledgeResponse, CheckOverlapRequest, CheckOverlapResponse, ConnectRequest, ConnectResponse, Connection, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideRequest, DeleteLexiconWordRequest, DeleteLexiconWordResponse, DeliverNoticeRequest, Device, DisconnectRequest, EgressDestinationRequest, EgressDestinationResponse, EgressDetectRequest, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressFlow, EgressFlowHeader, EgressReportRequest, EgressReportResponse, EgressReview, EgressReviewHeader, EgressSecretRule, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, FileChange, FinishTodoRequest, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetTaskDiffRequest, GetTaskOutputRequest, GetTaskRequest, KnowledgeChange, KnowledgeFact, KnowledgeHistoryRequest, KnowledgeHistoryResponse, KnowledgeItem, KnowledgeRecord, LexiconWord, LinkRequest, ListConnectionsRequest, ListConnectionsResponse, ListDevicesRequest, ListDevicesResponse, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListNoticesRequest, ListNoticesResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListTodosRequest, ListTodosResponse, ListVoicesRequest, ListVoicesResponse, ListenRequest, ListenResponse, MergeKnowledgeRequest, Message, MessageLink, Notice, NoticeDelivery, PersonaInfo, PutAppReleaseRequest, PutDeviceRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, RememberResponse, RemoveDeviceRequest, ReportDeliveryRequest, ReportDeliveryResponse, ReviewItem, RunnerAck, RunnerAssignment, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerEgressProxy, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerInfo, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, RunnerUpdate, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, SpeechPart, StartTaskRequest, StopSpeechRequest, StopSpeechResponse, Task, TaskDiff, TaskOutput, TaskStep, Todo, TraceRequest, TraceResponse, UnlinkRequest, UnmergeKnowledgeRequest, VoiceInfo, WaitNoticesRequest, WaitNoticesResponse, WordTime } from "./types.gen.ts";
+import type { AckNoticeRequest, Activity, ActivityRequest, AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, ChangeKnowledgeRequest, ChangeKnowledgeResponse, CheckOverlapRequest, CheckOverlapResponse, ConnectRequest, ConnectResponse, Connection, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideRequest, DeleteLexiconWordRequest, DeleteLexiconWordResponse, DeliverNoticeRequest, Device, DisconnectRequest, EgressDestinationRequest, EgressDestinationResponse, EgressDetectRequest, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressFlow, EgressFlowHeader, EgressReportRequest, EgressReportResponse, EgressReview, EgressReviewHeader, EgressSecretRule, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, FileChange, FinishTodoRequest, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetTaskDiffRequest, GetTaskOutputRequest, GetTaskRequest, HistoryMessage, ImportHistoryRequest, ImportHistoryResponse, ImportedMessage, KnowledgeChange, KnowledgeFact, KnowledgeHistoryRequest, KnowledgeHistoryResponse, KnowledgeItem, KnowledgeRecord, LexiconWord, LinkRequest, ListConnectionsRequest, ListConnectionsResponse, ListDevicesRequest, ListDevicesResponse, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListNoticesRequest, ListNoticesResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListTodosRequest, ListTodosResponse, ListVoicesRequest, ListVoicesResponse, ListenRequest, ListenResponse, MergeKnowledgeRequest, Message, MessageLink, Notice, NoticeDelivery, PersonaInfo, PutAppReleaseRequest, PutDeviceRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, RememberResponse, RemoveDeviceRequest, ReportDeliveryRequest, ReportDeliveryResponse, ReviewItem, RunnerAck, RunnerAssignment, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerEgressProxy, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerInfo, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, RunnerUpdate, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, SpeechPart, StartTaskRequest, StopSpeechRequest, StopSpeechResponse, Task, TaskDiff, TaskOutput, TaskStep, Todo, TraceRequest, TraceResponse, UnlinkRequest, UnmergeKnowledgeRequest, VoiceInfo, WaitNoticesRequest, WaitNoticesResponse, WordTime } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -3260,6 +3260,148 @@ export function toDisconnectRequestCbor(v: DisconnectRequest): Uint8Array {
 
 export function fromDisconnectRequestCbor(bytes: Uint8Array): DisconnectRequest {
   return fromDisconnectRequestCborValue(decode(bytes));
+}
+
+export function toHistoryMessageCborValue(v: HistoryMessage): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("text", v.text);
+  csilMap.set("at_ms", v.atMs);
+  return csilMap;
+}
+
+export function fromHistoryMessageCborValue(value: CborValue): HistoryMessage {
+  return {
+    text: asString(requireKey(value, "text")),
+    atMs: asNumber(requireKey(value, "at_ms")),
+  };
+}
+
+export function toHistoryMessageCbor(v: HistoryMessage): Uint8Array {
+  return encodeValue(toHistoryMessageCborValue(v));
+}
+
+export function fromHistoryMessageCbor(bytes: Uint8Array): HistoryMessage {
+  return fromHistoryMessageCborValue(decode(bytes));
+}
+
+export function toImportHistoryRequestCborValue(v: ImportHistoryRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.persona !== undefined) csilMap.set("persona", v.persona);
+  csilMap.set("messages", v.messages.map((csilE): CborValue => toHistoryMessageCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromImportHistoryRequestCborValue(value: CborValue): ImportHistoryRequest {
+  return {
+    persona: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "persona")),
+    messages: asArray(requireKey(value, "messages")).map((csilE) => fromHistoryMessageCborValue(csilE)),
+  };
+}
+
+export function toImportHistoryRequestCbor(v: ImportHistoryRequest): Uint8Array {
+  return encodeValue(toImportHistoryRequestCborValue(v));
+}
+
+export function fromImportHistoryRequestCbor(bytes: Uint8Array): ImportHistoryRequest {
+  return fromImportHistoryRequestCborValue(decode(bytes));
+}
+
+export function toImportedMessageCborValue(v: ImportedMessage): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  csilMap.set("ms", v.ms);
+  csilMap.set("at_ms", v.atMs);
+  if (v.error !== undefined) csilMap.set("error", v.error);
+  csilMap.set("notes", v.notes);
+  return csilMap;
+}
+
+export function fromImportedMessageCborValue(value: CborValue): ImportedMessage {
+  return {
+    id: asString(requireKey(value, "id")),
+    atMs: asNumber(requireKey(value, "at_ms")),
+    notes: asArray(requireKey(value, "notes")).map((csilE) => asString(csilE)),
+    error: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "error")),
+    ms: asNumber(requireKey(value, "ms")),
+  };
+}
+
+export function toImportedMessageCbor(v: ImportedMessage): Uint8Array {
+  return encodeValue(toImportedMessageCborValue(v));
+}
+
+export function fromImportedMessageCbor(bytes: Uint8Array): ImportedMessage {
+  return fromImportedMessageCborValue(decode(bytes));
+}
+
+export function toImportHistoryResponseCborValue(v: ImportHistoryResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("messages", v.messages.map((csilE): CborValue => toImportedMessageCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromImportHistoryResponseCborValue(value: CborValue): ImportHistoryResponse {
+  return {
+    messages: asArray(requireKey(value, "messages")).map((csilE) => fromImportedMessageCborValue(csilE)),
+  };
+}
+
+export function toImportHistoryResponseCbor(v: ImportHistoryResponse): Uint8Array {
+  return encodeValue(toImportHistoryResponseCborValue(v));
+}
+
+export function fromImportHistoryResponseCbor(bytes: Uint8Array): ImportHistoryResponse {
+  return fromImportHistoryResponseCborValue(decode(bytes));
+}
+
+export function toActivityRequestCborValue(v: ActivityRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.persona !== undefined) csilMap.set("persona", v.persona);
+  return csilMap;
+}
+
+export function fromActivityRequestCborValue(value: CborValue): ActivityRequest {
+  return {
+    persona: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "persona")),
+  };
+}
+
+export function toActivityRequestCbor(v: ActivityRequest): Uint8Array {
+  return encodeValue(toActivityRequestCborValue(v));
+}
+
+export function fromActivityRequestCbor(bytes: Uint8Array): ActivityRequest {
+  return fromActivityRequestCborValue(decode(bytes));
+}
+
+export function toActivityCborValue(v: Activity): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.text !== undefined) csilMap.set("text", v.text);
+  if (v.message !== undefined) csilMap.set("message", v.message);
+  if (v.persona !== undefined) csilMap.set("persona", v.persona);
+  csilMap.set("working", v.working);
+  if (v.startedMs !== undefined) csilMap.set("started_ms", v.startedMs);
+  if (v.updatedMs !== undefined) csilMap.set("updated_ms", v.updatedMs);
+  return csilMap;
+}
+
+export function fromActivityCborValue(value: CborValue): Activity {
+  return {
+    working: asBool(requireKey(value, "working")),
+    persona: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "persona")),
+    text: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "text")),
+    message: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "message")),
+    startedMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "started_ms")),
+    updatedMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "updated_ms")),
+  };
+}
+
+export function toActivityCbor(v: Activity): Uint8Array {
+  return encodeValue(toActivityCborValue(v));
+}
+
+export function fromActivityCbor(bytes: Uint8Array): Activity {
+  return fromActivityCborValue(decode(bytes));
 }
 
 export function toRunnerClaimRequestCborValue(v: RunnerClaimRequest): CborValue {

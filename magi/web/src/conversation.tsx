@@ -28,21 +28,43 @@ export const recording = () => handsFree();
 // links to the message that it answers (reply-to); a notice does not
 // answer. After 3 minutes without a reply the view stops waiting. All the
 // clients see the same stream, so they all show the same state.
+// The activity of Magi (get "activity") tells the step in plain words, and
+// keeps the view waiting past 3 minutes while a long look up runs.
 const workingMs = 3 * 60 * 1000;
 const [now, setNow] = createSignal(Date.now());
-export const working = () => {
+const [activity, setActivity] = createSignal<{ text?: string; updated: number } | null>(null);
+const waitingForReply = () => {
   const ms = messages();
   for (let i = ms.length - 1; i >= 0; i--) {
     const m = ms[i];
-    if (m.authorKind === "persona" && m.modality !== "notice") return false;
-    if (m.authorKind === "human") return now() - m.createdMs < workingMs;
+    if (m.authorKind === "persona" && m.modality !== "notice") return null;
+    if (m.authorKind === "human") return m;
   }
-  return false;
+  return null;
 };
+export const working = () => {
+  const m = waitingForReply();
+  if (!m) return false;
+  const a = activity();
+  return now() - m.createdMs < workingMs || (!!a && now() - a.updated < 60 * 1000);
+};
+export const workingText = () => activity()?.text || "working on it";
 createRoot(() => createEffect(() => {
-  if (!working()) return;
-  const t = setInterval(() => setNow(Date.now()), 5000);
-  onCleanup(() => clearInterval(t));
+  const m = waitingForReply();
+  // A message that never got a reply stops the polls after 30 minutes.
+  if (!m || Date.now() - m.createdMs > 30 * 60 * 1000) { setActivity(null); return; }
+  let stopped = false;
+  const poll = async () => {
+    try {
+      const a = await magi.activity({ persona: persona() });
+      if (stopped) return;
+      setActivity(a.working ? { text: a.text, updated: Date.now() } : null);
+    } catch { /* the stream view keeps working without it */ }
+    setNow(Date.now());
+  };
+  poll();
+  const t = setInterval(poll, 2500);
+  onCleanup(() => { stopped = true; clearInterval(t); });
 }));
 
 type Context = { title: string; messages: Message[]; loading?: boolean; error?: string };
@@ -345,7 +367,7 @@ export function Conversation() {
           </For>
           <Show when={working}>
             <div class="turn theirs">
-              <p class="working" role="status"><PersonaOrb size="small" /> {() => personaName(persona())} is working on it</p>
+              <p class="working" role="status"><PersonaOrb size="small" /> {() => personaName(persona())} is {workingText}</p>
             </div>
           </Show>
         </div>

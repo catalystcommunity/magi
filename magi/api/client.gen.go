@@ -538,6 +538,24 @@ func (c *MagiClient) Disconnect(ctx context.Context, req DisconnectRequest) (Con
 	return DecodeConnection(csilResp)
 }
 
+func (c *MagiClient) ImportHistory(ctx context.Context, req ImportHistoryRequest) (ImportHistoryResponse, error) {
+	var csilZero ImportHistoryResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "import-history", EncodeImportHistoryRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeImportHistoryResponse(csilResp)
+}
+
+func (c *MagiClient) Activity(ctx context.Context, req ActivityRequest) (Activity, error) {
+	var csilZero Activity
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "activity", EncodeActivityRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeActivity(csilResp)
+}
+
 // RunnerClient is a typed client for the RunnerService service. The client owns
 // (de)serialization via the generated codec; the transport only moves bytes.
 type RunnerClient struct {
