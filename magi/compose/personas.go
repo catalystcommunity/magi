@@ -301,7 +301,13 @@ func (s *System) extraTool(ctx context.Context, a workflowapi.Assignment, as con
 		if _, err := s.Workflow.Decide(s.AsService(ctx), workflowapi.DecideRequest{Run: run.Id, Step: run.CurrentStep, Outcome: outcome, Comment: &note}); err != nil {
 			return "error: " + err.Error(), nil, true
 		}
-		return fmt.Sprintf("Task %s: %s.", run.Id, outcome), &conversationapi.Ref{Kind: "workflow-run", Ref: run.Id, Title: optional(run.Vars["title"])}, true
+		res := fmt.Sprintf("Task %s: %s.", run.Id, outcome)
+		if outcome == "approve" {
+			// The merge, build, release, and publish take minutes and can
+			// fail (a model said "merged and released" at once).
+			res += " The merge, the build, the release, and the publish start now and take some minutes; they can fail. Say only that you approved it and that Magi tells the person when it is released. Do not say that it merged or released, and do not mark tracking tasks done yet."
+		}
+		return res, &conversationapi.Ref{Kind: "workflow-run", Ref: run.Id, Title: optional(run.Vars["title"])}, true
 	}
 	return "", nil, false
 }

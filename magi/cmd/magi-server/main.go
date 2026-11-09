@@ -159,7 +159,7 @@ func run(listen, keys string, workers bool, log *slog.Logger) error {
 		}
 		sys.RunWorkers(ctx)
 	}
-	srv := &rpc.Server{Verifier: ver, Log: log, MaxBody: 20 << 20}
+	srv := &rpc.Server{Verifier: ver, Log: log, MaxBody: 80 << 20} // a runner uploads a build (artifacts.MaxBody)
 	srv.Register("MagiService", magiapi.MagiServiceOps(&compose.Service{S: sys}))
 	srv.Register("RunnerService", magiapi.RunnerServiceOps(&compose.Runners{S: sys}))
 	srv.Register("EgressAskService", magiapi.EgressAskServiceOps(&compose.Egress{S: sys}))

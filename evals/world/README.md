@@ -90,6 +90,14 @@ activity showed while the reply was made.
 | --- | --- | --- | --- |
 | v1 `gemma-base` (2026-11-09, local Sunday 8 November) | 20/28, checks 3/3 | about 13 right, 6 partly, 9 wrong; w01 wrong | Busy signal on every question. Import: 35/42 key messages recorded, 20/286 noise messages recorded (as false facts). See the `.review.md` file. |
 
+| v2 `gemma` (2026-11-09) | 39/51, checks 4/4 | 40.5/51 | Import 1 (gemma note taker): wrong-subject facts (the person "works at Orbital Freight"), Nadia's manager "data team", birthday "37". All-day events showed one day early. |
+| v2 `glm` (2026-11-09) | 44/51, checks 3/4 | 41/51 | Same knowledge as v2 gemma. 5 replies did not finish (token budget 1024; now 4096 with a retry). It repeats the faults of the graph. |
+| v3 `gemma-imp2` (2026-11-09) | 64/76, checks 4/4 | | Import 2 (gemma note taker, with guards). Fails come from the graph: works at "engineering lead", lives on Pine Street, Porto one day early. |
+| v3 `glm-imp2` (2026-11-09) | 70/76, checks 3/4 | | Same knowledge. Better at dates, counts, and calendar with tasks. w04: said "Done" with no create_event (guard fixed). |
+
+The scorer of v3 gives the v2 glm replies 41/51, the same as the review.
+The review of v2 is `results/20261109-world-v2-gemma-glm.review.md`.
+
 Findings of the baseline (fixed in the code after it, not yet measured):
 
 - "We sold the Mazda" was a retract: the history lost the car. New note

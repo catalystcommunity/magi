@@ -17,9 +17,10 @@ const (
 	ScopeAdmin = "artifacts:admin"
 
 	// MaxBody is the largest artifact body.
-	MaxBody = 16 << 20
+	// The magi-server build of a merge is about 20 MB and grows.
+	MaxBody = 64 << 20
 	// MaxRequest is the rpc server body limit. It leaves room for encoding.
-	MaxRequest = 20 << 20
+	MaxRequest = 72 << 20
 
 	defaultLimit = 100
 	maxLimit     = 1000
