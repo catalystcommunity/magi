@@ -336,8 +336,11 @@ def render(img, v):
             sys.exit("PERSONA_LOCAL_MODEL needs one model name for each URL of PERSONA_LOCAL_URL")
         local = [{"base_url": u, "model": m, "key_file": "/etc/magi/inference/token", "attempts": 1, "timeout_s": 120}
                  for u, m in zip(urls_l, names)]
-        chain = [*local, {"base_url": v["MODEL_BASE_URL"], "model": v["MODEL_NAME"],
-                          **({"key": MODEL_PLACEHOLDER} if model_egress else {"key_file": "/etc/magi/model/api-key"})}]
+        provider = {"base_url": v["MODEL_BASE_URL"], "model": v["MODEL_NAME"],
+                    **({"key": MODEL_PLACEHOLDER} if model_egress else {"key_file": "/etc/magi/model/api-key"})}
+        # PERSONA_PROVIDER_FIRST=true: the persona uses the provider first
+        # (a model comparison); the librarian keeps the local hosts.
+        chain = [provider, *local] if v.get("PERSONA_PROVIDER_FIRST") == "true" else [*local, provider]
         # The librarian works in the background, so it waits for the local
         # hosts instead of using the provider.
         persona = [{"name": "MAGI_PERSONA_MODELS", "value": json.dumps(chain)},

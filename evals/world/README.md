@@ -14,8 +14,8 @@ Alex is the second test user.
 | File | What it is |
 | --- | --- |
 | `world.py` | Makes the world (fixed seed): `history.json`, `calendar.json`, `longhouse.json` |
-| `world-v1/` | The output of `world.py` for version 1 |
-| `questions-v1.json` | Questions, actions (Magi changes a calendar or Longhouse), and checks |
+| `world-v1/`, `world-v2/` | The output of `world.py` for versions 1 and 2 (`world.py OUT 2`). In v2 the other messages follow the dates, and some are near misses (facts of other people, plans that did not happen). The calendar and Longhouse data are the same. |
+| `questions-v1.json`, `questions-v2.json` | Questions, actions (Magi changes a calendar or Longhouse), and checks |
 | `run.py` | Asks the questions with the `magi` command and polls `magi activity` |
 | `results/` | One file for each run |
 
@@ -53,7 +53,24 @@ python3 -I evals/world/run.py evals/world/questions-v1.json --magi ./magi \
   --server https://magi.example.local --token-file token --label try-1
 ```
 
-A reply passes when it has every word of `all`, one word of each group of
+Version 2 scores with regular expressions on the reply (`re_all`, one of
+each group of `re_any`, no match of `re_none`). A reply with a word of
+`refusal_words` fails an answerable question. An action has `expect`:
+after the action, `run.py --extras CMD` runs `magi-world -extras` and
+looks for a new event or task whose fields match (for example the start
+in UTC, the calendar, and the RRULE).
+
+```sh
+python3 -I evals/world/run.py evals/world/questions-v2.json --magi ./magi \
+  --token-file token --label gemma \
+  --extras 'magi-world -world evals/world/world-v2 ... -extras'
+```
+
+Before each run: remove the action results (`magi-world -clean`) and the
+questions and replies of the earlier run (they are in the conversation
+that the persona reads).
+
+Version 1: a reply passes when it has every word of `all`, one word of each group of
 `any`, and no word of `none` (a word of `none_unless` is permitted next to
 one of its excuse words). An `abstain` question also needs a word that says
 that Magi does not know. `busy_seen` counts the questions in which the

@@ -74,6 +74,7 @@ MODEL_BASE_URL=http://model.example.local:8091/v1
 MODEL_NAME=magi-coder
 PERSONA_LOCAL_URL=            # optional: an inference host (primitives/inference) that the persona tries first; Secret magi-inference-token
 PERSONA_LOCAL_MODEL=          # optional: the model name on that host (default "local")
+PERSONA_PROVIDER_FIRST=       # optional: true puts MODEL_* before the local hosts for the persona (a model comparison); the librarian keeps the local hosts
 STORAGE_CLASS=                # optional: the storage class of the volumes; empty: the default class of the cluster
 SPEECH_STT_URL=http://speech.example.local:8092
 SPEECH_TTS_URL=http://speech.example.local:8093
