@@ -158,7 +158,11 @@ func TestTodoLifecycle(t *testing.T) {
 	}
 
 	// A plan in order: the second step waits for the first.
-	first := idOf(tool("utt_3", "add_todo", map[string]string{"title": "Book the venue", "plan": "Party"}))
+	*ts = turnState{} // a new message
+	first := idOf(tool("utt_3", "add_todo", map[string]string{"title": "Book the venue", "plan": "Party", "after": "previous"}))
+	if r := run(first); r.Vars["after"] != "" {
+		t.Fatalf("first step has after %q", r.Vars["after"])
+	}
 	second := idOf(tool("utt_3", "add_todo", map[string]string{"title": "Send invitations", "plan": "Party", "after": "previous"}))
 	waitFor(t, "blocked", func() bool { return run(second).CurrentStep == "blocked" && run(first).CurrentStep == "do" })
 	if out := tool("utt_4", "list_todos", map[string]string{"plan": "party"}); !strings.Contains(out, "waits for the to-do before it") || strings.Contains(out, "plumber") {
@@ -166,6 +170,11 @@ func TestTodoLifecycle(t *testing.T) {
 	}
 	tool("utt_4", "finish_todo", map[string]string{"id": first, "outcome": "done"})
 	waitFor(t, "second step open", func() bool { return run(second).CurrentStep == "do" })
+
+	// The context of a turn lists the open to-dos with their ids.
+	if tc := s.todoContext(ctx, graphOwner); !strings.Contains(tc, "["+second+"]") || strings.Contains(tc, call) {
+		t.Fatalf("todo context:\n%s", tc)
+	}
 
 	// A changed to-do is a new run; the old one ends and does not show.
 	out = tool("utt_5", "change_todo", map[string]string{"id": second, "title": "Send the invitations by email"})
@@ -180,6 +189,13 @@ func TestTodoLifecycle(t *testing.T) {
 	// A reminder ends when it is sent.
 	rem := idOf(tool("utt_6", "set_reminder", map[string]string{"text": "Take the bins out", "at": rfc(time.Second)}))
 	waitFor(t, "reminder sent", func() bool { return run(rem).Status == "succeeded" && count("Reminder: Take the bins out") == 1 })
+
+	// "Push the reminder back": a due time of a reminder is its time.
+	later := idOf(tool("utt_6b", "set_reminder", map[string]string{"text": "Water the plants", "at": rfc(time.Hour)}))
+	moved := idOf(tool("utt_6c", "change_todo", map[string]string{"id": later, "due": rfc(2 * time.Hour)}))
+	if r := run(moved); r.Vars["due_ms"] != "" || r.Vars["remind_ms"] == run(later).Vars["remind_ms"] {
+		t.Fatalf("moved reminder vars %v", r.Vars)
+	}
 
 	// Errors the model can repair.
 	if out := tool("utt_7", "add_todo", map[string]string{"title": "x", "due": "tomorrow"}); !strings.HasPrefix(out, "error: due:") {

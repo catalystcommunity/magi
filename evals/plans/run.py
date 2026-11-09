@@ -92,7 +92,9 @@ def check(args, step, start, said, tz, ids):
             if "title" not in spec and key in args.titles:
                 spec["title"] = args.titles[key]
             cands = [t for t in ts if not w.get("new") and t["id"] == ids.get(key)] or ts
-            why = [(matches(t, spec, start, said, tz, ids, ids), t) for t in cands]
+            # "after" can name a to-do of the same step, found above.
+            known = {**ids, **found}
+            why = [(matches(t, spec, start, said, tz, known, ids), t) for t in cands]
             ok = [t for r, t in why if r == ""]
             if ok:
                 found[key] = ok[0]["id"]

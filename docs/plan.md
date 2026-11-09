@@ -76,6 +76,8 @@ Each slice must work through the API before the next one starts.
 | 6. Voice in and out on the same conversation | Works with generated test clips |
 | 7. Android client | Builds and passes its unit tests; not yet tried on a phone |
 | 8. Conversation graph (no chats), librarian, review queue | Works on 2026-10-30; 150 imported utterances classified by the local model |
+| 9. Personas with plans: to-dos, reminders, and plans in order (`docs/plans.md`); the executive assistant (Beatrice) and the engineering manager (Archimedes) | Works on 2026-11-08 through the API and the CLI; `evals/plans` |
+| 10. Code changes as pull requests: the release in squizzlezig, then a pull request on GitHub, then the rollout after the merge | Built on 2026-11-08 and on in ht0-studiodt; not yet tried with a real change |
 
 `tools/demo-check.sh` repeats slices 1, 2, 3, and 6 against an installation.
 
@@ -95,16 +97,19 @@ inference host, speech engines). See `magi/README.md`.
 
 ## Next Actions
 
-- Push the current work to GitHub. Tasks start from GitHub `main`, and a
-  release from an old `main` removes the fleet API and the graph.
-- Change the runner unit on ht0-studiodt to `supervise` (see
-  `magi/README.md`, "Install a runner").
-- Run one code change end to end on the Pi, published by ht0-studiodt.
-- Install the Android build with the updater over USB once; later builds
-  come from `magi app-release`.
-- Knowledge: see `docs/knowledge.md` and `evals/knowledge/`. Next:
-  investigations (episodes and procedures from workflow runs), a human step
-  addressed to named people, groups for shared personas, and read-only
-  runners.
+- Try the first change by Archimedes end to end: a code change, the review,
+  the release in squizzlezig, the pull request, the merge on GitHub, and
+  the rollout. Pull requests are on for the magi repository of
+  ht0-studiodt (`pull_requests` in its runner configuration).
+- Production: the todandlorna.com LinkKeys domain for todandlorna.com and
+  catalystsquad.com users; a production installation that a merged pull
+  request deploys, and a step that watches that deploy.
+- Calendars: an adapter for CalDAV (Nextcloud) and Google, so that the
+  executive assistant reads and makes events.
+- Latency: measure the phases of the turn log with four persona workers;
+  then stream the reply into speech (docs/speech-interaction.md).
+- Knowledge: investigations (episodes and procedures from workflow runs), a
+  human step addressed to named people, groups for shared personas, and
+  read-only runners.
 - Production: an admin-only way to make runner tokens at install, or fleet
   tokens.

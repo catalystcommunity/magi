@@ -1,0 +1,144 @@
+{
+ "summary": {
+  "set": "plans-round1",
+  "label": "gemma-r1b",
+  "when": "2026-11-08T19:50:09-07:00",
+  "models": [
+   "gemma-4-12b"
+  ],
+  "steps": "14/14",
+  "ms": {
+   "median": 11093,
+   "p90": 33812,
+   "max": 36366
+  }
+ },
+ "log": [
+  {
+   "reply": "OK. I've set a reminder to call the vet for tomorrow at 9:00 AM.",
+   "model": "gemma-4-12b",
+   "ms": 10575,
+   "id": "p01",
+   "say": "Remind me to call the vet tomorrow at 9.",
+   "ok": true,
+   "fails": []
+  },
+  {
+   "reply": "I've added \"renew my passport\" to your to-do list for Friday at 5:00 PM.",
+   "model": "gemma-4-12b",
+   "ms": 14485,
+   "id": "p02",
+   "say": "I need to renew my passport by Friday.",
+   "ok": true,
+   "fails": []
+  },
+  {
+   "reply": "I've added \"buy dog food\" to your to-do list for tomorrow at 5:00 PM.",
+   "model": "gemma-4-12b",
+   "ms": 9989,
+   "id": "p03",
+   "say": "Add buy dog food to my list.",
+   "ok": true,
+   "fails": []
+  },
+  {
+   "reply": "I've recorded that your favorite color is green.\n  -> knowledge-node ent_A-NWxV8xpe7bewC4_6pP me\n  about: me",
+   "model": "gemma-4-12b",
+   "ms": 7606,
+   "id": "p04",
+   "say": "My favorite color is green.",
+   "ok": true,
+   "fails": []
+  },
+  {
+   "reply": "I've added the plan for the garage sale. The steps are to first sort the boxes, then price everything, and finally put up signs.",
+   "model": "gemma-4-12b",
+   "ms": 8741,
+   "id": "p05",
+   "say": "Plan for the garage sale: first sort the boxes, then price everything, then put up signs.",
+   "ok": true,
+   "fails": []
+  },
+  {
+   "reply": "You have a few things on your list:\n- A reminder to call the vet tomorrow at 9:00 AM.\n- A to-do to buy dog food by tomorrow at 5:00 PM.\n- A to-do to renew your passport by Friday at 5:00 PM.\n- A plan for the garage sale, which starts with sorting the boxes, followed by pricing everything, and then putting up signs.",
+   "model": "gemma-4-12b",
+   "ms": 7126,
+   "id": "p06",
+   "say": "What's on my list?",
+   "ok": true,
+   "fails": []
+  },
+  {
+   "reply": "I've marked \"sort the boxes\" as done.",
+   "model": "gemma-4-12b",
+   "ms": 11093,
+   "id": "p07",
+   "say": "I sorted the boxes.",
+   "ok": true,
+   "fails": []
+  },
+  {
+   "reply": "I've moved the passport renewal to Tuesday at 5:00 PM.",
+   "model": "gemma-4-12b",
+   "ms": 33812,
+   "id": "p08",
+   "say": "Move the passport renewal to Tuesday.",
+   "ok": true,
+   "fails": []
+  },
+  {
+   "reply": "I've cancelled the reminder to call the vet.",
+   "model": "gemma-4-12b",
+   "ms": 36366,
+   "id": "p09",
+   "say": "Never mind the vet reminder.",
+   "ok": true,
+   "fails": []
+  },
+  {
+   "reply": "OK. I've set a reminder to take the bread out for 9:52 PM tonight.",
+   "model": "gemma-4-12b",
+   "ms": 15580,
+   "id": "p10",
+   "say": "Remind me in two hours to take the bread out.",
+   "ok": true,
+   "fails": []
+  },
+  {
+   "reply": "The next step for the garage sale is to price everything.",
+   "model": "gemma-4-12b",
+   "ms": 4955,
+   "id": "p11",
+   "say": "What's next for the garage sale?",
+   "ok": true,
+   "fails": []
+  },
+  {
+   "reply": "I've marked \"buy dog food\" as done.",
+   "model": "gemma-4-12b",
+   "ms": 12895,
+   "id": "p12",
+   "say": "I bought the dog food.",
+   "ok": true,
+   "fails": []
+  },
+  {
+   "reply": "You have a few things left:\n- A reminder to take the bread out at 9:52 PM tonight.\n- A to-do to renew your passport by Tuesday at 5:00 PM.\n- For the garage sale, the next steps are to price everything and then put up signs.",
+   "model": "gemma-4-12b",
+   "ms": 7968,
+   "id": "p13",
+   "say": "What do I still need to do?",
+   "ok": true,
+   "fails": []
+  },
+  {
+   "reply": "I've pushed the bread reminder back an hour to 10:52 PM tonight.",
+   "model": "gemma-4-12b",
+   "ms": 16536,
+   "id": "p14",
+   "say": "Push the bread reminder back an hour.",
+   "ok": true,
+   "fails": []
+  }
+ ]
+}

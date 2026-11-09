@@ -186,3 +186,33 @@ tries the 3090 host first, then the 4080 host, then Zen.
   to `me router garage`: the note taker gave the id of the wrong fact. The
   check passed because "garage" was in the reply.
 
+
+### round1 (2026-11-08)
+
+`round1` has new facts, people, and words, and was not used to tune Magi.
+It has 17 questions, 4 abstain questions, and 6 changes with 8 checks. The
+runner now gives the time of each kind of turn (`ms`). All runs used
+gemma-4-12b on the RTX 3090, two runs at the same time.
+
+| Run | Questions (with abstain) | Checks | Store after changes | Question median | Seed median |
+| --- | --- | --- | --- | --- | --- |
+| Code of 237432e (`gemma-base-a`) | 20/21 | 7/8 | clean | 7.2 s | 17.2 s |
+| Code of 237432e (`gemma-base-b`) | 19/21 | 6/8 | arcadia, office closet present | 7.3 s | 15.7 s |
+| Two steps from the self, op and fact guards, orphan retract, past facts (`gemma-new-a`) | 20/21 | 7/8 | clean | 7.5 s | 16.7 s |
+| Same (`gemma-new-b`) | 20/21 | 8/8 | clean | 7.2 s | 18.6 s |
+
+- The gains of round0 hold for new words: the old code already passed most
+  of round1.
+- q06 ("What's the name of the guest wifi?") failed in all four runs: the
+  note taker gave an `update` of the entity "guest wifi" for "The guest
+  wifi network is called Saguaro-Guest", and the store refused it. Magi now
+  makes that a `name` fact of the thing. The runs above do not have that
+  change.
+- `gemma-new-a` c03.1: after "Forget the climbing gym", the reply said "you
+  mentioned Arcadia before" (from the earlier answer in the same stream).
+  The note of a retracted record no longer gives the record back.
+- Turns are slow because of the time outside the model: the model calls of
+  a seed take 1 to 3 s, and the note taker 1 to 8 s, but a seed takes 7 to
+  45 s. One persona worker ran all turns, so the two runs waited for each
+  other. Magi now runs four persona turns at the same time (one for each
+  stream), and the turn log has the time of each phase.

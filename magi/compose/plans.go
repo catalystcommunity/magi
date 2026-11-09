@@ -232,7 +232,9 @@ func (s *System) planTool(ctx context.Context, a workflowapi.Assignment, as conv
 		if p := strings.TrimSpace(args["plan"]); p != "" {
 			vars["plan"] = clip(p, 120)
 		}
-		if after := strings.TrimSpace(args["after"]); after != "" {
+		// "previous" for the first step of a plan is no order: the model
+		// gives it to each step.
+		if after := strings.TrimSpace(args["after"]); after != "" && !(after == "previous" && ts.lastTodo == "") {
 			if after == "previous" {
 				after = ts.lastTodo
 			}
@@ -300,6 +302,12 @@ func (s *System) planTool(ctx context.Context, a workflowapi.Assignment, as conv
 			}
 		}
 		vars["utterance"], vars["replaces"] = utt.Id, run.Id
+		// A reminder has no due time: "push the reminder back an hour"
+		// with due is the time of the reminder (plans eval p14).
+		if vars["kind"] == "reminder" && strings.TrimSpace(args["due"]) != "" && strings.TrimSpace(args["remind"]) == "" {
+			args = maps.Clone(args)
+			args["remind"], args["due"] = args["due"], ""
+		}
 		if t := strings.TrimSpace(args["title"]); t != "" {
 			vars["title"] = clip(t, 200)
 		}
@@ -598,4 +606,45 @@ func (s *System) zone() *time.Location {
 		return s.Cfg.TimeZone
 	}
 	return time.UTC
+}
+
+// todoContext is the text of the open to-dos of owner for the prompt of a
+// turn: at most 20 lines, the ones that are due first.
+func (s *System) todoContext(ctx context.Context, owner string) string {
+	runs, err := s.todos(ctx, owner, false)
+	if err != nil || len(runs) == 0 {
+		return ""
+	}
+	key := func(r workflowapi.Run) uint64 {
+		for _, k := range []string{"due_ms", "remind_ms"} {
+			if t, ok := msVar(r.Vars[k]); ok {
+				return t
+			}
+		}
+		return ^uint64(0)
+	}
+	slices.SortStableFunc(runs, func(x, y workflowapi.Run) int {
+		a, b := key(x), key(y)
+		switch {
+		case a < b:
+			return -1
+		case a > b:
+			return 1
+		}
+		return 0
+	})
+	titles := map[string]string{}
+	for _, r := range runs {
+		titles[r.Id] = r.Vars["title"]
+	}
+	loc, now := s.zone(), time.Now()
+	var b strings.Builder
+	for i, r := range runs {
+		if i == 20 {
+			fmt.Fprintf(&b, "- (%d more: use list_todos)\n", len(runs)-20)
+			break
+		}
+		b.WriteString("- " + describeTodo(r, titles, loc, now) + "\n")
+	}
+	return strings.TrimSpace(b.String())
 }
