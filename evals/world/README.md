@@ -94,6 +94,35 @@ activity showed while the reply was made.
 | v2 `glm` (2026-11-09) | 44/51, checks 3/4 | 41/51 | Same knowledge as v2 gemma. 5 replies did not finish (token budget 1024; now 4096 with a retry). It repeats the faults of the graph. |
 | v3 `gemma-imp2` (2026-11-09) | 64/76, checks 4/4 | | Import 2 (gemma note taker, with guards). Fails come from the graph: works at "engineering lead", lives on Pine Street, Porto one day early. |
 | v3 `glm-imp2` (2026-11-09) | 70/76, checks 3/4 | | Same knowledge. Better at dates, counts, and calendar with tasks. w04: said "Done" with no create_event (guard fixed). |
+| v3 `glm-imp3` (2026-11-09) | 71/76, checks 4/4 | | Import 3 (glm-5.3 note taker). Fails: birth year not recorded (2, fixed after), comments not shown (fixed after), a reply that was only a page link, a stray test task. |
+| v3 `gemma-imp3` (2026-11-09) | 63/76, checks 4/4 | | Import 3. The good graph does not help a small persona: ages, counts, "this Saturday" dates, and calendar with tasks are wrong. |
+
+### Model comparison (2026-11-09)
+
+| Note taker | Persona | v3 questions | Actions | Persona median / p90 |
+| --- | --- | --- | --- | --- |
+| gemma-4-12b (local) | gemma-4-12b | 64/76 | 4/4 | 7.7 s / 16.4 s |
+| gemma-4-12b (local) | glm-5.3 (Zen) | 70/76 | 3/4 | 10.1 s / 21.8 s |
+| glm-5.3 (Zen) | glm-5.3 | **71/76** | **4/4** | 9.8 s / 19.2 s |
+| glm-5.3 (Zen) | gemma-4-12b | 63/76 | 4/4 | 6.3 s / 12.8 s |
+
+- The persona model decides most of the score: glm-5.3 does the date
+  arithmetic, counts, and joins of calendar and tasks that gemma-4-12b
+  gets wrong. A better graph does not make gemma-4-12b better.
+- The note taker decides whether the graph stays true over the years. The
+  glm-5.3 import recorded the move, the vet change, the job and the
+  employer apart, the U12 team, the sale of the car (ended, with an
+  event), and Nadia's move (ended). The gemma imports lost the move, mixed
+  job and employer, and made facts of other people the person's. The score
+  difference is small (70 to 71) because the questions read around the
+  faults, but the faults stay in the graph and grow.
+- glm-5.3 is slow as a note taker (about 17 s a message, against 5 s) and
+  can pass the gateway time limit; the import is now idempotent and the
+  CLI tries again. Notes are background work, so the time is acceptable.
+- Recommendation: glm-5.3 first for the persona and the note taker, with
+  the local hosts as the fallback (`PERSONA_PROVIDER_FIRST=true`,
+  `LIBRARIAN_PROVIDER=true`). Keep the local hosts first only when the
+  provider must not see the messages.
 
 The scorer of v3 gives the v2 glm replies 41/51, the same as the review.
 The review of v2 is `results/20261109-world-v2-gemma-glm.review.md`.
