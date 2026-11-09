@@ -1249,9 +1249,15 @@ func printKnowledge(items []magiapi.KnowledgeItem, records []magiapi.KnowledgeRe
 	}
 }
 
-// gatewayTimeout: a gateway ended the call (502, 503, 504); the server can
-// still be at work.
+// gatewayTimeout: a gateway ended the call (502, 503, 504) or the
+// connection broke (an edge proxy resets a long call); the server can still
+// be at work, and the import skips what it has.
 func gatewayTimeout(err error) bool {
 	m := err.Error()
-	return strings.Contains(m, "rpc 504") || strings.Contains(m, "rpc 502") || strings.Contains(m, "rpc 503")
+	for _, w := range []string{"rpc 504", "rpc 502", "rpc 503", "connection reset", "EOF", "broken pipe", "timeout"} {
+		if strings.Contains(m, w) {
+			return true
+		}
+	}
+	return false
 }

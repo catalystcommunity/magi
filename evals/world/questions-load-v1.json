@@ -1,0 +1,623 @@
+{
+ "abstain_words": [
+  "don't know",
+  "do not know",
+  "don't have",
+  "do not have",
+  "no record",
+  "not sure",
+  "couldn't find",
+  "could not find",
+  "no information",
+  "isn't in",
+  "not in my",
+  "can't find",
+  "cannot find",
+  "not recorded",
+  "no note"
+ ],
+ "refusal_words": [
+  "don't know",
+  "do not know",
+  "no record",
+  "couldn't find",
+  "could not find",
+  "no information",
+  "can't find",
+  "cannot find",
+  "not recorded",
+  "i don't have that",
+  "i don't have any information"
+ ],
+ "excuse_window": 6,
+ "persona": "assistant",
+ "today": "2026-11-09",
+ "version": "load-v1",
+ "about": "Knowledge questions (no calendar or Longhouse) of questions-v3 and traps for the names of the load world (world-v3). Compare with the same questions on world-v2.",
+ "questions": [
+  {
+   "id": "t02",
+   "say": "Who was my manager when I joined the book club?",
+   "re_all": [
+    "teodora"
+   ],
+   "re_none": [
+    "\\brafael\\b(?!.*(later|after|now|current))"
+   ],
+   "kind": "time",
+   "truth": "Teodora Vance"
+  },
+  {
+   "id": "t03",
+   "say": "Which vet did Pepper see before we moved to Denver?",
+   "re_any": [
+    [
+     "\\bito\\b",
+     "boulder paws"
+    ]
+   ],
+   "kind": "time",
+   "truth": "Dr. Hana Ito, Boulder Paws Clinic"
+  },
+  {
+   "id": "t04",
+   "say": "Who is Pepper's vet now?",
+   "re_all": [
+    "malik"
+   ],
+   "re_none": [
+    "\\bito\\b(?!.*(before|previous|used to|was|boulder))"
+   ],
+   "kind": "change",
+   "truth": "Dr. Omar Malik, Platte Street Vet"
+  },
+  {
+   "id": "t05",
+   "say": "What car did I have before the EV9, and when did we sell it?",
+   "re_all": [
+    "mazda",
+    "november 22|nov\\.? 22|22 nov|2025-11-22"
+   ],
+   "kind": "time",
+   "truth": "2018 Mazda CX-5, sold 22 Nov 2025",
+   "re_none": [
+    "marco (bought|has) (it|your)",
+    "left the family"
+   ]
+  },
+  {
+   "id": "t06",
+   "say": "Where does book club meet now, and where did it meet before?",
+   "re_all": [
+    "bookbar",
+    "tattered cover"
+   ],
+   "kind": "time",
+   "truth": "BookBar now; Tattered Cover on Colfax before Feb 2026"
+  },
+  {
+   "id": "t07",
+   "say": "When did I stop climbing, and why?",
+   "re_all": [
+    "shoulder",
+    "december|dec\\.? 9|2025-12"
+   ],
+   "kind": "time",
+   "truth": "9 Dec 2025, a shoulder injury"
+  },
+  {
+   "id": "t09",
+   "say": "When did we move to Denver?",
+   "re_all": [
+    "june 15|15 june|jun\\.? 15|2024-06-15"
+   ],
+   "re_none": [
+    "june 16|16 june"
+   ],
+   "kind": "time",
+   "truth": "15 Jun 2024"
+  },
+  {
+   "id": "t10",
+   "say": "Where did we live when Theo started swimming lessons?",
+   "re_all": [
+    "boulder"
+   ],
+   "kind": "time",
+   "truth": "Pine Street, Boulder"
+  },
+  {
+   "id": "t11",
+   "say": "Who was on my team when Atlas went live?",
+   "re_all": [
+    "nadia",
+    "sven"
+   ],
+   "re_none": [
+    "\\bbea\\b(?!.*(later|after|joined|not yet|wasn't|was not))",
+    "\\bwen\\b"
+   ],
+   "kind": "time",
+   "truth": "Nadia Kerr and Sven Holt"
+  },
+  {
+   "id": "t13",
+   "say": "When and how did the kitchen budget change?",
+   "re_all": [
+    "38",
+    "44",
+    "july|jul\\.? 9|2026-07"
+   ],
+   "kind": "change",
+   "truth": "9 Jul 2026, $38,000 to $44,000 (new cabinets)"
+  },
+  {
+   "id": "k01",
+   "say": "Who reports to me right now?",
+   "re_all": [
+    "sven",
+    "\\bbea\\b"
+   ],
+   "re_none": [
+    "nadia(?!.*(moved|data team|no longer|anymore|former|used to|left))",
+    "priya"
+   ],
+   "kind": "change",
+   "truth": "Sven Holt and Bea Moreau"
+  },
+  {
+   "id": "k02",
+   "say": "When is the Harbor launch due?",
+   "re_any": [
+    [
+     "january 15|jan\\.? 15|15 january|2027-01-15"
+    ]
+   ],
+   "re_none": [
+    "december 1(?!.*(slipped|moved|was|originally|earlier|previous|old))"
+   ],
+   "kind": "change",
+   "truth": "15 Jan 2027 (slipped from 1 Dec 2026)",
+   "excuse": [
+    "slipped",
+    "originally",
+    "was",
+    "old",
+    "previous",
+    "from",
+    "moved"
+   ]
+  },
+  {
+   "id": "k03",
+   "say": "Who's Ruby's soccer coach?",
+   "re_all": [
+    "parks"
+   ],
+   "kind": "fix",
+   "truth": "Jen Parks"
+  },
+  {
+   "id": "k04",
+   "say": "Who on my team joined most recently, and when?",
+   "re_all": [
+    "\\bbea\\b",
+    "june|2026-06"
+   ],
+   "kind": "order",
+   "truth": "Bea Moreau, 1 Jun 2026"
+  },
+  {
+   "id": "k05",
+   "say": "Who looks after our build system at work?",
+   "re_all": [
+    "wen"
+   ],
+   "kind": "fact",
+   "truth": "Wen Li"
+  },
+  {
+   "id": "k06",
+   "say": "What was the name of that restaurant we liked in Porto?",
+   "re_all": [
+    "avillez"
+   ],
+   "kind": "fact",
+   "truth": "Cantinho do Avillez"
+  },
+  {
+   "id": "k07",
+   "say": "Which days does Alex work from home?",
+   "re_all": [
+    "monday",
+    "friday"
+   ],
+   "kind": "fact",
+   "truth": "Monday and Friday"
+  },
+  {
+   "id": "k08",
+   "say": "What's my job title, and where do I work?",
+   "re_all": [
+    "lead",
+    "juniper"
+   ],
+   "re_none": [
+    "you work from home",
+    "you work at home",
+    "orbital"
+   ],
+   "kind": "subject",
+   "truth": "engineering lead at Juniper Labs"
+  },
+  {
+   "id": "k09",
+   "say": "How long have Alex and I been married?",
+   "re_any": [
+    [
+     "12 years",
+     "twelve years"
+    ]
+   ],
+   "kind": "date math",
+   "truth": "12 years (27 Sep 2014)"
+  },
+  {
+   "id": "k10",
+   "say": "How old will Theo be on his next birthday, and when is it?",
+   "re_all": [
+    "\\b8\\b|eight",
+    "february 21|feb\\.? 21|21 feb"
+   ],
+   "kind": "date math",
+   "truth": "8, on Sun 21 Feb 2027"
+  },
+  {
+   "id": "k11",
+   "say": "How old was Ruby when we moved to Denver?",
+   "re_all": [
+    "\\b7\\b|seven"
+   ],
+   "kind": "date math",
+   "truth": "7"
+  },
+  {
+   "id": "k12",
+   "say": "How old am I?",
+   "re_all": [
+    "\\b39\\b|thirty-nine"
+   ],
+   "kind": "date math",
+   "truth": "39"
+  },
+  {
+   "id": "n01",
+   "say": "What car do I drive?",
+   "re_all": [
+    "ev9"
+   ],
+   "re_none": [
+    "mazda(?!.*(sold|before|used to|previous|old|marco))"
+   ],
+   "kind": "near miss",
+   "truth": "2026 Kia EV9",
+   "excuse": [
+    "sold",
+    "before",
+    "used to",
+    "previous",
+    "old",
+    "marco"
+   ]
+  },
+  {
+   "id": "n02",
+   "say": "Did I switch dentists?",
+   "re_all": [
+    "shaw"
+   ],
+   "re_none": [
+    "new dentist is"
+   ],
+   "kind": "near miss",
+   "truth": "No, Dr. Ellery Shaw"
+  },
+  {
+   "id": "n03",
+   "say": "Is Wen Li on the data team?",
+   "re_any": [
+    [
+     "platform",
+     "not yet",
+     "might",
+     "no,",
+     "no "
+    ]
+   ],
+   "re_none": [
+    "^yes"
+   ],
+   "kind": "near miss",
+   "truth": "No, platform team (she might move next year)"
+  },
+  {
+   "id": "n04",
+   "say": "Did Ruby quit soccer?",
+   "re_any": [
+    [
+     "\\bno\\b",
+     "still",
+     "u12"
+    ]
+   ],
+   "re_none": [
+    "^yes",
+    "she quit"
+   ],
+   "kind": "near miss",
+   "truth": "No, she plays on the U12 team"
+  },
+  {
+   "id": "a01",
+   "say": "What's Alex's mother's name?",
+   "abstain": true,
+   "kind": "abstain",
+   "truth": "Not known",
+   "re_none": []
+  },
+  {
+   "id": "a02",
+   "say": "What's the plate number of the EV9?",
+   "abstain": true,
+   "kind": "abstain",
+   "truth": "Not known",
+   "re_none": [
+    "\\b[a-z]{2,3}[- ]?\\d{3,4}\\b",
+    "\\b\\d{3}[- ]?[a-z]{3}\\b"
+   ]
+  },
+  {
+   "id": "a03",
+   "say": "What's Pepper's microchip number?",
+   "abstain": true,
+   "kind": "abstain",
+   "truth": "Not known",
+   "re_none": [
+    "\\b\\d{9,15}\\b"
+   ]
+  },
+  {
+   "id": "v01",
+   "say": "Where do we live now?",
+   "truth": "Zuni Street, Highland, Denver (since 15 Jun 2024)",
+   "kind": "change",
+   "re_all": [
+    "zuni"
+   ],
+   "re_none": [
+    "pine street(?!.*(before|used|was|previous))"
+   ]
+  },
+  {
+   "id": "v02",
+   "say": "Where do I work?",
+   "truth": "Juniper Labs",
+   "kind": "subject",
+   "re_all": [
+    "juniper"
+   ],
+   "re_none": [
+    "orbital"
+   ]
+  },
+  {
+   "id": "v03",
+   "say": "Does Priya Raman report to me?",
+   "truth": "No; she is Rafael's manager",
+   "kind": "near miss",
+   "re_any": [
+    [
+     "\\bno\\b",
+     "doesn't",
+     "does not"
+    ]
+   ],
+   "re_none": [
+    "^yes"
+   ]
+  },
+  {
+   "id": "v04",
+   "say": "Who has my old Mazda?",
+   "truth": "Not known; Marco bought his own CX-5",
+   "kind": "near miss",
+   "re_none": [
+    "marco (has|bought|got) (it|your|the mazda)"
+   ],
+   "allow_refusal": true
+  },
+  {
+   "id": "v05",
+   "say": "What was the Harbor launch due date in June 2026?",
+   "truth": "1 Dec 2026",
+   "kind": "time",
+   "re_all": [
+    "december 1|dec\\.? 1\\b|1 dec"
+   ]
+  },
+  {
+   "id": "v06",
+   "say": "How much did the Harbor launch slip?",
+   "truth": "1 Dec 2026 to 15 Jan 2027: 45 days, about six weeks",
+   "kind": "change",
+   "re_all": [
+    "january 15|jan\\.? 15|15 jan"
+   ],
+   "re_any": [
+    [
+     "45",
+     "six weeks",
+     "6 weeks",
+     "a month and a half"
+    ]
+   ]
+  },
+  {
+   "id": "v09",
+   "say": "Who was my manager when we got the EV9?",
+   "truth": "Rafael Okonjo (EV9 on 20 Jan 2026)",
+   "kind": "multi-hop",
+   "re_all": [
+    "rafael"
+   ],
+   "re_none": [
+    "teodora(?!.*(before|earlier|previous))"
+   ]
+  },
+  {
+   "id": "v10",
+   "say": "How old was Theo when we went to Porto?",
+   "truth": "6",
+   "kind": "date math",
+   "re_all": [
+    "\\b6\\b|six"
+   ]
+  },
+  {
+   "id": "v11",
+   "say": "When is my next birthday, and how old will I be?",
+   "truth": "Fri 2 Apr 2027; 40",
+   "kind": "date math",
+   "re_all": [
+    "april 2|apr\\.? 2\\b|2 april",
+    "\\b40\\b|forty"
+   ]
+  },
+  {
+   "id": "v16",
+   "say": "What was the kitchen budget when the cabinets went in?",
+   "truth": "$44,000 (changed 9 Jul; install 17 Aug)",
+   "kind": "time",
+   "re_all": [
+    "44"
+   ]
+  },
+  {
+   "id": "v22",
+   "say": "Did Ruby's coach change when she moved up to U12?",
+   "truth": "No, Jen Parks (only the spelling was fixed in Aug 2026)",
+   "kind": "change",
+   "re_all": [
+    "parks"
+   ],
+   "re_any": [
+    [
+     "\\bno\\b",
+     "still",
+     "same",
+     "didn't",
+     "did not"
+    ]
+   ]
+  },
+  {
+   "id": "v24",
+   "say": "How long did the Atlas migration take?",
+   "truth": "Mar 2024 to 31 Oct 2025, about 20 months",
+   "kind": "time",
+   "re_all": [
+    "oct(ober)? (31|2025)|2025-10-31"
+   ],
+   "re_any": [
+    [
+     "19",
+     "20",
+     "twenty",
+     "nineteen",
+     "a year and a half",
+     "year and a half"
+    ]
+   ]
+  },
+  {
+   "id": "v25",
+   "say": "Where does Alex work?",
+   "truth": "Not known (works from home on Mondays and Fridays)",
+   "kind": "subject",
+   "re_none": [
+    "alex works (at|for) home"
+   ],
+   "allow_refusal": true
+  },
+  {
+   "id": "L01",
+   "say": "Who is my dentist?",
+   "truth": "Dr. Ellery Shaw at Highland Dental",
+   "re_all": [
+    "shaw"
+   ],
+   "re_none": [
+    "pearl dental",
+    "cherry creek dental",
+    "smile studio"
+   ],
+   "kind": "load near miss"
+  },
+  {
+   "id": "L02",
+   "say": "What car do I drive?",
+   "truth": "2026 Kia EV9",
+   "re_all": [
+    "ev9"
+   ],
+   "re_none": [
+    "subaru",
+    "civic",
+    "f-150",
+    "rav4",
+    "golf"
+   ],
+   "kind": "load near miss"
+  },
+  {
+   "id": "L03",
+   "say": "Who is on my team at work right now?",
+   "truth": "Sven Holt and Bea Moreau",
+   "re_all": [
+    "sven",
+    "\\bbea\\b"
+   ],
+   "re_none": [
+    "aiden|bianca|carlos|dmitri|elena|farah|hiro|ingrid|jonas|keiko|luis|mara|niko|olga|quinn|rosa|sami|tomas|uma|viktor|wanda|xavier|yusuf|zoe"
+   ],
+   "kind": "load near miss"
+  },
+  {
+   "id": "L04",
+   "say": "Do we have a new puppy?",
+   "truth": "No; Pepper is the dog; puppies in the notes belong to other people",
+   "re_any": [
+    [
+     "\\bno\\b",
+     "don't",
+     "do not",
+     "pepper"
+    ]
+   ],
+   "re_none": [
+    "^yes"
+   ],
+   "kind": "load near miss"
+  },
+  {
+   "id": "L05",
+   "say": "Where do I live?",
+   "truth": "Zuni Street, Highland, Denver",
+   "re_all": [
+    "zuni|highland"
+   ],
+   "kind": "load change"
+  }
+ ],
+ "actions": []
+}
