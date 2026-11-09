@@ -58,7 +58,7 @@ func grantReminder(g identityapi.Grant, loc *time.Location) noticeReq {
 	}
 	end := time.UnixMilli(int64(g.RenewableUntilMs)).In(loc).Format("Monday 2 January at 15:04")
 	return noticeReq{owner: g.Owner, title: "Connect your " + what + " again",
-		text: fmt.Sprintf("Magi's access to your %s ends on %s. To keep it, say \"connect my %s\" and approve the link.", what, end, what),
+		text:    fmt.Sprintf("Magi's access to your %s ends on %s. To keep it, say \"connect my %s\" and approve the link.", what, end, what),
 		urgency: "normal"}
 }
 
