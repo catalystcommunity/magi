@@ -200,6 +200,8 @@ gemma-4-12b on the RTX 3090, two runs at the same time.
 | Code of 237432e (`gemma-base-b`) | 19/21 | 6/8 | arcadia, office closet present | 7.3 s | 15.7 s |
 | Two steps from the self, op and fact guards, orphan retract, past facts (`gemma-new-a`) | 20/21 | 7/8 | clean | 7.5 s | 16.7 s |
 | Same (`gemma-new-b`) | 20/21 | 8/8 | clean | 7.2 s | 18.6 s |
+| Also name facts, no retracted record in notes, open to-dos in context, four persona workers (`gemma-fin-a`) | 21/21 | 8/8 | clean | 6.3 s | 11.2 s |
+| Same (`gemma-fin-b`) | 20/21 | 8/8 | clean | 6.3 s | 11.7 s |
 
 - The gains of round0 hold for new words: the old code already passed most
   of round1.
@@ -216,3 +218,7 @@ gemma-4-12b on the RTX 3090, two runs at the same time.
   45 s. One persona worker ran all turns, so the two runs waited for each
   other. Magi now runs four persona turns at the same time (one for each
   stream), and the turn log has the time of each phase.
+- With four persona workers the two runs no longer wait for each other:
+  the seed median went from 17 s to 11 s. In `gemma-fin-b` the note taker
+  gave no item for the guest wifi name (no call); in `gemma-fin-a` it gave
+  the name fact and q06 passed.
