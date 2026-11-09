@@ -1,0 +1,1390 @@
+{
+ "summary": {
+  "set": "world-v2",
+  "label": "glm",
+  "when": "2026-11-09T17:01:20+00:00",
+  "models": [
+   "glm-5.3"
+  ],
+  "errors": 0,
+  "question": "44/51",
+  "check": "3/4",
+  "by_kind": {
+   "time+calendar": [
+    1,
+    1
+   ],
+   "time": [
+    6,
+    9
+   ],
+   "change": [
+    3,
+    4
+   ],
+   "calendar+time": [
+    1,
+    1
+   ],
+   "fix": [
+    1,
+    1
+   ],
+   "order": [
+    1,
+    1
+   ],
+   "fact": [
+    3,
+    3
+   ],
+   "subject": [
+    1,
+    1
+   ],
+   "date math": [
+    3,
+    4
+   ],
+   "near miss": [
+    3,
+    4
+   ],
+   "calendar": [
+    7,
+    7
+   ],
+   "calendar count": [
+    2,
+    2
+   ],
+   "calendar+calendar": [
+    1,
+    2
+   ],
+   "calendar+change": [
+    1,
+    1
+   ],
+   "longhouse+fact": [
+    0,
+    1
+   ],
+   "longhouse": [
+    2,
+    4
+   ],
+   "calendar via Archimedes": [
+    2,
+    2
+   ],
+   "abstain": [
+    3,
+    3
+   ],
+   "direct check": [
+    3,
+    4
+   ]
+  },
+  "busy_seen": "55/55",
+  "busy_over_10s": "25/25",
+  "ms": {
+   "median": 9001,
+   "p90": 21629,
+   "max": 33357
+  },
+  "rescored": "sentence excuses for re_none; refusal only in the first sentence"
+ },
+ "log": [
+  {
+   "reply": "When you went to Porto in April 2025, your manager was Rafael Okonjo \u2014 he became your manager in March 2025, before the trip. Before that, it was Teodora Vance.",
+   "model": "glm-5.3",
+   "ms": 11261,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "t01",
+   "say": "Who was my manager when we went to Porto?",
+   "persona": "assistant",
+   "about": "time+calendar",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "When you joined the book club in February 2024, your manager was Teodora Vance \u2014 you'd mentioned her as your manager at Juniper Labs back in January of that year. She stayed your manager until Rafael Okonjo took over in March 2025.",
+   "model": "glm-5.3",
+   "ms": 33357,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "looking in the notes: Jamie manager",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "t02",
+   "say": "Who was my manager when I joined the book club?",
+   "persona": "assistant",
+   "about": "time",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Before the move to Denver, Pepper's vet was Dr. Hana Ito at Boulder Paws Clinic. After you moved in June 2024, you switched her to Dr. Omar Malik at Platte Street Vet.",
+   "model": "glm-5.3",
+   "ms": 11589,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "t03",
+   "say": "Which vet did Pepper see before we moved to Denver?",
+   "persona": "assistant",
+   "about": "time",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Pepper's vet is Dr. Omar Malik at Platte Street Vet \u2014 you switched to him in July 2024 after the move to Denver, and her last visit with him was this past July.",
+   "model": "glm-5.3",
+   "ms": 9372,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "t04",
+   "say": "Who is Pepper's vet now?",
+   "persona": "assistant",
+   "about": "change",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Before the EV9, you drove a 2018 Mazda CX-5. You stopped driving it on 22 November 2025, and Marco bought it on 1 December 2025 \u2014 so that's when it left the family.",
+   "model": "glm-5.3",
+   "ms": 24310,
+   "busy": [
+    "waiting for its turn",
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "t05",
+   "say": "What car did I have before the EV9, and when did we sell it?",
+   "persona": "assistant",
+   "about": "time",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Book club now meets at BookBar \u2014 the group moved there in February 2026. Before that, they met at the Tattered Cover on Colfax, from when you joined in February 2024 through January 2026. The next meeting is this Thursday, November 12, at 7 at BookBar.",
+   "model": "glm-5.3",
+   "ms": 8939,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "t06",
+   "say": "Where does book club meet now, and where did it meet before?",
+   "persona": "assistant",
+   "about": "time",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "You stopped climbing on December 9, 2025 \u2014 that's the day you hurt your shoulder climbing and said no climbing for a while. Your Tuesday and Thursday 6 a.m. sessions at Movement RiNo ended then. You've been in physical therapy with Corinne Duval since January, Monday mornings at 7:30, and you said just recently that the shoulder is feeling better.",
+   "model": "glm-5.3",
+   "ms": 18726,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "t07",
+   "say": "When did I stop climbing, and why?",
+   "persona": "assistant",
+   "about": "time",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "That was Teodora Vance, your manager at the time \u2014 you had a weekly 1:1 with her on Wednesdays at 2 p.m., starting in January 2024. Those ended on February 19, 2025, right before Rafael Okonjo became your manager and the Tuesday 1:1s with him began.",
+   "model": "glm-5.3",
+   "ms": 7197,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "t08",
+   "say": "Who did I use to have one-on-ones with on Wednesdays?",
+   "persona": "assistant",
+   "about": "calendar+time",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "I could not finish my answer. Please ask again.",
+   "model": "glm-5.3",
+   "ms": 32793,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "t09",
+   "say": "When did we move to Denver?",
+   "persona": "assistant",
+   "about": "time",
+   "ok": false,
+   "missing": [
+    "june 15|15 june|jun\\.? 15|2024-06-15"
+   ],
+   "present": []
+  },
+  {
+   "reply": "You were living on Pine Street in Boulder when Theo started swim lessons at Carla Madison Rec Center in April 2024 \u2014 and that's still your home as far as my records show.",
+   "model": "glm-5.3",
+   "ms": 23079,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "t10",
+   "say": "Where did we live when Theo started swimming lessons?",
+   "persona": "assistant",
+   "about": "time",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "I could not finish my answer. Please ask again.",
+   "model": "glm-5.3",
+   "ms": 21629,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "t11",
+   "say": "Who was on my team when Atlas went live?",
+   "persona": "assistant",
+   "about": "time",
+   "ok": false,
+   "missing": [
+    "nadia",
+    "sven"
+   ],
+   "present": []
+  },
+  {
+   "reply": "The big thing was Porto: the family trip was on the calendar starting Thursday, April 10, and you flew out of Denver on the TAP flight the next afternoon, April 11 at 4:40, for a week in Portugal.\n\nOtherwise April was your usual rhythm \u2014 your birthday on the 1st, book club at the Tattered Cover on Colfax on the 3rd, an Atlas migration review on the 8th, climbing Tuesday and Thursday mornings, Ruby's soccer practices, Theo's Saturday swim lessons at Carla Madison, and your Tuesday 1:1s with Rafael.",
+   "model": "glm-5.3",
+   "ms": 22029,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "t12",
+   "say": "What did we do in April 2025?",
+   "persona": "assistant",
+   "about": "time",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "The kitchen budget started at $38,000 when the remodel with Ortega and Sons began in March 2026. Then on July 9, 2026, you changed the cabinets, and the budget went up to $44,000 \u2014 a $6,000 increase. That's the only change on record, and $44,000 is still the current budget.",
+   "model": "glm-5.3",
+   "ms": 15822,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "t13",
+   "say": "When and how did the kitchen budget change?",
+   "persona": "assistant",
+   "about": "change",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Right now, three people report to you: Bea Moreau (engineer, joined your team in June), Sven Holt (on your team since August 2025), and Priya Raman (her manager is you, since July 2025). Nadia Kerr no longer does \u2014 she moved to the data team on October 5.",
+   "model": "glm-5.3",
+   "ms": 13574,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "k01",
+   "say": "Who reports to me right now?",
+   "persona": "assistant",
+   "about": "change",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "The Harbor launch is due January 15, 2027 \u2014 that's the new date after the project slipped from the original December 1, 2026 target.",
+   "model": "glm-5.3",
+   "ms": 8033,
+   "busy": [
+    "waiting for its turn",
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "k02",
+   "say": "When is the Harbor launch due?",
+   "persona": "assistant",
+   "about": "change",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Ruby's soccer coach is Jen Parks \u2014 she's coached Ruby since March 2024, and she's still the coach now that Ruby has moved up to the Highland Hornets U12 team this fall.",
+   "model": "glm-5.3",
+   "ms": 17298,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "k03",
+   "say": "Who's Ruby's soccer coach?",
+   "persona": "assistant",
+   "about": "fix",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Bea Moreau joined your team most recently \u2014 she came on June 1, 2026. Sven Holt is the other current team member, since August 2025.",
+   "model": "glm-5.3",
+   "ms": 13149,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "k04",
+   "say": "Who on my team joined most recently, and when?",
+   "persona": "assistant",
+   "about": "order",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Wen Li looks after the build system \u2014 she's a staff engineer on the platform team and has owned it since September 2025. She was also on call for the build system during the Atlas go-live last Halloween.",
+   "model": "glm-5.3",
+   "ms": 5176,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "k05",
+   "say": "Who looks after our build system at work?",
+   "persona": "assistant",
+   "about": "fact",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "That was Cantinho do Avillez \u2014 you said the best meal of the whole Porto trip was there, back in April 2025.",
+   "model": "glm-5.3",
+   "ms": 6245,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "k06",
+   "say": "What was the name of that restaurant we liked in Porto?",
+   "persona": "assistant",
+   "about": "fact",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Alex works from home on Mondays and Fridays \u2014 that's been the schedule since it changed on October 21, and the recurring \"work from home\" events on Alex's calendar run every Monday and Friday.",
+   "model": "glm-5.3",
+   "ms": 10361,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "k07",
+   "say": "Which days does Alex work from home?",
+   "persona": "assistant",
+   "about": "fact",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "You're an engineering lead at Orbital Freight \u2014 you've been at Orbital since February 2025, and you were promoted to engineering lead that March. Before the move you were a senior engineer at Juniper Labs.",
+   "model": "glm-5.3",
+   "ms": 10672,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "k08",
+   "say": "What's my job title, and where do I work?",
+   "persona": "assistant",
+   "about": "subject",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "You've been married a bit over 12 years \u2014 you and Alex tied the knot on September 27, 2014, so you hit 12 years this past September. The 13th anniversary will be Monday, September 27, 2027.",
+   "model": "glm-5.3",
+   "ms": 15989,
+   "busy": [
+    "waiting for its turn",
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "k09",
+   "say": "How long have Alex and I been married?",
+   "persona": "assistant",
+   "about": "date math",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Theo will turn 8 \u2014 his next birthday is Sunday, February 21, 2027. The family calendar has the birthday event on Saturday the 20th, likely the celebration day, but the day itself is Sunday the 21st.",
+   "model": "glm-5.3",
+   "ms": 9050,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "k10",
+   "say": "How old will Theo be on his next birthday, and when is it?",
+   "persona": "assistant",
+   "about": "date math",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Ruby was 7 when you moved to Denver on June 15, 2024 \u2014 she turned 8 that September 3rd, so she was just a couple of months shy of her birthday at the time.",
+   "model": "glm-5.3",
+   "ms": 15894,
+   "busy": [
+    "waiting for its turn",
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "k11",
+   "say": "How old was Ruby when we moved to Denver?",
+   "persona": "assistant",
+   "about": "date math",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "I could not finish my answer. Please ask again.",
+   "model": "glm-5.3",
+   "ms": 13733,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "k12",
+   "say": "How old am I?",
+   "persona": "assistant",
+   "about": "date math",
+   "ok": false,
+   "missing": [
+    "\\b39\\b|thirty-nine"
+   ],
+   "present": []
+  },
+  {
+   "reply": "You drive a 2026 Kia EV9 \u2014 you picked it up on January 20, 2026, and it charges fine on the garage outlet, just slowly.",
+   "model": "glm-5.3",
+   "ms": 4029,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "n01",
+   "say": "What car do I drive?",
+   "persona": "assistant",
+   "about": "near miss",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "No \u2014 no switch on record. Dr. Ellery Shaw at Highland Dental has been your dentist since January 2024, and every appointment on your calendar since then has been with Dr. Shaw there, including the last one in August and your next one on Tuesday, February 9, 2027.",
+   "model": "glm-5.3",
+   "ms": 8078,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "n02",
+   "say": "Did I switch dentists?",
+   "persona": "assistant",
+   "about": "near miss",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "No \u2014 as far as the records show, Wen Li is still a staff engineer on the platform team, and she still owns the build system. She did mention back in September that she might move to the data team next year, but nothing on record says that's happened. The person who actually moved to the data team is Nadia Kerr, back on October 5.",
+   "model": "glm-5.3",
+   "ms": 12148,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "n03",
+   "say": "Is Wen Li on the data team?",
+   "persona": "assistant",
+   "about": "near miss",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "No \u2014 as far as the records show, Ruby still plays for the Highland Hornets. She asked a few times last spring about quitting, and you told her to finish the season first, but there's no record that she actually did. Her Tuesday and Thursday practices are still on the family calendar, including this Thursday at Highland Park field 2.",
+   "model": "glm-5.3",
+   "ms": 8490,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "n04",
+   "say": "Did Ruby quit soccer?",
+   "persona": "assistant",
+   "about": "near miss",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Here's your week:\n\nMonday: physical therapy with Corinne at 7:30, standup at 9:30, and the Harbor launch sync at 11 at Juniper Labs, room Aspen. Tuesday: standup, your 1:1 with Rafael at 10, and Ruby's soccer practice at 5:30. Wednesday is just standup, plus Alex has yoga at 6.\n\nThursday is the busy day: standup, your 1:1 with Sven at 3, Ruby's practice at 5:30, and Page Turners book club at BookBar at 7. Friday: standup and the Juniper Labs all-hands at 4. Saturday morning is Theo's swim lesson at 9, then the Hornets end-of-season party at noon at the Highland Park pavilion. Sunday looks clear for you, though Alex flies out for a work trip to Chicago.",
+   "model": "glm-5.3",
+   "ms": 11653,
+   "busy": [
+    "waiting for its turn",
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "c01",
+   "say": "What's on my calendar for the week of November 9 to 15?",
+   "persona": "assistant",
+   "about": "calendar",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Book club is Thursday, November 12, from 7 to 9 PM at BookBar \u2014 that's this week, the second Thursday of the month as usual.",
+   "model": "glm-5.3",
+   "ms": 4418,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "c02",
+   "say": "When is book club in November 2026, and where?",
+   "persona": "assistant",
+   "about": "calendar",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Twice in 2026 \u2014 February 10 and August 11, both with Dr. Shaw at Highland Dental. That fits your usual every-six-months routine, and the next one is February 9, 2027.",
+   "model": "glm-5.3",
+   "ms": 5597,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "c03",
+   "say": "How many times did I go to the dentist in 2026?",
+   "persona": "assistant",
+   "about": "calendar count",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Your next dentist appointment is Tuesday, February 9, 2027, from 8:30 to 9:30 in the morning with Dr. Shaw at Highland Dental.",
+   "model": "glm-5.3",
+   "ms": 3967,
+   "busy": [
+    "waiting for its turn",
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "c04",
+   "say": "When's my next dentist appointment?",
+   "persona": "assistant",
+   "about": "calendar",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "On Friday, November 13, you have team standup at 9:30 in the morning and the Juniper Labs all-hands from 4 to 5 in the afternoon. Otherwise the day is clear \u2014 and Alex is working from home that day, too.",
+   "model": "glm-5.3",
+   "ms": 5923,
+   "busy": [
+    "waiting for its turn",
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "c05",
+   "say": "What do I have on Friday November 13?",
+   "persona": "assistant",
+   "about": "calendar",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "The final kitchen inspection is Friday, November 20, from 10 to 11 in the morning \u2014 it's on the family calendar, with the city inspector coming out and Ortega and Sons on site. Once it passes, the final payment to them is due by November 25.",
+   "model": "glm-5.3",
+   "ms": 3911,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "c06",
+   "say": "When is the final kitchen inspection?",
+   "persona": "assistant",
+   "about": "calendar",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "I could not finish my answer. Please ask again.",
+   "model": "glm-5.3",
+   "ms": 17771,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "c07",
+   "say": "Is there anything on the family calendar while Alex is in Chicago?",
+   "persona": "assistant",
+   "about": "calendar+calendar",
+   "ok": false,
+   "missing": [
+    "soccer"
+   ],
+   "present": []
+  },
+  {
+   "reply": "Your physical therapy runs through Monday, December 21 \u2014 that's the last session on the calendar, 7:30 to 8:15 in the morning with Corinne. You've got weekly Mondays until then, including today's session, which started at 7:30.",
+   "model": "glm-5.3",
+   "ms": 7272,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "c08",
+   "say": "When does my physical therapy end?",
+   "persona": "assistant",
+   "about": "calendar",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Pepper's last vet visit was Thursday, July 16, 2026, from 5:15 to 6 PM with Dr. Malik at Platte Street Vet. By the way, there's still an open task to schedule her dental cleaning, due November 30.",
+   "model": "glm-5.3",
+   "ms": 8226,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "c09",
+   "say": "When was Pepper's last vet visit?",
+   "persona": "assistant",
+   "about": "calendar",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Three since the move \u2014 July 18, 2024, July 17, 2025, and July 16, 2026, all with Dr. Malik at Platte Street Vet. So roughly once a year. Her only other visit on record, March 2024 with Dr. Ito, was back in Boulder before you moved.",
+   "model": "glm-5.3",
+   "ms": 8608,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "c10",
+   "say": "How many vet visits has Pepper had since we moved to Denver?",
+   "persona": "assistant",
+   "about": "calendar count",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "No. Your recurring 1:1 with Nadia ran every other Thursday and its last occurrence was October 1, 2026 \u2014 four days before she moved to the data team on October 5. So the series ended right before her move, and there's been nothing with her on the calendar since.",
+   "model": "glm-5.3",
+   "ms": 7612,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "searching the calendar: Nadia",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "c11",
+   "say": "Did I have a one-on-one with Nadia after she moved to the data team?",
+   "persona": "assistant",
+   "about": "calendar+change",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Not quite \u2014 during Alex's appointment (9 to 10 that morning), you have team standup from 9:30 to 9:45, and your 1:1 with Rafael starts right at 10. You're free from 9:00 to 9:30, but the rest of that hour is spoken for.",
+   "model": "glm-5.3",
+   "ms": 8609,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "c12",
+   "say": "Alex has a dentist appointment on November 24. Am I free then?",
+   "persona": "assistant",
+   "about": "calendar+calendar",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "I can't say whether you're on budget \u2014 the budget is $44,000 since the cabinet change in July, but I have no record of what's actually been spent. If you tell me the running cost, I'll track it against the budget.\n\nAs for what's left: painting the kitchen walls is in progress and due this Sunday, November 15. Then the pendant lights get installed by Wednesday, November 18 \u2014 Ortega and Sons' electrician does the wiring. The final inspection is Friday, November 20, at 10 in the morning, and once it passes, the final payment to Ortega and Sons is due by November 25.",
+   "model": "glm-5.3",
+   "ms": 16341,
+   "busy": [
+    "waiting for its turn",
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "l01",
+   "say": "Is the kitchen remodel still on budget, and what's left to do?",
+   "persona": "assistant",
+   "about": "longhouse+fact",
+   "ok": false,
+   "missing": [
+    "38"
+   ],
+   "present": [
+    "refusal: no record"
+   ]
+  },
+  {
+   "reply": "Three things are left for Saturday's party at the Highland Park pavilion, which you're hosting from noon to 2.\n\nYou have two of them: buy the coach gift for Jen Parks by Thursday at 5 PM, and bring the folding tables by Saturday at 5 PM. The third \u2014 collecting money for the coach gift \u2014 is in progress and due tomorrow at 5 PM, assigned to My Admin in the house.",
+   "model": "glm-5.3",
+   "ms": 11192,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "l02",
+   "say": "What's left for the Hornets party, and who's doing what?",
+   "persona": "assistant",
+   "about": "longhouse",
+   "ok": false,
+   "missing": [
+    "alex"
+   ],
+   "present": []
+  },
+  {
+   "reply": "Two things are left in the garage cleanout: get a quote for a 240 V outlet by Monday, November 30, and install the wall rack for the bikes by Sunday, December 6. Both are yours. The point of the project is making room for the EV9 charger and the bikes \u2014 the car still charges slowly on the regular 120 V outlet.",
+   "model": "glm-5.3",
+   "ms": 5046,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "l03",
+   "say": "What do I still need to do in the garage?",
+   "persona": "assistant",
+   "about": "longhouse",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "The electrician from Ortega and Sons is doing the wiring and installation. It's due Wednesday, November 18, by 5 PM \u2014 the task is still open, so you may want to confirm the appointment with them.",
+   "model": "glm-5.3",
+   "ms": 4871,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "l04",
+   "say": "Who's installing the pendant lights, and by when?",
+   "persona": "assistant",
+   "about": "longhouse",
+   "ok": false,
+   "missing": [
+    "alex"
+   ],
+   "present": []
+  },
+  {
+   "reply": "Nothing of yours is overdue. The only late item anywhere is a smoke-test task in the Squizzlezig Dev house \u2014 \"CLI smoke task A,\" due September 20 \u2014 but that's assigned to the dev agent, not you, and it looks like a test artifact.\n\nYour nearest deadline is collecting money for the coach gift, due tomorrow at 5 PM, and it's already in progress.",
+   "model": "glm-5.3",
+   "ms": 8307,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "l05",
+   "say": "Is anything overdue as of today, November 9?",
+   "persona": "assistant",
+   "about": "longhouse",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "On your Work calendar Tuesday, you have the team standup at 9:30 to 9:45 in the morning, and your 1:1 with Rafael at 10:00 to 10:30. There's also Ruby's soccer practice at 5:30 in the evening, but that's on the Family calendar.",
+   "model": "glm-5.3",
+   "ms": 5924,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "e01",
+   "say": "What's on my work calendar on Tuesday November 10?",
+   "persona": "engineering",
+   "about": "calendar via Archimedes",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Your Harbor launch review with Rafael is Wednesday, November 18, from 2:00 to 3:00 PM on your Work calendar. The notes say to bring the new January 15 plan.",
+   "model": "glm-5.3",
+   "ms": 5072,
+   "busy": [
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "question",
+   "id": "e02",
+   "say": "When is my Harbor launch review with Rafael, and what should I bring?",
+   "persona": "engineering",
+   "about": "calendar via Archimedes",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "I don't have Alex's mother's name on record. If you tell me, I'll remember it for next time.",
+   "model": "glm-5.3",
+   "ms": 5663,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "a01",
+   "say": "What's Alex's mother's name?",
+   "persona": "assistant",
+   "about": "abstain",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "I don't have the EV9's plate number on record. If you tell me, I'll remember it for next time.",
+   "model": "glm-5.3",
+   "ms": 4839,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "a02",
+   "say": "What's the plate number of the EV9?",
+   "persona": "assistant",
+   "about": "abstain",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "I don't have Pepper's microchip number on record. If you tell me, I'll remember it for next time.",
+   "model": "glm-5.3",
+   "ms": 4875,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "question",
+   "id": "a03",
+   "say": "What's Pepper's microchip number?",
+   "persona": "assistant",
+   "about": "abstain",
+   "ok": true,
+   "missing": [],
+   "present": []
+  },
+  {
+   "reply": "Done \u2014 Theo's swim meet is on Alex's calendar Saturday, November 21, from 8 to 9 in the morning at Carla Madison Rec Center. Heads up: his regular swim lesson is the same morning at 9 at the same place, so you may want to check whether the lesson still happens that day.",
+   "model": "glm-5.3",
+   "ms": 9001,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "action",
+   "id": "w01",
+   "say": "Put Theo's swim meet on Alex's calendar on Saturday November 21 at 8 in the morning, at Carla Madison Rec Center.",
+   "persona": "assistant",
+   "about": ""
+  },
+  {
+   "kind": "check",
+   "id": "w01.v",
+   "about": "direct check",
+   "ok": true,
+   "verify": [
+    {
+     "expect": {
+      "kind": "event",
+      "calendar": "^alex$",
+      "event.title": "swim",
+      "event.start": "2026-11-21T(15:00|08:00:00-07)",
+      "event.location": "carla madison"
+     },
+     "ok": true,
+     "found": {
+      "calendar": "Alex",
+      "event": {
+       "event_id": "01M70M1EB5NG7TVB0AW891DNBW",
+       "calendar_id": "01M6W8FJ9T9CJ9W73XBG1KSF1B",
+       "uid": "01M70M1EB5NG7TVB0AW4T8QDPX@catalystcal",
+       "title": "Theo's swim meet",
+       "location": "Carla Madison Rec Center",
+       "start": "2026-11-21T15:00:00Z",
+       "end": "2026-11-21T16:00:00Z",
+       "all_day": false,
+       "timezone": "America/Denver",
+       "status": "confirmed",
+       "transparency": "opaque",
+       "visibility": "default",
+       "organizer": {
+        "user_id": "01M67DTYM26A7NBH894N8E3CW6",
+        "domain": "squizzlezig.com",
+        "subject": "019f0c22-ee82-71c3-94d8-eae95f71927d",
+        "handle": "myuser",
+        "display_name": "My User"
+       },
+       "created_by": {
+        "user_id": "01M67DTYM26A7NBH894N8E3CW6",
+        "domain": "squizzlezig.com",
+        "subject": "019f0c22-ee82-71c3-94d8-eae95f71927d",
+        "handle": "myuser",
+        "display_name": "My User"
+       },
+       "updated_by": {
+        "user_id": "01M67DTYM26A7NBH894N8E3CW6",
+        "domain": "squizzlezig.com",
+        "subject": "019f0c22-ee82-71c3-94d8-eae95f71927d",
+        "handle": "myuser",
+        "display_name": "My User"
+       },
+       "updated_via": "act_as_grant",
+       "sequence": 0,
+       "created_at": "2026-11-09T17:00:06Z",
+       "updated_at": "2026-11-09T17:00:06Z"
+      },
+      "kind": "event",
+      "owner": "user:019f0c22-f362-7da1-8c47-5c08c536331c@squizzlezig.com"
+     },
+     "near": null
+    }
+   ],
+   "new": [
+    {
+     "calendar": "Alex",
+     "event": {
+      "event_id": "01M70M1EB5NG7TVB0AW891DNBW",
+      "calendar_id": "01M6W8FJ9T9CJ9W73XBG1KSF1B",
+      "uid": "01M70M1EB5NG7TVB0AW4T8QDPX@catalystcal",
+      "title": "Theo's swim meet",
+      "location": "Carla Madison Rec Center",
+      "start": "2026-11-21T15:00:00Z",
+      "end": "2026-11-21T16:00:00Z",
+      "all_day": false,
+      "timezone": "America/Denver",
+      "status": "confirmed",
+      "transparency": "opaque",
+      "visibility": "default",
+      "organizer": {
+       "user_id": "01M67DTYM26A7NBH894N8E3CW6",
+       "domain": "squizzlezig.com",
+       "subject": "019f0c22-ee82-71c3-94d8-eae95f71927d",
+       "handle": "myuser",
+       "display_name": "My User"
+      },
+      "created_by": {
+       "user_id": "01M67DTYM26A7NBH894N8E3CW6",
+       "domain": "squizzlezig.com",
+       "subject": "019f0c22-ee82-71c3-94d8-eae95f71927d",
+       "handle": "myuser",
+       "display_name": "My User"
+      },
+      "updated_by": {
+       "user_id": "01M67DTYM26A7NBH894N8E3CW6",
+       "domain": "squizzlezig.com",
+       "subject": "019f0c22-ee82-71c3-94d8-eae95f71927d",
+       "handle": "myuser",
+       "display_name": "My User"
+      },
+      "updated_via": "act_as_grant",
+      "sequence": 0,
+      "created_at": "2026-11-09T17:00:06Z",
+      "updated_at": "2026-11-09T17:00:06Z"
+     },
+     "kind": "event",
+     "owner": "user:019f0c22-f362-7da1-8c47-5c08c536331c@squizzlezig.com"
+    }
+   ]
+  },
+  {
+   "reply": "Done \u2014 the monthly budget review with Alex is on the Family calendar, the first Sunday of each month from 7 to 8 PM, starting Sunday, December 6.",
+   "model": "glm-5.3",
+   "ms": 13947,
+   "busy": [
+    "waiting for its turn",
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "action",
+   "id": "w02",
+   "say": "Set up a monthly budget review with Alex on the Family calendar, the first Sunday of each month at 7 pm, starting Sunday December 6.",
+   "persona": "assistant",
+   "about": ""
+  },
+  {
+   "kind": "check",
+   "id": "w02.v",
+   "about": "direct check",
+   "ok": true,
+   "verify": [
+    {
+     "expect": {
+      "kind": "event",
+      "calendar": "^family$",
+      "event.title": "budget",
+      "event.start": "2026-12-0(7T02:00|6T19:00:00-07)",
+      "event.recurrence": "monthly.*(1su|setpos.*1|bysetpos)|(1su|bysetpos=1).*monthly"
+     },
+     "ok": true,
+     "found": {
+      "calendar": "Family",
+      "event": {
+       "event_id": "01M70M25ZJG7QFBNE6EA7AXWH3",
+       "calendar_id": "01M6ZE3BRAD495G62SKA5SJ5W7",
+       "uid": "01M70M25ZJG7QFBNE6E92JH61V@catalystcal",
+       "title": "Monthly budget review with Alex",
+       "start": "2026-12-07T02:00:00Z",
+       "end": "2026-12-07T03:00:00Z",
+       "all_day": false,
+       "timezone": "America/Denver",
+       "status": "confirmed",
+       "transparency": "opaque",
+       "visibility": "default",
+       "recurrence": {
+        "rrule": "FREQ=MONTHLY;BYDAY=1SU"
+       },
+       "organizer": {
+        "user_id": "01M67DTYM26A7NBH894N8E3CW6",
+        "domain": "squizzlezig.com",
+        "subject": "019f0c22-ee82-71c3-94d8-eae95f71927d",
+        "handle": "myuser",
+        "display_name": "My User"
+       },
+       "created_by": {
+        "user_id": "01M67DTYM26A7NBH894N8E3CW6",
+        "domain": "squizzlezig.com",
+        "subject": "019f0c22-ee82-71c3-94d8-eae95f71927d",
+        "handle": "myuser",
+        "display_name": "My User"
+       },
+       "updated_by": {
+        "user_id": "01M67DTYM26A7NBH894N8E3CW6",
+        "domain": "squizzlezig.com",
+        "subject": "019f0c22-ee82-71c3-94d8-eae95f71927d",
+        "handle": "myuser",
+        "display_name": "My User"
+       },
+       "updated_via": "act_as_grant",
+       "sequence": 0,
+       "created_at": "2026-11-09T17:00:31Z",
+       "updated_at": "2026-11-09T17:00:31Z"
+      },
+      "kind": "event",
+      "owner": "user:019f0c22-ee82-71c3-94d8-eae95f71927d@squizzlezig.com"
+     },
+     "near": null
+    }
+   ],
+   "new": [
+    {
+     "calendar": "Family",
+     "event": {
+      "event_id": "01M70M25ZJG7QFBNE6EA7AXWH3",
+      "calendar_id": "01M6ZE3BRAD495G62SKA5SJ5W7",
+      "uid": "01M70M25ZJG7QFBNE6E92JH61V@catalystcal",
+      "title": "Monthly budget review with Alex",
+      "start": "2026-12-07T02:00:00Z",
+      "end": "2026-12-07T03:00:00Z",
+      "all_day": false,
+      "timezone": "America/Denver",
+      "status": "confirmed",
+      "transparency": "opaque",
+      "visibility": "default",
+      "recurrence": {
+       "rrule": "FREQ=MONTHLY;BYDAY=1SU"
+      },
+      "organizer": {
+       "user_id": "01M67DTYM26A7NBH894N8E3CW6",
+       "domain": "squizzlezig.com",
+       "subject": "019f0c22-ee82-71c3-94d8-eae95f71927d",
+       "handle": "myuser",
+       "display_name": "My User"
+      },
+      "created_by": {
+       "user_id": "01M67DTYM26A7NBH894N8E3CW6",
+       "domain": "squizzlezig.com",
+       "subject": "019f0c22-ee82-71c3-94d8-eae95f71927d",
+       "handle": "myuser",
+       "display_name": "My User"
+      },
+      "updated_by": {
+       "user_id": "01M67DTYM26A7NBH894N8E3CW6",
+       "domain": "squizzlezig.com",
+       "subject": "019f0c22-ee82-71c3-94d8-eae95f71927d",
+       "handle": "myuser",
+       "display_name": "My User"
+      },
+      "updated_via": "act_as_grant",
+      "sequence": 0,
+      "created_at": "2026-11-09T17:00:31Z",
+      "updated_at": "2026-11-09T17:00:31Z"
+     },
+     "kind": "event",
+     "owner": "user:019f0c22-ee82-71c3-94d8-eae95f71927d@squizzlezig.com"
+    }
+   ]
+  },
+  {
+   "reply": "Done \u2014 buy a bike pump is in the Garage cleanout project, due Friday, November 20, at 5 PM, assigned to you.",
+   "model": "glm-5.3",
+   "ms": 8758,
+   "busy": [
+    "reading the message",
+    "thinking",
+    "putting the answer together"
+   ],
+   "kind": "action",
+   "id": "w03",
+   "say": "Add a task to the Garage cleanout project for me to buy a bike pump by Friday November 20.",
+   "persona": "assistant",
+   "about": ""
+  },
+  {
+   "kind": "check",
+   "id": "w03.v",
+   "about": "direct check",
+   "ok": true,
+   "verify": [
+    {
+     "expect": {
+      "kind": "task",
+      "task.title": "pump",
+      "task.due_at": "2026-11-(20|21T0[0-6])"
+     },
+     "ok": true,
+     "found": {
+      "kind": "task",
+      "task": {
+       "task_id": "01a1c141-5f9d-44e6-f8ac-5c3cbbdafc3f",
+       "house_id": "01a09813-d398-8e81-75f7-0788a72a1f4b",
+       "owner_member_id": "01a1b883-32c8-5a74-c1fd-ac8599231f5b",
+       "assignees": [
+        "01a1b883-32c8-5a74-c1fd-ac8599231f5b"
+       ],
+       "visibility": "read",
+       "title": "Buy a bike pump",
+       "status": "open",
+       "due_at": "2026-11-21T00:00:00Z",
+       "recurrence_interval": 1,
+       "created_at": "2026-11-09T17:00:49Z",
+       "updated_at": "2026-11-09T17:00:49Z"
+      }
+     },
+     "near": null
+    }
+   ],
+   "new": [
+    {
+     "kind": "task",
+     "task": {
+      "task_id": "01a1c141-5f9d-44e6-f8ac-5c3cbbdafc3f",
+      "house_id": "01a09813-d398-8e81-75f7-0788a72a1f4b",
+      "owner_member_id": "01a1b883-32c8-5a74-c1fd-ac8599231f5b",
+      "assignees": [
+       "01a1b883-32c8-5a74-c1fd-ac8599231f5b"
+      ],
+      "visibility": "read",
+      "title": "Buy a bike pump",
+      "status": "open",
+      "due_at": "2026-11-21T00:00:00Z",
+      "recurrence_interval": 1,
+      "created_at": "2026-11-09T17:00:49Z",
+      "updated_at": "2026-11-09T17:00:49Z"
+     }
+    }
+   ]
+  },
+  {
+   "reply": "I could not finish my answer. Please ask again.",
+   "model": "glm-5.3",
+   "ms": 14314,
+   "busy": [
+    "waiting for its turn",
+    "reading the message",
+    "thinking"
+   ],
+   "kind": "action",
+   "id": "w04",
+   "say": "Alex asked me to put a haircut on Alex's calendar this Wednesday at 5:30 pm.",
+   "persona": "assistant",
+   "about": ""
+  },
+  {
+   "kind": "check",
+   "id": "w04.v",
+   "about": "direct check",
+   "ok": false,
+   "verify": [
+    {
+     "expect": {
+      "kind": "event",
+      "calendar": "^alex$",
+      "event.title": "haircut",
+      "event.start": "2026-11-(12T00:30|11T17:30:00-07)"
+     },
+     "ok": false,
+     "found": null,
+     "near": []
+    }
+   ],
+   "new": []
+  }
+ ]
+}

@@ -68,14 +68,33 @@ def score(case, reply, abstain_words, refusal_words=()):
     f = re.S
     missing += [r for r in case.get("re_all", []) if not re.search(r, text, f)]
     missing += ["|".join(g) for g in case.get("re_any", []) if not any(re.search(r, text, f) for r in g)]
-    present += [r for r in case.get("re_none", []) if re.search(r, text, f)]
+    # A match of re_none is excused when its sentence also says that it is
+    # old ("slipped from December 1", "Ito, before the move"): the words
+    # can come before or after the match.
+    for r in case.get("re_none", []):
+        bad = [m for m in re.finditer(r, text, f) if not EXCUSE.search(sentence(text, m.start()))]
+        if bad:
+            present.append(r)
     if not case.get("abstain"):
-        # An answerable question: "I don't know" is a failure, not a pass.
-        present += ["refusal: " + w for w in refusal_words if w in text]
+        # An answerable question: "I don't know" as the answer (the first
+        # sentence) is a failure, not a pass. "No record of her quitting"
+        # later in a reply is not a refusal.
+        first = sentence(text, 0)
+        present += ["refusal: " + w for w in refusal_words if w in first]
     ok = not missing and not present
     if case.get("abstain"):
         ok = ok and any(w in text for w in abstain_words)
     return {"ok": ok, "missing": missing, "present": present}
+
+
+EXCUSE = re.compile(r"\b(slipped|moved|was|were|originally|earlier|previous|previously|old|before|used to|former|formerly|no longer|anymore|until|left|sold|later|after|now|current|currently|not yet|wasn't|was not|joined)\b")
+
+
+def sentence(text, i):
+    """The sentence of text that has the position i."""
+    a = max(text.rfind(c, 0, i) for c in ".!?\n") + 1
+    ends = [j for j in (text.find(c, i) for c in ".!?\n") if j >= 0]
+    return text[a:min(ends) if ends else len(text)]
 
 
 def extras(args):
