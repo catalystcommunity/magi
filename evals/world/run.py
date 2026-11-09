@@ -103,7 +103,7 @@ def verify(expect, new):
     for e in expect:
         hit = None
         for x in new:
-            if x.get("kind") == e["kind"] and all(re.search(r, field(x, k).lower(), re.S) for k, r in e.items() if k != "kind"):
+            if x.get("kind") == e["kind"] and all(re.search(r, field(x, k), re.S | re.I) for k, r in e.items() if k != "kind"):
                 hit = x
                 break
         out.append({"expect": e, "ok": hit is not None, "found": hit,

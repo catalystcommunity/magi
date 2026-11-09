@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -131,7 +132,8 @@ func TestFixShapesObject(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := s.knowledgeContext(ctx, graphOwner, "Who is my dentist?")
-	if !strings.Contains(got, "dentist Dr. Chen\n") && !strings.HasSuffix(got, "dentist Dr. Chen") || strings.Contains(got, "Chen at Oak") {
+	// A fact can end with "(since <date>)"; the time of the run decides.
+	if !regexp.MustCompile(`dentist Dr\. Chen( \(since [^)]*\))?(\n|$)`).MatchString(got) || strings.Contains(got, "Chen at Oak") {
 		t.Fatalf("context:\n%s", got)
 	}
 	if got := s.knowledgeContext(ctx, graphOwner, "Where does Dr. Chen work?"); !strings.Contains(got, "Dr. Chen works-at Oak Hill Dental") {

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	conversationapi "github.com/catalystcommunity/magi/primitives/conversation/api"
 	knowledgeapi "github.com/catalystcommunity/magi/primitives/knowledge/api"
@@ -252,5 +253,67 @@ func TestAboutSubject(t *testing.T) {
 		if got := aboutSubject(c.line, c.subject, "Jamie", "019f0c22-ee82@example.local"); got != c.want {
 			t.Errorf("%q / %q: %v", c.line, c.subject, got)
 		}
+	}
+}
+
+func TestNoteGuards(t *testing.T) {
+	m := currentFact.FindStringSubmatch("Not recorded: there is a current fact [clm_Ild5] Jamie lives-in Pine Street in Boulder. If it changed, ...")
+	if m == nil || m[1] != "clm_Ild5" {
+		t.Errorf("current fact: %v", m)
+	}
+	if !changeWords.MatchString("We moved today. The new place is on Zuni Street.") || changeWords.MatchString("I drive a 2018 Mazda CX-5.") {
+		t.Error("change words")
+	}
+	if !hasDate.MatchString("Harbor launch due December 1, 2026") || !hasDate.MatchString("due 2026-12-01") || hasDate.MatchString("Jamie works-at Juniper Labs") {
+		t.Error("has date")
+	}
+}
+
+func TestNotAboutSelf(t *testing.T) {
+	notes := "- [ent_1] Jamie (person)\n  - [clm_j] Jamie works-at Juniper Labs\n  - [clm_t] Jamie manager Teodora Vance\n- [ent_2] Teodora Vance (person)\n"
+	items := []noteItem{
+		{Op: "end", Id: "clm_j"},
+		{Op: "remember", Subject: "Jamie", Relation: "works-at", Object: "Orbital Freight"},
+		{Op: "remember", Subject: "Teodora Vance", Relation: "works-at", Object: "Orbital Freight"},
+	}
+	got := notAboutSelf(items, notes, "Teodora Vance left Juniper Labs to join Orbital Freight.", "Jamie")
+	if len(got) != 1 || got[0].Subject != "Teodora Vance" {
+		t.Errorf("third person: %+v", got)
+	}
+	if got := notAboutSelf(items, notes, "I left Juniper Labs to join Orbital Freight.", "Jamie"); len(got) != 3 {
+		t.Errorf("first person: %+v", got)
+	}
+	e := endWins([]noteItem{{Op: "update", Id: "clm_n", Value: "data team"}, {Op: "end", Id: "clm_n"}, {Op: "remember", Subject: "Nadia"}})
+	if len(e) != 2 || e[0].Op != "end" {
+		t.Errorf("end wins: %+v", e)
+	}
+}
+
+func TestStartsWithOther(t *testing.T) {
+	notes := "- [ent_1] Jamie (person)\n- [ent_2] Teodora Vance (person)\n- [ent_3] Pepper (animal)\n"
+	for text, want := range map[string]bool{
+		"Teodora Vance left Juniper Labs.":       true,
+		"Teodora left.":                          true,
+		"Pepper's vet is Dr. Malik.":             true,
+		"Started physical therapy with Corinne.": false,
+		"Jamie got a new job.":                   false,
+	} {
+		if got := startsWithOther(notes, text, "Jamie"); got != want {
+			t.Errorf("%q: %v", text, got)
+		}
+	}
+}
+
+func TestBirthdayFrom(t *testing.T) {
+	old := zone
+	zone = time.UTC
+	defer func() { zone = old }()
+	at := time.Date(2024, 4, 3, 3, 0, 0, 0, time.UTC)
+	v, ok := birthdayFrom(noteItem{Op: "remember", Subject: "me", Relation: "birthday", Value: "37"}, "It's my birthday today, I turned 37.", at)
+	if !ok || v != "April 3, 1987" {
+		t.Errorf("%q %v", v, ok)
+	}
+	if _, ok := birthdayFrom(noteItem{Relation: "birthday", Value: "September 3, 2016"}, "Ruby's birthday, she turned 8", at); ok {
+		t.Error("a date was changed")
 	}
 }

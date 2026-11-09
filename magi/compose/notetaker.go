@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -36,6 +37,8 @@ Rules:
 - Do not give a fact that the notes already have.
 - When the words do not make clear if a fact changed or was wrong, give no item for it: the assistant asks.
 - One message can change more than one fact; give one item for each (a new day and a new place of a meeting are two facts). A move changes where the person lives; a new employer changes works-at; "X no longer reports to me" ends that fact.
+- A place, a thing, or a person that the person names as a favorite or the best is a fact: "the best meal was at Cantinho do Avillez" is me favorite-restaurant Cantinho do Avillez.
+- A move up or a change of team, class, or group is an update of that fact ("Ruby moved up to the U12 team": update Ruby's team).
 - Small talk, feelings, meals, weather, and routine days get no item.
 - Leave fields that do not apply empty ("").`
 
@@ -190,6 +193,8 @@ func (s *System) applyNotes(ctx context.Context, a workflowapi.Assignment, as co
 		reason = reason[:200]
 	}
 	items = keepTitles(dropSelfCopies(items, utt.Text))
+	items = notAboutSelf(items, notes, utt.Text, a.Vars["owner_name"], strings.TrimPrefix(as.person, "user:"))
+	items = endWins(items)
 	var done []string
 	for _, it := range items {
 		// "The guest wifi is called Saguaro-Guest": a small model gives an
@@ -198,6 +203,12 @@ func (s *System) applyNotes(ctx context.Context, a workflowapi.Assignment, as co
 		if (it.Op == "update" || it.Op == "fix") && strings.HasPrefix(it.Id, "ent_") && it.Field == "" && it.Value != "" {
 			if label := labelOf(notes, it.Id); label != "" {
 				it = noteItem{Op: "remember", Subject: label, Relation: "name", Value: it.Value}
+			}
+		}
+		if it.Op == "remember" {
+			if v, ok := birthdayFrom(it, utt.Text, time.UnixMilli(int64(utt.CreatedMs))); ok {
+				log.Calls = append(log.Calls, map[string]any{"tool": "birthday", "by": "note-taker", "args": map[string]string{"from": it.Value, "to": v}})
+				it.Value, it.Object = v, ""
 			}
 		}
 		if op := changeOp(utt.Text, it.Op); op != it.Op {
@@ -214,6 +225,14 @@ func (s *System) applyNotes(ctx context.Context, a workflowapi.Assignment, as co
 					continue
 				}
 				it = noteItem{Op: "remember", Subject: it.Subject, Relation: it.Relation, Object: it.Object, Value: it.Value}
+			}
+		}
+		if it.Op == "update" && strings.HasPrefix(it.Id, "clm_") {
+			// "The planning doc is done" is not a new due date: a date
+			// changes only to a date.
+			if line := claimLine(notes, it.Id); hasDate.MatchString(line) && !strings.ContainsAny(it.Value+it.Object, "0123456789") {
+				log.Calls = append(log.Calls, map[string]any{"tool": "not-a-date", "by": "note-taker", "args": map[string]string{"id": it.Id, "value": it.Value, "record": line}})
+				continue
 			}
 		}
 		if it.Op == "fix" || it.Op == "update" {
@@ -233,6 +252,18 @@ func (s *System) applyNotes(ctx context.Context, a workflowapi.Assignment, as co
 		}
 		out, ref := s.personaTool(ctx, a, as, utt, tool, args)
 		log.Calls = append(log.Calls, map[string]any{"tool": tool, "args": args, "result": out, "by": "note-taker"})
+		// "We moved; the new place is on Zuni Street": a small model gives
+		// remember, and the notes have the old place. With words of a
+		// change, it is an update of that fact.
+		if m := currentFact.FindStringSubmatch(out); m != nil && tool == "remember" && changeWords.MatchString(utt.Text) {
+			v := it.Value
+			if v == "" {
+				v = it.Object
+			}
+			uargs := map[string]string{"id": m[1], "operation": "update", "value": v, "reason": reason}
+			out, ref = s.personaTool(ctx, a, as, utt, "change_knowledge", uargs)
+			log.Calls = append(log.Calls, map[string]any{"tool": "change_knowledge", "args": uargs, "result": out, "by": "note-taker", "from": "remember"})
+		}
 		if ref != nil {
 			*refs = append(*refs, *ref)
 		}
@@ -446,6 +477,108 @@ func changeOp(text, op string) string {
 var entityLine = regexp.MustCompile(`^- \[(ent_[^\]\s]+)\] (.+?) \([^)]*\)`)
 
 // labelOf gives the label of the entity id in the notes (describeKnowledge).
+var (
+	currentFact = regexp.MustCompile(`^Not recorded: there is a current fact \[(clm_[^\]\s]+)\]`)
+	changeWords = regexp.MustCompile(`(?i)\b(now|new|moved|switched|changed|instead|anymore|no longer|from now on)\b`)
+	hasDate     = regexp.MustCompile(`\b` + month + `\.? \d{1,2}\b|\b\d{4}-\d{2}-\d{2}\b`)
+)
+
+// selfWords: the message is about the person or the household.
+var selfWords = regexp.MustCompile(`(?i)\b(i|i'm|i've|i'd|my|me|mine|myself|we|we're|we've|our|ours|us)\b`)
+
+// notAboutSelf drops the items that change the person's own facts when the
+// message has no word of the person ("Teodora left Juniper Labs to join
+// Orbital Freight" is not a new job of the person).
+func notAboutSelf(items []noteItem, notes, text string, selfLabels ...string) []noteItem {
+	if selfWords.MatchString(text) || !startsWithOther(notes, text, selfLabels...) {
+		return items
+	}
+	self := func(name string) bool {
+		if isSelf(name) {
+			return true
+		}
+		for _, l := range selfLabels {
+			if l != "" && strings.EqualFold(strings.TrimSpace(name), l) {
+				return true
+			}
+		}
+		return false
+	}
+	out := items[:0:0]
+	for _, it := range items {
+		switch {
+		case it.Op == "remember" && self(it.Subject):
+			continue
+		case it.Id != "" && strings.HasPrefix(it.Id, "clm_"):
+			if line := claimLine(notes, it.Id); line != "" && aboutSubject(line, "me", selfLabels...) {
+				continue
+			}
+		}
+		out = append(out, it)
+	}
+	return out
+}
+
+// startsWithOther: the message starts with the name (or the first name)
+// of a thing of the notes that is not the person ("Teodora Vance left").
+// A message with no subject ("Started physical therapy") is the person's.
+func startsWithOther(notes, text string, selfLabels ...string) bool {
+	t := strings.ToLower(strings.TrimSpace(text))
+	for _, l := range strings.Split(notes, "\n") {
+		m := entityLine.FindStringSubmatch(strings.TrimSpace(l))
+		if m == nil || aboutSubject(m[2], "me", selfLabels...) {
+			continue
+		}
+		label := strings.ToLower(m[2])
+		first, _, _ := strings.Cut(label, " ")
+		if strings.HasPrefix(t, label+" ") || strings.HasPrefix(t, label+"'") || (len(first) > 2 && strings.HasPrefix(t, first+" ")) {
+			return true
+		}
+	}
+	return false
+}
+
+var turned = regexp.MustCompile(`(?i)\b(?:turned|turn|turns|i'm now|i am now)\s+(\d{1,3})\b`)
+
+// birthdayFrom: "It's my birthday today, I turned 37" gives the birthday
+// as a date (the day of the message, 37 years before), not "37".
+func birthdayFrom(it noteItem, text string, at time.Time) (string, bool) {
+	r := strings.ToLower(it.Relation)
+	if !strings.Contains(r, "birth") || !strings.Contains(strings.ToLower(text), "birthday") {
+		return "", false
+	}
+	if v := strings.TrimSpace(it.Value + it.Object); v != "" && strings.Trim(v, "0123456789") != "" {
+		return "", false
+	}
+	m := turned.FindStringSubmatch(text)
+	if m == nil {
+		return "", false
+	}
+	n, _ := strconv.Atoi(m[1])
+	d := at.In(zone)
+	return time.Date(d.Year()-n, d.Month(), d.Day(), 0, 0, 0, 0, zone).Format("January 2, 2006"), true
+}
+
+// endWins: when one message ends a fact, the other changes of that fact
+// are dropped ("Nadia moved to the data team; she doesn't report to me
+// anymore" ends the fact; it is not a new manager "data team").
+func endWins(items []noteItem) []noteItem {
+	ended := map[string]bool{}
+	for _, it := range items {
+		if it.Op == "end" && it.Id != "" {
+			ended[it.Id] = true
+		}
+	}
+	out := items[:0:0]
+	for _, it := range items {
+		if it.Id != "" && ended[it.Id] && it.Op != "end" {
+			continue
+		}
+		out = append(out, it)
+	}
+	return out
+}
+
 // claimLine gives the text of the fact id in the notes ("Jamie works-at
 // Juniper Labs"), or "".
 func claimLine(notes, id string) string {
