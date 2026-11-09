@@ -569,6 +569,13 @@ func (s *Service) Publish(ctx context.Context, req api.PublishRequest) (api.Publ
 		return api.PublishResult{}, err
 	}
 	defer s.lock(req.Repo)()
+	if req.Branch != nil && *req.Branch != "" {
+		commit := ""
+		if req.Commit != nil {
+			commit = *req.Commit
+		}
+		return s.publishBranch(ctx, req.Repo, m, *req.Branch, commit)
+	}
 	local, up, err := s.fetchUpstream(ctx, req.Repo, m)
 	if err != nil {
 		return api.PublishResult{}, err
@@ -585,4 +592,43 @@ func (s *Service) Publish(ctx context.Context, req api.PublishRequest) (api.Publ
 		return api.PublishResult{Pushed: false, Commit: local, Message: msg(err.Error())}, nil
 	}
 	return api.PublishResult{Pushed: true, Commit: local}, nil
+}
+
+// branchName is a branch that Magi pushes for a pull request.
+var branchName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$`)
+
+// publishBranch pushes commit to branch of the upstream, for a pull
+// request. A push again of the same branch replaces it only when the
+// upstream branch is still the commit that Magi pushed before (force with
+// lease).
+func (s *Service) publishBranch(ctx context.Context, repo string, m meta, branch, commit string) (api.PublishResult, error) {
+	if branch == m.DefaultBranch || !branchName.MatchString(branch) {
+		return api.PublishResult{}, rpc.Invalid("branch %q is not a branch for a pull request", branch)
+	}
+	if commit == "" {
+		commit = m.DefaultBranch
+	}
+	if !branchName.MatchString(commit) {
+		return api.PublishResult{}, rpc.Invalid("commit %q is not a commit or a branch", commit)
+	}
+	dir := s.repoDir(repo)
+	out, err := git(ctx, dir, nil, nil, nil, "rev-parse", "--verify", commit+"^{commit}")
+	if err != nil {
+		return api.PublishResult{}, rpc.NotFound("commit %q", commit)
+	}
+	sha := strings.TrimSpace(string(out))
+	msg := func(s string) *string { return &s }
+	lease := "--force-with-lease=refs/heads/" + branch
+	if prev, err := git(ctx, dir, nil, nil, nil, "rev-parse", "--verify", "-q", "refs/published/"+branch); err == nil {
+		lease += ":" + strings.TrimSpace(string(prev))
+	} else {
+		lease += ":" // the branch must not exist yet
+	}
+	if _, err := git(ctx, dir, upstreamEnv, nil, nil, "push", "--quiet", "--no-verify", lease, m.Upstream, sha+":refs/heads/"+branch); err != nil {
+		return api.PublishResult{Pushed: false, Commit: sha, Message: msg(err.Error())}, nil
+	}
+	if _, err := git(ctx, dir, nil, nil, nil, "update-ref", "refs/published/"+branch, sha); err != nil {
+		return api.PublishResult{}, err
+	}
+	return api.PublishResult{Pushed: true, Commit: sha}, nil
 }

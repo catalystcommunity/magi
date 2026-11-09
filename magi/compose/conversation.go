@@ -389,24 +389,27 @@ func snippet(s string, n int) string {
 var aliases = map[string][]string{
 	Persona:     {"computer", "magi"},
 	Engineering: {"engineering", "engineering manager"},
+	Assistant:   {"assistant", "executive assistant"},
 }
 
 // addressed returns the persona that text calls by name at its start
-// ("Computer, what time is it?"), or "". The name must come first and a
-// comma, colon, or exclamation mark must follow it, so that "computer
-// science is hard" does not call a persona.
+// ("Computer, what time is it?"), or "". The name must come first. After a
+// word that people also use in other sentences ("computer", "engineering")
+// a comma, colon, or exclamation mark must follow, so that "computer
+// science is hard" does not call a persona. A proper name of a persona
+// ("Beatrice", "Archimedes") needs no mark: speech to text often writes
+// "Beatrice remind me" with no comma.
 func (s *System) addressed(ctx context.Context, text string) string {
 	t := strings.ToLower(strings.TrimSpace(text))
 	for _, hey := range []string{"hey ", "ok ", "okay "} {
 		t = strings.TrimPrefix(t, hey)
 	}
-	end := strings.IndexAny(t, ",:!")
-	if end <= 0 || end > 40 {
-		return ""
+	name := ""
+	if end := strings.IndexAny(t, ",:!.?"); end > 0 && end <= 40 {
+		name = strings.TrimSpace(t[:end])
 	}
-	name := strings.TrimSpace(t[:end])
 	for id, names := range aliases {
-		if slices.Contains(names, name) {
+		if name != "" && slices.Contains(names, name) {
 			return id
 		}
 	}
@@ -414,10 +417,31 @@ func (s *System) addressed(ctx context.Context, text string) string {
 	if err != nil {
 		return ""
 	}
+	first, _, _ := strings.Cut(t, " ")
+	first = strings.TrimRight(first, ",:!.?")
 	for _, p := range res.Personas {
-		if strings.ToLower(p.Name) == name {
+		n := strings.ToLower(strings.TrimSpace(p.Name))
+		if n == "" {
+			continue
+		}
+		if n == name || properName(p.Name) && n == first && first != t {
 			return p.Id
 		}
 	}
 	return ""
+}
+
+// properName is a one-word name with a capital letter that is not a word
+// of the aliases: "Beatrice", not "Computer" or "Engineering manager".
+func properName(n string) bool {
+	n = strings.TrimSpace(n)
+	if n == "" || strings.ContainsAny(n, " \t") || n[0] < 'A' || n[0] > 'Z' {
+		return false
+	}
+	for _, names := range aliases {
+		if slices.Contains(names, strings.ToLower(n)) {
+			return false
+		}
+	}
+	return true
 }

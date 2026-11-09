@@ -825,12 +825,16 @@ export function fromSyncResultCbor(bytes: Uint8Array): SyncResult {
 export function toPublishRequestCborValue(v: PublishRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("repo", v.repo);
+  if (v.branch !== undefined) csilMap.set("branch", v.branch);
+  if (v.commit !== undefined) csilMap.set("commit", v.commit);
   return csilMap;
 }
 
 export function fromPublishRequestCborValue(value: CborValue): PublishRequest {
   return {
     repo: asString(requireKey(value, "repo")),
+    branch: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "branch")),
+    commit: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "commit")),
   };
 }
 

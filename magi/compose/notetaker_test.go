@@ -113,10 +113,18 @@ func TestSupersededNote(t *testing.T) {
 	}
 	old := conversationapi.Utterance{CreatedMs: 100, Attachments: refs, Text: "Family, sports, and chores."}
 	note := supersededNote(old, changes)
-	for _, want := range []string{supersededPrefix, reason, "retracts it", "chores calendar (calendar); chores calendar hosted-in Nextcloud"} {
+	for _, want := range []string{supersededPrefix, reason, "retracts it", "Do not name or repeat what was forgotten"} {
 		if !strings.Contains(note, want) {
 			t.Errorf("note %q has no %q", note, want)
 		}
+	}
+	// A retracted record is not given back to the model.
+	if strings.Contains(note, "hosted-in Nextcloud") {
+		t.Errorf("note %q gives the retracted record", note)
+	}
+	fix := map[string]knowledgeapi.Change{"clm_loc": {Id: "c3", Record: "clm_loc", Operation: "fix", AtMs: 200}}
+	if n := supersededNote(old, fix); !strings.Contains(n, "The record was: chores calendar hosted-in Nextcloud") {
+		t.Errorf("fix note %q has no record", n)
 	}
 	if strings.Contains(note, old.Text) {
 		t.Error("the note must not repeat the old answer")
@@ -213,5 +221,18 @@ func TestChangeOp(t *testing.T) {
 		if got := changeOp(c.text, c.op); got != c.want {
 			t.Errorf("%q %s: %s, want %s", c.text, c.op, got, c.want)
 		}
+	}
+}
+
+func TestLabelOf(t *testing.T) {
+	notes := "- [ent_g] guest wifi (thing), also called guest network\n  - [clm_1] Chamberlain on guest wifi\n- [ent_s] Synology NAS (device)"
+	if got := labelOf(notes, "ent_g"); got != "guest wifi" {
+		t.Fatal(got)
+	}
+	if got := labelOf(notes, "ent_s"); got != "Synology NAS" {
+		t.Fatal(got)
+	}
+	if labelOf(notes, "ent_x") != "" {
+		t.Fatal("unknown id")
 	}
 }

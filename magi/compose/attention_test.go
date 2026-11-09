@@ -83,7 +83,8 @@ type personaConversation struct {
 }
 
 func (personaConversation) ListPersonas(context.Context, conversationapi.ListPersonasRequest) (conversationapi.ListPersonasResponse, error) {
-	return conversationapi.ListPersonasResponse{Personas: []conversationapi.Persona{{Id: "persona:butler", Name: "Jeeves"}}}, nil
+	return conversationapi.ListPersonasResponse{Personas: []conversationapi.Persona{{Id: "persona:butler", Name: "Jeeves"},
+		{Id: Assistant, Name: "Beatrice"}, {Id: Engineering, Name: "Archimedes"}, {Id: Persona, Name: "Magi"}}}, nil
 }
 
 func TestAddressed(t *testing.T) {
@@ -97,6 +98,14 @@ func TestAddressed(t *testing.T) {
 		"computer science is hard, right?":  "",
 		"What time is it, computer?":        "",
 		"Hello":                             "",
+		"Beatrice remind me to call Dana":   Assistant,
+		"Beatrice, what's on my list?":      Assistant,
+		"hey Archimedes what's running":     Engineering,
+		"Archimedes.":                       Engineering,
+		"Beatrice":                          "",
+		"Magi is a good name":               "",
+		"executive assistant, hello":        Assistant,
+		"Jeeves the door please":            "persona:butler",
 	} {
 		if got := sys.addressed(testCtx, text); got != want {
 			t.Errorf("addressed(%q) = %q, want %q", text, got, want)

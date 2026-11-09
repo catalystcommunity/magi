@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -58,6 +59,9 @@ type Config struct {
 	// TimeZone is the time zone of the household (MAGI_TIME_ZONE): the
 	// time in the persona prompt and the times of to-dos.
 	TimeZone *time.Location
+	// PersonaWorkers is the number of persona turns that one replica runs
+	// at the same time (MAGI_PERSONA_WORKERS, default 4).
+	PersonaWorkers int
 	// CheckCommand runs in the repository after the apprentice works.
 	CheckCommand string
 	// Release is the release controller endpoint; empty turns releases off.
@@ -110,6 +114,10 @@ func ConfigFromEnv() (Config, error) {
 		Publisher:    os.Getenv("MAGI_PUBLISHER"),
 		CheckCommand: env("MAGI_CHECK_COMMAND", "./tools/check.sh"),
 		NoteTaker:    env("MAGI_NOTE_TAKER", "true") != "false",
+	}
+	c.PersonaWorkers = 4
+	if n, err := strconv.Atoi(os.Getenv("MAGI_PERSONA_WORKERS")); err == nil && n > 0 {
+		c.PersonaWorkers = n
 	}
 	if z := os.Getenv("MAGI_TIME_ZONE"); z != "" {
 		loc, err := time.LoadLocation(z)

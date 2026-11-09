@@ -620,7 +620,12 @@ func supersededNote(u conversationapi.Utterance, changes map[string]knowledgeapi
 			p += fmt.Sprintf(" (the person said: %q)", strings.TrimSpace(*h.c.Reason))
 		}
 		p += " " + opWords[h.c.Operation]
-		if len(h.titles) > 0 {
+		switch {
+		case h.c.Operation == "retract":
+			// The person wants it forgotten: do not give it back, also not
+			// as "you mentioned before".
+			p += ". Do not name or repeat what was forgotten"
+		case len(h.titles) > 0:
 			p += ". The record was: " + strings.Join(h.titles, "; ")
 		}
 		parts = append(parts, p)

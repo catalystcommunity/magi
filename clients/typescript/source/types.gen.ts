@@ -163,9 +163,15 @@ export interface SyncResult {
  * Pushes the default branch to the upstream, without force. pushed is
  * false when the upstream has commits that the local branch does not
  * have; sync, merge, and publish again.
+ * With branch, pushes commit (a local commit or branch) to that branch of
+ * the upstream instead, for a pull request. The branch must not be the
+ * default branch. A push of a new commit to the same branch replaces it
+ * (force with lease).
  */
 export interface PublishRequest {
   repo: string;
+  branch?: string;
+  commit?: string;
 }
 
 export interface PublishResult {

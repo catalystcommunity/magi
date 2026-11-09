@@ -627,17 +627,23 @@ class SyncResult:
 @dataclass
 class PublishRequest:
     repo: str
+    branch: Optional[str] = None
+    commit: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'repo') and self.repo is not None:
             result['repo'] = self.repo
+        if hasattr(self, 'branch') and self.branch is not None:
+            result['branch'] = self.branch
+        if hasattr(self, 'commit') and self.commit is not None:
+            result['commit'] = self.commit
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'PublishRequest':
         """Create instance from dictionary."""
-        return cls(repo=data.get('repo'))
+        return cls(repo=data.get('repo'), branch=data.get('branch'), commit=data.get('commit'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

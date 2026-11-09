@@ -35,8 +35,8 @@ func codeChangeDefinition(runners bool) workflowapi.Definition {
 		if runners {
 			switch id {
 			case "release", "rollout":
-			case "publish":
-				queue = "runner.${publisher}.publish"
+			case "publish", "pr-check":
+				queue = "runner.${publisher}." + id
 			default:
 				queue = "runner.${runner}." + id
 			}
@@ -57,10 +57,19 @@ func codeChangeDefinition(runners bool) workflowapi.Definition {
 			task("release", "magi.release", map[string]string{"done": "publish", "skipped": "publish", "build-failed": "cleanup", "rolled-back": "cleanup", "fail": "cleanup"}, 3),
 			// Only a change that released and stayed healthy (or that has
 			// no release) goes to the upstream.
-			task("publish", "magi.publish", map[string]string{"done": "rollout", "skipped": "cleanup", "rejected": "cleanup"}, 3),
+			// A runner with pull_requests opens a pull request instead
+			// ("proposed"); the change lands when a person merges it there.
+			task("publish", "magi.publish", map[string]string{"done": "rollout", "skipped": "cleanup", "rejected": "cleanup", "proposed": "pr-wait"}, 3),
 			// Runners update to a published change that built new packages.
 			task("rollout", "magi.rollout", map[string]string{"done": "cleanup", "skipped": "cleanup", "fail": "cleanup"}, 3),
 			task("cleanup", "magi.cleanup", map[string]string{}, 3),
+			// The pull request waits on GitHub. Each 10 minutes the
+			// publishing runner checks it. The owner can also say that it
+			// was merged or closed.
+			{Id: "pr-wait", Kind: "human", Prompt: ptr("The pull request (pr.url) waits for review. Magi checks it every 10 minutes."),
+				Outcomes: []string{"check", "merged", "closed"}, WaitMs: ptr(uint64(10 * 60 * 1000)), TimeoutOutcome: ptr("check"),
+				Next: map[string]string{"check": "pr-check", "merged": "pr-check", "closed": "cleanup"}},
+			task("pr-check", "magi.pr-check", map[string]string{"merged": "rollout", "closed": "cleanup", "open": "pr-wait"}, 3),
 		},
 	}
 }
@@ -90,7 +99,11 @@ func (s *System) RunWorkers(ctx context.Context) {
 	go s.Work(ctx, "magi.release", s.release)
 	go s.Work(ctx, "magi.publish", s.publish)
 	go s.Work(ctx, "magi.rollout", s.rollout)
-	go s.Work(ctx, "magi.persona", s.personaTurn)
+	// Persona turns of different people (or streams) run at the same
+	// time; the model engine queues what it cannot run in parallel.
+	for range max(1, s.Cfg.PersonaWorkers) {
+		go s.Work(ctx, "magi.persona", s.personaTurn)
+	}
 	go s.Work(ctx, "magi.todo.gate", s.todoGate)
 	go s.Work(ctx, "magi.todo.remind", s.todoRemind)
 	go s.Work(ctx, "magi.todo.overdue", s.todoOverdue)

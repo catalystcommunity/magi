@@ -185,3 +185,31 @@ func TestStripMarks(t *testing.T) {
 		t.Fatalf("%q", got)
 	}
 }
+
+func TestStreamLocks(t *testing.T) {
+	k := &keyedMutex{m: map[string]*keyedEntry{}}
+	u1 := k.lock("a")
+	other := make(chan bool)
+	go func() { u := k.lock("b"); u(); other <- true }()
+	<-other // another key does not wait
+	same := make(chan bool)
+	go func() { u := k.lock("a"); same <- true; u() }()
+	select {
+	case <-same:
+		t.Fatal("the same key did not wait")
+	case <-time.After(50 * time.Millisecond):
+	}
+	u1()
+	<-same
+	for end := time.Now().Add(time.Second); ; time.Sleep(5 * time.Millisecond) {
+		k.mu.Lock()
+		n := len(k.m)
+		k.mu.Unlock()
+		if n == 0 {
+			break
+		}
+		if time.Now().After(end) {
+			t.Fatalf("%d keys left", n)
+		}
+	}
+}

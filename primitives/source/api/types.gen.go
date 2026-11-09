@@ -141,7 +141,9 @@ type SyncResult struct {
 
 // PublishRequest represents a structured data type
 type PublishRequest struct {
-	Repo string `json:"repo" yaml:"repo"`
+	Repo   string  `json:"repo" yaml:"repo"`
+	Branch *string `json:"branch,omitempty" yaml:"branch,omitempty"`
+	Commit *string `json:"commit,omitempty" yaml:"commit,omitempty"`
 }
 
 // PublishResult represents a structured data type

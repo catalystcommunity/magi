@@ -178,6 +178,14 @@ func (s *System) applyNotes(ctx context.Context, a workflowapi.Assignment, as co
 	items = keepTitles(dropSelfCopies(items, utt.Text))
 	var done []string
 	for _, it := range items {
+		// "The guest wifi is called Saguaro-Guest": a small model gives an
+		// update of the entity "guest wifi". A name is a fact of the thing;
+		// the label stays.
+		if (it.Op == "update" || it.Op == "fix") && strings.HasPrefix(it.Id, "ent_") && it.Field == "" && it.Value != "" {
+			if label := labelOf(notes, it.Id); label != "" {
+				it = noteItem{Op: "remember", Subject: label, Relation: "name", Value: it.Value}
+			}
+		}
 		if op := changeOp(utt.Text, it.Op); op != it.Op {
 			log.Calls = append(log.Calls, map[string]any{"tool": "change-op", "by": "note-taker", "args": map[string]string{"from": it.Op, "to": op}})
 			it.Op = op
@@ -407,4 +415,16 @@ func changeOp(text, op string) string {
 		return "update"
 	}
 	return op
+}
+
+var entityLine = regexp.MustCompile(`^- \[(ent_[^\]\s]+)\] (.+?) \([^)]*\)`)
+
+// labelOf gives the label of the entity id in the notes (describeKnowledge).
+func labelOf(notes, id string) string {
+	for _, l := range strings.Split(notes, "\n") {
+		if m := entityLine.FindStringSubmatch(strings.TrimSpace(l)); m != nil && m[1] == id {
+			return m[2]
+		}
+	}
+	return ""
 }

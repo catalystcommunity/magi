@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	conversationapi "github.com/catalystcommunity/magi/primitives/conversation/api"
@@ -72,6 +73,25 @@ type turnLog struct {
 	Models []modelCall `json:"models"`
 	// Notes is the model call of the note taker, when it ran.
 	Notes *modelCall `json:"notes,omitempty"`
+	// Phases is the time of each part of the turn, in milliseconds:
+	// queue (from the message to the start of the turn), read, related,
+	// context, notes, models, tools.
+	Phases map[string]int64 `json:"phases,omitempty"`
+}
+
+// phases measures the parts of a turn.
+type phases struct {
+	at time.Time
+	ms map[string]int64
+}
+
+func newPhases() *phases { return &phases{at: time.Now(), ms: map[string]int64{}} }
+
+// mark adds the time since the last mark to name.
+func (p *phases) mark(name string) {
+	now := time.Now()
+	p.ms[name] += now.Sub(p.at).Milliseconds()
+	p.at = now
 }
 
 type modelCall struct {
@@ -84,6 +104,11 @@ type modelCall struct {
 func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note func(string)) (Result, error) {
 	streamID, uttID := a.Vars["stream"], a.Vars["utterance"]
 	persona := personaOr(optional(a.Vars["persona"]))
+	ph := newPhases()
+	// The turns of one stream run in order: a reply sees the replies
+	// before it. Turns of other streams run at the same time.
+	unlock := streamLocks.lock(streamID)
+	defer unlock()
 	// Every read is as the person, through this persona: the persona sees
 	// what this person told it and what its audience shares.
 	as := conversationLens{person: a.Owner, persona: persona}
@@ -91,6 +116,7 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 	if err != nil {
 		return Result{}, fmt.Errorf("utterance: %w", err)
 	}
+	ph.ms["queue"] = max(0, ph.at.UnixMilli()-int64(utt.CreatedMs))
 	hist, err := s.Conversation.ListUtterances(ctx, conversationapi.ListUtterancesRequest{Stream: streamID, BeforeSeq: ptr(utt.Seq + 1),
 		Limit: ptr(uint64(30)), Person: as.p(), Persona: as.v()})
 	if err != nil {
@@ -111,6 +137,7 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 	if slices.Contains(prof.tools, "recall") && len(hist.Utterances) > 0 {
 		changes, changed = s.recordChanges(ctx, a.Owner, hist.Utterances[0].CreatedMs)
 	}
+	ph.mark("read")
 	if rel := s.relatedContext(ctx, as, utt, hist.Utterances, now); rel != "" {
 		// Not a second system message: chat templates such as Qwen's allow
 		// one, at the start. The text can come from other people, so it is
@@ -149,10 +176,12 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 	}
 	// What Magi knows that may relate, just before the newest message, so
 	// that the current records win over older words in the conversation.
+	ph.mark("related")
 	kc := ""
 	if slices.Contains(prof.tools, "recall") {
 		kc = s.knowledgeContext(ctx, a.Owner, utt.Text)
 	}
+	ph.mark("context")
 	log := turnLog{}
 	var refs []conversationapi.Ref
 	// The note taker records what the newest message tells, so that the
@@ -164,6 +193,7 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 			kc = s.knowledgeContext(ctx, a.Owner, utt.Text)
 		}
 	}
+	ph.mark("notes")
 	// The reply keeps the records that it got, so that a later change of
 	// one of them can replace the reply in the history (supersededNote).
 	refs = append(refs, recordRefs(kc)...)
@@ -184,9 +214,11 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 	searchable := s.Search != nil && slices.Contains(prof.tools, "web_search")
 	corrected, pushed := false, false
 	for round := 0; round < 8; round++ {
+		ph.mark("tools")
 		start := time.Now()
 		m, err := s.Model.Chat(ctx, msgs, tools, 1024)
 		call := modelCall{Served: m.Served, Skipped: m.Skipped, Ms: time.Since(start).Milliseconds()}
+		ph.mark("models")
 		if err != nil {
 			call.Error = err.Error()
 		}
@@ -279,7 +311,9 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 			served = c.Served
 		}
 	}
-	s.Log.Info("persona turn", "run", a.Run, "model", served, "model_ms", ms, "calls", len(log.Models), "models", log.Models)
+	ph.mark("tools")
+	log.Phases = ph.ms
+	s.Log.Info("persona turn", "run", a.Run, "model", served, "model_ms", ms, "calls", len(log.Models), "models", log.Models, "phases", ph.ms)
 	if body, err := json.Marshal(log); err == nil {
 		if _, err := s.Conversation.Annotate(ctx, conversationapi.AnnotateRequest{Utterance: uttID, Kind: "interpretation", Body: string(body)}); err != nil {
 			s.Log.Warn("annotate", "err", err)
@@ -482,4 +516,38 @@ func stripMarks(reply string) string {
 		reply = strings.ReplaceAll(reply, strings.TrimSpace(m), "")
 	}
 	return strings.TrimSpace(reply)
+}
+
+// keyedMutex is a mutex for each key.
+type keyedMutex struct {
+	mu sync.Mutex
+	m  map[string]*keyedEntry
+}
+
+type keyedEntry struct {
+	mu   sync.Mutex
+	refs int
+}
+
+var streamLocks = &keyedMutex{m: map[string]*keyedEntry{}}
+
+// lock locks key and returns the unlock function.
+func (k *keyedMutex) lock(key string) func() {
+	k.mu.Lock()
+	e := k.m[key]
+	if e == nil {
+		e = &keyedEntry{}
+		k.m[key] = e
+	}
+	e.refs++
+	k.mu.Unlock()
+	e.mu.Lock()
+	return func() {
+		e.mu.Unlock()
+		k.mu.Lock()
+		if e.refs--; e.refs == 0 {
+			delete(k.m, key)
+		}
+		k.mu.Unlock()
+	}
 }

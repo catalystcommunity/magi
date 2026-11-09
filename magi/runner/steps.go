@@ -406,6 +406,9 @@ func (r *Runner) publish(ctx context.Context, a magiapi.RunnerAssignment, st mag
 	if !repo.Publish {
 		return Result{}, fmt.Errorf("runner %s does not publish %s", r.Cfg.Name, name)
 	}
+	if repo.PullRequests {
+		return r.proposePR(ctx, a, st, repo)
+	}
 	if _, err := r.Source.Sync(sourceCtx(ctx), sourceapi.SyncRequest{Repo: name}); err != nil {
 		return Result{}, err
 	}

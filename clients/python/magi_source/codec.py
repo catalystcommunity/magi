@@ -924,12 +924,20 @@ SyncResult.from_cbor = staticmethod(_sync_result_from_cbor)
 def _encode_publish_request_value(v: "PublishRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["repo"] = v.repo
+    csil_x = v.branch
+    if csil_x is not None:
+        csil_m["branch"] = csil_x
+    csil_x = v.commit
+    if csil_x is not None:
+        csil_m["commit"] = csil_x
     return csil_m
 
 def _decode_publish_request_value(tree: Any) -> "PublishRequest":
     tree = _csil_expect_map(tree)
     return PublishRequest(
         repo=_csil_expect_text(tree["repo"]),
+        branch=(None if tree.get("branch") is None else _csil_expect_text(tree["branch"])),
+        commit=(None if tree.get("commit") is None else _csil_expect_text(tree["commit"])),
     )
 
 

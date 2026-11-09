@@ -1668,8 +1668,14 @@ func DecodeSyncResult(csilData []byte) (SyncResult, error) {
 
 // csilEncPublishRequest builds the canonical CBOR value tree for a PublishRequest.
 func csilEncPublishRequest(csilV PublishRequest) cborValue {
-	csilEntries := make(cborMap, 0, 1)
+	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("repo"), cborText(csilV.Repo)})
+	if csilV.Branch != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("branch"), cborText((*csilV.Branch))})
+	}
+	if csilV.Commit != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("commit"), cborText((*csilV.Commit))})
+	}
 	return csilEntries
 }
 
@@ -1686,6 +1692,20 @@ func csilDecPublishRequest(csilRoot cborValue) (PublishRequest, error) {
 			return csilOut, csilErr
 		}
 		csilOut.Repo = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "branch"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Branch = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "commit"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Commit = &csilVal
 	}
 	return csilOut, nil
 }

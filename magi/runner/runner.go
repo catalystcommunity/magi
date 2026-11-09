@@ -40,6 +40,11 @@ type Repo struct {
 	// this machine's Git credentials. Magi sends publish steps only to a
 	// runner that publishes the repository.
 	Publish bool `json:"publish"`
+	// PullRequests: publish pushes the change to the branch magi/<run> and
+	// opens a pull request on GitHub with the gh command of this machine,
+	// in place of a push to the default branch. The change lands when a
+	// person merges it.
+	PullRequests bool `json:"pull_requests"`
 }
 
 // Config is the runner configuration file.
@@ -158,7 +163,7 @@ func LoadConfig(path string) (Config, error) {
 }
 
 // Steps are the code-change steps that a runner runs.
-var Steps = []string{"prepare", "work", "check", "merge", "publish", "cleanup"}
+var Steps = []string{"prepare", "work", "check", "merge", "publish", "pr-check", "cleanup"}
 
 const lease = 2 * time.Minute
 
@@ -216,7 +221,7 @@ func (r *Runner) Run(ctx context.Context) error {
 	}
 	defer stopExec()
 	handlers := map[string]handler{"prepare": r.prepare, "work": r.work, "check": r.check,
-		"merge": r.merge, "publish": r.publish, "cleanup": r.cleanup}
+		"merge": r.merge, "publish": r.publish, "pr-check": r.prCheck, "cleanup": r.cleanup}
 	for _, step := range Steps {
 		go r.loop(ctx, step, handlers[step])
 	}

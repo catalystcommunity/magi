@@ -365,6 +365,16 @@ func describeTask(run workflowapi.Run) string {
 	if out := run.Vars["check.summary"]; out != "" {
 		fmt.Fprintf(&b, "Checks: %s\n", clip(out, 500))
 	}
+	if u := run.Vars["pr.url"]; u != "" {
+		state := "waits for review on GitHub; Magi checks it every 10 minutes"
+		switch run.Vars["task.result"] {
+		case "published":
+			state = "merged"
+		case "pr-closed":
+			state = "closed without a merge"
+		}
+		fmt.Fprintf(&b, "Pull request: %s (%s).\n", u, state)
+	}
 	return b.String()
 }
 

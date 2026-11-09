@@ -48,7 +48,7 @@ func TestChooseRunners(t *testing.T) {
 func TestCodeChangeQueues(t *testing.T) {
 	d := codeChangeDefinition(true)
 	want := map[string]string{"prepare": "runner.${runner}.prepare", "work": "runner.${runner}.work", "merge": "runner.${runner}.merge",
-		"publish": "runner.${publisher}.publish", "release": "magi.release", "rollout": "magi.rollout", "cleanup": "runner.${runner}.cleanup"}
+		"publish": "runner.${publisher}.publish", "pr-check": "runner.${publisher}.pr-check", "release": "magi.release", "rollout": "magi.rollout", "cleanup": "runner.${runner}.cleanup"}
 	for _, st := range d.Steps {
 		if q, ok := want[st.Id]; ok && deref(st.Queue) != q {
 			t.Errorf("%s queue = %s, want %s", st.Id, deref(st.Queue), q)

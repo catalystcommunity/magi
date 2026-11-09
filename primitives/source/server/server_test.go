@@ -474,4 +474,31 @@ func TestUpstreamSyncAndPublish(t *testing.T) {
 	if _, err := e.bob.Sync(ctx, api.SyncRequest{Repo: "r"}); rpc.CodeOf(err) != 404 {
 		t.Fatalf("bob sync: %v", err)
 	}
+
+	// A branch for a pull request: pushed also when main diverged.
+	pb := must(e.alice.Publish(ctx, api.PublishRequest{Repo: "r", Branch: ptr("magi/run_1"), Commit: ptr("task2")}))
+	if !pb.Pushed || gitOK(t, up, "rev-parse", "magi/run_1") != gitOK(t, local, "rev-parse", "HEAD") {
+		t.Fatalf("publish branch = %+v", pb)
+	}
+	// A new commit of the task replaces the branch.
+	commitFile(t, local, "f.txt", "six\n", "six")
+	gitOK(t, local, "push", "-q", "origin", "HEAD:refs/heads/task2")
+	if p := must(e.alice.Publish(ctx, api.PublishRequest{Repo: "r", Branch: ptr("magi/run_1"), Commit: ptr("task2")})); !p.Pushed {
+		t.Fatalf("publish branch again = %+v", p)
+	}
+	// Someone else pushed to the branch: Magi does not overwrite it.
+	gitOK(t, work, "push", "-q", "--force", "origin", "HEAD:refs/heads/magi/run_1")
+	commitFile(t, local, "g.txt", "seven\n", "seven")
+	gitOK(t, local, "push", "-q", "origin", "HEAD:refs/heads/task2")
+	if p := must(e.alice.Publish(ctx, api.PublishRequest{Repo: "r", Branch: ptr("magi/run_1"), Commit: ptr("task2")})); p.Pushed {
+		t.Fatalf("publish over another push = %+v", p)
+	}
+	for _, bad := range []string{"main", "-x", "a b"} {
+		if _, err := e.alice.Publish(ctx, api.PublishRequest{Repo: "r", Branch: &bad}); rpc.CodeOf(err) != 400 {
+			t.Fatalf("branch %q: %v", bad, err)
+		}
+	}
+	if _, err := e.alice.Publish(ctx, api.PublishRequest{Repo: "r", Branch: ptr("magi/x"), Commit: ptr("--all")}); rpc.CodeOf(err) != 400 {
+		t.Fatalf("commit option: %v", err)
+	}
 }

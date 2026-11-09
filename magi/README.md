@@ -118,6 +118,14 @@ prepare -> work -> check --> review --> merge (and build) -> release -> publish 
   credentials, only after the release stayed healthy, and only as a
   fast-forward. If the release rolls back, nothing is pushed. So a runner
   without Git credentials (a Raspberry Pi, a laptop) can do the work.
+- With `"pull_requests": true` on the repository of the publishing runner,
+  `publish` pushes the merge to the branch `magi/<task>` of the GitHub
+  upstream and opens a pull request with the `gh` command of that machine
+  (outcome `proposed`). The task then waits in `pr-wait`. Each 10 minutes
+  `pr-check` reads the pull request on the same runner: merged goes to
+  `rollout`, closed goes to `cleanup`, open waits again. The owner can
+  decide `pr-wait` with `merged` (Magi checks it) or `closed`. A new push to
+  the branch replaces it only when no one else pushed to it.
 - `rollout` makes the new runner packages the runner release, when they
   differ from the current release. See "Runner updates".
 - The review diff is the patch that the runner uploads.
@@ -448,9 +456,11 @@ the records in its `after.records`.
   does not give its text to the model. It gives a note in its place, for
   example: "[This answer was superseded by a later change of the records
   (the person said: "There is no chores calendar. Forget it.") retracts it:
-  it was never true, or the person asked to forget it. The record was:
-  chores calendar (calendar). Do not repeat the earlier answer; use the
-  current records.]"
+  it was never true, or the person asked to forget it. Do not name or
+  repeat what was forgotten. Do not repeat the earlier answer; use the
+  current records.]" For a fix or an update, the note also gives the old
+  record ("The record was: ..."). For a retraction it does not: the person
+  wants it forgotten.
 - An earlier answer with no `knowledge-record` attachments (a reply from
   before this change), before the newest change: it starts with "[Before a
   change of the records: this answer can be out of date.]".
@@ -550,7 +560,8 @@ through the proxy; see Egress), `MAGI_MODEL_API_KEY` (a key placeholder
 for the proxy, in place of `MAGI_MODEL_API_KEY_FILE`), `MAGI_SEARCH_URL`
 (SearXNG for web search; see Web search), `MAGI_TIME_ZONE` (the IANA time
 zone of the household, for the time in the persona prompt and the times of
-to-dos; default UTC).
+to-dos; default UTC), `MAGI_PERSONA_WORKERS` (persona turns at the same
+time; default 4).
 
 ## Model check
 
@@ -609,6 +620,9 @@ hosts. It uses `MAGI_TEST_SETUP_URL`, `_MODEL`, `_KEY_FILE`, and `_RUNS`
 ## Limits
 
 - One replica. The persona and step workers are safe with more replicas,
-  because claims are exclusive, but this is not tested.
+  because claims are exclusive, but this is not tested. A replica runs
+  `MAGI_PERSONA_WORKERS` persona turns at the same time (default 4). The
+  turns of one stream run in order in one replica only: with more
+  replicas, two turns of one stream can run at the same time.
 - The release step builds and releases only `magi-server`.
 - Task listings read the person's runs; there is no paging.
