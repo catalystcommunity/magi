@@ -57,6 +57,16 @@ PLANS = ["We might get a second dog someday. Not now.", "Thinking about switchin
          "Maybe we'll move to {city} in a few years.", "I'd like to learn to climb one day.", "{o} might move to {team} next year, she said."]
 
 
+# Training data uses all phrasings except the last of each list; the test
+# split uses all, so it also shows how a model does on unseen wording.
+TRAIN = False
+
+
+def pick(r, options):
+    """One phrasing (the last one is held out of training data)."""
+    return r.choice(options[:-1] if TRAIN and len(options) > 1 else options)
+
+
 class W:
     """A household: the person, people, things, and their facts as notes."""
 
@@ -129,7 +139,8 @@ def c_new_fact(r):
     k = r.choice(["dentist", "vet", "home", "work", "car", "gym", "insurance", "wifi", "partner", "sister"])
     if k == "dentist":
         doc, clinic = "Dr. " + r.choice(OTHER) + " " + r.choice(LAST), r.choice(CLINICS)
-        t = r.choice([f"My dentist is {doc} at {clinic}.", f"I go to {doc} at {clinic} for my teeth."])
+        t = pick(r, [f"My dentist is {doc} at {clinic}.", f"I go to {doc} at {clinic} for my teeth.", f"Dentist: {doc}, {clinic}.",
+                     f"I see {doc} at {clinic} for cleanings.", f"For the record, my dentist is {doc}; the office is {clinic}."])
         return w, t, [{"op": "remember", "subject": me(), "relation": ["dentist"], "object": doc},
                       {"op": "remember", "subject": doc, "relation": ["works-at", "located-at", "practice", "clinic"], "object": clinic}], [], True
     if k == "vet":
@@ -140,11 +151,13 @@ def c_new_fact(r):
         return w, t, [{"op": "remember", "subject": pet, "relation": ["vet", "veterinarian"], "object": doc}], [], True
     if k == "home":
         st, city = r.choice(STREETS), r.choice(CITIES)
-        t = r.choice([f"We live on {st} in {city}.", f"Our house is on {st} in {city}."])
+        t = pick(r, [f"We live on {st} in {city}.", f"Our house is on {st} in {city}.", f"Home is {st}, {city}.",
+                     f"Our address is on {st} in {city}.", f"We've lived on {st} in {city} for a while now."])
         return w, t, [{"op": "remember", "subject": me(), "relation": ["lives-in", "lives-on", "home", "address", "lives-at"], "value_or_object": st}], [], True
     if k == "work":
         org = r.choice(ORGS)
-        t = r.choice([f"I work at {org}.", f"I'm a senior engineer at {org}."])
+        t = pick(r, [f"I work at {org}.", f"I'm a senior engineer at {org}.", f"My employer is {org}.",
+                     f"I've been at {org} for two years.", f"Work is at {org}, on the infrastructure side."])
         return w, t, [{"op": "remember", "subject": me(), "relation": ["works-at", "employer", "works-for"], "object": org}], [], True
     if k == "car":
         car = r.choice(CARS)
@@ -183,13 +196,17 @@ def c_change(r):
         while new == old:
             new = r.choice(STREETS)
         cid = w.fact(w.self, "lives-in", f"{old} in {r.choice(CITIES)}", since=since(r))
-        t = r.choice([f"We moved today. The new place is on {new} in {city}.", f"We moved to {new} in {city} this weekend."])
+        t = pick(r, [f"We moved today. The new place is on {new} in {city}.", f"We moved to {new} in {city} this weekend.",
+                     f"Moving day is done: we live on {new} in {city} now.", f"New address: {new}, {city}. The move went fine.",
+                     f"Finally settled into the new house on {new} in {city}."])
         return w, t, [{"op": "update", "id": cid, "value_or_object": new, "t": {"value": f"{new} in {city}"}}], [{"op": "remember", "subject": me(), "relation": ["lives-in"], "value_or_object": old}], True
     if k == "manager":
         old, new = w.person(), w.person()
         w.eid(old)
         cid = w.fact(w.self, "manager", old, "person", since(r))
-        t = r.choice([f"My new manager is {new}.", f"I got promoted to engineering lead. My new manager is {new}."])
+        t = pick(r, [f"My new manager is {new}.", f"I got promoted to engineering lead. My new manager is {new}.",
+                     f"I report to {new} now.", f"Reorg at work: {new} is my manager from today.",
+                     f"{new} took over as my manager this week."])
         return w, t, [{"op": "update", "id": cid, "value_or_object": new.split()[0], "t": {"value": new}}], [], True
     if k == "vet":
         pet, kind = r.choice(PETS)
@@ -201,7 +218,9 @@ def c_change(r):
     if k == "work":
         old, new = r.sample(ORGS, 2)
         cid = w.fact(w.self, "works-at", old, since=since(r))
-        t = r.choice([f"I left {old}. I start at {new} on Monday.", f"I switched jobs: I work at {new} now."])
+        t = pick(r, [f"I left {old}. I start at {new} on Monday.", f"I switched jobs: I work at {new} now.",
+                     f"Last day at {old} today; next week I join {new}.", f"I accepted the offer from {new}, so I'm leaving {old}.",
+                     f"New job! I'm at {new} now instead of {old}."])
         return w, t, [{"op": "update", "id": cid, "value_or_object": new}], [], True
     if k == "insurance":
         old, new = r.sample(INSURERS, 2)
@@ -249,7 +268,9 @@ def c_end(r):
     if k == "car":
         car = r.choice(CARS)
         cid = w.fact(w.self, "car", car, since=since(r))
-        t = r.choice([f"We sold the {car.split(' ', 2)[1]}.", f"We sold our {car.split(' ', 1)[1]} last week."])
+        t = pick(r, [f"We sold the {car.split(' ', 2)[1]}.", f"We sold our {car.split(' ', 1)[1]} last week.",
+                     f"The {car.split(' ', 2)[1]} is gone, we sold it.", f"Someone bought our {car.split(' ', 1)[1]} today.",
+                     f"Said goodbye to the {car.split(' ', 2)[1]}; it's sold."])
         return w, t, [{"op": "end", "id": cid}], [{"op": "retract", "id": cid}], True
     if k == "gym":
         g = r.choice(GYMS)
@@ -270,11 +291,13 @@ def c_end(r):
 
 def c_event(r):
     w = W(r)
-    t, v, title = r.choice([("I hurt my shoulder climbing. No climbing for a while.", "shoulder", "hurt my shoulder climbing"),
+    t, v, title = pick(r, [("I hurt my shoulder climbing. No climbing for a while.", "shoulder", "hurt my shoulder climbing"),
                             ("Back from Porto. What a trip!", "porto", "back from Porto"),
                             ("We finished the Atlas migration today.", "atlas", "finished the Atlas migration"),
                             ("Theo lost his first tooth today!", "tooth", "Theo lost his first tooth"),
-                            ("I ran my first half marathon this morning.", "marathon", "ran my first half marathon")])
+                            ("I ran my first half marathon this morning.", "marathon", "ran my first half marathon"),
+                            ("Got my second dose of the shingles vaccine today.", "vaccine", "second dose of the shingles vaccine"),
+                            ("We got back from a week in Lisbon last night.", "lisbon", "a week in Lisbon")])
     return w, t, [{"op": "event", "value": v, "t": {"subject": "me", "value": title}}], [], True
 
 
@@ -285,7 +308,9 @@ def c_third_person(r):
     w.eid(mgr)
     my_job = w.fact(w.self, "works-at", old, since=since(r))
     w.fact(w.self, "manager", mgr, "person", since(r))
-    t = f"{mgr} left {old} to join {new}."
+    t = pick(r, [f"{mgr} left {old} to join {new}.", f"{mgr} has a new job at {new}; they left {old}.",
+                 f"Big news at work: {mgr} is leaving {old} for {new}.", f"{mgr} starts at {new} next month.",
+                 f"{mgr} quit {old} and went to {new}."])
     return w, t, [{"op": "remember", "subject": mgr, "relation": ["works-at", "employer", "joined", "works-for"], "object": new}], [
         {"op": "remember", "subject": me(), "relation": ["works-at", "employer", "job", "works-for"]},
         {"op": "update", "id": my_job}, {"op": "end", "id": my_job}], True
@@ -311,29 +336,31 @@ def c_other_fact(r):
 def c_small_talk(r):
     w = W(r)
     w.fact(w.self, "dentist", "Dr. " + r.choice(LAST), "person", since(r))
-    return w, r.choice(SMALL), [], [], False
+    return w, pick(r, SMALL), [], [], False
 
 
 def c_question(r):
     w = W(r)
     w.fact(w.self, "dentist", "Dr. " + r.choice(LAST), "person", since(r))
-    return w, r.choice(QUESTIONS), [], [], False
+    return w, pick(r, QUESTIONS), [], [], False
 
 
 def c_request(r):
     w = W(r)
-    return w, r.choice(REQUESTS).format(o=r.choice(OTHER)), [], [], False
+    return w, pick(r, REQUESTS).format(o=r.choice(OTHER)), [], [], False
 
 
 def c_plan(r):
     w = W(r)
-    return w, r.choice(PLANS).format(o=r.choice(OTHER), city=r.choice(CITIES), team=r.choice(TEAMS)), [], [], False
+    return w, pick(r, PLANS).format(o=r.choice(OTHER), city=r.choice(CITIES), team=r.choice(TEAMS)), [], [], False
 
 
 def c_reports(r):
     w = W(r)
     p = w.person()
-    t = r.choice([f"{p} joined my team today.", f"{p} joined my team today. They report to me."])
+    t = pick(r, [f"{p} joined my team today.", f"{p} joined my team today. They report to me.", f"{p} reports to me starting this week.",
+                 f"Welcome {p}, the new engineer on my team.", f"I'm now the manager of {p}; they started today.",
+                 f"{p} moved onto my team and reports to me now."])
     return w, t, [{"op": "remember", "subject": p, "relation": ["manager", "reports-to", "boss"], "object": me()}], [
         {"op": "remember", "subject": me(), "relation": ["manager"], "object": p}], True
 
@@ -341,7 +368,8 @@ def c_reports(r):
 def c_birthday(r):
     w = W(r)
     n = r.randint(25, 60)
-    t = r.choice([f"It's my birthday today, I turned {n}.", f"Turned {n} today. Birthday dinner tonight!"])
+    t = pick(r, [f"It's my birthday today, I turned {n}.", f"Turned {n} today. Birthday dinner tonight!",
+                 f"Happy birthday to me, {n} years old today.", f"I'm {n} as of today. Cake later."])
     return w, t, [{"op": "remember", "subject": me(), "relation": ["birthday", "born", "birth-date", "date-of-birth"], "value": "__BIRTHDAY__", "n": n}], [], True
 
 
@@ -361,7 +389,9 @@ def c_other_update(r):
     w.eid(p)
     w.fact(w.self, "partner", p, "person")
     mine = w.fact(w.self, "works-at", r.choice(ORGS), since=since(r))
-    t = f"{p}'s work schedule changed: {p} works from home on Mondays and Fridays now."
+    t = pick(r, [f"{p}'s work schedule changed: {p} works from home on Mondays and Fridays now.",
+                 f"{p} works from home Mondays and Fridays now.", f"New schedule for {p}: home on Mondays and Fridays.",
+                 f"From now on {p} is remote on Mondays and Fridays."])
     return w, t, [{"op": "remember", "subject": p, "t": {"relation": "works-from-home", "value": "Mondays and Fridays"}}], [{"op": "update", "id": mine}, {"op": "fix", "id": mine}, {"op": "end", "id": mine}], True
 
 
@@ -425,7 +455,10 @@ def main():
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--split", default="test")
     ap.add_argument("--per-file", type=int, default=1000)
+    ap.add_argument("--train", action="store_true", help="training data: leave out the held-out phrasings")
     a = ap.parse_args()
+    global TRAIN
+    TRAIN = a.train
     r = random.Random(a.seed)
     cases = [make(r, cat, i) for cat in MAKERS for i in range(a.n)]
     r.shuffle(cases)

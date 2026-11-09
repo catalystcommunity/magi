@@ -511,7 +511,7 @@ func startsWithOther(notes, text string, selfLabels ...string) bool {
 
 var yearLike = regexp.MustCompile(`\b(19|20)\d\d\b`)
 
-var turned = regexp.MustCompile(`(?i)\b(?:turned|turn|turns|i'm now|i am now)\s+(\d{1,3})\b`)
+var turned = regexp.MustCompile(`(?i)\b(?:turned|turn|turns|i'm now|i am now|i'm|i am)\s+(\d{1,3})\b|\b(\d{1,3}) years old (?:today|now)\b`)
 
 // birthdayFrom: "It's my birthday today, I turned 37" gives the birthday
 // as a date (the day of the message, 37 years before), not "37".
@@ -529,7 +529,7 @@ func birthdayFrom(it noteItem, text string, at time.Time) (string, bool) {
 	if m == nil {
 		return "", false
 	}
-	n, _ := strconv.Atoi(m[1])
+	n, _ := strconv.Atoi(m[1] + m[2])
 	d := at.In(zone)
 	return time.Date(d.Year()-n, d.Month(), d.Day(), 0, 0, 0, 0, zone).Format("January 2, 2006"), true
 }
