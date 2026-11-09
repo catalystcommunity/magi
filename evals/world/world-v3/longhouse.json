@@ -1,0 +1,165 @@
+{
+ "house": "Squizzlezig Dev",
+ "projects": [
+  {
+   "name": "Kitchen remodel",
+   "description": "Ortega and Sons. Budget $44,000 after the cabinet change (was $38,000).",
+   "tasks": [
+    {
+     "title": "Pick the cabinet style",
+     "status": "done",
+     "who": "me",
+     "due": "2026-04-15"
+    },
+    {
+     "title": "Order the countertops",
+     "status": "done",
+     "who": "alex",
+     "due": "2026-07-30",
+     "comments": [
+      "Quartz, Calacatta look. Ordered 2026-07-28."
+     ]
+    },
+    {
+     "title": "Cabinet install",
+     "status": "done",
+     "who": "me",
+     "due": "2026-08-17",
+     "comments": [
+      "Installed. Two doors need adjustment."
+     ]
+    },
+    {
+     "title": "Book the final inspection",
+     "status": "done",
+     "who": "alex",
+     "due": "2026-11-01",
+     "comments": [
+      "Booked for November 20 at 10."
+     ]
+    },
+    {
+     "title": "Paint the kitchen walls",
+     "status": "in_progress",
+     "who": "me",
+     "due": "2026-11-15"
+    },
+    {
+     "title": "Install the pendant lights",
+     "status": "open",
+     "who": "alex",
+     "due": "2026-11-18",
+     "description": "The electrician from Ortega and Sons does the wiring."
+    },
+    {
+     "title": "Final payment to Ortega and Sons",
+     "status": "open",
+     "who": "me",
+     "due": "2026-11-25",
+     "description": "After the inspection passes."
+    }
+   ]
+  },
+  {
+   "name": "Ruby's 10th birthday party",
+   "description": "September 5, 2026 at the Highland Park pavilion.",
+   "tasks": [
+    {
+     "title": "Send the invitations",
+     "status": "done",
+     "who": "alex",
+     "due": "2026-08-15"
+    },
+    {
+     "title": "Order the cake",
+     "status": "done",
+     "who": "me",
+     "due": "2026-09-01"
+    },
+    {
+     "title": "Rent the pavilion",
+     "status": "done",
+     "who": "me",
+     "due": "2026-07-01"
+    }
+   ]
+  },
+  {
+   "name": "Garage cleanout",
+   "description": "Make room for the EV9 charger and the bikes.",
+   "tasks": [
+    {
+     "title": "Donate the old crib",
+     "status": "done",
+     "who": "alex",
+     "due": "2026-02-28"
+    },
+    {
+     "title": "Install the wall rack for the bikes",
+     "status": "open",
+     "who": "me",
+     "due": "2026-12-06"
+    },
+    {
+     "title": "Get a quote for a 240 V outlet",
+     "status": "open",
+     "who": "me",
+     "due": "2026-11-30",
+     "description": "The EV9 charges slowly on the 120 V outlet."
+    },
+    {
+     "title": "Sort the camping gear",
+     "status": "cancelled",
+     "who": "alex"
+    }
+   ]
+  },
+  {
+   "name": "Hornets end-of-season party",
+   "description": "November 14, 2026, Highland Park pavilion. We host.",
+   "tasks": [
+    {
+     "title": "Collect money for the coach gift",
+     "status": "in_progress",
+     "who": "alex",
+     "due": "2026-11-10",
+     "comments": [
+      "11 of 14 families paid."
+     ]
+    },
+    {
+     "title": "Buy the coach gift for Jen Parks",
+     "status": "open",
+     "who": "me",
+     "due": "2026-11-12"
+    },
+    {
+     "title": "Bring the folding tables",
+     "status": "open",
+     "who": "me",
+     "due": "2026-11-14"
+    }
+   ]
+  }
+ ],
+ "loose": [
+  {
+   "title": "Renew the car registration for the EV9",
+   "status": "open",
+   "who": "me",
+   "due": "2026-12-31"
+  },
+  {
+   "title": "Schedule Pepper's dental cleaning",
+   "status": "open",
+   "who": "alex",
+   "due": "2026-11-30"
+  },
+  {
+   "title": "Replace the furnace filter",
+   "status": "done",
+   "who": "me",
+   "due": "2026-10-15"
+  }
+ ]
+}

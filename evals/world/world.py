@@ -180,12 +180,63 @@ NOISE_V2 = [
 ]
 
 
+# Version 3 (load): the key messages of v2 and about ten times the other
+# messages, made from templates with many names, so that the graph has
+# many entities and facts of other people that compete with the person's
+# own in a search.
+FIRST = ["Aiden", "Bianca", "Carlos", "Dmitri", "Elena", "Farah", "Gus", "Hiro", "Ingrid", "Jonas", "Keiko", "Luis",
+         "Mara", "Niko", "Olga", "Priya", "Quinn", "Rosa", "Sami", "Tomas", "Uma", "Viktor", "Wanda", "Xavier", "Yusuf", "Zoe",
+         "Amara", "Bruno", "Celia", "Dario", "Esme", "Felix", "Greta", "Hassan", "Imani", "Joel", "Kira", "Lars"]
+LAST = ["Abara", "Brandt", "Castillo", "Dunn", "Eklund", "Foster", "Garza", "Haas", "Iqbal", "Jensen", "Kowalski", "Lindqvist",
+        "Moreno", "Nakamura", "Osei", "Petrov", "Quist", "Ramos", "Sato", "Tran", "Ueda", "Varga", "Wolfe", "Yilmaz"]
+PLACES = ["Sushi Den", "Linger", "Little Man Ice Cream", "Avanti", "Denver Central Market", "Union Station", "Wash Park",
+          "City Park", "the Botanic Gardens", "Red Rocks", "Coors Field", "the Art Museum", "Sloan's Lake", "the climbing gym on Brighton"]
+TEAMS = ["the data team", "the mobile team", "the security team", "the payments team", "the design team", "the search team"]
+LOAD_T = [
+    "Had lunch with {p} at {place}.",
+    "{p} from {team} asked me about the Harbor launch.",
+    "{p} is moving to {team} next month.",
+    "{p}'s kid started kindergarten this week.",
+    "Ran into {p} at {place}.",
+    "{p} recommended a book called The {w} Garden.",
+    "{p} got a new puppy named {w}.",
+    "Our neighbor {p} is painting their fence.",
+    "{p} gave a talk about {w} caching at work.",
+    "Coffee with {p} this morning; they live near {place} now.",
+    "{p} and {q} are planning a trip to {city}.",
+    "{p} told me their dentist is Dr. {q2} at {place2}.",
+    "{p} drives an old {car}.",
+    "{p}'s birthday party is at {place} on Saturday.",
+    "Long day. {p} and I fixed a {w} bug.",
+]
+WORDS = ["Quiet", "Copper", "Juniper", "Atlas", "Harbor", "Willow", "Granite", "Maple", "Comet", "Pebble", "Saffron", "Orbit"]
+CITIES = ["Lisbon", "Kyoto", "Austin", "Oslo", "Mexico City", "Seattle", "Montreal", "Chicago"]
+CARS = ["Subaru Outback", "Honda Civic", "Ford F-150", "Toyota RAV4", "VW Golf"]
+DENTAL = ["Pearl Dental", "Cherry Creek Dental", "Smile Studio"]
+
+
+def load_note(r):
+    who = lambda: r.choice(FIRST) + " " + r.choice(LAST)
+    return r.choice(LOAD_T).format(p=who(), q=who(), q2=r.choice(LAST), place=r.choice(PLACES), place2=r.choice(DENTAL),
+                                   team=r.choice(TEAMS), w=r.choice(WORDS), city=r.choice(CITIES), car=r.choice(CARS))
+
+
 def history(version=1):
     items = [{"text": t, "at_ms": at(d, h), "key": True} for d, h, t in KEY]
     day = START
     while day <= END:
         # About two notes each week.
-        if rng.random() < 0.29:
+        if version == 3:
+            # About 2.9 messages a day: the v2 notes and the load notes.
+            for _ in range(rng.choice([1, 2, 2, 3, 3, 4, 5])):
+                iso = day.isoformat()
+                if rng.random() < 0.15:
+                    ok = [t for t, a, b in NOISE_V2 if (a is None or a <= iso) and (b is None or iso <= b)]
+                    text = rng.choice(ok)
+                else:
+                    text = load_note(rng)
+                items.append({"text": text, "at_ms": at(day, rng.randint(7, 22), rng.choice([0, 15, 30, 45])), "key": False})
+        elif rng.random() < 0.29:
             if version == 1:
                 text = rng.choice(NOISE)
             else:
