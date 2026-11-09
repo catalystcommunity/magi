@@ -392,6 +392,7 @@ def render(img, v):
         *([{"name": "MAGI_IDENTITY_URL", "value": f"http://identity.{ns}.svc:8080"},
            {"name": "MAGI_CATALYSTCAL_URL", "value": v.get("CATALYSTCAL_URL", "")},
            {"name": "MAGI_LONGHOUSE_URL", "value": v.get("LONGHOUSE_URL", "")}] if grants else []),
+        {"name": "MAGI_PUBLIC_URL", "value": f"https://{v['PUBLIC_HOST']}"},
         {"name": "MAGI_IMAGE_REGISTRY", "value": f"registry.{ns}.svc:5000"},
         {"name": "MAGI_IMAGE_CREDENTIALS_FILE", "value": "/etc/magi/registry/registry.json"}],
         secrets=[*model_secret, ("magi-token-magi", "/etc/magi/token"), ("magi-registry-push", "/etc/magi/registry"), *persona_secrets, *detector_secrets,

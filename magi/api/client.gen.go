@@ -556,6 +556,24 @@ func (c *MagiClient) Activity(ctx context.Context, req ActivityRequest) (Activit
 	return DecodeActivity(csilResp)
 }
 
+func (c *MagiClient) GetPage(ctx context.Context, req GetPageRequest) (Page, error) {
+	var csilZero Page
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "get-page", EncodeGetPageRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodePage(csilResp)
+}
+
+func (c *MagiClient) ListPages(ctx context.Context, req ListPagesRequest) (ListPagesResponse, error) {
+	var csilZero ListPagesResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-pages", EncodeListPagesRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListPagesResponse(csilResp)
+}
+
 // RunnerClient is a typed client for the RunnerService service. The client owns
 // (de)serialization via the generated codec; the transport only moves bytes.
 type RunnerClient struct {

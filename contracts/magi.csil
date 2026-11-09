@@ -574,6 +574,15 @@ Activity = {
   ? updated_ms: uint,
 }
 
+;;; A page that a persona made for the person: Markdown text, with diagrams
+;;; in ```mermaid blocks. id is the artifact digest. A client shows it at
+;;; <public URL>/#/page/<id>; the reply that made it has a ref of kind
+;;; "page". Only the person can read it. list-pages gives no text.
+Page = { id: text, title: text, text: text, persona: text, created_ms: uint }
+GetPageRequest = { id: text }
+ListPagesRequest = { ? limit: uint }
+ListPagesResponse = { pages: [* Page] }
+
 service MagiService {
   say: SayRequest -> SayResponse,
   read: ReadRequest -> ReadResponse,
@@ -632,6 +641,8 @@ service MagiService {
   disconnect: DisconnectRequest -> Connection,
   import-history: ImportHistoryRequest -> ImportHistoryResponse,
   activity: ActivityRequest -> Activity,
+  get-page: GetPageRequest -> Page,
+  list-pages: ListPagesRequest -> ListPagesResponse,
 }
 
 ;;; RunnerService is for runners: programs on other machines that connect

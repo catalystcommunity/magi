@@ -474,3 +474,19 @@ func (m *Service) Disconnect(ctx context.Context, req magiapi.DisconnectRequest)
 	}
 	return magiapi.Connection{}, rpc.Invalid("system must be calendar or longhouse")
 }
+
+// CalendarFor is a catalystcal transport that acts as owner (seed tools).
+func (s *System) CalendarFor(ctx context.Context, owner string) (cal.Transport, error) {
+	if s.Calendar == nil {
+		return nil, errors.New("no calendar service is configured")
+	}
+	return s.Calendar.transport(ctx, owner)
+}
+
+// LonghouseFor is a Longhouse transport that acts as owner (seed tools).
+func (s *System) LonghouseFor(owner string) (cal.Transport, error) {
+	if s.Longhouse == nil {
+		return nil, errors.New("Longhouse is not configured")
+	}
+	return s.Longhouse.transport(owner), nil
+}

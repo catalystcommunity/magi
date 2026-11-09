@@ -532,7 +532,7 @@ busy. `magi activity` prints it.
 
 `import-history` takes the caller's earlier messages (at most 20 in one
 call) with their times. Each message goes into the stream with its time
-(modality `import`), and the note taker records its facts as of that time:
+(modality `text`), and the note taker records its facts as of that time:
 a new fact is valid from the time of the message, and a change happens at
 that time. Magi makes no reply. The note taker always gets the date of the
 message, also in live turns, so that "next Tuesday" has a date.

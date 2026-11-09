@@ -8650,6 +8650,208 @@ func DecodeActivity(csilData []byte) (Activity, error) {
 	return csilDecActivity(csilRoot)
 }
 
+// csilEncPage builds the canonical CBOR value tree for a Page.
+func csilEncPage(csilV Page) cborValue {
+	csilEntries := make(cborMap, 0, 5)
+	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
+	csilEntries = append(csilEntries, cborEntry{cborText("text"), cborText(csilV.Text)})
+	csilEntries = append(csilEntries, cborEntry{cborText("title"), cborText(csilV.Title)})
+	csilEntries = append(csilEntries, cborEntry{cborText("persona"), cborText(csilV.Persona)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_ms"), cborUint(csilV.CreatedMs)})
+	return csilEntries
+}
+
+// csilDecPage reconstructs a Page from a decoded CBOR value tree.
+func csilDecPage(csilRoot cborValue) (Page, error) {
+	var csilOut Page
+	{
+		csilField, csilErr := cborRequire(csilRoot, "id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Id = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "title")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Title = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "text")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Text = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "persona")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Persona = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "created_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.CreatedMs = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodePage encodes a Page to canonical CSIL CBOR bytes.
+func EncodePage(csilV Page) []byte {
+	return cborEncode(csilEncPage(csilV))
+}
+
+// DecodePage decodes canonical CSIL CBOR bytes into a Page.
+func DecodePage(csilData []byte) (Page, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero Page
+		return csilZero, csilErr
+	}
+	return csilDecPage(csilRoot)
+}
+
+// csilEncGetPageRequest builds the canonical CBOR value tree for a GetPageRequest.
+func csilEncGetPageRequest(csilV GetPageRequest) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
+	return csilEntries
+}
+
+// csilDecGetPageRequest reconstructs a GetPageRequest from a decoded CBOR value tree.
+func csilDecGetPageRequest(csilRoot cborValue) (GetPageRequest, error) {
+	var csilOut GetPageRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Id = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeGetPageRequest encodes a GetPageRequest to canonical CSIL CBOR bytes.
+func EncodeGetPageRequest(csilV GetPageRequest) []byte {
+	return cborEncode(csilEncGetPageRequest(csilV))
+}
+
+// DecodeGetPageRequest decodes canonical CSIL CBOR bytes into a GetPageRequest.
+func DecodeGetPageRequest(csilData []byte) (GetPageRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero GetPageRequest
+		return csilZero, csilErr
+	}
+	return csilDecGetPageRequest(csilRoot)
+}
+
+// csilEncListPagesRequest builds the canonical CBOR value tree for a ListPagesRequest.
+func csilEncListPagesRequest(csilV ListPagesRequest) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	if csilV.Limit != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("limit"), cborUint((*csilV.Limit))})
+	}
+	return csilEntries
+}
+
+// csilDecListPagesRequest reconstructs a ListPagesRequest from a decoded CBOR value tree.
+func csilDecListPagesRequest(csilRoot cborValue) (ListPagesRequest, error) {
+	var csilOut ListPagesRequest
+	if csilField, csilOk := cborMapGet(csilRoot, "limit"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Limit = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeListPagesRequest encodes a ListPagesRequest to canonical CSIL CBOR bytes.
+func EncodeListPagesRequest(csilV ListPagesRequest) []byte {
+	return cborEncode(csilEncListPagesRequest(csilV))
+}
+
+// DecodeListPagesRequest decodes canonical CSIL CBOR bytes into a ListPagesRequest.
+func DecodeListPagesRequest(csilData []byte) (ListPagesRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ListPagesRequest
+		return csilZero, csilErr
+	}
+	return csilDecListPagesRequest(csilRoot)
+}
+
+// csilEncListPagesResponse builds the canonical CBOR value tree for a ListPagesResponse.
+func csilEncListPagesResponse(csilV ListPagesResponse) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("pages"), cborEncArray(csilV.Pages, func(csilElem Page) cborValue { return csilEncPage(csilElem) })})
+	return csilEntries
+}
+
+// csilDecListPagesResponse reconstructs a ListPagesResponse from a decoded CBOR value tree.
+func csilDecListPagesResponse(csilRoot cborValue) (ListPagesResponse, error) {
+	var csilOut ListPagesResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "pages")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]Page, error) { return cborDecArray(csilV, csilDecPage) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Pages = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeListPagesResponse encodes a ListPagesResponse to canonical CSIL CBOR bytes.
+func EncodeListPagesResponse(csilV ListPagesResponse) []byte {
+	return cborEncode(csilEncListPagesResponse(csilV))
+}
+
+// DecodeListPagesResponse decodes canonical CSIL CBOR bytes into a ListPagesResponse.
+func DecodeListPagesResponse(csilData []byte) (ListPagesResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ListPagesResponse
+		return csilZero, csilErr
+	}
+	return csilDecListPagesResponse(csilRoot)
+}
+
 // csilEncRunnerClaimRequest builds the canonical CBOR value tree for a RunnerClaimRequest.
 func csilEncRunnerClaimRequest(csilV RunnerClaimRequest) cborValue {
 	csilEntries := make(cborMap, 0, 2)

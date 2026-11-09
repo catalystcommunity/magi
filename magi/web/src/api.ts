@@ -41,10 +41,10 @@ export function signOut() { setToken(null); setMe(null); }
 
 // --- Views ----------------------------------------------------------------
 // The view is in the URL hash, so the back button and links work.
-export type View = "talk" | "questions" | "network" | "tasks" | "task" | "knowledge" | "words";
+export type View = "talk" | "questions" | "network" | "tasks" | "task" | "knowledge" | "words" | "page";
 function parse(): { view: View; arg: string } {
   const [v, ...rest] = location.hash.replace(/^#\/?/, "").split("/");
-  const views: View[] = ["talk", "questions", "network", "tasks", "task", "knowledge", "words"];
+  const views: View[] = ["talk", "questions", "network", "tasks", "task", "knowledge", "words", "page"];
   return { view: views.includes(v as View) ? (v as View) : "talk", arg: decodeURIComponent(rest.join("/")) };
 }
 export const [route, setRoute] = createSignal(parse());

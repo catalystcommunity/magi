@@ -50,6 +50,7 @@ var usage = `usage: magi [--server URL] <command> [args]
   persona ID NAME never|private|public [MEMBER...]   operator: make or change a persona
   tasks                      list tasks
   connect calendar|longhouse      get a link that lets Magi act for you there
+  import-history [-persona P] [-from N] FILE   import your earlier messages with their times
   activity [-persona P]           what Magi does now for you (a reply in progress)
   connections                     list your connections; disconnect SYSTEM forgets one
   todos [-all] [-plan P] [-json]  list your to-dos and reminders (-all: also the
@@ -409,6 +410,45 @@ func (c *cli) run(cmd string, args []string) error {
 		}
 		fmt.Println(r.Message)
 		fmt.Println(r.Url)
+		return nil
+	case "import-history":
+		// The file is {"messages": [{"text": ..., "at_ms": ...}, ...]}.
+		fs := flag.NewFlagSet("import-history", flag.ContinueOnError)
+		p := fs.String("persona", "", "persona")
+		from := fs.Int("from", 0, "first message to import (to continue a stopped import)")
+		batch := fs.Int("batch", 10, "messages in one call (at most 20)")
+		asJSON := fs.Bool("json", false, "print one JSON line for each message")
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		if fs.NArg() != 1 {
+			return errors.New("usage: magi import-history [-persona P] [-from N] FILE")
+		}
+		b, err := os.ReadFile(fs.Arg(0))
+		if err != nil {
+			return err
+		}
+		var f struct {
+			Messages []magiapi.HistoryMessage `json:"messages"`
+		}
+		if err := json.Unmarshal(b, &f); err != nil {
+			return err
+		}
+		for i := *from; i < len(f.Messages); i += *batch {
+			part := f.Messages[i:min(i+*batch, len(f.Messages))]
+			r, err := c.magi.ImportHistory(c.ctx, magiapi.ImportHistoryRequest{Persona: optional(personaID(*p)), Messages: part})
+			if err != nil {
+				return fmt.Errorf("messages %d to %d: %w (continue with -from %d)", i, i+len(part)-1, err, i)
+			}
+			for j, m := range r.Messages {
+				if *asJSON {
+					line, _ := json.Marshal(map[string]any{"n": i + j, "id": m.Id, "at_ms": m.AtMs, "ms": m.Ms, "notes": m.Notes, "error": deref(m.Error)})
+					fmt.Println(string(line))
+				} else {
+					fmt.Printf("%d %s %d ms %d notes %s\n", i+j, time.UnixMilli(int64(m.AtMs)).Format("2006-01-02"), m.Ms, len(m.Notes), deref(m.Error))
+				}
+			}
+		}
 		return nil
 	case "activity":
 		fs := flag.NewFlagSet("activity", flag.ContinueOnError)

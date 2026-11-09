@@ -188,8 +188,12 @@ func personName(p *cal.PersonSummary) string {
 	return p.Subject
 }
 
+// own: a calendar of the person. Through an act-as grant the access path
+// of the person's own calendars is "delegation".
+func own(c cal.Calendar) bool { return c.AccessPath == "owner" || c.AccessPath == "delegation" }
+
 func calName(c cal.Calendar) string {
-	if c.Access == "owner" {
+	if own(c) {
 		return c.Name
 	}
 	return c.Name + " (" + personName(&c.Owner) + ")"
@@ -207,7 +211,7 @@ func pickCalendar(cals []cal.Calendar, want string, write bool) (cal.Calendar, e
 			continue
 		}
 		if want == "" {
-			if c.IsDefault && c.Access == "owner" {
+			if c.IsDefault && own(c) {
 				return c, nil
 			}
 			continue

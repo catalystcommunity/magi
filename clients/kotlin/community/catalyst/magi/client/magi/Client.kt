@@ -197,6 +197,12 @@ class MagiClient(private val transport: Transport) {
     fun activity(request: ActivityRequest): Activity {
         return decode<Activity>(transport.call("MagiService", "activity", encode(request)))
     }
+    fun getPage(request: GetPageRequest): Page {
+        return decode<Page>(transport.call("MagiService", "get-page", encode(request)))
+    }
+    fun listPages(request: ListPagesRequest): ListPagesResponse {
+        return decode<ListPagesResponse>(transport.call("MagiService", "list-pages", encode(request)))
+    }
 }
 
 /** Typed client for the RunnerService service. The client owns (de)serialization;

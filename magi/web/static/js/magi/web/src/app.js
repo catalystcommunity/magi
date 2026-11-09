@@ -7,6 +7,7 @@ import { identity, me, setMe, hasToken, setToken, signOut, route, go, notice, qu
 import { Conversation, PersonaList, PersonaOrb, startConversation } from "./conversation.js";
 import { Questions, Network } from "./review.js";
 import { Tasks, TaskView } from "./tasks.js";
+import { PageView } from "./page.js";
 import { Knowledge, Words } from "./knowledge.js";
 import { tray, dismiss, startAttention, askForNotifications } from "./attention.js";
 // --- Sign in ----------------------------------------------------------------
@@ -33,7 +34,9 @@ async function beginLogin(id) {
     setSignInStatus("Opening your identity provider.");
     try {
         const b = await identity.beginLogin({ identity: id, client: "web", returnUrl: location.origin + location.pathname });
-        pending.set({ loginId: b.loginId, expiresMs: b.expiresMs });
+        // The return URL cannot have a hash; keep the view (a page link) to
+        // open it after the sign in.
+        pending.set({ loginId: b.loginId, expiresMs: b.expiresMs, hash: location.hash || undefined });
         const u = new URL(b.url);
         const form = document.createElement("form");
         form.method = "post";
@@ -79,6 +82,8 @@ async function finishLogin(p) {
                 throw new Error(r.message ?? `The sign in is ${r.status}.`);
             setToken(r.token);
             setSignInStatus("");
+            if (p.hash && !location.hash)
+                location.hash = p.hash;
             return start();
         }
         pending.set(null);
@@ -116,7 +121,7 @@ const tabs = [
 ];
 function Shell() {
     const active = (v) => route().view === v || (v === "tasks" && route().view === "task");
-    return _jsxs("div", { class: "shell", children: [_jsxs("header", { class: "top", children: [_jsxs("a", { class: "brand", href: "#/talk", "aria-label": "Magi, talk", children: [_jsx(PersonaOrb, {}), _jsx("span", { class: "wordmark", children: "Magi" })] }), _jsxs("nav", { class: "tabs", "aria-label": "Sections", children: [_jsx(For, { each: tabs.filter((t) => t.view !== "network"), children: (t) => _jsx(TabLink, { t: t, active: active }) }), _jsx(Show, { when: () => networkCount() !== null, children: _jsx(TabLink, { t: tabs[2], active: active }) })] }), _jsxs("div", { class: "me", children: [_jsx("span", { class: "me-name", title: () => me()?.subject ?? "", children: () => me()?.name }), _jsx("button", { class: "text-button", onClick: signOut, children: "Sign out" })] })] }), _jsxs("div", { class: "body", children: [_jsx("aside", { class: "rail", children: _jsx(PersonaList, {}) }), _jsxs("main", { class: "main", children: [_jsxs(Switch, { children: [_jsx(Match, { when: () => route().view === "questions", children: _jsx(Questions, {}) }), _jsx(Match, { when: () => route().view === "network", children: _jsx(Network, {}) }), _jsx(Match, { when: () => route().view === "tasks", children: _jsx(Tasks, {}) }), _jsx(Match, { when: () => route().view === "task", children: () => _jsx(TaskView, { id: route().arg }) }), _jsx(Match, { when: () => route().view === "knowledge", children: _jsx(Knowledge, {}) }), _jsx(Match, { when: () => route().view === "words", children: _jsx(Words, {}) })] }), _jsx("div", { class: "talk-wrap", hidden: () => route().view !== "talk", children: _jsx(Conversation, {}) })] })] }), _jsx(Show, { when: notice, children: _jsx("div", { class: () => "notice" + (notice()?.bad ? " bad" : ""), role: "status", children: () => notice()?.text }) }), _jsx(NoticeTray, {})] });
+    return _jsxs("div", { class: "shell", children: [_jsxs("header", { class: "top", children: [_jsxs("a", { class: "brand", href: "#/talk", "aria-label": "Magi, talk", children: [_jsx(PersonaOrb, {}), _jsx("span", { class: "wordmark", children: "Magi" })] }), _jsxs("nav", { class: "tabs", "aria-label": "Sections", children: [_jsx(For, { each: tabs.filter((t) => t.view !== "network"), children: (t) => _jsx(TabLink, { t: t, active: active }) }), _jsx(Show, { when: () => networkCount() !== null, children: _jsx(TabLink, { t: tabs[2], active: active }) })] }), _jsxs("div", { class: "me", children: [_jsx("span", { class: "me-name", title: () => me()?.subject ?? "", children: () => me()?.name }), _jsx("button", { class: "text-button", onClick: signOut, children: "Sign out" })] })] }), _jsxs("div", { class: "body", children: [_jsx("aside", { class: "rail", children: _jsx(PersonaList, {}) }), _jsxs("main", { class: "main", children: [_jsxs(Switch, { children: [_jsx(Match, { when: () => route().view === "questions", children: _jsx(Questions, {}) }), _jsx(Match, { when: () => route().view === "network", children: _jsx(Network, {}) }), _jsx(Match, { when: () => route().view === "tasks", children: _jsx(Tasks, {}) }), _jsx(Match, { when: () => route().view === "task", children: () => _jsx(TaskView, { id: route().arg }) }), _jsx(Match, { when: () => route().view === "knowledge", children: _jsx(Knowledge, {}) }), _jsx(Match, { when: () => route().view === "words", children: _jsx(Words, {}) }), _jsx(Match, { when: () => route().view === "page", children: () => _jsx(PageView, { id: route().arg }) })] }), _jsx("div", { class: "talk-wrap", hidden: () => route().view !== "talk", children: _jsx(Conversation, {}) })] })] }), _jsx(Show, { when: notice, children: _jsx("div", { class: () => "notice" + (notice()?.bad ? " bad" : ""), role: "status", children: () => notice()?.text }) }), _jsx(NoticeTray, {})] });
 }
 // The notices of the personas: the newest at the bottom, until the person
 // dismisses them here or on another device.

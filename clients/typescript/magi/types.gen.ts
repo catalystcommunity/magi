@@ -1057,6 +1057,32 @@ export interface Activity {
 }
 
 /**
+ * A page that a persona made for the person: Markdown text, with diagrams
+ * in ```mermaid blocks. id is the artifact digest. A client shows it at
+ * <public URL>/#/page/<id>; the reply that made it has a ref of kind
+ * "page". Only the person can read it. list-pages gives no text.
+ */
+export interface Page {
+  id: string;
+  title: string;
+  text: string;
+  persona: string;
+  createdMs: number;
+}
+
+export interface GetPageRequest {
+  id: string;
+}
+
+export interface ListPagesRequest {
+  limit?: number;
+}
+
+export interface ListPagesResponse {
+  pages: Page[];
+}
+
+/**
  * RunnerService is for runners: programs on other machines that connect
  * to Magi, claim workflow steps from their own queues, and run them there.
  * A runner never listens on the network. A runner token has the scope

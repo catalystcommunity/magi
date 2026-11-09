@@ -1163,6 +1163,31 @@ data class Activity(
     val updatedMs: ULong? = null
 )
 
+/** Page record. */
+data class Page(
+    val id: String,
+    val title: String,
+    val text: String,
+    val persona: String,
+    // wire key: created_ms
+    val createdMs: ULong
+)
+
+/** GetPageRequest record. */
+data class GetPageRequest(
+    val id: String
+)
+
+/** ListPagesRequest record. */
+data class ListPagesRequest(
+    val limit: ULong? = null
+)
+
+/** ListPagesResponse record. */
+data class ListPagesResponse(
+    val pages: List<Page>
+)
+
 /** RunnerClaimRequest record. */
 data class RunnerClaimRequest(
     val queue: String,

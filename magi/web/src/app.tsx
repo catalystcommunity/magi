@@ -6,6 +6,7 @@ import { identity, me, setMe, hasToken, setToken, signOut, route, go, notice, qu
 import { Conversation, PersonaList, PersonaOrb, startConversation } from "./conversation.tsx";
 import { Questions, Network } from "./review.tsx";
 import { Tasks, TaskView } from "./tasks.tsx";
+import { PageView } from "./page.tsx";
 import { Knowledge, Words } from "./knowledge.tsx";
 import { tray, dismiss, startAttention, askForNotifications } from "./attention.ts";
 import type { Notice } from "../../../clients/typescript/magi/types.gen.ts";
@@ -16,7 +17,7 @@ import type { Notice } from "../../../clients/typescript/magi/types.gen.ts";
 // and the page then takes the token with the login_id that it kept in
 // sessionStorage. The login_id never leaves this origin.
 const PENDING_KEY = "magi.login";
-type Pending = { loginId: string; expiresMs: number };
+type Pending = { loginId: string; expiresMs: number; hash?: string };
 const pending = {
   get(): Pending | null { try { return JSON.parse(sessionStorage.getItem(PENDING_KEY) ?? "null"); } catch { return null; } },
   set(v: Pending | null) { try { v ? sessionStorage.setItem(PENDING_KEY, JSON.stringify(v)) : sessionStorage.removeItem(PENDING_KEY); } catch { /* unavailable */ } },
@@ -29,7 +30,9 @@ async function beginLogin(id: string) {
   setSignInStatus("Opening your identity provider.");
   try {
     const b = await identity.beginLogin({ identity: id, client: "web", returnUrl: location.origin + location.pathname });
-    pending.set({ loginId: b.loginId, expiresMs: b.expiresMs });
+    // The return URL cannot have a hash; keep the view (a page link) to
+    // open it after the sign in.
+    pending.set({ loginId: b.loginId, expiresMs: b.expiresMs, hash: location.hash || undefined });
     const u = new URL(b.url);
     const form = document.createElement("form");
     form.method = "post";
@@ -64,6 +67,7 @@ async function finishLogin(p: Pending) {
       if (r.status !== "complete" || !r.token) throw new Error(r.message ?? `The sign in is ${r.status}.`);
       setToken(r.token);
       setSignInStatus("");
+      if (p.hash && !location.hash) location.hash = p.hash;
       return start();
     }
     pending.set(null);
@@ -134,6 +138,7 @@ function Shell() {
           <Match when={() => route().view === "task"}>{() => <TaskView id={route().arg} />}</Match>
           <Match when={() => route().view === "knowledge"}><Knowledge /></Match>
           <Match when={() => route().view === "words"}><Words /></Match>
+          <Match when={() => route().view === "page"}>{() => <PageView id={route().arg} />}</Match>
         </Switch>
         {/* The conversation stays mounted, so its long poll and scroll position stay. */}
         <div class="talk-wrap" hidden={() => route().view !== "talk"}><Conversation /></div>

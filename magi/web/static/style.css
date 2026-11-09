@@ -292,3 +292,26 @@ button.about:hover { color: var(--harbor); }
 @keyframes turn { to { transform: rotate(360deg); } }
 .working { display: inline-flex; align-items: center; gap: 0.5rem; margin: 0.25rem 0; color: var(--slate); font-size: 0.92rem; }
 @media (prefers-reduced-motion: reduce) { .orb.working { animation: none; outline: 2px dashed var(--apricot); outline-offset: 2px; } }
+
+/* Pages that a persona made (page.tsx): a readable column on all widths. */
+.page-view { max-width: 46rem; margin: 0 auto; padding: 1rem 16px 3rem; }
+.page { background: var(--cloud); border: 1px solid var(--peach-line); border-radius: 14px; padding: 1.25rem 1.25rem 1.5rem; margin-top: 0.75rem; }
+.page h1 { font-size: 1.6rem; }
+.page-meta { color: var(--slate); font-size: 0.9rem; margin: 0.25rem 0 1rem; }
+.page-body { line-height: 1.6; overflow-wrap: anywhere; }
+.page-body h2 { font-size: 1.25rem; margin: 1.4rem 0 0.5rem; }
+.page-body h3, .page-body h4 { font-size: 1.05rem; margin: 1.1rem 0 0.4rem; }
+.page-body p, .page-body ul, .page-body ol, .page-body blockquote { margin: 0 0 0.8rem; }
+.page-body ul, .page-body ol { padding-left: 1.4rem; }
+.page-body code { font-family: var(--mono); font-size: 0.9em; background: var(--sky); border-radius: 4px; padding: 0 0.25em; }
+.page-body pre { background: var(--sky); border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; overflow-x: auto; }
+.page-body pre code { background: none; padding: 0; }
+.page-body blockquote { border-left: 3px solid var(--apricot); padding-left: 0.8rem; color: var(--slate); }
+.page-body a { color: var(--blue); }
+.page-body .table-wrap { overflow-x: auto; margin: 0 0 1rem; }
+.page-body table { border-collapse: collapse; min-width: 100%; font-size: 0.95rem; }
+.page-body th, .page-body td { border-bottom: 1px solid var(--line); padding: 0.35rem 0.6rem; text-align: left; vertical-align: top; }
+.page-body th { font-weight: 600; }
+.page-body .diagram { margin: 0.5rem 0 1.2rem; overflow-x: auto; color: var(--slate); }
+.page-body .diagram svg { max-width: 100%; height: auto; }
+.page-link .about-kind { color: var(--apricot); }

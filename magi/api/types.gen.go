@@ -920,6 +920,30 @@ type Activity struct {
 	UpdatedMs *uint64 `json:"updated_ms,omitempty" yaml:"updated_ms,omitempty"`
 }
 
+// Page represents a structured data type
+type Page struct {
+	Id        string `json:"id" yaml:"id"`
+	Title     string `json:"title" yaml:"title"`
+	Text      string `json:"text" yaml:"text"`
+	Persona   string `json:"persona" yaml:"persona"`
+	CreatedMs uint64 `json:"created_ms" yaml:"created_ms"`
+}
+
+// GetPageRequest represents a structured data type
+type GetPageRequest struct {
+	Id string `json:"id" yaml:"id"`
+}
+
+// ListPagesRequest represents a structured data type
+type ListPagesRequest struct {
+	Limit *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+}
+
+// ListPagesResponse represents a structured data type
+type ListPagesResponse struct {
+	Pages []Page `json:"pages" yaml:"pages"`
+}
+
 // RunnerClaimRequest represents a structured data type
 type RunnerClaimRequest struct {
 	Queue  string  `json:"queue" yaml:"queue"`

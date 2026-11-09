@@ -177,6 +177,40 @@ func browser() string {
 	return ""
 }
 
+// pageCases: the page renderer makes elements, not HTML: a script in the
+// text stays text, an unsafe link is only text, and a mermaid block
+// becomes a diagram box.
+const pageCases = `
+import { markdown } from "/s/@/js/magi/web/src/markdown.js";
+const out = [];
+const check = (ok, what) => out.push(ok ? "ok" : what);
+const root = document.createElement("div");
+const d = markdown(root, [
+  "# Plan", "Some **bold** and <scr" + "ipt>window.bad=1</scr" + "ipt> text.", "",
+  "- [ok](https://example.local/a)", "- [bad](javascript:alert(1))", "",
+  "| A | B |", "|---|---|", "| 1 | 2 |", "",
+  "~~~".replaceAll("~", "\x60") + "mermaid", "flowchart LR; a-->b", "~~~".replaceAll("~", "\x60"),
+].join("\n"));
+check(root.querySelector("h2")?.textContent === "Plan", "heading");
+check(!root.querySelector("script") && root.textContent.includes("<scr" + "ipt>"), "script stays text");
+check(root.querySelector("strong")?.textContent === "bold", "bold");
+const links = [...root.querySelectorAll("a")].map((a) => a.getAttribute("href"));
+check(links.length === 1 && links[0] === "https://example.local/a", "links: " + links.join(","));
+check(root.querySelectorAll("td").length === 2, "table");
+check(d.length === 1 && d[0].code === "flowchart LR; a-->b", "diagram: " + JSON.stringify(d.map((x) => x.code)));
+check(window.bad === undefined, "no script ran");
+const bad = out.filter((x) => x !== "ok");
+document.body.textContent = bad.length ? "FAIL " + bad.join("; ") : "PASS " + out.length;
+`
+
+func TestPageInBrowser(t *testing.T) {
+	if got := runInBrowser(t, pageCases); !strings.HasPrefix(got, "PASS") {
+		t.Fatalf("page cases: %s", got)
+	} else {
+		t.Log(got)
+	}
+}
+
 func TestRuntimeInBrowser(t *testing.T) {
 	if got := runInBrowser(t, runtimeCases); !strings.HasPrefix(got, "PASS") {
 		t.Fatalf("runtime cases: %s", got)

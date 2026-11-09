@@ -6,6 +6,8 @@
 #
 #   solid-js 1.9.17  MIT  runtime: magi/web/static/vendor/solid-js/
 #                         types:   magi/web/types/solid-js/
+#   mermaid 11.17.2  MIT  magi/web/static/vendor/mermaid/mermaid.min.js
+#                         (diagrams on persona pages; loaded only there)
 #
 # The JSX types import csstype only for CSS property names; a small stub in
 # magi/web/types/csstype stands in for it (the real package is 1.3 MB).
@@ -38,4 +40,8 @@ cp "$s/LICENSE" "$web/types/solid-js/LICENSE"
 # The client uses the h JSX runtime (no Babel), so the core types must use
 # its JSX element type too (it also allows functions as elements).
 cp "$s/h/jsx-runtime/types/jsx.d.ts" "$web/types/solid-js/types/jsx.d.ts"
+fetch mermaid 11.17.2 sha512-V6K3C8EBdEsPFZXSKMJe6ppQOENxuHARr9GvHX4hh47lAbhMRD9qf4oEK7LoaRQxULMa80/qt5gHO73aCleBBg==
+rm -rf "$web/static/vendor/mermaid"
+mkdir -p "$web/static/vendor/mermaid"
+cp "$tmp/mermaid/package/LICENSE" "$tmp/mermaid/package/dist/mermaid.min.js" "$web/static/vendor/mermaid/"
 echo "web libraries copied"

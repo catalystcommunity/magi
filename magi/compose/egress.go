@@ -42,6 +42,10 @@ type EgressSecretRule struct {
 	// Owners are the subjects whose environments get the rule. Empty
 	// means all owners.
 	Owners []string `json:"owners,omitempty"`
+	// Personas: only the environments of tasks that one of these personas
+	// started get the rule (for example a GitHub token for the
+	// engineering manager only). Empty means all.
+	Personas []string `json:"personas,omitempty"`
 }
 
 type EgressRule struct {
@@ -141,9 +145,18 @@ func urlPath(u string) string {
 
 // SecretRules returns the rules for the owner of the flow.
 func (r *EgressRules) SecretRules(f magiapi.EgressFlow) []magiapi.EgressSecretRule {
+	return r.secretRules(f, func() string { return "" })
+}
+
+// secretRules: persona gives the persona that started the task of the
+// flow ("" when there is none); it is called only for a rule with personas.
+func (r *EgressRules) secretRules(f magiapi.EgressFlow, persona func() string) []magiapi.EgressSecretRule {
 	out := []magiapi.EgressSecretRule{}
 	for _, s := range r.Secrets {
 		if len(s.Owners) > 0 && !slices.Contains(s.Owners, f.Owner) {
+			continue
+		}
+		if len(s.Personas) > 0 && !slices.Contains(s.Personas, persona()) {
 			continue
 		}
 		x := magiapi.EgressSecretRule{Placeholder: s.Placeholder, Secret: s.Secret, Hosts: s.Hosts, Place: s.Place}
@@ -231,7 +244,28 @@ func (e *Egress) SecretRules(ctx context.Context, req magiapi.EgressSecretRulesR
 	if err := egressCaller(ctx); err != nil {
 		return magiapi.EgressSecretRulesResponse{}, err
 	}
-	return magiapi.EgressSecretRulesResponse{Rules: e.rules().SecretRules(req.Flow)}, nil
+	var p *string
+	persona := func() string {
+		if p == nil {
+			p = ptr(e.flowPersona(ctx, req.Flow))
+		}
+		return *p
+	}
+	return magiapi.EgressSecretRulesResponse{Rules: e.rules().secretRules(req.Flow, persona)}, nil
+}
+
+// flowPersona gives the persona that started the task of the environment
+// of the flow, or "".
+func (e *Egress) flowPersona(ctx context.Context, f magiapi.EgressFlow) string {
+	env, err := e.environment(ctx, magiapi.EgressEnvironmentRequest{Environment: f.Environment})
+	if err != nil || env.Task == nil {
+		return ""
+	}
+	run, err := e.S.Workflow.GetRun(e.S.AsService(ctx), workflowapi.GetRunRequest{Id: *env.Task})
+	if err != nil || run.Owner != f.Owner {
+		return ""
+	}
+	return personaOr(ptr(run.Vars["persona"]))
 }
 
 func (e *Egress) Evaluate(ctx context.Context, req magiapi.EgressEvaluateRequest) (magiapi.EgressVerdict, error) {

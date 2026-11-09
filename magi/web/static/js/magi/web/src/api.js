@@ -52,7 +52,7 @@ export const [me, setMe] = createSignal(null);
 export function signOut() { setToken(null); setMe(null); }
 function parse() {
     const [v, ...rest] = location.hash.replace(/^#\/?/, "").split("/");
-    const views = ["talk", "questions", "network", "tasks", "task", "knowledge", "words"];
+    const views = ["talk", "questions", "network", "tasks", "task", "knowledge", "words", "page"];
     return { view: views.includes(v) ? v : "talk", arg: decodeURIComponent(rest.join("/")) };
 }
 export const [route, setRoute] = createSignal(parse());

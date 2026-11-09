@@ -706,6 +706,28 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			}
 			return EncodeActivity(resp), nil
 		},
+		"get-page": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeGetPageRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.GetPage(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodePage(resp), nil
+		},
+		"list-pages": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListPagesRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListPages(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListPagesResponse(resp), nil
+		},
 	}
 }
 

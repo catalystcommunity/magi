@@ -3265,6 +3265,90 @@ fun activityFromCborValue(cbor: CborValue): Activity {
 /** Decode CSIL CBOR bytes into a Activity. */
 fun activityFromCbor(bytes: ByteArray): Activity = activityFromCborValue(CsilCbor.decode(bytes))
 
+/** The CBOR value tree for a Page (deep, canonical key order). */
+fun Page.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    csilEntries.add(CborValue.CText("text") to CborValue.CText(this.text))
+    csilEntries.add(CborValue.CText("title") to CborValue.CText(this.title))
+    csilEntries.add(CborValue.CText("persona") to CborValue.CText(this.persona))
+    csilEntries.add(CborValue.CText("created_ms") to CborValue.CUint(this.createdMs))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a Page to canonical CSIL CBOR bytes. */
+fun Page.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a Page from a decoded CBOR value tree. */
+fun pageFromCborValue(cbor: CborValue): Page {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val title = CsilCbor.asText(CsilCbor.require(cbor, "title"))
+    val text = CsilCbor.asText(CsilCbor.require(cbor, "text"))
+    val persona = CsilCbor.asText(CsilCbor.require(cbor, "persona"))
+    val createdMs = CsilCbor.asULong(CsilCbor.require(cbor, "created_ms"))
+    return Page(id = id, title = title, text = text, persona = persona, createdMs = createdMs)
+}
+
+/** Decode CSIL CBOR bytes into a Page. */
+fun pageFromCbor(bytes: ByteArray): Page = pageFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a GetPageRequest (deep, canonical key order). */
+fun GetPageRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a GetPageRequest to canonical CSIL CBOR bytes. */
+fun GetPageRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a GetPageRequest from a decoded CBOR value tree. */
+fun getPageRequestFromCborValue(cbor: CborValue): GetPageRequest {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    return GetPageRequest(id = id)
+}
+
+/** Decode CSIL CBOR bytes into a GetPageRequest. */
+fun getPageRequestFromCbor(bytes: ByteArray): GetPageRequest = getPageRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListPagesRequest (deep, canonical key order). */
+fun ListPagesRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.limit?.let { csilV -> csilEntries.add(CborValue.CText("limit") to CborValue.CUint(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListPagesRequest to canonical CSIL CBOR bytes. */
+fun ListPagesRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListPagesRequest from a decoded CBOR value tree. */
+fun listPagesRequestFromCborValue(cbor: CborValue): ListPagesRequest {
+    val limit = CsilCbor.mapGet(cbor, "limit")?.let { csilV -> CsilCbor.asULong(csilV) }
+    return ListPagesRequest(limit = limit)
+}
+
+/** Decode CSIL CBOR bytes into a ListPagesRequest. */
+fun listPagesRequestFromCbor(bytes: ByteArray): ListPagesRequest = listPagesRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListPagesResponse (deep, canonical key order). */
+fun ListPagesResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("pages") to CborValue.CArray((this.pages).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListPagesResponse to canonical CSIL CBOR bytes. */
+fun ListPagesResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListPagesResponse from a decoded CBOR value tree. */
+fun listPagesResponseFromCborValue(cbor: CborValue): ListPagesResponse {
+    val pages = CsilCbor.asArray(CsilCbor.require(cbor, "pages")).map { csilE -> pageFromCborValue(csilE) }
+    return ListPagesResponse(pages = pages)
+}
+
+/** Decode CSIL CBOR bytes into a ListPagesResponse. */
+fun listPagesResponseFromCbor(bytes: ByteArray): ListPagesResponse = listPagesResponseFromCborValue(CsilCbor.decode(bytes))
+
 /** The CBOR value tree for a RunnerClaimRequest (deep, canonical key order). */
 fun RunnerClaimRequest.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
@@ -4186,6 +4270,10 @@ private fun csilToCborValue(value: Any?): CborValue = when (value) {
     is ImportHistoryResponse -> value.toCborValue()
     is ActivityRequest -> value.toCborValue()
     is Activity -> value.toCborValue()
+    is Page -> value.toCborValue()
+    is GetPageRequest -> value.toCborValue()
+    is ListPagesRequest -> value.toCborValue()
+    is ListPagesResponse -> value.toCborValue()
     is RunnerClaimRequest -> value.toCborValue()
     is RunnerAssignment -> value.toCborValue()
     is RunnerClaimResponse -> value.toCborValue()
@@ -4352,6 +4440,10 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     ImportHistoryResponse::class -> importHistoryResponseFromCborValue(cbor)
     ActivityRequest::class -> activityRequestFromCborValue(cbor)
     Activity::class -> activityFromCborValue(cbor)
+    Page::class -> pageFromCborValue(cbor)
+    GetPageRequest::class -> getPageRequestFromCborValue(cbor)
+    ListPagesRequest::class -> listPagesRequestFromCborValue(cbor)
+    ListPagesResponse::class -> listPagesResponseFromCborValue(cbor)
     RunnerClaimRequest::class -> runnerClaimRequestFromCborValue(cbor)
     RunnerAssignment::class -> runnerAssignmentFromCborValue(cbor)
     RunnerClaimResponse::class -> runnerClaimResponseFromCborValue(cbor)

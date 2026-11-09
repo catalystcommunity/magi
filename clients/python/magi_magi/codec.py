@@ -4050,6 +4050,108 @@ def _activity_from_cbor(data: bytes) -> "Activity":
 Activity.to_cbor = _activity_to_cbor
 Activity.from_cbor = staticmethod(_activity_from_cbor)
 
+def _encode_page_value(v: "Page") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["text"] = v.text
+    csil_m["title"] = v.title
+    csil_m["persona"] = v.persona
+    csil_m["created_ms"] = v.created_ms
+    return csil_m
+
+def _decode_page_value(tree: Any) -> "Page":
+    tree = _csil_expect_map(tree)
+    return Page(
+        id=_csil_expect_text(tree["id"]),
+        title=_csil_expect_text(tree["title"]),
+        text=_csil_expect_text(tree["text"]),
+        persona=_csil_expect_text(tree["persona"]),
+        created_ms=_csil_expect_uint(tree["created_ms"]),
+    )
+
+
+def _page_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_page_value(self))
+
+
+def _page_from_cbor(data: bytes) -> "Page":
+    return _decode_page_value(cbor_decode(data))
+
+
+Page.to_cbor = _page_to_cbor
+Page.from_cbor = staticmethod(_page_from_cbor)
+
+def _encode_get_page_request_value(v: "GetPageRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    return csil_m
+
+def _decode_get_page_request_value(tree: Any) -> "GetPageRequest":
+    tree = _csil_expect_map(tree)
+    return GetPageRequest(
+        id=_csil_expect_text(tree["id"]),
+    )
+
+
+def _get_page_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_get_page_request_value(self))
+
+
+def _get_page_request_from_cbor(data: bytes) -> "GetPageRequest":
+    return _decode_get_page_request_value(cbor_decode(data))
+
+
+GetPageRequest.to_cbor = _get_page_request_to_cbor
+GetPageRequest.from_cbor = staticmethod(_get_page_request_from_cbor)
+
+def _encode_list_pages_request_value(v: "ListPagesRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.limit
+    if csil_x is not None:
+        csil_m["limit"] = csil_x
+    return csil_m
+
+def _decode_list_pages_request_value(tree: Any) -> "ListPagesRequest":
+    tree = _csil_expect_map(tree)
+    return ListPagesRequest(
+        limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
+    )
+
+
+def _list_pages_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_pages_request_value(self))
+
+
+def _list_pages_request_from_cbor(data: bytes) -> "ListPagesRequest":
+    return _decode_list_pages_request_value(cbor_decode(data))
+
+
+ListPagesRequest.to_cbor = _list_pages_request_to_cbor
+ListPagesRequest.from_cbor = staticmethod(_list_pages_request_from_cbor)
+
+def _encode_list_pages_response_value(v: "ListPagesResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["pages"] = [_encode_page_value(csil_e) for csil_e in v.pages]
+    return csil_m
+
+def _decode_list_pages_response_value(tree: Any) -> "ListPagesResponse":
+    tree = _csil_expect_map(tree)
+    return ListPagesResponse(
+        pages=[_decode_page_value(csil_e) for csil_e in _csil_expect_array(tree["pages"])],
+    )
+
+
+def _list_pages_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_pages_response_value(self))
+
+
+def _list_pages_response_from_cbor(data: bytes) -> "ListPagesResponse":
+    return _decode_list_pages_response_value(cbor_decode(data))
+
+
+ListPagesResponse.to_cbor = _list_pages_response_to_cbor
+ListPagesResponse.from_cbor = staticmethod(_list_pages_response_from_cbor)
+
 def _encode_runner_claim_request_value(v: "RunnerClaimRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["queue"] = v.queue

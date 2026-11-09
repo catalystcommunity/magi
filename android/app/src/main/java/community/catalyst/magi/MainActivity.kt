@@ -447,6 +447,15 @@ class MainActivity : Activity() {
             if (l.kind == "reply-to" && shown.containsKey(l.target.ref)) continue
             box.addView(aboutView(l))
         }
+        // A page that a persona made opens in the browser (the web client
+        // shows it at /#/page/<id>).
+        if (!compact) for (r in m.refs) {
+            if (r.kind != "page") continue
+            box.addView(Button(this).apply {
+                text = "Open page: ${r.title ?: "page"}"
+                setOnClickListener { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(settings.server.trimEnd('/') + "/#/page/" + Uri.encode(r.ref)))) }
+            })
+        }
         if (!compact) box.setOnLongClickListener { audit(m); true }
         return box
     }

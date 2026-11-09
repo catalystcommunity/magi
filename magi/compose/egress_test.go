@@ -461,3 +461,24 @@ func TestEgressProxyTransport(t *testing.T) {
 		t.Fatalf("proxy got %q", got)
 	}
 }
+
+// A secret rule with personas reaches only the tasks of those personas.
+func TestEgressSecretPersonas(t *testing.T) {
+	r, err := LoadEgressRules(rulesFile(t, `{"secrets": [
+	  {"placeholder": "magi-secret-github", "secret": "github", "hosts": ["api.github.com"], "place": "header:authorization", "personas": ["persona:engineering"]},
+	  {"placeholder": "magi-secret-pypi", "secret": "pypi", "hosts": ["pypi.org"], "place": "header:authorization"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := flowOf("user:a@example.local", "GET", "https://api.github.com/")
+	for persona, want := range map[string]int{"persona:engineering": 2, "persona:assistant": 1, "persona:magi": 1, "": 1} {
+		asked := 0
+		got := r.secretRules(f, func() string { asked++; return persona })
+		if len(got) != want {
+			t.Errorf("%q: %d rules, want %d", persona, len(got), want)
+		}
+		if asked != 1 {
+			t.Errorf("%q: persona asked %d times", persona, asked)
+		}
+	}
+}

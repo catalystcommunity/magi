@@ -259,6 +259,14 @@ class MagiAsyncClient:
         """activity"""
         return Activity.from_cbor(await self._transport.call("MagiService", "activity", req.to_cbor()))
 
+    async def get_page(self, req: GetPageRequest) -> Page:
+        """get-page"""
+        return Page.from_cbor(await self._transport.call("MagiService", "get-page", req.to_cbor()))
+
+    async def list_pages(self, req: ListPagesRequest) -> ListPagesResponse:
+        """list-pages"""
+        return ListPagesResponse.from_cbor(await self._transport.call("MagiService", "list-pages", req.to_cbor()))
+
 class RunnerAsyncClient:
     """Typed client for the RunnerService service."""
     def __init__(self, transport: AsyncTransport):

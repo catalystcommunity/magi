@@ -187,6 +187,12 @@ class MagiAsyncClient(private val transport: AsyncTransport) {
     suspend fun activity(request: ActivityRequest): Activity {
         return decode<Activity>(transport.call("MagiService", "activity", encode(request)))
     }
+    suspend fun getPage(request: GetPageRequest): Page {
+        return decode<Page>(transport.call("MagiService", "get-page", encode(request)))
+    }
+    suspend fun listPages(request: ListPagesRequest): ListPagesResponse {
+        return decode<ListPagesResponse>(transport.call("MagiService", "list-pages", encode(request)))
+    }
 }
 
 /** Typed client for the RunnerService service. The client owns (de)serialization;

@@ -3040,6 +3040,79 @@ export function toActivityCbor(v) {
 export function fromActivityCbor(bytes) {
     return fromActivityCborValue(decode(bytes));
 }
+export function toPageCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("id", v.id);
+    csilMap.set("text", v.text);
+    csilMap.set("title", v.title);
+    csilMap.set("persona", v.persona);
+    csilMap.set("created_ms", v.createdMs);
+    return csilMap;
+}
+export function fromPageCborValue(value) {
+    return {
+        id: asString(requireKey(value, "id")),
+        title: asString(requireKey(value, "title")),
+        text: asString(requireKey(value, "text")),
+        persona: asString(requireKey(value, "persona")),
+        createdMs: asNumber(requireKey(value, "created_ms")),
+    };
+}
+export function toPageCbor(v) {
+    return encodeValue(toPageCborValue(v));
+}
+export function fromPageCbor(bytes) {
+    return fromPageCborValue(decode(bytes));
+}
+export function toGetPageRequestCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("id", v.id);
+    return csilMap;
+}
+export function fromGetPageRequestCborValue(value) {
+    return {
+        id: asString(requireKey(value, "id")),
+    };
+}
+export function toGetPageRequestCbor(v) {
+    return encodeValue(toGetPageRequestCborValue(v));
+}
+export function fromGetPageRequestCbor(bytes) {
+    return fromGetPageRequestCborValue(decode(bytes));
+}
+export function toListPagesRequestCborValue(v) {
+    const csilMap = new Map();
+    if (v.limit !== undefined)
+        csilMap.set("limit", v.limit);
+    return csilMap;
+}
+export function fromListPagesRequestCborValue(value) {
+    return {
+        limit: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
+    };
+}
+export function toListPagesRequestCbor(v) {
+    return encodeValue(toListPagesRequestCborValue(v));
+}
+export function fromListPagesRequestCbor(bytes) {
+    return fromListPagesRequestCborValue(decode(bytes));
+}
+export function toListPagesResponseCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("pages", v.pages.map((csilE) => toPageCborValue(csilE)));
+    return csilMap;
+}
+export function fromListPagesResponseCborValue(value) {
+    return {
+        pages: asArray(requireKey(value, "pages")).map((csilE) => fromPageCborValue(csilE)),
+    };
+}
+export function toListPagesResponseCbor(v) {
+    return encodeValue(toListPagesResponseCborValue(v));
+}
+export function fromListPagesResponseCbor(bytes) {
+    return fromListPagesResponseCborValue(decode(bytes));
+}
 export function toRunnerClaimRequestCborValue(v) {
     const csilMap = new Map();
     csilMap.set("queue", v.queue);

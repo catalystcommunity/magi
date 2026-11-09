@@ -65,13 +65,12 @@ func (m *Service) ImportHistory(ctx context.Context, req magiapi.ImportHistoryRe
 		vars["owner_name"] = caller.Name
 	}
 	a := workflowapi.Assignment{Run: "history-import", Owner: caller.Subject, Vars: vars}
-	var recent []conversationapi.Utterance
 	out := magiapi.ImportHistoryResponse{Messages: []magiapi.ImportedMessage{}}
 	for _, h := range req.Messages {
 		start := time.Now()
 		at := time.UnixMilli(int64(h.AtMs))
 		u, err := s.Conversation.Post(sctx, conversationapi.PostRequest{Stream: st.Id, Text: h.Text, Author: &caller.Subject,
-			AuthorKind: ptr("human"), Modality: ptr("import"), CreatedMs: ptr(h.AtMs)})
+			AuthorKind: ptr("human"), Modality: ptr("text"), CreatedMs: ptr(h.AtMs)})
 		if err != nil {
 			return out, err
 		}
@@ -79,9 +78,20 @@ func (m *Service) ImportHistory(ctx context.Context, req magiapi.ImportHistoryRe
 		if s.Cfg.NoteTaker && s.LibrarianModel != nil && hasTool(prof.tools, "remember") {
 			hctx := withHistoryTime(sctx, at)
 			kc := s.knowledgeContext(hctx, caller.Subject, h.Text)
-			log := turnLog{}
-			var refs []conversationapi.Ref
-			item.Notes = append(item.Notes, s.applyNotes(hctx, a, as, u, kc, recent, &log, &refs)...)
+			var log turnLog
+			// A model host can be away for a moment (a restart); an import
+			// must not lose the facts of a message, so try again.
+			for try := 0; try < 3; try++ {
+				log = turnLog{}
+				var refs []conversationapi.Ref
+				// No "conversation before": imported messages stand alone, and
+				// a small model repeats the facts of earlier messages.
+				item.Notes = append(item.Notes, s.applyNotes(hctx, a, as, u, kc, nil, &log, &refs)...)
+				if log.Notes == nil || log.Notes.Error == "" {
+					break
+				}
+				time.Sleep(5 * time.Second)
+			}
 			if log.Notes != nil && log.Notes.Error != "" {
 				item.Error = ptr(log.Notes.Error)
 			}
@@ -89,7 +99,6 @@ func (m *Service) ImportHistory(ctx context.Context, req magiapi.ImportHistoryRe
 				s.Conversation.Annotate(sctx, conversationapi.AnnotateRequest{Utterance: u.Id, Kind: "interpretation", Body: string(body)})
 			}
 		}
-		recent = append(recent, u)
 		item.Ms = uint64(time.Since(start).Milliseconds())
 		out.Messages = append(out.Messages, item)
 	}

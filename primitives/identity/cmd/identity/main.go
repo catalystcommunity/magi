@@ -117,6 +117,7 @@ func mint(args []string) error {
 	scopes := fs.String("scopes", "", "comma-separated scopes")
 	ttl := fs.Duration("ttl", 720*time.Hour, "token lifetime")
 	out := fs.String("out", "", "token file to create (mode 600)")
+	name := fs.String("name", "", "display name of a user (not an identifier)")
 	fs.Parse(args)
 	if *key == "" || *subject == "" || *out == "" {
 		return errors.New("--key, --subject, and --out are required")
@@ -140,7 +141,7 @@ func mint(args []string) error {
 			sc = append(sc, s)
 		}
 	}
-	tok, err := iss.Issue(authn.Principal{Subject: *subject, Kind: kind, Scopes: sc}, *ttl)
+	tok, err := iss.Issue(authn.Principal{Subject: *subject, Kind: kind, Scopes: sc, Name: *name}, *ttl)
 	if err != nil {
 		return err
 	}

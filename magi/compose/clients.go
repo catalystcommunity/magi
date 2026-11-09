@@ -64,6 +64,9 @@ type Config struct {
 	// CatalystcalURL and LonghouseURL turn on the calendar and Longhouse
 	// tools (MAGI_IDENTITY_URL, MAGI_CATALYSTCAL_URL, MAGI_LONGHOUSE_URL).
 	Identity, CatalystcalURL, LonghouseURL string
+	// PublicURL is the address that people open (MAGI_PUBLIC_URL), for
+	// links to pages.
+	PublicURL string
 	// PersonaWorkers is the number of persona turns that one replica runs
 	// at the same time (MAGI_PERSONA_WORKERS, default 4).
 	PersonaWorkers int
@@ -135,6 +138,7 @@ func ConfigFromEnv() (Config, error) {
 	c.LexiconEditors = list(os.Getenv("MAGI_LEXICON_EDITORS"))
 	c.Release = os.Getenv("MAGI_RELEASE_URL")
 	c.Identity = os.Getenv("MAGI_IDENTITY_URL")
+	c.PublicURL = strings.TrimRight(os.Getenv("MAGI_PUBLIC_URL"), "/")
 	c.CatalystcalURL = os.Getenv("MAGI_CATALYSTCAL_URL")
 	c.LonghouseURL = os.Getenv("MAGI_LONGHOUSE_URL")
 	c.Egress = os.Getenv("MAGI_EGRESS_URL")

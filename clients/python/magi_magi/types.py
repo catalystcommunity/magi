@@ -3862,6 +3862,118 @@ class Activity:
 
 
 @dataclass
+class Page:
+    id: str
+    title: str
+    text: str
+    persona: str
+    created_ms: int
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'title') and self.title is not None:
+            result['title'] = self.title
+        if hasattr(self, 'text') and self.text is not None:
+            result['text'] = self.text
+        if hasattr(self, 'persona') and self.persona is not None:
+            result['persona'] = self.persona
+        if hasattr(self, 'created_ms') and self.created_ms is not None:
+            result['created_ms'] = self.created_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Page':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), title=data.get('title'), text=data.get('text'), persona=data.get('persona'), created_ms=data.get('created_ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'Page':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class GetPageRequest:
+    id: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'GetPageRequest':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'GetPageRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ListPagesRequest:
+    limit: Optional[int] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'limit') and self.limit is not None:
+            result['limit'] = self.limit
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ListPagesRequest':
+        """Create instance from dictionary."""
+        return cls(limit=data.get('limit'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ListPagesRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ListPagesResponse:
+    pages: List[Page]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'pages') and self.pages is not None:
+            result['pages'] = self.pages
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ListPagesResponse':
+        """Create instance from dictionary."""
+        return cls(pages=data.get('pages'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ListPagesResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
 class RunnerClaimRequest:
     queue: str
     wait_ms: Optional[int] = None

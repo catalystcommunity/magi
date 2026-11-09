@@ -36,17 +36,17 @@ var profiles = map[string]personaProfile{
 	Persona: {name: "Magi", prompt: personaPrompt + knowledgeRules + planRules + workRules + lookupRules + noticeRules, tools: []string{
 		"recall", "remember", "change_knowledge", "start_code_change", "search_conversation", "list_tasks", "cancel_task", "send_notice", "list_devices",
 		"web_search", "read_page", "add_todo", "set_reminder", "list_todos", "finish_todo", "change_todo",
-		"connect_account", "calendar_events", "find_events", "create_event", "change_event", "cancel_event", "free_busy",
+		"make_page", "connect_account", "calendar_events", "find_events", "create_event", "change_event", "cancel_event", "free_busy",
 		"longhouse_projects", "longhouse_tasks", "add_longhouse_task", "update_longhouse_task", "add_longhouse_project"}},
 	Engineering: {name: "Engineering manager", prompt: engineeringPrompt + knowledgeRules + planRules + workRules + lookupRules + noticeRules, tools: []string{
 		"list_tasks", "task_status", "task_diff", "start_code_change", "decide_task", "cancel_task", "list_runners",
 		"send_notice", "list_devices", "search_conversation", "recall", "remember", "change_knowledge", "web_search", "read_page",
 		"add_todo", "set_reminder", "list_todos", "finish_todo", "change_todo",
-		"connect_account", "calendar_events", "find_events", "free_busy", "longhouse_projects", "longhouse_tasks", "add_longhouse_task", "update_longhouse_task", "add_longhouse_project"}},
+		"make_page", "connect_account", "calendar_events", "find_events", "free_busy", "longhouse_projects", "longhouse_tasks", "add_longhouse_task", "update_longhouse_task", "add_longhouse_project"}},
 	Assistant: {name: "Executive assistant", prompt: assistantPrompt + knowledgeRules + planRules + workRules + lookupRules + noticeRules, tools: []string{
 		"recall", "remember", "change_knowledge", "add_todo", "set_reminder", "list_todos", "finish_todo", "change_todo",
 		"send_notice", "list_devices", "search_conversation", "web_search", "read_page", "list_tasks",
-		"connect_account", "calendar_events", "find_events", "create_event", "change_event", "cancel_event", "free_busy", "longhouse_projects", "longhouse_tasks", "add_longhouse_task", "update_longhouse_task", "add_longhouse_project"}},
+		"make_page", "connect_account", "calendar_events", "find_events", "create_event", "change_event", "cancel_event", "free_busy", "longhouse_projects", "longhouse_tasks", "add_longhouse_task", "update_longhouse_task", "add_longhouse_project"}},
 }
 
 const assistantPrompt = `You are %s, the executive assistant of %s. You keep their plans, to-dos, and reminders, and you know the facts of their life and work: people, places, accounts, calendars, and things.
@@ -95,7 +95,8 @@ const lookupRules = `
 
 const noticeRules = `
 - The person can get notices on their devices (phone, browser, computer). When the person asks you to send something somewhere ("send it to my phone", "put the report on my laptop"), write the full text of what they asked for and use "send_notice" with that device. When they want to be told later or when you finish something long, also use "send_notice". Say where you sent it.
-- Your replies are often spoken. Keep them short and easy to hear: no tables, no lists of more than four items, no code. Put long material in a notice instead and say so.`
+- Your replies are often spoken. Keep them short and easy to hear: no tables, no lists of more than four items, no code. Put long material in a notice instead and say so.
+- When the person asks to see something (a diagram, a plan, a table, a comparison, a design), or the answer is too long to say, make a page with "make_page" and give the link with one sentence about it. Draw diagrams with mermaid.`
 
 const engineeringPrompt = `You are %s, the engineering manager of %s. You run their software work: coding tasks that apprentices (coding agents) do on runner machines, in their repositories (the default is "magi", Magi's own software).
 The time is %s.
@@ -118,7 +119,7 @@ func toolDefs() map[string]model.Tool {
 	}
 	str := func(d string) map[string]any { return map[string]any{"type": "string", "description": d} }
 	defs := map[string]model.Tool{}
-	for _, t := range append(append(append(personaTools(), searchTools()...), planTools(obj, str)...), workTools(obj, str)...) {
+	for _, t := range append(append(append(append(personaTools(), searchTools()...), planTools(obj, str)...), workTools(obj, str)...), pageTools(obj, str)...) {
 		defs[t.Name] = t
 	}
 	for _, t := range []model.Tool{
@@ -179,6 +180,10 @@ func (s *System) extraTool(ctx context.Context, a workflowapi.Assignment, as con
 	}
 	if out, ok := s.workTool(ctx, a.Owner, utt.Id, name, args); ok {
 		return out, nil, true
+	}
+	if name == "make_page" {
+		out, ref := s.makePage(ctx, a.Owner, as.persona, args)
+		return out, ref, true
 	}
 	switch name {
 	case "send_notice":

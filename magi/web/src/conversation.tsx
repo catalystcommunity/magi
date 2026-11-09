@@ -256,6 +256,9 @@ export function MessageView(props: { m: Message; compact?: boolean; pick?: (id: 
         </button>
       : ""}
     <For each={props.compact ? [] : links}>{(l: MessageLink) => <About l={l} />}</For>
+    <For each={props.compact ? [] : m.refs.filter((r) => r.kind === "page")}>{(r) =>
+      <button class="about page-link" onClick={() => go("page", r.ref)}><span class="about-kind">page</span> {r.title ?? "Open the page"}</button>}
+    </For>
     <For each={props.compact ? [] : m.refs.filter((r) => r.kind === "knowledge-node" || (r.kind === "workflow-run" && !runs.has(r.ref)))}>{(r) =>
       r.kind === "knowledge-node"
         ? <span class="about"><span class="about-kind">knows</span> {r.title ?? r.ref}</span>
