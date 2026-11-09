@@ -288,7 +288,7 @@ func TestNotAboutSelf(t *testing.T) {
 	if got := notAboutSelf(items, notes, "I left Juniper Labs to join Orbital Freight.", "Jamie"); len(got) != 3 {
 		t.Errorf("first person: %+v", got)
 	}
-	e := endWins([]noteItem{{Op: "update", Id: "clm_n", Value: "data team"}, {Op: "end", Id: "clm_n"}, {Op: "remember", Subject: "Nadia"}})
+	e := endWins([]noteItem{{Op: "update", Id: "clm_n", Value: "data team"}, {Op: "end", Id: "clm_n"}, {Op: "remember", Subject: "Nadia"}}, "Nadia moved to the data team; she doesn't report to me anymore.")
 	if len(e) != 2 || e[0].Op != "end" {
 		t.Errorf("end wins: %+v", e)
 	}
@@ -336,5 +336,28 @@ func TestSameRelation(t *testing.T) {
 	}
 	if !reportsToMe.MatchString("She's the second engineer who reports to me.") || !reportsToMe.MatchString("Sven Holt joined my team today.") {
 		t.Error("reports to me")
+	}
+}
+
+func TestEndOrChange(t *testing.T) {
+	e := endWins([]noteItem{{Op: "update", Id: "clm_w", Value: "Copperleaf"}, {Op: "end", Id: "clm_w"}}, "I left Juniper Labs. I start at Copperleaf on Monday.")
+	if len(e) != 1 || e[0].Op != "update" {
+		t.Errorf("change: %+v", e)
+	}
+}
+
+func TestGuardShapes(t *testing.T) {
+	at := time.Date(2026, 3, 2, 20, 0, 0, 0, time.UTC)
+	got, _ := guardNotes([]noteItem{{Op: "remember", Subject: "me", Relation: "team-member", Object: "Amara Sato"}, {Op: "remember", Subject: "Amara Sato", Relation: "works-at", Object: "me"}}, "", "Amara Sato joined my team today.", at, "Jamie")
+	if len(got) != 1 || got[0].Subject != "Amara Sato" || got[0].Relation != "manager" || got[0].Object != "me" {
+		t.Errorf("team: %+v", got)
+	}
+	got, _ = guardNotes([]noteItem{{Op: "update", Subject: "Tariq Osei", Relation: "works-at", Object: "Pinecone Analytics"}}, "", "Tariq Osei left Northwind Health to join Pinecone Analytics.", at, "Jamie")
+	if len(got) != 1 || got[0].Op != "remember" {
+		t.Errorf("no id: %+v", got)
+	}
+	got, _ = guardNotes([]noteItem{{Op: "remember", Subject: "Sven", Relation: "works-at", Object: "security team"}}, "", "Sven might move to the security team next year, she said.", at, "Jamie")
+	if len(got) != 0 {
+		t.Errorf("hedge: %+v", got)
 	}
 }

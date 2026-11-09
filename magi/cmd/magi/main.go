@@ -1302,7 +1302,7 @@ func printKnowledge(items []magiapi.KnowledgeItem, records []magiapi.KnowledgeRe
 // be at work, and the import skips what it has.
 func gatewayTimeout(err error) bool {
 	m := err.Error()
-	for _, w := range []string{"rpc 504", "rpc 502", "rpc 503", "connection reset", "EOF", "broken pipe", "timeout"} {
+	for _, w := range []string{"rpc 504", "rpc 502", "rpc 503", "rpc 520", "rpc 521", "rpc 522", "rpc 523", "rpc 524", "connection reset", "EOF", "broken pipe", "timeout"} {
 		if strings.Contains(m, w) {
 			return true
 		}
