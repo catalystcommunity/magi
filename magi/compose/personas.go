@@ -22,6 +22,10 @@ import (
 
 const Engineering = "persona:engineering"
 
+// Assistant is the executive assistant: the plans, to-dos, reminders,
+// and the facts of the person's life and work.
+const Assistant = "persona:assistant"
+
 type personaProfile struct {
 	name   string // the default name
 	prompt string // with %s for the name, the person, and the time
@@ -29,13 +33,36 @@ type personaProfile struct {
 }
 
 var profiles = map[string]personaProfile{
-	Persona: {name: "Magi", prompt: personaPrompt + knowledgeRules + lookupRules + noticeRules, tools: []string{
+	Persona: {name: "Magi", prompt: personaPrompt + knowledgeRules + planRules + lookupRules + noticeRules, tools: []string{
 		"recall", "remember", "change_knowledge", "start_code_change", "search_conversation", "list_tasks", "cancel_task", "send_notice", "list_devices",
-		"web_search", "read_page"}},
-	Engineering: {name: "Engineering manager", prompt: engineeringPrompt + knowledgeRules + lookupRules + noticeRules, tools: []string{
+		"web_search", "read_page", "add_todo", "set_reminder", "list_todos", "finish_todo", "change_todo"}},
+	Engineering: {name: "Engineering manager", prompt: engineeringPrompt + knowledgeRules + planRules + lookupRules + noticeRules, tools: []string{
 		"list_tasks", "task_status", "task_diff", "start_code_change", "decide_task", "cancel_task", "list_runners",
-		"send_notice", "list_devices", "search_conversation", "recall", "remember", "change_knowledge", "web_search", "read_page"}},
+		"send_notice", "list_devices", "search_conversation", "recall", "remember", "change_knowledge", "web_search", "read_page",
+		"add_todo", "set_reminder", "list_todos", "finish_todo", "change_todo"}},
+	Assistant: {name: "Executive assistant", prompt: assistantPrompt + knowledgeRules + planRules + lookupRules + noticeRules, tools: []string{
+		"recall", "remember", "change_knowledge", "add_todo", "set_reminder", "list_todos", "finish_todo", "change_todo",
+		"send_notice", "list_devices", "search_conversation", "web_search", "read_page", "list_tasks"}},
 }
+
+const assistantPrompt = `You are %s, the executive assistant of %s. You keep their plans, to-dos, and reminders, and you know the facts of their life and work: people, places, accounts, calendars, and things.
+The time is %s.
+
+The conversation is one continuous stream, with no separate chats. Earlier related messages may come first as context; use them when they help, and do not mention that you looked them up.
+
+How you work:
+- Answer briefly and plainly, like a good assistant who talks. No markdown headings.
+- When the person asks for something that the engineering manager does (a change to software), say that the engineering manager does it, and that the person can ask them.
+- Keep track: when the person says that they must do something, or asks you to remind them, add it. When they say that something is done, mark it done.`
+
+// planRules: to-dos and plans (plans.go).
+const planRules = `
+To-dos and reminders:
+- "remind me to X at T" or "remind me at T": "set_reminder". "I need to X by T", "add X to my list", "put X on my to-do list": "add_todo" with due (and remind when the person asks for a reminder). Work out each time from the time of today at the top; "tonight" is 19:00, "this afternoon" is 15:00, "in the morning" is 09:00, "end of the day" is 17:00. Give times as YYYY-MM-DD HH:MM.
+- A plan is a list of to-dos in order: call "add_todo" once for each step, with the same plan name, and after "previous" for each step after the first. Say the steps back in one or two sentences.
+- For questions about what the person must do, what is late, or a plan, use "list_todos". Do not answer from memory: a to-do can have changed.
+- "done", "finished", "I did X": "finish_todo" with done. "Never mind", "forget that reminder": "finish_todo" with cancel. A new time: "change_todo".
+- Say that you added, changed, or finished a to-do only after the tool succeeded, and say the time back in words ("tomorrow at 9").`
 
 func profileFor(persona string) personaProfile {
 	if p, ok := profiles[persona]; ok {
@@ -78,7 +105,7 @@ func toolDefs() map[string]model.Tool {
 	}
 	str := func(d string) map[string]any { return map[string]any{"type": "string", "description": d} }
 	defs := map[string]model.Tool{}
-	for _, t := range append(personaTools(), searchTools()...) {
+	for _, t := range append(append(personaTools(), searchTools()...), planTools(obj, str)...) {
 		defs[t.Name] = t
 	}
 	for _, t := range []model.Tool{
@@ -128,10 +155,15 @@ type turnState struct {
 	// reads only those and the ones in the message of the person.
 	pages           map[string]bool
 	searched, reads int
+	// lastTodo is the to-do that add_todo made last in this turn.
+	lastTodo string
 }
 
 // extraTool runs the tools of personas.go. ok is false for other tools.
 func (s *System) extraTool(ctx context.Context, a workflowapi.Assignment, as conversationLens, utt conversationapi.Utterance, ts *turnState, name string, args map[string]string) (out string, ref *conversationapi.Ref, ok bool) {
+	if out, ok := s.planTool(ctx, a, as, utt, ts, name, args); ok {
+		return out, nil, true
+	}
 	switch name {
 	case "send_notice":
 		dev, err := s.findDevice(ctx, a.Owner, args["device"])
@@ -380,6 +412,10 @@ var claims = []struct {
 	{"cancel_task", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (stopped|cancell?ed) (?:the |that |your )?task\b`)},
 	{"remember", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (recorded|remembered|saved|noted)\b`)},
 	{"change_knowledge", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (updated|corrected|fixed|changed|removed|deleted|forgotten|retracted)\b`)},
+	{"add_todo", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (?:added|created|made|put|set up)\b[^.!?\n]{0,40}\b(to-?dos?|list|plan|steps?)\b|\bI(?:'ve| have)? created a plan\b`)},
+	{"set_reminder", regexp.MustCompile(`(?i)\bI(?:'ve| have)? set (?:up )?(?:a |the |your )?reminders?\b|\bI(?:'ll| will) remind you\b`)},
+	{"finish_todo", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (?:marked|checked off|crossed off|cancell?ed (?:the |that |your )?(?:reminder|to-?do))\b`)},
+	{"change_todo", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (?:moved|rescheduled|pushed back)\b[^.!?\n]{0,40}\b(reminder|to-?do|due|it)\b`)},
 }
 
 // claimNote says what did not happen, for each tool of claims.
@@ -390,6 +426,10 @@ var claimNote = map[string]string{
 	"cancel_task":       "no task was stopped.",
 	"remember":          "nothing was recorded.",
 	"change_knowledge":  "nothing was changed.",
+	"add_todo":          "no to-do was added.",
+	"set_reminder":      "no reminder was set.",
+	"finish_todo":       "no to-do was changed.",
+	"change_todo":       "no to-do was changed.",
 }
 
 // sameAction: remember and change_knowledge both write the records. A
@@ -397,8 +437,17 @@ var claimNote = map[string]string{
 // by the note taker), and the reply "I corrected it" is then true.
 func sameAction(called any, tool string) bool {
 	writes := func(t any) bool { return t == "remember" || t == "change_knowledge" }
-	return called == tool || (writes(called) && writes(tool))
+	return called == tool || (writes(called) && writes(tool)) || (planWrite(called) && planWrite(tool))
 }
+
+// planWrite is a tool that adds or changes a to-do or a reminder.
+func planWrite(t any) bool {
+	return t == "add_todo" || t == "set_reminder" || t == "change_todo" || t == "finish_todo"
+}
+
+// aboutTodos: a reply that says "I've changed the reminder" tells of a
+// to-do, not of a fact.
+var aboutTodos = regexp.MustCompile(`(?i)\b(reminders?|to-?dos?|plans?|lists?|due|steps?)\b`)
 
 // falseClaim returns the tool of an action that reply says was done, when
 // that tool (of the persona) did not succeed in this turn, or "".
@@ -410,7 +459,8 @@ func falseClaim(reply string, calls []map[string]any, tools []string) string {
 		done := false
 		for _, call := range calls {
 			res, _ := call["result"].(string)
-			if sameAction(call["tool"], c.tool) && !strings.HasPrefix(res, "error") && !strings.HasPrefix(res, "Not recorded") {
+			ok := !strings.HasPrefix(res, "error") && !strings.HasPrefix(res, "Not recorded")
+			if ok && (sameAction(call["tool"], c.tool) || planWrite(call["tool"]) && (c.tool == "change_knowledge" || c.tool == "remember") && aboutTodos.MatchString(reply)) {
 				done = true
 			}
 		}

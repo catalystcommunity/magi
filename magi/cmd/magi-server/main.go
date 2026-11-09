@@ -12,6 +12,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	_ "time/tzdata" // MAGI_TIME_ZONE in an image with no zone files
 
 	"github.com/catalystcommunity/magi/lib/authn"
 	"net/http"

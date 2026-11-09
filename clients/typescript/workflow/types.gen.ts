@@ -19,7 +19,10 @@ export interface ServiceError {
  * a person whom an investigation asks a question. An item can be a run
  * variable as ${name}. The owner can also decide. wait_ms limits the wait:
  * then the step ends with timeout_outcome (default "timeout") and
- * decided_by "workflow:timeout".
+ * decided_by "workflow:timeout". wait_until is a time (Unix
+ * milliseconds), or a run variable as ${name} that holds one: the wait
+ * ends then. An empty variable gives no time. With wait_ms and
+ * wait_until, the earlier time ends the wait.
  */
 export interface Step {
   id: string;
@@ -31,6 +34,7 @@ export interface Step {
   maxAttempts?: number;
   deciders?: string[];
   waitMs?: number;
+  waitUntil?: string;
   timeoutOutcome?: string;
 }
 

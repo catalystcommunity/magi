@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -19,10 +20,10 @@ import (
 // "change_knowledge". Thus a fact is recorded also when the persona model
 // does not call a tool (docs/knowledge.md, "Note taker").
 
-const noteTakerPrompt = `You keep the notes of one person. Read the newest message of the person and give the changes to the notes that it asks for. Give no items when the message only asks a question, greets, or talks about something that is not a fact about the person, their people, things, places, accounts, calendars, or plans.
+const noteTakerPrompt = `You keep the notes of one person. Read the newest message of the person and give the changes to the notes that it asks for. Give no items when the message only asks a question, greets, or talks about something that is not a fact about the person, their people, things, places, accounts, or calendars. A to-do, a reminder, or a plan ("remind me to", "I need to", "add to my list") is not a fact: the assistant keeps it; give no item for it.
 
 Operations:
-- "remember": a new fact. subject: "me" for the person, or a name. relation: short, lower case, with "-" (dentist, vet, sister, lives-in, works-at, job, hosted-in, located-in, birthday, books-through, model). object: a thing with a name (a person, place, organization, system, device). value: a date, number, or description when there is no object. Give one item for each fact. When the person names a person or thing that relates to them, also give that fact ("my sister Dana lives in Tucson": me sister Dana, and Dana lives-in Tucson). "also": true only for a second fact with the same subject and relation (a second sister). A thing of the person is the subject of its own facts: "my photo library is in iCloud": photo library located-in iCloud; "our printer is a Brother HL-L2350 in the office": me printer Brother HL-L2350, and Brother HL-L2350 located-in office. A person at a place is two facts: "my doctor is Dr. Lee at Elm Clinic": me doctor Dr. Lee, and Dr. Lee works-at Elm Clinic. Give object or value, not both.
+- "remember": a new fact. subject: "me" for the person, or a name. relation: short, lower case, with "-" (dentist, vet, sister, lives-in, works-at, job, hosted-in, located-in, birthday, books-through, model). object: a thing with a name (a person, place, organization, system, device). value: a date, number, or description when there is no object. Give one item for each fact. When the person names a person or thing that relates to them, also give that fact ("my sister Dana lives in Tucson": me sister Dana, and Dana lives-in Tucson). "also": true only for a second fact with the same subject and relation (a second sister). A thing of the person is the subject of its own facts: "my photo library is in iCloud": photo library located-in iCloud; "our printer is a Brother HL-L2350 in the office": me printer Brother HL-L2350, and Brother HL-L2350 located-in office. A person at a place is two facts: "my doctor is Dr. Lee at Elm Clinic": me doctor Dr. Lee, and Dr. Lee works-at Elm Clinic. A name of a thing is a fact: "the shared drive is called Family Vault": shared drive name Family Vault (a value). Give object or value, not both.
 - "update": a fact of the notes was true and is now different ("we switched", "now", "we moved", "it changed to"). id: the id of that fact from the notes. value: the new object or value.
 - "fix": a fact of the notes was wrong ("that's wrong", "I misspoke", "it was always", "not X"). id: the id of the fact. value: the right object or value. field: "object" or "value" (the field that holds the wrong part).
 - "retract": a fact or thing of the notes was never true, or the person wants it forgotten ("there is no", "forget it"). id: the id. object: the name of the thing or fact to forget, in the words of the person ("chores calendar"). When no record of the notes names that thing, give no item.
@@ -174,9 +175,19 @@ func (s *System) applyNotes(ctx context.Context, a workflowapi.Assignment, as co
 	if len(reason) > 200 {
 		reason = reason[:200]
 	}
-	items = dropSelfCopies(items, utt.Text)
+	items = keepTitles(dropSelfCopies(items, utt.Text))
 	var done []string
 	for _, it := range items {
+		if op := changeOp(utt.Text, it.Op); op != it.Op {
+			log.Calls = append(log.Calls, map[string]any{"tool": "change-op", "by": "note-taker", "args": map[string]string{"from": it.Op, "to": op}})
+			it.Op = op
+		}
+		if it.Op == "fix" || it.Op == "update" {
+			if id := retarget(notes, utt.Text, it.Id); id != it.Id {
+				log.Calls = append(log.Calls, map[string]any{"tool": "retarget", "by": "note-taker", "args": map[string]string{"from": it.Id, "to": id}})
+				it.Id = id
+			}
+		}
 		tool, args := it.toolCall(reason)
 		if tool == "" {
 			continue
@@ -300,4 +311,100 @@ func dropSelfCopies(items []noteItem, text string) []noteItem {
 		out = append(out, n)
 	}
 	return out
+}
+
+// notOld is the old value that a person names in a correction: "in the
+// garage, not the basement", "Phoenix, not Tucson".
+var notOld = regexp.MustCompile(`(?i)\bnot\s+(?:in\s+|at\s+|on\s+)?(?:the\s+|a\s+|an\s+|my\s+|our\s+)?([\p{L}\p{N}][\p{L}\p{N}' .-]{1,40}?)\s*(?:[.,;:!?]|\bany ?more\b|\banymore\b|$)`)
+
+// retarget gives the id of the fact that a fix or update changes. A small
+// model picks a fact of the right thing with the wrong relation: for "the
+// router is in the garage, not the basement" it fixed "me router Ubiquiti
+// Dream Machine" and not "Ubiquiti Dream Machine located-in basement
+// closet". When the message names the old value ("not X"), the fact must
+// have it. When the fact of the id does not, and exactly one other fact of
+// the notes has it, that fact is the target. Else the id stays.
+func retarget(notes, text, id string) string {
+	m := notOld.FindStringSubmatch(text)
+	if m == nil || !strings.HasPrefix(id, "clm_") {
+		return id
+	}
+	old := words(m[1])
+	has := func(line string) bool {
+		lw := words(line)
+		n := 0
+		for _, w := range old {
+			if nameStop[w] {
+				continue
+			}
+			n++
+			ok := false
+			for _, h := range lw {
+				if strings.HasPrefix(h, strings.TrimSuffix(w, "s")) {
+					ok = true
+					break
+				}
+			}
+			if !ok {
+				return false
+			}
+		}
+		return n > 0
+	}
+	var match []string
+	for _, l := range strings.Split(notes, "\n") {
+		ids := recordID.FindStringSubmatch(l)
+		if ids == nil || !strings.HasPrefix(ids[1], "clm_") {
+			continue
+		}
+		if ids[1] == id {
+			if has(l) {
+				return id
+			}
+			continue
+		}
+		if has(l) && !slices.Contains(match, ids[1]) {
+			match = append(match, ids[1])
+		}
+	}
+	if len(match) == 1 {
+		return match[0]
+	}
+	return id
+}
+
+// keepTitles keeps a job title that a small model gives as the value of a
+// works-at item ("me works-at Brightline Logistics, value: operations
+// manager"): the title becomes its own fact (me job operations manager).
+func keepTitles(items []noteItem) []noteItem {
+	out := items[:0:0]
+	for _, n := range items {
+		out = append(out, n)
+		rel := strings.ToLower(strings.TrimSpace(n.Relation))
+		if n.Op == "remember" && strings.TrimSpace(n.Object) != "" && strings.TrimSpace(n.Value) != "" &&
+			(rel == "works-at" || employer[rel]) && !dateLike.MatchString(strings.TrimSpace(n.Value)) {
+			out = append(out, noteItem{Op: "remember", Subject: n.Subject, SubjectKind: n.SubjectKind, Relation: "job", Value: strings.TrimSpace(n.Value)})
+		}
+	}
+	return out
+}
+
+var (
+	fixWords    = regexp.MustCompile(`(?i)\b(correction|that'?s wrong|that is wrong|i misspoke|i got (?:that|it) wrong|i had (?:that|it) wrong|was always|oops|my mistake|i meant|not right)\b`)
+	updateWords = regexp.MustCompile(`(?i)\b(now|switched|moved|changed|anymore|any more|no longer|this year|these days|new)\b`)
+)
+
+// changeOp gives the operation that the words of the person ask for. A
+// small model gives "update" for "Correction: the Synology is in the hall
+// closet": then the wrong fact stays in the past of the record. Words of a
+// mistake make a fix, and words of a change (with no words of a mistake)
+// make an update. Other items stay.
+func changeOp(text, op string) string {
+	switch {
+	case op == "update" && fixWords.MatchString(text):
+		return "fix"
+	case op == "fix" && !fixWords.MatchString(text) && updateWords.MatchString(text):
+		return "update"
+	}
+	return op
 }

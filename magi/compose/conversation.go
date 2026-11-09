@@ -17,7 +17,7 @@ import (
 // EnsurePersonas makes the Magi persona when it is not there. Magi is
 // private by default. ctx must carry the service token.
 func (s *System) EnsurePersonas(ctx context.Context) error {
-	for _, id := range []string{Persona, Engineering} {
+	for _, id := range []string{Persona, Engineering, Assistant} {
 		if _, err := s.Conversation.GetPersona(ctx, conversationapi.GetPersonaRequest{Id: id}); rpc.CodeOf(err) != 404 {
 			if err != nil {
 				return err

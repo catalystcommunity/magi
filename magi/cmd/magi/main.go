@@ -49,6 +49,9 @@ var usage = `usage: magi [--server URL] <command> [args]
   personas                   list personas
   persona ID NAME never|private|public [MEMBER...]   operator: make or change a persona
   tasks                      list tasks
+  todos [-all] [-plan P] [-json]  list your to-dos and reminders (-all: also the
+                             ones that ended in the last 7 days)
+  todo ID done|skip|cancel   finish a to-do or cancel a reminder
   task ID                    show one task
   diff ID                    show the change of a task
   output ID check|transcript   show the last check output or apprentice record
@@ -393,6 +396,43 @@ func (c *cli) run(cmd string, args []string) error {
 			return nil
 		}
 		return c.read(personaID(*persona), res.LastSeq, true, nil)
+	case "todos":
+		fs := flag.NewFlagSet("todos", flag.ContinueOnError)
+		all := fs.Bool("all", false, "also ended to-dos")
+		plan := fs.String("plan", "", "only this plan")
+		asJSON := fs.Bool("json", false, "print JSON")
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		res, err := c.magi.ListTodos(c.ctx, magiapi.ListTodosRequest{Plan: optional(*plan), IncludeEnded: all})
+		if err != nil {
+			return err
+		}
+		if *asJSON {
+			return json.NewEncoder(os.Stdout).Encode(res.Todos)
+		}
+		for _, t := range res.Todos {
+			line := fmt.Sprintf("%s  %-9s %-8s %s", t.Id, t.State, t.Kind, t.Title)
+			if t.Plan != nil {
+				line += "  [plan " + *t.Plan + "]"
+			}
+			if t.DueMs != nil {
+				line += "  due " + time.UnixMilli(int64(*t.DueMs)).Format("Mon 2 Jan 15:04")
+			}
+			if t.RemindMs != nil {
+				line += "  remind " + time.UnixMilli(int64(*t.RemindMs)).Format("Mon 2 Jan 15:04")
+			}
+			fmt.Println(line)
+		}
+	case "todo":
+		if len(args) != 2 {
+			return errors.New("todo ID done|skip|cancel")
+		}
+		t, err := c.magi.FinishTodo(c.ctx, magiapi.FinishTodoRequest{Id: args[0], Outcome: args[1]})
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%s  %s  %s\n", t.Id, t.State, t.Title)
 	case "tasks":
 		res, err := c.magi.ListTasks(c.ctx, magiapi.ListTasksRequest{})
 		if err != nil {

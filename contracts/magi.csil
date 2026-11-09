@@ -305,6 +305,28 @@ GetTaskRequest = { id: text }
 ListTasksRequest = { ? status: text, ? limit: uint }
 ListTasksResponse = { tasks: [* Task] }
 
+;;; A to-do or a reminder of the person (docs/plans.md). kind: "todo" or
+;;; "reminder". state: "open", "waiting" (for the to-do in after), "late",
+;;; "done", "skipped", "sent" (a reminder), "cancelled", "failed".
+Todo = {
+  id: text,
+  kind: text,
+  title: text,
+  state: text,
+  ? plan: text,
+  ? due_ms: uint,
+  ? remind_ms: uint,
+  ? after: text,
+  created_ms: uint,
+  updated_ms: uint,
+}
+;;; The open to-dos of the caller; with include_ended also the ones that
+;;; ended in the last 7 days.
+ListTodosRequest = { ? plan: text, ? include_ended: bool }
+ListTodosResponse = { todos: [* Todo] }
+;;; outcome: "done", "skip", or "cancel".
+FinishTodoRequest = { id: text, outcome: text }
+
 FileChange = { path: text, additions: uint, deletions: uint }
 TaskDiff = { task: text, patch: text, files: [* FileChange], truncated: bool }
 GetTaskDiffRequest = { id: text }
@@ -543,6 +565,8 @@ service MagiService {
   start-task: StartTaskRequest -> Task,
   get-task: GetTaskRequest -> Task,
   list-tasks: ListTasksRequest -> ListTasksResponse,
+  list-todos: ListTodosRequest -> ListTodosResponse,
+  finish-todo: FinishTodoRequest -> Todo,
   get-task-diff: GetTaskDiffRequest -> TaskDiff,
   get-task-output: GetTaskOutputRequest -> TaskOutput,
   decide: DecideRequest -> Task,

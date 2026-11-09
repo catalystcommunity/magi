@@ -21,68 +21,6 @@ import (
 	"github.com/catalystcommunity/magi/primitives/workflow/store"
 )
 
-// memQueue is an in-memory Queue for tests without Corndogs.
-type memQueue struct {
-	mu    sync.Mutex
-	tasks []*memTask
-}
-
-type memTask struct {
-	uuid, queue, key, state string
-	rev                     int64
-}
-
-func (m *memQueue) find(f func(*memTask) bool) *memTask {
-	for _, t := range m.tasks {
-		if f(t) {
-			return t
-		}
-	}
-	return nil
-}
-
-func (m *memQueue) Submit(_ context.Context, queue, key string) (Ticket, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	t := m.find(func(t *memTask) bool { return t.queue == queue && t.key == key })
-	if t == nil {
-		t = &memTask{uuid: newID("mem_"), queue: queue, key: key, state: statePending, rev: 1}
-		m.tasks = append(m.tasks, t)
-	}
-	return Ticket{UUID: t.uuid, Revision: t.rev}, nil
-}
-
-func (m *memQueue) Claim(_ context.Context, queue string) (*Delivery, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	t := m.find(func(t *memTask) bool { return t.queue == queue && t.state == statePending })
-	if t == nil {
-		return nil, nil
-	}
-	t.state, t.rev = stateWorking, t.rev+1
-	return &Delivery{Ticket: Ticket{UUID: t.uuid, Revision: t.rev}, Key: t.key}, nil
-}
-
-func (m *memQueue) Finish(_ context.Context, _ string, tk Ticket) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if t := m.find(func(t *memTask) bool { return t.uuid == tk.UUID }); t != nil {
-		t.state = "completed"
-	}
-	return nil
-}
-
-func (m *memQueue) Release(_ context.Context, _ string, tk Ticket) (Ticket, bool, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	t := m.find(func(t *memTask) bool { return t.uuid == tk.UUID })
-	if t == nil || t.state != stateWorking {
-		return tk, false, nil
-	}
-	t.state, t.rev = statePending, t.rev+1
-	return Ticket{UUID: t.uuid, Revision: t.rev}, true, nil
-}
-
 var testPub, testPriv, _ = ed25519.GenerateKey(rand.Reader)
 
 type env struct {
@@ -120,7 +58,7 @@ func testDB(t *testing.T) string {
 // backends returns the queues to test: memory always, Corndogs when
 // MAGI_TEST_CORNDOGS_URL is set.
 func backends(t *testing.T, run func(t *testing.T, q func(t *testing.T) Queue)) {
-	t.Run("memory", func(t *testing.T) { run(t, func(*testing.T) Queue { return &memQueue{} }) })
+	t.Run("memory", func(t *testing.T) { run(t, func(*testing.T) Queue { return &MemQueue{} }) })
 	t.Run("corndogs", func(t *testing.T) {
 		addr := os.Getenv("MAGI_TEST_CORNDOGS_URL")
 		if addr == "" {
@@ -518,7 +456,7 @@ func TestRecovery(t *testing.T) {
 // TestDeciders checks a human step that names who decides, and its wait.
 func TestDeciders(t *testing.T) {
 	ctx := context.Background()
-	e, alice, _ := setup(t, &memQueue{})
+	e, alice, _ := setup(t, &MemQueue{})
 	bob, carol := e.as(t, "user:bob@example.local"), e.as(t, "user:carol@example.local")
 	def := api.Definition{Name: "ask", Start: "ask", Steps: []api.Step{
 		{Id: "ask", Kind: "human", Prompt: ptr("How many guests?"), Deciders: []string{"${lead}"}, WaitMs: ptr(uint64(60_000)),

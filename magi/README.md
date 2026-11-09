@@ -14,6 +14,8 @@ API in `contracts/magi.csil`, two clients, and the background workers.
 | `compose/librarian.go` | The librarian: links and visibility of each utterance |
 | `compose/persona.go` | Workflow `persona-turn`: interprets one utterance with the model and replies |
 | `compose/codechange.go` | Workflow `code-change` and its step workers |
+| `compose/personas.go` | The personas: `persona:magi` (general), `persona:assistant` (executive assistant), `persona:engineering` (engineering manager), with their prompts and tools |
+| `compose/plans.go` | Workflow `todo`: to-dos, reminders, and plans of a person (`docs/plans.md`) |
 | `compose/release.go` | Release step: build, push, and release through the release controller |
 | `compose/worker.go` | Claim loop with heartbeats and progress notes |
 | `model/` | OpenAI-compatible Chat Completions client |
@@ -546,7 +548,9 @@ environment key and the CA certificate of the proxy; with
 `MAGI_EGRESS_PROXY`), `MAGI_MODEL_EGRESS` (`true`: the model calls go
 through the proxy; see Egress), `MAGI_MODEL_API_KEY` (a key placeholder
 for the proxy, in place of `MAGI_MODEL_API_KEY_FILE`), `MAGI_SEARCH_URL`
-(SearXNG for web search; see Web search).
+(SearXNG for web search; see Web search), `MAGI_TIME_ZONE` (the IANA time
+zone of the household, for the time in the persona prompt and the times of
+to-dos; default UTC).
 
 ## Model check
 

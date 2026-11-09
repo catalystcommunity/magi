@@ -97,6 +97,12 @@ class MagiAsyncClient(private val transport: AsyncTransport) {
     suspend fun listTasks(request: ListTasksRequest): ListTasksResponse {
         return decode<ListTasksResponse>(transport.call("MagiService", "list-tasks", encode(request)))
     }
+    suspend fun listTodos(request: ListTodosRequest): ListTodosResponse {
+        return decode<ListTodosResponse>(transport.call("MagiService", "list-todos", encode(request)))
+    }
+    suspend fun finishTodo(request: FinishTodoRequest): Todo {
+        return decode<Todo>(transport.call("MagiService", "finish-todo", encode(request)))
+    }
     suspend fun getTaskDiff(request: GetTaskDiffRequest): TaskDiff {
         return decode<TaskDiff>(transport.call("MagiService", "get-task-diff", encode(request)))
     }

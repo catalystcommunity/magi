@@ -139,6 +139,14 @@ class MagiClient:
         """list-tasks"""
         return ListTasksResponse.from_cbor(self._transport.call("MagiService", "list-tasks", req.to_cbor()))
 
+    def list_todos(self, req: ListTodosRequest) -> ListTodosResponse:
+        """list-todos"""
+        return ListTodosResponse.from_cbor(self._transport.call("MagiService", "list-todos", req.to_cbor()))
+
+    def finish_todo(self, req: FinishTodoRequest) -> Todo:
+        """finish-todo"""
+        return Todo.from_cbor(self._transport.call("MagiService", "finish-todo", req.to_cbor()))
+
     def get_task_diff(self, req: GetTaskDiffRequest) -> TaskDiff:
         """get-task-diff"""
         return TaskDiff.from_cbor(self._transport.call("MagiService", "get-task-diff", req.to_cbor()))

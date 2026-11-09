@@ -167,3 +167,51 @@ func TestDropSelfCopies(t *testing.T) {
 		t.Fatalf("shared fact dropped: %+v", got)
 	}
 }
+
+func TestRetarget(t *testing.T) {
+	notes := `- [ent_me] me (person)
+  - [clm_r] me router Ubiquiti Dream Machine
+  - [clm_d] me dentist Dr. Rivera
+- [ent_u] Ubiquiti Dream Machine (device)
+  - [clm_b] Ubiquiti Dream Machine located-in basement closet
+- [ent_dana] Dana (person)
+  - [clm_t] Dana lives-in Tucson`
+	for _, c := range []struct{ text, id, want string }{
+		{"Correction: the router is in the garage, not the basement. It was always in the garage.", "clm_r", "clm_b"},
+		{"the router is in the garage, not the basement", "clm_b", "clm_b"},
+		{"That's wrong: Dana lives in Phoenix, not Tucson.", "clm_t", "clm_t"},
+		{"That's wrong: Dana lives in Phoenix, not Tucson.", "clm_d", "clm_t"},
+		{"My dentist is Dr. Chen now.", "clm_d", "clm_d"},
+		{"not the attic", "clm_r", "clm_r"},
+	} {
+		if got := retarget(notes, c.text, c.id); got != c.want {
+			t.Errorf("%q from %s: %s, want %s", c.text, c.id, got, c.want)
+		}
+	}
+}
+
+func TestKeepTitles(t *testing.T) {
+	got := keepTitles([]noteItem{{Op: "remember", Subject: "me", Relation: "works-at", Object: "Brightline Logistics", Value: "operations manager"}})
+	if len(got) != 2 || got[1].Relation != "job" || got[1].Value != "operations manager" || got[1].Object != "" {
+		t.Fatalf("%+v", got)
+	}
+	if _, args := got[0].toolCall(""); args["object"] != "Brightline Logistics" || args["value"] != "" {
+		t.Fatalf("works-at args %v", args)
+	}
+}
+
+func TestChangeOp(t *testing.T) {
+	for _, c := range []struct{ text, op, want string }{
+		{"Correction: the Synology is in the hall closet, not the office closet.", "update", "fix"},
+		{"Oops, our anniversary is June 15, not June 14.", "update", "fix"},
+		{"We moved our taxes to Ben Okoye at Summit CPA this year.", "fix", "update"},
+		{"Leo switched teams. He plays for the Chandler Flyers now.", "update", "update"},
+		{"I misspoke, it changed last year", "fix", "fix"},
+		{"Dana lives in Phoenix, not Tucson.", "fix", "fix"},
+		{"There is no chores calendar.", "retract", "retract"},
+	} {
+		if got := changeOp(c.text, c.op); got != c.want {
+			t.Errorf("%q %s: %s, want %s", c.text, c.op, got, c.want)
+		}
+	}
+}

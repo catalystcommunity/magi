@@ -4367,6 +4367,282 @@ func DecodeListTasksResponse(csilData []byte) (ListTasksResponse, error) {
 	return csilDecListTasksResponse(csilRoot)
 }
 
+// csilEncTodo builds the canonical CBOR value tree for a Todo.
+func csilEncTodo(csilV Todo) cborValue {
+	csilEntries := make(cborMap, 0, 10)
+	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
+	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
+	if csilV.Plan != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("plan"), cborText((*csilV.Plan))})
+	}
+	if csilV.After != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("after"), cborText((*csilV.After))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("state"), cborText(csilV.State)})
+	csilEntries = append(csilEntries, cborEntry{cborText("title"), cborText(csilV.Title)})
+	if csilV.DueMs != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("due_ms"), cborUint((*csilV.DueMs))})
+	}
+	if csilV.RemindMs != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("remind_ms"), cborUint((*csilV.RemindMs))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("created_ms"), cborUint(csilV.CreatedMs)})
+	csilEntries = append(csilEntries, cborEntry{cborText("updated_ms"), cborUint(csilV.UpdatedMs)})
+	return csilEntries
+}
+
+// csilDecTodo reconstructs a Todo from a decoded CBOR value tree.
+func csilDecTodo(csilRoot cborValue) (Todo, error) {
+	var csilOut Todo
+	{
+		csilField, csilErr := cborRequire(csilRoot, "id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Id = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "kind")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Kind = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "title")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Title = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "state")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.State = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "plan"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Plan = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "due_ms"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.DueMs = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "remind_ms"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.RemindMs = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "after"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.After = &csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "created_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.CreatedMs = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "updated_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.UpdatedMs = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeTodo encodes a Todo to canonical CSIL CBOR bytes.
+func EncodeTodo(csilV Todo) []byte {
+	return cborEncode(csilEncTodo(csilV))
+}
+
+// DecodeTodo decodes canonical CSIL CBOR bytes into a Todo.
+func DecodeTodo(csilData []byte) (Todo, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero Todo
+		return csilZero, csilErr
+	}
+	return csilDecTodo(csilRoot)
+}
+
+// csilEncListTodosRequest builds the canonical CBOR value tree for a ListTodosRequest.
+func csilEncListTodosRequest(csilV ListTodosRequest) cborValue {
+	csilEntries := make(cborMap, 0, 2)
+	if csilV.Plan != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("plan"), cborText((*csilV.Plan))})
+	}
+	if csilV.IncludeEnded != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("include_ended"), cborBool((*csilV.IncludeEnded))})
+	}
+	return csilEntries
+}
+
+// csilDecListTodosRequest reconstructs a ListTodosRequest from a decoded CBOR value tree.
+func csilDecListTodosRequest(csilRoot cborValue) (ListTodosRequest, error) {
+	var csilOut ListTodosRequest
+	if csilField, csilOk := cborMapGet(csilRoot, "plan"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Plan = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "include_ended"); csilOk {
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.IncludeEnded = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeListTodosRequest encodes a ListTodosRequest to canonical CSIL CBOR bytes.
+func EncodeListTodosRequest(csilV ListTodosRequest) []byte {
+	return cborEncode(csilEncListTodosRequest(csilV))
+}
+
+// DecodeListTodosRequest decodes canonical CSIL CBOR bytes into a ListTodosRequest.
+func DecodeListTodosRequest(csilData []byte) (ListTodosRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ListTodosRequest
+		return csilZero, csilErr
+	}
+	return csilDecListTodosRequest(csilRoot)
+}
+
+// csilEncListTodosResponse builds the canonical CBOR value tree for a ListTodosResponse.
+func csilEncListTodosResponse(csilV ListTodosResponse) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("todos"), cborEncArray(csilV.Todos, func(csilElem Todo) cborValue { return csilEncTodo(csilElem) })})
+	return csilEntries
+}
+
+// csilDecListTodosResponse reconstructs a ListTodosResponse from a decoded CBOR value tree.
+func csilDecListTodosResponse(csilRoot cborValue) (ListTodosResponse, error) {
+	var csilOut ListTodosResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "todos")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]Todo, error) { return cborDecArray(csilV, csilDecTodo) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Todos = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeListTodosResponse encodes a ListTodosResponse to canonical CSIL CBOR bytes.
+func EncodeListTodosResponse(csilV ListTodosResponse) []byte {
+	return cborEncode(csilEncListTodosResponse(csilV))
+}
+
+// DecodeListTodosResponse decodes canonical CSIL CBOR bytes into a ListTodosResponse.
+func DecodeListTodosResponse(csilData []byte) (ListTodosResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ListTodosResponse
+		return csilZero, csilErr
+	}
+	return csilDecListTodosResponse(csilRoot)
+}
+
+// csilEncFinishTodoRequest builds the canonical CBOR value tree for a FinishTodoRequest.
+func csilEncFinishTodoRequest(csilV FinishTodoRequest) cborValue {
+	csilEntries := make(cborMap, 0, 2)
+	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
+	csilEntries = append(csilEntries, cborEntry{cborText("outcome"), cborText(csilV.Outcome)})
+	return csilEntries
+}
+
+// csilDecFinishTodoRequest reconstructs a FinishTodoRequest from a decoded CBOR value tree.
+func csilDecFinishTodoRequest(csilRoot cborValue) (FinishTodoRequest, error) {
+	var csilOut FinishTodoRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Id = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "outcome")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Outcome = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeFinishTodoRequest encodes a FinishTodoRequest to canonical CSIL CBOR bytes.
+func EncodeFinishTodoRequest(csilV FinishTodoRequest) []byte {
+	return cborEncode(csilEncFinishTodoRequest(csilV))
+}
+
+// DecodeFinishTodoRequest decodes canonical CSIL CBOR bytes into a FinishTodoRequest.
+func DecodeFinishTodoRequest(csilData []byte) (FinishTodoRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero FinishTodoRequest
+		return csilZero, csilErr
+	}
+	return csilDecFinishTodoRequest(csilRoot)
+}
+
 // csilEncFileChange builds the canonical CBOR value tree for a FileChange.
 func csilEncFileChange(csilV FileChange) cborValue {
 	csilEntries := make(cborMap, 0, 3)

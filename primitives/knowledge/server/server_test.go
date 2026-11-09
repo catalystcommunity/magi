@@ -280,6 +280,19 @@ func TestChanges(t *testing.T) {
 		t.Errorf("the fix does not name the removed object: %+v", h.Changes)
 	}
 
+	// A retracted claim takes an object that only it named with it.
+	gym := must(e.alice.PutEntity(ctx, api.PutEntityRequest{Kind: "organization", Label: "Arcadia Climbing Gym"}))
+	member := must(e.alice.Assert(ctx, api.AssertRequest{Subject: sam.Id, Relation: "member-of", Object: &gym.Id}))
+	owner := must(e.alice.Assert(ctx, api.AssertRequest{Subject: router.Id, Relation: "bought-by", Object: &sam.Id}))
+	must(e.alice.Change(ctx, api.ChangeRequest{Id: member.Id, Operation: "retract"}))
+	must(e.alice.Change(ctx, api.ChangeRequest{Id: owner.Id, Operation: "retract"}))
+	if s := must(e.alice.Search(ctx, api.SearchRequest{Text: ptr("Arcadia")})); len(s.Entities) != 0 {
+		t.Errorf("the object of a retracted claim is still there: %+v", s.Entities)
+	}
+	if s := must(e.alice.Search(ctx, api.SearchRequest{Text: ptr("Sam")})); !slices.ContainsFunc(s.Entities, func(x api.Entity) bool { return x.Id == sam.Id }) {
+		t.Errorf("an object with other claims is gone: %+v", s.Entities)
+	}
+
 	// update: the old claim ends, the new one is current; the past is a query.
 	before := uint64(time.Now().UnixMilli())
 	time.Sleep(5 * time.Millisecond)

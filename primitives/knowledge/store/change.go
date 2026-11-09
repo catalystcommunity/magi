@@ -386,6 +386,22 @@ func (s *Store) retract(ctx context.Context, tx pgx.Tx, w Who, t string, owners 
 				return "", err
 			}
 		}
+		// The object of a retracted claim can exist only because of it
+		// ("Arcadia Climbing Gym" of "me member-of Arcadia Climbing Gym").
+		// Remove it too, as a fix does.
+		if t == "claim" {
+			var obj *string
+			if err := tx.QueryRow(ctx, `SELECT object FROM claims WHERE id = $1`, in.ID).Scan(&obj); err != nil {
+				return "", err
+			}
+			if obj != nil {
+				if gone, err := s.dropOrphan(ctx, tx, *obj, owners); err != nil {
+					return "", err
+				} else if gone {
+					after["removed"] = []string{*obj}
+				}
+			}
+		}
 	}
 	id, _, err := s.change(ctx, tx, in.ID, "retract", w, owners, in.Reason, in.Utterance, nil, after)
 	return id, err

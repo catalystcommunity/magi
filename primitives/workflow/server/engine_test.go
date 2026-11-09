@@ -90,3 +90,35 @@ func TestQueueVariables(t *testing.T) {
 		t.Fatalf("missing variable: %+v %+v", task, r)
 	}
 }
+
+func TestWaitUntil(t *testing.T) {
+	d := api.Definition{Name: "todo", Start: "do", Steps: []api.Step{
+		{Id: "do", Kind: "human", Outcomes: []string{"done", "overdue"}, WaitUntil: ptr("${due_ms}"), TimeoutOutcome: ptr("overdue"), Next: map[string]string{}},
+	}}
+	if err := Validate(d); err != nil {
+		t.Fatal(err)
+	}
+	bad := d
+	bad.Steps = []api.Step{{Id: "do", Kind: "human", WaitUntil: ptr("tomorrow"), Next: map[string]string{}}}
+	if Validate(bad) == nil {
+		t.Fatal("wait_until text accepted")
+	}
+	for _, c := range []struct {
+		vars   map[string]string
+		waitMs *uint64
+		want   *uint64
+	}{
+		{map[string]string{"due_ms": "5000"}, nil, ptr(uint64(5000))},
+		{map[string]string{"due_ms": ""}, nil, nil},
+		{map[string]string{}, nil, nil},
+		{map[string]string{"due_ms": "5000"}, ptr(uint64(1000)), ptr(uint64(1100))},
+		{map[string]string{"due_ms": "500"}, ptr(uint64(1000)), ptr(uint64(500))},
+	} {
+		d.Steps[0].WaitMs = c.waitMs
+		r := &api.Run{Id: "run_t", Vars: c.vars}
+		enter(r, &d, "do", 1, 100)
+		if (r.WaitUntilMs == nil) != (c.want == nil) || r.WaitUntilMs != nil && *r.WaitUntilMs != *c.want {
+			t.Errorf("vars %v wait %v: until %v, want %v", c.vars, c.waitMs, r.WaitUntilMs, c.want)
+		}
+	}
+}

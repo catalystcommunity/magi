@@ -68,7 +68,7 @@ func codeChangeDefinition(runners bool) workflowapi.Definition {
 // InstallDefinitions writes the workflow definitions that Magi uses.
 func (s *System) InstallDefinitions(ctx context.Context) error {
 	ctx = s.AsService(ctx)
-	for _, d := range []workflowapi.Definition{codeChangeDefinition(s.Cfg.Runner != ""), personaTurnDefinition()} {
+	for _, d := range []workflowapi.Definition{codeChangeDefinition(s.Cfg.Runner != ""), personaTurnDefinition(), todoDefinition()} {
 		if _, err := s.Workflow.PutDefinition(ctx, d); err != nil {
 			return fmt.Errorf("put definition %s: %w", d.Name, err)
 		}
@@ -91,6 +91,10 @@ func (s *System) RunWorkers(ctx context.Context) {
 	go s.Work(ctx, "magi.publish", s.publish)
 	go s.Work(ctx, "magi.rollout", s.rollout)
 	go s.Work(ctx, "magi.persona", s.personaTurn)
+	go s.Work(ctx, "magi.todo.gate", s.todoGate)
+	go s.Work(ctx, "magi.todo.remind", s.todoRemind)
+	go s.Work(ctx, "magi.todo.overdue", s.todoOverdue)
+	go s.Work(ctx, "magi.todo.finish", s.todoFinish)
 	go s.Librarian(ctx)
 }
 

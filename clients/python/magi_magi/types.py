@@ -1809,6 +1809,139 @@ class ListTasksResponse:
 
 
 @dataclass
+class Todo:
+    id: str
+    kind: str
+    title: str
+    state: str
+    created_ms: int
+    updated_ms: int
+    plan: Optional[str] = None
+    due_ms: Optional[int] = None
+    remind_ms: Optional[int] = None
+    after: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'kind') and self.kind is not None:
+            result['kind'] = self.kind
+        if hasattr(self, 'title') and self.title is not None:
+            result['title'] = self.title
+        if hasattr(self, 'state') and self.state is not None:
+            result['state'] = self.state
+        if hasattr(self, 'plan') and self.plan is not None:
+            result['plan'] = self.plan
+        if hasattr(self, 'due_ms') and self.due_ms is not None:
+            result['due_ms'] = self.due_ms
+        if hasattr(self, 'remind_ms') and self.remind_ms is not None:
+            result['remind_ms'] = self.remind_ms
+        if hasattr(self, 'after') and self.after is not None:
+            result['after'] = self.after
+        if hasattr(self, 'created_ms') and self.created_ms is not None:
+            result['created_ms'] = self.created_ms
+        if hasattr(self, 'updated_ms') and self.updated_ms is not None:
+            result['updated_ms'] = self.updated_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Todo':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), kind=data.get('kind'), title=data.get('title'), state=data.get('state'), plan=data.get('plan'), due_ms=data.get('due_ms'), remind_ms=data.get('remind_ms'), after=data.get('after'), created_ms=data.get('created_ms'), updated_ms=data.get('updated_ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'Todo':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ListTodosRequest:
+    plan: Optional[str] = None
+    include_ended: Optional[bool] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'plan') and self.plan is not None:
+            result['plan'] = self.plan
+        if hasattr(self, 'include_ended') and self.include_ended is not None:
+            result['include_ended'] = self.include_ended
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ListTodosRequest':
+        """Create instance from dictionary."""
+        return cls(plan=data.get('plan'), include_ended=data.get('include_ended'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ListTodosRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ListTodosResponse:
+    todos: List[Todo]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'todos') and self.todos is not None:
+            result['todos'] = self.todos
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ListTodosResponse':
+        """Create instance from dictionary."""
+        return cls(todos=data.get('todos'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ListTodosResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class FinishTodoRequest:
+    id: str
+    outcome: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'outcome') and self.outcome is not None:
+            result['outcome'] = self.outcome
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'FinishTodoRequest':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), outcome=data.get('outcome'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'FinishTodoRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
 class FileChange:
     path: str
     additions: int

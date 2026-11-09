@@ -36,6 +36,8 @@ type MagiService interface {
 	StartTask(ctx context.Context, req StartTaskRequest) (Task, error)
 	GetTask(ctx context.Context, req GetTaskRequest) (Task, error)
 	ListTasks(ctx context.Context, req ListTasksRequest) (ListTasksResponse, error)
+	ListTodos(ctx context.Context, req ListTodosRequest) (ListTodosResponse, error)
+	FinishTodo(ctx context.Context, req FinishTodoRequest) (Todo, error)
 	GetTaskDiff(ctx context.Context, req GetTaskDiffRequest) (TaskDiff, error)
 	GetTaskOutput(ctx context.Context, req GetTaskOutputRequest) (TaskOutput, error)
 	Decide(ctx context.Context, req DecideRequest) (Task, error)

@@ -1692,6 +1692,104 @@ fun listTasksResponseFromCborValue(cbor: CborValue): ListTasksResponse {
 /** Decode CSIL CBOR bytes into a ListTasksResponse. */
 fun listTasksResponseFromCbor(bytes: ByteArray): ListTasksResponse = listTasksResponseFromCborValue(CsilCbor.decode(bytes))
 
+/** The CBOR value tree for a Todo (deep, canonical key order). */
+fun Todo.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    csilEntries.add(CborValue.CText("kind") to CborValue.CText(this.kind))
+    this.plan?.let { csilV -> csilEntries.add(CborValue.CText("plan") to CborValue.CText(csilV)) }
+    this.after?.let { csilV -> csilEntries.add(CborValue.CText("after") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("state") to CborValue.CText(this.state))
+    csilEntries.add(CborValue.CText("title") to CborValue.CText(this.title))
+    this.dueMs?.let { csilV -> csilEntries.add(CborValue.CText("due_ms") to CborValue.CUint(csilV)) }
+    this.remindMs?.let { csilV -> csilEntries.add(CborValue.CText("remind_ms") to CborValue.CUint(csilV)) }
+    csilEntries.add(CborValue.CText("created_ms") to CborValue.CUint(this.createdMs))
+    csilEntries.add(CborValue.CText("updated_ms") to CborValue.CUint(this.updatedMs))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a Todo to canonical CSIL CBOR bytes. */
+fun Todo.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a Todo from a decoded CBOR value tree. */
+fun todoFromCborValue(cbor: CborValue): Todo {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val kind = CsilCbor.asText(CsilCbor.require(cbor, "kind"))
+    val title = CsilCbor.asText(CsilCbor.require(cbor, "title"))
+    val state = CsilCbor.asText(CsilCbor.require(cbor, "state"))
+    val plan = CsilCbor.mapGet(cbor, "plan")?.let { csilV -> CsilCbor.asText(csilV) }
+    val dueMs = CsilCbor.mapGet(cbor, "due_ms")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val remindMs = CsilCbor.mapGet(cbor, "remind_ms")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val after = CsilCbor.mapGet(cbor, "after")?.let { csilV -> CsilCbor.asText(csilV) }
+    val createdMs = CsilCbor.asULong(CsilCbor.require(cbor, "created_ms"))
+    val updatedMs = CsilCbor.asULong(CsilCbor.require(cbor, "updated_ms"))
+    return Todo(id = id, kind = kind, title = title, state = state, plan = plan, dueMs = dueMs, remindMs = remindMs, after = after, createdMs = createdMs, updatedMs = updatedMs)
+}
+
+/** Decode CSIL CBOR bytes into a Todo. */
+fun todoFromCbor(bytes: ByteArray): Todo = todoFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListTodosRequest (deep, canonical key order). */
+fun ListTodosRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.plan?.let { csilV -> csilEntries.add(CborValue.CText("plan") to CborValue.CText(csilV)) }
+    this.includeEnded?.let { csilV -> csilEntries.add(CborValue.CText("include_ended") to CborValue.CBool(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListTodosRequest to canonical CSIL CBOR bytes. */
+fun ListTodosRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListTodosRequest from a decoded CBOR value tree. */
+fun listTodosRequestFromCborValue(cbor: CborValue): ListTodosRequest {
+    val plan = CsilCbor.mapGet(cbor, "plan")?.let { csilV -> CsilCbor.asText(csilV) }
+    val includeEnded = CsilCbor.mapGet(cbor, "include_ended")?.let { csilV -> CsilCbor.asBoolean(csilV) }
+    return ListTodosRequest(plan = plan, includeEnded = includeEnded)
+}
+
+/** Decode CSIL CBOR bytes into a ListTodosRequest. */
+fun listTodosRequestFromCbor(bytes: ByteArray): ListTodosRequest = listTodosRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListTodosResponse (deep, canonical key order). */
+fun ListTodosResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("todos") to CborValue.CArray((this.todos).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListTodosResponse to canonical CSIL CBOR bytes. */
+fun ListTodosResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListTodosResponse from a decoded CBOR value tree. */
+fun listTodosResponseFromCborValue(cbor: CborValue): ListTodosResponse {
+    val todos = CsilCbor.asArray(CsilCbor.require(cbor, "todos")).map { csilE -> todoFromCborValue(csilE) }
+    return ListTodosResponse(todos = todos)
+}
+
+/** Decode CSIL CBOR bytes into a ListTodosResponse. */
+fun listTodosResponseFromCbor(bytes: ByteArray): ListTodosResponse = listTodosResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a FinishTodoRequest (deep, canonical key order). */
+fun FinishTodoRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    csilEntries.add(CborValue.CText("outcome") to CborValue.CText(this.outcome))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a FinishTodoRequest to canonical CSIL CBOR bytes. */
+fun FinishTodoRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a FinishTodoRequest from a decoded CBOR value tree. */
+fun finishTodoRequestFromCborValue(cbor: CborValue): FinishTodoRequest {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val outcome = CsilCbor.asText(CsilCbor.require(cbor, "outcome"))
+    return FinishTodoRequest(id = id, outcome = outcome)
+}
+
+/** Decode CSIL CBOR bytes into a FinishTodoRequest. */
+fun finishTodoRequestFromCbor(bytes: ByteArray): FinishTodoRequest = finishTodoRequestFromCborValue(CsilCbor.decode(bytes))
+
 /** The CBOR value tree for a FileChange (deep, canonical key order). */
 fun FileChange.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
@@ -3759,6 +3857,10 @@ private fun csilToCborValue(value: Any?): CborValue = when (value) {
     is GetTaskRequest -> value.toCborValue()
     is ListTasksRequest -> value.toCborValue()
     is ListTasksResponse -> value.toCborValue()
+    is Todo -> value.toCborValue()
+    is ListTodosRequest -> value.toCborValue()
+    is ListTodosResponse -> value.toCborValue()
+    is FinishTodoRequest -> value.toCborValue()
     is FileChange -> value.toCborValue()
     is TaskDiff -> value.toCborValue()
     is GetTaskDiffRequest -> value.toCborValue()
@@ -3909,6 +4011,10 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     GetTaskRequest::class -> getTaskRequestFromCborValue(cbor)
     ListTasksRequest::class -> listTasksRequestFromCborValue(cbor)
     ListTasksResponse::class -> listTasksResponseFromCborValue(cbor)
+    Todo::class -> todoFromCborValue(cbor)
+    ListTodosRequest::class -> listTodosRequestFromCborValue(cbor)
+    ListTodosResponse::class -> listTodosResponseFromCborValue(cbor)
+    FinishTodoRequest::class -> finishTodoRequestFromCborValue(cbor)
     FileChange::class -> fileChangeFromCborValue(cbor)
     TaskDiff::class -> taskDiffFromCborValue(cbor)
     GetTaskDiffRequest::class -> getTaskDiffRequestFromCborValue(cbor)

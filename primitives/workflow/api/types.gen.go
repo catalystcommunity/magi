@@ -14,6 +14,7 @@ type Step struct {
 	MaxAttempts    *uint64           `json:"max_attempts,omitempty" yaml:"max_attempts,omitempty"`
 	Deciders       []string          `json:"deciders,omitempty" yaml:"deciders,omitempty"`
 	WaitMs         *uint64           `json:"wait_ms,omitempty" yaml:"wait_ms,omitempty"`
+	WaitUntil      *string           `json:"wait_until,omitempty" yaml:"wait_until,omitempty"`
 	TimeoutOutcome *string           `json:"timeout_outcome,omitempty" yaml:"timeout_outcome,omitempty"`
 }
 

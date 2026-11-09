@@ -2081,6 +2081,132 @@ def _list_tasks_response_from_cbor(data: bytes) -> "ListTasksResponse":
 ListTasksResponse.to_cbor = _list_tasks_response_to_cbor
 ListTasksResponse.from_cbor = staticmethod(_list_tasks_response_from_cbor)
 
+def _encode_todo_value(v: "Todo") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["kind"] = v.kind
+    csil_x = v.plan
+    if csil_x is not None:
+        csil_m["plan"] = csil_x
+    csil_x = v.after
+    if csil_x is not None:
+        csil_m["after"] = csil_x
+    csil_m["state"] = v.state
+    csil_m["title"] = v.title
+    csil_x = v.due_ms
+    if csil_x is not None:
+        csil_m["due_ms"] = csil_x
+    csil_x = v.remind_ms
+    if csil_x is not None:
+        csil_m["remind_ms"] = csil_x
+    csil_m["created_ms"] = v.created_ms
+    csil_m["updated_ms"] = v.updated_ms
+    return csil_m
+
+def _decode_todo_value(tree: Any) -> "Todo":
+    tree = _csil_expect_map(tree)
+    return Todo(
+        id=_csil_expect_text(tree["id"]),
+        kind=_csil_expect_text(tree["kind"]),
+        title=_csil_expect_text(tree["title"]),
+        state=_csil_expect_text(tree["state"]),
+        plan=(None if tree.get("plan") is None else _csil_expect_text(tree["plan"])),
+        due_ms=(None if tree.get("due_ms") is None else _csil_expect_uint(tree["due_ms"])),
+        remind_ms=(None if tree.get("remind_ms") is None else _csil_expect_uint(tree["remind_ms"])),
+        after=(None if tree.get("after") is None else _csil_expect_text(tree["after"])),
+        created_ms=_csil_expect_uint(tree["created_ms"]),
+        updated_ms=_csil_expect_uint(tree["updated_ms"]),
+    )
+
+
+def _todo_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_todo_value(self))
+
+
+def _todo_from_cbor(data: bytes) -> "Todo":
+    return _decode_todo_value(cbor_decode(data))
+
+
+Todo.to_cbor = _todo_to_cbor
+Todo.from_cbor = staticmethod(_todo_from_cbor)
+
+def _encode_list_todos_request_value(v: "ListTodosRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.plan
+    if csil_x is not None:
+        csil_m["plan"] = csil_x
+    csil_x = v.include_ended
+    if csil_x is not None:
+        csil_m["include_ended"] = csil_x
+    return csil_m
+
+def _decode_list_todos_request_value(tree: Any) -> "ListTodosRequest":
+    tree = _csil_expect_map(tree)
+    return ListTodosRequest(
+        plan=(None if tree.get("plan") is None else _csil_expect_text(tree["plan"])),
+        include_ended=(None if tree.get("include_ended") is None else _csil_expect_bool(tree["include_ended"])),
+    )
+
+
+def _list_todos_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_todos_request_value(self))
+
+
+def _list_todos_request_from_cbor(data: bytes) -> "ListTodosRequest":
+    return _decode_list_todos_request_value(cbor_decode(data))
+
+
+ListTodosRequest.to_cbor = _list_todos_request_to_cbor
+ListTodosRequest.from_cbor = staticmethod(_list_todos_request_from_cbor)
+
+def _encode_list_todos_response_value(v: "ListTodosResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["todos"] = [_encode_todo_value(csil_e) for csil_e in v.todos]
+    return csil_m
+
+def _decode_list_todos_response_value(tree: Any) -> "ListTodosResponse":
+    tree = _csil_expect_map(tree)
+    return ListTodosResponse(
+        todos=[_decode_todo_value(csil_e) for csil_e in _csil_expect_array(tree["todos"])],
+    )
+
+
+def _list_todos_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_todos_response_value(self))
+
+
+def _list_todos_response_from_cbor(data: bytes) -> "ListTodosResponse":
+    return _decode_list_todos_response_value(cbor_decode(data))
+
+
+ListTodosResponse.to_cbor = _list_todos_response_to_cbor
+ListTodosResponse.from_cbor = staticmethod(_list_todos_response_from_cbor)
+
+def _encode_finish_todo_request_value(v: "FinishTodoRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["outcome"] = v.outcome
+    return csil_m
+
+def _decode_finish_todo_request_value(tree: Any) -> "FinishTodoRequest":
+    tree = _csil_expect_map(tree)
+    return FinishTodoRequest(
+        id=_csil_expect_text(tree["id"]),
+        outcome=_csil_expect_text(tree["outcome"]),
+    )
+
+
+def _finish_todo_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_finish_todo_request_value(self))
+
+
+def _finish_todo_request_from_cbor(data: bytes) -> "FinishTodoRequest":
+    return _decode_finish_todo_request_value(cbor_decode(data))
+
+
+FinishTodoRequest.to_cbor = _finish_todo_request_to_cbor
+FinishTodoRequest.from_cbor = staticmethod(_finish_todo_request_from_cbor)
+
 def _encode_file_change_value(v: "FileChange") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["path"] = v.path

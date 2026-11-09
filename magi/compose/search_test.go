@@ -178,3 +178,10 @@ func TestRecallEmpty(t *testing.T) {
 		t.Fatal("recall with records")
 	}
 }
+
+func TestStripMarks(t *testing.T) {
+	got := stripMarks("[Notice sent to the person's devices] The report is on your phone. [The person stopped you here; they did not hear the rest.]")
+	if got != "The report is on your phone." {
+		t.Fatalf("%q", got)
+	}
+}

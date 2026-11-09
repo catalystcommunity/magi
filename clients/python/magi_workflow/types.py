@@ -17,6 +17,7 @@ class Step:
     max_attempts: Optional[int] = None
     deciders: Optional[List[str]] = None
     wait_ms: Optional[int] = None
+    wait_until: Optional[str] = None
     timeout_outcome: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -39,6 +40,8 @@ class Step:
             result['deciders'] = self.deciders
         if hasattr(self, 'wait_ms') and self.wait_ms is not None:
             result['wait_ms'] = self.wait_ms
+        if hasattr(self, 'wait_until') and self.wait_until is not None:
+            result['wait_until'] = self.wait_until
         if hasattr(self, 'timeout_outcome') and self.timeout_outcome is not None:
             result['timeout_outcome'] = self.timeout_outcome
         return result
@@ -46,7 +49,7 @@ class Step:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Step':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), kind=data.get('kind'), queue=data.get('queue'), prompt=data.get('prompt'), outcomes=data.get('outcomes'), next=data.get('next'), max_attempts=data.get('max_attempts'), deciders=data.get('deciders'), wait_ms=data.get('wait_ms'), timeout_outcome=data.get('timeout_outcome'))
+        return cls(id=data.get('id'), kind=data.get('kind'), queue=data.get('queue'), prompt=data.get('prompt'), outcomes=data.get('outcomes'), next=data.get('next'), max_attempts=data.get('max_attempts'), deciders=data.get('deciders'), wait_ms=data.get('wait_ms'), wait_until=data.get('wait_until'), timeout_outcome=data.get('timeout_outcome'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

@@ -378,6 +378,9 @@ def render(img, v):
         {"name": "MAGI_PUBLISHER", "value": v.get("PUBLISHER", "")},
         {"name": "MAGI_ADMINS", "value": v.get("ADMINS", "")},
         {"name": "MAGI_LEXICON_EDITORS", "value": v.get("LEXICON_EDITORS", "")},
+        # TIME_ZONE: the time zone of the household (IANA name), for the
+        # time in the persona prompt and the times of tasks.
+        {"name": "MAGI_TIME_ZONE", "value": v.get("TIME_ZONE", "UTC")},
         {"name": "MAGI_IMAGE_REGISTRY", "value": f"registry.{ns}.svc:5000"},
         {"name": "MAGI_IMAGE_CREDENTIALS_FILE", "value": "/etc/magi/registry/registry.json"}],
         secrets=[*model_secret, ("magi-token-magi", "/etc/magi/token"), ("magi-registry-push", "/etc/magi/registry"), *persona_secrets, *detector_secrets,

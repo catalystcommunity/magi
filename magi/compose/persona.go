@@ -102,7 +102,7 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 		name = p.Name
 	}
 	now := time.Now()
-	msgs := []model.Message{{Role: "system", Content: fmt.Sprintf(prof.prompt, name, displayName(a), promptTime(now))}}
+	msgs := []model.Message{{Role: "system", Content: fmt.Sprintf(prof.prompt, name, displayName(a), promptTime(now.In(s.zone())))}}
 	// An answer before a change of the records can be wrong now. A small
 	// model copies its own earlier answer to the same question. An answer
 	// that used a changed record is replaced with a note of the change.
@@ -140,7 +140,7 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 			}
 		}
 		if u.Modality == "notice" {
-			content = "[Notice sent to the person's devices] " + content
+			content = noticeMark + content
 		}
 		if inter != nil && u.Id == inter.reply.Id {
 			content = inter.heardText()
@@ -263,6 +263,7 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 	// A small model can copy the mark of its earlier answers.
 	reply = strings.TrimSpace(strings.ReplaceAll(reply, strings.TrimSpace(staleMark), ""))
 	reply = strings.TrimSpace(supersededCopy.ReplaceAllString(reply, ""))
+	reply = stripMarks(reply)
 	if reply == "" {
 		reply = "I could not finish my answer. Please ask again."
 	}
@@ -468,4 +469,17 @@ func recallEmpty(calls []map[string]any) bool {
 		}
 	}
 	return false
+}
+
+// noticeMark starts an earlier notice in the history of the persona.
+const noticeMark = "[Notice sent to the person's devices] "
+
+// stripMarks removes the marks that Magi puts on earlier messages in the
+// history (a notice, a reply that the person stopped). A small model can
+// copy them into its reply.
+func stripMarks(reply string) string {
+	for _, m := range []string{noticeMark, cutOffMark} {
+		reply = strings.ReplaceAll(reply, strings.TrimSpace(m), "")
+	}
+	return strings.TrimSpace(reply)
 }

@@ -376,6 +376,28 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			}
 			return EncodeListTasksResponse(resp), nil
 		},
+		"list-todos": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListTodosRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListTodos(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListTodosResponse(resp), nil
+		},
+		"finish-todo": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeFinishTodoRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.FinishTodo(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeTodo(resp), nil
+		},
 		"get-task-diff": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetTaskDiffRequest(b)
 			if err != nil {

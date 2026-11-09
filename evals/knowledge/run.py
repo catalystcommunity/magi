@@ -116,6 +116,11 @@ def main():
         summary.setdefault("by_change_kind", {}).setdefault(c["kind"], [0, 0])
         summary["by_change_kind"][c["kind"]][0] += sum(r["ok"] for r in rs)
         summary["by_change_kind"][c["kind"]][1] += len(rs)
+    # Latency of each kind of turn (the time until the reply of "magi say").
+    for kind in ["seed", "question", "change", "check"]:
+        ms = sorted(r["ms"] for r in log if r["kind"] == kind and "reply" in r)
+        if ms:
+            summary.setdefault("ms", {})[kind] = {"median": ms[len(ms) // 2], "p90": ms[min(len(ms) - 1, int(len(ms) * 0.9))], "max": ms[-1]}
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     stem = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + s["version"] + (f"-{args.label}" if args.label else "")

@@ -350,6 +350,7 @@ export function toStepCborValue(v: Step): CborValue {
   if (v.waitMs !== undefined) csilMap.set("wait_ms", v.waitMs);
   if (v.deciders !== undefined) csilMap.set("deciders", v.deciders);
   if (v.outcomes !== undefined) csilMap.set("outcomes", v.outcomes);
+  if (v.waitUntil !== undefined) csilMap.set("wait_until", v.waitUntil);
   if (v.maxAttempts !== undefined) csilMap.set("max_attempts", v.maxAttempts);
   if (v.timeoutOutcome !== undefined) csilMap.set("timeout_outcome", v.timeoutOutcome);
   return csilMap;
@@ -366,6 +367,7 @@ export function fromStepCborValue(value: CborValue): Step {
     maxAttempts: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "max_attempts")),
     deciders: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "deciders")),
     waitMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "wait_ms")),
+    waitUntil: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "wait_until")),
     timeoutOutcome: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "timeout_outcome")),
   };
 }

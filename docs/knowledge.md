@@ -71,7 +71,8 @@ Each change has one of three operations.
 A fix of the object of a claim also retracts the old object, when only that
 claim used it. Example: "Dana lives in Tucson" becomes "Dana lives in
 Phoenix", and "Tucson" was made only for the wrong claim. Else the error
-stays in the store as a thing with no facts.
+stays in the store as a thing with no facts. A retraction of a claim also
+retracts its object, when only that claim used it.
 
 Evidence has the same operations. When the last supporting evidence of a
 claim is retracted, and no person wrote the claim, the claim is marked
@@ -159,6 +160,19 @@ fact changed or was wrong. Then the persona asks. `update`, `fix`, and
 `retract` need an id from the records. The persona tools stay: the
 persona can record and change facts, also in later turns.
 
+For a question about the past ("before", "used to", "previously"), the
+records include the facts that ended.
+
+The note taker can give the wrong operation or the wrong fact. Magi
+corrects two errors before it applies an item:
+
+- The operation: words of a mistake ("correction", "I misspoke", "that's
+  wrong", "oops") make a `fix`. Words of a change ("now", "switched",
+  "moved", "this year"), with no words of a mistake, make an `update`.
+- The fact: when the message names the old value ("in the garage, not the
+  basement"), the fact must have it. When the fact of the id does not have
+  it, and one other fact of the records has it, Magi changes that fact.
+
 A `retract` item also names the thing to forget. Magi does not apply it
 when the record of the id does not have each word of that name. Example:
 "There is no chores calendar" must not retract the family calendar.
@@ -182,10 +196,14 @@ Two names are the same entity when they have the same proper name and
 differ only in the lower-case words before it. "family calendar" has no
 proper name, thus it does not join other calendars.
 
+A fix or an update of the object of a fact has the same shape: "Dr. Chen at
+Oak Hill Dental" becomes Dr. Chen, and Dr. Chen works-at Oak Hill Dental.
+
 When a note taker item has both an object and a value, Magi keeps one:
 for a relation of a thing (`located-in`, `hosted-in`, `books-through`), the
-object becomes the subject and the value the object. For other relations
-(`works-at`), the value goes. When the subject and the object are the
+object becomes the subject and the value the object. For `works-at`, the
+value is a second fact (`me job operations manager`). For other
+relations, the value goes. When the subject and the object are the
 same, the value is the object.
 
 When the note taker gives the same fact about the person and about another

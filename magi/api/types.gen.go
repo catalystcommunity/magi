@@ -435,6 +435,37 @@ type ListTasksResponse struct {
 	Tasks []Task `json:"tasks" yaml:"tasks"`
 }
 
+// Todo represents a structured data type
+type Todo struct {
+	Id        string  `json:"id" yaml:"id"`
+	Kind      string  `json:"kind" yaml:"kind"`
+	Title     string  `json:"title" yaml:"title"`
+	State     string  `json:"state" yaml:"state"`
+	Plan      *string `json:"plan,omitempty" yaml:"plan,omitempty"`
+	DueMs     *uint64 `json:"due_ms,omitempty" yaml:"due_ms,omitempty"`
+	RemindMs  *uint64 `json:"remind_ms,omitempty" yaml:"remind_ms,omitempty"`
+	After     *string `json:"after,omitempty" yaml:"after,omitempty"`
+	CreatedMs uint64  `json:"created_ms" yaml:"created_ms"`
+	UpdatedMs uint64  `json:"updated_ms" yaml:"updated_ms"`
+}
+
+// ListTodosRequest represents a structured data type
+type ListTodosRequest struct {
+	Plan         *string `json:"plan,omitempty" yaml:"plan,omitempty"`
+	IncludeEnded *bool   `json:"include_ended,omitempty" yaml:"include_ended,omitempty"`
+}
+
+// ListTodosResponse represents a structured data type
+type ListTodosResponse struct {
+	Todos []Todo `json:"todos" yaml:"todos"`
+}
+
+// FinishTodoRequest represents a structured data type
+type FinishTodoRequest struct {
+	Id      string `json:"id" yaml:"id"`
+	Outcome string `json:"outcome" yaml:"outcome"`
+}
+
 // FileChange represents a structured data type
 type FileChange struct {
 	Path      string `json:"path" yaml:"path"`

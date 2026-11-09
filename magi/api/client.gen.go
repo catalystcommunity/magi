@@ -286,6 +286,24 @@ func (c *MagiClient) ListTasks(ctx context.Context, req ListTasksRequest) (ListT
 	return DecodeListTasksResponse(csilResp)
 }
 
+func (c *MagiClient) ListTodos(ctx context.Context, req ListTodosRequest) (ListTodosResponse, error) {
+	var csilZero ListTodosResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-todos", EncodeListTodosRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListTodosResponse(csilResp)
+}
+
+func (c *MagiClient) FinishTodo(ctx context.Context, req FinishTodoRequest) (Todo, error) {
+	var csilZero Todo
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "finish-todo", EncodeFinishTodoRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeTodo(csilResp)
+}
+
 func (c *MagiClient) GetTaskDiff(ctx context.Context, req GetTaskDiffRequest) (TaskDiff, error) {
 	var csilZero TaskDiff
 	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "get-task-diff", EncodeGetTaskDiffRequest(req))

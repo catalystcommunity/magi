@@ -36,6 +36,12 @@ Step rules:
 - A human step with `wait_ms` ends after that time with `timeout_outcome`
   (default `timeout`). `decided_by` is `workflow:timeout`. The sweep does
   this.
+- `wait_until` is a time (Unix milliseconds), or a run variable as
+  `${name}` that holds one. The wait of the step ends then. An empty
+  variable gives no time. With `wait_ms` too, the earlier time ends the
+  wait. A time in the past ends the wait on the next sweep.
+- `MemQueue` (`server/memqueue.go`) is a queue in memory for the tests of
+  other modules. It is not for a service.
 
 ## Design
 

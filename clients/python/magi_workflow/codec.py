@@ -372,6 +372,9 @@ def _encode_step_value(v: "Step") -> Dict[Any, Any]:
     csil_x = v.outcomes
     if csil_x is not None:
         csil_m["outcomes"] = csil_x
+    csil_x = v.wait_until
+    if csil_x is not None:
+        csil_m["wait_until"] = csil_x
     csil_x = v.max_attempts
     if csil_x is not None:
         csil_m["max_attempts"] = csil_x
@@ -392,6 +395,7 @@ def _decode_step_value(tree: Any) -> "Step":
         max_attempts=(None if tree.get("max_attempts") is None else _csil_expect_uint(tree["max_attempts"])),
         deciders=(None if tree.get("deciders") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["deciders"])]),
         wait_ms=(None if tree.get("wait_ms") is None else _csil_expect_uint(tree["wait_ms"])),
+        wait_until=(None if tree.get("wait_until") is None else _csil_expect_text(tree["wait_until"])),
         timeout_outcome=(None if tree.get("timeout_outcome") is None else _csil_expect_text(tree["timeout_outcome"])),
     )
 

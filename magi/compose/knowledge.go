@@ -177,6 +177,7 @@ func describeClaim(c knowledgeapi.Claim, label map[string]string) string {
 // for a fact with an object, the name of the new object.
 func (s *System) changeRecord(ctx context.Context, owner, ownerName, id, op, field, value, reason string, erase bool, utt *string) (knowledgeapi.ChangeResponse, error) {
 	req := knowledgeapi.ChangeRequest{Id: id, Operation: op, Reason: optional(reason), ActFor: &owner, Utterance: utt}
+	var more []fact
 	if erase {
 		req.Erase = ptr(true)
 	}
@@ -197,6 +198,12 @@ func (s *System) changeRecord(ctx context.Context, owner, ownerName, id, op, fie
 				}
 			}
 			if field == "object" {
+				// The same shape as remember: "Dr. Chen at Oak Hill
+				// Dental" is Dr. Chen, who works at Oak Hill Dental.
+				g, m := shapeFact(fact{subject: "me", relation: cur.Claim.Relation, object: value})
+				if g.object != "" {
+					value, more = g.object, m
+				}
 				kind := ""
 				if cur.Claim.Object != nil {
 					if o, err := s.Knowledge.Get(ctx, knowledgeapi.GetRequest{Id: *cur.Claim.Object, ActFor: &owner}); err == nil && o.Entity != nil {
@@ -220,7 +227,15 @@ func (s *System) changeRecord(ctx context.Context, owner, ownerName, id, op, fie
 		}
 		req.Set = map[string]string{field: value}
 	}
-	return s.Knowledge.Change(ctx, req)
+	r, err := s.Knowledge.Change(ctx, req)
+	if err == nil {
+		for _, m := range more {
+			if _, _, err := s.remember(ctx, owner, ownerName, m, false, utt); err != nil {
+				s.Log.Warn("change: second fact", "err", err)
+			}
+		}
+	}
+	return r, err
 }
 
 // knowledgeView finds what the person knows: the entities that match the
@@ -284,6 +299,24 @@ func (s *System) knowledgeView(ctx context.Context, owner, text, kind string, li
 			for _, h := range res.Hits {
 				if c, ok := claims[h.Id]; ok && h.Type == "claim" && c.Subject == e.Id && c.Object != nil && slices.Contains(ids, *c.Object) && !slices.Contains(first, *c.Object) {
 					first = append(first, *c.Object)
+				}
+			}
+			// One more step: the things that those things name ("my
+			// vet" gives Dr. Okafor, who works at the clinic that books
+			// through PetDesk). Words such as "book" can match other
+			// entities, which then push the clinic out of the limit.
+			for _, id := range slices.Clone(first[1:]) {
+				if len(first) >= limit {
+					break
+				}
+				a, err := s.Knowledge.About(ctx, knowledgeapi.AboutRequest{Id: id, ActFor: &owner})
+				if err != nil {
+					continue
+				}
+				for _, c := range a.Claims {
+					if c.Subject == id && c.Object != nil && *c.Object != e.Id && !slices.Contains(first, *c.Object) && len(first) < limit {
+						first = append(first, *c.Object)
+					}
 				}
 			}
 			if len(first) > 1 || slices.Index(ids, e.Id) > 0 {
@@ -451,7 +484,9 @@ func (s *System) knowledgeContext(ctx context.Context, owner, text string) strin
 	if strings.TrimSpace(text) == "" {
 		return ""
 	}
-	items, records, err := s.knowledgeView(ctx, owner, text, "", 4, false)
+	// A question about the past ("before", "used to") needs the facts
+	// that ended.
+	items, records, err := s.knowledgeView(ctx, owner, text, "", 4, pastWords.MatchString(text))
 	if err != nil {
 		s.Log.Warn("knowledge context", "err", err)
 		return ""
@@ -462,6 +497,8 @@ func (s *System) knowledgeContext(ctx context.Context, owner, text string) strin
 	}
 	return strings.TrimSpace(strings.Join(lines, "\n"))
 }
+
+var pastWords = regexp.MustCompile(`(?i)\b(before|used to|previous(?:ly)?|earlier|formerly|former|last (?:one|time)|in the past)\b`)
 
 // staleMark starts an earlier answer of the persona that came before a
 // change of the records, when Magi does not know which records the answer

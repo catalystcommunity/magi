@@ -55,6 +55,9 @@ type Config struct {
 	// NoteTaker turns on the note taker (notetaker.go) in persona turns
 	// that can record knowledge. MAGI_NOTE_TAKER=false turns it off.
 	NoteTaker bool
+	// TimeZone is the time zone of the household (MAGI_TIME_ZONE): the
+	// time in the persona prompt and the times of to-dos.
+	TimeZone *time.Location
 	// CheckCommand runs in the repository after the apprentice works.
 	CheckCommand string
 	// Release is the release controller endpoint; empty turns releases off.
@@ -107,6 +110,13 @@ func ConfigFromEnv() (Config, error) {
 		Publisher:    os.Getenv("MAGI_PUBLISHER"),
 		CheckCommand: env("MAGI_CHECK_COMMAND", "./tools/check.sh"),
 		NoteTaker:    env("MAGI_NOTE_TAKER", "true") != "false",
+	}
+	if z := os.Getenv("MAGI_TIME_ZONE"); z != "" {
+		loc, err := time.LoadLocation(z)
+		if err != nil {
+			return c, fmt.Errorf("MAGI_TIME_ZONE: %w", err)
+		}
+		c.TimeZone = loc
 	}
 	c.Admins = list(os.Getenv("MAGI_ADMINS"))
 	c.LexiconEditors = list(os.Getenv("MAGI_LEXICON_EDITORS"))
@@ -177,6 +187,10 @@ func ConfigFromEnv() (Config, error) {
 
 // System holds the clients and settings that all parts of compose share.
 type System struct {
+	// noticeHook, when set, gets the notices of to-dos in place of the
+	// conversation service (tests).
+	noticeHook func(title, text string) error
+
 	Cfg   Config
 	Log   *slog.Logger
 	Model model.Chatter // the persona model; often a chain of local then remote

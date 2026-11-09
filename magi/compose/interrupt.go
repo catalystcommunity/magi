@@ -256,5 +256,8 @@ func (in *interruption) heardText() string {
 		return in.reply.Text
 	}
 	rs := []rune(in.reply.Text)
-	return strings.TrimSpace(string(rs[:in.heard])) + " [The person stopped you here; they did not hear the rest.]"
+	return strings.TrimSpace(string(rs[:in.heard])) + cutOffMark
 }
+
+// cutOffMark ends the part of a reply that the person heard.
+const cutOffMark = " [The person stopped you here; they did not hear the rest.]"

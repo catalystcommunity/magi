@@ -506,6 +506,45 @@ export interface ListTasksResponse {
   tasks: Task[];
 }
 
+/**
+ * A to-do or a reminder of the person (docs/plans.md). kind: "todo" or
+ * "reminder". state: "open", "waiting" (for the to-do in after), "late",
+ * "done", "skipped", "sent" (a reminder), "cancelled", "failed".
+ */
+export interface Todo {
+  id: string;
+  kind: string;
+  title: string;
+  state: string;
+  plan?: string;
+  dueMs?: number;
+  remindMs?: number;
+  after?: string;
+  createdMs: number;
+  updatedMs: number;
+}
+
+/**
+ * The open to-dos of the caller; with include_ended also the ones that
+ * ended in the last 7 days.
+ */
+export interface ListTodosRequest {
+  plan?: string;
+  includeEnded?: boolean;
+}
+
+export interface ListTodosResponse {
+  todos: Todo[];
+}
+
+/**
+ * outcome: "done", "skip", or "cancel".
+ */
+export interface FinishTodoRequest {
+  id: string;
+  outcome: string;
+}
+
 export interface FileChange {
   path: string;
   additions: number;

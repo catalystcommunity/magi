@@ -43,8 +43,8 @@ func Validate(d api.Definition) error {
 		ids[s.Id] = true
 		switch s.Kind {
 		case "task":
-			if len(s.Deciders) > 0 || s.WaitMs != nil || s.TimeoutOutcome != nil {
-				return rpc.Invalid("task step %q: deciders, wait_ms, and timeout_outcome are for human steps", s.Id)
+			if len(s.Deciders) > 0 || s.WaitMs != nil || s.WaitUntil != nil || s.TimeoutOutcome != nil {
+				return rpc.Invalid("task step %q: deciders, wait_ms, wait_until, and timeout_outcome are for human steps", s.Id)
 			}
 			if s.Queue == nil || *s.Queue == "" {
 				return rpc.Invalid("task step %q needs a queue", s.Id)
@@ -61,8 +61,11 @@ func Validate(d api.Definition) error {
 			if s.TimeoutOutcome != nil && len(s.Outcomes) > 0 && !slices.Contains(s.Outcomes, *s.TimeoutOutcome) {
 				return rpc.Invalid("step %q: timeout_outcome %q is not in outcomes", s.Id, *s.TimeoutOutcome)
 			}
-			if s.TimeoutOutcome != nil && s.WaitMs == nil {
-				return rpc.Invalid("step %q: timeout_outcome needs wait_ms", s.Id)
+			if s.TimeoutOutcome != nil && s.WaitMs == nil && s.WaitUntil == nil {
+				return rpc.Invalid("step %q: timeout_outcome needs wait_ms or wait_until", s.Id)
+			}
+			if s.WaitUntil != nil && !untilRE.MatchString(*s.WaitUntil) {
+				return rpc.Invalid("step %q: wait_until must be Unix milliseconds or ${name}", s.Id)
 			}
 		default:
 			return rpc.Invalid("step %q: kind must be task or human", s.Id)
@@ -137,6 +140,10 @@ func enter(r *api.Run, d *api.Definition, stepID string, attempt uint64, now uin
 		if s.WaitMs != nil && *s.WaitMs > 0 {
 			r.WaitUntilMs = ptr(now + *s.WaitMs)
 		}
+		if t, ok := waitUntil(s, r.Vars); ok && (r.WaitUntilMs == nil || t < *r.WaitUntilMs) {
+			// A time in the past ends the wait on the next sweep.
+			r.WaitUntilMs = ptr(max(t, 1))
+		}
 		return nil
 	}
 	queue, err := expandQueue(*s.Queue, r.Vars)
@@ -158,6 +165,25 @@ var (
 	subjectRE = regexp.MustCompile(`^(user|service|runner):[^\s${}]{1,250}$`)
 	deciderRE = regexp.MustCompile(`^((user|service|runner):[^\s${}]{1,250}|\$\{[A-Za-z0-9_.-]+\})$`)
 )
+
+var untilRE = regexp.MustCompile(`^([0-9]{1,16}|\$\{[A-Za-z0-9_.-]+\})$`)
+
+// waitUntil gives the time of wait_until. A variable that is empty or not
+// a number gives no time.
+func waitUntil(s *api.Step, vars map[string]string) (uint64, bool) {
+	if s.WaitUntil == nil {
+		return 0, false
+	}
+	v := *s.WaitUntil
+	if m := queueVarRE.FindStringSubmatch(v); m != nil {
+		v = strings.TrimSpace(vars[m[1]])
+	}
+	t, err := strconv.ParseUint(v, 10, 64)
+	if err != nil || t == 0 {
+		return 0, false
+	}
+	return t, true
+}
 
 // timeoutOutcome is the outcome of a human step whose wait is over.
 func timeoutOutcome(s *api.Step) string {

@@ -1,0 +1,33 @@
+{
+ "version": "plans-round0",
+ "about": "To-dos, reminders, and plans said to the executive assistant. Each step is one message. 'todos' lists the to-dos that must exist after the step (title words, kind, state, plan, times, order). Times are relative to the day of the run in the zone of the household: '+N HH:MM' is N days after today, 'fri HH:MM' is the next Friday after today, 'now+120m' is that many minutes after the message (5 minutes of tolerance), and a day with no time compares only the date. Synthetic data. Do not change a frozen version; make a new one.",
+ "persona": "persona:assistant",
+ "steps": [
+  {"id": "p01", "say": "Remind me to call the vet tomorrow at 9.",
+   "todos": [{"key": "vet", "title": ["vet"], "kind": "reminder", "state": "open", "remind": "+1 09:00"}]},
+  {"id": "p02", "say": "I need to renew my passport by Friday.",
+   "todos": [{"key": "passport", "title": ["passport"], "kind": "todo", "state": "open", "due": "fri"}]},
+  {"id": "p03", "say": "Add buy dog food to my list.",
+   "todos": [{"key": "food", "title": ["dog food"], "kind": "todo", "state": "open"}]},
+  {"id": "p04", "say": "My favorite color is green.",
+   "absent": [["green"]]},
+  {"id": "p05", "say": "Plan for the garage sale: first sort the boxes, then price everything, then put up signs.",
+   "todos": [{"key": "sort", "title": ["sort"], "kind": "todo", "state": "open", "plan": "garage"},
+             {"key": "price", "title": ["price"], "kind": "todo", "state": "waiting", "plan": "garage", "after": "sort"},
+             {"key": "signs", "title": ["sign"], "kind": "todo", "state": "waiting", "plan": "garage", "after": "price"}]},
+  {"id": "p06", "say": "What's on my list?", "reply_all": ["passport", "dog food"]},
+  {"id": "p07", "say": "I sorted the boxes.",
+   "todos": [{"key": "sort", "state": "done"}, {"key": "price", "state": "open"}]},
+  {"id": "p08", "say": "Move the passport renewal to next Tuesday.",
+   "todos": [{"key": "passport", "title": ["passport"], "state": "open", "due": "tue", "new": true}],
+   "once": [["passport"]]},
+  {"id": "p09", "say": "Never mind the vet reminder.",
+   "todos": [{"key": "vet", "state": "cancelled"}]},
+  {"id": "p10", "say": "Remind me in two hours to take the bread out.",
+   "todos": [{"key": "bread", "title": ["bread"], "kind": "reminder", "state": "open", "remind": "now+120m"}]},
+  {"id": "p11", "say": "What's next for the garage sale?", "reply_all": ["price"]},
+  {"id": "p12", "say": "I bought the dog food.",
+   "todos": [{"key": "food", "state": "done"}]},
+  {"id": "p13", "say": "What do I still need to do?", "reply_all": ["passport", "price"], "reply_none": ["dog food"]}
+ ]
+}

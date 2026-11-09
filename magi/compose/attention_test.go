@@ -161,3 +161,29 @@ func TestAskedInReply(t *testing.T) {
 		t.Fatal("not the reply just before")
 	}
 }
+
+func TestFalseClaimTodos(t *testing.T) {
+	at := profiles[Assistant].tools
+	added := []map[string]any{{"tool": "add_todo", "result": "To-do added: [run_1] ..."}}
+	reminder := []map[string]any{{"tool": "set_reminder", "result": "Reminder added: [run_2] ..."}}
+	changed := []map[string]any{{"tool": "change_todo", "result": "Changed the to-do."}}
+	for _, tc := range []struct {
+		reply string
+		calls []map[string]any
+		want  string
+	}{
+		{"I've created a plan for the garage sale. The steps are to sort the boxes, then price everything.", nil, "add_todo"},
+		{"I've created a plan for the garage sale.", added, ""},
+		{"I've added \"Renew passport\" to your to-do list.", nil, "add_todo"},
+		{"OK. I've set a reminder for you to call the vet tomorrow at 9:00 AM.", nil, "set_reminder"},
+		{"OK. I've set a reminder for you to call the vet tomorrow at 9:00 AM.", reminder, ""},
+		{"I've set a reminder for 9.", added, ""},
+		{"I've changed the reminder to 10.", changed, ""},
+		{"I've marked it done.", nil, "finish_todo"},
+		{"You have a reminder to call the vet tomorrow.", nil, ""},
+	} {
+		if got := falseClaim(tc.reply, tc.calls, at); got != tc.want {
+			t.Errorf("falseClaim(%q) = %q, want %q", tc.reply, got, tc.want)
+		}
+	}
+}

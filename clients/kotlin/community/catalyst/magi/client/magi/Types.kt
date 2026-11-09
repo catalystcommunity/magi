@@ -537,6 +537,42 @@ data class ListTasksResponse(
     val tasks: List<Task>
 )
 
+/** Todo record. */
+data class Todo(
+    val id: String,
+    val kind: String,
+    val title: String,
+    val state: String,
+    val plan: String? = null,
+    // wire key: due_ms
+    val dueMs: ULong? = null,
+    // wire key: remind_ms
+    val remindMs: ULong? = null,
+    val after: String? = null,
+    // wire key: created_ms
+    val createdMs: ULong,
+    // wire key: updated_ms
+    val updatedMs: ULong
+)
+
+/** ListTodosRequest record. */
+data class ListTodosRequest(
+    val plan: String? = null,
+    // wire key: include_ended
+    val includeEnded: Boolean? = null
+)
+
+/** ListTodosResponse record. */
+data class ListTodosResponse(
+    val todos: List<Todo>
+)
+
+/** FinishTodoRequest record. */
+data class FinishTodoRequest(
+    val id: String,
+    val outcome: String
+)
+
 /** FileChange record. */
 data class FileChange(
     val path: String,
