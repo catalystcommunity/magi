@@ -421,7 +421,10 @@ def render(img, v):
     apprentice = service(v, "apprentice", img["IMAGE_APPRENTICE"], [
         *model, *proxy_env, {"name": "MAGI_TOKEN_FILE", "value": "/etc/magi/token/token"},
         {"name": "MAGI_WORKFLOW_URL", "value": urls["workflow"]}, {"name": "MAGI_EXECUTION_URL", "value": urls["execution"]},
-        {"name": "MAGI_ARTIFACTS_URL", "value": urls["artifacts"]}],
+        {"name": "MAGI_ARTIFACTS_URL", "value": urls["artifacts"]},
+        # The provider model has a large context; see magi/runner/steps.go.
+        {"name": "MAGI_APPRENTICE_CONTEXT_TOKENS", "value": "100000"}, {"name": "MAGI_MODEL_MAX_TOKENS", "value": "16384"},
+        {"name": "MAGI_APPRENTICE_TOOL_OUTPUT_CHARS", "value": "16000"}, {"name": "MAGI_APPRENTICE_MAX_SECONDS", "value": "3600"}],
         secrets=[*model_secret, ("magi-token-apprentice", "/etc/magi/token")], mem="512Mi")
     if model_egress:
         configmap(apprentice, "magi-egress-ca", "/etc/magi/egress-ca")

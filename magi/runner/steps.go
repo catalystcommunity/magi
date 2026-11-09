@@ -172,6 +172,13 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 		"MAGI_EXECUTION_URL=" + r.execURL, "MAGI_TOKEN_FILE=" + r.execTokenFile,
 		"MAGI_MODEL_BASE_URL=" + strings.TrimRight(r.Cfg.Server, "/") + "/runner/v1",
 		"MAGI_MODEL_API_KEY_FILE=" + r.Cfg.TokenFile, "MAGI_MODEL_NAME=coder",
+		// The coding model behind /runner/v1 is a large provider model
+		// (glm-5.3). The apprentice defaults fit a small local model: at
+		// 24000 tokens it removed what it had read and read the same files
+		// again until the step limit (world eval, 2026-11-09). A reasoning
+		// model also needs room to think before it writes.
+		"MAGI_APPRENTICE_CONTEXT_TOKENS=100000", "MAGI_MODEL_MAX_TOKENS=16384",
+		"MAGI_APPRENTICE_TOOL_OUTPUT_CHARS=16000", "MAGI_APPRENTICE_MAX_SECONDS=3600",
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
