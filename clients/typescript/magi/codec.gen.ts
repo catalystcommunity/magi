@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { AckNoticeRequest, Activity, ActivityRequest, AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, ChangeKnowledgeRequest, ChangeKnowledgeResponse, CheckOverlapRequest, CheckOverlapResponse, ConnectRequest, ConnectResponse, Connection, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideRequest, DeleteLexiconWordRequest, DeleteLexiconWordResponse, DeliverNoticeRequest, Device, DisconnectRequest, EgressDestinationRequest, EgressDestinationResponse, EgressDetectRequest, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressFlow, EgressFlowHeader, EgressReportRequest, EgressReportResponse, EgressReview, EgressReviewHeader, EgressSecretRule, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, FileChange, FinishTodoRequest, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetPageRequest, GetTaskDiffRequest, GetTaskOutputRequest, GetTaskRequest, HistoryMessage, ImportHistoryRequest, ImportHistoryResponse, ImportedMessage, KnowledgeChange, KnowledgeFact, KnowledgeHistoryRequest, KnowledgeHistoryResponse, KnowledgeItem, KnowledgeRecord, LexiconWord, LinkRequest, ListConnectionsRequest, ListConnectionsResponse, ListDevicesRequest, ListDevicesResponse, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListNoticesRequest, ListNoticesResponse, ListPagesRequest, ListPagesResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListTodosRequest, ListTodosResponse, ListVoicesRequest, ListVoicesResponse, ListenRequest, ListenResponse, MergeKnowledgeRequest, Message, MessageLink, Notice, NoticeDelivery, Page, PersonaInfo, PutAppReleaseRequest, PutDeviceRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, RememberResponse, RemoveDeviceRequest, ReportDeliveryRequest, ReportDeliveryResponse, ReviewItem, RunnerAck, RunnerAssignment, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerEgressProxy, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerInfo, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, RunnerUpdate, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, SpeechPart, StartTaskRequest, StopSpeechRequest, StopSpeechResponse, Task, TaskDiff, TaskOutput, TaskStep, Todo, TraceRequest, TraceResponse, UnlinkRequest, UnmergeKnowledgeRequest, VoiceInfo, WaitNoticesRequest, WaitNoticesResponse, WordTime } from "./types.gen.ts";
+import type { AckNoticeRequest, Activity, ActivityRequest, AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, ChangeKnowledgeRequest, ChangeKnowledgeResponse, CheckOverlapRequest, CheckOverlapResponse, ConnectRequest, ConnectResponse, Connection, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideRequest, DeleteLexiconWordRequest, DeleteLexiconWordResponse, DeliverNoticeRequest, Device, DisconnectRequest, EgressDestinationRequest, EgressDestinationResponse, EgressDetectRequest, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressFlow, EgressFlowHeader, EgressReportRequest, EgressReportResponse, EgressReview, EgressReviewHeader, EgressSecretRule, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, FileChange, FinishTodoRequest, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetPageRequest, GetTaskDiffRequest, GetTaskOutputRequest, GetTaskRequest, HistoryMessage, ImportHistoryRequest, ImportHistoryResponse, ImportedMessage, KnowledgeChange, KnowledgeFact, KnowledgeHistoryRequest, KnowledgeHistoryResponse, KnowledgeItem, KnowledgeRecord, LexiconWord, LinkRequest, ListConnectionsRequest, ListConnectionsResponse, ListDevicesRequest, ListDevicesResponse, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListNoticesRequest, ListNoticesResponse, ListPagesRequest, ListPagesResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListTodosRequest, ListTodosResponse, ListVoicesRequest, ListVoicesResponse, ListenRequest, ListenResponse, MergeKnowledgeRequest, Message, MessageLink, Notice, NoticeDelivery, Page, PersonaInfo, PutAppReleaseRequest, PutDeviceRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, RememberResponse, RemoveDeviceRequest, ReportDeliveryRequest, ReportDeliveryResponse, ReviewItem, RunnerAck, RunnerAssignment, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerEgressProxy, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerInfo, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, RunnerTerminal, RunnerTerminalsRequest, RunnerTerminalsResponse, RunnerUpdate, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, SpeechPart, StartTaskRequest, StopSpeechRequest, StopSpeechResponse, Task, TaskDiff, TaskOutput, TaskStep, Todo, TraceRequest, TraceResponse, UnlinkRequest, UnmergeKnowledgeRequest, VoiceInfo, WaitNoticesRequest, WaitNoticesResponse, WordTime } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -1639,6 +1639,7 @@ export function toTaskCborValue(v: Task): CborValue {
   csilMap.set("title", v.title);
   if (v.branch !== undefined) csilMap.set("branch", v.branch);
   csilMap.set("status", v.status);
+  if (v.terminal !== undefined) csilMap.set("terminal", v.terminal);
   if (v.decisions !== undefined) csilMap.set("decisions", v.decisions);
   csilMap.set("created_ms", v.createdMs);
   csilMap.set("updated_ms", v.updatedMs);
@@ -1663,6 +1664,7 @@ export function fromTaskCborValue(value: CborValue): Task {
     error: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "error")),
     createdMs: asNumber(requireKey(value, "created_ms")),
     updatedMs: asNumber(requireKey(value, "updated_ms")),
+    terminal: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "terminal")),
   };
 }
 
@@ -3982,6 +3984,76 @@ export function toRunnerEgressAccessResponseCbor(v: RunnerEgressAccessResponse):
 
 export function fromRunnerEgressAccessResponseCbor(bytes: Uint8Array): RunnerEgressAccessResponse {
   return fromRunnerEgressAccessResponseCborValue(decode(bytes));
+}
+
+export function toRunnerTerminalCborValue(v: RunnerTerminal): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.cwd !== undefined) csilMap.set("cwd", v.cwd);
+  csilMap.set("run", v.run);
+  csilMap.set("cols", v.cols);
+  csilMap.set("rows", v.rows);
+  csilMap.set("session", v.session);
+  csilMap.set("environment", v.environment);
+  return csilMap;
+}
+
+export function fromRunnerTerminalCborValue(value: CborValue): RunnerTerminal {
+  return {
+    session: asString(requireKey(value, "session")),
+    run: asString(requireKey(value, "run")),
+    environment: asString(requireKey(value, "environment")),
+    cols: asNumber(requireKey(value, "cols")),
+    rows: asNumber(requireKey(value, "rows")),
+    cwd: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "cwd")),
+  };
+}
+
+export function toRunnerTerminalCbor(v: RunnerTerminal): Uint8Array {
+  return encodeValue(toRunnerTerminalCborValue(v));
+}
+
+export function fromRunnerTerminalCbor(bytes: Uint8Array): RunnerTerminal {
+  return fromRunnerTerminalCborValue(decode(bytes));
+}
+
+export function toRunnerTerminalsRequestCborValue(v: RunnerTerminalsRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.waitMs !== undefined) csilMap.set("wait_ms", v.waitMs);
+  return csilMap;
+}
+
+export function fromRunnerTerminalsRequestCborValue(value: CborValue): RunnerTerminalsRequest {
+  return {
+    waitMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "wait_ms")),
+  };
+}
+
+export function toRunnerTerminalsRequestCbor(v: RunnerTerminalsRequest): Uint8Array {
+  return encodeValue(toRunnerTerminalsRequestCborValue(v));
+}
+
+export function fromRunnerTerminalsRequestCbor(bytes: Uint8Array): RunnerTerminalsRequest {
+  return fromRunnerTerminalsRequestCborValue(decode(bytes));
+}
+
+export function toRunnerTerminalsResponseCborValue(v: RunnerTerminalsResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("terminals", v.terminals.map((csilE): CborValue => toRunnerTerminalCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromRunnerTerminalsResponseCborValue(value: CborValue): RunnerTerminalsResponse {
+  return {
+    terminals: asArray(requireKey(value, "terminals")).map((csilE) => fromRunnerTerminalCborValue(csilE)),
+  };
+}
+
+export function toRunnerTerminalsResponseCbor(v: RunnerTerminalsResponse): Uint8Array {
+  return encodeValue(toRunnerTerminalsResponseCborValue(v));
+}
+
+export function fromRunnerTerminalsResponseCbor(bytes: Uint8Array): RunnerTerminalsResponse {
+  return fromRunnerTerminalsResponseCborValue(decode(bytes));
 }
 
 export function toEgressFlowHeaderCborValue(v: EgressFlowHeader): CborValue {

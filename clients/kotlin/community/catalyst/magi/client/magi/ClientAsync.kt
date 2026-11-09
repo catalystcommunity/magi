@@ -231,6 +231,9 @@ class RunnerAsyncClient(private val transport: AsyncTransport) {
     suspend fun egressAccess(request: RunnerStep): RunnerEgressAccessResponse {
         return decode<RunnerEgressAccessResponse>(transport.call("RunnerService", "egress-access", encode(request)))
     }
+    suspend fun terminals(request: RunnerTerminalsRequest): RunnerTerminalsResponse {
+        return decode<RunnerTerminalsResponse>(transport.call("RunnerService", "terminals", encode(request)))
+    }
 }
 
 /** Typed client for the EgressAskService service. The client owns (de)serialization;

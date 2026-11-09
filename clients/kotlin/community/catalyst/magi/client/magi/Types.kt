@@ -509,7 +509,8 @@ data class Task(
     // wire key: created_ms
     val createdMs: ULong,
     // wire key: updated_ms
-    val updatedMs: ULong
+    val updatedMs: ULong,
+    val terminal: Boolean? = null
 )
 
 /** StartTaskRequest record. */
@@ -1398,6 +1399,27 @@ data class RunnerEgressProxy(
 /** RunnerEgressAccessResponse record. */
 data class RunnerEgressAccessResponse(
     val proxy: RunnerEgressProxy? = null
+)
+
+/** RunnerTerminal record. */
+data class RunnerTerminal(
+    val session: String,
+    val run: String,
+    val environment: String,
+    val cols: ULong,
+    val rows: ULong,
+    val cwd: String? = null
+)
+
+/** RunnerTerminalsRequest record. */
+data class RunnerTerminalsRequest(
+    // wire key: wait_ms
+    val waitMs: ULong? = null
+)
+
+/** RunnerTerminalsResponse record. */
+data class RunnerTerminalsResponse(
+    val terminals: List<RunnerTerminal>
 )
 
 /** EgressFlowHeader record. */

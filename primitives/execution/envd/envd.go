@@ -91,6 +91,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, errorf(http.StatusMethodNotAllowed, "POST only"))
 		return
 	}
+	if r.URL.Path == PathPTY {
+		s.servePTY(w, r)
+		return
+	}
 	var resp any
 	var err error
 	switch r.URL.Path {

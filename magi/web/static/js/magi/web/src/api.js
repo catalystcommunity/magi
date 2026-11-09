@@ -26,6 +26,9 @@ export class RpcError extends Error {
 const TOKEN_KEY = "magi.token";
 let token = store.get(TOKEN_KEY);
 export const hasToken = () => token !== null;
+// authToken is for the one call that is not an RPC: the terminal WebSocket
+// sends it in its first message.
+export const authToken = () => token;
 export function setToken(t) { token = t; store.set(TOKEN_KEY, t); }
 const transport = {
     async call(service, op, req) {
@@ -52,7 +55,7 @@ export const [me, setMe] = createSignal(null);
 export function signOut() { setToken(null); setMe(null); }
 function parse() {
     const [v, ...rest] = location.hash.replace(/^#\/?/, "").split("/");
-    const views = ["talk", "questions", "network", "tasks", "task", "knowledge", "words", "page"];
+    const views = ["talk", "questions", "network", "tasks", "task", "knowledge", "words", "page", "terminal"];
     return { view: views.includes(v) ? v : "talk", arg: decodeURIComponent(rest.join("/")) };
 }
 export const [route, setRoute] = createSignal(parse());

@@ -143,6 +143,8 @@ func run(c config, log *slog.Logger) error {
 	server.Register(s, svc)
 	mux := rpc.Mux(s, func() error { return db.Ping(ctx) })
 	mux.Handle("/envd/", bins)
+	// Terminals in environments (Magi opens them for the owner of a task).
+	mux.Handle(server.PathPTY, svc.PTYHandler(v))
 	log.Info("execution listening", "addr", c.listen)
 	return rpc.ListenAndServe(ctx, c.listen, mux)
 }

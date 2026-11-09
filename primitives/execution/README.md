@@ -16,6 +16,7 @@ environment:
 | `POST /v1/ping` | Checks the token. |
 | `POST /v1/exec` | Runs argv with cwd, env, stdin, timeout, and an output limit. On timeout, envd kills the process group. |
 | `POST /v1/read-file`, `/v1/write-file`, `/v1/list-files` | File operations. Relative paths start at the work directory. |
+| `POST /v1/pty` | A shell on a pseudo-terminal, over an HTTP upgrade (below). |
 
 Every call except `/healthz` needs `Authorization: Bearer <token>`. The
 token is random and different for each environment. envd compares it in
@@ -31,6 +32,38 @@ destroy. The status gives the envd address.
 envd does not depend on a container. A VM backend starts the same envd from
 the VM init system. A host backend starts it as a host service. Only the
 start and the connection change. Callers and the API do not change.
+
+### Terminal (`POST /v1/pty`)
+
+The request has `Connection: Upgrade`, `Upgrade: magi-pty`, the bearer
+token, and a JSON body: `argv` (default `bash -l`, or `sh -l` when there
+is no bash), `cwd` (default: the work directory), `env`, `cols`, and
+`rows`. envd starts the program on a new pseudo-terminal (a new session
+and process group, `TERM=xterm-256color`) and answers
+`101 Switching Protocols`. Then the connection carries frames in the two
+directions (`envd/frame.go`):
+
+| Type | Direction | Payload |
+| --- | --- | --- |
+| `d` data | both | Input bytes to the terminal, or output bytes from it |
+| `r` resize | to envd | cols (u16), rows (u16) |
+| `x` exit | from envd | The exit status (i32; 128+N for signal N). The last frame. |
+| `e` error | to the client | UTF-8 text. The last frame. |
+| `k` ping | both | None. The receiver ignores it. |
+
+A frame is the type byte, the payload length (u32, big-endian), and the
+payload (at most 64 KiB). A receiver ignores unknown types. When the
+client closes the connection, envd sends SIGHUP to the process group, and
+SIGKILL after 2 s. When the shell exits, envd waits at most 2 s for the
+last output (a background process can keep the terminal open), sends the
+exit frame, and closes the connection. The shell runs with the network of
+the environment: in a sandbox with a proxy, all traffic goes through the
+egress proxy.
+
+The service serves the same stream at `GET /v1/pty?environment=ID&cols=N&rows=N[&cwd=DIR]`:
+an HTTP upgrade (WebSocket form) with a bearer token. The caller must own
+the environment, or have `execution:act-as` or `execution:admin`. Magi
+uses it for terminals of tasks in the cluster.
 
 ### Backends
 
@@ -223,6 +256,10 @@ the download server, because Pods cannot always connect to the test host.
   (`apt-get`) does not work. Put tools in the image.
 - Nodes with taints are not used. There are no tolerations.
 - `vm` and `host` backends do not exist yet.
+- A terminal in a Kubernetes environment needs an envd build with
+  `/v1/pty`: environments that started before such a release do not have
+  it (the error is 404). It needs `/dev/pts` in the container (container
+  runtimes supply it). It was tested with the local backend only.
 - `cluster` network does not limit egress to the cluster.
 - With fetch delivery and network `none`, the environment can connect to
   the control namespace on the service port.

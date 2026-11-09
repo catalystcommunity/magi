@@ -290,6 +290,10 @@ Task = {
   ? error: text,
   created_ms: uint,
   updated_ms: uint,
+  ;;; terminal: the task has a sandbox now, and its owner can open a
+  ;;; terminal in it (/api/terminal?task=ID, a WebSocket; the web client
+  ;;; shows it at /#/terminal/ID).
+  ? terminal: bool,
 }
 
 ;;; Starts a task directly, without interpretation of a message.
@@ -722,6 +726,16 @@ RunnerEgressProxy = { environment: text, credential: text, ca: bytes, ? ssh_know
   ;;; secret rules that apply to the run).
   ? env: { * text => text } }
 RunnerEgressAccessResponse = { ? proxy: RunnerEgressProxy }
+;;; A terminal that a person opened to the sandbox of a run on this
+;;; runner. The runner opens GET /runner/terminal?session=SESSION on Magi
+;;; (an HTTP upgrade with the runner token) and copies that connection to
+;;; the terminal route of envd in the sandbox of environment. Magi waits
+;;; about 20 s for the runner.
+;;; cwd is the work directory of the run, when it is known.
+RunnerTerminal = { session: text, run: text, environment: text, cols: uint, rows: uint, ? cwd: text }
+;;; Waits up to wait_ms (at most 25000) for terminals to open.
+RunnerTerminalsRequest = { ? wait_ms: uint }
+RunnerTerminalsResponse = { terminals: [* RunnerTerminal] }
 
 service RunnerService {
   claim: RunnerClaimRequest -> RunnerClaimResponse,
@@ -735,6 +749,7 @@ service RunnerService {
   get-package: RunnerGetPackageRequest -> RunnerGetPackageResponse,
   get-artifact: RunnerGetArtifactRequest -> RunnerGetArtifactResponse,
   egress-access: RunnerStep -> RunnerEgressAccessResponse,
+  terminals: RunnerTerminalsRequest -> RunnerTerminalsResponse,
 }
 
 ;;; EgressAskService is for the egress proxy and its plugins. A plugin

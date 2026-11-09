@@ -855,6 +855,17 @@ func RunnerServiceOps(impl RunnerService) map[string]func(context.Context, []byt
 			}
 			return EncodeRunnerEgressAccessResponse(resp), nil
 		},
+		"terminals": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeRunnerTerminalsRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Terminals(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeRunnerTerminalsResponse(resp), nil
+		},
 	}
 }
 

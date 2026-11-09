@@ -83,6 +83,7 @@ type RunnerService interface {
 	GetPackage(ctx context.Context, req RunnerGetPackageRequest) (RunnerGetPackageResponse, error)
 	GetArtifact(ctx context.Context, req RunnerGetArtifactRequest) (RunnerGetArtifactResponse, error)
 	EgressAccess(ctx context.Context, req RunnerStep) (RunnerEgressAccessResponse, error)
+	Terminals(ctx context.Context, req RunnerTerminalsRequest) (RunnerTerminalsResponse, error)
 }
 
 // EgressAskService defines the service interface

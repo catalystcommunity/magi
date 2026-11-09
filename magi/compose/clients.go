@@ -245,6 +245,9 @@ type System struct {
 	Longhouse  *Longhouse
 	ReleaseCfg ReleaseConfig
 	fleet      fleet
+	// Terminals holds the terminal sessions that wait for a runner
+	// (terminal.go).
+	Terminals *Terminals
 }
 
 // New creates clients. Each call uses the token in its context (see
@@ -278,6 +281,7 @@ func New(cfg Config, m model.Chatter, log *slog.Logger) *System {
 		zone = cfg.TimeZone
 	}
 	sys.egressReviews = &egressReviews{reported: map[string]time.Time{}}
+	sys.Terminals = NewTerminals()
 	return sys
 }
 

@@ -59,6 +59,8 @@ var usage = `usage: magi [--server URL] <command> [args]
   task ID                    show one task
   diff ID                    show the change of a task
   output ID check|transcript   show the last check output or apprentice record
+  terminal ID                open a shell in the sandbox of a running task
+                             (exit the shell to end it)
   decide ID OUTCOME [-m TEXT]   approve, revise, or reject a waiting task
   cancel ID [-m TEXT] [-yes]  stop a task; asks first when the step is risky
   start [-repo R] [-title T] [-runner N] INSTRUCTIONS   start a code change directly
@@ -546,6 +548,15 @@ func (c *cli) run(cmd string, args []string) error {
 			return err
 		}
 		printTask(t)
+	case "terminal":
+		if len(args) != 1 {
+			return errors.New("terminal ID")
+		}
+		code, err := c.terminal(args[0], os.Stdin, os.Stdout)
+		if err == nil {
+			os.Exit(code)
+		}
+		return err
 	case "diff":
 		if len(args) != 1 {
 			return errors.New("diff ID")

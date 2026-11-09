@@ -7,6 +7,7 @@ import { Conversation, PersonaList, PersonaOrb, startConversation } from "./conv
 import { Questions, Network } from "./review.tsx";
 import { Tasks, TaskView } from "./tasks.tsx";
 import { PageView } from "./page.tsx";
+import { TerminalView } from "./terminal.tsx";
 import { Knowledge, Words } from "./knowledge.tsx";
 import { tray, dismiss, startAttention, askForNotifications } from "./attention.ts";
 import type { Notice } from "../../../clients/typescript/magi/types.gen.ts";
@@ -30,8 +31,8 @@ async function beginLogin(id: string) {
   setSignInStatus("Opening your identity provider.");
   try {
     const b = await identity.beginLogin({ identity: id, client: "web", returnUrl: location.origin + location.pathname });
-    // The return URL cannot have a hash; keep the view (a page link) to
-    // open it after the sign in.
+    // The return URL cannot have a hash; keep the view (a page or a
+    // terminal link) to open it after the sign in.
     pending.set({ loginId: b.loginId, expiresMs: b.expiresMs, hash: location.hash || undefined });
     const u = new URL(b.url);
     const form = document.createElement("form");
@@ -115,8 +116,8 @@ const tabs: Tab[] = [
 ];
 
 function Shell() {
-  const active = (v: View) => route().view === v || (v === "tasks" && route().view === "task");
-  return <div class="shell">
+  const active = (v: View) => route().view === v || (v === "tasks" && (route().view === "task" || route().view === "terminal"));
+  return <div class={() => "shell" + (route().view === "terminal" ? " terminal-mode" : "")}>
     <header class="top">
       <a class="brand" href="#/talk" aria-label="Magi, talk"><PersonaOrb /><span class="wordmark">Magi</span></a>
       <nav class="tabs" aria-label="Sections">
@@ -139,6 +140,7 @@ function Shell() {
           <Match when={() => route().view === "knowledge"}><Knowledge /></Match>
           <Match when={() => route().view === "words"}><Words /></Match>
           <Match when={() => route().view === "page"}>{() => <PageView id={route().arg} />}</Match>
+          <Match when={() => route().view === "terminal"}>{() => <TerminalView id={route().arg} />}</Match>
         </Switch>
         {/* The conversation stays mounted, so its long poll and scroll position stay. */}
         <div class="talk-wrap" hidden={() => route().view !== "talk"}><Conversation /></div>

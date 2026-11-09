@@ -1573,6 +1573,7 @@ fun Task.toCborValue(): CborValue {
     csilEntries.add(CborValue.CText("title") to CborValue.CText(this.title))
     this.branch?.let { csilV -> csilEntries.add(CborValue.CText("branch") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("status") to CborValue.CText(this.status))
+    this.terminal?.let { csilV -> csilEntries.add(CborValue.CText("terminal") to CborValue.CBool(csilV)) }
     this.decisions?.let { csilV -> csilEntries.add(CborValue.CText("decisions") to CborValue.CArray((csilV).map { csilE -> CborValue.CText(csilE) })) }
     csilEntries.add(CborValue.CText("created_ms") to CborValue.CUint(this.createdMs))
     csilEntries.add(CborValue.CText("updated_ms") to CborValue.CUint(this.updatedMs))
@@ -1600,7 +1601,8 @@ fun taskFromCborValue(cbor: CborValue): Task {
     val error = CsilCbor.mapGet(cbor, "error")?.let { csilV -> CsilCbor.asText(csilV) }
     val createdMs = CsilCbor.asULong(CsilCbor.require(cbor, "created_ms"))
     val updatedMs = CsilCbor.asULong(CsilCbor.require(cbor, "updated_ms"))
-    return Task(id = id, kind = kind, title = title, status = status, currentStep = currentStep, waitingFor = waitingFor, decisions = decisions, branch = branch, repo = repo, steps = steps, refs = refs, error = error, createdMs = createdMs, updatedMs = updatedMs)
+    val terminal = CsilCbor.mapGet(cbor, "terminal")?.let { csilV -> CsilCbor.asBoolean(csilV) }
+    return Task(id = id, kind = kind, title = title, status = status, currentStep = currentStep, waitingFor = waitingFor, decisions = decisions, branch = branch, repo = repo, steps = steps, refs = refs, error = error, createdMs = createdMs, updatedMs = updatedMs, terminal = terminal)
 }
 
 /** Decode CSIL CBOR bytes into a Task. */
@@ -3820,6 +3822,73 @@ fun runnerEgressAccessResponseFromCborValue(cbor: CborValue): RunnerEgressAccess
 /** Decode CSIL CBOR bytes into a RunnerEgressAccessResponse. */
 fun runnerEgressAccessResponseFromCbor(bytes: ByteArray): RunnerEgressAccessResponse = runnerEgressAccessResponseFromCborValue(CsilCbor.decode(bytes))
 
+/** The CBOR value tree for a RunnerTerminal (deep, canonical key order). */
+fun RunnerTerminal.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.cwd?.let { csilV -> csilEntries.add(CborValue.CText("cwd") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("run") to CborValue.CText(this.run))
+    csilEntries.add(CborValue.CText("cols") to CborValue.CUint(this.cols))
+    csilEntries.add(CborValue.CText("rows") to CborValue.CUint(this.rows))
+    csilEntries.add(CborValue.CText("session") to CborValue.CText(this.session))
+    csilEntries.add(CborValue.CText("environment") to CborValue.CText(this.environment))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerTerminal to canonical CSIL CBOR bytes. */
+fun RunnerTerminal.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerTerminal from a decoded CBOR value tree. */
+fun runnerTerminalFromCborValue(cbor: CborValue): RunnerTerminal {
+    val session = CsilCbor.asText(CsilCbor.require(cbor, "session"))
+    val run = CsilCbor.asText(CsilCbor.require(cbor, "run"))
+    val environment = CsilCbor.asText(CsilCbor.require(cbor, "environment"))
+    val cols = CsilCbor.asULong(CsilCbor.require(cbor, "cols"))
+    val rows = CsilCbor.asULong(CsilCbor.require(cbor, "rows"))
+    val cwd = CsilCbor.mapGet(cbor, "cwd")?.let { csilV -> CsilCbor.asText(csilV) }
+    return RunnerTerminal(session = session, run = run, environment = environment, cols = cols, rows = rows, cwd = cwd)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerTerminal. */
+fun runnerTerminalFromCbor(bytes: ByteArray): RunnerTerminal = runnerTerminalFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RunnerTerminalsRequest (deep, canonical key order). */
+fun RunnerTerminalsRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.waitMs?.let { csilV -> csilEntries.add(CborValue.CText("wait_ms") to CborValue.CUint(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerTerminalsRequest to canonical CSIL CBOR bytes. */
+fun RunnerTerminalsRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerTerminalsRequest from a decoded CBOR value tree. */
+fun runnerTerminalsRequestFromCborValue(cbor: CborValue): RunnerTerminalsRequest {
+    val waitMs = CsilCbor.mapGet(cbor, "wait_ms")?.let { csilV -> CsilCbor.asULong(csilV) }
+    return RunnerTerminalsRequest(waitMs = waitMs)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerTerminalsRequest. */
+fun runnerTerminalsRequestFromCbor(bytes: ByteArray): RunnerTerminalsRequest = runnerTerminalsRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a RunnerTerminalsResponse (deep, canonical key order). */
+fun RunnerTerminalsResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("terminals") to CborValue.CArray((this.terminals).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RunnerTerminalsResponse to canonical CSIL CBOR bytes. */
+fun RunnerTerminalsResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RunnerTerminalsResponse from a decoded CBOR value tree. */
+fun runnerTerminalsResponseFromCborValue(cbor: CborValue): RunnerTerminalsResponse {
+    val terminals = CsilCbor.asArray(CsilCbor.require(cbor, "terminals")).map { csilE -> runnerTerminalFromCborValue(csilE) }
+    return RunnerTerminalsResponse(terminals = terminals)
+}
+
+/** Decode CSIL CBOR bytes into a RunnerTerminalsResponse. */
+fun runnerTerminalsResponseFromCbor(bytes: ByteArray): RunnerTerminalsResponse = runnerTerminalsResponseFromCborValue(CsilCbor.decode(bytes))
+
 /** The CBOR value tree for a EgressFlowHeader (deep, canonical key order). */
 fun EgressFlowHeader.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
@@ -4297,6 +4366,9 @@ private fun csilToCborValue(value: Any?): CborValue = when (value) {
     is RunnerGetArtifactResponse -> value.toCborValue()
     is RunnerEgressProxy -> value.toCborValue()
     is RunnerEgressAccessResponse -> value.toCborValue()
+    is RunnerTerminal -> value.toCborValue()
+    is RunnerTerminalsRequest -> value.toCborValue()
+    is RunnerTerminalsResponse -> value.toCborValue()
     is EgressFlowHeader -> value.toCborValue()
     is EgressFlow -> value.toCborValue()
     is EgressEnvironmentRequest -> value.toCborValue()
@@ -4467,6 +4539,9 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     RunnerGetArtifactResponse::class -> runnerGetArtifactResponseFromCborValue(cbor)
     RunnerEgressProxy::class -> runnerEgressProxyFromCborValue(cbor)
     RunnerEgressAccessResponse::class -> runnerEgressAccessResponseFromCborValue(cbor)
+    RunnerTerminal::class -> runnerTerminalFromCborValue(cbor)
+    RunnerTerminalsRequest::class -> runnerTerminalsRequestFromCborValue(cbor)
+    RunnerTerminalsResponse::class -> runnerTerminalsResponseFromCborValue(cbor)
     EgressFlowHeader::class -> egressFlowHeaderFromCborValue(cbor)
     EgressFlow::class -> egressFlowFromCborValue(cbor)
     EgressEnvironmentRequest::class -> egressEnvironmentRequestFromCborValue(cbor)

@@ -316,6 +316,10 @@ class RunnerAsyncClient:
         """egress-access"""
         return RunnerEgressAccessResponse.from_cbor(await self._transport.call("RunnerService", "egress-access", req.to_cbor()))
 
+    async def terminals(self, req: RunnerTerminalsRequest) -> RunnerTerminalsResponse:
+        """terminals"""
+        return RunnerTerminalsResponse.from_cbor(await self._transport.call("RunnerService", "terminals", req.to_cbor()))
+
 class EgressAskAsyncClient:
     """Typed client for the EgressAskService service."""
     def __init__(self, transport: AsyncTransport):

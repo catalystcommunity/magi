@@ -683,6 +683,15 @@ func (c *RunnerClient) EgressAccess(ctx context.Context, req RunnerStep) (Runner
 	return DecodeRunnerEgressAccessResponse(csilResp)
 }
 
+func (c *RunnerClient) Terminals(ctx context.Context, req RunnerTerminalsRequest) (RunnerTerminalsResponse, error) {
+	var csilZero RunnerTerminalsResponse
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "terminals", EncodeRunnerTerminalsRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeRunnerTerminalsResponse(csilResp)
+}
+
 // EgressAskClient is a typed client for the EgressAskService service. The client owns
 // (de)serialization via the generated codec; the transport only moves bytes.
 type EgressAskClient struct {

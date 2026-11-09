@@ -286,6 +286,9 @@ func task(r workflowapi.Run) magiapi.Task {
 	if res := r.Vars["task.result"]; res != "" && r.Status == "succeeded" {
 		t.Status = res
 	}
+	if terminalOpen(r) {
+		t.Terminal = ptr(true)
+	}
 	if r.Status == "waiting" {
 		t.WaitingFor = codeChangeDefinition(false).Steps[3].Prompt
 		t.Decisions = codeChangeDefinition(false).Steps[3].Outcomes

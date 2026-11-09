@@ -62,7 +62,9 @@ func newHarness(t *testing.T, backends map[string]backend.Backend, def string) *
 		Now: func() time.Time { return time.Now().Add(time.Duration(h.offset.Load())) }}
 	s := &rpc.Server{Verifier: h.keys.Verifier(t), MaxBody: server.MaxRequest}
 	server.Register(s, h.svc)
-	srv := httptest.NewServer(rpc.Mux(s, nil))
+	mux := rpc.Mux(s, nil)
+	mux.Handle(server.PathPTY, h.svc.PTYHandler(h.keys.Verifier(t)))
+	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 	h.url = srv.URL
 	return h

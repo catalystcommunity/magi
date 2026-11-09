@@ -1927,6 +1927,9 @@ def _encode_task_value(v: "Task") -> Dict[Any, Any]:
     if csil_x is not None:
         csil_m["branch"] = csil_x
     csil_m["status"] = v.status
+    csil_x = v.terminal
+    if csil_x is not None:
+        csil_m["terminal"] = csil_x
     csil_x = v.decisions
     if csil_x is not None:
         csil_m["decisions"] = csil_x
@@ -1955,6 +1958,7 @@ def _decode_task_value(tree: Any) -> "Task":
         error=(None if tree.get("error") is None else _csil_expect_text(tree["error"])),
         created_ms=_csil_expect_uint(tree["created_ms"]),
         updated_ms=_csil_expect_uint(tree["updated_ms"]),
+        terminal=(None if tree.get("terminal") is None else _csil_expect_bool(tree["terminal"])),
     )
 
 
@@ -4732,6 +4736,89 @@ def _runner_egress_access_response_from_cbor(data: bytes) -> "RunnerEgressAccess
 
 RunnerEgressAccessResponse.to_cbor = _runner_egress_access_response_to_cbor
 RunnerEgressAccessResponse.from_cbor = staticmethod(_runner_egress_access_response_from_cbor)
+
+def _encode_runner_terminal_value(v: "RunnerTerminal") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.cwd
+    if csil_x is not None:
+        csil_m["cwd"] = csil_x
+    csil_m["run"] = v.run
+    csil_m["cols"] = v.cols
+    csil_m["rows"] = v.rows
+    csil_m["session"] = v.session
+    csil_m["environment"] = v.environment
+    return csil_m
+
+def _decode_runner_terminal_value(tree: Any) -> "RunnerTerminal":
+    tree = _csil_expect_map(tree)
+    return RunnerTerminal(
+        session=_csil_expect_text(tree["session"]),
+        run=_csil_expect_text(tree["run"]),
+        environment=_csil_expect_text(tree["environment"]),
+        cols=_csil_expect_uint(tree["cols"]),
+        rows=_csil_expect_uint(tree["rows"]),
+        cwd=(None if tree.get("cwd") is None else _csil_expect_text(tree["cwd"])),
+    )
+
+
+def _runner_terminal_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_terminal_value(self))
+
+
+def _runner_terminal_from_cbor(data: bytes) -> "RunnerTerminal":
+    return _decode_runner_terminal_value(cbor_decode(data))
+
+
+RunnerTerminal.to_cbor = _runner_terminal_to_cbor
+RunnerTerminal.from_cbor = staticmethod(_runner_terminal_from_cbor)
+
+def _encode_runner_terminals_request_value(v: "RunnerTerminalsRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.wait_ms
+    if csil_x is not None:
+        csil_m["wait_ms"] = csil_x
+    return csil_m
+
+def _decode_runner_terminals_request_value(tree: Any) -> "RunnerTerminalsRequest":
+    tree = _csil_expect_map(tree)
+    return RunnerTerminalsRequest(
+        wait_ms=(None if tree.get("wait_ms") is None else _csil_expect_uint(tree["wait_ms"])),
+    )
+
+
+def _runner_terminals_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_terminals_request_value(self))
+
+
+def _runner_terminals_request_from_cbor(data: bytes) -> "RunnerTerminalsRequest":
+    return _decode_runner_terminals_request_value(cbor_decode(data))
+
+
+RunnerTerminalsRequest.to_cbor = _runner_terminals_request_to_cbor
+RunnerTerminalsRequest.from_cbor = staticmethod(_runner_terminals_request_from_cbor)
+
+def _encode_runner_terminals_response_value(v: "RunnerTerminalsResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["terminals"] = [_encode_runner_terminal_value(csil_e) for csil_e in v.terminals]
+    return csil_m
+
+def _decode_runner_terminals_response_value(tree: Any) -> "RunnerTerminalsResponse":
+    tree = _csil_expect_map(tree)
+    return RunnerTerminalsResponse(
+        terminals=[_decode_runner_terminal_value(csil_e) for csil_e in _csil_expect_array(tree["terminals"])],
+    )
+
+
+def _runner_terminals_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_runner_terminals_response_value(self))
+
+
+def _runner_terminals_response_from_cbor(data: bytes) -> "RunnerTerminalsResponse":
+    return _decode_runner_terminals_response_value(cbor_decode(data))
+
+
+RunnerTerminalsResponse.to_cbor = _runner_terminals_response_to_cbor
+RunnerTerminalsResponse.from_cbor = staticmethod(_runner_terminals_response_from_cbor)
 
 def _encode_egress_flow_header_value(v: "EgressFlowHeader") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}

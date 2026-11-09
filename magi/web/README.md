@@ -86,4 +86,5 @@ are no font files: headings use the rounded system face where there is one.
 | `#/questions` | Questions of the librarian | `src/review.tsx` |
 | `#/network` | Network reviews of the egress proxy (admins only) | `src/review.tsx` |
 | `#/tasks`, `#/task/<id>` | Tasks and their decisions | `src/tasks.tsx` |
+| `#/terminal/<id>` | A shell in the sandbox of a running task (xterm.js, loaded only here) | `src/terminal.tsx` |
 | `#/knowledge`, `#/words` | Knowledge and the household lexicon | `src/knowledge.tsx` |

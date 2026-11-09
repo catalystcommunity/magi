@@ -226,6 +226,7 @@ func (r *Runner) Run(ctx context.Context) error {
 		go r.loop(ctx, step, handlers[step])
 	}
 	go r.collect(ctx)
+	go r.terminalLoop(ctx)
 	r.Log.Info("runner started", "server", r.Cfg.Server, "name", r.Cfg.Name, "version", r.version)
 	select {
 	case <-ctx.Done():

@@ -5,6 +5,7 @@ go 1.26.0
 require (
 	github.com/catalystcommunity/magi/lib/authn v0.0.0
 	github.com/catalystcommunity/magi/lib/rpc v0.0.0
+	github.com/creack/pty v1.1.24
 	github.com/google/nftables v0.3.0
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/mdlayher/vsock v1.4.0
