@@ -115,6 +115,11 @@ type ListGrantsResponse struct {
 	Grants []Grant `json:"grants" yaml:"grants"`
 }
 
+// ExpiringGrantsRequest represents a structured data type
+type ExpiringGrantsRequest struct {
+	WithinMs uint64 `json:"within_ms" yaml:"within_ms"`
+}
+
 // PresentGrantRequest represents a structured data type
 type PresentGrantRequest struct {
 	Owner         string  `json:"owner" yaml:"owner"`

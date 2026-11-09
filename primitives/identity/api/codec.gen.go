@@ -1475,6 +1475,45 @@ func DecodeListGrantsResponse(csilData []byte) (ListGrantsResponse, error) {
 	return csilDecListGrantsResponse(csilRoot)
 }
 
+// csilEncExpiringGrantsRequest builds the canonical CBOR value tree for a ExpiringGrantsRequest.
+func csilEncExpiringGrantsRequest(csilV ExpiringGrantsRequest) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("within_ms"), cborUint(csilV.WithinMs)})
+	return csilEntries
+}
+
+// csilDecExpiringGrantsRequest reconstructs a ExpiringGrantsRequest from a decoded CBOR value tree.
+func csilDecExpiringGrantsRequest(csilRoot cborValue) (ExpiringGrantsRequest, error) {
+	var csilOut ExpiringGrantsRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "within_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.WithinMs = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeExpiringGrantsRequest encodes a ExpiringGrantsRequest to canonical CSIL CBOR bytes.
+func EncodeExpiringGrantsRequest(csilV ExpiringGrantsRequest) []byte {
+	return cborEncode(csilEncExpiringGrantsRequest(csilV))
+}
+
+// DecodeExpiringGrantsRequest decodes canonical CSIL CBOR bytes into a ExpiringGrantsRequest.
+func DecodeExpiringGrantsRequest(csilData []byte) (ExpiringGrantsRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ExpiringGrantsRequest
+		return csilZero, csilErr
+	}
+	return csilDecExpiringGrantsRequest(csilRoot)
+}
+
 // csilEncPresentGrantRequest builds the canonical CBOR value tree for a PresentGrantRequest.
 func csilEncPresentGrantRequest(csilV PresentGrantRequest) cborValue {
 	csilEntries := make(cborMap, 0, 4)

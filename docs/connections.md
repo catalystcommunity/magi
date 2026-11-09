@@ -27,6 +27,15 @@ A revoked grant stops at the next bearer. catalystcal also checks
 revocations itself. The person revokes the grant on their LinkKeys account
 page. `magi disconnect calendar` deletes only Magi's copy.
 
+Grant terms: Magi asks for a lifetime of 24 hours and a renewal window of
+30 days (the LinkKeys maximums). Without these terms, a grant lives one hour
+and cannot renew. The identity primitive renews each active grant every 15
+minutes when less than half of its lifetime is left. The renewal window
+starts at the first expiry, so a grant ends about 31 days after the person
+approves it. Three days before the end, Magi sends the owner a notice
+("Connect your calendar again") once a day (`expiring-grants`). A newer
+grant for the same application stops the notices.
+
 An event that Magi puts on the calendar of another person needs a share
 with `write` (or `contribute`) access to the person whom Magi acts for.
 
@@ -38,6 +47,11 @@ session for the client "Magi":
 1. `magi connect longhouse` gives a link and a code.
 2. The person signs in to Longhouse and approves the code.
 3. Magi gets the session and stores it in identity, encrypted.
+
+Anyone who has the code can approve it. Magi asks Longhouse for the account
+of the new session. When it is not the account of the person who started
+the connection, Magi revokes the session and does not store it.
+`magi disconnect longhouse` ends the session at Longhouse and deletes it.
 
 Longhouse revokes a session when a used refresh token comes back. Thus
 Magi stores the bearer next to the refresh token. Only one Magi replica

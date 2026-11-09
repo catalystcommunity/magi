@@ -148,6 +148,15 @@ export interface ListGrantsResponse {
 }
 
 /**
+ * The active grants of all owners whose renewal ends within within_ms:
+ * after renewable_until the person must consent again. Needs
+ * identity:act-as or identity:admin.
+ */
+export interface ExpiringGrantsRequest {
+  withinMs: number;
+}
+
+/**
  * Makes an act-as credential (CBOR ActAsCredential) for one call or bearer
  * exchange at the audience. request_digest is the digest that the audience
  * asks for. The home domain checks the grant first, so a revoked grant

@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { AppRef, ApplicationRequest, BeginGrantRequest, BeginGrantResponse, BeginLoginRequest, BeginLoginResponse, Credential, CredentialRef, EmptyResponse, ForgetGrantRequest, Grant, IssueServiceTokenRequest, ListCredentialsRequest, ListCredentialsResponse, ListGrantsRequest, ListGrantsResponse, PollLoginRequest, PollLoginResponse, PresentGrantRequest, PresentGrantResponse, PutCredentialRequest, RefreshRequest, TokenResponse, WhoAmIRequest, WhoAmIResponse } from "./types.gen.ts";
+import type { AppRef, ApplicationRequest, BeginGrantRequest, BeginGrantResponse, BeginLoginRequest, BeginLoginResponse, Credential, CredentialRef, EmptyResponse, ExpiringGrantsRequest, ForgetGrantRequest, Grant, IssueServiceTokenRequest, ListCredentialsRequest, ListCredentialsResponse, ListGrantsRequest, ListGrantsResponse, PollLoginRequest, PollLoginResponse, PresentGrantRequest, PresentGrantResponse, PutCredentialRequest, RefreshRequest, TokenResponse, WhoAmIRequest, WhoAmIResponse } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -722,6 +722,26 @@ export function toListGrantsResponseCbor(v: ListGrantsResponse): Uint8Array {
 
 export function fromListGrantsResponseCbor(bytes: Uint8Array): ListGrantsResponse {
   return fromListGrantsResponseCborValue(decode(bytes));
+}
+
+export function toExpiringGrantsRequestCborValue(v: ExpiringGrantsRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("within_ms", v.withinMs);
+  return csilMap;
+}
+
+export function fromExpiringGrantsRequestCborValue(value: CborValue): ExpiringGrantsRequest {
+  return {
+    withinMs: asNumber(requireKey(value, "within_ms")),
+  };
+}
+
+export function toExpiringGrantsRequestCbor(v: ExpiringGrantsRequest): Uint8Array {
+  return encodeValue(toExpiringGrantsRequestCborValue(v));
+}
+
+export function fromExpiringGrantsRequestCbor(bytes: Uint8Array): ExpiringGrantsRequest {
+  return fromExpiringGrantsRequestCborValue(decode(bytes));
 }
 
 export function toPresentGrantRequestCborValue(v: PresentGrantRequest): CborValue {

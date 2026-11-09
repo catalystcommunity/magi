@@ -40,6 +40,9 @@ class IdentityAsyncClient(private val transport: AsyncTransport) {
     suspend fun listGrants(request: ListGrantsRequest): ListGrantsResponse {
         return decode<ListGrantsResponse>(transport.call("IdentityService", "list-grants", encode(request)))
     }
+    suspend fun expiringGrants(request: ExpiringGrantsRequest): ListGrantsResponse {
+        return decode<ListGrantsResponse>(transport.call("IdentityService", "expiring-grants", encode(request)))
+    }
     suspend fun presentGrant(request: PresentGrantRequest): PresentGrantResponse {
         return decode<PresentGrantResponse>(transport.call("IdentityService", "present-grant", encode(request)))
     }

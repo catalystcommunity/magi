@@ -95,6 +95,17 @@ func IdentityServiceOps(impl IdentityService) map[string]func(context.Context, [
 			}
 			return EncodeListGrantsResponse(resp), nil
 		},
+		"expiring-grants": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeExpiringGrantsRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ExpiringGrants(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListGrantsResponse(resp), nil
+		},
 		"present-grant": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodePresentGrantRequest(b)
 			if err != nil {

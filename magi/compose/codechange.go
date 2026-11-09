@@ -108,6 +108,9 @@ func (s *System) RunWorkers(ctx context.Context) {
 	go s.Work(ctx, "magi.todo.remind", s.todoRemind)
 	go s.Work(ctx, "magi.todo.overdue", s.todoOverdue)
 	go s.Work(ctx, "magi.todo.finish", s.todoFinish)
+	if s.Identity != nil {
+		go s.grantReminders(ctx)
+	}
 	go s.Librarian(ctx)
 }
 

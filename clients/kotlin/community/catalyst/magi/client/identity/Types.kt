@@ -152,6 +152,12 @@ data class ListGrantsResponse(
     val grants: List<Grant>
 )
 
+/** ExpiringGrantsRequest record. */
+data class ExpiringGrantsRequest(
+    // wire key: within_ms
+    val withinMs: ULong
+)
+
 /** PresentGrantRequest record. */
 data class PresentGrantRequest(
     val owner: String,

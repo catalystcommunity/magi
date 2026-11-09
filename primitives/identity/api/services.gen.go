@@ -17,6 +17,7 @@ type IdentityService interface {
 	Application(ctx context.Context, req ApplicationRequest) (AppRef, error)
 	BeginGrant(ctx context.Context, req BeginGrantRequest) (BeginGrantResponse, error)
 	ListGrants(ctx context.Context, req ListGrantsRequest) (ListGrantsResponse, error)
+	ExpiringGrants(ctx context.Context, req ExpiringGrantsRequest) (ListGrantsResponse, error)
 	PresentGrant(ctx context.Context, req PresentGrantRequest) (PresentGrantResponse, error)
 	ForgetGrant(ctx context.Context, req ForgetGrantRequest) (EmptyResponse, error)
 	PutCredential(ctx context.Context, req PutCredentialRequest) (Credential, error)

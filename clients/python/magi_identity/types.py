@@ -503,6 +503,31 @@ class ListGrantsResponse:
 
 
 @dataclass
+class ExpiringGrantsRequest:
+    within_ms: int
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'within_ms') and self.within_ms is not None:
+            result['within_ms'] = self.within_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ExpiringGrantsRequest':
+        """Create instance from dictionary."""
+        return cls(within_ms=data.get('within_ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ExpiringGrantsRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
 class PresentGrantRequest:
     owner: str
     audience: AppRef

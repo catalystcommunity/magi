@@ -90,6 +90,10 @@ Grant = {
 }
 ListGrantsRequest = { ? owner: text, ? audience: AppRef }
 ListGrantsResponse = { grants: [* Grant] }
+;;; The active grants of all owners whose renewal ends within within_ms:
+;;; after renewable_until the person must consent again. Needs
+;;; identity:act-as or identity:admin.
+ExpiringGrantsRequest = { within_ms: uint }
 
 ;;; Makes an act-as credential (CBOR ActAsCredential) for one call or bearer
 ;;; exchange at the audience. request_digest is the digest that the audience
@@ -145,6 +149,7 @@ service IdentityService {
   application: ApplicationRequest -> AppRef,
   begin-grant: BeginGrantRequest -> BeginGrantResponse,
   list-grants: ListGrantsRequest -> ListGrantsResponse,
+  expiring-grants: ExpiringGrantsRequest -> ListGrantsResponse,
   present-grant: PresentGrantRequest -> PresentGrantResponse,
   forget-grant: ForgetGrantRequest -> EmptyResponse,
   put-credential: PutCredentialRequest -> Credential,

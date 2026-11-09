@@ -125,3 +125,31 @@ func TestRenewableGrants(t *testing.T) {
 		t.Fatalf("renewable: %+v", rows)
 	}
 }
+
+// ExpiringGrants: active grants of all owners whose renewal ends soon;
+// only a service with identity:act-as may list them.
+func TestExpiringGrants(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	now := time.Now().UnixMilli()
+	h := int64(time.Hour / time.Millisecond)
+	for _, g := range []store.Grant{
+		{ID: "ends-soon", State: "active", ExpiresMs: now + 20*h, RenewableUntilMs: now + 48*h},
+		{ID: "ends-later", State: "active", ExpiresMs: now + 20*h, RenewableUntilMs: now + 600*h},
+		{ID: "ended", State: "active", ExpiresMs: now - 2*h, RenewableUntilMs: now - h},
+	} {
+		g.Owner, g.Domain, g.Audience, g.Scopes, g.Bytes, g.CreatedMs, g.UpdatedMs = person, "example.local", "a", []string{"s"}, []byte{1}, now, now
+		if err := e.svc.DB.PutGrant(ctx, g); err != nil {
+			t.Fatal(err)
+		}
+	}
+	magi := e.client(e.keys.Token(t, "service:magi", "identity:act-as"))
+	r, err := magi.ExpiringGrants(ctx, api.ExpiringGrantsRequest{WithinMs: uint64(72 * h)})
+	if err != nil || len(r.Grants) != 1 || r.Grants[0].GrantId != "ends-soon" {
+		t.Fatalf("expiring: %+v %v", r, err)
+	}
+	user := e.client(e.keys.Token(t, person))
+	if _, err := user.ExpiringGrants(ctx, api.ExpiringGrantsRequest{WithinMs: 1}); code(err) != 403 {
+		t.Fatalf("a person listed all grants: %v", err)
+	}
+}

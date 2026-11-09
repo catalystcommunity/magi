@@ -63,6 +63,10 @@ class IdentityClient:
         """list-grants"""
         return ListGrantsResponse.from_cbor(self._transport.call("IdentityService", "list-grants", req.to_cbor()))
 
+    def expiring_grants(self, req: ExpiringGrantsRequest) -> ListGrantsResponse:
+        """expiring-grants"""
+        return ListGrantsResponse.from_cbor(self._transport.call("IdentityService", "expiring-grants", req.to_cbor()))
+
     def present_grant(self, req: PresentGrantRequest) -> PresentGrantResponse:
         """present-grant"""
         return PresentGrantResponse.from_cbor(self._transport.call("IdentityService", "present-grant", req.to_cbor()))

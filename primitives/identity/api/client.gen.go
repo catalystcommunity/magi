@@ -115,6 +115,15 @@ func (c *IdentityClient) ListGrants(ctx context.Context, req ListGrantsRequest) 
 	return DecodeListGrantsResponse(csilResp)
 }
 
+func (c *IdentityClient) ExpiringGrants(ctx context.Context, req ExpiringGrantsRequest) (ListGrantsResponse, error) {
+	var csilZero ListGrantsResponse
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "expiring-grants", EncodeExpiringGrantsRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListGrantsResponse(csilResp)
+}
+
 func (c *IdentityClient) PresentGrant(ctx context.Context, req PresentGrantRequest) (PresentGrantResponse, error) {
 	var csilZero PresentGrantResponse
 	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "present-grant", EncodePresentGrantRequest(req))

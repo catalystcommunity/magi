@@ -50,6 +50,9 @@ class IdentityClient(private val transport: Transport) {
     fun listGrants(request: ListGrantsRequest): ListGrantsResponse {
         return decode<ListGrantsResponse>(transport.call("IdentityService", "list-grants", encode(request)))
     }
+    fun expiringGrants(request: ExpiringGrantsRequest): ListGrantsResponse {
+        return decode<ListGrantsResponse>(transport.call("IdentityService", "expiring-grants", encode(request)))
+    }
     fun presentGrant(request: PresentGrantRequest): PresentGrantResponse {
         return decode<PresentGrantResponse>(transport.call("IdentityService", "present-grant", encode(request)))
     }

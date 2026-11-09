@@ -2,8 +2,8 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { AppRef, ApplicationRequest, BeginGrantRequest, BeginGrantResponse, BeginLoginRequest, BeginLoginResponse, Credential, CredentialRef, EmptyResponse, ForgetGrantRequest, IssueServiceTokenRequest, ListCredentialsRequest, ListCredentialsResponse, ListGrantsRequest, ListGrantsResponse, PollLoginRequest, PollLoginResponse, PresentGrantRequest, PresentGrantResponse, PutCredentialRequest, RefreshRequest, TokenResponse, WhoAmIRequest, WhoAmIResponse } from "./types.gen.ts";
-import { fromAppRefCbor, fromBeginGrantResponseCbor, fromBeginLoginResponseCbor, fromCredentialCbor, fromEmptyResponseCbor, fromListCredentialsResponseCbor, fromListGrantsResponseCbor, fromPollLoginResponseCbor, fromPresentGrantResponseCbor, fromTokenResponseCbor, fromWhoAmIResponseCbor, toApplicationRequestCbor, toBeginGrantRequestCbor, toBeginLoginRequestCbor, toCredentialRefCbor, toForgetGrantRequestCbor, toIssueServiceTokenRequestCbor, toListCredentialsRequestCbor, toListGrantsRequestCbor, toPollLoginRequestCbor, toPresentGrantRequestCbor, toPutCredentialRequestCbor, toRefreshRequestCbor, toWhoAmIRequestCbor } from "./codec.gen.ts";
+import type { AppRef, ApplicationRequest, BeginGrantRequest, BeginGrantResponse, BeginLoginRequest, BeginLoginResponse, Credential, CredentialRef, EmptyResponse, ExpiringGrantsRequest, ForgetGrantRequest, IssueServiceTokenRequest, ListCredentialsRequest, ListCredentialsResponse, ListGrantsRequest, ListGrantsResponse, PollLoginRequest, PollLoginResponse, PresentGrantRequest, PresentGrantResponse, PutCredentialRequest, RefreshRequest, TokenResponse, WhoAmIRequest, WhoAmIResponse } from "./types.gen.ts";
+import { fromAppRefCbor, fromBeginGrantResponseCbor, fromBeginLoginResponseCbor, fromCredentialCbor, fromEmptyResponseCbor, fromListCredentialsResponseCbor, fromListGrantsResponseCbor, fromPollLoginResponseCbor, fromPresentGrantResponseCbor, fromTokenResponseCbor, fromWhoAmIResponseCbor, toApplicationRequestCbor, toBeginGrantRequestCbor, toBeginLoginRequestCbor, toCredentialRefCbor, toExpiringGrantsRequestCbor, toForgetGrantRequestCbor, toIssueServiceTokenRequestCbor, toListCredentialsRequestCbor, toListGrantsRequestCbor, toPollLoginRequestCbor, toPresentGrantRequestCbor, toPutCredentialRequestCbor, toRefreshRequestCbor, toWhoAmIRequestCbor } from "./codec.gen.ts";
 
 export interface AsyncServiceTransport {
   call(service: string, op: string, req: Uint8Array): Promise<Uint8Array>;
@@ -81,6 +81,15 @@ export class IdentityAsyncClient {
    */
   async listGrants(req: ListGrantsRequest): Promise<ListGrantsResponse> {
     const csilResp = await this.t.call("IdentityService", "list-grants", toListGrantsRequestCbor(req));
+    return fromListGrantsResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async expiringGrants(req: ExpiringGrantsRequest): Promise<ListGrantsResponse> {
+    const csilResp = await this.t.call("IdentityService", "expiring-grants", toExpiringGrantsRequestCbor(req));
     return fromListGrantsResponseCbor(csilResp);
   }
 

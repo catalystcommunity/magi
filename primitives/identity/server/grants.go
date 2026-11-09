@@ -600,6 +600,28 @@ func (s *Service) PresentGrant(ctx context.Context, req api.PresentGrantRequest)
 		Scopes: fresh.Decoded.ApprovedScope, ExpiresMs: uint64(ms(fresh.Decoded.ExpiresAt))}, nil
 }
 
+// ExpiringGrants lists the active grants of all owners that end within
+// req.WithinMs (Magi reminds each owner to connect again).
+func (s *Service) ExpiringGrants(ctx context.Context, req api.ExpiringGrantsRequest) (api.ListGrantsResponse, error) {
+	p, err := rpc.Caller(ctx)
+	if err != nil {
+		return api.ListGrantsResponse{}, err
+	}
+	if !p.Has(ScopeActAs) && !p.Has(ScopeAdmin) {
+		return api.ListGrantsResponse{}, rpc.Denied("%s is required", ScopeActAs)
+	}
+	now := s.now()
+	rows, err := s.DB.ExpiringGrants(ctx, now.Add(time.Duration(req.WithinMs)*time.Millisecond).UnixMilli(), now.UnixMilli())
+	if err != nil {
+		return api.ListGrantsResponse{}, err
+	}
+	out := api.ListGrantsResponse{Grants: []api.Grant{}}
+	for _, g := range rows {
+		out.Grants = append(out.Grants, s.apiGrant(g))
+	}
+	return out, nil
+}
+
 func (s *Service) ForgetGrant(ctx context.Context, req api.ForgetGrantRequest) (api.EmptyResponse, error) {
 	p, err := rpc.Caller(ctx)
 	if err != nil {

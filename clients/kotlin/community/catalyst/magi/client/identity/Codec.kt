@@ -692,6 +692,25 @@ fun listGrantsResponseFromCborValue(cbor: CborValue): ListGrantsResponse {
 /** Decode CSIL CBOR bytes into a ListGrantsResponse. */
 fun listGrantsResponseFromCbor(bytes: ByteArray): ListGrantsResponse = listGrantsResponseFromCborValue(CsilCbor.decode(bytes))
 
+/** The CBOR value tree for a ExpiringGrantsRequest (deep, canonical key order). */
+fun ExpiringGrantsRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("within_ms") to CborValue.CUint(this.withinMs))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ExpiringGrantsRequest to canonical CSIL CBOR bytes. */
+fun ExpiringGrantsRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ExpiringGrantsRequest from a decoded CBOR value tree. */
+fun expiringGrantsRequestFromCborValue(cbor: CborValue): ExpiringGrantsRequest {
+    val withinMs = CsilCbor.asULong(CsilCbor.require(cbor, "within_ms"))
+    return ExpiringGrantsRequest(withinMs = withinMs)
+}
+
+/** Decode CSIL CBOR bytes into a ExpiringGrantsRequest. */
+fun expiringGrantsRequestFromCbor(bytes: ByteArray): ExpiringGrantsRequest = expiringGrantsRequestFromCborValue(CsilCbor.decode(bytes))
+
 /** The CBOR value tree for a PresentGrantRequest (deep, canonical key order). */
 fun PresentGrantRequest.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
@@ -922,6 +941,7 @@ private fun csilToCborValue(value: Any?): CborValue = when (value) {
     is Grant -> value.toCborValue()
     is ListGrantsRequest -> value.toCborValue()
     is ListGrantsResponse -> value.toCborValue()
+    is ExpiringGrantsRequest -> value.toCborValue()
     is PresentGrantRequest -> value.toCborValue()
     is PresentGrantResponse -> value.toCborValue()
     is ForgetGrantRequest -> value.toCborValue()
@@ -955,6 +975,7 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     Grant::class -> grantFromCborValue(cbor)
     ListGrantsRequest::class -> listGrantsRequestFromCborValue(cbor)
     ListGrantsResponse::class -> listGrantsResponseFromCborValue(cbor)
+    ExpiringGrantsRequest::class -> expiringGrantsRequestFromCborValue(cbor)
     PresentGrantRequest::class -> presentGrantRequestFromCborValue(cbor)
     PresentGrantResponse::class -> presentGrantResponseFromCborValue(cbor)
     ForgetGrantRequest::class -> forgetGrantRequestFromCborValue(cbor)

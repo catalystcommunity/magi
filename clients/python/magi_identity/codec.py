@@ -816,6 +816,29 @@ def _list_grants_response_from_cbor(data: bytes) -> "ListGrantsResponse":
 ListGrantsResponse.to_cbor = _list_grants_response_to_cbor
 ListGrantsResponse.from_cbor = staticmethod(_list_grants_response_from_cbor)
 
+def _encode_expiring_grants_request_value(v: "ExpiringGrantsRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["within_ms"] = v.within_ms
+    return csil_m
+
+def _decode_expiring_grants_request_value(tree: Any) -> "ExpiringGrantsRequest":
+    tree = _csil_expect_map(tree)
+    return ExpiringGrantsRequest(
+        within_ms=_csil_expect_uint(tree["within_ms"]),
+    )
+
+
+def _expiring_grants_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_expiring_grants_request_value(self))
+
+
+def _expiring_grants_request_from_cbor(data: bytes) -> "ExpiringGrantsRequest":
+    return _decode_expiring_grants_request_value(cbor_decode(data))
+
+
+ExpiringGrantsRequest.to_cbor = _expiring_grants_request_to_cbor
+ExpiringGrantsRequest.from_cbor = staticmethod(_expiring_grants_request_from_cbor)
+
 def _encode_present_grant_request_value(v: "PresentGrantRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["owner"] = v.owner
