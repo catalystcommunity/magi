@@ -1,0 +1,23 @@
+gemma-teach (gemma-teach): 3762/4400 with checks (86%), raw 3434/4400, errors 0, median 4061 ms
+  alias          148/200 raw 132
+  birthday       102/200 raw   3
+  change         193/200 raw 186
+  end            185/200 raw 196
+  event          141/200 raw 141
+  fix            194/200 raw 194
+  hypothetical   164/200 raw 164
+  kin            138/200 raw  96
+  multi-fact     140/200 raw 141
+  new-fact       183/200 raw 182
+  other-fact     180/200 raw 180
+  other-near-self 200/200 raw 200
+  other-update   178/200 raw 174
+  pet-ref        153/200 raw 133
+  plan           197/200 raw 197
+  question       200/200 raw 200
+  reports-to-me  130/200 raw  79
+  request        200/200 raw 200
+  restate        200/200 raw 200
+  same-name      184/200 raw 144
+  small-talk     200/200 raw 200
+  third-person   152/200 raw  92

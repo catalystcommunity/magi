@@ -1,0 +1,23 @@
+gemma-4-12b-v2test (gemma-4-12b-v2test): 857/1012 with checks (85%), raw 789/1012, errors 0, median 5121 ms
+  alias           39/46  raw  35
+  birthday         4/46  raw   4
+  change          46/46  raw  45
+  end             46/46  raw  46
+  event           31/46  raw  31
+  fix             43/46  raw  43
+  hypothetical    46/46  raw  46
+  kin             34/46  raw  20
+  multi-fact      46/46  raw  46
+  new-fact        39/46  raw  39
+  other-fact      42/46  raw  42
+  other-near-self  46/46  raw  45
+  other-update    35/46  raw  31
+  pet-ref         34/46  raw  32
+  plan            46/46  raw  34
+  question        46/46  raw  46
+  reports-to-me   28/46  raw   7
+  request         46/46  raw  46
+  restate         46/46  raw  46
+  same-name       46/46  raw  41
+  small-talk      46/46  raw  46
+  third-person    22/46  raw  18

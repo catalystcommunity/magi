@@ -109,7 +109,7 @@ def valid(case, rw, keep):
 def ask(url, model, key, prompt):
     body = {"model": model, "messages": [{"role": "user", "content": prompt}], "max_tokens": 4000, "temperature": 0.9}
     req = urllib.request.Request(url.rstrip("/") + "/chat/completions", data=json.dumps(body).encode(),
-                                 headers={"Content-Type": "application/json", "Authorization": "Bearer " + key,
+                                 headers={"Content-Type": "application/json", **({"Authorization": "Bearer " + key} if key else {}),
                                           "User-Agent": "magi-evals-paraphrase/1"})
     with urllib.request.urlopen(req, timeout=300) as r:
         msg = json.load(r)["choices"][0]["message"]
@@ -161,14 +161,14 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--url", required=True)
     ap.add_argument("--model", required=True)
-    ap.add_argument("--key-file", required=True)
+    ap.add_argument("--key-file", default="", help="file with the API key (optional)")
     ap.add_argument("--keep", type=int, default=1, help="rewrites to keep for each case")
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--per-file", type=int, default=500)
     ap.add_argument("--prefix", default="cases")
     a = ap.parse_args()
-    key = Path(a.key_file).read_text().strip()
+    key = Path(a.key_file).read_text().strip() if a.key_file else ""
     cases = []
     for pat in a.inputs:
         for f in sorted(glob.glob(pat)):

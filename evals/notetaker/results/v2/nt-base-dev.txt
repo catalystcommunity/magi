@@ -1,0 +1,23 @@
+nt-base-dev (nt-base-dev): 178/220 with checks (81%), raw 171/220, errors 0, median 2741 ms
+  alias            9/10  raw   9
+  birthday         0/10  raw   0
+  change          10/10  raw  10
+  end             10/10  raw  10
+  event            5/10  raw   5
+  fix              8/10  raw   8
+  hypothetical    10/10  raw  10
+  kin              8/10  raw   6
+  multi-fact       7/10  raw   7
+  new-fact         9/10  raw   9
+  other-fact       8/10  raw   8
+  other-near-self  10/10  raw  10
+  other-update     8/10  raw   7
+  pet-ref          8/10  raw   7
+  plan            10/10  raw   9
+  question        10/10  raw  10
+  reports-to-me    0/10  raw   0
+  request         10/10  raw  10
+  restate         10/10  raw  10
+  same-name        8/10  raw   6
+  small-talk      10/10  raw  10
+  third-person    10/10  raw  10

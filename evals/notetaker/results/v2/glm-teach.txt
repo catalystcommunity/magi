@@ -1,0 +1,18 @@
+glm-teach (coder): 421/624 with checks (67%), raw 395/624, errors 66, median 8277 ms
+  alias           39/52  raw  39
+  birthday        93/98  raw  93
+  change           6/6   raw   6
+  end              2/4   raw   2
+  event           59/59  raw  59
+  fix              4/6   raw   4
+  hypothetical     5/36  raw   5
+  kin             48/62  raw  48
+  multi-fact       5/59  raw   5
+  new-fact        10/17  raw  10
+  other-fact      17/20  raw  17
+  other-update    22/22  raw  22
+  pet-ref         37/47  raw  37
+  plan             3/3   raw   3
+  reports-to-me   35/70  raw   9
+  same-name       16/16  raw  16
+  third-person    20/47  raw  20

@@ -1,0 +1,23 @@
+v3test-base (v3test-base): 769/893 with checks (86%), raw 733/893, errors 0, median 2584 ms
+  alias           33/42  raw  32
+  birthday        19/44  raw   1
+  change          41/43  raw  37
+  end             41/42  raw  41
+  event           37/37  raw  37
+  fix             41/41  raw  41
+  hypothetical    42/43  raw  42
+  kin             23/44  raw  18
+  multi-fact      32/44  raw  35
+  new-fact        39/44  raw  39
+  other-fact      11/23  raw  12
+  other-near-self  44/46  raw  46
+  other-update    17/18  raw  17
+  pet-ref         35/39  raw  34
+  plan            30/45  raw  29
+  question        46/46  raw  46
+  reports-to-me   29/36  raw  21
+  request         45/45  raw  45
+  restate         45/45  raw  45
+  same-name       40/46  raw  40
+  small-talk      46/46  raw  46
+  third-person    33/34  raw  29

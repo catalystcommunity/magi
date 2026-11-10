@@ -136,3 +136,74 @@ Do not deploy lora-v1. Before the next training run:
    checkpoint for each 25 steps.
 3. Compare only on the held-out set, and run the baseline two times.
 
+
+## Version 2 (2026-11-10)
+
+| File | What it is |
+| --- | --- |
+| `gen2.py` | Makes cases with graph checks, 22 categories. Each phrasing list, name pool, and style has three parts (index mod 5: 0-2 train, 3 dev, 4 test), so the test split has no wording of the training data. |
+| `data2/` | test (46 cases for each category, 1,012) and dev (220). |
+| `train2-labeled/` | 4,197 training cases with the answer of a teacher (gemma passes, then GLM for the misses). |
+| `paraphrase.py` | A model writes each case again in other words and styles. The notes and the checks stay; a rewrite must keep each name, word, and number that the checks look for. |
+| `data3/` | GLM rewrites of `data2/`: test (893) and dev (148, incomplete). |
+| `results/v2/` | The summaries of the runs below. |
+
+Make the cases:
+
+```sh
+python3 -I evals/notetaker/gen2.py evals/notetaker/data2 --part test --n 46 --seed 7
+python3 -I evals/notetaker/gen2.py evals/notetaker/data2 --part dev --n 10 --seed 8
+python3 -I evals/notetaker/gen2.py evals/notetaker/train2 --part train --n 200 --seed 9 --per-file 400
+```
+
+A graph check applies the items to a graph of the notes
+(`magi/compose/notesim.go`, as `applyNotes` and the knowledge store do)
+and examines the result: a fact exists, a fact stays, a fact ended, an
+event exists, or no new entity. Thus each right form of an answer passes.
+
+### Prompt of Gemma 4
+
+With only `--reasoning-budget 0`, llama-server puts `<|think|>` in the
+system turn of Gemma 4. Training with the HF template has no `<|think|>`
+and has an empty thought channel. Use
+`--chat-template-kwargs '{"enable_thinking":false}'` (`bench.sh` and
+`hostsetup` do this now). Without it, lora-v2 merges facts into one item.
+
+### Results
+
+All runs use Gemma 4 12B Q4_K_M on the RTX 4080. "data2" is the template
+test split; "data3" is the GLM rewrites, with wording that no model was
+trained on.
+
+| Model | data2 test (1,012) | data2 dev (220) | data3 test (893) |
+| --- | --- | --- | --- |
+| GLM 5.3 (runner `coder`) | 940 (93%) | - | - |
+| gemma, with `<\|think\|>` | 857 (85%) | 172 (78%) | - |
+| gemma | 894 (88%) | 178 (81%) | 769 (86%) |
+| lora-v2 checkpoint-75, with `<\|think\|>` | - | 153 (70%) | - |
+| lora-v2 checkpoint-75 | 915 (90%) | 184 (84%) | 802 (90%) |
+
+lora-v2: QLoRA nf4, rank 16, learning rate 1e-4, one epoch over 4,197
+cases (263 steps of 16), a checkpoint each 25 steps. The loss stayed near
+0.04 (lora-v1: 0.002). The dev split chose checkpoint-75 (184); the last
+checkpoint had 183.
+
+The guard fixes of 2026-11-10 (birthday age with "today", the self label
+in reports-to-me, more words of a change) give gemma 927 (92%) and
+checkpoint-75 940 (93%) on the data2 test. They were made from data2 test
+failures and give 0 on dev, so do not use these numbers to compare.
+
+On data3, checkpoint-75 is better in `birthday` (19 to 41 of 44), `kin` (23
+to 36 of 44), and `plan` (30 to 45 of 45). It is worse in `third-person` (33
+to 22 of 34) and `multi-fact` (32 to 27 of 44): for a new phrasing it often
+gives no items. There are only 6 training phrasings for each category.
+
+### Next
+
+1. Write 2 rewrites of each training case with local gemma
+   (`paraphrase.py --url http://127.0.0.1:PORT/v1`), so train and test
+   rewrites come from different models.
+2. Label the rewrites: keep an answer of checkpoint-75 or of gemma only
+   when its checks pass.
+3. Train lora-v3 on the labeled cases and the rewrites; choose the
+   checkpoint on data3 dev; report data3 test.

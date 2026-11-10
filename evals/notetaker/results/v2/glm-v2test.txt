@@ -1,0 +1,24 @@
+glm-5.3-v2 (coder): 940/1012 with checks (93%), raw 916/1012, errors 69, median 5517 ms
+  alias           45/46  raw  45
+  birthday        46/46  raw  46
+  change          45/46  raw  45
+  end             39/46  raw  39
+  event           46/46  raw  46
+  fix             45/46  raw  45
+  hypothetical    46/46  raw  46
+  kin             43/46  raw  43
+  multi-fact      46/46  raw  46
+  new-fact        46/46  raw  46
+  other-fact      44/46  raw  44
+  other-near-self  34/46  raw  34
+  other-update    46/46  raw  46
+  pet-ref         46/46  raw  46
+  plan            46/46  raw  46
+  question        46/46  raw  46
+  reports-to-me   25/46  raw   1
+  request         46/46  raw  46
+  restate         46/46  raw  46
+  same-name       36/46  raw  36
+  small-talk      46/46  raw  46
+  third-person    32/46  raw  32
+glm-done

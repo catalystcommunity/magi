@@ -1,0 +1,23 @@
+gemma-4-12b-v2dev (gemma-4-12b-v2dev): 172/220 with checks (78%), raw 159/220, errors 0, median 5071 ms
+  alias            7/10  raw   6
+  birthday         0/10  raw   0
+  change          10/10  raw   8
+  end             10/10  raw  10
+  event            3/10  raw   3
+  fix              9/10  raw   9
+  hypothetical    10/10  raw  10
+  kin              8/10  raw   6
+  multi-fact       7/10  raw   7
+  new-fact        10/10  raw  10
+  other-fact       7/10  raw   7
+  other-near-self   9/10  raw   9
+  other-update     7/10  raw   7
+  pet-ref          8/10  raw   8
+  plan            10/10  raw  10
+  question        10/10  raw  10
+  reports-to-me    2/10  raw   0
+  request         10/10  raw  10
+  restate         10/10  raw  10
+  same-name       10/10  raw   6
+  small-talk      10/10  raw  10
+  third-person     5/10  raw   3

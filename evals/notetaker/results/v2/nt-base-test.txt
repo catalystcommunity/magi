@@ -1,0 +1,23 @@
+nt-base-test (nt-base-test): 894/1012 with checks (88%), raw 846/1012, errors 0, median 2777 ms
+  alias           40/46  raw  40
+  birthday         4/46  raw   4
+  change          46/46  raw  46
+  end             46/46  raw  46
+  event           42/46  raw  42
+  fix             44/46  raw  44
+  hypothetical    41/46  raw  41
+  kin             33/46  raw  28
+  multi-fact      46/46  raw  46
+  new-fact        40/46  raw  40
+  other-fact      42/46  raw  42
+  other-near-self  46/46  raw  46
+  other-update    41/46  raw  40
+  pet-ref         42/46  raw  42
+  plan            42/46  raw  26
+  question        46/46  raw  46
+  reports-to-me   27/46  raw   7
+  request         46/46  raw  46
+  restate         46/46  raw  46
+  same-name       46/46  raw  42
+  small-talk      46/46  raw  46
+  third-person    42/46  raw  40

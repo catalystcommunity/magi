@@ -1,0 +1,23 @@
+v2dev-checkpoint-75 (v2dev-checkpoint-75): 184/220 with checks (84%), raw 179/220, errors 0, median 1700 ms
+  alias           10/10  raw  10
+  birthday         9/10  raw   9
+  change          10/10  raw  10
+  end             10/10  raw  10
+  event            6/10  raw   6
+  fix              6/10  raw   6
+  hypothetical    10/10  raw  10
+  kin              8/10  raw   8
+  multi-fact       7/10  raw   7
+  new-fact         8/10  raw   8
+  other-fact       9/10  raw   9
+  other-near-self  10/10  raw  10
+  other-update    10/10  raw  10
+  pet-ref          9/10  raw   9
+  plan            10/10  raw  10
+  question        10/10  raw  10
+  reports-to-me    0/10  raw   0
+  request         10/10  raw  10
+  restate         10/10  raw  10
+  same-name        8/10  raw   5
+  small-talk      10/10  raw  10
+  third-person     4/10  raw   2
