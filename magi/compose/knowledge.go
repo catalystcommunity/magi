@@ -261,7 +261,13 @@ func (s *System) changeRecord(ctx context.Context, owner, ownerName, id, op, fie
 // text or that the matching facts name, with their facts, and the episodes
 // and procedures that match.
 func (s *System) knowledgeView(ctx context.Context, owner, text, kind string, limit int, includeEnded bool) ([]magiapi.KnowledgeItem, []magiapi.KnowledgeRecord, error) {
-	res, err := s.Knowledge.Search(ctx, knowledgeapi.SearchRequest{Text: optional(text), Kind: optional(kind), Limit: ptr(uint64(30)),
+	hits := uint64(30)
+	if firstPerson.MatchString(text) {
+		// A question about the person: in a big graph, facts of other
+		// people with the same words fill 30 hits (load test, 10x history).
+		hits = 60
+	}
+	res, err := s.Knowledge.Search(ctx, knowledgeapi.SearchRequest{Text: optional(text), Kind: optional(kind), Limit: ptr(hits),
 		IncludeEnded: &includeEnded, ActFor: &owner})
 	if err != nil {
 		return nil, nil, err
@@ -354,14 +360,18 @@ func (s *System) knowledgeView(ctx context.Context, owner, text, kind string, li
 		if err != nil {
 			continue
 		}
-		items = append(items, knowledgeItem(a, owner, claims))
+		items = append(items, knowledgeItem(a, owner, claims, text))
 	}
 	return items, records, nil
 }
 
-// knowledgeItem is an entity with its facts. The facts that the search
-// found come first; an entity with many facts (the self) gives at most 20.
-func knowledgeItem(a knowledgeapi.AboutResponse, owner string, matched map[string]knowledgeapi.Claim) magiapi.KnowledgeItem {
+// knowledgeItem is an entity with its facts; an entity with many facts
+// (the self) gives at most 20. The facts go in order of: found by the
+// search, words of the question in the relation or the other side ("live"
+// in lives-in), current before ended, then newer first. In a big graph
+// the self has hundreds of facts, and the oldest ones filled the 20 (the
+// home that ended, not the current one).
+func knowledgeItem(a knowledgeapi.AboutResponse, owner string, matched map[string]knowledgeapi.Claim, text string) magiapi.KnowledgeItem {
 	e := a.Entity
 	it := magiapi.KnowledgeItem{Id: e.Id, Kind: e.Kind, Label: e.Label, Aliases: e.Aliases, Summary: e.Summary, Properties: e.Properties,
 		Facts: []magiapi.KnowledgeFact{}, Mine: slices.Contains(e.Owners, owner)}
@@ -379,17 +389,33 @@ func knowledgeItem(a knowledgeapi.AboutResponse, owner string, matched map[strin
 	for _, d := range a.Disputes {
 		disputed[d.Record] = true
 	}
+	words := contentWords(text)
+	score := func(c knowledgeapi.Claim) int {
+		n := 0
+		if _, ok := matched[c.Id]; ok {
+			n += 4
+		}
+		other := deref(c.Value)
+		if c.Object != nil {
+			other = label[*c.Object]
+		}
+		hay := strings.ToLower(c.Relation + " " + other)
+		for _, w := range words {
+			if stem := strings.TrimSuffix(strings.TrimSuffix(w, "s"), "e"); len(stem) >= 3 && strings.Contains(hay, stem) {
+				n += 2
+			}
+		}
+		if c.Status == "current" {
+			n++
+		}
+		return n
+	}
 	cs := slices.Clone(a.Claims)
 	slices.SortStableFunc(cs, func(x, y knowledgeapi.Claim) int {
-		_, mx := matched[x.Id]
-		_, my := matched[y.Id]
-		switch {
-		case mx && !my:
-			return -1
-		case my && !mx:
-			return 1
+		if d := score(y) - score(x); d != 0 {
+			return d
 		}
-		return 0
+		return int(deref(y.ValidFromMs)) - int(deref(x.ValidFromMs))
 	})
 	for _, c := range cs[:min(len(cs), 20)] {
 		f := magiapi.KnowledgeFact{Id: c.Id, Relation: c.Relation, Direction: "out", Value: c.Value, Status: c.Status,
@@ -502,7 +528,7 @@ func (s *System) changedItem(ctx context.Context, owner string, r knowledgeapi.C
 	if err != nil {
 		return nil
 	}
-	it := knowledgeItem(a, owner, nil)
+	it := knowledgeItem(a, owner, nil, "")
 	return &it
 }
 

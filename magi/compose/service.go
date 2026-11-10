@@ -204,7 +204,7 @@ func (m *Service) Remember(ctx context.Context, req magiapi.RememberRequest) (ma
 	if err != nil {
 		return out, err
 	}
-	out.Item = knowledgeItem(a, caller.Subject, map[string]knowledgeapi.Claim{c.Id: c})
+	out.Item = knowledgeItem(a, caller.Subject, map[string]knowledgeapi.Claim{c.Id: c}, "")
 	return out, nil
 }
 
