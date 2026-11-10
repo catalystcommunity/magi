@@ -87,6 +87,14 @@ func (s *System) entityFor(ctx context.Context, owner, ownerName, name, kind str
 	return s.Knowledge.PutEntity(ctx, knowledgeapi.PutEntityRequest{Kind: kind, Label: name, ActFor: &owner, Utterance: utt})
 }
 
+// manyValues are relations that a subject has more than one of: a second
+// child is not a change of the first (notetaker v2 benchmark, multi-fact).
+var manyValues = regexp.MustCompile(`^(child|children|kid|kids|son|daughter|sibling|sister|brother|pet|dog|cat|friend|coworker|colleague|neighbor|cousin|aunt|uncle|grandchild|niece|nephew|allergy|allergic-to|allergies|member-of|hobby|speaks|language|plays|team-member|direct-report|report)$`)
+
+func manyValued(relation string) bool {
+	return manyValues.MatchString(strings.ToLower(strings.TrimSpace(relation)))
+}
+
 // fact is a remember request.
 type fact struct {
 	subject, subjectKind, relation, object, objectKind, value, summary string
@@ -126,7 +134,7 @@ func (s *System) remember(ctx context.Context, owner, ownerName string, f fact, 
 	if authored {
 		req.AuthoredBy, req.Confidence = &owner, ptr(1.0)
 	}
-	if !f.also {
+	if !f.also && !manyValued(f.relation) {
 		about, err := s.Knowledge.About(ctx, knowledgeapi.AboutRequest{Id: subj.Id, ActFor: &owner})
 		if err == nil {
 			for _, c := range about.Claims {

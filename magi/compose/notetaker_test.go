@@ -361,6 +361,13 @@ func TestGuardShapes(t *testing.T) {
 	if len(got) != 1 || got[0].Subject != "Olga Holt" || got[0].Object != "me" || got[0].Value != "" {
 		t.Errorf("team as a value: %+v", got)
 	}
+	got, _ = guardNotes([]noteItem{{Op: "remember", Subject: "me", Relation: "manages", Object: "Tariq Iqbal"}}, "", "I'm now the manager of Tariq Iqbal; they started today.", at, "Jamie")
+	if len(got) != 1 || got[0].Subject != "Tariq Iqbal" || got[0].Relation != "manager" || got[0].Object != "me" {
+		t.Errorf("manages: %+v", got)
+	}
+	if tool, args := (noteItem{Op: "update", Id: "clm_x", Object: "Dr. Mina Moreau"}).toolCall("r"); tool != "change_knowledge" || args["value"] != "Dr. Mina Moreau" {
+		t.Errorf("update with an object: %s %v", tool, args)
+	}
 	got, _ = guardNotes([]noteItem{{Op: "update", Subject: "Tariq Osei", Relation: "works-at", Object: "Pinecone Analytics"}}, "", "Tariq Osei left Northwind Health to join Pinecone Analytics.", at, "Jamie")
 	if len(got) != 1 || got[0].Op != "remember" {
 		t.Errorf("no id: %+v", got)
@@ -385,5 +392,16 @@ func TestNoSelfChangesFromOthers(t *testing.T) {
 	got, _ = guardNotes([]noteItem{{Op: "update", Id: "clm_h", Value: "Elm Avenue in Golden"}}, notes, "Moved today; the new place is on Elm Avenue in Golden.", at, "Jamie")
 	if len(got) != 1 {
 		t.Errorf("a real move was dropped: %+v", got)
+	}
+}
+
+func TestReportsToMeWords(t *testing.T) {
+	for _, s := range []string{"I'm now the manager of Mina Lindqvist; they started today.", "Hana Iqbal started on my team; I'm Hana's manager.", "I have a new direct report, Omar Kerr."} {
+		if !reportsToMe.MatchString(s) {
+			t.Errorf("not matched: %q", s)
+		}
+	}
+	if reportsToMe.MatchString("Sven is on my team.") || !manyValued("child") || manyValued("works-at") {
+		t.Error("other")
 	}
 }

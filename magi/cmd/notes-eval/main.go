@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -36,6 +37,44 @@ type Item struct {
 	ValueOrObject string   `json:"value_or_object,omitempty"`
 }
 
+// Check is one check of the graph after the items. One field is set.
+type Check struct {
+	Has      *Fact  `json:"has,omitempty"`       // a current fact
+	Lacks    *Fact  `json:"lacks,omitempty"`     // no such current fact
+	AnyHas   *Fact  `json:"any_has,omitempty"`   // a current fact of any subject
+	Kept     string `json:"kept,omitempty"`      // the claim is current and not changed
+	NotKept  string `json:"not_kept,omitempty"`  // the claim changed or ended
+	Ended    string `json:"ended,omitempty"`     // the claim is not current
+	Event    string `json:"event,omitempty"`     // an event title has the text
+	NoEntity string `json:"no_entity,omitempty"` // no new entity has this label
+	Quiet    bool   `json:"quiet,omitempty"`     // nothing changed, no event
+	NoChange bool   `json:"no_change,omitempty"` // no fact changed (events can be)
+}
+
+// Fact is a fact of a check: the subject is a name or "me".
+type Fact struct {
+	Subject  string   `json:"subject"`
+	Relation []string `json:"relation,omitempty"`
+	Other    string   `json:"other,omitempty"`
+	Re       []string `json:"re,omitempty"` // expressions that the object or value must match, all
+}
+
+// hasFact: a current fact of the subject matches.
+func hasFact(g *compose.NoteGraph, f *Fact) bool {
+	for _, c := range g.Matching(f.Subject, f.Relation, f.Other) {
+		ok := true
+		for _, e := range f.Re {
+			if !regexp.MustCompile(e).MatchString(c.Other) {
+				ok = false
+			}
+		}
+		if ok {
+			return true
+		}
+	}
+	return false
+}
+
 type Case struct {
 	Id         string `json:"id"`
 	Category   string `json:"category"`
@@ -46,7 +85,10 @@ type Case struct {
 	Expect     []Item `json:"expect"`
 	Forbid     []Item `json:"forbid"`
 	AllowExtra bool   `json:"allow_extra"`
-	Target     struct {
+	// Graph: checks of the graph after the items (compose.NoteGraph). A
+	// case with checks is scored by them only.
+	Graph  []Check `json:"graph,omitempty"`
+	Target struct {
 		Items []compose.NoteItem `json:"items"`
 	} `json:"target"`
 }
@@ -76,6 +118,9 @@ func main() {
 	oracle := flag.Bool("oracle", false, "score the target answers of the cases (no model): a check of gen.py")
 	export := flag.String("export", "", "write training records (chat messages: the prompt, the input, the target) to this directory, then stop")
 	perFile := flag.Int("per-file", 2000, "records in each exported file")
+	teach := flag.String("teach", "", "write each case that the model passes, with its answer as the target, to this file (training labels)")
+	miss := flag.String("miss", "", "with -teach: write each case that the model fails to this file")
+	rescore := flag.String("rescore", "", "score the raw answers of this result file again with the current checks and cases (no model)")
 	flag.Parse()
 	tz := flag.Lookup("tz").Value.String()
 	loc, err := time.LoadLocation(tz)
@@ -94,6 +139,31 @@ func main() {
 		if err := exportCases(*export, cases, *perFile); err != nil {
 			fail(err)
 		}
+		return
+	}
+	if *rescore != "" {
+		old, err := loadResults(*rescore)
+		if err != nil {
+			fail(err)
+		}
+		var res []Result
+		for _, k := range cases {
+			r, ok := old[k.Id]
+			if !ok {
+				continue
+			}
+			if r.Error == "" {
+				when, _ := time.Parse(time.RFC3339, k.When)
+				r.Items = compose.GuardNoteItems(r.Raw, k.Text, k.Notes, when, k.Self)
+				r.RawOK, _ = score(k, r.Raw)
+				r.OK, r.Why = score(k, r.Items)
+			}
+			res = append(res, r)
+		}
+		if *out != "" {
+			writeResults(*out, res)
+		}
+		summary(*label, *name, res)
 		return
 	}
 	c := &model.Client{BaseURL: strings.TrimRight(*url, "/"), Model: *name, HTTP: &http.Client{Timeout: 10 * time.Minute}, Attempts: 2}
@@ -133,16 +203,13 @@ func main() {
 	}
 	close(next)
 	wg.Wait()
-	if *out != "" {
-		f, err := os.Create(*out)
-		if err != nil {
+	if *teach != "" {
+		if err := writeTeach(*teach, *miss, cases, res); err != nil {
 			fail(err)
 		}
-		for _, r := range res {
-			b, _ := json.Marshal(r)
-			f.Write(append(b, '\n'))
-		}
-		f.Close()
+	}
+	if *out != "" {
+		writeResults(*out, res)
 	}
 	summary(*label, *name, res)
 }
@@ -178,6 +245,9 @@ func runOracle(k Case) Result {
 // score: every expected item is in the answer (each by another item), no
 // forbidden item is, and with allow_extra false there is nothing else.
 func score(k Case, got []compose.NoteItem) (bool, string) {
+	if len(k.Graph) > 0 {
+		return scoreGraph(k, got)
+	}
 	used := make([]bool, len(got))
 	for _, e := range k.Expect {
 		hit := false
@@ -381,4 +451,160 @@ func nonNil(v []compose.NoteItem) []compose.NoteItem {
 func fail(err error) {
 	fmt.Fprintln(os.Stderr, "notes-eval:", err)
 	os.Exit(1)
+}
+
+// scoreGraph applies the items to the graph of the notes and runs the
+// checks of the case.
+func scoreGraph(k Case, got []compose.NoteItem) (bool, string) {
+	g := compose.ParseNotes(k.Notes, k.Self)
+	was := map[string]bool{}
+	for _, x := range g.Claims {
+		was[x.Id] = x.Current
+	}
+	g.Apply(got, k.Text)
+	for _, c := range k.Graph {
+		switch {
+		case c.Has != nil:
+			if !hasFact(g, c.Has) {
+				return false, "graph lacks " + jsonOf(c.Has)
+			}
+		case c.Lacks != nil:
+			if hasFact(g, c.Lacks) {
+				return false, "graph has " + jsonOf(c.Lacks)
+			}
+		case c.AnyHas != nil:
+			ok := false
+			for _, e := range g.Entities {
+				if g.Has(e.Id, c.AnyHas.Relation, c.AnyHas.Other) {
+					ok = true
+				}
+			}
+			if !ok {
+				return false, "graph lacks " + jsonOf(c.AnyHas)
+			}
+		case c.NotKept != "":
+			for _, x := range g.Claims {
+				if x.Id == c.NotKept && x.Current && !x.Changed {
+					return false, "kept " + c.NotKept
+				}
+			}
+		case c.Kept != "":
+			for _, x := range g.Claims {
+				if x.Id == c.Kept && (!x.Current || x.Changed) {
+					return false, "changed " + c.Kept
+				}
+			}
+		case c.Ended != "":
+			for _, x := range g.Claims {
+				if x.Id == c.Ended && x.Current {
+					return false, "not ended " + c.Ended
+				}
+			}
+		case c.Event != "":
+			ok := false
+			for _, e := range g.Events {
+				if contains(e.Title, c.Event) {
+					ok = true
+				}
+			}
+			if !ok {
+				return false, "no event " + c.Event
+			}
+		case c.NoEntity != "":
+			for _, e := range g.Entities {
+				if e.New && strings.EqualFold(e.Label, c.NoEntity) {
+					return false, "new entity " + c.NoEntity
+				}
+			}
+		case c.NoChange:
+			for _, x := range g.Claims {
+				if x.New || x.Changed || was[x.Id] && !x.Current {
+					return false, fmt.Sprintf("changed %s %s %s", g.Label(x.Subject), x.Relation, x.Other)
+				}
+			}
+		case c.Quiet:
+			for _, x := range g.Claims {
+				if x.New || x.Changed || was[x.Id] && !x.Current {
+					return false, fmt.Sprintf("changed %s %s %s", g.Label(x.Subject), x.Relation, x.Other)
+				}
+			}
+			if len(g.Events) > 0 {
+				return false, "event " + g.Events[0].Title
+			}
+		}
+	}
+	return true, ""
+}
+
+func jsonOf(v any) string {
+	b, _ := json.Marshal(v)
+	return string(b)
+}
+
+// writeTeach writes the passed cases with the answer of the model as the
+// target: the raw answer when it passes, else the items after the checks
+// of Magi (what Magi applied). The failed cases go to miss, for a stronger
+// teacher.
+func writeTeach(path, miss string, cases []Case, res []Result) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	var m *os.File
+	if miss != "" {
+		if m, err = os.Create(miss); err != nil {
+			return err
+		}
+		defer m.Close()
+	}
+	for i, k := range cases {
+		r := res[i]
+		switch {
+		case r.Error == "" && r.RawOK:
+			k.Target.Items = nonNil(r.Raw)
+		case r.Error == "" && r.OK:
+			k.Target.Items = nonNil(r.Items)
+		default:
+			if m != nil {
+				b, _ := json.Marshal(k)
+				m.Write(append(b, '\n'))
+			}
+			continue
+		}
+		b, _ := json.Marshal(k)
+		f.Write(append(b, '\n'))
+	}
+	return nil
+}
+
+func writeResults(path string, res []Result) {
+	f, err := os.Create(path)
+	if err != nil {
+		fail(err)
+	}
+	for _, r := range res {
+		b, _ := json.Marshal(r)
+		f.Write(append(b, '\n'))
+	}
+	f.Close()
+}
+
+func loadResults(path string) (map[string]Result, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]Result{}
+	for _, l := range strings.Split(string(b), "\n") {
+		if strings.TrimSpace(l) == "" {
+			continue
+		}
+		var r Result
+		if err := json.Unmarshal([]byte(l), &r); err != nil {
+			return nil, err
+		}
+		out[r.Id] = r
+	}
+	return out, nil
 }

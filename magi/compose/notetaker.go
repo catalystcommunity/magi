@@ -119,7 +119,12 @@ func (n noteItem) toolCall(reason string) (string, map[string]string) {
 			return "", nil
 		}
 		if n.Op != "retract" && n.Op != "end" && n.Value == "" {
-			return "", nil
+			// "update clm_x, object: Dr. Moreau": the new object is the
+			// value of the change (glm-5.3 in the v2 benchmark).
+			if strings.TrimSpace(n.Object) == "" {
+				return "", nil
+			}
+			n.Value = strings.TrimSpace(n.Object)
 		}
 		return "change_knowledge", map[string]string{"id": n.Id, "operation": n.Op, "value": n.Value, "field": n.Field, "reason": reason}
 	}
@@ -658,7 +663,9 @@ func endWins(items []noteItem, text string) []noteItem {
 var (
 	endWords = regexp.MustCompile(`(?i)\b(anymore|any more|no longer|not anymore|doesn't|does not|don't|stopped|quit|cancel+ed|sold|ended|retired)\b`)
 	hedge    = regexp.MustCompile(`(?i)\b(might|maybe|perhaps|someday|some day|one day|thinking about|considering|probably not|would like to|i'd like to|hope to|planning to)\b`)
-	teamRel  = regexp.MustCompile(`(?i)^(team|team-member|teammate|report|reports|direct-report|direct-reports|reportee|employee|manages)$`)
+	// mgrOf: "me manages X" says what "X manager me" says, with any words.
+	mgrOf   = regexp.MustCompile(`(?i)^(manages|managing|manager-of|direct-reports?|reports?|reportee|supervises|supervisor-of|boss-of|leads)$`)
+	teamRel = regexp.MustCompile(`(?i)^(team|team-member|teammate|report|reports|direct-report|direct-reports|reportee|employee|manages)$`)
 )
 
 func slicesContainsFold(list []string, s string) bool {
@@ -673,7 +680,7 @@ func slicesContainsFold(list []string, s string) bool {
 // fullName is a name of one to four capitalized words ("Olga Holt").
 var fullName = regexp.MustCompile(`^\p{Lu}[\p{L}'-]*( \p{Lu}[\p{L}'-]*){0,3}$`)
 
-var reportsToMe = regexp.MustCompile(`(?i)\breports? to me\b|\bjoined my team\b`)
+var reportsToMe = regexp.MustCompile(`(?i)\breports? to me\b|\bjoined my team\b|\bi'?m (now )?(the |their |his |her )?(new )?manager of\b|\bi (now )?manage\b|\b(my|a) (new )?(direct )?reports?\b|\bi'?m [\p{L}-]+'s manager\b`)
 
 // recordText gives the record in a tool result ("there is a current fact
 // [clm_x] Jamie works-at Juniper Labs. If ..."), after the id.
@@ -770,7 +777,7 @@ func guardNotes(items []noteItem, notes, text string, at time.Time, selfLabels .
 			// A small model gives the person as a value ("me manager: Olga").
 			it.Object, it.Value = it.Value, ""
 		}
-		if it.Op == "remember" && isSelf(it.Subject) && reportsToMe.MatchString(text) && teamRel.MatchString(it.Relation) && it.Object != "" && !isSelf(it.Object) {
+		if it.Op == "remember" && isSelf(it.Subject) && (reportsToMe.MatchString(text) && teamRel.MatchString(it.Relation) || mgrOf.MatchString(it.Relation)) && it.Object != "" && !isSelf(it.Object) {
 			// "X joined my team": one shape for "who reports to me".
 			log = append(log, map[string]any{"tool": "reports-to-me", "by": "note-taker", "args": map[string]string{"who": it.Object, "from": it.Relation}})
 			it = noteItem{Op: "remember", Subject: it.Object, Relation: "manager", Object: "me"}

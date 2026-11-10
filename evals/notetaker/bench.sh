@@ -6,13 +6,16 @@
 #     evals/notetaker/bench.sh NAME=MODEL.gguf[:EXTRA_ARGS] ...
 #
 # EXTRA_ARGS are more llama-server arguments, with commas for spaces
-# (for example "--n-cpu-moe,32"). Results go to evals/notetaker/results.
+# (for example "--n-cpu-moe,32"). Results go to evals/notetaker/results (or
+# OUT). CASES is the case glob (default: the version 1 test split); NE_ARGS
+# are more notes-eval arguments (for example "-teach FILE -miss FILE").
 set -euo pipefail
 root=$(cd "$(dirname "$0")/../.." && pwd)
 llama=${LLAMA:-llama-server}
 eval_bin=${NOTES_EVAL:-notes-eval}
 port=${PORT:-18190}
-out="$root/evals/notetaker/results"
+out=${OUT:-"$root/evals/notetaker/results"}
+cases=${CASES:-"$root/evals/notetaker/data/test-*.jsonl"}
 mkdir -p "$out"
 for spec in "$@"; do
   name=${spec%%=*}
@@ -36,7 +39,8 @@ for spec in "$@"; do
     kill "$pid" 2>/dev/null || true
     continue
   fi
-  "$eval_bin" -cases "$root/evals/notetaker/data/test-*.jsonl" -url "http://127.0.0.1:$port/v1" -model "$name" \
+  # shellcheck disable=SC2086
+  "$eval_bin" -cases "$cases" ${NE_ARGS:-} -url "http://127.0.0.1:$port/v1" -model "$name" \
     -workers 2 -label "$name" -out "$out/$name.jsonl" 2>/dev/null | tee "$out/$name.txt"
   kill "$pid"
   wait "$pid" 2>/dev/null || true
