@@ -144,3 +144,25 @@ Known defects of v1 itself: relative dates ("tomorrow", "this week")
 depend on the day of the run; action checks ask the same model; abstaining
 on an answerable question can pass; the noise does not follow the dates
 (climbing after the injury). v2 fixes these.
+
+### Load test: ten times the history (world-v3, 3,075 messages)
+
+The same 42 knowledge questions as v3 (no calendar or Longhouse), and 5
+traps for the names of the load world (questions-load-v1.json), with
+gemma-4-12b as note taker and persona.
+
+| Run | Same 42 questions | Traps | Graph (graph_check) | Median |
+| --- | --- | --- | --- | --- |
+| 1x history (v3 gemma-imp2) | 37/42 | | 26/30 (import 4) | 6.3 s |
+| 10x, load 1 (older checks) | 25/42 | 1/5 | 19/30 | 8.9 s |
+| 10x, load 2 (new checks) | 33/42 | 2/5 | 24/30, 27/30 with the fact ranking | 6.8 s |
+
+- Load 1 lost true facts to messages about other people ("Coffee with
+  Xavier Castillo; they live near Coors Field now" ended the person's
+  home). The checks of e5674d2 stop that.
+- Load 2 kept the true facts (30/30 stored), but the self had hundreds of
+  facts and the 20 shown were the oldest. Ranking by the question words and
+  currency (9eea7b2) fixed most of that.
+- Left: the birthday is ranked out by other facts with the same words,
+  people of the filler become the person's team, and one date question.
+
