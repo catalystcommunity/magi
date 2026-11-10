@@ -55,7 +55,7 @@ def main():
                       target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"])
     cfg = SFTConfig(output_dir=a.out, num_train_epochs=a.epochs, max_steps=a.max_steps, learning_rate=a.lr,
                     per_device_train_batch_size=1, gradient_accumulation_steps=a.accum, lr_scheduler_type="cosine",
-                    warmup_ratio=0.03, logging_steps=5, save_steps=100, save_total_limit=2, bf16=True,
+                    warmup_steps=10, logging_steps=5, save_steps=100, save_total_limit=2, bf16=True,
                     gradient_checkpointing=True, max_length=a.max_length, completion_only_loss=True,
                     report_to=[], seed=1)
     trainer = SFTTrainer(model=model, args=cfg, train_dataset=data, processing_class=tok, peft_config=lora)
