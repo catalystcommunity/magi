@@ -422,7 +422,9 @@ the model at most 8,000 characters; the detector scans 32 KiB of text.
 
 Actions, in order:
 
-- **B. Fence untrusted text with a key of the turn.** Put each block of
+- **B. Fence untrusted text with a key of the turn.** Done 2026-11-10
+  (`magi/compose/fence.go`; canary results in `evals/canary/README.md`).
+  The user does not want A. Put each block of
   untrusted text between markers with a random key that Magi makes for each
   turn (as SpikeStrip keys each decoy), and tell the model that only this
   key is real. Remove or break the syntax of the markers of Magi ("(Magi
