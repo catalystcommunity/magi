@@ -72,6 +72,8 @@ func main() {
 	lhURL := flag.String("longhouse", "", "Longhouse URL")
 	only := flag.String("only", "", "calendar or longhouse (default both)")
 	clean := flag.Bool("clean", false, "remove the events and tasks that are not in the world (made by earlier runs), then stop")
+	plantFile := flag.String("plant", "", "plant the decoys of this file (evals/canary), then stop")
+	unplantFile := flag.String("unplant", "", "remove the decoys of this file, then stop")
 	extras := flag.Bool("extras", false, "print (JSON lines) the events and tasks that are not in the world, then stop; an evaluation checks its actions with this")
 	tz := flag.String("tz", "America/Denver", "time zone of the world")
 	names = flag.String("name", "Jamie", "the name of the person (Longhouse display name)")
@@ -87,6 +89,17 @@ func main() {
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	sys := compose.New(compose.Config{Identity: *identity, CatalystcalURL: *calURL, LonghouseURL: *lhURL, ServiceToken: strings.TrimSpace(string(tok))}, nil, log)
 	ctx := context.Background()
+	if *plantFile != "" || *unplantFile != "" {
+		f := *plantFile
+		if f == "" {
+			f = *unplantFile
+		}
+		var pl plants
+		read(f, &pl)
+		who := map[string]string{"me": *me, "alex": *alex}
+		plant(ctx, sys, pl, who, *unplantFile != "")
+		return
+	}
 	report = *extras
 	if *clean || *extras {
 		var c struct{ Me, Alex []event }
@@ -508,6 +521,108 @@ func deref(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+// plants are decoys for the canary evaluation (evals/canary): events and
+// Longhouse comments that another person writes.
+type plants struct {
+	House  string `json:"house"`
+	Events []struct {
+		As       string `json:"as"`
+		Calendar string `json:"calendar"`
+		event
+	} `json:"events"`
+	Comments []struct {
+		As   string `json:"as"`
+		Task string `json:"task"`
+		Body string `json:"body"`
+	} `json:"comments"`
+}
+
+func plant(ctx context.Context, sys *compose.System, pl plants, who map[string]string, remove bool) {
+	for _, e := range pl.Events {
+		owner := who[e.As]
+		tr, err := sys.CalendarFor(ctx, owner)
+		if err != nil {
+			fail(err)
+		}
+		cals, err := cal.NewCalendarClient(tr).ListCalendars(ctx, cal.EmptyRequest{})
+		if err != nil {
+			fail(err)
+		}
+		var id cal.CalendarID
+		for _, c := range cals.Calendars {
+			if (c.AccessPath == "owner" || c.AccessPath == "delegation") && (c.Name == e.Calendar || (e.Calendar == "" && c.IsDefault)) {
+				id = c.CalendarId
+			}
+		}
+		if id == "" {
+			fail(fmt.Errorf("%s has no calendar %q", e.As, e.Calendar))
+		}
+		ev := cal.NewEventClient(tr)
+		if remove {
+			l, err := ev.ListEvents(ctx, cal.ListEventsRequest{RangeStart: cal.Timestamp("2026-01-01T00:00:00Z"), RangeEnd: cal.Timestamp("2027-12-31T00:00:00Z"), CalendarIds: []cal.CalendarID{id}})
+			if err != nil {
+				fail(err)
+			}
+			for _, o := range l.Occurrences {
+				if o.Event.Title == e.Title {
+					all := cal.RecurrenceScope("all")
+					ev.DeleteEvent(ctx, cal.DeleteEventRequest{EventId: o.Event.EventId, Scope: &all})
+					fmt.Printf("removed event %q\n", e.Title)
+				}
+			}
+			continue
+		}
+		x, err := toEvent(e.event, id)
+		if err != nil {
+			fail(err)
+		}
+		if _, err := ev.CreateEvent(ctx, x); err != nil {
+			fail(fmt.Errorf("event %q: %w", e.Title, err))
+		}
+		fmt.Printf("planted event %q on %s's %s calendar\n", e.Title, e.As, e.Calendar)
+	}
+	for _, c := range pl.Comments {
+		tr, err := sys.LonghouseFor(who[c.As])
+		if err != nil {
+			fail(err)
+		}
+		me, err := lh.NewAuthClient(tr).Me(ctx, lh.EmptyRequest{})
+		if err != nil {
+			fail(err)
+		}
+		for _, hs := range me.Houses {
+			if hs.Name != pl.House {
+				continue
+			}
+			lim := uint64(500)
+			l, err := lh.NewTaskClient(tr).ListTasks(ctx, lh.TaskListRequest{HouseId: hs.HouseId, Limit: &lim})
+			if err != nil {
+				fail(err)
+			}
+			cc := lh.NewCommentClient(tr)
+			for _, t := range l.Tasks {
+				if t.Title != c.Task {
+					continue
+				}
+				if remove {
+					cs, _ := cc.ListComments(ctx, lh.CommentListRequest{TargetType: "task", TargetId: string(t.TaskId), Limit: &lim})
+					for _, x := range cs {
+						if x.Body == c.Body {
+							cc.DeleteComment(ctx, x.CommentId)
+							fmt.Printf("removed comment on %q\n", t.Title)
+						}
+					}
+					continue
+				}
+				if _, err := cc.CreateComment(ctx, lh.Comment{HouseId: hs.HouseId, TargetType: "task", TargetId: string(t.TaskId), Body: c.Body}); err != nil {
+					fail(fmt.Errorf("comment on %q: %w", t.Title, err))
+				}
+				fmt.Printf("planted comment on %q as %s\n", t.Title, c.As)
+			}
+		}
+	}
 }
 
 // report: -extras prints instead of deleting.
