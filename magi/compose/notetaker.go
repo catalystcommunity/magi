@@ -666,6 +666,9 @@ func slicesContainsFold(list []string, s string) bool {
 	return false
 }
 
+// fullName is a name of one to four capitalized words ("Olga Holt").
+var fullName = regexp.MustCompile(`^\p{Lu}[\p{L}'-]*( \p{Lu}[\p{L}'-]*){0,3}$`)
+
 var reportsToMe = regexp.MustCompile(`(?i)\breports? to me\b|\bjoined my team\b`)
 
 // recordText gives the record in a tool result ("there is a current fact
@@ -758,6 +761,10 @@ func guardNotes(items []noteItem, notes, text string, at time.Time, selfLabels .
 			// An update with no fact to change is a new fact ("Tariq left
 			// X to join Y": update Tariq works-at Y, with no id).
 			it = noteItem{Op: "remember", Subject: it.Subject, Relation: it.Relation, Object: it.Object, Value: it.Value}
+		}
+		if it.Op == "remember" && isSelf(it.Subject) && reportsToMe.MatchString(text) && it.Object == "" && fullName.MatchString(it.Value) && strings.Contains(text, it.Value) {
+			// A small model gives the person as a value ("me manager: Olga").
+			it.Object, it.Value = it.Value, ""
 		}
 		if it.Op == "remember" && isSelf(it.Subject) && reportsToMe.MatchString(text) && teamRel.MatchString(it.Relation) && it.Object != "" && !isSelf(it.Object) {
 			// "X joined my team": one shape for "who reports to me".

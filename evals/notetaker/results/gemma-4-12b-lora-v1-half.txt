@@ -1,0 +1,17 @@
+gemma-4-12b-lora-v1-half (gemma-4-12b-lora-v1-half): 352/400 with checks (88%), raw 338/400, errors 0, median 2372 ms
+  birthday        17/25  raw   2
+  change          17/25  raw  21
+  end             25/25  raw  25
+  event           20/25  raw  20
+  fix             25/25  raw  25
+  multi-fact      22/25  raw  22
+  new-fact        23/25  raw  23
+  other-fact      22/25  raw  22
+  other-near-self  25/25  raw  25
+  other-update    25/25  raw  25
+  plan            25/25  raw  25
+  question        25/25  raw  25
+  reports-to-me    6/25  raw   3
+  request         25/25  raw  25
+  small-talk      25/25  raw  25
+  third-person    25/25  raw  25

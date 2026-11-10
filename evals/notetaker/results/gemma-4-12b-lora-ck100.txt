@@ -1,0 +1,17 @@
+gemma-4-12b-lora-ck100 (gemma-4-12b-lora-ck100): 367/400 with checks (92%), raw 359/400, errors 0, median 1807 ms
+  birthday        23/25  raw  23
+  change          22/25  raw  22
+  end             18/25  raw  18
+  event           20/25  raw  20
+  fix             25/25  raw  25
+  multi-fact      23/25  raw  23
+  new-fact        20/25  raw  20
+  other-fact      22/25  raw  22
+  other-near-self  25/25  raw  25
+  other-update    25/25  raw  25
+  plan            25/25  raw  25
+  question        25/25  raw  25
+  reports-to-me   20/25  raw  12
+  request         25/25  raw  25
+  small-talk      25/25  raw  25
+  third-person    24/25  raw  24

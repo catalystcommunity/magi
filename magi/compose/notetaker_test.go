@@ -357,6 +357,10 @@ func TestGuardShapes(t *testing.T) {
 	if len(got) != 1 || got[0].Subject != "Amara Sato" || got[0].Relation != "manager" || got[0].Object != "me" {
 		t.Errorf("team: %+v", got)
 	}
+	got, _ = guardNotes([]noteItem{{Op: "remember", Subject: "me", Relation: "manager", Value: "Olga Holt"}}, "", "Olga Holt joined my team today.", at, "Jamie")
+	if len(got) != 1 || got[0].Subject != "Olga Holt" || got[0].Object != "me" || got[0].Value != "" {
+		t.Errorf("team as a value: %+v", got)
+	}
 	got, _ = guardNotes([]noteItem{{Op: "update", Subject: "Tariq Osei", Relation: "works-at", Object: "Pinecone Analytics"}}, "", "Tariq Osei left Northwind Health to join Pinecone Analytics.", at, "Jamie")
 	if len(got) != 1 || got[0].Op != "remember" {
 		t.Errorf("no id: %+v", got)
