@@ -220,13 +220,36 @@ func (s *Searcher) Read(ctx context.Context, raw string) (string, error) {
 	}
 	ct := res.Header.Get("Content-Type")
 	switch {
-	case strings.Contains(ct, "html") || ct == "":
+	// A page that is HTML but says text/plain (raw files on a code host)
+	// would give the model its comments and hidden parts: decide by the
+	// content too (canary evaluation, 2026-11-09).
+	case strings.Contains(ct, "html") || ct == "" || looksHTML(body):
 		return clipText(pageText(body), maxPageText), nil
 	case strings.HasPrefix(ct, "text/") || strings.Contains(ct, "json"):
 		return clipText(string(body), maxPageText), nil
 	}
 	return "", fmt.Errorf("not a text page (%s)", ct)
 }
+
+// looksHTML: the first bytes of a body are an HTML document or element.
+func looksHTML(b []byte) bool {
+	head := strings.ToLower(strings.TrimSpace(string(b[:min(len(b), 512)])))
+	head = strings.TrimPrefix(head, "\ufeff")
+	for _, p := range []string{"<!doctype html", "<html", "<head", "<body", "<!--", "<div", "<p>", "<meta"} {
+		if strings.HasPrefix(head, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// hiddenStyle: an inline style that hides the element from a person
+// (SpikeStrip and similar decoys use these).
+func hiddenStyle(v string) bool {
+	return hiddenCSS.MatchString(strings.ToLower(strings.ReplaceAll(v, " ", "")))
+}
+
+var hiddenCSS = regexp.MustCompile(`(^|;)(display:none|visibility:(hidden|collapse)|font-size:0(\.0+)?(px|em|rem|pt|%)?|opacity:0(\.0+)?|(left|top|text-indent|margin-left):-\d{3,}(px|em|rem)?|clip:rect\(0[^)]*\)|transform:scale\(0\))(;|!|$)`)
 
 // pageText gives the visible text of an HTML page: no scripts, styles,
 // or hidden parts, so that text which a person does not see does not reach
@@ -252,7 +275,7 @@ func pageText(b []byte) string {
 				var k, v []byte
 				k, v, attr = z.TagAttr()
 				if string(k) == "hidden" || (string(k) == "aria-hidden" && string(v) == "true") ||
-					(string(k) == "style" && strings.Contains(strings.ReplaceAll(string(v), " ", ""), "display:none")) {
+					(string(k) == "style" && hiddenStyle(string(v))) {
 					hidden = true
 				}
 			}

@@ -55,6 +55,7 @@ def main():
     ap.add_argument("--world-cmd", required=True, help="magi-world with its flags, without -world")
     ap.add_argument("--label", default="")
     ap.add_argument("--keep", action="store_true")
+    ap.add_argument("--tmp", default="", help="directory for the plants file")
     a = ap.parse_args()
     d = json.loads((HERE / "decoys.json").read_text())
     keys = {x["id"]: secrets.token_hex(6) for x in d["events"] + d["comments"]}
@@ -67,7 +68,7 @@ def main():
     pl = {"house": d["house"],
           "events": [dict({k: v for k, v in e.items() if k not in ("id", "class")}, description=fill(e["description"], e["id"])) for e in d["events"]],
           "comments": [dict({k: v for k, v in c.items() if k not in ("id", "class")}, body=fill(c["body"], c["id"])) for c in d["comments"]]}
-    tmp = Path(tempfile.mkdtemp(prefix="canary-"))
+    tmp = Path(tempfile.mkdtemp(prefix="canary-", dir=a.tmp or None))
     (tmp / "plants.json").write_text(json.dumps(pl))
     empty = tmp / "world"
     empty.mkdir()
@@ -91,7 +92,10 @@ def main():
         after = snapshot(a.world_cmd, empty)
     finally:
         if not a.keep:
-            sh(f"{a.world_cmd} -unplant {tmp / 'plants.json'}")
+            try:
+                sh(f"{a.world_cmd} -unplant {tmp / 'plants.json'}")
+            except RuntimeError as e:
+                print("could not remove the decoys:", e, "- plants file:", tmp / "plants.json")
     planted_ids = set(planted) - set(before)
     created = [after[k] for k in after if k not in planted]
     deleted = [planted[k] for k in planted if k not in after]

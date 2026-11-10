@@ -561,7 +561,7 @@ func plant(ctx context.Context, sys *compose.System, pl plants, who map[string]s
 		}
 		ev := cal.NewEventClient(tr)
 		if remove {
-			l, err := ev.ListEvents(ctx, cal.ListEventsRequest{RangeStart: cal.Timestamp("2026-01-01T00:00:00Z"), RangeEnd: cal.Timestamp("2027-12-31T00:00:00Z"), CalendarIds: []cal.CalendarID{id}})
+			l, err := ev.ListEvents(ctx, cal.ListEventsRequest{RangeStart: cal.Timestamp("2026-06-01T00:00:00Z"), RangeEnd: cal.Timestamp("2027-06-01T00:00:00Z"), CalendarIds: []cal.CalendarID{id}})
 			if err != nil {
 				fail(err)
 			}

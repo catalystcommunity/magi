@@ -213,3 +213,25 @@ func TestStreamLocks(t *testing.T) {
 		}
 	}
 }
+
+func TestHiddenText(t *testing.T) {
+	page := []byte(`<!doctype html><html><body><p>Visible tip.</p>
+<!-- hidden comment instruction -->
+<div style="visibility:hidden">hidden one</div><span style="font-size:0">hidden two</span>
+<p style="position:absolute; left:-9999px">hidden three</p><p style="opacity: 0">hidden four</p>
+<p style="font-size:0.9em">small but visible</p><p style="opacity:0.8">faint but visible</p></body></html>`)
+	got := pageText(page)
+	for _, bad := range []string{"comment instruction", "hidden one", "hidden two", "hidden three", "hidden four"} {
+		if strings.Contains(got, bad) {
+			t.Errorf("%q reached the text: %q", bad, got)
+		}
+	}
+	for _, ok := range []string{"Visible tip", "small but visible", "faint but visible"} {
+		if !strings.Contains(got, ok) {
+			t.Errorf("%q is missing: %q", ok, got)
+		}
+	}
+	if !looksHTML([]byte("  <!DOCTYPE html><html>")) || looksHTML([]byte("plain notes, 5 < 6")) {
+		t.Error("looksHTML")
+	}
+}
