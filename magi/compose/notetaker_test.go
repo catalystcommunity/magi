@@ -326,6 +326,11 @@ func TestBirthdayFrom(t *testing.T) {
 			t.Errorf("%q: %q %v", text, v, ok)
 		}
 	}
+	for _, text := range []string{"Birthday today! 37.", "Celebrating turning 37 today."} {
+		if v, ok := birthdayFrom(noteItem{Op: "remember", Subject: "me", Relation: "birthday", Value: "37"}, text+" birthday", at); !ok || v != "April 3, 1987" {
+			t.Errorf("%q: %q %v", text, v, ok)
+		}
+	}
 	if _, ok := birthdayFrom(noteItem{Relation: "birthday", Value: "September 3, 2016"}, "Ruby's birthday, she turned 8", at); ok {
 		t.Error("a date was changed")
 	}
@@ -392,6 +397,17 @@ func TestNoSelfChangesFromOthers(t *testing.T) {
 	got, _ = guardNotes([]noteItem{{Op: "update", Id: "clm_h", Value: "Elm Avenue in Golden"}}, notes, "Moved today; the new place is on Elm Avenue in Golden.", at, "Jamie")
 	if len(got) != 1 {
 		t.Errorf("a real move was dropped: %+v", got)
+	}
+}
+
+func TestReportsToMeSelfLabel(t *testing.T) {
+	at := time.Date(2024, 4, 3, 3, 0, 0, 0, time.UTC)
+	text := "I'm now the manager of Tariq Iqbal; they started today."
+	for _, it := range []noteItem{{Op: "remember", Subject: "Jamie", Relation: "manager", Value: "Tariq Iqbal"}, {Op: "remember", Subject: "me", Relation: "reports-to", Object: "Tariq Iqbal"}} {
+		got, _ := guardNotes([]noteItem{it}, "", text, at, "Jamie")
+		if len(got) != 1 || got[0].Subject != "Tariq Iqbal" || got[0].Relation != "manager" || got[0].Object != "me" {
+			t.Errorf("%+v: %+v", it, got)
+		}
 	}
 }
 

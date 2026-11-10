@@ -293,7 +293,11 @@ func (l *Local) EngineCommand(e Engine, m Model, port int) []string {
 	}
 	cmd := []string{filepath.Join(l.engineDir(e), "llama-server"),
 		"-m", filepath.Join(l.Dir, "models", m.FileName()), "--alias", m.Name,
-		"--jinja", "--reasoning-budget", "0", "-c", "16384", "-ngl", ngl,
+		// With only --reasoning-budget 0, the Gemma 4 template still puts
+		// <|think|> in the system turn; enable_thinking false gives the
+		// prompt that the note-taker LoRA is trained on.
+		"--jinja", "--reasoning-budget", "0", "--chat-template-kwargs", `{"enable_thinking":false}`,
+		"-c", "16384", "-ngl", ngl,
 		"--host", "127.0.0.1", "--port", strconv.Itoa(port)}
 	if d := l.device(e); d != "" {
 		cmd = append(cmd, "--device", d)

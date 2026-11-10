@@ -457,7 +457,7 @@ var entityLine = regexp.MustCompile(`^- \[(ent_[^\]\s]+)\] (.+?) \([^)]*\)`)
 // labelOf gives the label of the entity id in the notes (describeKnowledge).
 var (
 	currentFact = regexp.MustCompile(`^Not recorded: there is a current fact \[(clm_[^\]\s]+)\]`)
-	changeWords = regexp.MustCompile(`(?i)\b(now|new|moved|switched|changed|instead|anymore|no longer|from now on)\b`)
+	changeWords = regexp.MustCompile(`(?i)\b(now|new|moved|switched|changed|instead|anymore|no longer|from now on|started at|starts at|joined|went to|took a job)\b`)
 	hasDate     = regexp.MustCompile(`\b` + month + `\.? \d{1,2}\b|\b\d{4}-\d{2}-\d{2}\b`)
 )
 
@@ -597,9 +597,14 @@ func startsWithOther(notes, text string, selfLabels ...string) bool {
 	return false
 }
 
+var (
+	bareAge   = regexp.MustCompile(`^\d{1,3}$`)
+	todayWord = regexp.MustCompile(`(?i)\btoday\b`)
+)
+
 var yearLike = regexp.MustCompile(`\b(19|20)\d\d\b`)
 
-var turned = regexp.MustCompile(`(?i)\b(?:turned|turn|turns|i'm now|i am now|i'm|i am)\s+(\d{1,3})\b|\b(\d{1,3}) years old (?:today|now)\b`)
+var turned = regexp.MustCompile(`(?i)\b(?:turned|turn|turns|turning|i'm now|i am now|i'm|i am)\s+(\d{1,3})\b|\b(\d{1,3}) years old (?:today|now)\b`)
 
 // birthdayFrom: "It's my birthday today, I turned 37" gives the birthday
 // as a date (the day of the message, 37 years before), not "37".
@@ -613,11 +618,16 @@ func birthdayFrom(it noteItem, text string, at time.Time) (string, bool) {
 	if v := strings.TrimSpace(it.Value + it.Object); v != "" && strings.Trim(v, "0123456789") != "" && (yearLike.MatchString(v) || !hasDate.MatchString(v)) {
 		return "", false
 	}
-	m := turned.FindStringSubmatch(text)
-	if m == nil {
+	n := 0
+	if m := turned.FindStringSubmatch(text); m != nil {
+		n, _ = strconv.Atoi(m[1] + m[2])
+	} else if v := strings.TrimSpace(it.Value); bareAge.MatchString(v) && todayWord.MatchString(text) && regexp.MustCompile(`\b`+v+`\b`).MatchString(text) {
+		// "Birthday today! 57": the age is the value.
+		n, _ = strconv.Atoi(v)
+	}
+	if n == 0 || n > 120 {
 		return "", false
 	}
-	n, _ := strconv.Atoi(m[1] + m[2])
 	d := at.In(zone)
 	return time.Date(d.Year()-n, d.Month(), d.Day(), 0, 0, 0, 0, zone).Format("January 2, 2006"), true
 }
@@ -665,7 +675,7 @@ var (
 	hedge    = regexp.MustCompile(`(?i)\b(might|maybe|perhaps|someday|some day|one day|thinking about|considering|probably not|would like to|i'd like to|hope to|planning to)\b`)
 	// mgrOf: "me manages X" says what "X manager me" says, with any words.
 	mgrOf   = regexp.MustCompile(`(?i)^(manages|managing|manager-of|direct-reports?|reports?|reportee|supervises|supervisor-of|boss-of|leads)$`)
-	teamRel = regexp.MustCompile(`(?i)^(team|team-member|teammate|report|reports|direct-report|direct-reports|reportee|employee|manages)$`)
+	teamRel = regexp.MustCompile(`(?i)^(team|team-member|teammate|report|reports|reports-to|direct-report|direct-reports|reportee|employee|manages)$`)
 )
 
 func slicesContainsFold(list []string, s string) bool {
@@ -767,17 +777,18 @@ func guardNotes(items []noteItem, notes, text string, at time.Time, selfLabels .
 		}
 		items = keep
 	}
+	self := func(s string) bool { return isSelf(s) || slicesContainsFold(selfLabels, s) }
 	for _, it := range items {
 		if (it.Op == "update" || it.Op == "fix") && it.Id == "" && it.Subject != "" && it.Relation != "" && it.Value+it.Object != "" {
 			// An update with no fact to change is a new fact ("Tariq left
 			// X to join Y": update Tariq works-at Y, with no id).
 			it = noteItem{Op: "remember", Subject: it.Subject, Relation: it.Relation, Object: it.Object, Value: it.Value}
 		}
-		if it.Op == "remember" && isSelf(it.Subject) && reportsToMe.MatchString(text) && it.Object == "" && fullName.MatchString(it.Value) && strings.Contains(text, it.Value) {
+		if it.Op == "remember" && self(it.Subject) && reportsToMe.MatchString(text) && it.Object == "" && fullName.MatchString(it.Value) && strings.Contains(text, it.Value) {
 			// A small model gives the person as a value ("me manager: Olga").
 			it.Object, it.Value = it.Value, ""
 		}
-		if it.Op == "remember" && isSelf(it.Subject) && (reportsToMe.MatchString(text) && teamRel.MatchString(it.Relation) || mgrOf.MatchString(it.Relation)) && it.Object != "" && !isSelf(it.Object) {
+		if it.Op == "remember" && self(it.Subject) && (reportsToMe.MatchString(text) && teamRel.MatchString(it.Relation) || mgrOf.MatchString(it.Relation)) && it.Object != "" && !self(it.Object) {
 			// "X joined my team": one shape for "who reports to me".
 			log = append(log, map[string]any{"tool": "reports-to-me", "by": "note-taker", "args": map[string]string{"who": it.Object, "from": it.Relation}})
 			it = noteItem{Op: "remember", Subject: it.Object, Relation: "manager", Object: "me"}
@@ -793,7 +804,7 @@ func guardNotes(items []noteItem, notes, text string, at time.Time, selfLabels .
 				it = noteItem{Op: "remember", Subject: label, Relation: "name", Value: it.Value}
 			}
 		}
-		if it.Op == "remember" && reportsToMe.MatchString(text) && strings.EqualFold(it.Relation, "manager") && isSelf(it.Subject) && it.Object != "" {
+		if it.Op == "remember" && reportsToMe.MatchString(text) && strings.EqualFold(it.Relation, "manager") && self(it.Subject) && it.Object != "" && !self(it.Object) {
 			// "Bea reports to me": Bea's manager is the person, not the
 			// other way.
 			log = append(log, map[string]any{"tool": "reports-to-me", "by": "note-taker", "args": map[string]string{"who": it.Object}})

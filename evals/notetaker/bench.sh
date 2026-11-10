@@ -25,7 +25,9 @@ for spec in "$@"; do
   [[ $rest == *:* ]] && extra=${rest#*:}
   echo "== $name ($gguf)"
   # shellcheck disable=SC2086
-  "$llama" -m "$gguf" --alias "$name" --reasoning-budget "${REASONING:-0}" -ngl 99 --jinja -c "${CTX:-16384}" -np 2 \
+  think=()
+  [[ ${REASONING:-0} == 0 ]] && think=(--chat-template-kwargs '{"enable_thinking":false}')
+  "$llama" -m "$gguf" --alias "$name" --reasoning-budget "${REASONING:-0}" "${think[@]}" -ngl 99 --jinja -c "${CTX:-16384}" -np 2 \
     -fa on -ctk q8_0 -ctv q8_0 --host 127.0.0.1 --port "$port" ${extra//,/ } > "$out/$name.server.log" 2>&1 &
   pid=$!
   ok=""
