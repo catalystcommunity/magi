@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -1157,15 +1158,37 @@ func (s *System) calendarContext(ctx context.Context, owner, text string) string
 		return ""
 	}
 	ev := cal.NewEventClient(tr)
-	found, err := searchEvents(ctx, ev, text, 12)
-	if err != nil || len(found) == 0 {
-		return ""
-	}
 	loc, now := s.zone(), time.Now()
 	cals, _ := s.calendars(ctx, tr)
 	names := map[cal.CalendarID]string{}
 	for _, c := range cals {
 		names[c.CalendarId] = calName(c)
+	}
+	// The days that the message names ("on Friday November 13") come
+	// first, with all their events: a small model answers from the context
+	// and does not call calendar_events (canary evaluation, 2026-11-09).
+	var dayLines []string
+	yes := true
+	for _, d := range daysIn(text, now, loc) {
+		occ, err := ev.ListEvents(ctx, cal.ListEventsRequest{RangeStart: ts(d), RangeEnd: ts(d.AddDate(0, 0, 1)), IncludeInvitations: &yes})
+		if err != nil {
+			continue
+		}
+		head := "all events on " + d.Format("Monday 2 January 2006") + ":"
+		if len(occ.Occurrences) == 0 {
+			head += " none"
+		}
+		dayLines = append(dayLines, head)
+		for i, o := range occ.Occurrences {
+			if i == 20 {
+				break
+			}
+			dayLines = append(dayLines, "  "+s.describeOcc(o, names))
+		}
+	}
+	found, err := searchEvents(ctx, ev, text, 12)
+	if err != nil || len(found) == 0 {
+		return strings.Join(dayLines, "\n")
 	}
 	want := map[cal.EventID]bool{}
 	for _, e := range found {
@@ -1173,7 +1196,6 @@ func (s *System) calendarContext(ctx context.Context, owner, text string) string
 	}
 	// Each occurrence in a window around now; singles outside it as they are.
 	from, to := now.AddDate(0, -6, 0), now.AddDate(0, 6, 0)
-	yes := true
 	occ, _ := ev.ListEvents(ctx, cal.ListEventsRequest{RangeStart: ts(from), RangeEnd: ts(to), IncludeInvitations: &yes})
 	type seen struct{ past, next []cal.Occurrence }
 	by := map[cal.EventID]*seen{}
@@ -1223,7 +1245,88 @@ func (s *System) calendarContext(ctx context.Context, owner, text string) string
 	if len(lines) > 24 {
 		lines = lines[:24]
 	}
-	return strings.Join(lines, "\n")
+	return strings.Join(append(dayLines, lines...), "\n")
+}
+
+var (
+	monthDay = regexp.MustCompile(`(?i)\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.? (\d{1,2})(?:st|nd|rd|th)?(?:,? (\d{4}))?\b`)
+	dayMonth = regexp.MustCompile(`(?i)\b(\d{1,2})(?:st|nd|rd|th)? (jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)(?: (\d{4}))?\b`)
+	isoDay   = regexp.MustCompile(`\b(\d{4})-(\d{2})-(\d{2})\b`)
+	weekday  = regexp.MustCompile(`(?i)\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b`)
+)
+
+// daysIn gives the days (midnight in loc) that text names, at most two: a
+// date, today or tomorrow, or a weekday (the next one, today included). A
+// date without a year is the next one.
+func daysIn(text string, now time.Time, loc *time.Location) []time.Time {
+	now = now.In(loc)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+	var out []time.Time
+	add := func(d time.Time) {
+		for _, x := range out {
+			if x.Equal(d) {
+				return
+			}
+		}
+		if len(out) < 2 {
+			out = append(out, d)
+		}
+	}
+	month := func(m string) time.Month {
+		t, err := time.Parse("Jan", strings.ToUpper(m[:1])+strings.ToLower(m[1:3]))
+		if err != nil {
+			return 0
+		}
+		return t.Month()
+	}
+	date := func(y int, m time.Month, d int) {
+		if m == 0 || d < 1 || d > 31 {
+			return
+		}
+		if y == 0 {
+			y = today.Year()
+			if time.Date(y, m, d, 0, 0, 0, 0, loc).Before(today.AddDate(0, 0, -7)) {
+				y++
+			}
+		}
+		add(time.Date(y, m, d, 0, 0, 0, 0, loc))
+	}
+	for _, m := range isoDay.FindAllStringSubmatch(text, -1) {
+		y, _ := strconv.Atoi(m[1])
+		mo, _ := strconv.Atoi(m[2])
+		d, _ := strconv.Atoi(m[3])
+		date(y, time.Month(mo), d)
+	}
+	for _, m := range monthDay.FindAllStringSubmatch(text, -1) {
+		d, _ := strconv.Atoi(m[2])
+		y, _ := strconv.Atoi(m[3])
+		date(y, month(m[1]), d)
+	}
+	for _, m := range dayMonth.FindAllStringSubmatch(text, -1) {
+		d, _ := strconv.Atoi(m[1])
+		y, _ := strconv.Atoi(m[3])
+		date(y, month(m[2]), d)
+	}
+	if len(out) > 0 {
+		return out
+	}
+	low := strings.ToLower(text)
+	if strings.Contains(low, "today") || strings.Contains(low, "tonight") {
+		add(today)
+	}
+	if strings.Contains(low, "tomorrow") {
+		add(today.AddDate(0, 0, 1))
+	}
+	for _, m := range weekday.FindAllString(text, -1) {
+		for i := 0; i < 7; i++ {
+			d := today.AddDate(0, 0, i)
+			if strings.EqualFold(d.Weekday().String(), m) {
+				add(d)
+				break
+			}
+		}
+	}
+	return out
 }
 
 // longhouseContext gives the Longhouse projects whose name shares a word

@@ -50,3 +50,28 @@ func TestAllDayText(t *testing.T) {
 		t.Errorf("trip: %q", got)
 	}
 }
+
+func TestDaysIn(t *testing.T) {
+	loc := time.UTC
+	now := time.Date(2026, 11, 9, 10, 0, 0, 0, loc) // a Monday
+	day := func(m time.Month, d int) time.Time { return time.Date(2026, m, d, 0, 0, 0, 0, loc) }
+	for text, want := range map[string][]time.Time{
+		"Is anything on Alex's calendar on Friday November 13?": {day(11, 13)},
+		"What's on 2026-11-20?":                                 {day(11, 20)},
+		"What do I have tomorrow?":                              {day(11, 10)},
+		"What's on Saturday?":                                   {day(11, 14)},
+		"Lunch on 3 December":                                   {day(12, 3)},
+		"Who's Ruby's coach?":                                   nil,
+	} {
+		got := daysIn(text, now, loc)
+		if len(got) != len(want) {
+			t.Errorf("%q: %v", text, got)
+			continue
+		}
+		for i := range got {
+			if !got[i].Equal(want[i]) {
+				t.Errorf("%q: %v", text, got)
+			}
+		}
+	}
+}
