@@ -690,7 +690,7 @@ func slicesContainsFold(list []string, s string) bool {
 // fullName is a name of one to four capitalized words ("Olga Holt").
 var fullName = regexp.MustCompile(`^\p{Lu}[\p{L}'-]*( \p{Lu}[\p{L}'-]*){0,3}$`)
 
-var reportsToMe = regexp.MustCompile(`(?i)\breports? to me\b|\bjoined my team\b|\bi'?m (now )?(the |their |his |her )?(new )?manager of\b|\bi (now )?manage\b|\b(my|a) (new )?(direct )?reports?\b|\bi'?m [\p{L}-]+'s manager\b`)
+var reportsToMe = regexp.MustCompile(`(?i)\b(reports?|reporting|repots?) to me\b|\bjoined my team\b|\bi'?m (now )?(the |their |his |her )?(new )?manager of\b|\bi (now )?manage\b|\b(my|a) (new )?(direct )?reports?\b|\bi'?m [\p{L}-]+'s manager\b`)
 
 // recordText gives the record in a tool result ("there is a current fact
 // [clm_x] Jamie works-at Juniper Labs. If ..."), after the id.

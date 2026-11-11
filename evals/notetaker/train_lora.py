@@ -1,7 +1,7 @@
 """Train a LoRA adapter for the note taker (README.md, "Training").
 
   python -I evals/notetaker/train_lora.py --base DIR_OR_REPO --data 'DIR/train-*.jsonl' \
-      --out OUT_DIR [--max-steps N] [--epochs E] [--lr LR] [--rank R] [--save-steps N] [--save-limit K]
+      --out OUT_DIR [--init-adapter DIR] [--max-steps N] [--epochs E] [--lr LR] [--rank R] [--save-steps N] [--save-limit K]
 
 The data are the chat records of `notes-eval -export` (system prompt, the
 input of the note taker, the target answer). The loss counts only the
@@ -46,6 +46,7 @@ def main():
     ap.add_argument("--save-limit", type=int, default=2, help="checkpoints to keep (0: all)")
     ap.add_argument("--warmup", type=int, default=10, help="warmup steps")
     ap.add_argument("--dropout", type=float, default=0.05)
+    ap.add_argument("--init-adapter", default="", help="continue the training of this adapter (a PEFT directory)")
     a = ap.parse_args()
 
     data = Dataset.from_list(records(a.data)).shuffle(seed=1)
@@ -63,6 +64,13 @@ def main():
                     save_total_limit=a.save_limit or None, bf16=True,
                     gradient_checkpointing=True, max_length=a.max_length, completion_only_loss=True,
                     report_to=[], seed=1)
+    if a.init_adapter:
+        # No prepare_model_for_kbit_training: it casts the bf16 weights to
+        # fp32 and runs out of memory on a 16 GB GPU.
+        from peft import PeftModel
+        model.enable_input_require_grads()
+        model = PeftModel.from_pretrained(model, a.init_adapter, is_trainable=True)
+        lora = None
     trainer = SFTTrainer(model=model, args=cfg, train_dataset=data, processing_class=tok, peft_config=lora)
     trainer.train()
     trainer.save_model(a.out)

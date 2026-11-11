@@ -586,7 +586,7 @@ def c_reports(r):
     p = name(r)
     f = p.split()[0]
     t = P(r, [f"{p} joined my team today.", f"{p} joined my team today. They report to me.", f"{p} reports to me starting this week.",
-              f"Welcome {p}, the new engineer on my team.", f"I'm now the manager of {p}; they started today.", f"{p} moved onto my team and reports to me now.",
+              f"Welcome {p}, the new engineer who reports to me.", f"I'm now the manager of {p}; they started today.", f"{p} moved onto my team and reports to me now.",
               f"I have a new direct report, {p}.", f"{p} is my new report.", f"I'm managing {p} from now on.", f"{p} started on my team; I'm {f}'s manager.",
               f"New hire {p} reports to me.", f"{p} transferred onto my team.", f"I'll be {p}'s manager going forward.", f"{p} is joining my team as my report.",
               f"Say hi to {p}, my new direct report."])
@@ -612,7 +612,9 @@ def c_multi(r):
               f"{p} and I have two kids: {a} and {b}.", f"My spouse is {p}; children {a} and {b}.", f"We're a family of four: me, {p}, {a}, and {b}.",
               f"I'm married to {p} and we have {a} and {b}."])
     kid = ["child", "kid", "son", "daughter", "parent-of", "children"]
-    return w, t, [has("me", ["partner", "spouse", "husband", "wife", "married"], p), has("me", kid, a), has("me", kid, b)]
+    # "A family of four: me, P, A, and B" does not say who is the partner.
+    rel = [] if "family of four" in t else ["partner", "spouse", "husband", "wife", "married"]
+    return w, t, [has("me", rel, p), has("me", kid, a), has("me", kid, b)]
 
 
 def c_other_update(r):

@@ -412,7 +412,7 @@ func TestReportsToMeSelfLabel(t *testing.T) {
 }
 
 func TestReportsToMeWords(t *testing.T) {
-	for _, s := range []string{"I'm now the manager of Mina Lindqvist; they started today.", "Hana Iqbal started on my team; I'm Hana's manager.", "I have a new direct report, Omar Kerr."} {
+	for _, s := range []string{"I'm now the manager of Mina Lindqvist; they started today.", "Hana Iqbal started on my team; I'm Hana's manager.", "I have a new direct report, Omar Kerr.", "From now on, Sol Osei is reporting to me!"} {
 		if !reportsToMe.MatchString(s) {
 			t.Errorf("not matched: %q", s)
 		}
