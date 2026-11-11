@@ -1,0 +1,22 @@
+v3dev-ck75 (v3dev-ck75): 326/381 with checks (86%), raw 328/381, errors 0, median 1818 ms
+  alias           20/20  raw  20
+  birthday        12/15  raw  12
+  change          14/16  raw  15
+  end             20/20  raw  20
+  event            8/16  raw   8
+  fix             11/14  raw  11
+  hypothetical    20/20  raw  20
+  kin             16/20  raw  17
+  multi-fact      11/18  raw  11
+  new-fact        18/20  raw  19
+  other-fact      15/18  raw  16
+  other-near-self  18/20  raw  18
+  pet-ref         20/20  raw  20
+  plan            20/20  raw  20
+  question        20/20  raw  20
+  reports-to-me    6/16  raw   5
+  request         20/20  raw  20
+  restate         20/20  raw  20
+  same-name       13/14  raw  13
+  small-talk      14/14  raw  14
+  third-person    10/20  raw   9

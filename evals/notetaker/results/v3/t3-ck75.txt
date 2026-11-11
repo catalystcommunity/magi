@@ -1,0 +1,23 @@
+t3-ck75 (t3-ck75): 6786/8152 with checks (83%), raw 6641/8152, errors 0, median 1754 ms
+  alias          318/400 raw 317
+  birthday       332/380 raw 330
+  change         372/389 raw 375
+  end            357/381 raw 367
+  event          321/398 raw 321
+  fix            312/345 raw 314
+  hypothetical   379/399 raw 379
+  kin            282/400 raw 258
+  multi-fact     202/398 raw 208
+  new-fact       320/390 raw 322
+  other-fact     268/348 raw 272
+  other-near-self 389/400 raw 389
+  other-update     0/1   raw   0
+  pet-ref        248/400 raw 248
+  plan           395/400 raw 395
+  question       400/400 raw 400
+  reports-to-me  186/382 raw 107
+  request        366/366 raw 366
+  restate        400/400 raw 400
+  same-name      314/378 raw 314
+  small-talk     399/399 raw 399
+  third-person   226/398 raw 160

@@ -198,12 +198,46 @@ to 36 of 44), and `plan` (30 to 45 of 45). It is worse in `third-person` (33
 to 22 of 34) and `multi-fact` (32 to 27 of 44): for a new phrasing it often
 gives no items. There are only 6 training phrasings for each category.
 
+## Version 3 (2026-11-11)
+
+| File | What it is |
+| --- | --- |
+| `data3/` | GLM rewrites of `data2/`: test (893) and dev (381). |
+| `train3/` | Gemma rewrites of `train2/` (8,152; 2 for each case). Train and test rewrites come from different models. |
+| `train3-labeled/` | 10,024 training cases with a teacher answer: the v2 labels and the labeled rewrites, with half of the cases that have no items removed. |
+| `results/v3/` | The summaries of the runs below. |
+
+Labels of the rewrites: lora-v2 checkpoint-75 first (6,786 of 8,152
+pass), then gemma on its misses (472 of 1,309), then GLM on the rest (275
+of 830). An answer is a label only when its graph checks pass. The 555
+rewrites with no passing answer are not in the training data.
+
+lora-v3: the same settings as lora-v2, one epoch over 10,024 cases (627
+steps of 16), a checkpoint each 50 steps, 5.4 h. The dev split chose
+checkpoint-550.
+
+| Model | data3 test (893) | data3 dev (381) | data2 test (1,012) |
+| --- | --- | --- | --- |
+| gemma | 769 (86%) | - | 894 (88%) |
+| lora-v2 checkpoint-75 | 802 (90%) | 326 (86%) | 915 (90%) |
+| lora-v3 checkpoint-550 | 837 (94%) | 342 (90%) | 982 (97%) |
+
+The data2 test score of lora-v3 has the guard fixes of 2026-11-10 (gemma
+with them: 92%). On data3, lora-v3 is better than gemma in `multi-fact`
+(32 to 41 of 44), `kin` (23 to 39), `birthday` (19 to 42), `alias`,
+`pet-ref`, `plan`, and `same-name`. It is worse in `third-person` (33 to
+29 of 34), `new-fact` (39 to 35 of 44), `reports-to-me` (29 to 26 of 36),
+and `end` (41 to 38 of 42).
+
+The adapter is not in the repository (131 MB). On the RTX 4080 host it is
+`~/models/notetaker-lora-v3-gemma-4-12b.gguf`. To make it again: train with
+`train_lora.py` on the `-export` of `train3-labeled/`.
+
 ### Next
 
-1. Write 2 rewrites of each training case with local gemma
-   (`paraphrase.py --url http://127.0.0.1:PORT/v1`), so train and test
-   rewrites come from different models.
-2. Label the rewrites: keep an answer of checkpoint-75 or of gemma only
-   when its checks pass.
-3. Train lora-v3 on the labeled cases and the rewrites; choose the
-   checkpoint on data3 dev; report data3 test.
+1. Serve the adapter only for the note taker: llama-server
+   `--lora FILE --lora-init-without-apply`, and the note-taker request sets
+   the scale of the adapter (`"lora": [{"id": 0, "scale": 1}]`). Persona
+   chat stays on the base model.
+2. Make rewrites of the weak categories (`third-person`, `reports-to-me`,
+   `new-fact`) and train again.

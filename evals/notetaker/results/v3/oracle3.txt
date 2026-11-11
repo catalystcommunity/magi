@@ -1,0 +1,23 @@
+ (local): 9943/10024 with checks (99%), raw 10024/10024, errors 0, median 0 ms
+  alias          546/552 raw 552
+  birthday       566/567 raw 567
+  change         580/587 raw 587
+  end            553/574 raw 574
+  event          596/596 raw 596
+  fix            534/536 raw 536
+  hypothetical   267/267 raw 267
+  kin            544/548 raw 548
+  multi-fact     397/406 raw 406
+  new-fact       550/554 raw 554
+  other-fact     520/528 raw 528
+  other-near-self 594/594 raw 594
+  other-update   201/201 raw 201
+  pet-ref        517/524 raw 524
+  plan           322/322 raw 322
+  question       277/277 raw 277
+  reports-to-me  429/430 raw 430
+  request        291/291 raw 291
+  restate        287/287 raw 287
+  same-name      526/533 raw 533
+  small-talk     297/297 raw 297
+  third-person   549/553 raw 553

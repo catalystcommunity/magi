@@ -1,0 +1,18 @@
+t3-glm (coder): 275/830 with checks (33%), raw 248/830, errors 147, median 10368 ms
+  alias           14/49  raw  14
+  birthday         9/17  raw   9
+  change           4/6   raw   4
+  end              4/9   raw   4
+  event           35/37  raw  35
+  fix              8/15  raw   8
+  hypothetical     0/19  raw   0
+  kin             55/93  raw  55
+  multi-fact      11/149 raw  11
+  new-fact        18/47  raw  18
+  other-fact      16/34  raw  17
+  other-near-self   1/7   raw   1
+  pet-ref         36/103 raw  37
+  plan             5/5   raw   5
+  reports-to-me   44/161 raw  14
+  same-name        1/46  raw   1
+  third-person    14/33  raw  15

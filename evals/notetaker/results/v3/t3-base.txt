@@ -1,0 +1,19 @@
+t3-base (t3-base): 472/1309 with checks (36%), raw 419/1309, errors 0, median 2844 ms
+  alias           27/76  raw  26
+  birthday        30/47  raw   3
+  change           5/11  raw   5
+  end              5/14  raw   5
+  event           40/77  raw  40
+  fix             16/31  raw  16
+  hypothetical     1/20  raw   1
+  kin             21/115 raw  20
+  multi-fact      39/190 raw  41
+  new-fact        19/66  raw  19
+  other-fact      39/76  raw  42
+  other-near-self   4/11  raw   4
+  other-update     1/1   raw   1
+  pet-ref         43/146 raw  43
+  plan             0/5   raw   0
+  reports-to-me   34/195 raw  29
+  same-name       11/57  raw   9
+  third-person   137/171 raw 115
