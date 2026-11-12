@@ -672,11 +672,50 @@ func endWins(items []noteItem, text string) []noteItem {
 
 var (
 	endWords = regexp.MustCompile(`(?i)\b(anymore|any more|no longer|not anymore|doesn't|does not|don't|stopped|quit|cancel+ed|sold|ended|retired)\b`)
-	hedge    = regexp.MustCompile(`(?i)\b(might|maybe|perhaps|someday|some day|one day|thinking about|considering|probably not|would like to|i'd like to|hope to|planning to)\b`)
+	hedge    = regexp.MustCompile(`(?i)\b(might|maybe|perhaps|someday|some day|one day|thinking about|thinking of|considering|probably not|would like to|i'd like to|would love to|i'd love|at some point|down the road|just a wish|hope to|planning to|wonder(ing)?|what if|in (another|some other|a different|an other|some ohter) life|day ?dream(ing|s)?|toying with|floated|kicking around|debating|(there's|there is|a good|a small|some) chance|not sure|up in the air|nothing('s| is)? (decided|set|settled|final)|no decision)\b`)
 	// mgrOf: "me manages X" says what "X manager me" says, with any words.
 	mgrOf   = regexp.MustCompile(`(?i)^(manages|managing|manager-of|direct-reports?|reports?|reportee|supervises|supervisor-of|boss-of|leads)$`)
 	teamRel = regexp.MustCompile(`(?i)^(team|team-member|teammate|report|reports|reports-to|direct-report|direct-reports|reportee|employee|manages)$`)
 )
+
+// sentenceSplit splits a message into sentences and asides.
+var sentenceSplit = regexp.MustCompile(`[.!?;\n()]+|\s[-–—]+\s|,\s*(?:and|but|though|although|while)\s`)
+
+// hedged tells if the fact of it is a plan or a guess: the sentence with
+// the most words of its value, object, and relation has a hedge word. When no
+// sentence has a word of the fact, the fact is a plan only when each
+// sentence has a hedge word.
+func hedged(text string, it noteItem) bool {
+	var words []string
+	for _, w := range regexp.MustCompile(`[\pL\pN]+`).FindAllString(it.Value+" "+it.Object+" "+it.Relation, -1) {
+		if len([]rune(w)) >= 3 || strings.ContainsAny(w, "0123456789") {
+			words = append(words, strings.ToLower(w))
+		}
+	}
+	best, bestN := "", 0
+	for _, sent := range sentenceSplit.Split(text, -1) {
+		low, n := strings.ToLower(sent), 0
+		for _, w := range words {
+			if regexp.MustCompile(`\b` + regexp.QuoteMeta(w) + `\b`).MatchString(low) {
+				n++
+			}
+		}
+		if n > bestN {
+			best, bestN = sent, n
+		}
+	}
+	if bestN == 0 {
+		// A fact in other words ("51 as of today" for a birthday): only a
+		// message that is all hedge is a plan.
+		for _, sent := range sentenceSplit.Split(text, -1) {
+			if strings.TrimSpace(sent) != "" && !hedge.MatchString(sent) && regexp.MustCompile(`\pL{3}`).MatchString(sent) {
+				return false
+			}
+		}
+		return true
+	}
+	return hedge.MatchString(best)
+}
 
 func slicesContainsFold(list []string, s string) bool {
 	for _, x := range list {
@@ -767,9 +806,11 @@ func guardNotes(items []noteItem, notes, text string, at time.Time, selfLabels .
 	if hedge.MatchString(text) {
 		// "We might get a second dog someday": a plan or a guess is not a
 		// fact. Events and ends stay ("we sold the car, maybe for too little").
+		// Only the sentence of the fact counts: "Bea might move teams. Cleo
+		// works at Bluepeak now" keeps the fact of Cleo.
 		keep := items[:0:0]
 		for _, it := range items {
-			if it.Op == "remember" || it.Op == "update" {
+			if (it.Op == "remember" || it.Op == "update") && hedged(text, it) {
 				log = append(log, map[string]any{"tool": "hedge", "by": "note-taker", "args": map[string]string{"relation": it.Relation}})
 				continue
 			}

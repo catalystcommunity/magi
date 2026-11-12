@@ -381,6 +381,27 @@ func TestGuardShapes(t *testing.T) {
 	if len(got) != 0 {
 		t.Errorf("hedge: %+v", got)
 	}
+	// The hedge of one sentence does not drop the fact of another.
+	text := "Bea might move to the growth team next year. Oh and Cleo Zamora's new job is with Bluepeak Energy btw, and we're still debating solar panels."
+	got, _ = guardNotes([]noteItem{
+		{Op: "remember", Subject: "Cleo Zamora", Relation: "works-at", Object: "Bluepeak Energy"},
+		{Op: "remember", Subject: "Bea", Relation: "works-at", Object: "growth team"},
+		{Op: "remember", Subject: "me", Relation: "plans", Value: "solar panels"},
+	}, "", text, at, "Jamie")
+	if len(got) != 1 || got[0].Subject != "Cleo Zamora" {
+		t.Errorf("hedge of another sentence: %+v", got)
+	}
+	// A fact in other words: "51 as of today" for a birthday.
+	got, _ = guardNotes([]noteItem{{Op: "remember", Subject: "me", Relation: "birthday", Value: "April 3, 1975"}}, "",
+		"Guess who's 51 as of today? Not sure how that snuck up on me.", at, "Jamie")
+	if len(got) != 1 {
+		t.Errorf("fact in other words: %+v", got)
+	}
+	got, _ = guardNotes([]noteItem{{Op: "remember", Subject: "me", Relation: "works-at", Object: "Willow Insurance"}}, "",
+		"In another life I'd be working at Willow Insurance; just a daydream.", at, "Jamie")
+	if len(got) != 0 {
+		t.Errorf("in another life: %+v", got)
+	}
 }
 
 func TestNoSelfChangesFromOthers(t *testing.T) {
