@@ -1,0 +1,18 @@
+t5-base (t5-base): 200/545 with checks (37%), raw 149/545, errors 0, median 3920 ms
+  alias            7/18  raw   3
+  birthday         1/4   raw   0
+  change           0/2   raw   0
+  end              0/1   raw   0
+  event            2/3   raw   2
+  fix              1/14  raw   1
+  kin             18/50  raw  11
+  mixed           51/151 raw  33
+  multi-fact       8/58  raw   9
+  new-fact        18/32  raw  19
+  other-fact      12/20  raw  13
+  other-near-self   3/5   raw   3
+  other-update     5/19  raw   3
+  pet-ref          4/23  raw   4
+  reports-to-me   27/72  raw  13
+  same-name        5/24  raw   3
+  third-person    38/49  raw  32

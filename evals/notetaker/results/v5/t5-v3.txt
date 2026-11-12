@@ -1,0 +1,24 @@
+t5-v3 (t5-v3): 3667/4737 with checks (77%), raw 4036/4737, errors 3, median 1816 ms
+  alias          135/196 raw 172
+  birthday       135/191 raw 184
+  change         154/199 raw 192
+  end            202/207 raw 204
+  event          163/166 raw 163
+  fix            189/212 raw 198
+  hypothetical   194/194 raw 194
+  kin            107/191 raw 128
+  mixed          195/418 raw 237
+  multi-fact      98/177 raw 119
+  new-fact       146/209 raw 177
+  other-fact     125/179 raw 159
+  other-near-self 160/167 raw 162
+  other-update   139/210 raw 186
+  pet-ref        120/184 raw 160
+  plan           211/211 raw 211
+  question       212/212 raw 212
+  reports-to-me  115/198 raw  52
+  request        204/204 raw 204
+  restate        212/212 raw 212
+  same-name      128/192 raw 165
+  small-talk     211/211 raw 211
+  third-person   112/197 raw 134

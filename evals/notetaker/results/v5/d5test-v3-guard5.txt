@@ -1,0 +1,24 @@
+d5test-v3-guard5 (local): 926/997 with checks (93%), raw 867/997, errors 0, median 1829 ms
+  alias           41/43  raw  41
+  birthday        42/44  raw  41
+  change          39/39  raw  39
+  end             44/44  raw  44
+  event           41/43  raw  41
+  fix             42/42  raw  42
+  hypothetical    45/45  raw  45
+  kin             35/41  raw  31
+  mixed           48/66  raw  33
+  multi-fact      34/37  raw  36
+  new-fact        37/44  raw  37
+  other-fact      33/42  raw  33
+  other-near-self  43/44  raw  43
+  other-update    41/44  raw  37
+  pet-ref         33/33  raw  30
+  plan            45/45  raw  45
+  question        44/44  raw  44
+  reports-to-me   35/40  raw  10
+  request         45/45  raw  45
+  restate         44/44  raw  44
+  same-name       40/41  raw  41
+  small-talk      45/45  raw  45
+  third-person    30/42  raw  20

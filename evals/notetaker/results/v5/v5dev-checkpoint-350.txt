@@ -1,0 +1,24 @@
+v5dev-checkpoint-350 (v5dev-checkpoint-350): 370/419 with checks (88%), raw 357/419, errors 0, median 1934 ms
+  alias           16/18  raw  15
+  birthday        18/20  raw  18
+  change          19/19  raw  19
+  end             16/16  raw  16
+  event           13/19  raw  13
+  fix             18/18  raw  18
+  hypothetical    13/13  raw  13
+  kin             14/18  raw  13
+  mixed           18/28  raw  16
+  multi-fact       6/16  raw   6
+  new-fact        18/20  raw  19
+  other-fact      15/18  raw  15
+  other-near-self  13/17  raw  14
+  other-update    14/15  raw  12
+  pet-ref         14/17  raw  13
+  plan            17/17  raw  17
+  question        20/20  raw  20
+  reports-to-me   17/18  raw  15
+  request         19/19  raw  19
+  restate         20/20  raw  20
+  same-name       18/18  raw  18
+  small-talk      20/20  raw  20
+  third-person    14/15  raw   8

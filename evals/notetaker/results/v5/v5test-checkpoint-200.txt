@@ -1,0 +1,24 @@
+v5test-checkpoint-200 (v5test-checkpoint-200): 930/997 with checks (93%), raw 898/997, errors 2, median 1831 ms
+  alias           41/43  raw  34
+  birthday        39/44  raw  36
+  change          39/39  raw  39
+  end             43/44  raw  43
+  event           43/43  raw  43
+  fix             42/42  raw  42
+  hypothetical    45/45  raw  45
+  kin             36/41  raw  30
+  mixed           42/66  raw  34
+  multi-fact      33/37  raw  36
+  new-fact        35/44  raw  35
+  other-fact      37/42  raw  37
+  other-near-self  43/44  raw  43
+  other-update    44/44  raw  43
+  pet-ref         33/33  raw  32
+  plan            45/45  raw  45
+  question        44/44  raw  44
+  reports-to-me   35/40  raw  34
+  request         45/45  raw  45
+  restate         44/44  raw  44
+  same-name       39/41  raw  39
+  small-talk      45/45  raw  45
+  third-person    38/42  raw  30

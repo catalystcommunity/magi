@@ -1,0 +1,18 @@
+t5-glm (coder): 91/339 with checks (27%), raw 84/339, errors 124, median 13914 ms
+  alias            5/11  raw   5
+  birthday         1/3   raw   1
+  change           1/2   raw   1
+  end              0/1   raw   0
+  event            0/1   raw   0
+  fix              3/13  raw   3
+  kin             17/31  raw  18
+  mixed           22/99  raw  20
+  multi-fact       3/49  raw   4
+  new-fact         6/13  raw   6
+  other-fact       5/7   raw   5
+  other-near-self   0/2   raw   0
+  other-update     7/14  raw   7
+  pet-ref         10/19  raw  10
+  reports-to-me    9/45  raw   2
+  same-name        1/19  raw   1
+  third-person     1/10  raw   1
