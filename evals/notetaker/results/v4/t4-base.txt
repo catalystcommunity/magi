@@ -1,0 +1,9 @@
+t4-base (t4-base): 331/883 with checks (37%), raw 313/883, errors 0, median 3980 ms
+  change           2/2   raw   2
+  end              9/17  raw   9
+  event            4/9   raw   4
+  multi-fact      17/223 raw  18
+  new-fact        68/126 raw  69
+  other-fact     116/168 raw 117
+  reports-to-me   37/235 raw  33
+  third-person    78/103 raw  61

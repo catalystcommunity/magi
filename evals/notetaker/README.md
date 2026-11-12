@@ -241,3 +241,60 @@ The adapter is not in the repository (131 MB). On the RTX 4080 host it is
    chat stays on the base model.
 2. Make rewrites of the weak categories (`third-person`, `reports-to-me`,
    `new-fact`) and train again.
+
+## Version 4 (2026-11-11)
+
+Version 4 tries to make the weak categories of lora-v3 better. The result
+is no better than lora-v3. lora-v3 stays the adapter of the note taker.
+
+### Changes to the dev split
+
+Two templates of `gen2.py` made bad checks:
+
+- "Welcome X, the new engineer on my team" does not say that X reports to
+  me. The template now says "the new engineer who reports to me". The dev
+  files drop these cases.
+- "A family of four: me, Tomas, ..." does not say who the partner is. The
+  case has no partner check now.
+
+data3 dev has 373 cases now (it had 381). With these changes and the guard
+of "is reporting to me", lora-v3 gets 345/373 on dev and 838/893 on the
+data3 test.
+
+### Data and training
+
+- `train4/`: 2,000 new train cases of `gen2.py --seed 11` in 8 categories
+  (`third-person`, `new-fact`, `reports-to-me`, `end`, `other-fact`,
+  `event`, `change`, `multi-fact`), and 3,816 rewrites by the local Gemma.
+- Labels: lora-v3 first (4,830 of 5,816 correct), then gemma on the misses
+  (331 of 883), then GLM on the rest (133 of 549). The GLM errors (122)
+  were answers that stopped before the end of the JSON.
+- `train4-labeled/`: 3,000 new labels and 1,800 labels of `train3-labeled/`
+  again, so the training does not forget the other categories.
+- lora-v4: the training of lora-v3 checkpoint-550 continues
+  (`train_lora.py --init-adapter`), 300 steps of 16, learning rate 5e-5.
+
+### Results
+
+| Model | data3 dev (373) | data3 test (893) | data2 test (1,012) |
+| --- | --- | --- | --- |
+| lora-v3 checkpoint-550 | 345 (92%) | 838 (94%) | 982 (97%) |
+| lora-v4 checkpoint-200 | 332 (89%) | 840 (94%) | 984 (97%) |
+
+On the data3 test, lora-v4 is better in `third-person` (29 to 31 of 34),
+`new-fact` (35 to 37 of 44), `kin` (39 to 41), and `reports-to-me` (26 to
+27 of 36). It is worse in `other-fact`, `multi-fact`, `alias`, and
+`same-name` (1 case each). The 2 cases of difference on the test are in
+the range of the noise.
+
+On dev, lora-v4 loses 7 `event` cases. 6 of them are one phrasing ("Ezra
+lost a first tooth today"). lora-v4 records it as a fact of Ezra, not as an
+event. No train case has this phrasing. More training on the 8 categories
+moved the model away from events that it did correctly before.
+
+### Next
+
+1. Serve lora-v3 only for the note taker (see "Version 3", Next 1).
+2. To get more from training, add more phrasings to `gen2.py` (each
+   category has about 10 now) instead of more rewrites of the same
+   phrasings. The rewrites keep the shape of the template.

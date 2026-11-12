@@ -1,0 +1,8 @@
+t4-glm (coder): 133/549 with checks (24%), raw 86/549, errors 122, median 11359 ms
+  end              6/8   raw   6
+  event            3/5   raw   3
+  multi-fact       4/205 raw   4
+  new-fact        27/57  raw  27
+  other-fact      29/51  raw  30
+  reports-to-me   58/198 raw  10
+  third-person     6/25  raw   6

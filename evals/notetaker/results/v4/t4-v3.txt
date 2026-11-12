@@ -1,0 +1,9 @@
+t4-v3 (t4-v3): 4830/5816 with checks (83%), raw 4561/5816, errors 3, median 2074 ms
+  change         718/728 raw 725
+  end            670/720 raw 703
+  event          740/749 raw 740
+  multi-fact     468/741 raw 518
+  new-fact       581/708 raw 581
+  other-fact     525/696 raw 527
+  reports-to-me  489/724 raw 164
+  third-person   639/750 raw 603

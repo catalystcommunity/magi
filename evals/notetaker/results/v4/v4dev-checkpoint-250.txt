@@ -1,0 +1,22 @@
+v4dev-checkpoint-250 (v4dev-checkpoint-250): 325/373 with checks (87%), raw 324/373, errors 1, median 1734 ms
+  alias           20/20  raw  18
+  birthday        15/15  raw  15
+  change          11/16  raw  14
+  end             20/20  raw  20
+  event            2/16  raw   2
+  fix             12/14  raw  12
+  hypothetical    20/20  raw  20
+  kin             18/20  raw  17
+  multi-fact      12/18  raw  12
+  new-fact        17/20  raw  18
+  other-fact      11/18  raw  12
+  other-near-self  16/20  raw  16
+  pet-ref         20/20  raw  20
+  plan            20/20  raw  20
+  question        20/20  raw  20
+  reports-to-me    7/8   raw   4
+  request         20/20  raw  20
+  restate         20/20  raw  20
+  same-name       14/14  raw  14
+  small-talk      14/14  raw  14
+  third-person    16/20  raw  16

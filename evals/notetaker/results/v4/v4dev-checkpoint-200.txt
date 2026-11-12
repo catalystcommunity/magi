@@ -1,0 +1,22 @@
+v4dev-checkpoint-200 (v4dev-checkpoint-200): 332/373 with checks (89%), raw 333/373, errors 0, median 2011 ms
+  alias           19/20  raw  19
+  birthday        15/15  raw  15
+  change          11/16  raw  13
+  end             20/20  raw  20
+  event            6/16  raw   6
+  fix             12/14  raw  12
+  hypothetical    19/20  raw  19
+  kin             19/20  raw  20
+  multi-fact      12/18  raw  12
+  new-fact        18/20  raw  19
+  other-fact      12/18  raw  13
+  other-near-self  18/20  raw  18
+  pet-ref         19/20  raw  19
+  plan            20/20  raw  20
+  question        20/20  raw  20
+  reports-to-me    8/8   raw   5
+  request         20/20  raw  20
+  restate         20/20  raw  20
+  same-name       13/14  raw  13
+  small-talk      14/14  raw  14
+  third-person    17/20  raw  16
