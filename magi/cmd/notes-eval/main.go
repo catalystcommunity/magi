@@ -49,6 +49,12 @@ type Check struct {
 	NoEntity string `json:"no_entity,omitempty"` // no new entity has this label
 	Quiet    bool   `json:"quiet,omitempty"`     // nothing changed, no event
 	NoChange bool   `json:"no_change,omitempty"` // no fact changed (events can be)
+	// AnyOf: one of the checks passes ("Ezra lost a tooth" is right as an
+	// event or as a fact of Ezra).
+	AnyOf []Check `json:"any_of,omitempty"`
+	// Absent: no new or changed fact and no event has the text (a plan or a
+	// wish in a longer message).
+	Absent string `json:"absent,omitempty"`
 }
 
 // Fact is a fact of a check: the subject is a name or "me".
@@ -463,73 +469,105 @@ func scoreGraph(k Case, got []compose.NoteItem) (bool, string) {
 	}
 	g.Apply(got, k.Text)
 	for _, c := range k.Graph {
-		switch {
-		case c.Has != nil:
-			if !hasFact(g, c.Has) {
-				return false, "graph lacks " + jsonOf(c.Has)
+		if ok, why := checkOne(g, was, c); !ok {
+			return false, why
+		}
+	}
+	return true, ""
+}
+
+// checkOne scores one check of the graph after the items. was: the claims
+// of the notes and if they were current.
+func checkOne(g *compose.NoteGraph, was map[string]bool, c Check) (bool, string) {
+	switch {
+	case c.Has != nil:
+		if !hasFact(g, c.Has) {
+			return false, "graph lacks " + jsonOf(c.Has)
+		}
+	case c.Lacks != nil:
+		if hasFact(g, c.Lacks) {
+			return false, "graph has " + jsonOf(c.Lacks)
+		}
+	case c.AnyHas != nil:
+		ok := false
+		for _, e := range g.Entities {
+			if g.Has(e.Id, c.AnyHas.Relation, c.AnyHas.Other) {
+				ok = true
 			}
-		case c.Lacks != nil:
-			if hasFact(g, c.Lacks) {
-				return false, "graph has " + jsonOf(c.Lacks)
+		}
+		if !ok {
+			return false, "graph lacks " + jsonOf(c.AnyHas)
+		}
+	case c.NotKept != "":
+		for _, x := range g.Claims {
+			if x.Id == c.NotKept && x.Current && !x.Changed {
+				return false, "kept " + c.NotKept
 			}
-		case c.AnyHas != nil:
-			ok := false
-			for _, e := range g.Entities {
-				if g.Has(e.Id, c.AnyHas.Relation, c.AnyHas.Other) {
-					ok = true
-				}
+		}
+	case c.Kept != "":
+		for _, x := range g.Claims {
+			if x.Id == c.Kept && (!x.Current || x.Changed) {
+				return false, "changed " + c.Kept
 			}
-			if !ok {
-				return false, "graph lacks " + jsonOf(c.AnyHas)
+		}
+	case c.Ended != "":
+		for _, x := range g.Claims {
+			if x.Id == c.Ended && x.Current {
+				return false, "not ended " + c.Ended
 			}
-		case c.NotKept != "":
-			for _, x := range g.Claims {
-				if x.Id == c.NotKept && x.Current && !x.Changed {
-					return false, "kept " + c.NotKept
-				}
+		}
+	case c.Event != "":
+		ok := false
+		for _, e := range g.Events {
+			if contains(e.Title, c.Event) {
+				ok = true
 			}
-		case c.Kept != "":
-			for _, x := range g.Claims {
-				if x.Id == c.Kept && (!x.Current || x.Changed) {
-					return false, "changed " + c.Kept
-				}
+		}
+		if !ok {
+			return false, "no event " + c.Event
+		}
+	case c.NoEntity != "":
+		for _, e := range g.Entities {
+			if e.New && strings.EqualFold(e.Label, c.NoEntity) {
+				return false, "new entity " + c.NoEntity
 			}
-		case c.Ended != "":
-			for _, x := range g.Claims {
-				if x.Id == c.Ended && x.Current {
-					return false, "not ended " + c.Ended
-				}
+		}
+	case c.NoChange:
+		for _, x := range g.Claims {
+			if x.New || x.Changed || was[x.Id] && !x.Current {
+				return false, fmt.Sprintf("changed %s %s %s", g.Label(x.Subject), x.Relation, x.Other)
 			}
-		case c.Event != "":
-			ok := false
-			for _, e := range g.Events {
-				if contains(e.Title, c.Event) {
-					ok = true
-				}
+		}
+	case c.Quiet:
+		for _, x := range g.Claims {
+			if x.New || x.Changed || was[x.Id] && !x.Current {
+				return false, fmt.Sprintf("changed %s %s %s", g.Label(x.Subject), x.Relation, x.Other)
 			}
-			if !ok {
-				return false, "no event " + c.Event
+		}
+		if len(g.Events) > 0 {
+			return false, "event " + g.Events[0].Title
+		}
+	}
+	if len(c.AnyOf) > 0 {
+		var whys []string
+		for _, s := range c.AnyOf {
+			ok, why := checkOne(g, was, s)
+			if ok {
+				return true, ""
 			}
-		case c.NoEntity != "":
-			for _, e := range g.Entities {
-				if e.New && strings.EqualFold(e.Label, c.NoEntity) {
-					return false, "new entity " + c.NoEntity
-				}
+			whys = append(whys, why)
+		}
+		return false, "none of: " + strings.Join(whys, "; ")
+	}
+	if c.Absent != "" {
+		for _, x := range g.Claims {
+			if (x.New || x.Changed) && x.Current && (contains(x.Other, c.Absent) || contains(g.Label(x.Subject), c.Absent)) {
+				return false, fmt.Sprintf("recorded %s %s %s", g.Label(x.Subject), x.Relation, x.Other)
 			}
-		case c.NoChange:
-			for _, x := range g.Claims {
-				if x.New || x.Changed || was[x.Id] && !x.Current {
-					return false, fmt.Sprintf("changed %s %s %s", g.Label(x.Subject), x.Relation, x.Other)
-				}
-			}
-		case c.Quiet:
-			for _, x := range g.Claims {
-				if x.New || x.Changed || was[x.Id] && !x.Current {
-					return false, fmt.Sprintf("changed %s %s %s", g.Label(x.Subject), x.Relation, x.Other)
-				}
-			}
-			if len(g.Events) > 0 {
-				return false, "event " + g.Events[0].Title
+		}
+		for _, e := range g.Events {
+			if contains(e.Title, c.Absent) {
+				return false, "event " + e.Title
 			}
 		}
 	}
