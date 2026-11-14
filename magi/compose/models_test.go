@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -171,9 +172,12 @@ type fakeDecider struct {
 	got  inferenceapi.DecideRequest
 }
 
-func (f *fakeDecider) Decide(_ context.Context, r inferenceapi.DecideRequest) (inferenceapi.DecideResponse, error) {
+func (f *fakeDecider) Decide(ctx context.Context, r inferenceapi.DecideRequest) (inferenceapi.DecideResponse, error) {
 	if f.down {
 		return inferenceapi.DecideResponse{}, rpc.Unavailable("host_busy")
+	}
+	if p, ok := authn.From(ctx); !ok || !slices.Contains(p.Scopes, "inference:use") {
+		return inferenceapi.DecideResponse{}, rpc.Denied("inference:use is required")
 	}
 	f.got = r
 	var out []inferenceapi.Answer
@@ -232,7 +236,10 @@ func TestDecision(t *testing.T) {
 		t.Fatal("gate with NoteGate 0")
 	}
 	sys.Cfg.NoteGate = 0.15
-	if g, on := sys.noteGate(context.Background(), "Ana", "", "My sister Bea moved to Oslo."); !on || g.Skip || g.Model != "more-0" {
+	// A turn has the service token of Magi in its context; the host gets
+	// the inference key.
+	turn := rpc.WithToken(context.Background(), tok("service:magi"))
+	if g, on := sys.noteGate(turn, "Ana", "", "My sister Bea moved to Oslo."); !on || g.Skip || g.Model != "more-0" {
 		t.Fatalf("gate yes: %+v %v", g, on)
 	}
 	if !strings.Contains(ok.got.State, "Message from Ana to the assistant:\nMy sister Bea moved to Oslo.") || ok.got.Questions[0].Question != recordQuestion {

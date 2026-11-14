@@ -94,7 +94,9 @@ func (s *System) decideWith(ctx context.Context, mdl modelsapi.Model, state stri
 	if mdl.Endpoint.Model != "" {
 		model = &mdl.Endpoint.Model
 	}
-	res, err := inferenceapi.NewInferenceClient(c).Decide(ctx, inferenceapi.DecideRequest{State: state, Questions: iq, Model: model})
+	// The key of the model, never a token of the context: a turn has the
+	// service token of Magi in its context, and a model host must not get it.
+	res, err := inferenceapi.NewInferenceClient(c).Decide(rpc.WithToken(ctx, key), inferenceapi.DecideRequest{State: state, Questions: iq, Model: model})
 	if err != nil {
 		return magiapi.DecisionResponse{}, err
 	}
