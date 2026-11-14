@@ -18,6 +18,7 @@ import (
 	executionapi "github.com/catalystcommunity/magi/primitives/execution/api"
 	identityapi "github.com/catalystcommunity/magi/primitives/identity/api"
 	knowledgeapi "github.com/catalystcommunity/magi/primitives/knowledge/api"
+	modelsapi "github.com/catalystcommunity/magi/primitives/models/api"
 	releaseapi "github.com/catalystcommunity/magi/primitives/release/goapi"
 	sourceapi "github.com/catalystcommunity/magi/primitives/source/api"
 	speechapi "github.com/catalystcommunity/magi/primitives/speech/api"
@@ -33,6 +34,9 @@ const Persona = "persona:magi"
 // Config selects the primitive endpoints and the service credential.
 type Config struct {
 	Artifacts, Conversation, Execution, Knowledge, Source, Speech, Workflow string
+	// Models is the model catalog (MAGI_MODELS_URL); "" turns the catalog
+	// off, and each task uses its static chain.
+	Models string
 	// ServiceToken authenticates background work. It needs the act-as
 	// scopes of each primitive and workflow:worker.
 	ServiceToken string
@@ -137,6 +141,7 @@ func ConfigFromEnv() (Config, error) {
 	c.Admins = list(os.Getenv("MAGI_ADMINS"))
 	c.LexiconEditors = list(os.Getenv("MAGI_LEXICON_EDITORS"))
 	c.Release = os.Getenv("MAGI_RELEASE_URL")
+	c.Models = os.Getenv("MAGI_MODELS_URL")
 	c.Identity = os.Getenv("MAGI_IDENTITY_URL")
 	c.PublicURL = strings.TrimRight(os.Getenv("MAGI_PUBLIC_URL"), "/")
 	c.CatalystcalURL = os.Getenv("MAGI_CATALYSTCAL_URL")
@@ -238,7 +243,11 @@ type System struct {
 	Speech        *speechapi.SpeechClient
 	Workflow      *workflowapi.WorkflowClient
 	Release       *releaseapi.ReleaseClient
-	Identity      *identityapi.IdentityClient
+	// Models is the model catalog; nil when Cfg.Models is "".
+	Models *modelsapi.ModelClient
+	// Router selects models from the catalog (models.go); nil without it.
+	Router   *ModelRouter
+	Identity *identityapi.IdentityClient
 	// Calendar and Longhouse act for people in those applications
 	// (connect.go); nil turns their tools off.
 	Calendar   *Calendar
@@ -266,6 +275,9 @@ func New(cfg Config, m model.Chatter, log *slog.Logger) *System {
 	}
 	if cfg.Release != "" {
 		sys.Release = releaseapi.NewReleaseClient(c(cfg.Release))
+	}
+	if cfg.Models != "" {
+		sys.Models = modelsapi.NewModelClient(c(cfg.Models))
 	}
 	if cfg.Identity != "" {
 		sys.Identity = identityapi.NewIdentityClient(c(cfg.Identity))

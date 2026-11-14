@@ -208,6 +208,7 @@ func (s *System) findInterruption(ctx context.Context, person string, u conversa
 // answeredSentence asks the background model which sentence of the reply
 // the new message answers. It returns -1 for none, or when it cannot say.
 func (s *System) answeredSentence(ctx context.Context, reply string, sentences []span, d *delivery, text string) int {
+	ctx = backgroundModel(ctx, "interrupt")
 	sc, ok := s.LibrarianModel.(model.SchemaChatter)
 	if !ok || len(sentences) == 0 {
 		return -1

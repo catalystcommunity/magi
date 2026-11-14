@@ -11,4 +11,5 @@ import (
 type InferenceService interface {
 	Status(ctx context.Context, req StatusRequest) (Status, error)
 	Warm(ctx context.Context, req WarmRequest) (Status, error)
+	Decide(ctx context.Context, req DecideRequest) (DecideResponse, error)
 }

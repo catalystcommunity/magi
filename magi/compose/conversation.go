@@ -2,6 +2,7 @@ package compose
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -104,6 +105,20 @@ func (m *Service) Say(ctx context.Context, req magiapi.SayRequest) (magiapi.SayR
 	}
 	if v := deref(req.Voice); v != "" {
 		vars["voice"] = v
+	}
+	if req.Model != nil {
+		// The model of this request (models.go). A person narrows the
+		// default of the task; only an operator changes its limits.
+		sel := *req.Model
+		if s.isOperator(ctx) != nil {
+			sel.MaxInputCost, sel.MaxOutputCost = nil, nil
+			vars["model_strict"] = "true"
+		}
+		b, err := json.Marshal(sel)
+		if err != nil {
+			return magiapi.SayResponse{}, err
+		}
+		vars["model"] = string(b)
 	}
 	if _, err := s.Workflow.Start(s.AsService(ctx), workflowapi.StartRequest{Definition: PersonaTurn, Vars: vars, Owner: ptr(caller.Subject), Key: ptr(u.Id)}); err != nil {
 		return magiapi.SayResponse{}, fmt.Errorf("start reply: %w", err)

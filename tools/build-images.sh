@@ -14,6 +14,7 @@ pull=${MAGI_PULL_REGISTRY:-localhost:30500}
 # name -> "go MODULE CMD" or "file DOCKERFILE"
 declare -A images=(
   [artifacts]="go primitives/artifacts artifacts"
+  [models]="go primitives/models models"
   [conversation]="go primitives/conversation conversation"
   [knowledge]="go primitives/knowledge knowledge"
   [workflow]="go primitives/workflow workflow"

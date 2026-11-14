@@ -108,6 +108,9 @@ const personaTokens = 4096
 func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note func(string)) (Result, error) {
 	streamID, uttID := a.Vars["stream"], a.Vars["utterance"]
 	persona := personaOr(optional(a.Vars["persona"]))
+	// The model calls of the turn: the default of this persona, then of all
+	// persona turns, refined by the model of the request (models.go).
+	ctx = modelVars(WithModelTask(ctx, personaTask(persona)), a.Vars)
 	ph := newPhases()
 	// The turns of one stream run in order: a reply sees the replies
 	// before it. Turns of other streams run at the same time.

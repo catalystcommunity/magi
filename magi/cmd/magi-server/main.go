@@ -142,6 +142,25 @@ func run(listen, keys string, workers bool, log *slog.Logger) error {
 			ch.SetTransport(hosts.Transport(modelTransport))
 		}
 	}
+	// The model catalog (MAGI_MODELS_URL) selects the model of each task;
+	// the chains above are the fallback (compose/models.go).
+	if sys.Models != nil {
+		keys := map[string]string{"provider": m.APIKey}
+		if f := os.Getenv("MAGI_INFERENCE_KEY_FILE"); f != "" {
+			b, err := os.ReadFile(f)
+			if err != nil {
+				return fmt.Errorf("MAGI_INFERENCE_KEY_FILE: %w", err)
+			}
+			keys["inference"] = strings.TrimSpace(string(b))
+		}
+		router := &compose.ModelRouter{Catalog: sys.Models, Token: cfg.ServiceToken, Keys: keys,
+			Transport: hosts.Transport(modelTransport), Log: log}
+		sys.Model = router.For("persona-turn", sys.Model)
+		sys.LibrarianModel = router.For("librarian", sys.LibrarianModel)
+		sys.ReviewModel = router.For("egress-review", sys.ReviewModel)
+		sys.Router = router
+		log.Info("model catalog on", "url", cfg.Models)
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	if workers {

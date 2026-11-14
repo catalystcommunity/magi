@@ -1,96 +1,98 @@
-# Models for tasks (proposal)
+# Models for tasks
 
-Status: a proposal for review. Nothing in this document is built.
+Magi selects the model of each call from the model catalog, a primitive
+with an API (`primitives/models`). A task has a default selection. A
+persona, a workflow step, or one request can give its own selection: a
+model by name, or a class of models by tags and attributes.
 
-## Problem
+## Catalog
 
-Today Magi selects a model by role. `MAGI_PERSONA_MODELS` is the chain of
-the persona, and `MAGI_LIBRARIAN_MODELS` is the chain of the librarian and
-the note taker. Each chain is a list of endpoints. Magi tries them in order.
-
-This is not sufficient for these changes:
-
-- One engine can serve a base model and adapters (the note-taker LoRA)
-  with per-request LoRA. These are different models for the caller.
-- Some calls need an ability that some models do not have: tool calls, a
-  JSON schema, images, or label probabilities (`decide`).
-- Models have different costs. Local models are free. GLM through Zen
-  spends the balance of the person.
-- Evals measure how good a model is for a task. The selection does not
-  use these results.
-
-## Proposal
-
-### Catalog
-
-The catalog is a list of models of one installation. An operator writes
-it. Each entry has:
+Each model has:
 
 | Field | Example |
 | --- | --- |
 | `name` | `gemma-4-12b-notetaker` |
-| `endpoint` | the inference host `ht0-studiodt`, or a provider URL |
-| `base` | `gemma-4-12b` |
-| `adapter` | `notetaker-lora-v3` (optional) |
-| `purpose` | "Tuned for the note taker. Other tasks: not measured." |
-| `abilities` | `chat`, `tools`, `schema`, `vision`, `decide` |
-| `context` | 32768 |
-| `cost` | `free`, or the price for each million tokens |
-| `where` | `local` or `hosted` |
+| `description` | "Tuned for the note taker. Other tasks: not measured." |
+| `endpoint` | `base_url` (`http://ht0-studiodt.revconn/v1` for an inference host that connects out), `model`, `key_ref` |
+| `tags` | `local`, `hosted`, `small`, `chat`, `tools`, `schema`, `vision`, `decide`, `notetaker` |
+| `attributes` | `base: gemma-4-12b`, `gpu: rx7600`, `context: 32768` |
+| `cost` | micro-dollars for each million input and output tokens; 0 is free |
 | `scores` | eval results, for example `notetaker/data5-test: 0.93` |
+| `calibration` | the temperature of each decision question (`record: 1.57`) |
+| `enabled` | a disabled model is never selected |
 
-The name tells the purpose. An adapter model has the name
-`<base>-<purpose>`. A call for a different task can use it, but the
-catalog says that it is tuned for another task.
+The name tells the purpose. An adapter has the name `<base>-<purpose>`.
+Any call can use it, but its description and scores tell what it is for.
 
-### Needs of a call
+## Tasks
 
-Each model call in Magi states what it needs. A need has:
+A task is a name for one kind of model call. Magi uses these tasks:
 
-| Field | Example |
+| Task | Call |
 | --- | --- |
-| `task` | `note-taker`, `persona-turn`, `decide`, `plan-steps` |
-| `abilities` | `schema` |
-| `prefer` | `gemma-4-12b-notetaker` (optional) |
-| `where` | `local-only` for private data (optional) |
-| `max_cost` | the most that the call can spend (optional) |
-| `latency` | `interactive` or `batch` |
+| `persona-turn` | A persona reply (tools) |
+| `persona.<id>` | The replies of one persona, for example `persona.archimedes`; then `persona-turn` |
+| `note-taker` | The note taker in a persona turn; then `librarian` |
+| `librarian` | The librarian (classification of utterances) |
+| `search-judge` | The check and filter of web searches; then `librarian` |
+| `interrupt` | Which sentence a new message answers; then `librarian` |
+| `egress-review` | A review of an egress flow that no rule decides |
+| `decide` | A decision (`MagiService/decision`) |
 
-### Selection
+Magi uses the default of the first task in the list that has one. With no
+default, a call uses the static chain of the environment
+(`MAGI_PERSONA_MODELS`, `MAGI_LIBRARIAN_MODELS`). The static chain is also
+the fallback when the catalog does not answer.
 
-1. Remove the models that do not have the abilities, the `where`, or the
-   cost of the need.
-2. Put the `prefer` model first.
-3. Sort the other models by their score for the task. A model with no
-   score for the task comes after the models with a score.
-4. When two scores are almost the same, put the lower cost first. For an
-   `interactive` call, put the lower latency first.
-5. Try the models in this order, as a chain does today. A busy inference
-   host refuses, and Magi tries the next model.
+The operator sets a default with `put_task`. For example:
 
-Magi writes the model and the reason in the turn log (`phases`). Thus each
-answer shows which model gave it and why.
+- `note-taker`: `{"all": ["notetaker"], "rank_by": "notetaker/data5-test"}`
+- `persona.archimedes`: `{"name": "glm-5.3", "all": ["tools"]}`: GLM
+  first, then the other models with tools.
+- `decide`: `{"all": ["decide"], "any": ["small"]}`: a decision model on
+  a small GPU.
+- `librarian`: `{"none": ["hosted"]}`: no hosted model for background work.
 
-### Scores from evals
+A workflow step uses the task `step.<definition>.<step>` (not built yet:
+the apprentice worker selects its model from `MAGI_MODEL_*` now).
 
-Each eval writes its results in a file of scores (model, eval, split,
-score, date). The catalog reads the file. Thus the selection uses measured
-results. A new adapter or model gets a score only after an eval.
+## One request
 
-## Changes
+`MagiService/say` and `MagiService/decision` take `model`, a selector for
+the model calls of that request. It refines the default of the task:
 
-- The inference host serves more than one model name from one engine:
-  the base, and adapters with per-request LoRA (`--lora-init-without-apply`).
-  `GET /v1/models` gives the purpose of each name.
-- The inference host gets `decide` (typed questions, label probabilities,
-  a temperature for each question). See `evals/decide/README.md`.
-- The catalog and the needs replace `MAGI_PERSONA_MODELS` and
-  `MAGI_LIBRARIAN_MODELS`.
+- `{"name": "glm-5.3", "only_name": true}`: only this model.
+- `{"all": ["local", "vision"]}`: a local model that can read images.
 
-## Questions for review
+For a person who is not an operator, a named model must also agree with
+the default of the task (`strict`), and the cost limits of the default
+stay. Thus a person can narrow the selection, but cannot spend more than
+the operator permits. The note taker and the other background calls of a
+turn use their own tasks, not the selection of the request.
 
-1. Is the catalog a file of the operator (like `deploy.env`), or a
-   primitive with an API, so that Magi can add a model after an eval?
-2. Is `local-only` necessary now, or later?
-3. Can a person change the selection for their own calls (for example,
-   "do not spend Zen on the librarian")?
+## Selection
+
+1. The named model, when it is enabled (with `strict`, when it also
+   matches the other fields).
+2. Then the models that match: with `rank_by`, the higher score first;
+   then the lower cost; then the name.
+3. Magi tries the models in this order. A busy inference host refuses, and
+   Magi tries the next model.
+
+Magi caches a selection for 30 seconds. Its log has the task, the models,
+and the reason of each (`model selection`). Each answer has the model that
+gave it (`Served`, in the turn log).
+
+## Decisions on small GPUs
+
+A decision model reads a prompt once and gives probabilities of a few
+labels; it writes no text (`evals/decide/README.md`). A small model on a
+small GPU can do this work, so the large GPUs stay free for the large
+models. Give such a model the tags `decide` and `small`, and give the task
+`decide` a default that prefers them.
+
+## Scores from evals
+
+An eval writes its results to the catalog with `score` (scores and
+calibrations). The selection uses them through `rank_by`. A new model or
+adapter gets a score only after an eval.

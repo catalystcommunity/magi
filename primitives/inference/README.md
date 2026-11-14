@@ -16,8 +16,9 @@ Contract: `contracts/inference.csil`, service `InferenceService`.
 | Request | Result |
 | --- | --- |
 | `POST /v1/chat/completions` | OpenAI Chat Completions, forwarded to the engine |
-| `GET /v1/models` | Forwarded to the engine |
+| `GET /v1/models` | The model names of the host, with their descriptions ("Models") |
 | `InferenceService/status` | State, reason, model, requests in flight |
+| `InferenceService/decide` | Probabilities for typed questions about a state ("Decide") |
 | `InferenceService/warm` | Starts the engine if the machine is not busy. It does not wait. |
 | `GET /healthz` | Health of the host process |
 
@@ -34,6 +35,56 @@ error with one of these types:
 | `engine_error` | The engine did not start or did not answer. |
 
 States: `off`, `starting`, `ready`, `busy`.
+
+## Models
+
+One engine can serve more than one model name: the base model, and the
+base model with an adapter (llama-server per-request LoRA). Start the
+engine with `--lora FILE --lora-init-without-apply`, and give each adapter
+a name in `engine.models`:
+
+```json
+"engine": {
+  "command": ["llama-server", "-m", "gemma-4-12b.gguf", "--lora", "notetaker-lora-v3.gguf",
+    "--lora-init-without-apply", "..."],
+  "port": 18091,
+  "model": "gemma-4-12b",
+  "description": "Gemma 4 12B. General chat, tools, and JSON schemas.",
+  "models": {
+    "gemma-4-12b-notetaker": {"lora": [{"id": 0, "scale": 1}],
+      "description": "Tuned for the note taker (evals/notetaker, lora-v3). Other tasks: not measured."}
+  }
+}
+```
+
+A request for `gemma-4-12b-notetaker` goes to the engine as `gemma-4-12b`
+with the `lora` field, and the answer names `gemma-4-12b-notetaker`. A
+request for the base model has no adapter. A request with its own `lora`
+field gets status 400: use a model name.
+
+## Decide
+
+`InferenceService/decide` answers typed questions about one state with
+probabilities. The engine writes no text: the host reads the probability
+of the first token of the answer for each label of the choices
+(`evals/decide/README.md`).
+
+| Type | Labels | Answer |
+| --- | --- | --- |
+| `noul` | `A` (yes), `B` (no) | `yes` or `no` |
+| `choice` | `A` to `Z` (2 to 26 choices) | the choice |
+| `score` | `0` to `max` (max at most 9) | the number, and `expected` (the mean) |
+
+`temperature` is the calibration of a question for the model. Magi gives
+it from the model catalog. The questions go one after the other, so that
+the engine reuses the prompt of the state. For this, Gemma 4 needs
+`--swa-full` (with `-c 12288 -np 4` on a 16 GB GPU). A model with
+recurrent layers (Qwen 3.5) cannot reuse a part of a prompt; each question
+reads the full state.
+
+The host counts decide as its own work, as a chat request. Do not send
+requests straight to the engine: the host then sees a busy GPU and stops
+the engine.
 
 ## Busy rules
 
@@ -192,9 +243,15 @@ service started 2 minutes and 17 seconds after Windows (measured).
 
 ## Use from Magi
 
-Set `MAGI_PERSONA_MODELS` on the Magi server to a list of endpoints in
-order of preference (a host that connects out: `http://<name>.revconn/v1`) (see `deploy/render.py`, `PERSONA_LOCAL_URL`). Magi
-tries the host one time and then uses the next endpoint.
+Put each model name of the host in the model catalog
+(`primitives/models`), with the endpoint `http://<name>.revconn/v1` for a
+host that connects out, and `key_ref` `inference`. Magi selects the models
+of each task from the catalog (`docs/models.md`).
+
+Without a catalog default for a task, Magi uses `MAGI_PERSONA_MODELS` and
+`MAGI_LIBRARIAN_MODELS`: lists of endpoints in order of preference (see
+`deploy/render.py`, `PERSONA_LOCAL_URL`). Magi tries the host one time and
+then uses the next endpoint.
 
 ## Tests
 

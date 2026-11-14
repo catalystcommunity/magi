@@ -135,6 +135,9 @@ func (n noteItem) toolCall(reason string) (string, map[string]string) {
 // of the matching records (knowledgeContext); before is the reply and the
 // message before the newest message, for answers such as "It changed."
 func (s *System) takeNotes(ctx context.Context, text, notes string, before []conversationapi.Utterance) ([]noteItem, string, error) {
+	// The note taker is its own task (a tuned model can do it best); the
+	// model of the request does not apply to it.
+	ctx = backgroundModel(ctx, "note-taker")
 	sc, ok := s.LibrarianModel.(model.SchemaChatter)
 	if !ok || strings.TrimSpace(text) == "" {
 		return nil, "", nil

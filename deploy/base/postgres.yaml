@@ -27,3 +27,4 @@ spec:
         - CREATE DATABASE corndogs OWNER magi
         - CREATE DATABASE composer OWNER magi
         - CREATE DATABASE speech OWNER magi
+        - CREATE DATABASE models OWNER magi

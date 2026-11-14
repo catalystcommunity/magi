@@ -440,3 +440,137 @@ def _warm_request_from_cbor(data: bytes) -> "WarmRequest":
 
 WarmRequest.to_cbor = _warm_request_to_cbor
 WarmRequest.from_cbor = staticmethod(_warm_request_from_cbor)
+
+def _encode_question_value(v: "Question") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_x = v.max
+    if csil_x is not None:
+        csil_m["max"] = csil_x
+    csil_m["type"] = v.type
+    csil_x = v.scale
+    if csil_x is not None:
+        csil_m["scale"] = csil_x
+    csil_x = v.choices
+    if csil_x is not None:
+        csil_m["choices"] = csil_x
+    csil_m["question"] = v.question
+    csil_x = v.temperature
+    if csil_x is not None:
+        csil_m["temperature"] = csil_x
+    return csil_m
+
+def _decode_question_value(tree: Any) -> "Question":
+    tree = _csil_expect_map(tree)
+    return Question(
+        id=_csil_expect_text(tree["id"]),
+        type=_csil_expect_text(tree["type"]),
+        question=_csil_expect_text(tree["question"]),
+        choices=(None if tree.get("choices") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["choices"])]),
+        max=(None if tree.get("max") is None else _csil_expect_uint(tree["max"])),
+        scale=(None if tree.get("scale") is None else {_csil_expect_text(csil_k): _csil_expect_text(csil_v) for csil_k, csil_v in _csil_expect_map(tree["scale"]).items()}),
+        temperature=(None if tree.get("temperature") is None else _csil_expect_float(tree["temperature"])),
+    )
+
+
+def _question_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_question_value(self))
+
+
+def _question_from_cbor(data: bytes) -> "Question":
+    return _decode_question_value(cbor_decode(data))
+
+
+Question.to_cbor = _question_to_cbor
+Question.from_cbor = staticmethod(_question_from_cbor)
+
+def _encode_decide_request_value(v: "DecideRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.model
+    if csil_x is not None:
+        csil_m["model"] = csil_x
+    csil_m["state"] = v.state
+    csil_m["questions"] = [_encode_question_value(csil_e) for csil_e in v.questions]
+    return csil_m
+
+def _decode_decide_request_value(tree: Any) -> "DecideRequest":
+    tree = _csil_expect_map(tree)
+    return DecideRequest(
+        state=_csil_expect_text(tree["state"]),
+        questions=[_decode_question_value(csil_e) for csil_e in _csil_expect_array(tree["questions"])],
+        model=(None if tree.get("model") is None else _csil_expect_text(tree["model"])),
+    )
+
+
+def _decide_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_decide_request_value(self))
+
+
+def _decide_request_from_cbor(data: bytes) -> "DecideRequest":
+    return _decode_decide_request_value(cbor_decode(data))
+
+
+DecideRequest.to_cbor = _decide_request_to_cbor
+DecideRequest.from_cbor = staticmethod(_decide_request_from_cbor)
+
+def _encode_answer_value(v: "Answer") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["ms"] = v.ms
+    csil_m["probs"] = v.probs
+    csil_m["answer"] = v.answer
+    csil_x = v.expected
+    if csil_x is not None:
+        csil_m["expected"] = csil_x
+    csil_m["confidence"] = v.confidence
+    return csil_m
+
+def _decode_answer_value(tree: Any) -> "Answer":
+    tree = _csil_expect_map(tree)
+    return Answer(
+        id=_csil_expect_text(tree["id"]),
+        probs=[_csil_expect_float(csil_e) for csil_e in _csil_expect_array(tree["probs"])],
+        answer=_csil_expect_text(tree["answer"]),
+        confidence=_csil_expect_float(tree["confidence"]),
+        expected=(None if tree.get("expected") is None else _csil_expect_float(tree["expected"])),
+        ms=_csil_expect_uint(tree["ms"]),
+    )
+
+
+def _answer_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_answer_value(self))
+
+
+def _answer_from_cbor(data: bytes) -> "Answer":
+    return _decode_answer_value(cbor_decode(data))
+
+
+Answer.to_cbor = _answer_to_cbor
+Answer.from_cbor = staticmethod(_answer_from_cbor)
+
+def _encode_decide_response_value(v: "DecideResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["ms"] = v.ms
+    csil_m["model"] = v.model
+    csil_m["answers"] = [_encode_answer_value(csil_e) for csil_e in v.answers]
+    return csil_m
+
+def _decode_decide_response_value(tree: Any) -> "DecideResponse":
+    tree = _csil_expect_map(tree)
+    return DecideResponse(
+        answers=[_decode_answer_value(csil_e) for csil_e in _csil_expect_array(tree["answers"])],
+        model=_csil_expect_text(tree["model"]),
+        ms=_csil_expect_uint(tree["ms"]),
+    )
+
+
+def _decide_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_decide_response_value(self))
+
+
+def _decide_response_from_cbor(data: bytes) -> "DecideResponse":
+    return _decode_decide_response_value(cbor_decode(data))
+
+
+DecideResponse.to_cbor = _decide_response_to_cbor
+DecideResponse.from_cbor = staticmethod(_decide_response_from_cbor)

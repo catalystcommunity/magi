@@ -39,3 +39,7 @@ class InferenceAsyncClient:
         """warm"""
         return Status.from_cbor(await self._transport.call("InferenceService", "warm", req.to_cbor()))
 
+    async def decide(self, req: DecideRequest) -> DecideResponse:
+        """decide"""
+        return DecideResponse.from_cbor(await self._transport.call("InferenceService", "decide", req.to_cbor()))
+

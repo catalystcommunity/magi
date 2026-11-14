@@ -2,8 +2,8 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { Status, StatusRequest, WarmRequest } from "./types.gen.ts";
-import { fromStatusCbor, toStatusRequestCbor, toWarmRequestCbor } from "./codec.gen.ts";
+import type { DecideRequest, DecideResponse, Status, StatusRequest, WarmRequest } from "./types.gen.ts";
+import { fromDecideResponseCbor, fromStatusCbor, toDecideRequestCbor, toStatusRequestCbor, toWarmRequestCbor } from "./codec.gen.ts";
 
 export interface ServiceTransport {
   call(service: string, op: string, req: Uint8Array): Uint8Array;
@@ -28,6 +28,15 @@ export class InferenceClient {
   warm(req: WarmRequest): Status {
     const csilResp = this.t.call("InferenceService", "warm", toWarmRequestCbor(req));
     return fromStatusCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  decide(req: DecideRequest): DecideResponse {
+    const csilResp = this.t.call("InferenceService", "decide", toDecideRequestCbor(req));
+    return fromDecideResponseCbor(csilResp);
   }
 }
 

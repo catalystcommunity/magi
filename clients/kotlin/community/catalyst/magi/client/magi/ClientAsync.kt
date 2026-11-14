@@ -112,6 +112,9 @@ class MagiAsyncClient(private val transport: AsyncTransport) {
     suspend fun decide(request: DecideRequest): Task {
         return decode<Task>(transport.call("MagiService", "decide", encode(request)))
     }
+    suspend fun decision(request: DecisionRequest): DecisionResponse {
+        return decode<DecisionResponse>(transport.call("MagiService", "decision", encode(request)))
+    }
     suspend fun cancelTask(request: CancelTaskRequest): Task {
         return decode<Task>(transport.call("MagiService", "cancel-task", encode(request)))
     }

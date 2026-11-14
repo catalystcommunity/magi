@@ -528,6 +528,7 @@ fun SayRequest.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
     this.text?.let { csilV -> csilEntries.add(CborValue.CText("text") to CborValue.CText(csilV)) }
     this.audio?.let { csilV -> csilEntries.add(CborValue.CText("audio") to CborValue.CBytes(csilV)) }
+    this.model?.let { csilV -> csilEntries.add(CborValue.CText("model") to csilV.toCborValue()) }
     this.voice?.let { csilV -> csilEntries.add(CborValue.CText("voice") to CborValue.CText(csilV)) }
     this.persona?.let { csilV -> csilEntries.add(CborValue.CText("persona") to CborValue.CText(csilV)) }
     this.wakeWord?.let { csilV -> csilEntries.add(CborValue.CText("wake_word") to CborValue.CBool(csilV)) }
@@ -548,11 +549,47 @@ fun sayRequestFromCborValue(cbor: CborValue): SayRequest {
     val speakReply = CsilCbor.mapGet(cbor, "speak_reply")?.let { csilV -> CsilCbor.asBoolean(csilV) }
     val voice = CsilCbor.mapGet(cbor, "voice")?.let { csilV -> CsilCbor.asText(csilV) }
     val wakeWord = CsilCbor.mapGet(cbor, "wake_word")?.let { csilV -> CsilCbor.asBoolean(csilV) }
-    return SayRequest(persona = persona, text = text, audio = audio, audioType = audioType, speakReply = speakReply, voice = voice, wakeWord = wakeWord)
+    val model = CsilCbor.mapGet(cbor, "model")?.let { csilV -> modelSelectorFromCborValue(csilV) }
+    return SayRequest(persona = persona, text = text, audio = audio, audioType = audioType, speakReply = speakReply, voice = voice, wakeWord = wakeWord, model = model)
 }
 
 /** Decode CSIL CBOR bytes into a SayRequest. */
 fun sayRequestFromCbor(bytes: ByteArray): SayRequest = sayRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ModelSelector (deep, canonical key order). */
+fun ModelSelector.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.all?.let { csilV -> csilEntries.add(CborValue.CText("all") to CborValue.CArray((csilV).map { csilE -> CborValue.CText(csilE) })) }
+    this.any?.let { csilV -> csilEntries.add(CborValue.CText("any") to CborValue.CArray((csilV).map { csilE -> CborValue.CText(csilE) })) }
+    this.name?.let { csilV -> csilEntries.add(CborValue.CText("name") to CborValue.CText(csilV)) }
+    this.none?.let { csilV -> csilEntries.add(CborValue.CText("none") to CborValue.CArray((csilV).map { csilE -> CborValue.CText(csilE) })) }
+    this.rankBy?.let { csilV -> csilEntries.add(CborValue.CText("rank_by") to CborValue.CText(csilV)) }
+    this.onlyName?.let { csilV -> csilEntries.add(CborValue.CText("only_name") to CborValue.CBool(csilV)) }
+    this.attributes?.let { csilV -> csilEntries.add(CborValue.CText("attributes") to CborValue.CMap((csilV).map { (csilK, csilV) -> CborValue.CText(csilK) to CborValue.CText(csilV) })) }
+    this.maxInputCost?.let { csilV -> csilEntries.add(CborValue.CText("max_input_cost") to CborValue.CUint(csilV)) }
+    this.maxOutputCost?.let { csilV -> csilEntries.add(CborValue.CText("max_output_cost") to CborValue.CUint(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ModelSelector to canonical CSIL CBOR bytes. */
+fun ModelSelector.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ModelSelector from a decoded CBOR value tree. */
+fun modelSelectorFromCborValue(cbor: CborValue): ModelSelector {
+    val name = CsilCbor.mapGet(cbor, "name")?.let { csilV -> CsilCbor.asText(csilV) }
+    val all = CsilCbor.mapGet(cbor, "all")?.let { csilV -> CsilCbor.asArray(csilV).map { csilE -> CsilCbor.asText(csilE) } }
+    val any = CsilCbor.mapGet(cbor, "any")?.let { csilV -> CsilCbor.asArray(csilV).map { csilE -> CsilCbor.asText(csilE) } }
+    val none = CsilCbor.mapGet(cbor, "none")?.let { csilV -> CsilCbor.asArray(csilV).map { csilE -> CsilCbor.asText(csilE) } }
+    val attributes = CsilCbor.mapGet(cbor, "attributes")?.let { csilV -> CsilCbor.asMap(csilV).associate { (csilK, csilV) -> CsilCbor.asText(csilK) to CsilCbor.asText(csilV) } }
+    val maxInputCost = CsilCbor.mapGet(cbor, "max_input_cost")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val maxOutputCost = CsilCbor.mapGet(cbor, "max_output_cost")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val rankBy = CsilCbor.mapGet(cbor, "rank_by")?.let { csilV -> CsilCbor.asText(csilV) }
+    val onlyName = CsilCbor.mapGet(cbor, "only_name")?.let { csilV -> CsilCbor.asBoolean(csilV) }
+    return ModelSelector(name = name, all = all, any = any, none = none, attributes = attributes, maxInputCost = maxInputCost, maxOutputCost = maxOutputCost, rankBy = rankBy, onlyName = onlyName)
+}
+
+/** Decode CSIL CBOR bytes into a ModelSelector. */
+fun modelSelectorFromCbor(bytes: ByteArray): ModelSelector = modelSelectorFromCborValue(CsilCbor.decode(bytes))
 
 /** The CBOR value tree for a SayResponse (deep, canonical key order). */
 fun SayResponse.toCborValue(): CborValue {
@@ -3351,6 +3388,112 @@ fun listPagesResponseFromCborValue(cbor: CborValue): ListPagesResponse {
 /** Decode CSIL CBOR bytes into a ListPagesResponse. */
 fun listPagesResponseFromCbor(bytes: ByteArray): ListPagesResponse = listPagesResponseFromCborValue(CsilCbor.decode(bytes))
 
+/** The CBOR value tree for a DecisionQuestion (deep, canonical key order). */
+fun DecisionQuestion.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    this.max?.let { csilV -> csilEntries.add(CborValue.CText("max") to CborValue.CUint(csilV)) }
+    csilEntries.add(CborValue.CText("type") to CborValue.CText(this.type))
+    this.scale?.let { csilV -> csilEntries.add(CborValue.CText("scale") to CborValue.CMap((csilV).map { (csilK, csilV) -> CborValue.CText(csilK) to CborValue.CText(csilV) })) }
+    this.choices?.let { csilV -> csilEntries.add(CborValue.CText("choices") to CborValue.CArray((csilV).map { csilE -> CborValue.CText(csilE) })) }
+    csilEntries.add(CborValue.CText("question") to CborValue.CText(this.question))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a DecisionQuestion to canonical CSIL CBOR bytes. */
+fun DecisionQuestion.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a DecisionQuestion from a decoded CBOR value tree. */
+fun decisionQuestionFromCborValue(cbor: CborValue): DecisionQuestion {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val type = CsilCbor.asText(CsilCbor.require(cbor, "type"))
+    val question = CsilCbor.asText(CsilCbor.require(cbor, "question"))
+    val choices = CsilCbor.mapGet(cbor, "choices")?.let { csilV -> CsilCbor.asArray(csilV).map { csilE -> CsilCbor.asText(csilE) } }
+    val max = CsilCbor.mapGet(cbor, "max")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val scale = CsilCbor.mapGet(cbor, "scale")?.let { csilV -> CsilCbor.asMap(csilV).associate { (csilK, csilV) -> CsilCbor.asText(csilK) to CsilCbor.asText(csilV) } }
+    return DecisionQuestion(id = id, type = type, question = question, choices = choices, max = max, scale = scale)
+}
+
+/** Decode CSIL CBOR bytes into a DecisionQuestion. */
+fun decisionQuestionFromCbor(bytes: ByteArray): DecisionQuestion = decisionQuestionFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a DecisionRequest (deep, canonical key order). */
+fun DecisionRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.task?.let { csilV -> csilEntries.add(CborValue.CText("task") to CborValue.CText(csilV)) }
+    this.model?.let { csilV -> csilEntries.add(CborValue.CText("model") to csilV.toCborValue()) }
+    csilEntries.add(CborValue.CText("state") to CborValue.CText(this.state))
+    csilEntries.add(CborValue.CText("questions") to CborValue.CArray((this.questions).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a DecisionRequest to canonical CSIL CBOR bytes. */
+fun DecisionRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a DecisionRequest from a decoded CBOR value tree. */
+fun decisionRequestFromCborValue(cbor: CborValue): DecisionRequest {
+    val state = CsilCbor.asText(CsilCbor.require(cbor, "state"))
+    val questions = CsilCbor.asArray(CsilCbor.require(cbor, "questions")).map { csilE -> decisionQuestionFromCborValue(csilE) }
+    val task = CsilCbor.mapGet(cbor, "task")?.let { csilV -> CsilCbor.asText(csilV) }
+    val model = CsilCbor.mapGet(cbor, "model")?.let { csilV -> modelSelectorFromCborValue(csilV) }
+    return DecisionRequest(state = state, questions = questions, task = task, model = model)
+}
+
+/** Decode CSIL CBOR bytes into a DecisionRequest. */
+fun decisionRequestFromCbor(bytes: ByteArray): DecisionRequest = decisionRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a DecisionAnswer (deep, canonical key order). */
+fun DecisionAnswer.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    csilEntries.add(CborValue.CText("probs") to CborValue.CArray((this.probs).map { csilE -> CborValue.CFloat(csilE) }))
+    csilEntries.add(CborValue.CText("answer") to CborValue.CText(this.answer))
+    this.expected?.let { csilV -> csilEntries.add(CborValue.CText("expected") to CborValue.CFloat(csilV)) }
+    csilEntries.add(CborValue.CText("calibrated") to CborValue.CBool(this.calibrated))
+    csilEntries.add(CborValue.CText("confidence") to CborValue.CFloat(this.confidence))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a DecisionAnswer to canonical CSIL CBOR bytes. */
+fun DecisionAnswer.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a DecisionAnswer from a decoded CBOR value tree. */
+fun decisionAnswerFromCborValue(cbor: CborValue): DecisionAnswer {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val probs = CsilCbor.asArray(CsilCbor.require(cbor, "probs")).map { csilE -> CsilCbor.asDouble(csilE) }
+    val answer = CsilCbor.asText(CsilCbor.require(cbor, "answer"))
+    val confidence = CsilCbor.asDouble(CsilCbor.require(cbor, "confidence"))
+    val expected = CsilCbor.mapGet(cbor, "expected")?.let { csilV -> CsilCbor.asDouble(csilV) }
+    val calibrated = CsilCbor.asBoolean(CsilCbor.require(cbor, "calibrated"))
+    return DecisionAnswer(id = id, probs = probs, answer = answer, confidence = confidence, expected = expected, calibrated = calibrated)
+}
+
+/** Decode CSIL CBOR bytes into a DecisionAnswer. */
+fun decisionAnswerFromCbor(bytes: ByteArray): DecisionAnswer = decisionAnswerFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a DecisionResponse (deep, canonical key order). */
+fun DecisionResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("ms") to CborValue.CUint(this.ms))
+    csilEntries.add(CborValue.CText("model") to CborValue.CText(this.model))
+    csilEntries.add(CborValue.CText("answers") to CborValue.CArray((this.answers).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a DecisionResponse to canonical CSIL CBOR bytes. */
+fun DecisionResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a DecisionResponse from a decoded CBOR value tree. */
+fun decisionResponseFromCborValue(cbor: CborValue): DecisionResponse {
+    val answers = CsilCbor.asArray(CsilCbor.require(cbor, "answers")).map { csilE -> decisionAnswerFromCborValue(csilE) }
+    val model = CsilCbor.asText(CsilCbor.require(cbor, "model"))
+    val ms = CsilCbor.asULong(CsilCbor.require(cbor, "ms"))
+    return DecisionResponse(answers = answers, model = model, ms = ms)
+}
+
+/** Decode CSIL CBOR bytes into a DecisionResponse. */
+fun decisionResponseFromCbor(bytes: ByteArray): DecisionResponse = decisionResponseFromCborValue(CsilCbor.decode(bytes))
+
 /** The CBOR value tree for a RunnerClaimRequest (deep, canonical key order). */
 fun RunnerClaimRequest.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
@@ -4226,6 +4369,7 @@ private fun csilToCborValue(value: Any?): CborValue = when (value) {
     is ListPersonasResponse -> value.toCborValue()
     is PutPersonaRequest -> value.toCborValue()
     is SayRequest -> value.toCborValue()
+    is ModelSelector -> value.toCborValue()
     is SayResponse -> value.toCborValue()
     is ReadRequest -> value.toCborValue()
     is ReadResponse -> value.toCborValue()
@@ -4345,6 +4489,10 @@ private fun csilToCborValue(value: Any?): CborValue = when (value) {
     is GetPageRequest -> value.toCborValue()
     is ListPagesRequest -> value.toCborValue()
     is ListPagesResponse -> value.toCborValue()
+    is DecisionQuestion -> value.toCborValue()
+    is DecisionRequest -> value.toCborValue()
+    is DecisionAnswer -> value.toCborValue()
+    is DecisionResponse -> value.toCborValue()
     is RunnerClaimRequest -> value.toCborValue()
     is RunnerAssignment -> value.toCborValue()
     is RunnerClaimResponse -> value.toCborValue()
@@ -4399,6 +4547,7 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     ListPersonasResponse::class -> listPersonasResponseFromCborValue(cbor)
     PutPersonaRequest::class -> putPersonaRequestFromCborValue(cbor)
     SayRequest::class -> sayRequestFromCborValue(cbor)
+    ModelSelector::class -> modelSelectorFromCborValue(cbor)
     SayResponse::class -> sayResponseFromCborValue(cbor)
     ReadRequest::class -> readRequestFromCborValue(cbor)
     ReadResponse::class -> readResponseFromCborValue(cbor)
@@ -4518,6 +4667,10 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     GetPageRequest::class -> getPageRequestFromCborValue(cbor)
     ListPagesRequest::class -> listPagesRequestFromCborValue(cbor)
     ListPagesResponse::class -> listPagesResponseFromCborValue(cbor)
+    DecisionQuestion::class -> decisionQuestionFromCborValue(cbor)
+    DecisionRequest::class -> decisionRequestFromCborValue(cbor)
+    DecisionAnswer::class -> decisionAnswerFromCborValue(cbor)
+    DecisionResponse::class -> decisionResponseFromCborValue(cbor)
     RunnerClaimRequest::class -> runnerClaimRequestFromCborValue(cbor)
     RunnerAssignment::class -> runnerAssignmentFromCborValue(cbor)
     RunnerClaimResponse::class -> runnerClaimResponseFromCborValue(cbor)

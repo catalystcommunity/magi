@@ -431,6 +431,17 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			}
 			return EncodeTask(resp), nil
 		},
+		"decision": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeDecisionRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Decision(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeDecisionResponse(resp), nil
+		},
 		"cancel-task": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeCancelTaskRequest(b)
 			if err != nil {

@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { AckNoticeRequest, Activity, ActivityRequest, AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, ChangeKnowledgeRequest, ChangeKnowledgeResponse, CheckOverlapRequest, CheckOverlapResponse, ConnectRequest, ConnectResponse, Connection, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideRequest, DeleteLexiconWordRequest, DeleteLexiconWordResponse, DeliverNoticeRequest, Device, DisconnectRequest, EgressDestinationRequest, EgressDestinationResponse, EgressDetectRequest, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressFlow, EgressFlowHeader, EgressReportRequest, EgressReportResponse, EgressReview, EgressReviewHeader, EgressSecretRule, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, FileChange, FinishTodoRequest, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetPageRequest, GetTaskDiffRequest, GetTaskOutputRequest, GetTaskRequest, HistoryMessage, ImportHistoryRequest, ImportHistoryResponse, ImportedMessage, KnowledgeChange, KnowledgeFact, KnowledgeHistoryRequest, KnowledgeHistoryResponse, KnowledgeItem, KnowledgeRecord, LexiconWord, LinkRequest, ListConnectionsRequest, ListConnectionsResponse, ListDevicesRequest, ListDevicesResponse, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListNoticesRequest, ListNoticesResponse, ListPagesRequest, ListPagesResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListTodosRequest, ListTodosResponse, ListVoicesRequest, ListVoicesResponse, ListenRequest, ListenResponse, MergeKnowledgeRequest, Message, MessageLink, Notice, NoticeDelivery, Page, PersonaInfo, PutAppReleaseRequest, PutDeviceRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, RememberResponse, RemoveDeviceRequest, ReportDeliveryRequest, ReportDeliveryResponse, ReviewItem, RunnerAck, RunnerAssignment, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerEgressProxy, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerInfo, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, RunnerTerminal, RunnerTerminalsRequest, RunnerTerminalsResponse, RunnerUpdate, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, SpeechPart, StartTaskRequest, StopSpeechRequest, StopSpeechResponse, Task, TaskDiff, TaskOutput, TaskStep, Todo, TraceRequest, TraceResponse, UnlinkRequest, UnmergeKnowledgeRequest, VoiceInfo, WaitNoticesRequest, WaitNoticesResponse, WordTime } from "./types.gen.ts";
+import type { AckNoticeRequest, Activity, ActivityRequest, AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, ChangeKnowledgeRequest, ChangeKnowledgeResponse, CheckOverlapRequest, CheckOverlapResponse, ConnectRequest, ConnectResponse, Connection, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideRequest, DecisionAnswer, DecisionQuestion, DecisionRequest, DecisionResponse, DeleteLexiconWordRequest, DeleteLexiconWordResponse, DeliverNoticeRequest, Device, DisconnectRequest, EgressDestinationRequest, EgressDestinationResponse, EgressDetectRequest, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressFlow, EgressFlowHeader, EgressReportRequest, EgressReportResponse, EgressReview, EgressReviewHeader, EgressSecretRule, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, FileChange, FinishTodoRequest, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetPageRequest, GetTaskDiffRequest, GetTaskOutputRequest, GetTaskRequest, HistoryMessage, ImportHistoryRequest, ImportHistoryResponse, ImportedMessage, KnowledgeChange, KnowledgeFact, KnowledgeHistoryRequest, KnowledgeHistoryResponse, KnowledgeItem, KnowledgeRecord, LexiconWord, LinkRequest, ListConnectionsRequest, ListConnectionsResponse, ListDevicesRequest, ListDevicesResponse, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListNoticesRequest, ListNoticesResponse, ListPagesRequest, ListPagesResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListTodosRequest, ListTodosResponse, ListVoicesRequest, ListVoicesResponse, ListenRequest, ListenResponse, MergeKnowledgeRequest, Message, MessageLink, ModelSelector, Notice, NoticeDelivery, Page, PersonaInfo, PutAppReleaseRequest, PutDeviceRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, RememberResponse, RemoveDeviceRequest, ReportDeliveryRequest, ReportDeliveryResponse, ReviewItem, RunnerAck, RunnerAssignment, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerEgressProxy, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerInfo, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, RunnerTerminal, RunnerTerminalsRequest, RunnerTerminalsResponse, RunnerUpdate, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, SpeechPart, StartTaskRequest, StopSpeechRequest, StopSpeechResponse, Task, TaskDiff, TaskOutput, TaskStep, Todo, TraceRequest, TraceResponse, UnlinkRequest, UnmergeKnowledgeRequest, VoiceInfo, WaitNoticesRequest, WaitNoticesResponse, WordTime } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -550,6 +550,7 @@ export function toSayRequestCborValue(v: SayRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   if (v.text !== undefined) csilMap.set("text", v.text);
   if (v.audio !== undefined) csilMap.set("audio", v.audio);
+  if (v.model !== undefined) csilMap.set("model", toModelSelectorCborValue(v.model));
   if (v.voice !== undefined) csilMap.set("voice", v.voice);
   if (v.persona !== undefined) csilMap.set("persona", v.persona);
   if (v.wakeWord !== undefined) csilMap.set("wake_word", v.wakeWord);
@@ -567,6 +568,7 @@ export function fromSayRequestCborValue(value: CborValue): SayRequest {
     speakReply: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "speak_reply")),
     voice: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "voice")),
     wakeWord: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "wake_word")),
+    model: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromModelSelectorCborValue(csilV))(mapGet(value, "model")),
   };
 }
 
@@ -576,6 +578,42 @@ export function toSayRequestCbor(v: SayRequest): Uint8Array {
 
 export function fromSayRequestCbor(bytes: Uint8Array): SayRequest {
   return fromSayRequestCborValue(decode(bytes));
+}
+
+export function toModelSelectorCborValue(v: ModelSelector): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.all !== undefined) csilMap.set("all", v.all);
+  if (v.any !== undefined) csilMap.set("any", v.any);
+  if (v.name !== undefined) csilMap.set("name", v.name);
+  if (v.none !== undefined) csilMap.set("none", v.none);
+  if (v.rankBy !== undefined) csilMap.set("rank_by", v.rankBy);
+  if (v.onlyName !== undefined) csilMap.set("only_name", v.onlyName);
+  if (v.attributes !== undefined) csilMap.set("attributes", new Map<CborValue, CborValue>(Object.entries(v.attributes).map(([csilK, csilV]): [CborValue, CborValue] => [csilK, csilV])));
+  if (v.maxInputCost !== undefined) csilMap.set("max_input_cost", v.maxInputCost);
+  if (v.maxOutputCost !== undefined) csilMap.set("max_output_cost", v.maxOutputCost);
+  return csilMap;
+}
+
+export function fromModelSelectorCborValue(value: CborValue): ModelSelector {
+  return {
+    name: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "name")),
+    all: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "all")),
+    any: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "any")),
+    none: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "none")),
+    attributes: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : Object.fromEntries(Array.from(asMap(csilV), ([csilK, csilV]): [string, string] => [asString(csilK), asString(csilV)])))(mapGet(value, "attributes")),
+    maxInputCost: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "max_input_cost")),
+    maxOutputCost: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "max_output_cost")),
+    rankBy: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "rank_by")),
+    onlyName: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "only_name")),
+  };
+}
+
+export function toModelSelectorCbor(v: ModelSelector): Uint8Array {
+  return encodeValue(toModelSelectorCborValue(v));
+}
+
+export function fromModelSelectorCbor(bytes: Uint8Array): ModelSelector {
+  return fromModelSelectorCborValue(decode(bytes));
 }
 
 export function toSayResponseCborValue(v: SayResponse): CborValue {
@@ -3492,6 +3530,116 @@ export function toListPagesResponseCbor(v: ListPagesResponse): Uint8Array {
 
 export function fromListPagesResponseCbor(bytes: Uint8Array): ListPagesResponse {
   return fromListPagesResponseCborValue(decode(bytes));
+}
+
+export function toDecisionQuestionCborValue(v: DecisionQuestion): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  if (v.max !== undefined) csilMap.set("max", v.max);
+  csilMap.set("type", v.type);
+  if (v.scale !== undefined) csilMap.set("scale", new Map<CborValue, CborValue>(Object.entries(v.scale).map(([csilK, csilV]): [CborValue, CborValue] => [csilK, csilV])));
+  if (v.choices !== undefined) csilMap.set("choices", v.choices);
+  csilMap.set("question", v.question);
+  return csilMap;
+}
+
+export function fromDecisionQuestionCborValue(value: CborValue): DecisionQuestion {
+  return {
+    id: asString(requireKey(value, "id")),
+    type: asString(requireKey(value, "type")),
+    question: asString(requireKey(value, "question")),
+    choices: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "choices")),
+    max: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "max")),
+    scale: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : Object.fromEntries(Array.from(asMap(csilV), ([csilK, csilV]): [string, string] => [asString(csilK), asString(csilV)])))(mapGet(value, "scale")),
+  };
+}
+
+export function toDecisionQuestionCbor(v: DecisionQuestion): Uint8Array {
+  return encodeValue(toDecisionQuestionCborValue(v));
+}
+
+export function fromDecisionQuestionCbor(bytes: Uint8Array): DecisionQuestion {
+  return fromDecisionQuestionCborValue(decode(bytes));
+}
+
+export function toDecisionRequestCborValue(v: DecisionRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.task !== undefined) csilMap.set("task", v.task);
+  if (v.model !== undefined) csilMap.set("model", toModelSelectorCborValue(v.model));
+  csilMap.set("state", v.state);
+  csilMap.set("questions", v.questions.map((csilE): CborValue => toDecisionQuestionCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromDecisionRequestCborValue(value: CborValue): DecisionRequest {
+  return {
+    state: asString(requireKey(value, "state")),
+    questions: asArray(requireKey(value, "questions")).map((csilE) => fromDecisionQuestionCborValue(csilE)),
+    task: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "task")),
+    model: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromModelSelectorCborValue(csilV))(mapGet(value, "model")),
+  };
+}
+
+export function toDecisionRequestCbor(v: DecisionRequest): Uint8Array {
+  return encodeValue(toDecisionRequestCborValue(v));
+}
+
+export function fromDecisionRequestCbor(bytes: Uint8Array): DecisionRequest {
+  return fromDecisionRequestCborValue(decode(bytes));
+}
+
+export function toDecisionAnswerCborValue(v: DecisionAnswer): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  csilMap.set("probs", v.probs);
+  csilMap.set("answer", v.answer);
+  if (v.expected !== undefined) csilMap.set("expected", v.expected);
+  csilMap.set("calibrated", v.calibrated);
+  csilMap.set("confidence", v.confidence);
+  return csilMap;
+}
+
+export function fromDecisionAnswerCborValue(value: CborValue): DecisionAnswer {
+  return {
+    id: asString(requireKey(value, "id")),
+    probs: asArray(requireKey(value, "probs")).map((csilE) => asNumber(csilE)),
+    answer: asString(requireKey(value, "answer")),
+    confidence: asNumber(requireKey(value, "confidence")),
+    expected: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "expected")),
+    calibrated: asBool(requireKey(value, "calibrated")),
+  };
+}
+
+export function toDecisionAnswerCbor(v: DecisionAnswer): Uint8Array {
+  return encodeValue(toDecisionAnswerCborValue(v));
+}
+
+export function fromDecisionAnswerCbor(bytes: Uint8Array): DecisionAnswer {
+  return fromDecisionAnswerCborValue(decode(bytes));
+}
+
+export function toDecisionResponseCborValue(v: DecisionResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("ms", v.ms);
+  csilMap.set("model", v.model);
+  csilMap.set("answers", v.answers.map((csilE): CborValue => toDecisionAnswerCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromDecisionResponseCborValue(value: CborValue): DecisionResponse {
+  return {
+    answers: asArray(requireKey(value, "answers")).map((csilE) => fromDecisionAnswerCborValue(csilE)),
+    model: asString(requireKey(value, "model")),
+    ms: asNumber(requireKey(value, "ms")),
+  };
+}
+
+export function toDecisionResponseCbor(v: DecisionResponse): Uint8Array {
+  return encodeValue(toDecisionResponseCborValue(v));
+}
+
+export function fromDecisionResponseCbor(bytes: Uint8Array): DecisionResponse {
+  return fromDecisionResponseCborValue(decode(bytes));
 }
 
 export function toRunnerClaimRequestCborValue(v: RunnerClaimRequest): CborValue {

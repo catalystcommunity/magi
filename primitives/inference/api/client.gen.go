@@ -60,3 +60,12 @@ func (c *InferenceClient) Warm(ctx context.Context, req WarmRequest) (Status, er
 	}
 	return DecodeStatus(csilResp)
 }
+
+func (c *InferenceClient) Decide(ctx context.Context, req DecideRequest) (DecideResponse, error) {
+	var csilZero DecideResponse
+	csilResp, csilErr := c.transport.Call(ctx, "InferenceService", "decide", EncodeDecideRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeDecideResponse(csilResp)
+}

@@ -17,6 +17,7 @@ declare -A godir=(
   [source]=primitives/source
   [speech]=primitives/speech
   [inference]=primitives/inference
+  [models]=primitives/models
   [release]=primitives/release/goapi
   [egress]=primitives/egress/goapi
   [identity]=primitives/identity

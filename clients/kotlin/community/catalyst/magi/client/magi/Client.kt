@@ -122,6 +122,9 @@ class MagiClient(private val transport: Transport) {
     fun decide(request: DecideRequest): Task {
         return decode<Task>(transport.call("MagiService", "decide", encode(request)))
     }
+    fun decision(request: DecisionRequest): DecisionResponse {
+        return decode<DecisionResponse>(transport.call("MagiService", "decision", encode(request)))
+    }
     fun cancelTask(request: CancelTaskRequest): Task {
         return decode<Task>(transport.call("MagiService", "cancel-task", encode(request)))
     }

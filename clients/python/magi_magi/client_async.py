@@ -159,6 +159,10 @@ class MagiAsyncClient:
         """decide"""
         return Task.from_cbor(await self._transport.call("MagiService", "decide", req.to_cbor()))
 
+    async def decision(self, req: DecisionRequest) -> DecisionResponse:
+        """decision"""
+        return DecisionResponse.from_cbor(await self._transport.call("MagiService", "decision", req.to_cbor()))
+
     async def cancel_task(self, req: CancelTaskRequest) -> Task:
         """cancel-task"""
         return Task.from_cbor(await self._transport.call("MagiService", "cancel-task", req.to_cbor()))

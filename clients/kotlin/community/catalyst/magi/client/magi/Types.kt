@@ -90,7 +90,8 @@ data class SayRequest(
     val speakReply: Boolean? = null,
     val voice: String? = null,
     // wire key: wake_word
-    val wakeWord: Boolean? = null
+    val wakeWord: Boolean? = null,
+    val model: ModelSelector? = null
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -102,6 +103,7 @@ data class SayRequest(
         if (speakReply != other.speakReply) return false
         if (voice != other.voice) return false
         if (wakeWord != other.wakeWord) return false
+        if (model != other.model) return false
         return true
     }
 
@@ -113,9 +115,27 @@ data class SayRequest(
         result = 31 * result + speakReply.hashCode()
         result = 31 * result + voice.hashCode()
         result = 31 * result + wakeWord.hashCode()
+        result = 31 * result + model.hashCode()
         return result
     }
 }
+
+/** ModelSelector record. */
+data class ModelSelector(
+    val name: String? = null,
+    val all: List<String>? = null,
+    val any: List<String>? = null,
+    val none: List<String>? = null,
+    val attributes: Map<String, String>? = null,
+    // wire key: max_input_cost
+    val maxInputCost: ULong? = null,
+    // wire key: max_output_cost
+    val maxOutputCost: ULong? = null,
+    // wire key: rank_by
+    val rankBy: String? = null,
+    // wire key: only_name
+    val onlyName: Boolean? = null
+)
 
 /** SayResponse record. */
 data class SayResponse(
@@ -1187,6 +1207,41 @@ data class ListPagesRequest(
 /** ListPagesResponse record. */
 data class ListPagesResponse(
     val pages: List<Page>
+)
+
+/** DecisionQuestion record. */
+data class DecisionQuestion(
+    val id: String,
+    val type: String,
+    val question: String,
+    val choices: List<String>? = null,
+    val max: ULong? = null,
+    val scale: Map<String, String>? = null
+)
+
+/** DecisionRequest record. */
+data class DecisionRequest(
+    val state: String,
+    val questions: List<DecisionQuestion>,
+    val task: String? = null,
+    val model: ModelSelector? = null
+)
+
+/** DecisionAnswer record. */
+data class DecisionAnswer(
+    val id: String,
+    val probs: List<Double>,
+    val answer: String,
+    val confidence: Double,
+    val expected: Double? = null,
+    val calibrated: Boolean
+)
+
+/** DecisionResponse record. */
+data class DecisionResponse(
+    val answers: List<DecisionAnswer>,
+    val model: String,
+    val ms: ULong
 )
 
 /** RunnerClaimRequest record. */

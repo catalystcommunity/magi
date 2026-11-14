@@ -331,6 +331,15 @@ func (c *MagiClient) Decide(ctx context.Context, req DecideRequest) (Task, error
 	return DecodeTask(csilResp)
 }
 
+func (c *MagiClient) Decision(ctx context.Context, req DecisionRequest) (DecisionResponse, error) {
+	var csilZero DecisionResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "decision", EncodeDecisionRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeDecisionResponse(csilResp)
+}
+
 func (c *MagiClient) CancelTask(ctx context.Context, req CancelTaskRequest) (Task, error) {
 	var csilZero Task
 	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "cancel-task", EncodeCancelTaskRequest(req))
