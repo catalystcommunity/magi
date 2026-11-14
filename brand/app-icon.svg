@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Magi app icon</title>
+<path fill="#F7F5EF" d="M0 0H512V512H0Z"/><defs>
+    <mask id="prayer-outline" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512" style="mask-type:luminance">
+      <rect width="512" height="512" fill="white"/>
+      <path d="M244 195 H268 V240 H244Z" fill="black"/>
+      <path d="M178 269 L237 242 L244 230 V204 Q244 195 252 195 H260 Q268 195 268 204 V230 L275 242 L334 269 M157 267 Q150 279 162 285 L175 290 Q181 292 187 288 L246 260 Q256 255 266 260 L325 288 Q331 292 337 290 L350 285 Q362 279 355 267" fill="none" stroke="black" stroke-width="16" stroke-linejoin="round"/>
+    </mask>
+    <mask id="prayer-seam" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512" style="mask-type:luminance">
+      <rect width="512" height="512" fill="white"/>
+      <path d="M256 201 V232" fill="none" stroke="black" stroke-width="4" stroke-linecap="round"/>
+    </mask>
+  </defs>
+  <g mask="url(#prayer-outline)">
+  <g fill="none" stroke="#142D4E" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M213 210 C177 214 147 198 137 174 L132 162 M299 210 C335 214 365 198 375 174 L380 162"/>
+    <path d="M207 233 C174 268 133 283 102 261 M305 233 C338 268 379 283 410 261"/>
+  </g>
+  <g fill="#142D4E">
+    <circle cx="256" cy="132" r="49"/>
+    <path fill-rule="evenodd" d="M240 173 H272 V189 C294 190 313 199 315 217 C317 240 300 275 292 306 L286 327 L326 312 C341 306 353 313 365 326 L401 370 C418 391 404 420 378 424 C338 431 174 431 134 424 C108 420 94 391 111 370 L147 326 C159 313 171 306 186 312 L226 327 L220 306 C212 275 195 240 197 217 C199 199 218 190 240 189Z M160 355 C201 366 250 387 298 399 C257 397 206 384 166 369 Q155 365 160 355Z"/>
+  </g>
+  </g>
+  <path d="M207 226 L178 269 L237 242 L244 230 V204 Q244 195 252 195 H260 Q268 195 268 204 V230 L275 242 L334 269 L305 226 L323 220 L355 267 Q362 279 350 285 L337 290 Q331 292 325 288 L266 260 Q256 255 246 260 L187 288 Q181 292 175 290 L162 285 Q150 279 157 267 L189 220Z" fill="#142D4E" mask="url(#prayer-seam)"/>
+  <path fill="#FFD34E" d="M256 100 L262.47 113.1 L276.93 115.2 L266.47 125.4 L268.94 139.8 L256 133 L243.06 139.8 L245.53 125.4 L235.07 115.2 L249.53 113.1Z"/>
+</svg>

@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1120" viewBox="0 0 1440 1120" role="img" aria-labelledby="title">
+  <title id="title">Magi brand preview</title>
+<rect width="1440" height="1120" fill="#F7F5EF"/><text x="64" y="60" fill="#142D4E" font-family="DejaVu Sans, sans-serif" font-size="18">MAGI / BRAND ASSETS</text><text x="64" y="108" fill="#142D4E" font-family="DejaVu Sans, sans-serif" font-size="36">The many-armed guide</text><text x="64" y="145" fill="#142D4E" font-family="DejaVu Sans, sans-serif" font-size="18">Six arms. One guide. A star on the forehead.</text><rect x="48" y="184" width="808" height="512" rx="24" fill="white"/><g transform="translate(196 184) scale(1)"><defs>
+    <mask id="prayer-outline-196-184-1" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512" style="mask-type:luminance">
+      <rect width="512" height="512" fill="white"/>
+      <path d="M244 195 H268 V240 H244Z" fill="black"/>
+      <path d="M178 269 L237 242 L244 230 V204 Q244 195 252 195 H260 Q268 195 268 204 V230 L275 242 L334 269 M157 267 Q150 279 162 285 L175 290 Q181 292 187 288 L246 260 Q256 255 266 260 L325 288 Q331 292 337 290 L350 285 Q362 279 355 267" fill="none" stroke="black" stroke-width="16" stroke-linejoin="round"/>
+    </mask>
+    <mask id="prayer-seam-196-184-1" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512" style="mask-type:luminance">
+      <rect width="512" height="512" fill="white"/>
+      <path d="M256 201 V232" fill="none" stroke="black" stroke-width="4" stroke-linecap="round"/>
+    </mask>
+  </defs>
+  <g mask="url(#prayer-outline-196-184-1)">
+  <g fill="none" stroke="#142D4E" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M213 210 C177 214 147 198 137 174 L132 162 M299 210 C335 214 365 198 375 174 L380 162"/>
+    <path d="M207 233 C174 268 133 283 102 261 M305 233 C338 268 379 283 410 261"/>
+  </g>
+  <g fill="#142D4E">
+    <circle cx="256" cy="132" r="49"/>
+    <path fill-rule="evenodd" d="M240 173 H272 V189 C294 190 313 199 315 217 C317 240 300 275 292 306 L286 327 L326 312 C341 306 353 313 365 326 L401 370 C418 391 404 420 378 424 C338 431 174 431 134 424 C108 420 94 391 111 370 L147 326 C159 313 171 306 186 312 L226 327 L220 306 C212 275 195 240 197 217 C199 199 218 190 240 189Z M160 355 C201 366 250 387 298 399 C257 397 206 384 166 369 Q155 365 160 355Z"/>
+  </g>
+  </g>
+  <path d="M207 226 L178 269 L237 242 L244 230 V204 Q244 195 252 195 H260 Q268 195 268 204 V230 L275 242 L334 269 L305 226 L323 220 L355 267 Q362 279 350 285 L337 290 Q331 292 325 288 L266 260 Q256 255 246 260 L187 288 Q181 292 175 290 L162 285 Q150 279 157 267 L189 220Z" fill="#142D4E" mask="url(#prayer-seam-196-184-1)"/>
+  <path fill="#FFD34E" d="M256 100 L262.47 113.1 L276.93 115.2 L266.47 125.4 L268.94 139.8 L256 133 L243.06 139.8 L245.53 125.4 L235.07 115.2 L249.53 113.1Z"/></g><rect x="880" y="184" width="512" height="512" rx="24" fill="#142D4E"/><g transform="translate(906 210) scale(0.9)"><defs>
+    <mask id="prayer-outline-906-210-0_9" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512" style="mask-type:luminance">
+      <rect width="512" height="512" fill="white"/>
+      <path d="M244 195 H268 V240 H244Z" fill="black"/>
+      <path d="M178 269 L237 242 L244 230 V204 Q244 195 252 195 H260 Q268 195 268 204 V230 L275 242 L334 269 M157 267 Q150 279 162 285 L175 290 Q181 292 187 288 L246 260 Q256 255 266 260 L325 288 Q331 292 337 290 L350 285 Q362 279 355 267" fill="none" stroke="black" stroke-width="16" stroke-linejoin="round"/>
+    </mask>
+    <mask id="prayer-seam-906-210-0_9" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512" style="mask-type:luminance">
+      <rect width="512" height="512" fill="white"/>
+      <path d="M256 201 V232" fill="none" stroke="black" stroke-width="4" stroke-linecap="round"/>
+    </mask>
+  </defs>
+  <g mask="url(#prayer-outline-906-210-0_9)">
+  <g fill="none" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M213 210 C177 214 147 198 137 174 L132 162 M299 210 C335 214 365 198 375 174 L380 162"/>
+    <path d="M207 233 C174 268 133 283 102 261 M305 233 C338 268 379 283 410 261"/>
+  </g>
+  <g fill="#FFFFFF">
+    <circle cx="256" cy="132" r="49"/>
+    <path fill-rule="evenodd" d="M240 173 H272 V189 C294 190 313 199 315 217 C317 240 300 275 292 306 L286 327 L326 312 C341 306 353 313 365 326 L401 370 C418 391 404 420 378 424 C338 431 174 431 134 424 C108 420 94 391 111 370 L147 326 C159 313 171 306 186 312 L226 327 L220 306 C212 275 195 240 197 217 C199 199 218 190 240 189Z M160 355 C201 366 250 387 298 399 C257 397 206 384 166 369 Q155 365 160 355Z"/>
+  </g>
+  </g>
+  <path d="M207 226 L178 269 L237 242 L244 230 V204 Q244 195 252 195 H260 Q268 195 268 204 V230 L275 242 L334 269 L305 226 L323 220 L355 267 Q362 279 350 285 L337 290 Q331 292 325 288 L266 260 Q256 255 246 260 L187 288 Q181 292 175 290 L162 285 Q150 279 157 267 L189 220Z" fill="#FFFFFF" mask="url(#prayer-seam-906-210-0_9)"/>
+  <path fill="#FFD34E" d="M256 100 L262.47 113.1 L276.93 115.2 L266.47 125.4 L268.94 139.8 L256 133 L243.06 139.8 L245.53 125.4 L235.07 115.2 L249.53 113.1Z"/></g><g transform="translate(48 720) scale(0.75)"><g transform="translate(0 4) scale(0.625)"><defs>
+    <mask id="prayer-outline-0-4-0_625-48-720-0_75" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512" style="mask-type:luminance">
+      <rect width="512" height="512" fill="white"/>
+      <path d="M244 195 H268 V240 H244Z" fill="black"/>
+      <path d="M178 269 L237 242 L244 230 V204 Q244 195 252 195 H260 Q268 195 268 204 V230 L275 242 L334 269 M157 267 Q150 279 162 285 L175 290 Q181 292 187 288 L246 260 Q256 255 266 260 L325 288 Q331 292 337 290 L350 285 Q362 279 355 267" fill="none" stroke="black" stroke-width="16" stroke-linejoin="round"/>
+    </mask>
+    <mask id="prayer-seam-0-4-0_625-48-720-0_75" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512" style="mask-type:luminance">
+      <rect width="512" height="512" fill="white"/>
+      <path d="M256 201 V232" fill="none" stroke="black" stroke-width="4" stroke-linecap="round"/>
+    </mask>
+  </defs>
+  <g mask="url(#prayer-outline-0-4-0_625-48-720-0_75)">
+  <g fill="none" stroke="#142D4E" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M213 210 C177 214 147 198 137 174 L132 162 M299 210 C335 214 365 198 375 174 L380 162"/>
+    <path d="M207 233 C174 268 133 283 102 261 M305 233 C338 268 379 283 410 261"/>
+  </g>
+  <g fill="#142D4E">
+    <circle cx="256" cy="132" r="49"/>
+    <path fill-rule="evenodd" d="M240 173 H272 V189 C294 190 313 199 315 217 C317 240 300 275 292 306 L286 327 L326 312 C341 306 353 313 365 326 L401 370 C418 391 404 420 378 424 C338 431 174 431 134 424 C108 420 94 391 111 370 L147 326 C159 313 171 306 186 312 L226 327 L220 306 C212 275 195 240 197 217 C199 199 218 190 240 189Z M160 355 C201 366 250 387 298 399 C257 397 206 384 166 369 Q155 365 160 355Z"/>
+  </g>
+  </g>
+  <path d="M207 226 L178 269 L237 242 L244 230 V204 Q244 195 252 195 H260 Q268 195 268 204 V230 L275 242 L334 269 L305 226 L323 220 L355 267 Q362 279 350 285 L337 290 Q331 292 325 288 L266 260 Q256 255 246 260 L187 288 Q181 292 175 290 L162 285 Q150 279 157 267 L189 220Z" fill="#142D4E" mask="url(#prayer-seam-0-4-0_625-48-720-0_75)"/>
+  <path fill="#FFD34E" d="M256 100 L262.47 113.1 L276.93 115.2 L266.47 125.4 L268.94 139.8 L256 133 L243.06 139.8 L245.53 125.4 L235.07 115.2 L249.53 113.1Z"/></g><g transform="translate(346 66) scale(1.75)"><g fill="none" stroke="#142D4E" stroke-width="15" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M20 104 V45 M20 62 C20 33 54 33 54 62 V104 M54 62 C54 33 88 33 88 62 V104"/>
+    <path d="M163 74 C163 33 111 33 111 74 C111 115 163 115 163 74 M163 44 V104"/>
+    <path d="M240 74 C240 33 188 33 188 74 C188 115 240 115 240 74 M240 44 V116 C240 145 212 153 193 136"/>
+    <path d="M280 44 V104"/>
+  </g>
+  <circle fill="#142D4E" cx="280" cy="16" r="8"/></g></g><text x="816" y="758" fill="#142D4E" font-family="DejaVu Sans, sans-serif" font-size="16">SMALL ICON</text><g transform="translate(816 784) scale(1.5)"><rect width="64" height="64" rx="12" fill="#F7F5EF"/>
+  <circle cx="32" cy="24" r="19" fill="#142D4E"/>
+  <path d="M27 39 H37 V44 C47 45 54 50 54 60 H10 C10 50 17 45 27 44Z" fill="#142D4E"/>
+  <path d="M32 10 L35.09 16.25 L42 17.25 L37 22.13 L38.18 29 L32 25.76 L25.82 29 L27 22.13 L22 17.25 L28.91 16.25Z" fill="#FFD34E"/></g><g transform="translate(942 816) scale(1)"><rect width="64" height="64" rx="12" fill="#F7F5EF"/>
+  <circle cx="32" cy="24" r="19" fill="#142D4E"/>
+  <path d="M27 39 H37 V44 C47 45 54 50 54 60 H10 C10 50 17 45 27 44Z" fill="#142D4E"/>
+  <path d="M32 10 L35.09 16.25 L42 17.25 L37 22.13 L38.18 29 L32 25.76 L25.82 29 L27 22.13 L22 17.25 L28.91 16.25Z" fill="#FFD34E"/></g><g transform="translate(1036 848) scale(0.5)"><rect width="64" height="64" rx="12" fill="#F7F5EF"/>
+  <circle cx="32" cy="24" r="19" fill="#142D4E"/>
+  <path d="M27 39 H37 V44 C47 45 54 50 54 60 H10 C10 50 17 45 27 44Z" fill="#142D4E"/>
+  <path d="M32 10 L35.09 16.25 L42 17.25 L37 22.13 L38.18 29 L32 25.76 L25.82 29 L27 22.13 L22 17.25 L28.91 16.25Z" fill="#FFD34E"/></g><g transform="translate(1106 864) scale(0.25)"><rect width="64" height="64" rx="12" fill="#F7F5EF"/>
+  <circle cx="32" cy="24" r="19" fill="#142D4E"/>
+  <path d="M27 39 H37 V44 C47 45 54 50 54 60 H10 C10 50 17 45 27 44Z" fill="#142D4E"/>
+  <path d="M32 10 L35.09 16.25 L42 17.25 L37 22.13 L38.18 29 L32 25.76 L25.82 29 L27 22.13 L22 17.25 L28.91 16.25Z" fill="#FFD34E"/></g><text x="816" y="910" fill="#142D4E" font-family="DejaVu Sans, sans-serif" font-size="14">96</text><text x="942" y="910" fill="#142D4E" font-family="DejaVu Sans, sans-serif" font-size="14">64</text><text x="1036" y="910" fill="#142D4E" font-family="DejaVu Sans, sans-serif" font-size="14">32</text><text x="1106" y="910" fill="#142D4E" font-family="DejaVu Sans, sans-serif" font-size="14">16</text><rect x="64" y="1020" width="44" height="44" rx="8" fill="#142D4E" stroke="#142D4E" stroke-width="1"/><text x="124" y="1048" fill="#142D4E" font-family="DejaVu Sans, sans-serif" font-size="16">NAVY / #142D4E</text><rect x="420" y="1020" width="44" height="44" rx="8" fill="#FFD34E" stroke="#142D4E" stroke-width="1"/><text x="480" y="1048" fill="#142D4E" font-family="DejaVu Sans, sans-serif" font-size="16">YELLOW / #FFD34E</text><rect x="800" y="1020" width="44" height="44" rx="8" fill="#F7F5EF" stroke="#142D4E" stroke-width="1"/><text x="860" y="1048" fill="#142D4E" font-family="DejaVu Sans, sans-serif" font-size="16">IVORY / #F7F5EF</text>
+</svg>
