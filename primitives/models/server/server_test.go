@@ -78,7 +78,7 @@ func TestCatalog(t *testing.T) {
 	}
 	// A persona that asks for a hosted model by name, with no fallback.
 	sel, err = user.Select(ctx, api.SelectRequest{Task: ptr("note-taker"), Selector: &api.Selector{Name: ptr("glm-5.3"), OnlyName: ptr(true)}})
-	if err != nil || len(sel.Candidates) != 1 || sel.Candidates[0].Model.Name != "glm-5.3" || sel.Candidates[0].Reason != "named" {
+	if err != nil || len(sel.Candidates) != 1 || sel.Candidates[0].Model.Name != "glm-5.3" || sel.Candidates[0].Reason != "named; cost date unknown" {
 		t.Fatalf("select by name: %+v %v", sel, err)
 	}
 	// A task with no default: only the selector.

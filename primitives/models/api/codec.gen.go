@@ -582,9 +582,18 @@ func DecodeEndpoint(csilData []byte) (Endpoint, error) {
 
 // csilEncCost builds the canonical CBOR value tree for a Cost.
 func csilEncCost(csilV Cost) cborValue {
-	csilEntries := make(cborMap, 0, 2)
+	csilEntries := make(cborMap, 0, 5)
+	if csilV.Source != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("source"), cborText((*csilV.Source))})
+	}
+	if csilV.AsOfMs != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("as_of_ms"), cborUint((*csilV.AsOfMs))})
+	}
 	csilEntries = append(csilEntries, cborEntry{cborText("input_per_mtok"), cborUint(csilV.InputPerMtok)})
 	csilEntries = append(csilEntries, cborEntry{cborText("output_per_mtok"), cborUint(csilV.OutputPerMtok)})
+	if csilV.CachedInputPerMtok != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("cached_input_per_mtok"), cborUint((*csilV.CachedInputPerMtok))})
+	}
 	return csilEntries
 }
 
@@ -612,6 +621,27 @@ func csilDecCost(csilRoot cborValue) (Cost, error) {
 			return csilOut, csilErr
 		}
 		csilOut.OutputPerMtok = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "cached_input_per_mtok"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.CachedInputPerMtok = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "as_of_ms"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.AsOfMs = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "source"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Source = &csilVal
 	}
 	return csilOut, nil
 }

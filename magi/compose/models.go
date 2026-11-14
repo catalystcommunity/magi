@@ -74,7 +74,7 @@ func modelVars(ctx context.Context, vars map[string]string) context.Context {
 }
 
 // personaTask is the task name of the turns of one persona:
-// "persona:archimedes" -> "persona.archimedes".
+// "persona:engineering" -> "persona.engineering".
 func personaTask(persona string) string {
 	return "persona." + strings.TrimPrefix(persona, "persona:")
 }

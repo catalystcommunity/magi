@@ -61,6 +61,11 @@ type Config struct {
 	// NoteTaker turns on the note taker (notetaker.go) in persona turns
 	// that can record knowledge. MAGI_NOTE_TAKER=false turns it off.
 	NoteTaker bool
+	// NoteGate: the note taker does not run when the decision model
+	// (task "decide") gives a probability less than this that the message
+	// has something for the notes (notegate.go). MAGI_NOTE_GATE; 0 turns
+	// the gate off. It needs the model catalog.
+	NoteGate float64
 	// TimeZone is the time zone of the household (MAGI_TIME_ZONE): the
 	// time in the persona prompt and the times of to-dos.
 	TimeZone *time.Location
@@ -126,6 +131,12 @@ func ConfigFromEnv() (Config, error) {
 		Publisher:    os.Getenv("MAGI_PUBLISHER"),
 		CheckCommand: env("MAGI_CHECK_COMMAND", "./tools/check.sh"),
 		NoteTaker:    env("MAGI_NOTE_TAKER", "true") != "false",
+	}
+	c.NoteGate = 0.15
+	if g := os.Getenv("MAGI_NOTE_GATE"); g != "" {
+		if f, err := strconv.ParseFloat(g, 64); err == nil && f >= 0 && f < 1 {
+			c.NoteGate = f
+		}
 	}
 	c.PersonaWorkers = 4
 	if n, err := strconv.Atoi(os.Getenv("MAGI_PERSONA_WORKERS")); err == nil && n > 0 {

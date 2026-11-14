@@ -391,8 +391,17 @@ Endpoint.from_cbor = staticmethod(_endpoint_from_cbor)
 
 def _encode_cost_value(v: "Cost") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
+    csil_x = v.source
+    if csil_x is not None:
+        csil_m["source"] = csil_x
+    csil_x = v.as_of_ms
+    if csil_x is not None:
+        csil_m["as_of_ms"] = csil_x
     csil_m["input_per_mtok"] = v.input_per_mtok
     csil_m["output_per_mtok"] = v.output_per_mtok
+    csil_x = v.cached_input_per_mtok
+    if csil_x is not None:
+        csil_m["cached_input_per_mtok"] = csil_x
     return csil_m
 
 def _decode_cost_value(tree: Any) -> "Cost":
@@ -400,6 +409,9 @@ def _decode_cost_value(tree: Any) -> "Cost":
     return Cost(
         input_per_mtok=_csil_expect_uint(tree["input_per_mtok"]),
         output_per_mtok=_csil_expect_uint(tree["output_per_mtok"]),
+        cached_input_per_mtok=(None if tree.get("cached_input_per_mtok") is None else _csil_expect_uint(tree["cached_input_per_mtok"])),
+        as_of_ms=(None if tree.get("as_of_ms") is None else _csil_expect_uint(tree["as_of_ms"])),
+        source=(None if tree.get("source") is None else _csil_expect_text(tree["source"])),
     )
 
 

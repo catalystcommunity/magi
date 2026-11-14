@@ -14,8 +14,11 @@ type Endpoint struct {
 
 // Cost represents a structured data type
 type Cost struct {
-	InputPerMtok  uint64 `json:"input_per_mtok" yaml:"input_per_mtok"`
-	OutputPerMtok uint64 `json:"output_per_mtok" yaml:"output_per_mtok"`
+	InputPerMtok       uint64  `json:"input_per_mtok" yaml:"input_per_mtok"`
+	OutputPerMtok      uint64  `json:"output_per_mtok" yaml:"output_per_mtok"`
+	CachedInputPerMtok *uint64 `json:"cached_input_per_mtok,omitempty" yaml:"cached_input_per_mtok,omitempty"`
+	AsOfMs             *uint64 `json:"as_of_ms,omitempty" yaml:"as_of_ms,omitempty"`
+	Source             *string `json:"source,omitempty" yaml:"source,omitempty"`
 }
 
 // Model represents a structured data type

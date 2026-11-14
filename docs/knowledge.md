@@ -155,6 +155,26 @@ separate step, the note taker:
    rules and the conflict rule of `remember` apply.
 4. The persona model gets a list of what Magi did, and writes the reply.
 
+### Note gate
+
+The note taker uses the large model, and most messages have no fact
+(questions, requests, small talk). The note gate asks a decision model
+(task `decide`, a small GPU) the question `record` of
+`evals/decide/eval_notes.py`: "Does the message tell something new that
+the notes must keep?" The gate and the note taker start at the same time.
+When the probability of yes is less than `MAGI_NOTE_GATE` (default 0.15),
+Magi stops the note taker, and the turn has no note operations. With no
+answer in 5 seconds, or with an error, the note taker continues. 0 turns
+the gate off. The turn log has the answer (`gate`: yes, model, ms, skip).
+
+On data5 test, calibrated Gemma 4 E4B with 0.15 stops the note taker for
+18.6% of the messages and misses 4.1% of the messages that have a fact
+(30 of 729). data5 has more facts than real conversations, so the gate
+stops more in real use. A missed fact is usually not clear in the
+message; the persona tools can still record it. The question and the
+state must stay the same as in the eval, because the calibration of the
+catalog is for them (`notegate_test.go` checks this).
+
 The note taker gives no operation when the words do not make clear if a
 fact changed or was wrong. Then the persona asks. `update`, `fix`, and
 `retract` need an id from the records. The persona tools stay: the

@@ -16,7 +16,7 @@ Each model has:
 | `endpoint` | `base_url` (`http://ht0-studiodt.revconn/v1` for an inference host that connects out), `model`, `key_ref` |
 | `tags` | `local`, `hosted`, `small`, `chat`, `tools`, `schema`, `vision`, `decide`, `notetaker` |
 | `attributes` | `base: gemma-4-12b`, `gpu: rx7600`, `context: 32768` |
-| `cost` | micro-dollars for each million input and output tokens; 0 is free |
+| `cost` | micro-dollars for each million input and output tokens; 0 is free. `as_of_ms` and `source`: when and where the operator read the price |
 | `scores` | eval results, for example `notetaker/data5-test: 0.93` |
 | `calibration` | the temperature of each decision question (`record: 1.57`) |
 | `enabled` | a disabled model is never selected |
@@ -31,7 +31,7 @@ A task is a name for one kind of model call. Magi uses these tasks:
 | Task | Call |
 | --- | --- |
 | `persona-turn` | A persona reply (tools) |
-| `persona.<id>` | The replies of one persona, for example `persona.archimedes`; then `persona-turn` |
+| `persona.<id>` | The replies of one persona, for example `persona.engineering` (Archimedes, persona id `persona:engineering`); then `persona-turn` |
 | `note-taker` | The note taker in a persona turn; then `librarian` |
 | `librarian` | The librarian (classification of utterances) |
 | `search-judge` | The check and filter of web searches; then `librarian` |
@@ -47,7 +47,7 @@ the fallback when the catalog does not answer.
 The operator sets a default with `put_task`. For example:
 
 - `note-taker`: `{"all": ["notetaker"], "rank_by": "notetaker/data5-test"}`
-- `persona.archimedes`: `{"name": "glm-5.3", "all": ["tools"]}`: GLM
+- `persona.engineering`: `{"name": "glm-5.3", "all": ["tools"]}`: GLM
   first, then the other models with tools.
 - `decide`: `{"all": ["decide"], "any": ["small"]}`: a decision model on
   a small GPU.
@@ -90,6 +90,25 @@ labels; it writes no text (`evals/decide/README.md`). A small model on a
 small GPU can do this work, so the large GPUs stay free for the large
 models. Give such a model the tags `decide` and `small`, and give the task
 `decide` a default that prefers them.
+
+The note gate (`docs/knowledge.md`, "Note gate") uses the task `decide`
+to stop the note taker for messages with no fact.
+
+## Prices
+
+Prices of providers change. Give each price that is not 0 the date when
+you read it (`cost.as_of_ms`) and the source (`cost.source`). `select`
+adds "cost date unknown" to the reason of a model with no date, and "cost
+stale (date)" when the price is older than 90 days. Read the price again,
+then put the model again. `tools/models.py list` shows the price and its
+date.
+
+## Persona defaults
+
+| Task | Selector | Why |
+| --- | --- | --- |
+| `persona-turn` | `{"name": "gemma-4-12b-vr1", "all": ["tools"]}` | The local models first (free), then the hosted models |
+| `persona.engineering` | `{"name": "glm-5.3", "all": ["tools"]}` | Archimedes does engineering work, which needs the large model; then the local models |
 
 ## Scores from evals
 

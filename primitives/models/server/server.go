@@ -4,6 +4,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"regexp"
 	"time"
 
@@ -37,6 +38,24 @@ var _ api.ModelService = (*Service)(nil)
 // Register adds the service operations to s.
 func Register(s *rpc.Server, svc *Service) {
 	s.Register("ModelService", api.ModelServiceOps(svc))
+}
+
+// StaleCost is the age after which select tells that a price can be old.
+const StaleCost = 90 * 24 * time.Hour
+
+// costAge tells the age of a price that is not 0: no date, or older than
+// StaleCost. A free model has no price to get old.
+func costAge(c api.Cost, now uint64) string {
+	if c.InputPerMtok+c.OutputPerMtok == 0 {
+		return ""
+	}
+	if c.AsOfMs == nil || *c.AsOfMs == 0 {
+		return "; cost date unknown"
+	}
+	if age := time.Duration(now-min(now, *c.AsOfMs)) * time.Millisecond; age > StaleCost {
+		return fmt.Sprintf("; cost stale (%s)", time.UnixMilli(int64(*c.AsOfMs)).UTC().Format("2006-01-02"))
+	}
+	return ""
 }
 
 var nameRE = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,99}$`)
@@ -89,6 +108,12 @@ func (s *Service) PutModel(ctx context.Context, req api.PutModelRequest) (api.Mo
 		if !nameRE.MatchString(t) {
 			return api.Model{}, rpc.Invalid("tag %q: use a-z 0-9 . _ -", t)
 		}
+	}
+	if m.Cost.AsOfMs != nil && *m.Cost.AsOfMs > s.now()+24*3600*1000 {
+		return api.Model{}, rpc.Invalid("cost as_of_ms is in the future")
+	}
+	if m.Cost.Source != nil && len(*m.Cost.Source) > 500 {
+		return api.Model{}, rpc.Invalid("cost source is too long")
 	}
 	for k, v := range m.Calibration {
 		if v <= 0 {
@@ -233,6 +258,10 @@ func (s *Service) Select(ctx context.Context, req api.SelectRequest) (api.Select
 	}
 	if c == nil {
 		c = []api.Candidate{}
+	}
+	now := s.now()
+	for i := range c {
+		c[i].Reason += costAge(c[i].Model.Cost, now)
 	}
 	return api.SelectResponse{Candidates: c, Selector: sel}, nil
 }

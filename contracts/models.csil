@@ -24,9 +24,17 @@ Endpoint = {
 }
 
 ;;; Costs in micro-dollars for each million tokens. 0 is free.
+;;; cached_input_per_mtok: the cost of input from the prompt cache of the
+;;; provider.
+;;; as_of_ms: when the operator read the price. Prices change: select
+;;; tells when a price is older than 90 days ("cost stale").
+;;; source: where the price came from, for example a URL.
 Cost = {
   input_per_mtok: uint,
   output_per_mtok: uint,
+  ? cached_input_per_mtok: uint,
+  ? as_of_ms: uint,
+  ? source: text,
 }
 
 ;;; tags: classes and abilities, for example "local", "hosted", "small",

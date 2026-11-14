@@ -23,10 +23,18 @@ export interface Endpoint {
 
 /**
  * Costs in micro-dollars for each million tokens. 0 is free.
+ * cached_input_per_mtok: the cost of input from the prompt cache of the
+ * provider.
+ * as_of_ms: when the operator read the price. Prices change: select
+ * tells when a price is older than 90 days ("cost stale").
+ * source: where the price came from, for example a URL.
  */
 export interface Cost {
   inputPerMtok: number;
   outputPerMtok: number;
+  cachedInputPerMtok?: number;
+  asOfMs?: number;
+  source?: string;
 }
 
 /**

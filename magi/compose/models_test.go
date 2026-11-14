@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -166,6 +167,7 @@ func TestModelRouter(t *testing.T) {
 type fakeDecider struct {
 	inferenceapi.InferenceService
 	down bool
+	yes  float64 // 0 is 0.9
 	got  inferenceapi.DecideRequest
 }
 
@@ -175,8 +177,12 @@ func (f *fakeDecider) Decide(_ context.Context, r inferenceapi.DecideRequest) (i
 	}
 	f.got = r
 	var out []inferenceapi.Answer
+	yes := f.yes
+	if yes == 0 {
+		yes = 0.9
+	}
 	for _, q := range r.Questions {
-		out = append(out, inferenceapi.Answer{Id: q.Id, Probs: []float64{0.9, 0.1}, Answer: "yes", Confidence: 0.9})
+		out = append(out, inferenceapi.Answer{Id: q.Id, Probs: []float64{yes, 1 - yes}, Answer: "yes", Confidence: max(yes, 1-yes)})
 	}
 	return inferenceapi.DecideResponse{Answers: out, Model: deref(r.Model), Ms: 3}, nil
 }
@@ -219,5 +225,21 @@ func TestDecision(t *testing.T) {
 	}
 	if _, err := sys.Decide(context.Background(), "no-such-task", nil, false, "state", qs); rpc.CodeOf(err) != 503 {
 		t.Fatalf("no model: %v", err)
+	}
+
+	// The note gate: off, yes, and no.
+	if _, on := sys.noteGate(context.Background(), "Ana", "", "Hi"); on {
+		t.Fatal("gate with NoteGate 0")
+	}
+	sys.Cfg.NoteGate = 0.15
+	if g, on := sys.noteGate(context.Background(), "Ana", "", "My sister Bea moved to Oslo."); !on || g.Skip || g.Model != "more-0" {
+		t.Fatalf("gate yes: %+v %v", g, on)
+	}
+	if !strings.Contains(ok.got.State, "Message from Ana to the assistant:\nMy sister Bea moved to Oslo.") || ok.got.Questions[0].Question != recordQuestion {
+		t.Fatalf("gate request: %+v", ok.got)
+	}
+	ok.yes = 0.05
+	if g, on := sys.noteGate(context.Background(), "Ana", "", "What time is it?"); !on || !g.Skip {
+		t.Fatalf("gate no: %+v %v", g, on)
 	}
 }

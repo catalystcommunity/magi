@@ -203,8 +203,30 @@ func (s *System) applyNotes(ctx context.Context, a workflowapi.Assignment, as co
 			before = append([]conversationapi.Utterance{hist[i]}, before...)
 		}
 	}
+	// The gate (notegate.go) and the note taker run at the same time, so
+	// that the gate adds no time. A "no" of the gate stops the note taker.
 	start := time.Now()
-	items, served, err := s.takeNotes(ctx, utt.Text, notes, before)
+	nctx, stop := context.WithCancel(ctx)
+	defer stop()
+	type notesResult struct {
+		items  []noteItem
+		served string
+		err    error
+	}
+	ch := make(chan notesResult, 1)
+	go func() {
+		items, served, err := s.takeNotes(nctx, utt.Text, notes, before)
+		ch <- notesResult{items, served, err}
+	}()
+	if g, ok := s.noteGate(ctx, a.Vars["owner_name"], notes, utt.Text); ok || g.Error != "" {
+		log.Gate = &g
+		if g.Skip {
+			stop()
+			return nil
+		}
+	}
+	r := <-ch
+	items, served, err := r.items, r.served, r.err
 	call := modelCall{Served: served, Ms: time.Since(start).Milliseconds()}
 	if err != nil {
 		call.Error = err.Error()

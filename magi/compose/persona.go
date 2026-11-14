@@ -73,6 +73,8 @@ type turnLog struct {
 	Models []modelCall `json:"models"`
 	// Notes is the model call of the note taker, when it ran.
 	Notes *modelCall `json:"notes,omitempty"`
+	// Gate is the answer of the note gate (notegate.go), when it ran.
+	Gate *gateResult `json:"gate,omitempty"`
 	// Phases is the time of each part of the turn, in milliseconds:
 	// queue (from the message to the start of the turn), read, related,
 	// context, notes, models, tools.
@@ -378,7 +380,7 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 		notesModel = log.Notes.Served
 	}
 	s.Log.Info("persona turn", "run", a.Run, "model", served, "model_ms", ms, "calls", len(log.Models), "models", log.Models,
-		"notes_model", notesModel, "phases", ph.ms)
+		"notes_model", notesModel, "gate", log.Gate, "phases", ph.ms)
 	if body, err := json.Marshal(log); err == nil {
 		if _, err := s.Conversation.Annotate(ctx, conversationapi.AnnotateRequest{Utterance: uttID, Kind: "interpretation", Body: string(body)}); err != nil {
 			s.Log.Warn("annotate", "err", err)

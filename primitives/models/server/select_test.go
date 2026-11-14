@@ -68,3 +68,21 @@ func TestMerge(t *testing.T) {
 		t.Fatalf("merge = %+v", got)
 	}
 }
+
+func TestCostAge(t *testing.T) {
+	day := uint64(24 * 3600 * 1000)
+	now := 200 * day
+	for _, c := range []struct {
+		cost api.Cost
+		want string
+	}{
+		{api.Cost{}, ""},
+		{api.Cost{InputPerMtok: 1}, "; cost date unknown"},
+		{api.Cost{InputPerMtok: 1, AsOfMs: ptr(now - 10*day)}, ""},
+		{api.Cost{InputPerMtok: 1, AsOfMs: ptr(now - 100*day)}, "; cost stale (1970-04-11)"},
+	} {
+		if got := costAge(c.cost, now); got != c.want {
+			t.Errorf("%+v: %q, want %q", c.cost, got, c.want)
+		}
+	}
+}

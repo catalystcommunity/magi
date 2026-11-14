@@ -47,6 +47,9 @@ class Endpoint:
 class Cost:
     input_per_mtok: int
     output_per_mtok: int
+    cached_input_per_mtok: Optional[int] = None
+    as_of_ms: Optional[int] = None
+    source: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -54,12 +57,18 @@ class Cost:
             result['input_per_mtok'] = self.input_per_mtok
         if hasattr(self, 'output_per_mtok') and self.output_per_mtok is not None:
             result['output_per_mtok'] = self.output_per_mtok
+        if hasattr(self, 'cached_input_per_mtok') and self.cached_input_per_mtok is not None:
+            result['cached_input_per_mtok'] = self.cached_input_per_mtok
+        if hasattr(self, 'as_of_ms') and self.as_of_ms is not None:
+            result['as_of_ms'] = self.as_of_ms
+        if hasattr(self, 'source') and self.source is not None:
+            result['source'] = self.source
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Cost':
         """Create instance from dictionary."""
-        return cls(input_per_mtok=data.get('input_per_mtok'), output_per_mtok=data.get('output_per_mtok'))
+        return cls(input_per_mtok=data.get('input_per_mtok'), output_per_mtok=data.get('output_per_mtok'), cached_input_per_mtok=data.get('cached_input_per_mtok'), as_of_ms=data.get('as_of_ms'), source=data.get('source'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

@@ -370,8 +370,11 @@ export function fromEndpointCbor(bytes: Uint8Array): Endpoint {
 
 export function toCostCborValue(v: Cost): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
+  if (v.source !== undefined) csilMap.set("source", v.source);
+  if (v.asOfMs !== undefined) csilMap.set("as_of_ms", v.asOfMs);
   csilMap.set("input_per_mtok", v.inputPerMtok);
   csilMap.set("output_per_mtok", v.outputPerMtok);
+  if (v.cachedInputPerMtok !== undefined) csilMap.set("cached_input_per_mtok", v.cachedInputPerMtok);
   return csilMap;
 }
 
@@ -379,6 +382,9 @@ export function fromCostCborValue(value: CborValue): Cost {
   return {
     inputPerMtok: asNumber(requireKey(value, "input_per_mtok")),
     outputPerMtok: asNumber(requireKey(value, "output_per_mtok")),
+    cachedInputPerMtok: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "cached_input_per_mtok")),
+    asOfMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "as_of_ms")),
+    source: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "source")),
   };
 }
 

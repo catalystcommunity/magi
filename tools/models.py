@@ -14,6 +14,7 @@ import argparse
 import json
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "clients", "python"))
 from magi_rpc import HttpTransport  # noqa: E402
@@ -32,6 +33,14 @@ def model(d):
     for k, v in (("tags", []), ("attributes", {}), ("scores", {}), ("calibration", {}), ("enabled", True), ("updated_ms", 0), ("description", "")):
         d.setdefault(k, v)
     return T.Model(**d)
+
+
+def cost(c):
+    """$ per million tokens, and the date of the price."""
+    if c.input_per_mtok + c.output_per_mtok == 0:
+        return "free"
+    when = time.strftime("%Y-%m-%d", time.gmtime(c.as_of_ms / 1000)) if c.as_of_ms else "date unknown"
+    return f"${c.input_per_mtok / 1e6:g}/${c.output_per_mtok / 1e6:g} per MTok (as of {when})"
 
 
 def main():
@@ -63,7 +72,7 @@ def main():
             print("task", t["task"])
     elif args.cmd == "list":
         for m in c.list_models(T.ListModelsRequest(include_disabled=True)).models:
-            print(f"{m.name:28} {'on ' if m.enabled else 'off'} {m.endpoint.base_url} {m.endpoint.model} tags={','.join(m.tags)}")
+            print(f"{m.name:28} {'on ' if m.enabled else 'off'} {m.endpoint.base_url} {m.endpoint.model} tags={','.join(m.tags)} {cost(m.cost)}")
         for t in c.list_tasks(T.ListTasksRequest()).tasks:
             print(f"task {t.task:20} {t.selector}")
     elif args.cmd == "select":
