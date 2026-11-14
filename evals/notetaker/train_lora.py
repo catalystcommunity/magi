@@ -4,7 +4,8 @@
       --out OUT_DIR [--init-adapter DIR] [--max-steps N] [--epochs E] [--lr LR] [--rank R] [--save-steps N] [--save-limit K]
 
 The data are the chat records of `notes-eval -export` (system prompt, the
-input of the note taker, the target answer). The loss counts only the
+input of the note taker, the target answer), or plain prompt and
+completion text (`evals/decide/export_train.py --format gemma4`). The loss counts only the
 answer. The base loads in 4 bits (QLoRA), so a 12B model trains on a
 16 GB GPU. The adapter goes to OUT_DIR; convert it for llama.cpp with
 convert_lora_to_gguf.py and serve it with `llama-server --lora`.
@@ -25,7 +26,12 @@ def records(pattern):
     out = []
     for f in sorted(glob.glob(pattern)):
         for line in open(f):
-            m = json.loads(line)["messages"]
+            r = json.loads(line)
+            if "prompt" in r:
+                # Plain text (evals/decide/export_train.py --format gemma4).
+                out.append({"prompt": r["prompt"], "completion": r["completion"]})
+                continue
+            m = r["messages"]
             # prompt: system + user; completion: the answer.
             out.append({"prompt": m[:2], "completion": m[2:]})
     return out
@@ -47,6 +53,9 @@ def main():
     ap.add_argument("--warmup", type=int, default=10, help="warmup steps")
     ap.add_argument("--dropout", type=float, default=0.05)
     ap.add_argument("--init-adapter", default="", help="continue the training of this adapter (a PEFT directory)")
+    ap.add_argument("--target-regex", default="",
+                    help="LoRA modules as a regex, for example '.*language_model.*\\.(q|k|v|o|gate|up|down)_proj' (Gemma 4 E4B: not the audio and vision towers)")
+    ap.add_argument("--attn", default="sdpa", help="attention implementation; eager for Gemma 4 E4B (its audio model has no sdpa)")
     a = ap.parse_args()
 
     data = Dataset.from_list(records(a.data)).shuffle(seed=1)
@@ -55,9 +64,9 @@ def main():
         a.base,
         quantization_config=BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",
                                                bnb_4bit_compute_dtype=torch.bfloat16, bnb_4bit_use_double_quant=True),
-        dtype=torch.bfloat16, device_map={"": 0}, attn_implementation="sdpa")
-    lora = LoraConfig(r=a.rank, lora_alpha=2 * a.rank, lora_dropout=a.dropout, task_type="CAUSAL_LM",
-                      target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"])
+        dtype=torch.bfloat16, device_map={"": 0}, attn_implementation=a.attn)
+    targets = a.target_regex or ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+    lora = LoraConfig(r=a.rank, lora_alpha=2 * a.rank, lora_dropout=a.dropout, task_type="CAUSAL_LM", target_modules=targets)
     cfg = SFTConfig(output_dir=a.out, num_train_epochs=a.epochs, max_steps=a.max_steps, learning_rate=a.lr,
                     per_device_train_batch_size=1, gradient_accumulation_steps=a.accum, lr_scheduler_type="cosine",
                     warmup_steps=a.warmup, logging_steps=5, save_steps=a.save_steps,

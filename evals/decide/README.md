@@ -85,10 +85,32 @@ questions take about 80 ms.
 `results/` has the scores, the temperatures, and the log-probabilities of
 each question (gzip).
 
+## Small models (2026-11-14, data5 test, calibrated on dev)
+
+| Question | Gemma 4 12B | Gemma 4 E4B | Qwen 3.5 4B | Qwen 2.5 1.5B |
+| --- | --- | --- | --- | --- |
+| `record` | 94.9% | 84.2% | 88.7% | 78.4% |
+| `asks` | 98.5% | 98.5% | 98.3% | 83.0% |
+| `task` | 97.5% | 90.5% | 86.9% | 76.6% |
+| `about` | 77.1% | 82.2% | 74.3% | 42.1% |
+| `kind` | 76.0% | 62.1% | 50.6% | 32.4% |
+| Median for each question (RTX 4080) | 167 ms | 69 ms | 279 ms | 28 ms |
+
+Qwen 3.5 has recurrent layers: llama.cpp cannot reuse a part of the
+prompt, so each question reads the full state again. Gemma 4 E4B reuses
+the prompt of the state (`--swa-full`) and is the best small model.
+
+On lab-nas (RX 7600, 8 GB, with 3.6 GB used by the speech engines), E4B
+runs with its per-layer embeddings on the CPU:
+`--device Vulkan1 -ngl 99 -ot per_layer_token_embd=CPU --swa-full -c 8192 -np 2`.
+The GPU then uses 7.2 GB in total. The first question of a state takes
+about 430 ms; the next questions take about 190 ms. Through Magi
+(`MagiService/decision`, 3 questions): 330 to 430 ms on the host.
+
 ## Next
 
-1. `decide` in the inference host (`primitives/inference`), so that the
-   host sees the work as its own and can use the prompt cache.
+1. Done: `InferenceService/decide` in the inference host, and
+   `MagiService/decision` with the model catalog (`docs/models.md`).
 2. A LoRA for decisions, trained on the questions of `train5` (about
    28,000 answers of one token). This is the training step of Jev that
    the method above does not have.
