@@ -373,7 +373,12 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 	}
 	ph.mark("tools")
 	log.Phases = ph.ms
-	s.Log.Info("persona turn", "run", a.Run, "model", served, "model_ms", ms, "calls", len(log.Models), "models", log.Models, "phases", ph.ms)
+	notesModel := ""
+	if log.Notes != nil {
+		notesModel = log.Notes.Served
+	}
+	s.Log.Info("persona turn", "run", a.Run, "model", served, "model_ms", ms, "calls", len(log.Models), "models", log.Models,
+		"notes_model", notesModel, "phases", ph.ms)
 	if body, err := json.Marshal(log); err == nil {
 		if _, err := s.Conversation.Annotate(ctx, conversationapi.AnnotateRequest{Utterance: uttID, Kind: "interpretation", Body: string(body)}); err != nil {
 			s.Log.Warn("annotate", "err", err)
