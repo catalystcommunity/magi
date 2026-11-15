@@ -44,7 +44,7 @@ func (s *Service) PTYHandler(ver *authn.Verifier) http.Handler {
 			if code == 0 {
 				code = http.StatusInternalServerError
 			}
-			http.Error(w, err.Error(), code)
+			http.Error(w, ptyMessage(err, code), code)
 			return
 		}
 		cols, _ := strconv.ParseUint(q.Get("cols"), 10, 16)
@@ -58,7 +58,7 @@ func (s *Service) PTYHandler(ver *authn.Verifier) http.Handler {
 		}
 		if err != nil {
 			e := s.agentError(ctx, rec, err)
-			http.Error(w, e.Error(), rpc.CodeOf(e))
+			http.Error(w, ptyMessage(e, rpc.CodeOf(e)), rpc.CodeOf(e))
 			return
 		}
 		defer pty.Close()
@@ -84,4 +84,14 @@ func (s *Service) PTYHandler(ver *authn.Verifier) http.Handler {
 		envd.Pipe(&envd.BufConn{Conn: conn, R: brw.Reader}, pty)
 		s.log().Info("terminal closed", "environment", rec.Env.Id, "by", p.Subject, "seconds", int(time.Since(start).Seconds()))
 	})
+}
+
+// ptyMessage is the text for a failed terminal request. Server-side errors
+// (environment ids, envd addresses) stay in the message of the 4xx only; a
+// 5xx gets a fixed text.
+func ptyMessage(err error, code int) string {
+	if code >= 500 {
+		return "the terminal is not available"
+	}
+	return err.Error()
 }

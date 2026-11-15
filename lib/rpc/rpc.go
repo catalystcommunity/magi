@@ -9,6 +9,8 @@ package rpc
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -100,6 +102,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		p, err := s.authenticate(r)
 		if err != nil {
 			writeError(w, Errorf(http.StatusUnauthorized, "%v", err))
+			if s.Log != nil {
+				s.Log.Info("rpc auth", "op", parts[0]+"/"+parts[1], "err", err)
+			}
 			return
 		}
 		ctx = authn.With(ctx, p)
@@ -126,9 +131,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		if e == nil {
 			e = Errorf(http.StatusInternalServerError, "internal error")
+		}
+		if e.Code >= 500 {
+			// Server-side detail (upstream errors, hosts, paths, ids) stays
+			// in the log. The caller gets a generic text and a reference.
+			ref := newRef()
 			if s.Log != nil {
-				s.Log.Error("rpc internal", "op", parts[0]+"/"+parts[1], "err", err)
+				s.Log.Error("rpc server error", "op", parts[0]+"/"+parts[1], "ref", ref, "code", e.Code, "err", err)
 			}
+			e = &Error{Code: e.Code, Message: serverMessage(e.Code) + " (ref " + ref + ")"}
 		}
 		writeError(w, e)
 		return
@@ -139,13 +150,32 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) authenticate(r *http.Request) (authn.Principal, error) {
 	if s.Verifier == nil {
-		return authn.Principal{}, errors.New("authentication is not configured")
+		return authn.Principal{}, errors.New("authentication required")
 	}
 	h := r.Header.Get("Authorization")
 	if !strings.HasPrefix(h, "Bearer ") {
 		return authn.Principal{}, errors.New("bearer token required")
 	}
 	return s.Verifier.Verify(strings.TrimPrefix(h, "Bearer "))
+}
+
+// newRef returns a short random correlation id for a server-side error.
+func newRef() string {
+	var b [6]byte
+	rand.Read(b[:])
+	return hex.EncodeToString(b[:])
+}
+
+func serverMessage(code int) string {
+	switch code {
+	case http.StatusServiceUnavailable:
+		return "service unavailable; try again soon"
+	case http.StatusBadGateway, http.StatusGatewayTimeout:
+		return "upstream service failed"
+	case http.StatusNotImplemented:
+		return "not available"
+	}
+	return "internal error"
 }
 
 func errString(err error) string {
@@ -238,10 +268,15 @@ func (c *Client) Call(ctx context.Context, service, op string, req []byte) ([]by
 func Mux(s *Server, ready func() error) *http.ServeMux {
 	m := http.NewServeMux()
 	m.Handle("/rpc/", s)
+	log := s.Log
 	m.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		if ready != nil {
 			if err := ready(); err != nil {
-				http.Error(w, err.Error(), http.StatusServiceUnavailable)
+				// The text can name a dependency or an address; the caller gets only the state.
+				if log != nil {
+					log.Warn("not ready", "err", err)
+				}
+				http.Error(w, "not ready", http.StatusServiceUnavailable)
 				return
 			}
 		}
