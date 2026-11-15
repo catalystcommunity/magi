@@ -180,7 +180,9 @@ python -m magi_apprentice run --local /tmp/work --instructions @task.txt \
 ```
 
 The command prints a JSON result. The exit code is 0 when the task finished
-and no check failed.
+and no check failed. The result has `usage` with the totals of the task:
+`prompt_tokens`, `completion_tokens`, `cached_tokens`, and `cost` in US
+dollars.
 
 ## Configuration
 

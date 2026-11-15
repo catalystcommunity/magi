@@ -44,6 +44,7 @@ func TestMain(m *testing.M) {
 type fakeMagi struct {
 	mu        sync.Mutex
 	posts     []string
+	notes     []string
 	artifacts map[string][]byte
 	proxy     *magiapi.RunnerEgressProxy
 }
@@ -58,7 +59,10 @@ func (f *fakeMagi) Claim(context.Context, magiapi.RunnerClaimRequest) (magiapi.R
 func (f *fakeMagi) Heartbeat(context.Context, magiapi.RunnerStep) (magiapi.RunnerAck, error) {
 	return magiapi.RunnerAck{Ok: true}, nil
 }
-func (f *fakeMagi) Progress(context.Context, magiapi.RunnerProgressRequest) (magiapi.RunnerAck, error) {
+func (f *fakeMagi) Progress(_ context.Context, req magiapi.RunnerProgressRequest) (magiapi.RunnerAck, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.notes = append(f.notes, req.Note)
 	return magiapi.RunnerAck{Ok: true}, nil
 }
 func (f *fakeMagi) Complete(context.Context, magiapi.RunnerCompleteRequest) (magiapi.RunnerAck, error) {
