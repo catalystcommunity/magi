@@ -22,10 +22,8 @@ var baseKnowledge embed.FS
 // baseKnowledgeFile is the one file of base knowledge.
 const baseKnowledgeFile = "baseknowledge/review-lessons.md"
 
-// lessonID is "rl-" and four digits.
-var lessonID = regexp.MustCompile(`^rl-\d{4}$`)
-
-// lessonHeader is the first line of a section: "## rl-0001: <title>".
+// lessonHeader is the first line of a section: "## rl-0001: <title>". The id
+// is "rl-" and four digits; no other form is a lesson header.
 var lessonHeader = regexp.MustCompile(`^## (rl-\d{4}): (.+)$`)
 
 // Lesson is one lesson of a code review.
@@ -71,15 +69,17 @@ func parseLessons(name, in string) ([]Lesson, error) {
 				return nil, err
 			}
 			id, title := m[1], strings.TrimSpace(m[2])
-			if !lessonID.MatchString(id) {
-				return nil, fmt.Errorf("%s: %q is not a lesson id", name, id)
-			}
 			if seen[id] {
 				return nil, fmt.Errorf("%s: %s is in the file two times", name, id)
 			}
 			seen[id] = true
 			cur = &Lesson{ID: id, Title: title}
 			continue
+		}
+		// A heading line that is not a lesson header is a section that the
+		// parser cannot read. Make it an error, not the text of a lesson.
+		if strings.HasPrefix(line, "##") {
+			return nil, fmt.Errorf("%s: %q is not a lesson header", name, line)
 		}
 		// The lines before the first section are the header of the file.
 		if cur == nil {
@@ -140,10 +140,19 @@ func (s *System) ImportBaseKnowledge(ctx context.Context) error {
 		return err
 	}
 	ctx = s.AsService(ctx)
+	// The graph is read before the writes. put-entity returns a new entity
+	// with the fields of the file, so only this list tells a new lesson from
+	// an unchanged one.
+	existing := s.repoLessons(ctx)
+	have := map[string]bool{}
+	for _, e := range existing {
+		have[e.Properties["lesson_id"]] = true
+	}
 	byID := map[string]bool{}
-	fixed, unchanged := 0, 0
+	added, fixed, unchanged := 0, 0, 0
 	for _, l := range lessons {
 		byID[l.ID] = true
+		was := have[l.ID]
 		e, err := s.Knowledge.PutEntity(ctx, knowledgeapi.PutEntityRequest{Kind: lessonKind, Label: l.Title, Summary: optional(l.Text),
 			Properties: map[string]string{"lesson_id": l.ID, "area": l.Area, "source": l.Source},
 			External:   &knowledgeapi.ExternalRef{System: lessonSystem, Locator: l.Locator()}, Owners: []string{lessonOwner}})
@@ -162,20 +171,25 @@ func (s *System) ImportBaseKnowledge(ctx context.Context) error {
 				set["property."+k] = v
 			}
 		}
-		if len(set) == 0 {
+		if len(set) > 0 {
+			// put-entity returns an existing entity as it is; the file is the
+			// authority, so the differences are errors of the copy.
+			if _, err := s.Knowledge.Change(ctx, knowledgeapi.ChangeRequest{Id: e.Id, Operation: "fix", Set: set,
+				Reason: optional("changed in review-lessons.md")}); err != nil {
+				return fmt.Errorf("fix lesson %s: %w", l.ID, err)
+			}
+		}
+		switch {
+		case !was:
+			added++
+		case len(set) > 0:
+			fixed++
+		default:
 			unchanged++
-			continue
 		}
-		// put-entity returns an existing entity as it is; the file is the
-		// authority, so the differences are errors of the copy.
-		if _, err := s.Knowledge.Change(ctx, knowledgeapi.ChangeRequest{Id: e.Id, Operation: "fix", Set: set,
-			Reason: optional("changed in review-lessons.md")}); err != nil {
-			return fmt.Errorf("fix lesson %s: %w", l.ID, err)
-		}
-		fixed++
 	}
 	retracted := 0
-	for _, e := range s.repoLessons(ctx) {
+	for _, e := range existing {
 		if byID[e.Properties["lesson_id"]] {
 			continue
 		}
@@ -185,16 +199,17 @@ func (s *System) ImportBaseKnowledge(ctx context.Context) error {
 		}
 		retracted++
 	}
-	s.Log.Info("base knowledge", "added", len(lessons)-fixed-unchanged, "fixed", fixed, "retracted", retracted, "unchanged", unchanged)
+	s.Log.Info("base knowledge", "added", added, "fixed", fixed, "retracted", retracted, "unchanged", unchanged)
 	return nil
 }
 
 // repoLessons finds the lesson entities that the repository owns: kind
 // "lesson", external system "magi-repo", owner "service:magi". The search
 // has no filter for an external system, so it reads the entities of the kind
-// and keeps the ones with the reference and the owner. One page of 500 is
-// more than the lessons of one repository; a bigger set needs a filter in
-// the contract.
+// and keeps the ones with the reference and the owner. Search gives only
+// current entities, so a retracted lesson is not in the list: the next start
+// does not retract it again. One page of 500 is more than the lessons of one
+// repository; a bigger set needs a filter in the contract.
 func (s *System) repoLessons(ctx context.Context) []knowledgeapi.Entity {
 	res, err := s.Knowledge.Search(ctx, knowledgeapi.SearchRequest{Types: []string{"entity"}, Kind: optional(lessonKind), Limit: ptr(uint64(500))})
 	if err != nil {

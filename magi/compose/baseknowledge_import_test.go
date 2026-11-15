@@ -4,10 +4,12 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -19,13 +21,15 @@ import (
 
 // fakeKnowledge keeps the lesson entities that the import makes. It answers
 // like the real service: put-entity returns an existing entity as it is, so
-// the import must fix the differences.
+// the import must fix the differences, and a retracted entity stays stored
+// but search does not give it.
 type fakeKnowledge struct {
 	knowledgeapi.KnowledgeService
-	mu       sync.Mutex
-	ents     []knowledgeapi.Entity
-	changes  []knowledgeapi.ChangeRequest
-	searches int
+	mu        sync.Mutex
+	ents      []knowledgeapi.Entity
+	changes   []knowledgeapi.ChangeRequest
+	retracted []string
+	searches  int
 }
 
 func (f *fakeKnowledge) PutEntity(_ context.Context, r knowledgeapi.PutEntityRequest) (knowledgeapi.Entity, error) {
@@ -56,7 +60,8 @@ func (f *fakeKnowledge) Change(_ context.Context, r knowledgeapi.ChangeRequest) 
 			continue
 		}
 		if r.Operation == "retract" {
-			f.ents = slices.Delete(f.ents, i, i+1)
+			// The real service keeps the row and hides it from queries.
+			f.retracted = append(f.retracted, f.ents[i].Id)
 			return knowledgeapi.ChangeResponse{Change: knowledgeapi.Change{Id: "chg_1", Record: r.Id, Operation: r.Operation, Actor: lessonOwner, AtMs: 1}}, nil
 		}
 		for k, v := range r.Set {
@@ -81,6 +86,9 @@ func (f *fakeKnowledge) Search(_ context.Context, r knowledgeapi.SearchRequest) 
 	out := knowledgeapi.SearchResponse{Hits: []knowledgeapi.Hit{}, Entities: []knowledgeapi.Entity{}, Claims: []knowledgeapi.Claim{},
 		Episodes: []knowledgeapi.Episode{}, Procedures: []knowledgeapi.Procedure{}}
 	for _, e := range f.ents {
+		if slices.Contains(f.retracted, e.Id) {
+			continue // the real service gives only current entities
+		}
 		if r.Kind == nil || *r.Kind == "" || e.Kind == *r.Kind {
 			out.Hits = append(out.Hits, knowledgeapi.Hit{Type: "entity", Id: e.Id})
 			out.Entities = append(out.Entities, e)
@@ -90,8 +98,10 @@ func (f *fakeKnowledge) Search(_ context.Context, r knowledgeapi.SearchRequest) 
 }
 
 // lessonRepoSystem starts a System with a fake KnowledgeService on the real HTTP
-// transport, and a client that speaks for the magi service.
-func lessonRepoSystem(t *testing.T, f *fakeKnowledge) *System {
+// transport, and a client that speaks for the magi service. The log goes to
+// buf as JSON, as in magi-server, so that a test can read the counts of the
+// import.
+func lessonRepoSystem(t *testing.T, f *fakeKnowledge, buf *strings.Builder) *System {
 	t.Helper()
 	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
 	iss := &authn.Issuer{Name: "test", KeyID: "k1", Key: priv}
@@ -103,8 +113,34 @@ func lessonRepoSystem(t *testing.T, f *fakeKnowledge) *System {
 	srv.Register("KnowledgeService", knowledgeapi.KnowledgeServiceOps(f))
 	h := httptest.NewServer(rpc.Mux(srv, nil))
 	t.Cleanup(h.Close)
-	return &System{Log: slog.New(slog.NewTextHandler(io.Discard, nil)), Cfg: Config{ServiceToken: tok},
+	return &System{Log: slog.New(slog.NewJSONHandler(buf, nil)), Cfg: Config{ServiceToken: tok},
 		Knowledge: knowledgeapi.NewKnowledgeClient(rpc.NewClient(h.URL, rpc.StaticToken(tok)))}
+}
+
+// counts reads the counts of the last "base knowledge" line of the log.
+func counts(t *testing.T, buf *strings.Builder) map[string]int {
+	t.Helper()
+	var line map[string]any
+	for _, l := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
+		if !strings.Contains(l, `"msg":"base knowledge"`) {
+			continue
+		}
+		if err := json.Unmarshal([]byte(l), &line); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if line == nil {
+		t.Fatalf("no base knowledge line in %q", buf.String())
+	}
+	out := map[string]int{}
+	for _, k := range []string{"added", "fixed", "retracted", "unchanged"} {
+		v, ok := line[k].(float64)
+		if !ok {
+			t.Fatalf("no %s in %v", k, line)
+		}
+		out[k] = int(v)
+	}
+	return out
 }
 
 func lessonOf(t *testing.T, f *fakeKnowledge, id string) knowledgeapi.Entity {
@@ -120,32 +156,41 @@ func lessonOf(t *testing.T, f *fakeKnowledge, id string) knowledgeapi.Entity {
 	return knowledgeapi.Entity{}
 }
 
-// The first import makes one entity for each lesson of the file.
+// The first import makes one entity for each lesson of the file, and counts
+// them as added: put-entity returns a new entity with the fields of the file.
 func TestImportBaseKnowledgeAdds(t *testing.T) {
 	f := &fakeKnowledge{}
-	s := lessonRepoSystem(t, f)
+	var buf strings.Builder
+	s := lessonRepoSystem(t, f, &buf)
 	if err := s.ImportBaseKnowledge(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	lessons, _ := ReviewLessons()
 	f.mu.Lock()
-	defer f.mu.Unlock()
 	if len(f.ents) != len(lessons) || len(f.changes) != 0 {
+		f.mu.Unlock()
 		t.Fatalf("entities = %d, changes = %d", len(f.ents), len(f.changes))
 	}
 	for _, e := range f.ents {
 		if e.Kind != "lesson" || e.External == nil || e.External.System != "magi-repo" ||
 			e.External.Locator != "baseknowledge/review-lessons.md#"+e.Properties["lesson_id"] ||
 			!slices.Contains(e.Owners, "service:magi") || e.Summary == "" {
+			f.mu.Unlock()
 			t.Fatalf("bad entity %+v", e)
 		}
+	}
+	f.mu.Unlock()
+	c := counts(t, &buf)
+	if c["added"] != len(lessons) || c["fixed"] != 0 || c["retracted"] != 0 || c["unchanged"] != 0 {
+		t.Fatalf("counts = %v", c)
 	}
 }
 
 // A second import changes nothing: put-entity returns the same entity.
 func TestImportBaseKnowledgeTwice(t *testing.T) {
 	f := &fakeKnowledge{}
-	s := lessonRepoSystem(t, f)
+	var buf strings.Builder
+	s := lessonRepoSystem(t, f, &buf)
 	ctx := context.Background()
 	for range 2 {
 		if err := s.ImportBaseKnowledge(ctx); err != nil {
@@ -155,13 +200,20 @@ func TestImportBaseKnowledgeTwice(t *testing.T) {
 	if len(f.changes) != 0 {
 		t.Fatalf("changes = %d", len(f.changes))
 	}
+	lessons, _ := ReviewLessons()
+	c := counts(t, &buf)
+	if c["added"] != 0 || c["fixed"] != 0 || c["retracted"] != 0 || c["unchanged"] != len(lessons) {
+		t.Fatalf("counts = %v", c)
+	}
 }
 
 // A lesson that changed in the file gets a fix; a lesson that the file no
-// longer has gets a retraction.
+// longer has gets a retraction. The next import retracts nothing: search
+// does not give a retracted entity.
 func TestImportBaseKnowledgeFixAndRetract(t *testing.T) {
 	f := &fakeKnowledge{}
-	s := lessonRepoSystem(t, f)
+	var buf strings.Builder
+	s := lessonRepoSystem(t, f, &buf)
 	ctx := context.Background()
 	if err := s.ImportBaseKnowledge(ctx); err != nil {
 		t.Fatal(err)
@@ -212,4 +264,21 @@ func TestImportBaseKnowledgeFixAndRetract(t *testing.T) {
 		t.Fatalf("fixes = %d, retractions = %d", fixed, retracted)
 	}
 	lessonOf(t, f, "rl-0001") // the other lessons stay
+	c := counts(t, &buf)
+	if c["added"] != 0 || c["fixed"] != 1 || c["retracted"] != 1 || c["unchanged"] != len(lessons)-1 {
+		t.Fatalf("counts = %v", c)
+	}
+
+	// The next start retracts nothing: the retracted lesson is not in search.
+	before := len(f.changes)
+	if err := s.ImportBaseKnowledge(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(f.changes) - before; n != 0 {
+		t.Fatalf("changes after a retraction = %d", n)
+	}
+	c = counts(t, &buf)
+	if c["added"] != 0 || c["fixed"] != 0 || c["retracted"] != 0 || c["unchanged"] != len(lessons) {
+		t.Fatalf("counts after a retraction = %v", c)
+	}
 }

@@ -170,9 +170,8 @@ func run(listen, keys string, workers bool, log *slog.Logger) error {
 		for {
 			if err := sys.ImportBaseKnowledge(ctx); err == nil {
 				break
-			} else {
-				log.Warn("base knowledge", "err", err)
 			}
+			log.Warn("base knowledge", "err", err)
 			select {
 			case <-ctx.Done():
 				return
