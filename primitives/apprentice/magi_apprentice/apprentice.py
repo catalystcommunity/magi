@@ -266,11 +266,6 @@ def _describe(name: str, arguments: str, ok: bool) -> str:
     return f"{name} {arg}".strip() + ("" if ok else " (failed)")
 
 
-def _four_fifths(limit: int) -> float:
-    """The point where 80% of a limit is used."""
-    return limit * 0.8
-
-
 class Apprentice:
     def __init__(self, model: Model, tools: Tools, limits: Limits, transcript: Transcript,
                  steering: Steering | None = None,
@@ -285,13 +280,13 @@ class Apprentice:
         self.should_stop = should_stop
         self.on_progress = on_progress
         self.clock = clock
-        # Each budget note goes in once per task.
-        self._noted_eighty = False
-        self._noted_steps = False
-        self._noted_time = False
 
     def run(self, task: Task) -> Result:
         lim, tr = self.limits, self.transcript
+        # Each budget note goes in once per run, so the flags are reset here.
+        self._noted_eighty = False
+        self._noted_steps = False
+        self._noted_time = False
         tr.record("task", instructions=task.instructions, workdir=task.workdir,
                   check_command=task.check_command, limits=vars(lim))
         add_start_context(task, self.tools, tr)  # before the first model call
@@ -399,10 +394,10 @@ class Apprentice:
         if steps and not self._noted_steps and left <= 5:
             self._noted_steps = True
             self._send_note(ctx, note)
-        if not self._noted_eighty and steps >= _four_fifths(lim.max_steps):
+        if not self._noted_eighty and steps >= lim.max_steps * 0.8:
             self._noted_eighty = True
             self._send_note(ctx, note)
-        if not self._noted_time and elapsed >= _four_fifths(lim.max_seconds):
+        if not self._noted_time and elapsed >= lim.max_seconds * 0.8:
             self._noted_time = True
             self._send_note(ctx, note)
 

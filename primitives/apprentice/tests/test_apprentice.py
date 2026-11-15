@@ -146,6 +146,17 @@ class BudgetTest(unittest.TestCase):
         self.assertIn("Budget: 2 of 10", model.requests[8][-1]["content"])
         self.assertNotIn("model calls are left", model.requests[4][-1]["content"])
 
+    def test_two_runs_each_get_the_step_note(self):
+        # The note flags are state of one run, not of the object.
+        a, model, _, tr = apprentice([reply(call("bash", command="true"))] * 20,
+                                     limits=Limits(max_steps=10))
+        for _ in range(2):
+            a.run(Task("t"))
+        self.assertEqual(len(self.notes(tr)), 4)
+        # the first run has 10 steps and one last call, so the second starts at 12
+        self.assertIn("Budget: 5 of 10", model.requests[5][-1]["content"])
+        self.assertIn("Budget: 5 of 10", model.requests[16][-1]["content"])
+
     def test_time_note_uses_the_apprentice_clock(self):
         # Clock values: the start, then the limit check and the note check of
         # each loop turn. The fifth value puts the task at 80% of 1000 s, so
