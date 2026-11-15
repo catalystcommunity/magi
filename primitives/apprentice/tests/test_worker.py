@@ -20,7 +20,7 @@ def assignment(**vars):
 def worker(services, model, **kw):
     return Worker(workflow=wf.WorkflowClient(services), execution=MemExecution(),
                   artifacts=art.ArtifactClient(services), model_cfg=ModelConfig(api_key="key-abcdef-1"),
-                  limits=Limits(), model=model, lease_ms=3000, claim_wait_ms=1, **kw)
+                  limits=Limits(self_review=False), model=model, lease_ms=3000, claim_wait_ms=1, **kw)
 
 
 class WorkerTest(unittest.TestCase):

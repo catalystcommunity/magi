@@ -17,7 +17,7 @@ from magi_apprentice.transcript import Redactor, Transcript
 
 
 def apprentice(script, files=None, limits=None, **kw):
-    lim = limits or Limits()
+    lim = limits or Limits(self_review=False)
     m = MemExecution(files)
     model = FakeModel(script)
     tr = Transcript(Redactor())
@@ -122,13 +122,15 @@ class RepositoryPictureTest(unittest.TestCase):
             def read_file(self, req):
                 raise RuntimeError("service down")
 
-        model = FakeModel([reply(call("finish", summary="s"))])
+        model = FakeModel([reply(call("finish", summary="s")), reply(call("finish", summary="s"))])
         a = Apprentice(model, Tools(Workspace(Broken(), "env", "/work/repo", self.lim)), self.lim,
                        Transcript(Redactor()))
         r = a.run(Task("t"))
         self.assertEqual((r.status, r.summary), ("finished", "s"))
         self.assertNotIn("Project instructions", first_user(model))
         self.assertNotIn("Repository:", first_user(model))
+        # the review still happens without the execution service
+        self.assertIn("(no diff)", model.requests[1][-1]["content"])
 
     def test_picture_is_in_the_first_message(self):
         out = ("--- git status --short ---\n M a.py\n"
@@ -206,7 +208,7 @@ class RunnerStartContextTest(unittest.TestCase):
                         "--- top-level entries ---\nlib magi \n")
         model = FakeModel([reply(call("finish", summary="s"))])
         out = run_task(Task("t"), execution=m, environment="env_1", model_cfg=ModelConfig(api_key="k-abcdef"),
-                       limits=Limits(), model=model)
+                       limits=Limits(self_review=False), model=model)
         self.assertEqual(out.result.status, "finished")
         user = first_user(model)
         self.assertIn("Project instructions (from AGENTS.md):\nUse Go modules.", user)
