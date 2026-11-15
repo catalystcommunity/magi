@@ -50,9 +50,13 @@ class MemExecution:
         self.file_ops = file_ops
         self.local = local
         self.execs: list[ex.ExecRequest] = []
+        # When set, every exec returns this stdout (for scripted exec tests).
+        self.stdout_for: str | None = None
 
     def exec(self, req: ex.ExecRequest) -> ex.ExecResult:
         self.execs.append(req)
+        if self.stdout_for is not None:
+            return _res(0, self.stdout_for.encode(), b"")
         if self.local:
             return self.local.exec(req)
         script = req.argv[-1]

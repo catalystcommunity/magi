@@ -8,13 +8,15 @@ from typing import Callable
 
 from .config import Limits
 from .model import Model, ModelError, Reply
-from .tools import TOOL_SPECS, Tools, format_exec, truncate
+from .tools import TOOL_SPECS, Tools, as_text, format_exec, truncate
 from .transcript import Transcript
 
 SYSTEM_PROMPT = """You are Magi's coding apprentice. You work alone on one task in an isolated \
 environment. The task's repository is in the work directory: {workdir}
 
 Rules:
+- The project instructions in the first message are the rules of the repository owner. Follow \
+them, unless the task instructions say otherwise.
 - Use the tools to inspect, change, build, and test. Do not guess file contents: read or search first.
 - Use edit_file for changes to existing files. Copy old_string exactly from read_file output, \
 without the line-number prefix. Use write_file for new files.
@@ -46,6 +48,11 @@ class Task:
     check_output: str | None = None
     title: str | None = None
     review_comment: str | None = None
+    # Set by the harness before the first model call. The text of AGENTS.md
+    # (or CLAUDE.md) and the git picture of the work directory.
+    project_instructions: str | None = None
+    project_instructions_file: str | None = None
+    repository: str | None = None
 
 
 @dataclass
@@ -66,7 +73,12 @@ def build_prompt(task: Task, limits: Limits) -> list[dict]:
     user = []
     if task.title:
         user.append(f"Title: {task.title.strip()}")
+    if task.project_instructions is not None:
+        user.append(f"Project instructions (from {task.project_instructions_file or 'AGENTS.md'}):\n"
+                    + task.project_instructions)
     user += [f"Task instructions:\n{task.instructions.strip()}", f"Work directory: {task.workdir}"]
+    if task.repository:
+        user.append(f"Repository:\n{task.repository}")
     if task.check_command:
         user.append(f"Check command: `{task.check_command}` in the work directory. Run it and make "
                     "it pass before you call finish. The harness also runs it when you call finish.")
@@ -78,6 +90,78 @@ def build_prompt(task: Task, limits: Limits) -> list[dict]:
                     + truncate(task.review_comment, limits.tool_output_chars))
     return [{"role": "system", "content": SYSTEM_PROMPT.format(workdir=task.workdir)},
             {"role": "user", "content": "\n\n".join(user)}]
+
+
+INSTRUCTIONS_MAX_CHARS = 20000
+STATUS_MAX_LINES = 50
+
+# One exec gives the three parts of the repository picture. Each part writes a
+# header line, so a part whose command failed is left out.
+REPOSITORY_SCRIPT = "\n".join([
+    "echo '--- git status --short ---'",
+    f"git status --short 2>/dev/null | head -n {STATUS_MAX_LINES}",
+    "echo '--- git log --oneline -5 ---'",
+    "git log --oneline -5 2>/dev/null",
+    "echo '--- top-level entries ---'",
+    "ls -A | sort | tr '\\n' ' '; echo",
+])
+
+
+def read_project_instructions(tools: Tools) -> tuple[str | None, str | None]:
+    """Read AGENTS.md from the work directory, or CLAUDE.md when there is no
+    AGENTS.md. Returns (text, file name); (None, None) when neither is there.
+    A missing file is not an error."""
+    for name in ("AGENTS.md", "CLAUDE.md"):
+        try:
+            text = tools.ws.read(tools.ws.path(name)).strip()
+        except Exception:  # a missing file is not an error; nor is a broken service
+            continue
+        if text:
+            return _cut_instructions(text), name
+    return None, None
+
+
+def _cut_instructions(text: str) -> str:
+    if len(text) <= INSTRUCTIONS_MAX_CHARS:
+        return text
+    cut = len(text) - INSTRUCTIONS_MAX_CHARS
+    return (text[:INSTRUCTIONS_MAX_CHARS]
+            + f"\n\n[The file was cut here; {cut} more characters are not shown. "
+              "Read the file for the rest.]")
+
+
+def repository_picture(tools: Tools) -> str:
+    """The git status, the last commits, and the top-level entries of the work
+    directory, from one exec. A part whose command failed is left out."""
+    try:
+        r = tools.ws.sh(REPOSITORY_SCRIPT, timeout_s=tools.ws.limits.bash_timeout_s)
+    except Exception:  # best effort: the task can run without the picture
+        return ""
+    return truncate(_parse_repository(as_text(r.stdout)), tools.ws.limits.tool_output_chars)
+
+
+def _parse_repository(out: str) -> str:
+    """Keep the parts between the header lines that have content."""
+    parts: dict[str, list[str]] = {}
+    name: str | None = None
+    for line in out.splitlines():
+        if line.startswith("--- ") and line.endswith(" ---"):
+            name = line[4:-4]
+            parts.setdefault(name, [])
+        elif name:
+            parts[name].append(line)
+    return "\n".join(f"{n}\n" + "\n".join(ls).rstrip() for n, ls in parts.items() if "".join(ls).strip())
+
+
+def add_start_context(task: Task, tools: Tools, transcript: Transcript) -> Task:
+    """Give the task the project instructions and the repository picture.
+    The harness calls this once, before the first model call."""
+    text, name = read_project_instructions(tools)
+    task.project_instructions, task.project_instructions_file = text, name
+    task.repository = repository_picture(tools)
+    transcript.record("start_context", file=name, instructions_chars=len(text or ""),
+                      repository_chars=len(task.repository or ""))
+    return task
 
 
 class Context:
@@ -193,9 +277,10 @@ class Apprentice:
 
     def run(self, task: Task) -> Result:
         lim, tr = self.limits, self.transcript
-        ctx = Context(build_prompt(task, lim), lim.context_tokens)
         tr.record("task", instructions=task.instructions, workdir=task.workdir,
                   check_command=task.check_command, limits=vars(lim))
+        add_start_context(task, self.tools, tr)  # before the first model call
+        ctx = Context(build_prompt(task, lim), lim.context_tokens)
         start = self.clock()
         res = Result(status="error", summary="")
         usage = {"prompt_tokens": 0, "completion_tokens": 0}

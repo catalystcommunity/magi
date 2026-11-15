@@ -25,6 +25,27 @@ The apprentice does one coding task in a Magi execution environment:
 The apprentice does not commit or push. Separate workflow steps do git operations,
 unless the task instructions tell the apprentice to do them.
 
+## Context at the start
+
+Before the first model call, the harness reads the work directory and adds two
+sections to the first user message:
+
+- **Project instructions.** The text of `AGENTS.md` in the work directory. When
+  there is no `AGENTS.md`, the harness reads `CLAUDE.md`. The text is cut at
+  20000 characters; a note says how much is not shown. When neither file is
+  there, the section is left out. A missing file is not an error.
+- **Repository.** The output of `git status --short` (at most 50 lines), of
+  `git log --oneline -5`, and the top-level entries of the work directory on one
+  line. One `exec` call gives all three. A part whose command failed is left out.
+
+The harness reads the files and runs the command through the ExecutionService,
+in the same way as the tools. It does not read the files of the host that the
+harness runs on.
+
+The system prompt says that the project instructions are the rules of the
+repository owner, and that the agent must follow them, unless the task
+instructions say otherwise.
+
 ## Tools
 
 | Tool | Function |
