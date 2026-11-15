@@ -66,7 +66,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         workdir = args.workdir or "/work/repo"
     artifacts = art.ArtifactClient(transport(sc.artifacts_url, sc.token_file)) if sc.artifacts_url and not args.no_upload else None
     task = Task(instructions=instructions, workdir=workdir, check_command=args.check_command,
-                check_output=args.check_output, title=args.title, review_comment=args.review_comment)
+                check_output=args.check_output, title=args.title, review_comment=args.review_comment,
+                lessons=args.lessons)
     t0 = time.monotonic()
     out = run_task(task, execution=execution, environment=env_id, model_cfg=model_cfg, limits=limits,
                    artifacts=artifacts, labels={"run": "cli", "step": "cli"},
@@ -98,6 +99,7 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--check-output")
     r.add_argument("--title")
     r.add_argument("--review-comment")
+    r.add_argument("--lessons", help="review lessons of this repository, one line for each")
     r.add_argument("--model", help="model name or JSON override")
     r.add_argument("--max-steps", type=int)
     r.add_argument("--transcript", help="also write the JSONL transcript to this file")
