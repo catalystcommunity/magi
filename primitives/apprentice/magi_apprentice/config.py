@@ -28,7 +28,10 @@ class ModelConfig:
     # timeout_s: the most time for one model call. idle_s: the most time
     # between two chunks of a streamed answer; a provider that stops
     # sending is retried after idle_s, not after timeout_s.
+    # first_s: the most time until the answer starts. Some providers (Zen)
+    # send nothing until the answer is complete, so this is long.
     timeout_s: float = 900.0
+    first_s: float = 600.0
     idle_s: float = 90.0
     stream: bool = True
     max_retries: int = 5
@@ -53,6 +56,7 @@ class ModelConfig:
             name=_env("MAGI_MODEL_NAME", cls.name),
             api_key=key,
             timeout_s=float(_env("MAGI_MODEL_TIMEOUT", "900")),
+            first_s=float(_env("MAGI_MODEL_FIRST_TIMEOUT", "600")),
             idle_s=float(_env("MAGI_MODEL_IDLE_TIMEOUT", "90")),
             stream=_env("MAGI_MODEL_STREAM", "true") != "false",
             max_retries=_int("MAGI_MODEL_MAX_RETRIES", 5),

@@ -99,6 +99,14 @@ class CallTimeout(Exception):
     """A streamed answer took more than timeout_s in total."""
 
 
+def set_read_timeout(resp, seconds: float) -> None:
+    """Sets the socket timeout of an open urllib response (http.client)."""
+    try:
+        resp.fp.raw._sock.settimeout(seconds)
+    except AttributeError:
+        pass  # not a socket response (tests)
+
+
 def read_answer(resp, deadline: float) -> dict:
     """The answer as one Chat Completions object. A streamed answer
     ("data: ..." lines) is joined; a plain JSON answer (a provider that does
@@ -180,9 +188,11 @@ class ChatModel:
                 req.add_header("Authorization", "Bearer " + self.cfg.api_key)
             delay = min(30.0, 1.5 * 2 ** attempt) * (0.5 + random.random() / 2)
             try:
-                # The socket timeout is the idle limit: each read of a
-                # streamed answer waits at most idle_s.
-                with self._open(req, timeout=self.cfg.idle_s if self.cfg.stream else self.cfg.timeout_s) as resp:
+                # The socket timeout is first_s until the answer starts,
+                # then idle_s for each read of a streamed answer.
+                with self._open(req, timeout=self.cfg.first_s if self.cfg.stream else self.cfg.timeout_s) as resp:
+                    if self.cfg.stream:
+                        set_read_timeout(resp, self.cfg.idle_s)
                     return read_answer(resp, time.monotonic() + self.cfg.timeout_s)
             except urllib.error.HTTPError as e:
                 detail = e.read()[:500].decode("utf-8", "replace")

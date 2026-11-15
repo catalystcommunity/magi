@@ -1,5 +1,6 @@
 import io
 import socket
+import time
 import json
 import unittest
 import urllib.error
@@ -80,7 +81,7 @@ class ModelTest(unittest.TestCase):
         self.assertEqual(body["model"], "m")
         self.assertEqual(body["tool_choice"], "auto")
         self.assertTrue(body["stream"])
-        self.assertEqual(timeout, 90.0)  # the idle limit of a streamed answer
+        self.assertEqual(timeout, 600.0)  # the wait for the start of the answer
         self.assertEqual(r.message()["tool_calls"][0]["function"]["name"], "bash")
 
     def test_retries_429_5xx_and_connection_errors(self):
@@ -115,6 +116,38 @@ class ModelTest(unittest.TestCase):
         req, timeout = op.requests[0]
         self.assertNotIn("stream", json.loads(req.data))
         self.assertEqual(timeout, 900.0)
+
+    def test_idle_limit_on_a_real_socket(self):
+        # The server sends the start of the answer, then stops. The read
+        # must fail after idle_s, not after first_s.
+        import http.server
+        import threading
+        stop = threading.Event()
+
+        class H(http.server.BaseHTTPRequestHandler):
+            def do_POST(self):
+                self.rfile.read(int(self.headers["Content-Length"]))
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream")
+                self.end_headers()
+                self.wfile.write(b'data: {"choices":[{"delta":{"content":"a"}}]}\n\n')
+                self.wfile.flush()
+                stop.wait(10)
+
+            def log_message(self, *a):
+                pass
+
+        srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            cfg = ModelConfig(base_url=f"http://127.0.0.1:{srv.server_port}/v1", name="m", first_s=5, idle_s=0.3, max_retries=0)
+            start = time.monotonic()
+            with self.assertRaisesRegex(ModelError, "timed out"):
+                ChatModel(cfg, sleep=lambda s: None).complete([], [])
+            self.assertLess(time.monotonic() - start, 3)
+        finally:
+            stop.set()
+            srv.shutdown()
 
     def test_no_retry_on_400(self):
         m, slept = model(Opener([http_error(400)]))

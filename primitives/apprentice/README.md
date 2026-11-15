@@ -114,6 +114,7 @@ and no check failed.
 | `MAGI_MODEL_API_KEY_FILE` | none | File with the model API key |
 | `MAGI_MODEL_API_KEY` | none | Key value, if no key file is set |
 | `MAGI_MODEL_TIMEOUT` | `900` | The most time for one model call, in seconds |
+| `MAGI_MODEL_FIRST_TIMEOUT` | `600` | The most time until the answer starts. Zen sends nothing until its answer is complete |
 | `MAGI_MODEL_IDLE_TIMEOUT` | `90` | The most time between two chunks of a streamed answer. A provider that stops sending is retried after this time |
 | `MAGI_MODEL_STREAM` | `true` | Stream the answers; `false` waits for the full answer (then the idle limit is the call limit) |
 | `MAGI_MODEL_MAX_RETRIES` | `5` | Retries on 429, 5xx, connection errors, and idle or call timeouts |
