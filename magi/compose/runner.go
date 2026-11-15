@@ -252,7 +252,8 @@ func nonNil(v []string) []string {
 // provider that stops sending (its idle limit). Each call is logged with
 // its status and time.
 func ModelProxy(ver *authn.Verifier, c *model.Client, log *slog.Logger) http.Handler {
-	hc := &http.Client{Timeout: 10 * time.Minute}
+	// The gateway route /runner/v1/ permits 900 s (deploy/render.py).
+	hc := &http.Client{Timeout: 15 * time.Minute}
 	if c.HTTP != nil {
 		hc.Transport = c.HTTP.Transport
 	}

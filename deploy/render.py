@@ -449,6 +449,11 @@ def render(img, v):
         # The egress tunnel of runner sandboxes: an upgraded connection that
         # stays open, so it has no request timeout.
         route_rules.insert(0, {"matches": [{"path": {"type": "Exact", "value": "/runner/egress"}}], "backendRefs": [{"name": "magi", "port": 8080}]})
+    # Model calls of the coding apprentice (runner model proxy): a large
+    # answer of a coding model takes minutes. With 120 s the gateway cut
+    # each long call, and the apprentice repeated it many times.
+    route_rules.insert(0, {"matches": [{"path": {"type": "PathPrefix", "value": "/runner/v1/"}}], "backendRefs": [{"name": "magi", "port": 8080}],
+                           "timeouts": {"request": "900s", "backendRequest": "900s"}})
     # Inference hosts connect out and keep idle connections (lib/revconn):
     # no request timeout.
     route_rules.insert(0, {"matches": [{"path": {"type": "Exact", "value": "/inference/connect"}}], "backendRefs": [{"name": "magi", "port": 8080}]})
