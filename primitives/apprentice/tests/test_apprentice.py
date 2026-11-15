@@ -98,6 +98,39 @@ class LoopTest(unittest.TestCase):
             Task("t", check_command="false"))
         self.assertEqual((r.status, r.check_passed), ("finished", False))
 
+    def test_stub_summary_is_rejected(self):
+        # Compaction can leave a finish call with a stub summary. The model then
+        # sends that stub as the summary of its next finish call.
+        stub = "[compacted 1978 chars]"
+        model = FakeModel([reply(call("finish", summary=stub)),
+                           reply(call("finish", summary="I changed a.py and added a test."))])
+        lim = Limits(self_review=False)
+        tr = Transcript(Redactor())
+        r = Apprentice(model, Tools(Workspace(MemExecution(), "env", "/w", lim)), lim, tr).run(
+            Task("t", check_command="./check.sh"))
+        self.assertEqual((r.status, r.summary, r.steps),
+                         ("finished", "I changed a.py and added a test.", 2))
+        result = model.requests[1][-1]["content"]
+        self.assertIn("finish rejected: this summary is a compaction stub", result)
+        self.assertIn("Write the full summary", result)
+        # the stub is not a failed check: the check runs only for the second finish
+        self.assertEqual(len(records(tr, "check")), 1)
+        self.assertEqual(r.check_passed, True)
+
+    def test_stub_summary_does_not_use_up_the_review(self):
+        stub = "[compacted 1978 chars]"
+        e = diff_exec()
+        model = FakeModel([reply(call("finish", summary=stub)),
+                           reply(call("finish", summary="I changed a.py.")),
+                           reply(call("finish", summary="I changed a.py. Reviewed."))])
+        lim = Limits()
+        tr = Transcript(Redactor())
+        r = Apprentice(model, Tools(Workspace(e, "env", "/w", lim)), lim, tr).run(Task("t"))
+        self.assertEqual((r.status, r.summary), ("finished", "I changed a.py. Reviewed."))
+        self.assertIn("compaction stub", model.requests[1][-1]["content"])
+        self.assertIn("review your change first", model.requests[2][-1]["content"])
+        self.assertEqual(len(records(tr, "self_review")), 1)
+
     def test_stalls_without_tool_calls(self):
         a, model, _, _ = apprentice([reply(content="thinking")] * 3)
         r = a.run(Task("t"))
@@ -311,6 +344,20 @@ class SelfReviewTest(unittest.TestCase):
         self.assertLess(script.index("git add --intent-to-add --all"),
                         script.index("git diff --stat"))
 
+    def test_diff_script_restores_the_index(self):
+        # The intent-to-add entries stay in the index after git diff, and an
+        # index that is not empty breaks git stash. The script resets the index
+        # at the end, after the diff commands.
+        e = diff_exec()
+        model = FakeModel([reply(call("finish", summary="a")), reply(call("finish", summary="b"))])
+        lim = Limits()
+        tr = Transcript(Redactor())
+        Apprentice(model, Tools(Workspace(e, "env", "/w", lim)), lim, tr).run(Task("t"))
+        script = next(x.argv[-1] for x in e.execs if "git diff --stat" in x.argv[-1])
+        self.assertIn("git reset -q", script)
+        self.assertGreater(script.index("git reset -q"), script.index("git diff --stat"))
+        self.assertGreater(script.index("git reset -q"), script.rindex("git diff"))
+
     def test_review_after_a_failed_check(self):
         # The check gate rejects the first finish, so the review waits for the
         # finish that passes it.
@@ -444,6 +491,24 @@ class CompactionTest(unittest.TestCase):
                 for c in m["tool_calls"]:
                     json.loads(c["function"]["arguments"])  # still valid JSON
         self.assertIn("compacted", wire[3]["content"] + wire[4]["content"])
+
+    def test_compaction_keeps_a_finish_summary(self):
+        # The model reuses the summary of an earlier finish call for its next
+        # finish call, so compaction must not replace it with a stub.
+        summary = "I changed a.py and b.py. " * 60
+        msgs = [{"role": "system", "content": "s"}, {"role": "user", "content": "task"}]
+        for i in range(20):
+            msgs.append({"role": "assistant", "content": "", "tool_calls": [
+                {"id": f"c{i}", "type": "function",
+                 "function": {"name": "finish", "arguments": json.dumps({"summary": summary})}}]})
+            msgs.append({"role": "tool", "tool_call_id": f"c{i}", "_name": "finish", "content": "x" * 4000})
+        ctx = Context(msgs, budget=6000)
+        ctx.compact()
+        for m in ctx.wire():
+            if m["role"] == "assistant":
+                for c in m["tool_calls"]:
+                    self.assertEqual(c["function"]["name"], "finish")
+                    self.assertEqual(json.loads(c["function"]["arguments"])["summary"], summary)
 
     def test_drops_old_groups_when_needed(self):
         msgs = [{"role": "system", "content": "s"}, {"role": "user", "content": "task"}]

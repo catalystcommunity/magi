@@ -57,6 +57,11 @@ SELF_REVIEW = ("Review your change before you finish, as a strict reviewer of th
                "first.")
 # A review that the model cannot act on is wasted work, so it needs calls left.
 SELF_REVIEW_MIN_CALLS = 5
+# Compaction can leave a finish call with a stub summary. The model then sends
+# that stub as the summary of its next finish call, so the gate sends it back.
+STUB_SUMMARY = ("finish rejected: this summary is a compaction stub, not the report of the task. "
+                "Write the full summary: what you changed, how you verified it, and what is left "
+                "undone. Then call finish again.")
 
 
 @dataclass
@@ -185,14 +190,17 @@ def _parse_repository(out: str) -> str:
 
 # One exec gives the diff stat and the diff, so the review sees the whole change
 # at the cost of one tool call. git diff does not show untracked files, so the
-# new files are put in the index as empty entries first; the workflow commits
-# with git add -A, so that index change is harmless.
+# new files are put in the index as empty entries first. The entries are removed
+# again at the end: the apprentice does not stage files, and an index that is
+# not empty breaks git stash, which the system prompt tells the model to run.
+# The workflow commits with git add -A, so no staged work is lost.
 DIFF_SCRIPT = "\n".join([
     "git add --intent-to-add --all 2>/dev/null",
     "echo '--- git diff --stat ---'",
     "git diff --stat 2>/dev/null",
     "echo '--- git diff ---'",
     "git diff 2>/dev/null",
+    "git reset -q",
 ])
 
 
@@ -259,7 +267,10 @@ class Context:
                 m["_compacted"] = True
             elif m["role"] == "assistant":
                 for c in m.get("tool_calls") or []:
-                    c["function"]["arguments"] = _shrink_args(c["function"]["arguments"])
+                    # A finish summary is the report of the task. The model
+                    # reuses it for its next finish call, so it must stay whole.
+                    if c["function"]["name"] != "finish":
+                        c["function"]["arguments"] = _shrink_args(c["function"]["arguments"])
                 if len(m.get("content") or "") > 2000:
                     m["content"] = truncate(m["content"], 1000)
         for m in self.messages[end:]:
@@ -493,6 +504,8 @@ class Apprentice:
     def _finish_gate(self, task: Task, summary: str, fails: int, res: Result) -> tuple[str, bool, bool]:
         """Run the check command when the model calls finish.
         Returns (tool result text, ok, accept finish)."""
+        if summary.lstrip().startswith("[compacted"):
+            return STUB_SUMMARY, True, False
         if not task.check_command:
             return "finished", True, True
         r = self.tools.ws.sh(task.check_command, timeout_s=self.limits.bash_timeout_max_s)

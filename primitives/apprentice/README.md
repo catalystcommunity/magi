@@ -73,8 +73,10 @@ finishes with `apprentice.check_passed` = `false`.
 - The harness estimates the prompt size. It calibrates the estimate with the
   token counts that the server returns. When the estimate is more than
   `MAGI_APPRENTICE_CONTEXT_TOKENS`, the harness replaces old tool results and old
-  large tool arguments with short notes. If this is not sufficient, it
-  removes the oldest turns. The system prompt and the task always stay.
+  large tool arguments with short notes. The arguments of `finish` calls stay
+  whole. A `finish` summary that is a compaction stub is rejected. If this is
+  not sufficient, it removes the oldest turns. The system prompt and the task
+  always stay.
 - Before each model call, the harness calls a steering hook. The hook returns
   operator notes. The default hook returns no notes, because the workflow
   service cannot send messages to a worker yet.
@@ -109,7 +111,8 @@ When the model calls `finish` for the first time, and the check passed (or
 there is no check command), the harness does not end the task. The harness runs
 one `exec` call in the work directory. The call puts new files in the git index
 with `git add --intent-to-add --all`. Then it runs `git diff --stat` and
-`git diff`. This way the diff also shows new files. The diff is cut to
+`git diff`. This way the diff also shows new files. At the end, the call runs
+`git reset -q`, so the index is as it was before the review. The diff is cut to
 `MAGI_APPRENTICE_TOOL_OUTPUT_CHARS` characters.
 
 The harness rejects the `finish` call. The tool result has the diff and a

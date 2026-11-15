@@ -10,7 +10,7 @@ from pathlib import Path
 from fakes import FakeModel, MemExecution, call, reply
 
 from magi_apprentice.apprentice import (Apprentice, INSTRUCTIONS_MAX_CHARS, Task,
-                                        build_prompt, repository_picture)
+                                        build_prompt, repository_picture, workdir_diff)
 from magi_apprentice.config import Limits
 from magi_apprentice.tools import Tools, Workspace
 from magi_apprentice.transcript import Redactor, Transcript
@@ -183,6 +183,46 @@ class LocalStartContextTest(unittest.TestCase):
         self.assertIn("first", user)                # git log --oneline -5
         self.assertIn("AGENTS.md", user)            # top-level entries
         self.assertIn("src", user)
+
+
+class LocalDiffTest(unittest.TestCase):
+    """The self-review diff script against a real git repository on this host."""
+
+    def setUp(self):
+        from magi_apprentice.local import LocalExecution
+        self.dir = tempfile.TemporaryDirectory()
+        self.d = self.dir.name
+        self.env = {k: v for k, v in os.environ.items() if "GIT_" not in k}
+        Path(self.d, "src").mkdir()
+        Path(self.d, "src", "a.py").write_text("x = 1\n")
+        subprocess.run(["git", "init", "-q"], cwd=self.d, check=True, env=self.env)
+        subprocess.run(["git", "add", "src/a.py"], cwd=self.d, check=True, env=self.env)
+        subprocess.run(["git", "-c", "user.email=a@b", "-c", "user.name=t", "commit", "-qm", "first"],
+                       cwd=self.d, check=True, env=self.env)
+        # One modified file and one new file, so the diff needs the index trick.
+        Path(self.d, "src", "a.py").write_text("x = 2\n")
+        Path(self.d, "src", "b.py").write_text("y = 2\n")
+        self.lim = Limits()
+        self.ws = Workspace(LocalExecution(), "local", self.d, self.lim)
+
+    def tearDown(self):
+        self.dir.cleanup()
+
+    def git(self, *args):
+        return subprocess.run(["git", *args], cwd=self.d, env=self.env,
+                              check=True, capture_output=True, text=True).stdout
+
+    def test_diff_shows_new_files_and_restores_the_index(self):
+        diff = workdir_diff(Tools(self.ws))
+        self.assertIn("git diff --stat", diff)
+        self.assertIn("+x = 2", diff)               # the modified file
+        self.assertIn("+y = 2", diff)               # the new file
+        # the new file is untracked again, as before the review
+        self.assertEqual(self.git("status", "--short"), " M src/a.py\n?? src/b.py\n")
+        # git stash works, as the system prompt tells the model
+        self.assertIn("Saved working directory", self.git("stash", "-u"))
+        self.git("stash", "pop")
+        self.assertEqual(Path(self.d, "src", "b.py").read_text(), "y = 2\n")
 
 
 class BuildPromptTest(unittest.TestCase):
