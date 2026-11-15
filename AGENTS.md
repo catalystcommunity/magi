@@ -40,6 +40,8 @@ example `MAGI_TEST_DATABASE_URL`). A skipped test is not a failure.
   HTTP transport with a generated client at least once.
 - Write documentation in ASD-STE100 Simplified Technical English: short
   sentences, active voice, one instruction in each sentence.
+- Read `magi/compose/baseknowledge/review-lessons.md`: lessons from earlier
+  code reviews.
 - Comments tell why, not what. Keep the style of the code around you.
 
 ## Where things are

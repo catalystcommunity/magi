@@ -163,6 +163,22 @@ func run(listen, keys string, workers bool, log *slog.Logger) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	// The lessons of code reviews are base knowledge: the repository is the
+	// source of truth, and each installation gets a copy in its knowledge
+	// graph. The knowledge service can start later than magi, so this retries.
+	go func() {
+		for {
+			if err := sys.ImportBaseKnowledge(ctx); err == nil {
+				break
+			}
+			log.Warn("base knowledge", "err", err)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(30 * time.Second):
+			}
+		}
+	}()
 	if workers {
 		for {
 			if err := sys.InstallDefinitions(ctx); err == nil {
