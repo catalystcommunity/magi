@@ -176,6 +176,8 @@ type turnState struct {
 	// reads only those and the ones in the message of the person.
 	pages           map[string]bool
 	searched, reads int
+	// prov labels the origin of the text of the turn (taint.go).
+	prov *provenance
 	// lastTodo is the to-do that add_todo made last in this turn.
 	lastTodo string
 }

@@ -629,6 +629,7 @@ export interface KnowledgeFact {
   stale: boolean;
   mine: boolean;
   disputed: boolean;
+  trust?: string;
 }
 
 export interface KnowledgeItem {
@@ -642,6 +643,7 @@ export interface KnowledgeItem {
   locator?: string;
   facts: KnowledgeFact[];
   mine: boolean;
+  trust?: string;
 }
 
 /**
@@ -722,6 +724,11 @@ export interface KnowledgeChange {
   before?: string;
   after?: string;
   atMs: number;
+  via?: string;
+  trust?: string;
+  origin?: string;
+  undoes?: string;
+  undoneBy?: string;
 }
 
 export interface ChangeKnowledgeResponse {
@@ -746,6 +753,8 @@ export interface UnmergeKnowledgeRequest {
 
 export interface KnowledgeHistoryRequest {
   id: string;
+  sinceMs?: number;
+  limit?: number;
 }
 
 export interface KnowledgeHistoryResponse {

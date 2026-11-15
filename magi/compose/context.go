@@ -22,6 +22,15 @@ func (l conversationLens) v() *string { return &l.persona }
 // are not in recent: matches of its words, with the utterances that they
 // link to and from, so that a match brings its answer or its question.
 func (s *System) relatedContext(ctx context.Context, as conversationLens, utt conversationapi.Utterance, recent []conversationapi.Utterance, now time.Time) string {
+	list := s.relatedUtterances(ctx, as, utt, recent)
+	if len(list) == 0 {
+		return ""
+	}
+	return describeUtterances(list, as.person, now)
+}
+
+// relatedUtterances is the list that relatedContext describes, oldest first.
+func (s *System) relatedUtterances(ctx context.Context, as conversationLens, utt conversationapi.Utterance, recent []conversationapi.Utterance) []conversationapi.Utterance {
 	skip := map[string]bool{}
 	before := utt.CreatedMs
 	for _, u := range recent {
@@ -32,7 +41,7 @@ func (s *System) relatedContext(ctx context.Context, as conversationLens, utt co
 		Person: as.p(), Persona: as.v()})
 	if err != nil {
 		s.Log.Warn("related search", "err", err)
-		return ""
+		return nil
 	}
 	found := map[string]conversationapi.Utterance{}
 	for _, h := range res.Hits {
@@ -56,7 +65,7 @@ func (s *System) relatedContext(ctx context.Context, as conversationLens, utt co
 	if len(list) > 14 {
 		list = list[len(list)-14:]
 	}
-	return describeUtterances(list, as.person, now)
+	return list
 }
 
 // describeUtterances writes one line for each utterance: id, time, who,

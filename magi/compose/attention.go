@@ -112,7 +112,7 @@ func (s *System) sendNotice(ctx context.Context, r noticeReq) (conversationapi.N
 		}
 		r.stream = st.Id
 	}
-	post := conversationapi.PostRequest{Stream: r.stream, Text: r.text, Author: ptr(r.persona), AuthorKind: ptr("persona"),
+	post := conversationapi.PostRequest{Stream: r.stream, Text: noRemoteImages(r.text), Author: ptr(r.persona), AuthorKind: ptr("persona"),
 		Modality: ptr("notice"), Attachments: r.refs}
 	for _, ref := range r.refs {
 		kind := "refers-to"

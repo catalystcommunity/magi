@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -79,6 +80,9 @@ func (r *Runners) Claim(ctx context.Context, req magiapi.RunnerClaimRequest) (ma
 	if !strings.HasPrefix(req.Queue, "runner."+name+".") {
 		return magiapi.RunnerClaimResponse{}, rpc.Denied("runner %s can claim only from queues runner.%s.*", name, name)
 	}
+	if step := strings.TrimPrefix(req.Queue, "runner."+name+"."); isPublishStep(step) && !r.S.publishApproved(name) {
+		return magiapi.RunnerClaimResponse{}, r.S.refusePublish(name, "claim of "+step+" steps")
+	}
 	wait := uint64(20000)
 	if req.WaitMs != nil {
 		wait = min(*req.WaitMs, 25000)
@@ -90,6 +94,7 @@ func (r *Runners) Claim(ctx context.Context, req magiapi.RunnerClaimRequest) (ma
 		return magiapi.RunnerClaimResponse{}, err
 	}
 	a := res.Assignment
+	r.S.runnerOwner.set(name, a.Owner)
 	return magiapi.RunnerClaimResponse{Assignment: &magiapi.RunnerAssignment{
 		Run: a.Run, Step: a.Step, Attempt: a.Attempt, Claim: a.Claim, Owner: a.Owner, Vars: a.Vars,
 	}}, nil
@@ -110,16 +115,29 @@ func (r *Runners) Progress(ctx context.Context, req magiapi.RunnerProgressReques
 }
 
 func (r *Runners) Complete(ctx context.Context, req magiapi.RunnerCompleteRequest) (magiapi.RunnerAck, error) {
-	if _, err := runnerName(ctx); err != nil {
+	name, err := runnerName(ctx)
+	if err != nil {
 		return magiapi.RunnerAck{}, err
 	}
-	_, err := r.S.Workflow.Complete(r.S.AsService(ctx), workflowapi.CompleteRequest{
+	defer r.S.runnerOwner.clear(name)
+	if isPublishStep(req.Step.Step) && !r.S.publishApproved(name) {
+		return magiapi.RunnerAck{}, r.S.refusePublish(name, "result of "+req.Step.Step)
+	}
+	if rv := req.Outputs["build.binary"] + req.Outputs["runner.packages"]; rv != "" && !r.S.publishApproved(name) {
+		return magiapi.RunnerAck{}, r.S.refusePublish(name, "release build from step "+req.Step.Step)
+	}
+	_, err = r.S.Workflow.Complete(r.S.AsService(ctx), workflowapi.CompleteRequest{
 		Run: req.Step.Run, Step: req.Step.Step, Claim: req.Step.Claim, Outcome: req.Outcome, Outputs: req.Outputs, Error: req.Error,
 	})
 	return magiapi.RunnerAck{Ok: err == nil}, err
 }
 
 func (r *Runners) PutArtifact(ctx context.Context, req magiapi.RunnerPutArtifactRequest) (magiapi.RunnerPutArtifactResponse, error) {
+	if name, err := runnerName(ctx); err != nil {
+		return magiapi.RunnerPutArtifactResponse{}, err
+	} else if slices.Contains(releaseArtifactKinds, req.Labels["kind"]) && !r.S.publishApproved(name) {
+		return magiapi.RunnerPutArtifactResponse{}, r.S.refusePublish(name, "upload of a "+req.Labels["kind"]+" artifact for release")
+	}
 	sctx, err := r.held(ctx, req.Step)
 	if err != nil {
 		return magiapi.RunnerPutArtifactResponse{}, err
@@ -246,8 +264,10 @@ func nonNil(v []string) []string {
 // ModelProxy serves an OpenAI-compatible Chat Completions endpoint for
 // runners at /runner/v1/chat/completions. It sends the request to the
 // coding model with Magi's own provider key, so a runner machine holds no
-// provider key. The model name in the request is replaced.
-func ModelProxy(ver *authn.Verifier, c *model.Client) http.Handler {
+// provider key. The model name in the request is replaced. When s is not
+// nil, each request counts against the model limit of the owner of the run
+// that the runner works on (429 when over).
+func ModelProxy(ver *authn.Verifier, c *model.Client, s *System) http.Handler {
 	hc := &http.Client{Timeout: 10 * time.Minute}
 	if c.HTTP != nil {
 		hc.Transport = c.HTTP.Transport
@@ -266,6 +286,16 @@ func ModelProxy(ver *authn.Verifier, c *model.Client) http.Handler {
 			http.Error(w, `{"error":{"message":"a runner token is required"}}`, http.StatusUnauthorized)
 			return
 		}
+		if s != nil {
+			name, _ := strings.CutPrefix(p.Subject, "runner:")
+			if err := s.allowModel(s.runnerOwner.of(name)); err != nil {
+				w.Header().Set("Content-Type", "application/json")
+				w.Header().Set("Retry-After", "60")
+				w.WriteHeader(http.StatusTooManyRequests)
+				json.NewEncoder(w).Encode(map[string]any{"error": map[string]any{"message": limitMessage(err), "type": "rate_limit_exceeded"}})
+				return
+			}
+		}
 		var body map[string]any
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<20)).Decode(&body); err != nil {
 			http.Error(w, `{"error":{"message":"bad request body"}}`, http.StatusBadRequest)
@@ -275,7 +305,7 @@ func ModelProxy(ver *authn.Verifier, c *model.Client) http.Handler {
 		b, _ := json.Marshal(body)
 		out, err := http.NewRequestWithContext(r.Context(), http.MethodPost, c.BaseURL+"/chat/completions", bytes.NewReader(b))
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, `{"error":{"message":"internal error"}}`, http.StatusInternalServerError)
 			return
 		}
 		out.Header.Set("Content-Type", "application/json")
@@ -288,6 +318,15 @@ func ModelProxy(ver *authn.Verifier, c *model.Client) http.Handler {
 			return
 		}
 		defer resp.Body.Close()
+		if resp.StatusCode >= 500 {
+			// A provider error body can name accounts, hosts or limits; log it, return a fixed text.
+			detail, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+			if s != nil && s.Log != nil {
+				s.Log.Warn("model provider error", "status", resp.StatusCode, "body", string(detail))
+			}
+			http.Error(w, `{"error":{"message":"the model provider failed"}}`, http.StatusBadGateway)
+			return
+		}
 		w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
 		if ra := resp.Header.Get("Retry-After"); ra != "" {
 			w.Header().Set("Retry-After", ra)

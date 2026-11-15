@@ -2431,6 +2431,9 @@ def _encode_knowledge_fact_value(v: "KnowledgeFact") -> Dict[Any, Any]:
     csil_x = v.valid_from_ms
     if csil_x is not None:
         csil_m["valid_from_ms"] = csil_x
+    csil_x = v.trust
+    if csil_x is not None:
+        csil_m["trust"] = csil_x
     return csil_m
 
 def _decode_knowledge_fact_value(tree: Any) -> "KnowledgeFact":
@@ -2449,6 +2452,7 @@ def _decode_knowledge_fact_value(tree: Any) -> "KnowledgeFact":
         stale=_csil_expect_bool(tree["stale"]),
         mine=_csil_expect_bool(tree["mine"]),
         disputed=_csil_expect_bool(tree["disputed"]),
+        trust=(None if tree.get("trust") is None else _csil_expect_text(tree["trust"])),
     )
 
 
@@ -2479,6 +2483,9 @@ def _encode_knowledge_item_value(v: "KnowledgeItem") -> Dict[Any, Any]:
         csil_m["locator"] = csil_x
     csil_m["summary"] = v.summary
     csil_m["properties"] = v.properties
+    csil_x = v.trust
+    if csil_x is not None:
+        csil_m["trust"] = csil_x
     return csil_m
 
 def _decode_knowledge_item_value(tree: Any) -> "KnowledgeItem":
@@ -2494,6 +2501,7 @@ def _decode_knowledge_item_value(tree: Any) -> "KnowledgeItem":
         locator=(None if tree.get("locator") is None else _csil_expect_text(tree["locator"])),
         facts=[_decode_knowledge_fact_value(csil_e) for csil_e in _csil_expect_array(tree["facts"])],
         mine=_csil_expect_bool(tree["mine"]),
+        trust=(None if tree.get("trust") is None else _csil_expect_text(tree["trust"])),
     )
 
 
@@ -2738,6 +2746,21 @@ def _encode_knowledge_change_value(v: "KnowledgeChange") -> Dict[Any, Any]:
         csil_m["reason"] = csil_x
     csil_m["record"] = v.record
     csil_m["operation"] = v.operation
+    csil_x = v.via
+    if csil_x is not None:
+        csil_m["via"] = csil_x
+    csil_x = v.trust
+    if csil_x is not None:
+        csil_m["trust"] = csil_x
+    csil_x = v.origin
+    if csil_x is not None:
+        csil_m["origin"] = csil_x
+    csil_x = v.undoes
+    if csil_x is not None:
+        csil_m["undoes"] = csil_x
+    csil_x = v.undone_by
+    if csil_x is not None:
+        csil_m["undone_by"] = csil_x
     return csil_m
 
 def _decode_knowledge_change_value(tree: Any) -> "KnowledgeChange":
@@ -2751,6 +2774,11 @@ def _decode_knowledge_change_value(tree: Any) -> "KnowledgeChange":
         before=(None if tree.get("before") is None else _csil_expect_text(tree["before"])),
         after=(None if tree.get("after") is None else _csil_expect_text(tree["after"])),
         at_ms=_csil_expect_uint(tree["at_ms"]),
+        via=(None if tree.get("via") is None else _csil_expect_text(tree["via"])),
+        trust=(None if tree.get("trust") is None else _csil_expect_text(tree["trust"])),
+        origin=(None if tree.get("origin") is None else _csil_expect_text(tree["origin"])),
+        undoes=(None if tree.get("undoes") is None else _csil_expect_text(tree["undoes"])),
+        undone_by=(None if tree.get("undone_by") is None else _csil_expect_text(tree["undone_by"])),
     )
 
 
@@ -2847,12 +2875,20 @@ UnmergeKnowledgeRequest.from_cbor = staticmethod(_unmerge_knowledge_request_from
 def _encode_knowledge_history_request_value(v: "KnowledgeHistoryRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["id"] = v.id
+    csil_x = v.since_ms
+    if csil_x is not None:
+        csil_m["since_ms"] = csil_x
+    csil_x = v.limit
+    if csil_x is not None:
+        csil_m["limit"] = csil_x
     return csil_m
 
 def _decode_knowledge_history_request_value(tree: Any) -> "KnowledgeHistoryRequest":
     tree = _csil_expect_map(tree)
     return KnowledgeHistoryRequest(
         id=_csil_expect_text(tree["id"]),
+        since_ms=(None if tree.get("since_ms") is None else _csil_expect_uint(tree["since_ms"])),
+        limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
     )
 
 

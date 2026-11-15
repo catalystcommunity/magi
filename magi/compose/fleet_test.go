@@ -9,7 +9,7 @@ import (
 )
 
 func TestChooseRunners(t *testing.T) {
-	s := &System{Cfg: Config{Runner: "studio"}}
+	s := &System{Cfg: Config{Runner: "studio", PublishRunners: []string{"studio"}}}
 	now := uint64(time.Now().UnixMilli())
 	s.fleet.seen(magiapi.RunnerInfo{Name: "studio", Repos: []string{"magi"}, Publishes: []string{"magi"}, SeenMs: now})
 	s.fleet.seen(magiapi.RunnerInfo{Name: "pi", Repos: []string{"magi"}, Publishes: []string{}, SeenMs: now})
@@ -33,7 +33,7 @@ func TestChooseRunners(t *testing.T) {
 		}
 	}
 	// Without a publisher, the start fails at once, not after the review.
-	s2 := &System{Cfg: Config{Runner: "pi"}}
+	s2 := &System{Cfg: Config{Runner: "pi", PublishRunners: []string{"pi"}}}
 	s2.fleet.seen(magiapi.RunnerInfo{Name: "pi", Repos: []string{"magi"}, SeenMs: now})
 	if _, _, err := s2.chooseRunners("", "magi"); err == nil || !strings.Contains(err.Error(), "can publish") {
 		t.Fatalf("no publisher: %v", err)

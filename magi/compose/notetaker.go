@@ -200,8 +200,20 @@ func (s *System) applyNotes(ctx context.Context, a workflowapi.Assignment, as co
 			before = append([]conversationapi.Utterance{hist[i]}, before...)
 		}
 	}
+	// The items are the model's words about the newest message and the
+	// records. Their origin is the message (the person's, or not) and the records.
+	ctx = withAuditOrigin(ctx, auditOrigin{By: "note-taker"})
+	prov := s.newProvenance()
+	prov.addOwn(notes)
+	prov.addUtterances(before, a.Owner)
+	prov.addUtterances([]conversationapi.Utterance{utt}, a.Owner)
 	start := time.Now()
-	items, served, err := s.takeNotes(ctx, utt.Text, notes, before)
+	var items []noteItem
+	var served string
+	err := s.allowModel(a.Owner)
+	if err == nil {
+		items, served, err = s.takeNotes(ctx, utt.Text, notes, before)
+	}
 	call := modelCall{Served: served, Ms: time.Since(start).Milliseconds()}
 	if err != nil {
 		call.Error = err.Error()
@@ -225,7 +237,7 @@ func (s *System) applyNotes(ctx context.Context, a workflowapi.Assignment, as co
 				"result": fmt.Sprintf("Not changed: the record %s does not name %q.", it.Id, it.named())})
 			continue
 		}
-		out, ref := s.personaTool(ctx, a, as, utt, tool, args)
+		out, ref := s.personaTool(ctx, a, as, utt, prov, tool, args)
 		log.Calls = append(log.Calls, map[string]any{"tool": tool, "args": args, "result": out, "by": "note-taker"})
 		// "We moved; the new place is on Zuni Street": a small model gives
 		// remember, and the notes have the old place. With words of a
@@ -239,7 +251,7 @@ func (s *System) applyNotes(ctx context.Context, a workflowapi.Assignment, as co
 				v = it.Object
 			}
 			uargs := map[string]string{"id": m[1], "operation": "update", "value": v, "reason": reason}
-			out, ref = s.personaTool(ctx, a, as, utt, "change_knowledge", uargs)
+			out, ref = s.personaTool(ctx, a, as, utt, prov, "change_knowledge", uargs)
 			log.Calls = append(log.Calls, map[string]any{"tool": "change_knowledge", "args": uargs, "result": out, "by": "note-taker", "from": "remember"})
 		}
 		if ref != nil {

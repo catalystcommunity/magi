@@ -85,6 +85,11 @@ not listen on the network. Set `RUNNER` (`MAGI_RUNNER`) to the default
 runner. A task can name another runner (`start -runner NAME`, or the
 person names the machine to the persona).
 
+Only runners that an operator lists in `PUBLISH_RUNNERS`
+(`MAGI_PUBLISH_RUNNERS`) can publish (push, pull request, merge) or upload
+a release build. The default is none. Each runner kind has a trust tier; see
+[docs/runner-trust.md](../docs/runner-trust.md).
+
 ```text
 prepare -> work -> check --> review --> merge (and build) -> release -> publish -> rollout -> cleanup
   runner   runner   runner    person       runner            Magi      publisher    Magi      runner
@@ -145,8 +150,13 @@ host, so dev and production runners on one machine do not share files.
    bubblewrap must be installed (`apt install bubblewrap`). The script also
    installs Cloud Hypervisor, and virtiofsd when the system has none, for
    task VMs.
-2. Make a runner token: `identity mint --subject runner:NAME --scopes
-   magi:runner --ttl 2160h --out runner-NAME.token`.
+2. Make a runner token: `identity mint --role runner --name NAME --out
+   runner-NAME.token` (subject `runner:NAME`, scope `magi:runner`, 720h; the
+   runner renews it). To cut a runner off, see "Token lifecycle" in
+   `primitives/identity/README.md`: `identity stop-machine --subject
+   runner:NAME --deny-list deny.json`, then deploy the deny list
+   (`MAGI_DENY_LIST`). A fleet (operator) token: `identity mint --role fleet
+   --name ops --out fleet.token` (scope `magi:operate`, 7 days, at most 90).
 3. Install the runner:
 
    ```sh
@@ -477,6 +487,7 @@ magi know calendar; magi know -past dentist
 magi remember me dentist "Dr. Rivera" -object-kind person
 magi fix clm_x Phoenix -m "misheard"; magi update clm_y "Dr. Chen"; magi retract clm_z
 magi merge ent_keep ent_dup -m "the same dentist"; magi history clm_x
+magi history -days 7        # the audit log of your memory; magi undo chg_x -m "wrong"
 magi usage -days 7             # your Magi replies by model
 magi words; magi speak "Read the README, it takes 4-6 minutes" -o test.wav
 magi word README -say readme; magi word Magi -heard Magei   # lexicon editor

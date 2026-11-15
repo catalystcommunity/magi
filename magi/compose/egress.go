@@ -92,6 +92,13 @@ func (r *EgressRules) check() error {
 		if !slices.Contains(verdicts, x.Verdict) || len(x.Hosts) == 0 {
 			return fmt.Errorf("egress rule %d: hosts and a verdict (pass, review, block) are necessary", i)
 		}
+		// A rule that lets a flow through names exact hosts. A wildcard
+		// is fine for review and block, which only narrow what passes.
+		if x.Verdict == "pass" {
+			if h, bad := wildcardHost(x.Hosts); bad {
+				return fmt.Errorf("egress rule %d: host %q: a pass rule needs exact host names, not a wildcard", i, h)
+			}
+		}
 		if x.Path != "" {
 			re, err := regexp.Compile(x.Path)
 			if err != nil {
@@ -104,6 +111,11 @@ func (r *EgressRules) check() error {
 		if !strings.HasPrefix(s.Placeholder, "magi-secret-") || s.Secret == "" || len(s.Hosts) == 0 || s.Place == "" {
 			return fmt.Errorf("egress secret rule %d: placeholder (magi-secret-...), secret, hosts, and place are necessary", i)
 		}
+		// A secret goes only to exact hosts: a wildcard would hand it to
+		// every name that matches, including one that an attacker registers.
+		if h, bad := wildcardHost(s.Hosts); bad {
+			return fmt.Errorf("egress secret rule %d: host %q: a secret needs exact host names, not a wildcard", i, h)
+		}
 		if s.Path != "" {
 			if _, err := regexp.Compile(s.Path); err != nil {
 				return fmt.Errorf("egress secret rule %d: %w", i, err)
@@ -114,6 +126,16 @@ func (r *EgressRules) check() error {
 		}
 	}
 	return nil
+}
+
+// wildcardHost returns the first host pattern that has a "*" anywhere.
+func wildcardHost(hosts []string) (string, bool) {
+	for _, h := range hosts {
+		if strings.Contains(h, "*") {
+			return h, true
+		}
+	}
+	return "", false
 }
 
 var envName = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)
@@ -368,6 +390,9 @@ func (e *Egress) review(ctx context.Context, req magiapi.EgressEvaluateRequest) 
 	fmt.Fprintf(&b, "Body (%d bytes shown):\n<<<\n%s\n>>>\n", len(f.Body), trunc(string(f.Body), 4000))
 	if req.Question != nil {
 		fmt.Fprintf(&b, "Note from plugin %s: %s\n", req.Plugin, trunc(*req.Question, 500))
+	}
+	if err := e.S.allowModel(f.Owner); err != nil {
+		return magiapi.EgressVerdict{}, err
 	}
 	msg, err := e.S.ReviewModel.Chat(ctx, []model.Message{
 		{Role: "system", Content: reviewPrompt},

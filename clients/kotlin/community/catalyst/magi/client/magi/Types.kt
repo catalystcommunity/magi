@@ -641,7 +641,8 @@ data class KnowledgeFact(
     val supported: Boolean,
     val stale: Boolean,
     val mine: Boolean,
-    val disputed: Boolean
+    val disputed: Boolean,
+    val trust: String? = null
 )
 
 /** KnowledgeItem record. */
@@ -655,7 +656,8 @@ data class KnowledgeItem(
     val system: String? = null,
     val locator: String? = null,
     val facts: List<KnowledgeFact>,
-    val mine: Boolean
+    val mine: Boolean,
+    val trust: String? = null
 )
 
 /** KnowledgeRecord record. */
@@ -726,7 +728,12 @@ data class KnowledgeChange(
     val before: String? = null,
     val after: String? = null,
     // wire key: at_ms
-    val atMs: ULong
+    val atMs: ULong,
+    val via: String? = null,
+    val trust: String? = null,
+    val origin: String? = null,
+    val undoes: String? = null,
+    val undoneBy: String? = null
 )
 
 /** ChangeKnowledgeResponse record. */
@@ -749,7 +756,9 @@ data class UnmergeKnowledgeRequest(
 
 /** KnowledgeHistoryRequest record. */
 data class KnowledgeHistoryRequest(
-    val id: String
+    val id: String,
+    val sinceMs: ULong? = null,
+    val limit: ULong? = null
 )
 
 /** KnowledgeHistoryResponse record. */

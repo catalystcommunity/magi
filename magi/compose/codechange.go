@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/catalystcommunity/magi/magi/checkgate"
 	"maps"
 	"strconv"
 	"strings"
@@ -190,7 +191,10 @@ git rev-parse HEAD`, repo.DefaultBranch, branch)
 func (s *System) check(ctx context.Context, a workflowapi.Assignment, note func(string)) (Result, error) {
 	envID, workdir, branch := a.Vars["environment"], a.Vars["workdir"], a.Vars["branch"]
 	note("Running " + s.Cfg.CheckCommand)
-	r, err := s.exec(ctx, envID, workdir, s.Cfg.CheckCommand+" 2>&1", 20*60000)
+	// The command can name a script of the repository; it does not run if the
+	// apprentice changed that script (see package checkgate).
+	guarded := checkgate.Guarded(s.Cfg.CheckCommand, a.Vars["base_commit"], a.Vars[checkgate.ApprovedVar] == "true")
+	r, err := s.exec(ctx, envID, workdir, "{\n"+guarded+"\n} 2>&1", 20*60000)
 	if err != nil {
 		return Result{}, err
 	}
@@ -387,7 +391,7 @@ func (s *System) post(ctx context.Context, a workflowapi.Assignment, text string
 	}
 	run := conversationapi.Ref{Kind: "workflow-run", Ref: a.Run, Title: optional(a.Vars["title"])}
 	req := conversationapi.PostRequest{
-		Stream: stream, Text: text, Author: ptr(a.Vars["persona"]), AuthorKind: ptr("persona"),
+		Stream: stream, Text: noRemoteImages(text), Author: ptr(a.Vars["persona"]), AuthorKind: ptr("persona"),
 		Attachments: []conversationapi.Ref{run}, Links: []conversationapi.NewLink{{Target: run, Kind: "reports-on"}},
 	}
 	if deref(req.Author) == "" {

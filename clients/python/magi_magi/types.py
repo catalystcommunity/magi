@@ -2176,6 +2176,7 @@ class KnowledgeFact:
     value: Optional[str] = None
     valid_from_ms: Optional[int] = None
     valid_to_ms: Optional[int] = None
+    trust: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -2205,12 +2206,14 @@ class KnowledgeFact:
             result['mine'] = self.mine
         if hasattr(self, 'disputed') and self.disputed is not None:
             result['disputed'] = self.disputed
+        if hasattr(self, 'trust') and self.trust is not None:
+            result['trust'] = self.trust
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'KnowledgeFact':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), relation=data.get('relation'), direction=data.get('direction'), other=data.get('other'), other_id=data.get('other_id'), value=data.get('value'), status=data.get('status'), valid_from_ms=data.get('valid_from_ms'), valid_to_ms=data.get('valid_to_ms'), supported=data.get('supported'), stale=data.get('stale'), mine=data.get('mine'), disputed=data.get('disputed'))
+        return cls(id=data.get('id'), relation=data.get('relation'), direction=data.get('direction'), other=data.get('other'), other_id=data.get('other_id'), value=data.get('value'), status=data.get('status'), valid_from_ms=data.get('valid_from_ms'), valid_to_ms=data.get('valid_to_ms'), supported=data.get('supported'), stale=data.get('stale'), mine=data.get('mine'), disputed=data.get('disputed'), trust=data.get('trust'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -2234,6 +2237,7 @@ class KnowledgeItem:
     mine: bool
     system: Optional[str] = None
     locator: Optional[str] = None
+    trust: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -2257,12 +2261,14 @@ class KnowledgeItem:
             result['facts'] = self.facts
         if hasattr(self, 'mine') and self.mine is not None:
             result['mine'] = self.mine
+        if hasattr(self, 'trust') and self.trust is not None:
+            result['trust'] = self.trust
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'KnowledgeItem':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), kind=data.get('kind'), label=data.get('label'), aliases=data.get('aliases'), summary=data.get('summary'), properties=data.get('properties'), system=data.get('system'), locator=data.get('locator'), facts=data.get('facts'), mine=data.get('mine'))
+        return cls(id=data.get('id'), kind=data.get('kind'), label=data.get('label'), aliases=data.get('aliases'), summary=data.get('summary'), properties=data.get('properties'), system=data.get('system'), locator=data.get('locator'), facts=data.get('facts'), mine=data.get('mine'), trust=data.get('trust'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -2503,6 +2509,11 @@ class KnowledgeChange:
     reason: Optional[str] = None
     before: Optional[str] = None
     after: Optional[str] = None
+    via: Optional[str] = None
+    trust: Optional[str] = None
+    origin: Optional[str] = None
+    undoes: Optional[str] = None
+    undone_by: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -2522,12 +2533,22 @@ class KnowledgeChange:
             result['after'] = self.after
         if hasattr(self, 'at_ms') and self.at_ms is not None:
             result['at_ms'] = self.at_ms
+        if hasattr(self, 'via') and self.via is not None:
+            result['via'] = self.via
+        if hasattr(self, 'trust') and self.trust is not None:
+            result['trust'] = self.trust
+        if hasattr(self, 'origin') and self.origin is not None:
+            result['origin'] = self.origin
+        if hasattr(self, 'undoes') and self.undoes is not None:
+            result['undoes'] = self.undoes
+        if hasattr(self, 'undone_by') and self.undone_by is not None:
+            result['undone_by'] = self.undone_by
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'KnowledgeChange':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), record=data.get('record'), operation=data.get('operation'), actor=data.get('actor'), reason=data.get('reason'), before=data.get('before'), after=data.get('after'), at_ms=data.get('at_ms'))
+        return cls(id=data.get('id'), record=data.get('record'), operation=data.get('operation'), actor=data.get('actor'), reason=data.get('reason'), before=data.get('before'), after=data.get('after'), at_ms=data.get('at_ms'), via=data.get('via'), trust=data.get('trust'), origin=data.get('origin'), undoes=data.get('undoes'), undone_by=data.get('undone_by'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -2626,17 +2647,23 @@ class UnmergeKnowledgeRequest:
 @dataclass
 class KnowledgeHistoryRequest:
     id: str
+    since_ms: Optional[int] = None
+    limit: Optional[int] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'id') and self.id is not None:
             result['id'] = self.id
+        if hasattr(self, 'since_ms') and self.since_ms is not None:
+            result['since_ms'] = self.since_ms
+        if hasattr(self, 'limit') and self.limit is not None:
+            result['limit'] = self.limit
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'KnowledgeHistoryRequest':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'))
+        return cls(id=data.get('id'), since_ms=data.get('since_ms'), limit=data.get('limit'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

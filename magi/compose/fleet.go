@@ -87,12 +87,18 @@ func (s *System) chooseRunners(runner, repo string) (string, string, error) {
 		return "", "", nil
 	}
 	publisher := s.Cfg.Publisher
+	if publisher != "" && !s.publishApproved(publisher) {
+		if s.Log != nil {
+			s.Log.Warn("publisher is not approved to publish", "publisher", publisher)
+		}
+		return "", "", rpc.Invalid("publisher %s is not approved to publish (MAGI_PUBLISH_RUNNERS: %s)", publisher, approvedList(s.Cfg.PublishRunners))
+	}
 	if publisher == "" {
-		if info, ok := s.fleet.get(runner); !ok || slices.Contains(info.Publishes, repo) {
+		if info, ok := s.fleet.get(runner); ok && slices.Contains(info.Publishes, repo) && s.publishApproved(runner) {
 			publisher = runner
 		} else {
 			for _, r := range s.fleet.connected() {
-				if slices.Contains(r.Publishes, repo) {
+				if slices.Contains(r.Publishes, repo) && s.publishApproved(r.Name) {
 					publisher = r.Name
 					break
 				}
@@ -100,7 +106,7 @@ func (s *System) chooseRunners(runner, repo string) (string, string, error) {
 		}
 	}
 	if publisher == "" {
-		return "", "", rpc.Invalid("no connected runner can publish %s (connected: %s)", repo, names())
+		return "", "", rpc.Invalid("no connected runner that is approved to publish can publish %s (connected: %s; approved: %s)", repo, names(), approvedList(s.Cfg.PublishRunners))
 	}
 	return runner, publisher, nil
 }

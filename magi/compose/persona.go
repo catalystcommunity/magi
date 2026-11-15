@@ -143,7 +143,13 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 		changes, changed = s.recordChanges(ctx, a.Owner, hist.Utterances[0].CreatedMs)
 	}
 	ph.mark("read")
-	if rel := s.relatedContext(ctx, as, utt, hist.Utterances, now); rel != "" {
+	// Labels of the origin of the text of this turn (taint.go).
+	prov := s.newProvenance()
+	prov.addPerson(utt.Text)
+	prov.addUtterances(hist.Utterances, a.Owner)
+	relList := s.relatedUtterances(ctx, as, utt, hist.Utterances)
+	prov.addUtterances(relList, a.Owner)
+	if rel := describeUtterances(relList, as.person, now); len(relList) > 0 {
 		// Not a second system message: chat templates such as Qwen's allow
 		// one, at the start. The text can come from other people, so it is
 		// data, not instructions (docs/prompt-injection.md, 6.10).
@@ -201,6 +207,13 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 		kc = s.knowledgeContext(ctx, a.Owner, utt.Text)
 	}
 	wg.Wait()
+	prov.addOwn(kc)
+	if cc != "" {
+		prov.taint("calendar items")
+	}
+	if lc != "" {
+		prov.taint("Longhouse items")
+	}
 	ph.mark("context")
 	log := turnLog{}
 	var refs []conversationapi.Ref
@@ -208,7 +221,22 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 	// facts do not depend on a tool call of the persona model. It reads the
 	// records before its changes; the persona gets them after the changes.
 	var done []string
-	if s.Cfg.NoteTaker && slices.Contains(prof.tools, "remember") {
+	// The message of the person can confirm an action that an earlier,
+	// tainted turn kept (confirm.go). Then the message is not new content.
+	confirmed := false
+	if tool, cargs, out, ref, ok := s.runConfirmed(ctx, a, as, utt); ok {
+		confirmed = true
+		log.Calls = append(log.Calls, map[string]any{"tool": tool, "args": cargs, "result": out, "by": "confirmation"})
+		if ref != nil {
+			refs = append(refs, *ref)
+		}
+		if strings.HasPrefix(out, "error") {
+			done = append(done, "The person confirmed an earlier action, but it failed: "+out)
+		} else {
+			done = append(done, "The person confirmed an action that was waiting, and it is done: "+out)
+		}
+	}
+	if !confirmed && s.Cfg.NoteTaker && slices.Contains(prof.tools, "remember") {
 		if done = s.applyNotes(ctx, a, as, utt, kc, hist.Utterances, &log, &refs); len(done) > 0 && kc != "" {
 			kc = s.knowledgeContext(ctx, a.Owner, utt.Text)
 		}
@@ -244,7 +272,7 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 		msgs = append(msgs[:len(msgs)-1], model.Message{Role: "user", Content: "Magi already did this for the newest message. Do not do it again. You can tell the person what was recorded or changed:\n- " + neutralize(strings.Join(done, "\n- "))}, last)
 	}
 	var reply string
-	tools, ts := prof.toolList(), &turnState{hist: hist.Utterances, pages: map[string]bool{}}
+	tools, ts := prof.toolList(), &turnState{hist: hist.Utterances, pages: map[string]bool{}, prov: prov}
 	if s.Search == nil {
 		// Without a search service the persona has no web tools.
 		tools = slices.DeleteFunc(tools, func(t model.Tool) bool { return t.Name == "web_search" || t.Name == "read_page" })
@@ -264,12 +292,18 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 			say("putting the answer together")
 		}
 		start := time.Now()
-		m, err := s.Model.Chat(ctx, msgs, tools, personaTokens)
+		var m model.Message
+		err := s.allowModel(a.Owner)
+		if err == nil {
+			m, err = s.Model.Chat(ctx, msgs, tools, personaTokens)
+		}
 		if err == nil && strings.TrimSpace(m.Content) == "" && len(m.ToolCalls) == 0 {
 			// A reasoning model can use all of the tokens to think and
 			// give no text (GLM-5.3 in the world eval). Ask once more
 			// with more room.
-			m, err = s.Model.Chat(ctx, msgs, tools, 2*personaTokens)
+			if err = s.allowModel(a.Owner); err == nil {
+				m, err = s.Model.Chat(ctx, msgs, tools, 2*personaTokens)
+			}
 		}
 		call := modelCall{Served: m.Served, Skipped: m.Skipped, Ms: time.Since(start).Milliseconds()}
 		ph.mark("models")
@@ -281,6 +315,9 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 			// Tell the person instead of leaving the message without a reply.
 			s.Log.Error("persona model", "run", a.Run, "err", err)
 			reply = "I could not answer because the model service failed. Please try again."
+			if isLimit(err) {
+				reply = "I could not answer: " + limitMessage(err)
+			}
 			break
 		}
 		// A provider refuses a history that holds tool arguments that are
@@ -335,7 +372,7 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 				out, ref, ok = s.extraTool(ctx, a, as, utt, ts, tc.Function.Name, args)
 			}
 			if !ok {
-				out, ref = s.personaTool(ctx, a, as, utt, tc.Function.Name, args)
+				out, ref = s.personaTool(ctx, a, as, utt, ts.prov, tc.Function.Name, args)
 			}
 			if ref != nil {
 				refs = append(refs, *ref)
@@ -343,6 +380,7 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 			if tc.Function.Name == "recall" {
 				refs = append(refs, recordRefs(out)...)
 			}
+			ts.prov.observe(tc.Function.Name, out)
 			log.Calls = append(log.Calls, map[string]any{"tool": tc.Function.Name, "args": args, "result": out})
 			// The result can hold text of other people (events, comments, pages,
 			// task output): it goes in the fence of the turn.
@@ -352,13 +390,17 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 	// A small model can copy the mark of its earlier answers.
 	reply = strings.TrimSpace(strings.ReplaceAll(reply, strings.TrimSpace(staleMark), ""))
 	reply = strings.TrimSpace(supersededCopy.ReplaceAllString(reply, ""))
-	reply = stripMarks(reply)
+	reply = noRemoteImages(stripMarks(reply))
 	if reply == "" {
 		reply = "I could not finish my answer. Please ask again."
 	}
 	// The claim is still there after the correction: say what is true.
 	if tool := falseClaim(reply, log.Calls, prof.tools); tool != "" && corrected {
 		reply += "\n\n(Magi check: " + claimNote[tool] + " Ask again, please.)"
+	}
+	// Magi writes the view of what waits for the person: exact bytes, sources.
+	for _, v := range s.confirms.views(utt.Id) {
+		reply += v
 	}
 	log.Reply = reply
 	served, ms := "", int64(0)
@@ -413,7 +455,39 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 		"reply.tools": fmt.Sprint(len(log.Calls)), "reply.model": served, "reply.model_ms": fmt.Sprint(ms)}}, nil
 }
 
-func (s *System) personaTool(ctx context.Context, a workflowapi.Assignment, as conversationLens, utt conversationapi.Utterance, name string, args map[string]string) (string, *conversationapi.Ref) {
+// personaTool runs one of the tools of the persona. prov holds the labels of
+// the turn: the sink check runs first, and a call that it rejects does nothing.
+func (s *System) personaTool(ctx context.Context, a workflowapi.Assignment, as conversationLens, utt conversationapi.Utterance, prov *provenance, name string, args map[string]string) (string, *conversationapi.Ref) {
+	if name == "change_knowledge" && args["operation"] == "undo" {
+		// No persona and no model undoes a change: the person does, in their
+		// own call (audit.go).
+		return "error: only the person can undo a change, in their own request. Nothing was changed.", nil
+	}
+	if name == "change_knowledge" && args["operation"] == "promote" {
+		// Only the person promotes a record, in every turn: the call is held,
+		// and it runs when the person confirms (memtrust.go).
+		return s.holdPromotion(ctx, a, as, utt, args), nil
+	}
+	if err := prov.sinkCheck(name, args); err != nil {
+		if needsConfirmation(err) {
+			// Not rejected for good: the person sees the exact bytes and
+			// their sources, and can confirm in a later message (confirm.go).
+			s.Log.Warn("sink check: confirmation needed", "run", a.Run, "tool", name, "err", err)
+			return s.holdForConfirmation(a, as, utt, prov, name, args), nil
+		}
+		s.Log.Warn("sink check", "run", a.Run, "tool", name, "err", err)
+		return "error: " + err.Error(), nil
+	}
+	return s.runPersonaTool(ctx, a, as, utt, name, args)
+}
+
+// runPersonaTool runs the tool. The sink check has run, or the person
+// confirmed the exact call (runConfirmed).
+func (s *System) runPersonaTool(ctx context.Context, a workflowapi.Assignment, as conversationLens, utt conversationapi.Utterance, name string, args map[string]string) (string, *conversationapi.Ref) {
+	// What the audit log of the knowledge service keeps of this write.
+	ao, _ := auditOriginOf(ctx)
+	ao.Persona, ao.Tool, ao.Turn, ao.Run, ao.Confirmed = as.persona, name, utt.Id, a.Run, personConfirmed(ctx)
+	ctx = withAuditOrigin(ctx, ao)
 	switch name {
 	case "search_conversation":
 		res, err := s.Conversation.Search(ctx, conversationapi.SearchRequest{Text: args["text"], Limit: ptr(uint64(10)), Person: as.p(), Persona: as.v()})
@@ -454,8 +528,8 @@ func (s *System) personaTool(ctx context.Context, a workflowapi.Assignment, as c
 		if err != nil {
 			return "error: " + err.Error(), nil
 		}
-		done := map[string]string{"fix": "Fixed", "update": "Updated", "retract": "Retracted", "end": "Ended (kept as a past fact)"}[args["operation"]]
-		if args["operation"] == "end" {
+		done := map[string]string{"fix": "Fixed", "update": "Updated", "retract": "Retracted", "end": "Ended (kept as a past fact)", "promote": "Promoted (the record is trusted now)"}[args["operation"]]
+		if args["operation"] == "end" || args["operation"] == "promote" {
 			return done + ".", nil
 		}
 		if r.Claim != nil {

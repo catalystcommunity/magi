@@ -48,7 +48,7 @@ func TestModelProxy(t *testing.T) {
 	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
 	iss := &authn.Issuer{Name: "test", KeyID: "k1", Key: priv}
 	ver := &authn.Verifier{Issuer: "test", Keys: map[string]ed25519.PublicKey{"k1": pub}}
-	proxy := httptest.NewServer(ModelProxy(ver, &model.Client{BaseURL: provider.URL, Model: "coder-model", APIKey: "provider-key"}))
+	proxy := httptest.NewServer(ModelProxy(ver, &model.Client{BaseURL: provider.URL, Model: "coder-model", APIKey: "provider-key"}, nil))
 	defer proxy.Close()
 	call := func(tok string) int {
 		req, _ := http.NewRequest("POST", proxy.URL, strings.NewReader(`{"model":"anything","messages":[]}`))
@@ -70,5 +70,31 @@ func TestModelProxy(t *testing.T) {
 	}
 	if code := call(runner); code != 200 || seen.auth != "Bearer provider-key" || seen.model != "coder-model" {
 		t.Fatalf("runner: %d %+v", code, seen)
+	}
+}
+
+// A provider 5xx body (account, host, key detail) does not reach the runner.
+func TestModelProxyHidesProviderServerError(t *testing.T) {
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(500)
+		io.WriteString(w, `{"error":"org-secret account over quota at 10.9.8.7"}`)
+	}))
+	defer provider.Close()
+	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
+	iss := &authn.Issuer{Name: "test", KeyID: "k1", Key: priv}
+	ver := &authn.Verifier{Issuer: "test", Keys: map[string]ed25519.PublicKey{"k1": pub}}
+	proxy := httptest.NewServer(ModelProxy(ver, &model.Client{BaseURL: provider.URL, Model: "m"}, nil))
+	defer proxy.Close()
+	runner, _ := iss.Issue(authn.Principal{Subject: "runner:ht0", Kind: authn.KindService, Scopes: []string{ScopeRunner}}, time.Hour)
+	req, _ := http.NewRequest("POST", proxy.URL, strings.NewReader(`{"messages":[]}`))
+	req.Header.Set("Authorization", "Bearer "+runner)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 502 || strings.Contains(string(b), "secret") || strings.Contains(string(b), "10.9.8.7") {
+		t.Fatalf("%d %s", resp.StatusCode, b)
 	}
 }
