@@ -171,8 +171,11 @@ def _parse_repository(out: str) -> str:
 
 
 # One exec gives the diff stat and the diff, so the review sees the whole change
-# at the cost of one tool call.
+# at the cost of one tool call. git diff does not show untracked files, so the
+# new files are put in the index as empty entries first; the workflow commits
+# with git add -A, so that index change is harmless.
 DIFF_SCRIPT = "\n".join([
+    "git add --intent-to-add --all 2>/dev/null",
     "echo '--- git diff --stat ---'",
     "git diff --stat 2>/dev/null",
     "echo '--- git diff ---'",
@@ -188,7 +191,6 @@ def workdir_diff(tools: Tools) -> str:
     except Exception:  # best effort: the review works without the diff
         return ""
     return truncate(_parse_repository(as_text(r.stdout)), tools.ws.limits.tool_output_chars)
-
 
 
 def add_start_context(task: Task, tools: Tools, transcript: Transcript) -> Task:

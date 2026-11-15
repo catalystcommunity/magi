@@ -274,6 +274,19 @@ class SelfReviewTest(unittest.TestCase):
         self.assertEqual(kinds(tr)[-1], "result")
         self.assertEqual(len(self.reviewed(tr)), 1)
 
+    def test_diff_script_puts_new_files_in_the_diff(self):
+        # git diff does not show untracked files, so the script puts them in
+        # the index as empty entries before it runs git diff.
+        e = diff_exec()
+        model = FakeModel([reply(call("finish", summary="a")), reply(call("finish", summary="b"))])
+        lim = Limits()
+        tr = Transcript(Redactor())
+        Apprentice(model, Tools(Workspace(e, "env", "/w", lim)), lim, tr).run(Task("t"))
+        script = next(x.argv[-1] for x in e.execs if "git diff --stat" in x.argv[-1])
+        self.assertIn("git add --intent-to-add --all", script)
+        self.assertLess(script.index("git add --intent-to-add --all"),
+                        script.index("git diff --stat"))
+
     def test_review_after_a_failed_check(self):
         # The check gate rejects the first finish, so the review waits for the
         # finish that passes it.
