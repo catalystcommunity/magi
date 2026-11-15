@@ -1,0 +1,9 @@
+# Apprentice: keep finish summaries in compaction; restore the index after the self-review diff
+
+Fix two bugs of the apprentice harness that a real task showed (run_lpH_c4ySWL9PNhnqegVU). Keep the change small: only primitives/apprentice/magi_apprentice/apprentice.py, its tests, and one README line if a behavior changes.
+
+1. Compaction made the finish summary a stub. Context._shrink compacts the string arguments of old assistant tool calls (_shrink_args). An earlier finish call (rejected by the self-review) lost its summary to "[compacted 1978 chars]". The model then sent that stub as the summary of its last finish call. Fix: _shrink does not change the arguments of finish calls. Also, when the model calls finish with a summary that starts with "[compacted", reject that finish with a tool result that asks for the full summary (this does not count as a failed check). Tests: compaction keeps a finish summary; a stub summary is rejected and the next finish is accepted.
+
+2. The self-review broke git stash. DIFF_SCRIPT runs git add --intent-to-add --all, and leaves the intent-to-add entries in the index. Later the model ran git stash (the system prompt tells it to, to find out if a failure existed before the change), and git stash failed with "No stash entries found". Fix: at the end of DIFF_SCRIPT, remove the intent-to-add entries again, so that the index is as it was before the review: git reset -q (the apprentice does not stage files; the workflow commits with git add -A). Test: the script ends with the reset after the diff commands. Then test it against a real git repository with LocalExecution (see LocalStartContextTest for the pattern): after workdir_diff, a new file is still untracked (git status --short shows ??) and git stash -u works.
+
+Verify: cd primitives/apprentice && python3 -m unittest discover -s tests -q. Then ./tools/check.sh.
