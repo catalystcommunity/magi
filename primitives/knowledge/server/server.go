@@ -9,11 +9,13 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"regexp"
 	"slices"
 	"strings"
 
+	"github.com/catalystcommunity/magi/lib/authn"
 	"github.com/catalystcommunity/magi/lib/rpc"
 	api "github.com/catalystcommunity/magi/primitives/knowledge/api"
 	"github.com/catalystcommunity/magi/primitives/knowledge/store"
@@ -22,7 +24,17 @@ import (
 const (
 	ScopeActAs = "knowledge:act-as"
 	ScopeAdmin = "knowledge:admin"
+	// ScopePromote lets a service promote untrusted records for a person. It
+	// is matched exactly: "*", "knowledge:*", and knowledge:admin do not give
+	// it. The person never needs it, because a person promotes as themself.
+	ScopePromote = "knowledge:promote"
+	// ScopeUndo lets a service undo changes for a person, matched by name like
+	// ScopePromote. Magi holds it and calls undo only in the API call of the
+	// person. The person and an admin need no scope.
+	ScopeUndo = "knowledge:undo"
 
+	defaultAudit = 100
+	maxAudit     = 1000
 	defaultLimit = 50
 	maxLimit     = 500
 	maxDepth     = 3
@@ -59,13 +71,82 @@ func (s *Service) who(ctx context.Context, actFor *string) (store.Who, error) {
 	if err != nil {
 		return store.Who{}, err
 	}
-	return store.Who{Subject: subject, Principals: ps, All: p.Has(ScopeAdmin)}, nil
+	return store.Who{Subject: subject, Principals: ps, All: p.Has(ScopeAdmin), Via: p.Subject}, nil
+}
+
+// maxOrigin is the longest origin text of the audit log.
+const maxOrigin = 2048
+
+// withOrigin gives the audit text of a request to w. It must be a JSON
+// object: the audit log is read by programs.
+func withOrigin(w store.Who, origin *string) (store.Who, error) {
+	if origin == nil || *origin == "" {
+		return w, nil
+	}
+	var probe map[string]any
+	if len(*origin) > maxOrigin || json.Unmarshal([]byte(*origin), &probe) != nil || probe == nil {
+		return w, rpc.Invalid("origin must be a JSON object of at most %d bytes", maxOrigin)
+	}
+	w.Origin = origin
+	return w, nil
 }
 
 // trusted reports whether the caller can set any owners.
 func trusted(ctx context.Context) bool {
 	p, err := rpc.Caller(ctx)
 	return err == nil && (p.Has(ScopeActAs) || p.Has(ScopeAdmin))
+}
+
+// vouches reports whether the caller can write a record with trust "person"
+// or "named": a person (kind user) for themself, or a service that acts for
+// people (knowledge:act-as). Any caller can write "own" or "untrusted".
+func vouches(ctx context.Context) bool {
+	p, err := rpc.Caller(ctx)
+	return err == nil && (p.Kind == authn.KindUser || p.Has(ScopeActAs) || p.Has(ScopeAdmin))
+}
+
+// canPromote reports whether the caller can move a record from untrusted:
+// the person as themself (a user token, not acting for another subject), or
+// a service that was given knowledge:promote by name. A persona, a model, or
+// another member holds neither: they act through the service of Magi, which
+// calls promote only after the person confirmed (docs/knowledge.md, "Trust").
+func canPromote(ctx context.Context, w store.Who) bool {
+	p, err := rpc.Caller(ctx)
+	if err != nil {
+		return false
+	}
+	if p.Kind == authn.KindUser {
+		return w.Subject == p.Subject
+	}
+	return slices.Contains(p.Scopes, ScopePromote)
+}
+
+// canUndo reports whether the caller can undo changes for w: the person as
+// themself (a user token), an admin (knowledge:admin), or a service that was
+// given knowledge:undo by name. A persona, a model, or another member holds
+// none of them: they act through the service of Magi, which calls undo only
+// in the API call of the person (docs/knowledge.md, "Audit and undo").
+func canUndo(ctx context.Context, w store.Who) bool {
+	p, err := rpc.Caller(ctx)
+	if err != nil {
+		return false
+	}
+	if p.Kind == authn.KindUser {
+		return w.Subject == p.Subject || p.Has(ScopeAdmin)
+	}
+	return slices.Contains(p.Scopes, ScopeUndo)
+}
+
+// trustOf validates the trust of a write.
+func trustOf(ctx context.Context, requested *string) (string, error) {
+	t, err := store.NormalizeTrust(requested)
+	if err != nil {
+		return "", rpc.Invalid("%s", strings.TrimPrefix(err.Error(), store.ErrInvalid.Error()+": "))
+	}
+	if (t == store.TrustPerson || t == store.TrustNamed) && !vouches(ctx) {
+		return "", rpc.Denied("trust %s needs a person or a service that acts for people", t)
+	}
+	return t, nil
 }
 
 // owners checks requested owners: the default is the subject; others must
@@ -197,6 +278,9 @@ func (s *Service) PutEntity(ctx context.Context, req api.PutEntityRequest) (api.
 	if err != nil {
 		return api.Entity{}, err
 	}
+	if w, err = withOrigin(w, req.Origin); err != nil {
+		return api.Entity{}, err
+	}
 	o, err := owners(ctx, w, req.Owners)
 	if err != nil {
 		return api.Entity{}, err
@@ -210,7 +294,11 @@ func (s *Service) PutEntity(ctx context.Context, req api.PutEntityRequest) (api.
 			return api.Entity{}, err
 		}
 	}
-	e, err := s.Store.PutEntity(ctx, w, store.EntityInput{Kind: strings.ToLower(strings.TrimSpace(req.Kind)), Label: strings.TrimSpace(req.Label),
+	trust, err := trustOf(ctx, req.Trust)
+	if err != nil {
+		return api.Entity{}, err
+	}
+	e, err := s.Store.PutEntity(ctx, w, store.EntityInput{Trust: trust, Kind: strings.ToLower(strings.TrimSpace(req.Kind)), Label: strings.TrimSpace(req.Label),
 		Aliases: req.Aliases, Summary: req.Summary, Properties: req.Properties, External: req.External, Owners: o, Readers: req.Readers,
 		Confidence: req.Confidence, Utterance: req.Utterance})
 	return e, mapErr(err, "entity")
@@ -235,6 +323,9 @@ func (s *Service) Self(ctx context.Context, req api.SelfRequest) (api.Entity, er
 func (s *Service) Assert(ctx context.Context, req api.AssertRequest) (api.Claim, error) {
 	w, err := s.who(ctx, req.ActFor)
 	if err != nil {
+		return api.Claim{}, err
+	}
+	if w, err = withOrigin(w, req.Origin); err != nil {
 		return api.Claim{}, err
 	}
 	o, err := owners(ctx, w, req.Owners)
@@ -266,7 +357,11 @@ func (s *Service) Assert(ctx context.Context, req api.AssertRequest) (api.Claim,
 	if req.Value != nil && strings.TrimSpace(*req.Value) == "" {
 		return api.Claim{}, rpc.Invalid("value is empty")
 	}
-	c, err := s.Store.Assert(ctx, w, store.ClaimInput{Subject: req.Subject, Relation: strings.ToLower(strings.TrimSpace(req.Relation)),
+	trust, err := trustOf(ctx, req.Trust)
+	if err != nil {
+		return api.Claim{}, err
+	}
+	c, err := s.Store.Assert(ctx, w, store.ClaimInput{Trust: trust, Subject: req.Subject, Relation: strings.ToLower(strings.TrimSpace(req.Relation)),
 		Object: req.Object, Value: req.Value, ValidFrom: req.ValidFromMs, ValidTo: req.ValidToMs, Confidence: req.Confidence,
 		AuthoredBy: req.AuthoredBy, DerivedFrom: req.DerivedFrom, Evidence: req.Evidence, Owners: o, Readers: req.Readers, Utterance: req.Utterance})
 	return c, mapErr(err, "claim")
@@ -277,8 +372,32 @@ func (s *Service) Change(ctx context.Context, req api.ChangeRequest) (api.Change
 	if err != nil {
 		return api.ChangeResponse{}, err
 	}
+	if w, err = withOrigin(w, req.Origin); err != nil {
+		return api.ChangeResponse{}, err
+	}
 	if err := errors.Join(required("id", req.Id), long("reason", req.Reason), short("utterance", req.Utterance), checkProps(req.Set)); err != nil {
 		return api.ChangeResponse{}, err
+	}
+	if req.Operation == "undo" {
+		// id is the id of a change. Who may undo is checked first, so that
+		// a caller who may not learns nothing of the change.
+		if !canUndo(ctx, w) {
+			return api.ChangeResponse{}, rpc.Denied("only the person or an admin can undo a change")
+		}
+		if len(req.Set) > 0 || req.AtMs != nil || (req.Erase != nil && *req.Erase) {
+			return api.ChangeResponse{}, rpc.Invalid("undo takes an id, and a reason")
+		}
+		r, err := s.Store.Undo(ctx, w, req.Id, req.Reason, req.Utterance)
+		return r, mapErr(err, "change")
+	}
+	switch req.Operation {
+	case "promote":
+		if !canPromote(ctx, w) {
+			return api.ChangeResponse{}, rpc.Denied("only the person can promote an untrusted record")
+		}
+	}
+	if t, ok := req.Set["trust"]; ok && t != store.TrustUntrusted {
+		return api.ChangeResponse{}, rpc.Invalid("a change can only set trust to untrusted; the person promotes with promote")
 	}
 	// An object must be an entity that the caller can read.
 	if o, ok := req.Set["object"]; ok {
@@ -296,6 +415,9 @@ func (s *Service) Change(ctx context.Context, req api.ChangeRequest) (api.Change
 func (s *Service) Merge(ctx context.Context, req api.MergeRequest) (api.Change, error) {
 	w, err := s.who(ctx, req.ActFor)
 	if err != nil {
+		return api.Change{}, err
+	}
+	if w, err = withOrigin(w, req.Origin); err != nil {
 		return api.Change{}, err
 	}
 	if err := errors.Join(required("keep", req.Keep), required("merge", req.Merge), long("reason", req.Reason), short("utterance", req.Utterance)); err != nil {
@@ -528,6 +650,19 @@ func (s *Service) History(ctx context.Context, req api.HistoryRequest) (api.Hist
 	w, err := s.who(ctx, req.ActFor)
 	if err != nil {
 		return api.HistoryResponse{}, err
+	}
+	if req.Id == "" {
+		// The audit log of the caller: all changes of the records they own.
+		n := defaultAudit
+		if req.Limit != nil && *req.Limit > 0 {
+			n = int(min(*req.Limit, maxAudit))
+		}
+		var since uint64
+		if req.SinceMs != nil {
+			since = *req.SinceMs
+		}
+		cs, err := s.Store.Audit(ctx, w, since, n)
+		return api.HistoryResponse{Changes: cs}, err
 	}
 	cs, err := s.Store.History(ctx, w, req.Id)
 	return api.HistoryResponse{Changes: cs}, mapErr(err, "record")

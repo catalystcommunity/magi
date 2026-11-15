@@ -641,6 +641,9 @@ func csilEncEntity(csilV Entity) cborValue {
 	if csilV.MergedInto != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("merged_into"), cborText((*csilV.MergedInto))})
 	}
+	if csilV.Trust != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("trust"), cborText((*csilV.Trust))})
+	}
 	return csilEntries
 }
 
@@ -782,6 +785,13 @@ func csilDecEntity(csilRoot cborValue) (Entity, error) {
 		}
 		csilOut.UpdatedMs = csilVal
 	}
+	if csilField, csilOk := cborMapGet(csilRoot, "trust"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Trust = &csilVal
+	}
 	return csilOut, nil
 }
 
@@ -832,6 +842,9 @@ func csilEncClaim(csilV Claim) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("derived_from"), cborEncArray(csilV.DerivedFrom, func(csilElem string) cborValue { return cborText(csilElem) })})
 	if csilV.ValidFromMs != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("valid_from_ms"), cborUint((*csilV.ValidFromMs))})
+	}
+	if csilV.Trust != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("trust"), cborText((*csilV.Trust))})
 	}
 	return csilEntries
 }
@@ -1012,6 +1025,13 @@ func csilDecClaim(csilRoot cborValue) (Claim, error) {
 			return csilOut, csilErr
 		}
 		csilOut.UpdatedMs = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "trust"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Trust = &csilVal
 	}
 	return csilOut, nil
 }
@@ -1542,6 +1562,21 @@ func csilEncChange(csilV Change) cborValue {
 	if csilV.Utterance != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("utterance"), cborText((*csilV.Utterance))})
 	}
+	if csilV.Via != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("via"), cborText((*csilV.Via))})
+	}
+	if csilV.Trust != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("trust"), cborText((*csilV.Trust))})
+	}
+	if csilV.Origin != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("origin"), cborText((*csilV.Origin))})
+	}
+	if csilV.Undoes != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("undoes"), cborText((*csilV.Undoes))})
+	}
+	if csilV.UndoneBy != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("undone_by"), cborText((*csilV.UndoneBy))})
+	}
 	return csilEntries
 }
 
@@ -1630,6 +1665,41 @@ func csilDecChange(csilRoot cborValue) (Change, error) {
 			return csilOut, csilErr
 		}
 		csilOut.AtMs = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "via"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Via = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "trust"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Trust = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "origin"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Origin = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "undoes"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Undoes = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "undone_by"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.UndoneBy = &csilVal
 	}
 	return csilOut, nil
 }
@@ -1911,6 +1981,12 @@ func csilEncPutEntityRequest(csilV PutEntityRequest) cborValue {
 	if csilV.Properties != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("properties"), cborEncMap(csilV.Properties, func(csilK string) cborValue { return cborText(csilK) }, func(csilV string) cborValue { return cborText(csilV) })})
 	}
+	if csilV.Trust != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("trust"), cborText((*csilV.Trust))})
+	}
+	if csilV.Origin != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("origin"), cborText((*csilV.Origin))})
+	}
 	return csilEntries
 }
 
@@ -2001,6 +2077,20 @@ func csilDecPutEntityRequest(csilRoot cborValue) (PutEntityRequest, error) {
 			return csilOut, csilErr
 		}
 		csilOut.Utterance = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "trust"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Trust = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "origin"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Origin = &csilVal
 	}
 	return csilOut, nil
 }
@@ -2107,6 +2197,12 @@ func csilEncAssertRequest(csilV AssertRequest) cborValue {
 	}
 	if csilV.ValidFromMs != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("valid_from_ms"), cborUint((*csilV.ValidFromMs))})
+	}
+	if csilV.Trust != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("trust"), cborText((*csilV.Trust))})
+	}
+	if csilV.Origin != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("origin"), cborText((*csilV.Origin))})
 	}
 	return csilEntries
 }
@@ -2220,6 +2316,20 @@ func csilDecAssertRequest(csilRoot cborValue) (AssertRequest, error) {
 		}
 		csilOut.Utterance = &csilVal
 	}
+	if csilField, csilOk := cborMapGet(csilRoot, "trust"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Trust = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "origin"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Origin = &csilVal
+	}
 	return csilOut, nil
 }
 
@@ -2260,6 +2370,9 @@ func csilEncChangeRequest(csilV ChangeRequest) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("operation"), cborText(csilV.Operation)})
 	if csilV.Utterance != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("utterance"), cborText((*csilV.Utterance))})
+	}
+	if csilV.Origin != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("origin"), cborText((*csilV.Origin))})
 	}
 	return csilEntries
 }
@@ -2330,6 +2443,13 @@ func csilDecChangeRequest(csilRoot cborValue) (ChangeRequest, error) {
 			return csilOut, csilErr
 		}
 		csilOut.Utterance = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "origin"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Origin = &csilVal
 	}
 	return csilOut, nil
 }
@@ -2442,6 +2562,9 @@ func csilEncMergeRequest(csilV MergeRequest) cborValue {
 	if csilV.Utterance != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("utterance"), cborText((*csilV.Utterance))})
 	}
+	if csilV.Origin != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("origin"), cborText((*csilV.Origin))})
+	}
 	return csilEntries
 }
 
@@ -2490,6 +2613,13 @@ func csilDecMergeRequest(csilRoot cborValue) (MergeRequest, error) {
 			return csilOut, csilErr
 		}
 		csilOut.Utterance = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "origin"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Origin = &csilVal
 	}
 	return csilOut, nil
 }
@@ -3982,6 +4112,12 @@ func csilEncHistoryRequest(csilV HistoryRequest) cborValue {
 	if csilV.ActFor != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("act_for"), cborText((*csilV.ActFor))})
 	}
+	if csilV.SinceMs != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("since_ms"), cborUint((*csilV.SinceMs))})
+	}
+	if csilV.Limit != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("limit"), cborUint((*csilV.Limit))})
+	}
 	return csilEntries
 }
 
@@ -4005,6 +4141,20 @@ func csilDecHistoryRequest(csilRoot cborValue) (HistoryRequest, error) {
 			return csilOut, csilErr
 		}
 		csilOut.ActFor = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "since_ms"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.SinceMs = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "limit"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Limit = &csilVal
 	}
 	return csilOut, nil
 }

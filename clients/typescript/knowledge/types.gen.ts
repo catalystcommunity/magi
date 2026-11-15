@@ -46,6 +46,7 @@ export interface Entity {
   mergedInto?: string;
   createdMs: number;
   updatedMs: number;
+  trust?: string;
 }
 
 /**
@@ -74,6 +75,7 @@ export interface Claim {
   readers: string[];
   createdMs: number;
   updatedMs: number;
+  trust?: string;
 }
 
 /**
@@ -147,6 +149,11 @@ export interface Change {
   after?: string;
   utterance?: string;
   atMs: number;
+  via?: string;
+  trust?: string;
+  origin?: string;
+  undoes?: string;
+  undoneBy?: string;
 }
 
 /**
@@ -191,6 +198,8 @@ export interface PutEntityRequest {
   confidence?: number;
   actFor?: string;
   utterance?: string;
+  trust?: string;
+  origin?: string;
 }
 
 /**
@@ -221,6 +230,8 @@ export interface AssertRequest {
   readers?: string[];
   actFor?: string;
   utterance?: string;
+  trust?: string;
+  origin?: string;
 }
 
 /**
@@ -244,6 +255,7 @@ export interface ChangeRequest {
   reason?: string;
   actFor?: string;
   utterance?: string;
+  origin?: string;
 }
 
 export interface ChangeResponse {
@@ -265,6 +277,7 @@ export interface MergeRequest {
   reason?: string;
   actFor?: string;
   utterance?: string;
+  origin?: string;
 }
 
 export interface UnmergeRequest {
@@ -433,6 +446,8 @@ export interface TimelineResponse {
 export interface HistoryRequest {
   id: string;
   actFor?: string;
+  sinceMs?: number;
+  limit?: number;
 }
 
 export interface HistoryResponse {

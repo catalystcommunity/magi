@@ -429,6 +429,9 @@ def _encode_entity_value(v: "Entity") -> Dict[Any, Any]:
     csil_x = v.merged_into
     if csil_x is not None:
         csil_m["merged_into"] = csil_x
+    csil_x = v.trust
+    if csil_x is not None:
+        csil_m["trust"] = csil_x
     return csil_m
 
 def _decode_entity_value(tree: Any) -> "Entity":
@@ -447,6 +450,7 @@ def _decode_entity_value(tree: Any) -> "Entity":
         merged_into=(None if tree.get("merged_into") is None else _csil_expect_text(tree["merged_into"])),
         created_ms=_csil_expect_uint(tree["created_ms"]),
         updated_ms=_csil_expect_uint(tree["updated_ms"]),
+        trust=(None if tree.get("trust") is None else _csil_expect_text(tree["trust"])),
     )
 
 
@@ -493,6 +497,9 @@ def _encode_claim_value(v: "Claim") -> Dict[Any, Any]:
     csil_x = v.valid_from_ms
     if csil_x is not None:
         csil_m["valid_from_ms"] = csil_x
+    csil_x = v.trust
+    if csil_x is not None:
+        csil_m["trust"] = csil_x
     return csil_m
 
 def _decode_claim_value(tree: Any) -> "Claim":
@@ -516,6 +523,7 @@ def _decode_claim_value(tree: Any) -> "Claim":
         readers=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["readers"])],
         created_ms=_csil_expect_uint(tree["created_ms"]),
         updated_ms=_csil_expect_uint(tree["updated_ms"]),
+        trust=(None if tree.get("trust") is None else _csil_expect_text(tree["trust"])),
     )
 
 
@@ -692,6 +700,21 @@ def _encode_change_value(v: "Change") -> Dict[Any, Any]:
     csil_x = v.utterance
     if csil_x is not None:
         csil_m["utterance"] = csil_x
+    csil_x = v.via
+    if csil_x is not None:
+        csil_m["via"] = csil_x
+    csil_x = v.trust
+    if csil_x is not None:
+        csil_m["trust"] = csil_x
+    csil_x = v.origin
+    if csil_x is not None:
+        csil_m["origin"] = csil_x
+    csil_x = v.undoes
+    if csil_x is not None:
+        csil_m["undoes"] = csil_x
+    csil_x = v.undone_by
+    if csil_x is not None:
+        csil_m["undone_by"] = csil_x
     return csil_m
 
 def _decode_change_value(tree: Any) -> "Change":
@@ -706,6 +729,11 @@ def _decode_change_value(tree: Any) -> "Change":
         after=(None if tree.get("after") is None else _csil_expect_text(tree["after"])),
         utterance=(None if tree.get("utterance") is None else _csil_expect_text(tree["utterance"])),
         at_ms=_csil_expect_uint(tree["at_ms"]),
+        via=(None if tree.get("via") is None else _csil_expect_text(tree["via"])),
+        trust=(None if tree.get("trust") is None else _csil_expect_text(tree["trust"])),
+        origin=(None if tree.get("origin") is None else _csil_expect_text(tree["origin"])),
+        undoes=(None if tree.get("undoes") is None else _csil_expect_text(tree["undoes"])),
+        undone_by=(None if tree.get("undone_by") is None else _csil_expect_text(tree["undone_by"])),
     )
 
 
@@ -827,6 +855,12 @@ def _encode_put_entity_request_value(v: "PutEntityRequest") -> Dict[Any, Any]:
     csil_x = v.properties
     if csil_x is not None:
         csil_m["properties"] = csil_x
+    csil_x = v.trust
+    if csil_x is not None:
+        csil_m["trust"] = csil_x
+    csil_x = v.origin
+    if csil_x is not None:
+        csil_m["origin"] = csil_x
     return csil_m
 
 def _decode_put_entity_request_value(tree: Any) -> "PutEntityRequest":
@@ -843,6 +877,8 @@ def _decode_put_entity_request_value(tree: Any) -> "PutEntityRequest":
         confidence=(None if tree.get("confidence") is None else _csil_expect_float(tree["confidence"])),
         act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
         utterance=(None if tree.get("utterance") is None else _csil_expect_text(tree["utterance"])),
+        trust=(None if tree.get("trust") is None else _csil_expect_text(tree["trust"])),
+        origin=(None if tree.get("origin") is None else _csil_expect_text(tree["origin"])),
     )
 
 
@@ -926,6 +962,12 @@ def _encode_assert_request_value(v: "AssertRequest") -> Dict[Any, Any]:
     csil_x = v.valid_from_ms
     if csil_x is not None:
         csil_m["valid_from_ms"] = csil_x
+    csil_x = v.trust
+    if csil_x is not None:
+        csil_m["trust"] = csil_x
+    csil_x = v.origin
+    if csil_x is not None:
+        csil_m["origin"] = csil_x
     return csil_m
 
 def _decode_assert_request_value(tree: Any) -> "AssertRequest":
@@ -945,6 +987,8 @@ def _decode_assert_request_value(tree: Any) -> "AssertRequest":
         readers=(None if tree.get("readers") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["readers"])]),
         act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
         utterance=(None if tree.get("utterance") is None else _csil_expect_text(tree["utterance"])),
+        trust=(None if tree.get("trust") is None else _csil_expect_text(tree["trust"])),
+        origin=(None if tree.get("origin") is None else _csil_expect_text(tree["origin"])),
     )
 
 
@@ -981,6 +1025,9 @@ def _encode_change_request_value(v: "ChangeRequest") -> Dict[Any, Any]:
     csil_x = v.utterance
     if csil_x is not None:
         csil_m["utterance"] = csil_x
+    csil_x = v.origin
+    if csil_x is not None:
+        csil_m["origin"] = csil_x
     return csil_m
 
 def _decode_change_request_value(tree: Any) -> "ChangeRequest":
@@ -994,6 +1041,7 @@ def _decode_change_request_value(tree: Any) -> "ChangeRequest":
         reason=(None if tree.get("reason") is None else _csil_expect_text(tree["reason"])),
         act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
         utterance=(None if tree.get("utterance") is None else _csil_expect_text(tree["utterance"])),
+        origin=(None if tree.get("origin") is None else _csil_expect_text(tree["origin"])),
     )
 
 
@@ -1060,6 +1108,9 @@ def _encode_merge_request_value(v: "MergeRequest") -> Dict[Any, Any]:
     csil_x = v.utterance
     if csil_x is not None:
         csil_m["utterance"] = csil_x
+    csil_x = v.origin
+    if csil_x is not None:
+        csil_m["origin"] = csil_x
     return csil_m
 
 def _decode_merge_request_value(tree: Any) -> "MergeRequest":
@@ -1070,6 +1121,7 @@ def _decode_merge_request_value(tree: Any) -> "MergeRequest":
         reason=(None if tree.get("reason") is None else _csil_expect_text(tree["reason"])),
         act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
         utterance=(None if tree.get("utterance") is None else _csil_expect_text(tree["utterance"])),
+        origin=(None if tree.get("origin") is None else _csil_expect_text(tree["origin"])),
     )
 
 
@@ -1748,6 +1800,12 @@ def _encode_history_request_value(v: "HistoryRequest") -> Dict[Any, Any]:
     csil_x = v.act_for
     if csil_x is not None:
         csil_m["act_for"] = csil_x
+    csil_x = v.since_ms
+    if csil_x is not None:
+        csil_m["since_ms"] = csil_x
+    csil_x = v.limit
+    if csil_x is not None:
+        csil_m["limit"] = csil_x
     return csil_m
 
 def _decode_history_request_value(tree: Any) -> "HistoryRequest":
@@ -1755,6 +1813,8 @@ def _decode_history_request_value(tree: Any) -> "HistoryRequest":
     return HistoryRequest(
         id=_csil_expect_text(tree["id"]),
         act_for=(None if tree.get("act_for") is None else _csil_expect_text(tree["act_for"])),
+        since_ms=(None if tree.get("since_ms") is None else _csil_expect_uint(tree["since_ms"])),
+        limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
     )
 
 
