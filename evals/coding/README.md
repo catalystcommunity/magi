@@ -44,6 +44,45 @@ Also record the model calls, the time, and the cost of each case.
 
 ## Run
 
+`run.py` runs the cases through the code-change workflow of Magi, one case
+after the other, and collects the results. It needs a token of an operator
+and the model of the candidate:
+
+```sh
+python3 evals/coding/run.py --url URL --token-file F \
+  --model '{"name": "qwen3.6-35b-a3b-studiodt", "context_tokens": 60000}' \
+  --label qwen3.6-35b-a3b
+```
+
+`--model` is the JSON object of the `model` field of `StartTask`
+(`docs/models.md`). `--label` names the candidate in the output path.
+`--cases pr2,pr5` runs a part of the cases, and `--max-minutes` sets the
+time limit of one case (the default is 240).
+
+The script starts each case with kind `code-change`, repo `magi`, the
+title of the case, the instructions of `cases/<id>.md`, the base of the
+case, and the model. It polls the task every 60 s until the task waits for
+a decision, or ends, or the time limit passes. It does not decide: a
+person grades the run and rejects it. A 401 answer stops the script: the
+token expired. An other error of one poll is logged and the poll repeats;
+five errors in a row stop that case.
+
+Each case writes `results/<label>/<id>/`: `result.json` (the run, the
+status, the step of the end, the check outcome with the attempts, the
+apprentice steps, tool calls, and cost, the minutes, and the files that
+the diff touches together with the `changed` files of the case),
+`diff.patch`, and `check.output.txt`. The script prints one line for each
+case at the end. Keep the results in the repository, as the other evals
+do.
+
+Grade each run, then close it:
+
+```sh
+magi decide RUN reject
+```
+
+### One case by hand
+
 The candidate runs in the code-change workflow of Magi (a sandbox on a
 runner). Start the case with the model of the candidate:
 

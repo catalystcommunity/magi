@@ -34,7 +34,9 @@ for csil in "$root"/contracts/*.csil; do
     mkdir -p "$out"
     rm -f "$out"/*.gen.go
     cp "$tmp/go/"*.go "$tmp/goc/client.gen.go" "$out/"
-    (cd "$root/tools/dispatchgen" && go run . "$out")
+    # GOWORK=off: the sandbox sets GOFLAGS=-mod=mod, which workspace mode
+    # refuses. This module stands alone, so it builds without the workspace.
+    (cd "$root/tools/dispatchgen" && GOWORK=off go run . "$out")
     gofmt -w "$out"
   fi
   py="$root/clients/python/magi_$name"
