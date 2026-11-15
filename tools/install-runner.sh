@@ -74,6 +74,7 @@ if [[ ! -f $cfg ]]; then
   [[ -x $tools/python/bin/python3 ]] && { path=$tools/python/bin:$path; python=$tools/python/bin/python3; }
   [[ -d $tools/cargo ]] && path=$tools/cargo/bin:$path
   [[ -d $tools/go ]] && path=$tools/go/bin:$path
+  [[ -d $tools/csilgen ]] && path=$tools/csilgen/bin:$path
   [[ -d $tools ]] && ro="\"$tools\""
   cat > "$cfg" <<JSON
 {

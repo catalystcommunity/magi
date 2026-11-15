@@ -4,6 +4,10 @@
 #   go       Go GO_VERSION (go.dev, checked against its SHA-256)
 #   rust     Rust stable through rustup (CARGO_HOME and RUSTUP_HOME in TOOLS)
 #   python   Python 3.13 (python-build-standalone) when python3 is older than 3.11
+#   csilgen  csilgen CSILGEN_VERSION with its generators (GitHub, checked
+#            against its SHA-256). A contract change needs it for
+#            tools/gen.sh. There is no build for x86_64 macOS. The script
+#            skips csilgen there.
 #   cloud-hypervisor  Cloud Hypervisor CH_VERSION (Linux, static, checked
 #            against its SHA-256) for task VMs
 #   virtiofsd  for task VMs, when the system has none: the package of the
@@ -12,14 +16,23 @@
 #   ssh user@host 'bash -s' < tools/install-runner-tools.sh
 # Each tool is installed only when it is missing. The runner configuration
 # makes TOOLS read-only in the sandbox and puts its bin directories on PATH.
+# A runner configuration that already exists keeps its PATH. Add
+# $TOOLS/csilgen/bin to sandbox.env.PATH by hand.
 set -euo pipefail
 GO_VERSION=${GO_VERSION:-1.27.0}
 PY_RELEASE=${PY_RELEASE:-20261026}
 PY_VERSION=${PY_VERSION:-3.13.18}
 CH_VERSION=${CH_VERSION:-v54.0}
+CSILGEN_VERSION=${CSILGEN_VERSION:-0.2.11}
 declare -A CH_SHA=(
   [amd64]=4f4f98a3d661a40f3e5272627cc895a1b2e525f2f6bedf5f895f9cd21ba5c65b
   [arm64]=e8a6d9786ea678e739f1a386682846e93742dcb9c7b6e3e0c62e3bda6cff0ef3
+)
+declare -A CSILGEN_SHA=(
+  [x86_64-unknown-linux-gnu]=b420175d68e34632ce4b069c4ed8970c73847ce5a69c885434b53b486c3428bf
+  [aarch64-unknown-linux-gnu]=a5b9c4a31b3c6d34c1731b7b3125b11ece8d590b6eeea02501f4e03abdb6ca3e
+  [aarch64-apple-darwin]=4eed3ae380f799710d2df93a4a7058974ee3f25cae9e2ada28614a0a39a6fad0
+  [generators]=df75c0cb590f256d9ac4f9457524ddc71d92cd14960dd4f585d3f7659de27cde
 )
 TOOLS=${TOOLS:-$HOME/.local/share/magi-runner-tools}
 mkdir -p "$TOOLS"
@@ -63,6 +76,39 @@ if ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 11))' 2>/dev/null &
   rm -rf "$TOOLS/python" && tar -C "$TOOLS" -xzf "$tmp/py.tgz"
   echo "installed $("$TOOLS/python/bin/python3" --version)"
 fi
+
+# csilgen writes the code of a contract change (tools/gen.sh). The release
+# has no build for x86_64 macOS.
+if [[ $os == darwin && $pyarch == x86_64 ]]; then
+  echo "csilgen has no x86_64 macOS build: not installed"
+elif [[ $("$TOOLS/csilgen/lib/csilgen" --version 2>/dev/null) != "csilgen $CSILGEN_VERSION" ]]; then
+  case $os in darwin) triple=$pyarch-apple-darwin ;; linux) triple=$pyarch-unknown-linux-gnu ;; esac
+  base="https://github.com/catalystcommunity/csilgen/releases/download/csilgen/v$CSILGEN_VERSION"
+  f="csilgen-$CSILGEN_VERSION-$triple.tar.gz"
+  curl -fsSL -o "$tmp/csilgen.tgz" "$base/$f"
+  [[ $(sha "$tmp/csilgen.tgz") == "${CSILGEN_SHA[$triple]}" ]] || { echo "checksum mismatch for $f" >&2; exit 1; }
+  mkdir -p "$tmp/csilgen" && tar -C "$tmp/csilgen" -xzf "$tmp/csilgen.tgz"
+  f="csilgen-generators-$CSILGEN_VERSION.tar.gz"
+  curl -fsSL -o "$tmp/generators.tgz" "$base/$f"
+  [[ $(sha "$tmp/generators.tgz") == "${CSILGEN_SHA[generators]}" ]] || { echo "checksum mismatch for $f" >&2; exit 1; }
+  rm -rf "$TOOLS/csilgen" && mkdir -p "$TOOLS/csilgen/lib" "$TOOLS/csilgen/generators" "$TOOLS/csilgen/bin"
+  install -m 755 "$tmp/csilgen/csilgen" "$TOOLS/csilgen/lib/csilgen"
+  tar -C "$TOOLS/csilgen/generators" -xzf "$tmp/generators.tgz"
+  # csilgen reads its generators only from ~/.csilgen/generators. TOOLS is
+  # read-only in the sandbox. The wrapper links that path to the generators
+  # of this install. It finds them through $0, so TOOLS works at any path.
+  cat > "$TOOLS/csilgen/bin/csilgen" <<'WRAP'
+#!/bin/sh
+set -e
+dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+mkdir -p "$HOME/.csilgen"
+[ -e "$HOME/.csilgen/generators" ] || ln -s "$dir/../generators" "$HOME/.csilgen/generators"
+exec "$dir/../lib/csilgen" "$@"
+WRAP
+  chmod 755 "$TOOLS/csilgen/bin/csilgen"
+  echo "installed $("$TOOLS/csilgen/lib/csilgen" --version)"
+fi
+
 if [[ $os == linux ]] && [[ $("$TOOLS/vm/cloud-hypervisor" --version 2>/dev/null) != *"${CH_VERSION#v}"* ]]; then
   f=cloud-hypervisor-static; [[ $arch == arm64 ]] && f=$f-aarch64
   curl -fsSL -o "$tmp/ch" "https://github.com/cloud-hypervisor/cloud-hypervisor/releases/download/$CH_VERSION/$f"
@@ -85,4 +131,5 @@ echo "tools in $TOOLS:"
 "$TOOLS/go/bin/go" version
 "$TOOLS/cargo/bin/cargo" --version
 { "$TOOLS/python/bin/python3" --version 2>/dev/null || python3 --version; }
+[[ -x $TOOLS/csilgen/lib/csilgen ]] && "$TOOLS/csilgen/lib/csilgen" --version
 [[ $os == linux ]] && "$TOOLS/vm/cloud-hypervisor" --version
