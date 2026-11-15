@@ -107,10 +107,52 @@ The GPU then uses 7.2 GB in total. The first question of a state takes
 about 430 ms; the next questions take about 190 ms. Through Magi
 (`MagiService/decision`, 3 questions): 330 to 430 ms on the host.
 
+## Training (decision LoRA v1, 2026-11-14)
+
+A LoRA teaches the rules of the specs to the model. It is the training
+step of Jev.
+
+```sh
+python3 -I evals/decide/export_train.py "evals/notetaker/data5/train-*.jsonl" --out decide-chat --format gemma4
+python -I evals/notetaker/train_lora.py --base <gemma-4-E4B-it> --data "decide-chat/train-*.jsonl" \
+  --out lora-dec-e4b --epochs 1 --accum 16 --lr 1e-4 --save-steps 200 --save-limit 0 --max-length 1536 \
+  --attn eager --target-regex '.*language_model.*\.(q|k|v|o|gate|up|down)_proj'
+```
+
+- 20,874 questions (all except `count`), 1 epoch, rank 16, 1,305 steps,
+  3 h 15 min on the RTX 4080.
+- `--format gemma4` writes the prompt as llama-server renders it. The
+  chat template of Hugging Face removes the empty thought channel.
+- E4B: the audio tower has no SDPA (`--attn eager`). The regex keeps the
+  LoRA out of the vision and audio towers.
+- Convert each checkpoint with `convert_lora_to_gguf.py`, serve it with
+  `--lora`, rank the checkpoints on dev, and score the best on test.
+  Checkpoint 800 had the best mean on dev (97.9%).
+
+Results on data5 test (calibrated on dev; the test cases have a different
+writer model than train):
+
+| Question | E4B | E4B + LoRA v1 | Gemma 4 12B |
+| --- | --- | --- | --- |
+| `record` | 84.2% | 98.8% | 94.9% |
+| `asks` | 98.5% | 98.9% | 98.5% |
+| `task` | 90.5% | 100.0% | 97.5% |
+| `about` | 82.2% | 99.8% | 77.1% |
+| `kind` | 62.1% | 97.9% | 76.0% |
+| `count` (not trained) | 23.8% | 67.5% | 47.6% |
+
+Median 87 ms for each question on the RTX 4080. The train and test cases
+come from the same kind of specs, so these numbers are for messages like
+data5. Real messages can be different: measure on them before you trust
+the numbers for other uses.
+
+lab-nas serves the adapter as the model `gemma-4-e4b-decide`
+(`--lora ... --lora-init-without-apply`); `gemma-4-e4b` stays the base
+model for chat. `results/gemma-4-e4b-decide-v1*` has the scores, the
+temperatures, and the log-probabilities of test.
+
 ## Next
 
-1. Done: `InferenceService/decide` in the inference host, and
-   `MagiService/decision` with the model catalog (`docs/models.md`).
-2. A LoRA for decisions, trained on the questions of `train5` (about
-   28,000 answers of one token). This is the training step of Jev that
-   the method above does not have.
+1. A `count` question in the training data, or remove `count`.
+2. Decision questions for other tasks (the egress review, the interrupt
+   check), with cases from the turn logs.

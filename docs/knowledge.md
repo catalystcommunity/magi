@@ -167,10 +167,11 @@ Magi stops the note taker, and the turn has no note operations. With no
 answer in 5 seconds, or with an error, the note taker continues. 0 turns
 the gate off. The turn log has the answer (`gate`: yes, model, ms, skip).
 
-On data5 test, calibrated Gemma 4 E4B with 0.15 stops the note taker for
-18.6% of the messages and misses 4.1% of the messages that have a fact
-(30 of 729). data5 has more facts than real conversations, so the gate
-stops more in real use. A missed fact is usually not clear in the
+On data5 test with 0.15: Gemma 4 E4B with the decision LoRA
+(`gemma-4-e4b-decide`) stops the note taker for 26.1% of the messages
+(26.9% have no fact) and misses 0.4% of the messages that have a fact
+(3 of 729). Plain E4B stops 18.6% and misses 4.1%. data5 has more facts
+than real conversations, so the gate stops more in real use. A missed fact is usually not clear in the
 message; the persona tools can still record it. The question and the
 state must stay the same as in the eval, because the calibration of the
 catalog is for them (`notegate_test.go` checks this).

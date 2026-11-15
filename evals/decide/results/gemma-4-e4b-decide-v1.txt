@@ -1,0 +1,16 @@
+== e4b + decision lora checkpoint-800
+question     n       T     acc   ECE raw  ECE cal  Brier raw Brier cal
+about      494    1.92   99.8%     0.002    0.019      0.004     0.006
+asks       997    2.86   98.9%     0.009    0.035      0.020     0.022
+count      997    2.34   67.5%     0.210    0.083      0.513     0.434
+kind       931    1.28   97.9%     0.008    0.009      0.033     0.032
+record     997    1.35   98.8%     0.007    0.007      0.021     0.020
+task       997    0.37  100.0%     0.001    0.000      0.000     0.000
+median 87 ms, p90 139 ms for each question; prompt cache used in 100%
+dev checkpoint-200 mean 0.9638 {'record': 0.979, 'asks': 0.967, 'task': 1.0, 'about': 0.953, 'kind': 0.921}
+dev checkpoint-400 mean 0.9703 {'record': 0.988, 'asks': 0.945, 'task': 1.0, 'about': 0.972, 'kind': 0.946}
+dev checkpoint-600 mean 0.9762 {'record': 0.983, 'asks': 0.95, 'task': 1.0, 'about': 0.981, 'kind': 0.967}
+dev checkpoint-800 mean 0.9788 {'record': 0.986, 'asks': 0.945, 'task': 1.0, 'about': 0.986, 'kind': 0.977}
+dev checkpoint-1000 mean 0.9768 {'record': 0.986, 'asks': 0.947, 'task': 1.0, 'about': 0.981, 'kind': 0.969}
+dev checkpoint-1200 mean 0.9772 {'record': 0.988, 'asks': 0.947, 'task': 1.0, 'about': 0.981, 'kind': 0.969}
+dev checkpoint-1305 mean 0.9777 {'record': 0.988, 'asks': 0.947, 'task': 1.0, 'about': 0.981, 'kind': 0.972}
