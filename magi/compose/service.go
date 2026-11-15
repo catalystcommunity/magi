@@ -70,8 +70,17 @@ func (s *System) startCodeChange(ctx context.Context, owner string, from origin,
 	if err != nil {
 		return workflowapi.Run{}, err
 	}
+	// A task does not stop for the lessons: an error of the knowledge service
+	// gives no text.
+	lessons := s.lessonsFor(ctx, repo, title, instructions)
+	if len(lessons) > 6000 {
+		lessons = lessons[:6000]
+	}
 	vars := map[string]string{"title": title, "instructions": instructions, "repo": repo, "check_command": s.Cfg.CheckCommand,
 		"runner": runner, "publisher": publisher, "stream": from.stream, "utterance": from.utterance, "persona": from.persona}
+	if lessons != "" {
+		vars["lessons"] = lessons
+	}
 	return s.Workflow.Start(ctx, workflowapi.StartRequest{Definition: CodeChange, Vars: vars, Owner: ptr(owner)})
 }
 

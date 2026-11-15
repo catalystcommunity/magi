@@ -30,6 +30,7 @@ type fakeKnowledge struct {
 	changes   []knowledgeapi.ChangeRequest
 	retracted []string
 	searches  int
+	fail      bool // search answers an error
 }
 
 func (f *fakeKnowledge) PutEntity(_ context.Context, r knowledgeapi.PutEntityRequest) (knowledgeapi.Entity, error) {
@@ -83,6 +84,9 @@ func (f *fakeKnowledge) Search(_ context.Context, r knowledgeapi.SearchRequest) 
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.searches++
+	if f.fail {
+		return knowledgeapi.SearchResponse{}, rpc.Unavailable("knowledge is down")
+	}
 	out := knowledgeapi.SearchResponse{Hits: []knowledgeapi.Hit{}, Entities: []knowledgeapi.Entity{}, Claims: []knowledgeapi.Claim{},
 		Episodes: []knowledgeapi.Episode{}, Procedures: []knowledgeapi.Procedure{}}
 	for _, e := range f.ents {

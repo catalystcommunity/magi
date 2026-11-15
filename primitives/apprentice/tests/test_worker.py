@@ -90,6 +90,16 @@ class WorkerTest(unittest.TestCase):
         cfg, _ = apply_model_override(ModelConfig(base_url="http://a"), Limits(), "other")
         self.assertEqual((cfg.name, cfg.base_url), ("other", "http://a"))
 
+    def test_lessons_var_reaches_the_task(self):
+        model = FakeModel([reply(call("finish", summary="s"))])
+        s = FakeServices([assignment(environment="e", instructions="t",
+                                     lessons="- rl-0001 Keep the state of one run: Set the flags at the start.")])
+        worker(s, model).serve(max_tasks=1)
+        user = model.requests[0][1]["content"]
+        self.assertIn("Lessons from earlier code reviews of this repository. Follow them:\n"
+                      "- rl-0001 Keep the state of one run: Set the flags at the start.", user)
+        self.assertIn("Task instructions:", user)
+
 
 class HttpTransportTest(unittest.TestCase):
     """The worker through the real HTTP transport and bearer token."""

@@ -30,7 +30,8 @@ func hasNote(notes []string, want string) bool {
 
 // fakeApprentice writes a Python package that stands in for
 // `python -m magi_apprentice run`: it prints the JSON result line that the
-// test wants.
+// test wants. It also writes the arguments that it got to args.txt in the
+// package, so that a test can check the flags of the call.
 func fakeApprentice(t *testing.T, result string) (python, path string) {
 	t.Helper()
 	python, err := exec.LookPath("python3")
@@ -42,7 +43,9 @@ func fakeApprentice(t *testing.T, result string) (python, path string) {
 	if err := os.MkdirAll(pkg, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	script := "import json\nprint(json.dumps(" + result + "))\n"
+	script := "import json, os, sys\n" +
+		"open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'args.txt'), 'w').write('\\n'.join(sys.argv[1:]))\n" +
+		"print(json.dumps(" + result + "))\n"
 	if err := os.WriteFile(filepath.Join(pkg, "__main__.py"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -52,6 +55,14 @@ func fakeApprentice(t *testing.T, result string) (python, path string) {
 // workStep runs the work step with a fake apprentice. It returns the outputs
 // and the notes that the runner sent.
 func workStep(t *testing.T, result string) (map[string]string, []string) {
+	t.Helper()
+	outputs, notes, _ := workStepVars(t, result, nil)
+	return outputs, notes
+}
+
+// workStepVars also sets vars of the assignment, and gives the arguments that
+// the apprentice got.
+func workStepVars(t *testing.T, result string, vars map[string]string) (map[string]string, []string, string) {
 	t.Helper()
 	python, path := fakeApprentice(t, result)
 	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
@@ -66,14 +77,23 @@ func workStep(t *testing.T, result string) (map[string]string, []string) {
 	r := &Runner{Cfg: Config{StateDir: state}, Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Magi: magiapi.NewRunnerClient(rpc.NewClient(ts.URL, rpc.StaticToken(tok)))}
 	r.Cfg.Apprentice.Python, r.Cfg.Apprentice.Path = python, path
+	if vars == nil {
+		vars = map[string]string{}
+	}
+	for k, v := range map[string]string{"environment": "e", "workdir": "/work/repo", "instructions": "do it"} {
+		vars[k] = v
+	}
 	res, err := r.work(context.Background(),
-		magiapi.RunnerAssignment{Run: "run_w", Step: "work", Vars: map[string]string{
-			"environment": "e", "workdir": "/work/repo", "instructions": "do it"}},
+		magiapi.RunnerAssignment{Run: "run_w", Step: "work", Vars: vars},
 		magiapi.RunnerStep{Run: "run_w", Step: "work", Claim: "c"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return res.Outputs, fake.notes
+	b, err := os.ReadFile(filepath.Join(path, "magi_apprentice", "args.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return res.Outputs, fake.notes, string(b)
 }
 
 // The work step turns the usage of the apprentice into outputs and a note
@@ -108,5 +128,20 @@ func TestWorkStepWithoutCost(t *testing.T) {
 	}
 	if !hasNote(notes, "apprentice finished after 2 steps, 4 tool calls: done") {
 		t.Errorf("no note without the cost: %q", notes)
+	}
+}
+
+// The work step passes the lessons of the run to the apprentice as --lessons,
+// and leaves the flag out when the run has none.
+func TestWorkStepPassesLessons(t *testing.T) {
+	lessons := "- rl-0001 Keep the state of one run: Set the flags at the start."
+	_, _, args := workStepVars(t, `{"status": "finished", "summary": "done", "steps": 1, "tool_calls": 1}`,
+		map[string]string{"lessons": lessons})
+	if !strings.Contains(args, "--lessons\n"+lessons) {
+		t.Errorf("arguments = %q, want --lessons with the lessons", args)
+	}
+	_, _, args = workStepVars(t, `{"status": "finished", "summary": "done", "steps": 1, "tool_calls": 1}`, nil)
+	if strings.Contains(args, "--lessons") {
+		t.Errorf("arguments = %q: --lessons without a value", args)
 	}
 }

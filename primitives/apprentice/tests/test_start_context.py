@@ -194,6 +194,20 @@ class BuildPromptTest(unittest.TestCase):
                                          "Work directory:", "Repository:", "Check command:")]
         self.assertEqual(order, sorted(order))
 
+    def test_lessons_after_the_project_instructions(self):
+        t = Task("do it", title="T", project_instructions="rules\n", project_instructions_file="AGENTS.md",
+                 lessons="- rl-0001 Keep the state of one run: Set the flags at the start.")
+        user = build_prompt(t, Limits())[1]["content"]
+        self.assertIn("Lessons from earlier code reviews of this repository. Follow them:\n"
+                      "- rl-0001 Keep the state of one run: Set the flags at the start.", user)
+        # after the project instructions, before the task instructions
+        self.assertLess(user.index("Project instructions"), user.index("Lessons from earlier"))
+        self.assertLess(user.index("Lessons from earlier"), user.index("Task instructions:"))
+
+    def test_no_lessons_section_without_lessons(self):
+        for t in (Task("do it"), Task("do it", lessons=None), Task("do it", lessons="  ")):
+            self.assertNotIn("Lessons from earlier", build_prompt(t, Limits())[1]["content"])
+
 
 class RunnerStartContextTest(unittest.TestCase):
     """The start context through run_task, as the worker and one-shot mode

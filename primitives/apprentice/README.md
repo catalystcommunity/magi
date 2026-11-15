@@ -27,7 +27,7 @@ unless the task instructions tell the apprentice to do them.
 
 ## Context at the start
 
-Before the first model call, the harness reads the work directory and adds two
+Before the first model call, the harness reads the work directory and adds
 sections to the first user message:
 
 - **Project instructions.** The text of `AGENTS.md` in the work directory. When
@@ -37,6 +37,8 @@ sections to the first user message:
 - **Repository.** The output of `git status --short` (at most 50 lines), of
   `git log --oneline -5`, and the top-level entries of the work directory on one
   line. One `exec` call gives all three. A part whose command failed is left out.
+- **Lessons.** The review lessons of this repository that relate to the task,
+  from the `lessons` var. The section is left out when the var is empty.
 
 The harness reads the files and runs the command through the ExecutionService,
 in the same way as the tools. It does not read the files of the host that the
@@ -153,6 +155,7 @@ Assignment vars:
 | `check_command` | Check command. Default `MAGI_APPRENTICE_CHECK_COMMAND`. |
 | `check_output` | Output of a failed check from an earlier attempt. |
 | `review.comment` | Changes that a reviewer asked for. |
+| `lessons` | Review lessons of this repository that relate to the task. The first message shows them before the task instructions. |
 | `model` | A model name, or JSON with `name`, `temperature`, `max_tokens`, `max_steps`. The base URL and the key cannot change through vars. |
 
 Outputs: `apprentice.summary`, `apprentice.transcript` (artifact digest), `apprentice.steps`,
