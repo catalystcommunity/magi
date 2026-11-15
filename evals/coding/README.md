@@ -45,6 +45,14 @@ Also record the model calls, the time, and the cost of each case.
 ## Run
 
 The candidate runs in the code-change workflow of Magi (a sandbox on a
-runner), with a model selection for the task (not built yet; see
-`docs/models.md`, "workflow step"). Do not run a candidate with
+runner). Start the case with the model of the candidate:
+
+```
+magi start -repo magi -title "<title of the case>" -model '{"name": "<candidate model>"}' "$(cat cases/<id>.md)"
+```
+
+The `-model` flag needs an operator. The name is a model of the catalog
+(`docs/models.md`); the proxy of Magi sends the model calls of the
+apprentice to it. Without the flag, the task default of
+`step.code-change.work` selects the model. Do not run a candidate with
 `magi_apprentice run --local`: that mode has no isolation.

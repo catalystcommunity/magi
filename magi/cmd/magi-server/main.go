@@ -203,7 +203,8 @@ func run(listen, keys string, workers bool, log *slog.Logger) error {
 	// readiness probe stays /healthz.
 	mux.Handle("/healthz/deps", sys.DepsHandler())
 	// Runners use the coding model through Magi, so they hold no provider key.
-	mux.Handle("/runner/v1/chat/completions", compose.ModelProxy(ver, m, log))
+	// sys.Router is nil without a catalog: then the proxy uses the fixed model.
+	mux.Handle("/runner/v1/chat/completions", compose.ModelProxy(ver, m, sys.Router, log))
 	// Runner sandboxes reach the egress proxy through Magi.
 	mux.Handle("/runner/egress", compose.EgressTunnel(ver, sys.EgressProxy))
 	// Terminals in task sandboxes: people open /api/terminal (WebSocket);

@@ -72,7 +72,7 @@ func TestStartCodeChangeSetsLessons(t *testing.T) {
 		lessonEntity("rl-0001", "Keep the state of one run in the run method", "primitives/apprentice", "Set the flags at the start of the run method."),
 		lessonEntity("rl-0002", "No helper for one expression", "all code", "Write the expression where the code uses it."))
 	if _, err := s.startCodeChange(context.Background(), "user:a@example.local", origin{}, "Fix the worker",
-		"Change primitives/apprentice so that the worker keeps its state in one place.", "magi", ""); err != nil {
+		"Change primitives/apprentice so that the worker keeps its state in one place.", "magi", "", ""); err != nil {
 		t.Fatal(err)
 	}
 	vars := wf.last().Vars
@@ -90,7 +90,7 @@ func TestStartCodeChangeSetsLessons(t *testing.T) {
 func TestStartCodeChangeWithoutLessons(t *testing.T) {
 	s, wf := startSystem(t, lessonEntity("rl-0001", "A diff for review shows new files", "primitives/speech", "Run git add first."))
 	if _, err := s.startCodeChange(context.Background(), "user:a@example.local", origin{}, "A title",
-		"An unrelated task.", "magi", ""); err != nil {
+		"An unrelated task.", "magi", "", ""); err != nil {
 		t.Fatal(err)
 	}
 	if v, ok := wf.last().Vars["lessons"]; ok {
@@ -105,7 +105,7 @@ func TestStartCodeChangeCutsLongLessons(t *testing.T) {
 		lessonEntity("rl-0001", strings.Repeat("a", 3000), "all code", strings.Repeat("b", 3000)),
 		lessonEntity("rl-0002", strings.Repeat("c", 3000), "all code", strings.Repeat("d", 3000)))
 	if _, err := s.startCodeChange(context.Background(), "user:a@example.local", origin{}, "A title",
-		"An unrelated task.", "magi", ""); err != nil {
+		"An unrelated task.", "magi", "", ""); err != nil {
 		t.Fatal(err)
 	}
 	if got := len(wf.last().Vars["lessons"]); got != 6000 {

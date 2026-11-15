@@ -38,6 +38,7 @@ A task is a name for one kind of model call. Magi uses these tasks:
 | `interrupt` | Which sentence a new message answers; then `librarian` |
 | `egress-review` | A review of an egress flow that no rule decides |
 | `decide` | A decision (`MagiService/decision`) |
+| `step.code-change.work` | The apprentice of a code change (the model proxy of Magi) |
 
 Magi uses the default of the first task in the list that has one. With no
 default, a call uses the static chain of the environment
@@ -53,8 +54,23 @@ The operator sets a default with `put_task`. For example:
   a small GPU.
 - `librarian`: `{"none": ["hosted"]}`: no hosted model for background work.
 
-A workflow step uses the task `step.<definition>.<step>` (not built yet:
-the apprentice worker selects its model from `MAGI_MODEL_*` now).
+A workflow step uses the task `step.<definition>.<step>`. The code change
+uses `step.code-change.work`. The model proxy of Magi
+(`/runner/v1/chat/completions`) selects the models of that task for each
+model call of the apprentice. With no default for the task, the proxy uses
+the fixed model of the environment (`MAGI_MODEL_*`).
+
+An operator can choose the model of one code change. `MagiService/start`
+takes the field `model`. It is a JSON object for the apprentice:
+
+- `{"name": "glm-5.3-coder"}`: a model of the catalog, by name.
+- `max_tokens`, `max_steps`, `context_tokens`, `temperature`: optional
+  limits of the run.
+
+The CLI has a flag for it: `magi start -model '{"name": "glm-5.3-coder"}'
+INSTRUCTIONS`. The apprentice sends the name to the proxy in the model
+field of the request. The proxy then selects only that model. A person who
+is not an operator gets `rpc.Denied`.
 
 ## One request
 

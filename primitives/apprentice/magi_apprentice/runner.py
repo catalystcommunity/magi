@@ -23,8 +23,8 @@ class Outcome:
 
 def apply_model_override(cfg: ModelConfig, limits: Limits, value: str | None) -> tuple[ModelConfig, Limits]:
     """Apply a `model` assignment var. It is a model name, or JSON with name,
-    temperature, max_tokens, max_steps. The base URL and key cannot change
-    here, so task data cannot send the key to another host."""
+    temperature, max_tokens, max_steps, context_tokens. The base URL and key
+    cannot change here, so task data cannot send the key to another host."""
     if not value:
         return cfg, limits
     value = value.strip()
@@ -39,6 +39,8 @@ def apply_model_override(cfg: ModelConfig, limits: Limits, value: str | None) ->
         cfg = replace(cfg, max_tokens=int(d["max_tokens"]))
     if "max_steps" in d:
         limits = replace(limits, max_steps=int(d["max_steps"]))
+    if "context_tokens" in d:
+        limits = replace(limits, context_tokens=int(d["context_tokens"]))
     return cfg, limits
 
 

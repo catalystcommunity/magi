@@ -539,7 +539,8 @@ data class StartTaskRequest(
     val instructions: String,
     val title: String? = null,
     val repo: String? = null,
-    val runner: String? = null
+    val runner: String? = null,
+    val model: String? = null
 )
 
 /** GetTaskRequest record. */

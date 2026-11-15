@@ -322,6 +322,11 @@ StartTaskRequest = {
   ? title: text,
   ? repo: text,
   ? runner: text,
+  ;;; The model of the code change: a JSON object for the apprentice
+  ;;; ({"name": <catalog model name>, and optional "max_tokens",
+  ;;; "max_steps", "context_tokens", "temperature"}). Only an operator
+  ;;; can set it.
+  ? model: text,
 }
 GetTaskRequest = { id: text }
 ListTasksRequest = { ? status: text, ? limit: uint }

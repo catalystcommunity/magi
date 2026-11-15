@@ -432,6 +432,7 @@ type StartTaskRequest struct {
 	Title        *string `json:"title,omitempty" yaml:"title,omitempty"`
 	Repo         *string `json:"repo,omitempty" yaml:"repo,omitempty"`
 	Runner       *string `json:"runner,omitempty" yaml:"runner,omitempty"`
+	Model        *string `json:"model,omitempty" yaml:"model,omitempty"`
 }
 
 // GetTaskRequest represents a structured data type

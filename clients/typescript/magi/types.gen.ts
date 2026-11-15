@@ -517,6 +517,13 @@ export interface StartTaskRequest {
   title?: string;
   repo?: string;
   runner?: string;
+  /**
+   * The model of the code change: a JSON object for the apprentice
+   * ({"name": <catalog model name>, and optional "max_tokens",
+   * "max_steps", "context_tokens", "temperature"}). Only an operator
+   * can set it.
+   */
+  model?: string;
 }
 
 export interface GetTaskRequest {
