@@ -32,7 +32,7 @@ const HOP: &[&str] = &[
 
 pub struct Proxy {
     pub policy: Policy,
-    pub secrets: Secrets,
+    pub secrets: Arc<Secrets>,
     pub plugins: Plugins,
     pub magi: Option<Arc<Magi>>,
     pub records: Arc<Records>,
@@ -326,6 +326,33 @@ impl Proxy {
             }
             return Err(Stop { status: StatusCode::BAD_GATEWAY, reason: format!("response is larger than {} bytes", self.policy.max_body), outcome: "blocked" });
         }
+        if parts.status.is_success() && is_event_stream(&parts.headers) && self.policy.event_streams(&t.host) {
+            // The headers get the scan of each response; the body is scanned
+            // one event at a time while it goes to the client.
+            let mut flow = Flow {
+                id: rec.id.clone(),
+                environment: peer.env.clone(),
+                owner: peer.owner.clone(),
+                direction: Direction::In,
+                destination: t.destination(),
+                method: method.to_string(),
+                url: url.to_string(),
+                status: parts.status.as_u16(),
+                headers: headers_of(&parts.headers),
+                body: Vec::new(),
+            };
+            self.clean(rec, &mut flow, None)?;
+            rec.reasons.push("event stream: each event scanned, no plugins".into());
+            let mut out = Response::new(event_stream(self.secrets.clone(), body, self.policy.max_body));
+            *out.status_mut() = parts.status;
+            for h in &flow.headers {
+                if let (Ok(n), Ok(v)) = (HeaderName::from_bytes(h.name.as_bytes()), HeaderValue::from_str(&h.value)) {
+                    out.headers_mut().append(n, v);
+                }
+            }
+            strip(out.headers_mut(), true);
+            return Ok(out);
+        }
         let raw = Limited::new(body, self.policy.max_body)
             .collect()
             .await
@@ -520,6 +547,71 @@ fn headers_of(h: &HeaderMap) -> Vec<Header> {
         .filter(|(n, _)| !matches!(n.as_str(), "proxy-authorization" | "proxy-connection" | "content-length" | "content-encoding" | "transfer-encoding"))
         .map(|(n, v)| Header { name: n.as_str().to_string(), value: String::from_utf8_lossy(v.as_bytes()).into_owned() })
         .collect()
+}
+
+/// A text/event-stream body with no content encoding (the proxy asks for
+/// identity; an encoded stream gets the full inspection).
+fn is_event_stream(h: &HeaderMap) -> bool {
+    let ct = h.get(http::header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or("");
+    let enc = h.get(http::header::CONTENT_ENCODING).and_then(|v| v.to_str().ok()).unwrap_or("identity");
+    ct.trim_start().to_ascii_lowercase().starts_with("text/event-stream") && enc.eq_ignore_ascii_case("identity")
+}
+
+/// The end of the first complete event in `buf` (after its blank line).
+fn event_end(buf: &[u8]) -> Option<usize> {
+    let lf = buf.windows(2).position(|w| w == b"\n\n").map(|i| i + 2);
+    let crlf = buf.windows(4).position(|w| w == b"\r\n\r\n").map(|i| i + 4);
+    match (lf, crlf) {
+        (Some(a), Some(b)) => Some(a.min(b)),
+        (a, b) => a.or(b),
+    }
+}
+
+/// Scans one event. None: the event has a secret in a form that the scan
+/// cannot remove, and the stream must stop.
+fn clean_event(ev: &[u8], secrets: &Secrets) -> Option<Vec<u8>> {
+    let s = scan::scan(ev, secrets, 16);
+    if !s.hidden.is_empty() {
+        tracing::warn!(secrets = ?s.hidden, "event stream stopped: a secret in an encoded form");
+        return None;
+    }
+    if !s.redacted.is_empty() {
+        tracing::warn!(secrets = ?s.redacted, "removed secrets from an event stream");
+    }
+    Some(s.data)
+}
+
+/// Sends `body` to the client one event at a time, each scanned for
+/// secrets. A secret that the scan cannot remove, an upstream error, or an
+/// event larger than `max_event` ends the stream. A secret split over two
+/// events is not found: use this only for trusted hosts.
+fn event_stream(secrets: Arc<Secrets>, mut body: hyper::body::Incoming, max_event: usize) -> Body {
+    let (mut tx, rx) = http_body_util::Channel::<Bytes, std::convert::Infallible>::new(16);
+    tokio::spawn(async move {
+        let mut buf: Vec<u8> = Vec::new();
+        while let Some(frame) = body.frame().await {
+            let Ok(frame) = frame else { return };
+            let Ok(data) = frame.into_data() else { continue };
+            buf.extend_from_slice(&data);
+            while let Some(end) = event_end(&buf) {
+                let ev: Vec<u8> = buf.drain(..end).collect();
+                let Some(out) = clean_event(&ev, &secrets) else { return };
+                if tx.send_data(Bytes::from(out)).await.is_err() {
+                    return;
+                }
+            }
+            if buf.len() > max_event {
+                tracing::warn!(max_event, "event stream stopped: an event is too large");
+                return;
+            }
+        }
+        if !buf.is_empty()
+            && let Some(out) = clean_event(&buf, &secrets)
+        {
+            let _ = tx.send_data(Bytes::from(out)).await;
+        }
+    });
+    rx.map_err(|never| match never {}).boxed()
 }
 
 fn strip(h: &mut HeaderMap, decoded: bool) {

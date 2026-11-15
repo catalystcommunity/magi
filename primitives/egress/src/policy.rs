@@ -28,6 +28,11 @@ pub struct Policy {
     /// Hosts whose large responses go to the client without inspection.
     #[serde(default)]
     pub stream_hosts: Vec<String>,
+    /// Hosts whose event streams (text/event-stream, such as the streamed
+    /// answers of a model provider) go to the client one event at a time.
+    /// The proxy scans each event for secrets; plugins do not see them.
+    #[serde(default)]
+    pub event_stream_hosts: Vec<String>,
     /// The largest body that the proxy reads into memory.
     #[serde(default = "default_max_body")]
     pub max_body: usize,
@@ -206,6 +211,10 @@ impl Policy {
 
     pub fn streams(&self, host: &str) -> bool {
         self.stream_hosts.iter().any(|h| host_match(h, host))
+    }
+
+    pub fn event_streams(&self, host: &str) -> bool {
+        self.event_stream_hosts.iter().any(|h| host_match(h, host))
     }
 }
 
