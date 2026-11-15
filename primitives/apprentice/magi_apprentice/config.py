@@ -25,7 +25,12 @@ class ModelConfig:
     base_url: str = ""
     name: str = "magi-coder"
     api_key: str | None = field(default=None, repr=False)
-    timeout_s: float = 300.0
+    # timeout_s: the most time for one model call. idle_s: the most time
+    # between two chunks of a streamed answer; a provider that stops
+    # sending is retried after idle_s, not after timeout_s.
+    timeout_s: float = 900.0
+    idle_s: float = 90.0
+    stream: bool = True
     max_retries: int = 5
     max_tokens: int = 4096
     temperature: float | None = 0.2
@@ -47,7 +52,9 @@ class ModelConfig:
             base_url=base_url,
             name=_env("MAGI_MODEL_NAME", cls.name),
             api_key=key,
-            timeout_s=float(_env("MAGI_MODEL_TIMEOUT", "300")),
+            timeout_s=float(_env("MAGI_MODEL_TIMEOUT", "900")),
+            idle_s=float(_env("MAGI_MODEL_IDLE_TIMEOUT", "90")),
+            stream=_env("MAGI_MODEL_STREAM", "true") != "false",
             max_retries=_int("MAGI_MODEL_MAX_RETRIES", 5),
             max_tokens=_int("MAGI_MODEL_MAX_TOKENS", 4096),
             temperature=_float("MAGI_MODEL_TEMPERATURE", 0.2),

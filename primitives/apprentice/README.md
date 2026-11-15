@@ -113,8 +113,10 @@ and no check failed.
 | `MAGI_MODEL_NAME` | `magi-coder` | Model name |
 | `MAGI_MODEL_API_KEY_FILE` | none | File with the model API key |
 | `MAGI_MODEL_API_KEY` | none | Key value, if no key file is set |
-| `MAGI_MODEL_TIMEOUT` | `300` | Request timeout in seconds |
-| `MAGI_MODEL_MAX_RETRIES` | `5` | Retries on 429, 5xx, and connection errors |
+| `MAGI_MODEL_TIMEOUT` | `900` | The most time for one model call, in seconds |
+| `MAGI_MODEL_IDLE_TIMEOUT` | `90` | The most time between two chunks of a streamed answer. A provider that stops sending is retried after this time |
+| `MAGI_MODEL_STREAM` | `true` | Stream the answers; `false` waits for the full answer (then the idle limit is the call limit) |
+| `MAGI_MODEL_MAX_RETRIES` | `5` | Retries on 429, 5xx, connection errors, and idle or call timeouts |
 | `MAGI_MODEL_MAX_TOKENS` | `4096` | Output tokens for each reply |
 | `MAGI_MODEL_TEMPERATURE` | `0.2` | Sampling temperature |
 | `MAGI_WORKFLOW_URL` | none | WorkflowService base URL (worker mode) |

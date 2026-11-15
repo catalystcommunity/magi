@@ -94,6 +94,55 @@ def _new_id() -> str:
     return "call_" + uuid.uuid4().hex[:16]
 
 
+class CallTimeout(Exception):
+    """A streamed answer took more than timeout_s in total."""
+
+
+def read_answer(resp, deadline: float) -> dict:
+    """The answer as one Chat Completions object. A streamed answer
+    ("data: ..." lines) is joined; a plain JSON answer (a provider that does
+    not stream) is read as it is."""
+    first = resp.readline()
+    while first and not first.strip():
+        first = resp.readline()
+    if not first.startswith(b"data:"):
+        return json.loads(first + resp.read())
+    content: list[str] = []
+    calls: dict[int, dict] = {}
+    out: dict = {"choices": [{"message": {}, "finish_reason": ""}]}
+    line = first
+    while line:
+        if time.monotonic() > deadline:
+            raise CallTimeout("the answer took too long")
+        line = line.strip()
+        if line.startswith(b"data:"):
+            data = line[5:].strip()
+            if data == b"[DONE]":
+                break
+            ev = json.loads(data)
+            if ev.get("usage"):
+                out["usage"] = ev["usage"]
+            for ch in ev.get("choices") or []:
+                d = ch.get("delta") or {}
+                if d.get("content"):
+                    content.append(d["content"])
+                for tc in d.get("tool_calls") or []:
+                    c = calls.setdefault(tc.get("index", len(calls)), {"id": "", "name": "", "arguments": ""})
+                    c["id"] = tc.get("id") or c["id"]
+                    fn = tc.get("function") or {}
+                    c["name"] += fn.get("name") or ""
+                    c["arguments"] += fn.get("arguments") or ""
+                if ch.get("finish_reason"):
+                    out["choices"][0]["finish_reason"] = ch["finish_reason"]
+        line = resp.readline()
+    msg = out["choices"][0]["message"]
+    msg["role"], msg["content"] = "assistant", "".join(content)
+    if calls:
+        msg["tool_calls"] = [{"id": c["id"], "type": "function", "function": {"name": c["name"], "arguments": c["arguments"]}}
+                             for _, c in sorted(calls.items())]
+    return out
+
+
 class ChatModel:
     """Chat Completions client using urllib only."""
 
@@ -111,6 +160,9 @@ class ChatModel:
             body["tool_choice"] = "auto"
         if self.cfg.temperature is not None:
             body["temperature"] = self.cfg.temperature
+        if self.cfg.stream:
+            body["stream"] = True
+            body["stream_options"] = {"include_usage": True}
         body.update(self.cfg.extra)
         data = self._post(json.dumps(body).encode())
         return self._parse(data)
@@ -127,8 +179,10 @@ class ChatModel:
                 req.add_header("Authorization", "Bearer " + self.cfg.api_key)
             delay = min(30.0, 1.5 * 2 ** attempt) * (0.5 + random.random() / 2)
             try:
-                with self._open(req, timeout=self.cfg.timeout_s) as resp:
-                    return json.loads(resp.read())
+                # The socket timeout is the idle limit: each read of a
+                # streamed answer waits at most idle_s.
+                with self._open(req, timeout=self.cfg.idle_s if self.cfg.stream else self.cfg.timeout_s) as resp:
+                    return read_answer(resp, time.monotonic() + self.cfg.timeout_s)
             except urllib.error.HTTPError as e:
                 detail = e.read()[:500].decode("utf-8", "replace")
                 last = f"HTTP {e.code}: {detail}"
@@ -141,6 +195,8 @@ class ChatModel:
                 last = f"connection: {getattr(e, 'reason', e)}"
             except ValueError as e:
                 last = f"bad response: {e}"
+            except CallTimeout as e:
+                last = str(e)
             if attempt < self.cfg.max_retries:
                 self._sleep(delay)
         raise ModelError(f"model request failed after {self.cfg.max_retries + 1} attempts: {last}")

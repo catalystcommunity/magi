@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -246,8 +247,11 @@ func nonNil(v []string) []string {
 // ModelProxy serves an OpenAI-compatible Chat Completions endpoint for
 // runners at /runner/v1/chat/completions. It sends the request to the
 // coding model with Magi's own provider key, so a runner machine holds no
-// provider key. The model name in the request is replaced.
-func ModelProxy(ver *authn.Verifier, c *model.Client) http.Handler {
+// provider key. The model name in the request is replaced. A streamed
+// answer goes to the runner chunk by chunk, so that the runner sees a
+// provider that stops sending (its idle limit). Each call is logged with
+// its status and time.
+func ModelProxy(ver *authn.Verifier, c *model.Client, log *slog.Logger) http.Handler {
 	hc := &http.Client{Timeout: 10 * time.Minute}
 	if c.HTTP != nil {
 		hc.Transport = c.HTTP.Transport
@@ -282,8 +286,11 @@ func ModelProxy(ver *authn.Verifier, c *model.Client) http.Handler {
 		if c.APIKey != "" {
 			out.Header.Set("Authorization", "Bearer "+c.APIKey)
 		}
+		start := time.Now()
+		stream, _ := body["stream"].(bool)
 		resp, err := hc.Do(out)
 		if err != nil {
+			log.Warn("runner model call", "runner", p.Subject, "model", c.Model, "stream", stream, "err", err, "ms", time.Since(start).Milliseconds())
 			http.Error(w, `{"error":{"message":"the model provider is not available"}}`, http.StatusBadGateway)
 			return
 		}
@@ -293,8 +300,41 @@ func ModelProxy(ver *authn.Verifier, c *model.Client) http.Handler {
 			w.Header().Set("Retry-After", ra)
 		}
 		w.WriteHeader(resp.StatusCode)
-		io.Copy(w, resp.Body)
+		first := time.Since(start).Milliseconds()
+		n, err := flushCopy(w, resp.Body)
+		lvl := slog.LevelInfo
+		if resp.StatusCode >= 400 || err != nil {
+			lvl = slog.LevelWarn
+		}
+		log.Log(r.Context(), lvl, "runner model call", "runner", p.Subject, "model", c.Model, "stream", stream,
+			"status", resp.StatusCode, "first_ms", first, "ms", time.Since(start).Milliseconds(), "bytes", n, "err", err)
 	})
+}
+
+// flushCopy copies src to w and flushes after each read, so that the
+// chunks of a streamed answer are not held in a buffer.
+func flushCopy(w http.ResponseWriter, src io.Reader) (int64, error) {
+	f, _ := w.(http.Flusher)
+	buf := make([]byte, 32<<10)
+	var n int64
+	for {
+		k, err := src.Read(buf)
+		if k > 0 {
+			if _, werr := w.Write(buf[:k]); werr != nil {
+				return n, werr
+			}
+			n += int64(k)
+			if f != nil {
+				f.Flush()
+			}
+		}
+		if err == io.EOF {
+			return n, nil
+		}
+		if err != nil {
+			return n, err
+		}
+	}
 }
 
 // EgressProxy is how runner sandboxes reach the egress proxy: through
