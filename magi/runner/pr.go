@@ -11,6 +11,7 @@ import (
 	"time"
 
 	magiapi "github.com/catalystcommunity/magi/magi/api"
+	"github.com/catalystcommunity/magi/magi/checkgate"
 	sourceapi "github.com/catalystcommunity/magi/primitives/source/api"
 )
 
@@ -118,7 +119,7 @@ func (r *Runner) prMerge(ctx context.Context, a magiapi.RunnerAssignment, st mag
 		return Result{}, fmt.Errorf("the task has no GitHub pull request URL")
 	}
 	env := a.Vars["environment"]
-	script := fmt.Sprintf(`set -e
+	script := checkgate.Exports(r.storedPlaceholders(env)) + fmt.Sprintf(`set -e
 if [ -z "$GH_TOKEN" ]; then echo "no GH_TOKEN: this task may not use the GitHub token"; exit 3; fi
 curl -sS -X PUT -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
   -d '{"merge_method":"merge"}' https://api.github.com/repos/%s/%s/pulls/%s/merge`, m[1], m[2], m[3])
@@ -173,8 +174,43 @@ func (r *Runner) prCheckState(ctx context.Context, url string) (Result, error) {
 	return Result{Outcome: "open"}, nil
 }
 
+// The title, the instructions and the summary of the apprentice are model
+// text, and can hold text of a repository or of a web page. They go to a
+// public pull request, so sanitize neutralizes what acts on its own:
+//   - a remote image (a request to an attacker host when the page renders);
+//   - a link (a person is led to click it), and a bare URL (autolink);
+//   - HTML, which GitHub renders in part;
+//   - an @mention or team mention (a notification to a person).
+//
+// The text stays readable. The sanitizer does not decide what is true.
+var (
+	mdImage    = regexp.MustCompile(`!\[([^\]]*)\]\([^)]*\)|!\[([^\]]*)\]\[[^\]]*\]`)
+	mdLink     = regexp.MustCompile(`\[([^\]]*)\]\(([^)]*)\)`)
+	urlScheme  = regexp.MustCompile(`(?i)\b(http|ftp)(s?)://`)
+	wwwHost    = regexp.MustCompile(`(?i)\bwww\.`)
+	mentionAt  = regexp.MustCompile(`@([A-Za-z0-9_])`)
+	linkBridge = strings.NewReplacer("](", "] (")
+)
+
+func sanitize(s string) string {
+	s = mdImage.ReplaceAllString(s, "[image removed]")
+	s = strings.NewReplacer("<", "&lt;", ">", "&gt;").Replace(s)
+	s = mdLink.ReplaceAllString(s, "$1 ($2)")
+	s = urlScheme.ReplaceAllStringFunc(s, func(m string) string {
+		l := strings.ToLower(m)
+		if strings.HasPrefix(l, "ftp") {
+			return "fxp" + l[3:]
+		}
+		return "hxxp" + l[4:]
+	})
+	s = wwwHost.ReplaceAllString(s, "www[.]")
+	s = linkBridge.Replace(s)
+	// A zero width space after the at sign stops the mention.
+	return mentionAt.ReplaceAllString(s, "@\u200b$1")
+}
+
 func prTitle(vars map[string]string) string {
-	t := strings.TrimSpace(vars["title"])
+	t := strings.Join(strings.Fields(sanitize(vars["title"])), " ")
 	if t == "" {
 		t = "Change by Magi"
 	}
@@ -188,10 +224,10 @@ func prBody(vars map[string]string, run, commit string) string {
 	var b strings.Builder
 	b.WriteString("A change by a Magi apprentice. A person reviewed it in Magi, it passed the checks, and its release stayed healthy.\n\n")
 	if v := strings.TrimSpace(vars["instructions"]); v != "" {
-		fmt.Fprintf(&b, "## Instructions\n\n%s\n\n", v)
+		fmt.Fprintf(&b, "## Instructions\n\n%s\n\n", sanitize(v))
 	}
 	if v := strings.TrimSpace(vars["apprentice.summary"]); v != "" {
-		fmt.Fprintf(&b, "## Summary of the apprentice\n\n%s\n\n", v)
+		fmt.Fprintf(&b, "## Summary of the apprentice\n\n%s\n\n", sanitize(v))
 	}
 	fmt.Fprintf(&b, "Magi task: `%s`. Commit: `%.12s`.\n", run, commit)
 	return b.String()

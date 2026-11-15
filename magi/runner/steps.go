@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	magiapi "github.com/catalystcommunity/magi/magi/api"
+	"github.com/catalystcommunity/magi/magi/checkgate"
 	"github.com/catalystcommunity/magi/magi/compose"
 	executionapi "github.com/catalystcommunity/magi/primitives/execution/api"
 	"github.com/catalystcommunity/magi/primitives/execution/sandbox"
@@ -21,6 +22,15 @@ import (
 )
 
 const maxCheckAttempts = 3
+
+const defaultCheckCommand = "./tools/check.sh"
+
+// gatedCheck is the check command of the run with the guard of checkgate.go.
+// The apprentice finish gate and the check step both use it.
+func gatedCheck(a magiapi.RunnerAssignment) string {
+	return checkgate.Guarded(firstNonEmpty(a.Vars["check_command"], defaultCheckCommand), a.Vars["base_commit"],
+		a.Vars[checkgate.ApprovedVar] == "true")
+}
 
 // The runner never opens files in a work directory from the host side: the
 // apprentice controls that directory and could put a symbolic link there. All
@@ -157,7 +167,7 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 	transcript := filepath.Join(dir, "transcript.jsonl")
 	args := []string{"-m", "magi_apprentice", "run", "--environment", a.Vars["environment"], "--workdir", a.Vars["workdir"],
 		"--instructions", "@" + instr, "--transcript", transcript, "--no-upload"}
-	for flag, v := range map[string]string{"--check-command": a.Vars["check_command"], "--check-output": a.Vars["check_output"],
+	for flag, v := range map[string]string{"--check-command": gatedCheck(a), "--check-output": a.Vars["check_output"],
 		"--title": a.Vars["title"], "--review-comment": a.Vars["review.comment"], "--model": a.Vars["model"]} {
 		if v != "" {
 			args = append(args, flag, v)
@@ -238,9 +248,9 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 
 func (r *Runner) check(ctx context.Context, a magiapi.RunnerAssignment, st magiapi.RunnerStep) (Result, error) {
 	env, workdir, branch, name := a.Vars["environment"], a.Vars["workdir"], a.Vars["branch"], a.Vars["repo"]
-	command := firstNonEmpty(a.Vars["check_command"], "./tools/check.sh")
+	command := firstNonEmpty(a.Vars["check_command"], defaultCheckCommand)
 	r.note(ctx, st, "Running "+command)
-	res, err := r.exec(ctx, env, workdir, command+" 2>&1", 30*60000)
+	res, err := r.exec(ctx, env, workdir, "{\n"+gatedCheck(a)+"\n} 2>&1", 30*60000)
 	if err != nil {
 		return Result{}, err
 	}

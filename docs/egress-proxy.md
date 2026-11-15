@@ -182,3 +182,26 @@ can continue in a different way.
   prompt injection document).
 - Flow records are in memory. Reviews and decisions are in the artifacts
   service.
+
+## Exact destinations and no route around the proxy (risk remediation 2.1)
+
+Deploy decisions that these rules enforce:
+
+- **Runners fail closed.** A runner no longer starts a sandbox on the network
+  of its machine when there is no proxy route (Magi has no egress proxy for
+  runners, Magi is an older release, or the sandbox kind cannot isolate the
+  network, such as `sandbox-exec` on a Mac). The step fails with "no egress
+  proxy route". A runner that must keep the old behavior sets
+  `"sandbox": {"allow_host_network": true}` in its configuration file. That is
+  a per-runner decision: the sandbox then reaches any host the machine can.
+- **Secrets go to exact hosts.** In the proxy policy, `secrets[].hosts` and
+  `passthrough[].host` take no wildcard. A destination `"*"` must name
+  `environments` (for example `["svc_search"]`). The policy file is rejected
+  at start-up otherwise. `"*.example.local"` is still valid for an inspected
+  destination (for example a package index); name exact hosts when you can.
+- **Magi rules.** In `MAGI_EGRESS_RULES`, a `pass` rule and each secret rule
+  take exact hosts. A wildcard stays valid for `review` and `block` rules,
+  which only narrow what passes. The file is rejected at start-up otherwise.
+- **No images in posted text.** Magi removes Markdown and HTML images from
+  persona replies, notices and task reports before it stores them. No Magi
+  client renders images.
