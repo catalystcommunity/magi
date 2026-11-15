@@ -18,7 +18,8 @@ from typing import Any, Callable, Protocol
 
 from .config import ModelConfig
 
-RETRY_STATUS = {408, 409, 425, 429, 500, 502, 503, 504}
+# 520-524: Cloudflare in front of a provider (524: the origin sent nothing for 100 s).
+RETRY_STATUS = {408, 409, 425, 429, 500, 502, 503, 504, 520, 521, 522, 523, 524}
 
 
 class ModelError(Exception):

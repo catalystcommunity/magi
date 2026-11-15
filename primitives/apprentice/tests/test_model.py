@@ -84,7 +84,7 @@ class ModelTest(unittest.TestCase):
         self.assertEqual(r.message()["tool_calls"][0]["function"]["name"], "bash")
 
     def test_retries_429_5xx_and_connection_errors(self):
-        op = Opener([http_error(429, {"Retry-After": "2"}), http_error(503),
+        op = Opener([http_error(429, {"Retry-After": "2"}), http_error(524),
                      urllib.error.URLError("refused"), TimeoutError("slow"), OK])
         m, slept = model(op)
         r = m.complete([], [])
