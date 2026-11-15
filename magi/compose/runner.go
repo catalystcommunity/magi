@@ -15,6 +15,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 	artifactsapi "github.com/catalystcommunity/magi/primitives/artifacts/api"
 	"github.com/catalystcommunity/magi/primitives/execution/egressenv"
 	"github.com/catalystcommunity/magi/primitives/execution/envd"
+	modelsapi "github.com/catalystcommunity/magi/primitives/models/api"
 	workflowapi "github.com/catalystcommunity/magi/primitives/workflow/api"
 )
 
@@ -247,11 +249,14 @@ func nonNil(v []string) []string {
 // ModelProxy serves an OpenAI-compatible Chat Completions endpoint for
 // runners at /runner/v1/chat/completions. It sends the request to the
 // coding model with Magi's own provider key, so a runner machine holds no
-// provider key. The model name in the request is replaced. A streamed
-// answer goes to the runner chunk by chunk, so that the runner sees a
-// provider that stops sending (its idle limit). Each call is logged with
-// its status and time.
-func ModelProxy(ver *authn.Verifier, c *model.Client, log *slog.Logger) http.Handler {
+// provider key. The model name in the request names the model in the
+// catalog ("coder" without a var): the router selects the models of the
+// task step.code-change.work and the proxy tries them in order. With no
+// router, or with no catalog default for the task, the fixed model c is
+// the fallback. A streamed answer goes to the runner chunk by chunk, so
+// that the runner sees a provider that stops sending (its idle limit).
+// Each call is logged with its status and time.
+func ModelProxy(ver *authn.Verifier, c *model.Client, router *ModelRouter, log *slog.Logger) http.Handler {
 	// The gateway route /runner/v1/ permits 900 s (deploy/render.py).
 	hc := &http.Client{Timeout: 15 * time.Minute}
 	if c.HTTP != nil {
@@ -276,40 +281,139 @@ func ModelProxy(ver *authn.Verifier, c *model.Client, log *slog.Logger) http.Han
 			http.Error(w, `{"error":{"message":"bad request body"}}`, http.StatusBadRequest)
 			return
 		}
-		body["model"] = c.Model
-		b, _ := json.Marshal(body)
-		out, err := http.NewRequestWithContext(r.Context(), http.MethodPost, c.BaseURL+"/chat/completions", bytes.NewReader(b))
+		name, _ := body["model"].(string)
+		chain, err := runnerModels(r.Context(), c, router, name)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			// An unknown model name is a bad request; a catalog that does
+			// not answer is a bad gateway.
+			status := http.StatusBadRequest
+			if code := rpc.CodeOf(err); code != 0 {
+				status = code
+			}
+			http.Error(w, `{"error":{"message":`+strconv.Quote(err.Error())+`}}`, status)
 			return
-		}
-		out.Header.Set("Content-Type", "application/json")
-		if c.APIKey != "" {
-			out.Header.Set("Authorization", "Bearer "+c.APIKey)
 		}
 		start := time.Now()
 		stream, _ := body["stream"].(bool)
-		resp, err := hc.Do(out)
-		if err != nil {
-			log.Warn("runner model call", "runner", p.Subject, "model", c.Model, "stream", stream, "err", err, "ms", time.Since(start).Milliseconds())
-			http.Error(w, `{"error":{"message":"the model provider is not available"}}`, http.StatusBadGateway)
+		for i, m := range chain {
+			// A busy inference host answers 503; a host that is down fails
+			// the connection. The next model of the chain takes the call.
+			body["model"] = m.Model
+			resp, err := postModel(r.Context(), hc, m, body)
+			if err != nil {
+				log.Warn("runner model call", "runner", p.Subject, "model", m.Model, "catalog", m.Name, "stream", stream,
+					"err", err, "ms", time.Since(start).Milliseconds())
+				if i == len(chain)-1 {
+					http.Error(w, `{"error":{"message":"the model provider is not available"}}`, http.StatusBadGateway)
+					return
+				}
+				continue
+			}
+			if resp.StatusCode == http.StatusServiceUnavailable && i < len(chain)-1 {
+				resp.Body.Close()
+				log.Log(r.Context(), slog.LevelWarn, "runner model call", "runner", p.Subject, "model", m.Model, "catalog", m.Name,
+					"stream", stream, "status", resp.StatusCode, "ms", time.Since(start).Milliseconds())
+				continue
+			}
+			defer resp.Body.Close()
+			w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
+			if ra := resp.Header.Get("Retry-After"); ra != "" {
+				w.Header().Set("Retry-After", ra)
+			}
+			w.WriteHeader(resp.StatusCode)
+			first := time.Since(start).Milliseconds()
+			n, err := flushCopy(w, resp.Body)
+			lvl := slog.LevelInfo
+			if resp.StatusCode >= 400 || err != nil {
+				lvl = slog.LevelWarn
+			}
+			log.Log(r.Context(), lvl, "runner model call", "runner", p.Subject, "model", m.Model, "catalog", m.Name, "stream", stream,
+				"status", resp.StatusCode, "first_ms", first, "ms", time.Since(start).Milliseconds(), "bytes", n, "err", err)
 			return
 		}
-		defer resp.Body.Close()
-		w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
-		if ra := resp.Header.Get("Retry-After"); ra != "" {
-			w.Header().Set("Retry-After", ra)
-		}
-		w.WriteHeader(resp.StatusCode)
-		first := time.Since(start).Milliseconds()
-		n, err := flushCopy(w, resp.Body)
-		lvl := slog.LevelInfo
-		if resp.StatusCode >= 400 || err != nil {
-			lvl = slog.LevelWarn
-		}
-		log.Log(r.Context(), lvl, "runner model call", "runner", p.Subject, "model", c.Model, "stream", stream,
-			"status", resp.StatusCode, "first_ms", first, "ms", time.Since(start).Milliseconds(), "bytes", n, "err", err)
 	})
+}
+
+// postModel sends body to one model endpoint, with the model name of that
+// endpoint.
+func postModel(ctx context.Context, hc *http.Client, m *runnerModel, body map[string]any) (*http.Response, error) {
+	b, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	out, err := http.NewRequestWithContext(ctx, http.MethodPost, m.BaseURL+"/chat/completions", bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+	out.Header.Set("Content-Type", "application/json")
+	if m.APIKey != "" {
+		out.Header.Set("Authorization", "Bearer "+m.APIKey)
+	}
+	// A catalog model has the client of the router (its transport reaches
+	// inference hosts that connect out); the fixed model uses the client
+	// of the proxy.
+	if m.HTTP != nil {
+		return m.HTTP.Do(out)
+	}
+	return hc.Do(out)
+}
+
+// runnerModel is one endpoint of the chain of the proxy.
+type runnerModel struct {
+	Name    string // catalog name, "" for the fixed model
+	BaseURL string
+	Model   string
+	APIKey  string
+	// HTTP is the client of the endpoint: the transport of the router
+	// (it reaches inference hosts that connect out), or nil for the
+	// client of the proxy.
+	HTTP *http.Client
+}
+
+// runnerModels gives the models of a runner call: the catalog models of
+// the task step.code-change.work, or the fixed model c. name is the model
+// name of the request body: "coder" when the run has no model var.
+func runnerModels(ctx context.Context, c *model.Client, router *ModelRouter, name string) ([]*runnerModel, error) {
+	fixed := func() []*runnerModel {
+		return []*runnerModel{{BaseURL: c.BaseURL, Model: c.Model, APIKey: c.APIKey}}
+	}
+	if router == nil || router.Catalog == nil {
+		// No catalog: only the fixed model, as before.
+		return fixed(), nil
+	}
+	var sel *modelsapi.Selector
+	if name != "" && name != "coder" {
+		// The var of the run names one model; nothing else may answer.
+		sel = &modelsapi.Selector{Name: ptr(name), OnlyName: ptr(true)}
+	}
+	ms, err := router.Models(ctx, "step."+CodeChange+".work", sel, false)
+	if err != nil {
+		router.log().Warn("model catalog", "task", "step."+CodeChange+".work", "err", err)
+		if sel != nil {
+			return nil, rpc.Errorf(http.StatusBadGateway, "the model catalog did not answer for model %q: %s", name, err)
+		}
+		return fixed(), nil
+	}
+	var out []*runnerModel
+	for _, m := range ms {
+		cl, ok := router.client(m)
+		if !ok {
+			// A model without a key in Keys: the router logged why.
+			if sel != nil {
+				return nil, rpc.Invalid("model %q has no key that Magi holds", name)
+			}
+			continue
+		}
+		out = append(out, &runnerModel{Name: m.Name, BaseURL: cl.BaseURL, Model: cl.Model, APIKey: cl.APIKey, HTTP: cl.HTTP})
+	}
+	if len(out) == 0 {
+		if sel != nil {
+			return nil, rpc.Invalid("unknown model %q: the model catalog has no such model", name)
+		}
+		// No default for the task: the fixed model.
+		return fixed(), nil
+	}
+	return out, nil
 }
 
 // flushCopy copies src to w and flushes after each read, so that the

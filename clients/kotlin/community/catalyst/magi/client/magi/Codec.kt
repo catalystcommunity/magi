@@ -1650,6 +1650,7 @@ fun StartTaskRequest.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
     csilEntries.add(CborValue.CText("kind") to CborValue.CText(this.kind))
     this.repo?.let { csilV -> csilEntries.add(CborValue.CText("repo") to CborValue.CText(csilV)) }
+    this.model?.let { csilV -> csilEntries.add(CborValue.CText("model") to CborValue.CText(csilV)) }
     this.title?.let { csilV -> csilEntries.add(CborValue.CText("title") to CborValue.CText(csilV)) }
     this.runner?.let { csilV -> csilEntries.add(CborValue.CText("runner") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("instructions") to CborValue.CText(this.instructions))
@@ -1666,7 +1667,8 @@ fun startTaskRequestFromCborValue(cbor: CborValue): StartTaskRequest {
     val title = CsilCbor.mapGet(cbor, "title")?.let { csilV -> CsilCbor.asText(csilV) }
     val repo = CsilCbor.mapGet(cbor, "repo")?.let { csilV -> CsilCbor.asText(csilV) }
     val runner = CsilCbor.mapGet(cbor, "runner")?.let { csilV -> CsilCbor.asText(csilV) }
-    return StartTaskRequest(kind = kind, instructions = instructions, title = title, repo = repo, runner = runner)
+    val model = CsilCbor.mapGet(cbor, "model")?.let { csilV -> CsilCbor.asText(csilV) }
+    return StartTaskRequest(kind = kind, instructions = instructions, title = title, repo = repo, runner = runner, model = model)
 }
 
 /** Decode CSIL CBOR bytes into a StartTaskRequest. */

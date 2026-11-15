@@ -66,7 +66,10 @@ var usage = `usage: magi [--server URL] <command> [args]
                              (exit the shell to end it)
   decide ID OUTCOME [-m TEXT]   approve, revise, or reject a waiting task
   cancel ID [-m TEXT] [-yes]  stop a task; asks first when the step is risky
-  start [-repo R] [-title T] [-runner N] INSTRUCTIONS   start a code change directly
+  start [-repo R] [-title T] [-runner N] [-model M] INSTRUCTIONS
+                             start a code change directly; -model is a JSON
+                             object for the apprentice, for example
+                             {"name": "glm-5.3-coder"} (an operator)
   know [-past] [TEXT]        search your knowledge (-past: also facts that ended)
   remember SUBJECT RELATION [OBJECT] [-value V] [-subject-kind K] [-object-kind K] [-also]
                              record a fact; SUBJECT "me" is you, for example
@@ -637,10 +640,11 @@ func (c *cli) run(cmd string, args []string) error {
 		}
 		printTask(t)
 	case "start":
-		repo, title, runner := fs.String("repo", "", "repository"), fs.String("title", "", "title"), fs.String("runner", "", "runner")
+		repo, title, runner, model := fs.String("repo", "", "repository"), fs.String("title", "", "title"), fs.String("runner", "", "runner"),
+			fs.String("model", "", `model of the change: {"name": <catalog model name>} and optional max_tokens, max_steps, context_tokens, temperature (an operator)`)
 		fs.Parse(args)
 		t, err := c.magi.StartTask(c.ctx, magiapi.StartTaskRequest{Kind: "code-change", Instructions: strings.Join(fs.Args(), " "),
-			Repo: optional(*repo), Title: optional(*title), Runner: optional(*runner)})
+			Repo: optional(*repo), Title: optional(*title), Runner: optional(*runner), Model: optional(*model)})
 		if err != nil {
 			return err
 		}

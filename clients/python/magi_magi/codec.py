@@ -2040,6 +2040,9 @@ def _encode_start_task_request_value(v: "StartTaskRequest") -> Dict[Any, Any]:
     csil_x = v.repo
     if csil_x is not None:
         csil_m["repo"] = csil_x
+    csil_x = v.model
+    if csil_x is not None:
+        csil_m["model"] = csil_x
     csil_x = v.title
     if csil_x is not None:
         csil_m["title"] = csil_x
@@ -2057,6 +2060,7 @@ def _decode_start_task_request_value(tree: Any) -> "StartTaskRequest":
         title=(None if tree.get("title") is None else _csil_expect_text(tree["title"])),
         repo=(None if tree.get("repo") is None else _csil_expect_text(tree["repo"])),
         runner=(None if tree.get("runner") is None else _csil_expect_text(tree["runner"])),
+        model=(None if tree.get("model") is None else _csil_expect_text(tree["model"])),
     )
 
 

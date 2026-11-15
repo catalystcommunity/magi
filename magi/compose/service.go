@@ -47,7 +47,15 @@ func (m *Service) StartTask(ctx context.Context, req magiapi.StartTaskRequest) (
 	if title == "" {
 		title = firstLine(req.Instructions, 60)
 	}
-	run, err := m.S.startCodeChange(m.S.AsService(ctx), caller.Subject, origin{}, title, req.Instructions, deref(req.Repo), deref(req.Runner))
+	model := deref(req.Model)
+	if model != "" {
+		// A model choice spends Magi's provider keys, so only an operator
+		// makes one.
+		if err := m.S.isOperator(ctx); err != nil {
+			return magiapi.Task{}, err
+		}
+	}
+	run, err := m.S.startCodeChange(m.S.AsService(ctx), caller.Subject, origin{}, title, req.Instructions, deref(req.Repo), deref(req.Runner), model)
 	if err != nil {
 		return magiapi.Task{}, err
 	}
@@ -58,8 +66,9 @@ func (m *Service) StartTask(ctx context.Context, req magiapi.StartTaskRequest) (
 type origin struct{ stream, utterance, persona string }
 
 // startCodeChange starts a code-change run owned by owner. ctx must carry
-// the service token. The run reports to the stream of from.
-func (s *System) startCodeChange(ctx context.Context, owner string, from origin, title, instructions, repo, runner string) (workflowapi.Run, error) {
+// the service token. The run reports to the stream of from. model is the
+// model var of the run: a JSON object for the apprentice, or empty.
+func (s *System) startCodeChange(ctx context.Context, owner string, from origin, title, instructions, repo, runner, model string) (workflowapi.Run, error) {
 	if strings.TrimSpace(instructions) == "" {
 		return workflowapi.Run{}, rpc.Invalid("instructions are required")
 	}
@@ -78,6 +87,9 @@ func (s *System) startCodeChange(ctx context.Context, owner string, from origin,
 	}
 	vars := map[string]string{"title": title, "instructions": instructions, "repo": repo, "check_command": s.Cfg.CheckCommand,
 		"runner": runner, "publisher": publisher, "stream": from.stream, "utterance": from.utterance, "persona": from.persona}
+	if model != "" {
+		vars["model"] = model
+	}
 	if lessons != "" {
 		vars["lessons"] = lessons
 	}

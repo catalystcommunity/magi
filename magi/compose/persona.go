@@ -476,7 +476,7 @@ func (s *System) personaTool(ctx context.Context, a workflowapi.Assignment, as c
 		// Only the note taker gives this (an "event" item).
 		return s.recordEvent(ctx, a.Owner, displayName(a), args["subject"], args["title"], &utt.Id), nil
 	case "start_code_change":
-		run, err := s.startCodeChange(ctx, a.Owner, origin{stream: utt.Stream, utterance: utt.Id, persona: as.persona}, args["title"], args["instructions"], args["repo"], args["runner"])
+		run, err := s.startCodeChange(ctx, a.Owner, origin{stream: utt.Stream, utterance: utt.Id, persona: as.persona}, args["title"], args["instructions"], args["repo"], args["runner"], "")
 		if err != nil {
 			return "error: " + err.Error(), nil
 		}
