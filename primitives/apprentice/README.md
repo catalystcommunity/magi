@@ -103,6 +103,35 @@ reply becomes `apprentice.summary`. The status stays `step_limit` or
 `time_limit`. When that call fails, the harness keeps the summary text that
 says that the task stopped at the limit.
 
+## Self-review
+
+When the model calls `finish` for the first time, and the check passed (or
+there is no check command), the harness does not end the task. The harness runs
+one `exec` call in the work directory. The call puts new files in the git index
+with `git add --intent-to-add --all`. Then it runs `git diff --stat` and
+`git diff`. This way the diff also shows new files. The diff is cut to
+`MAGI_APPRENTICE_TOOL_OUTPUT_CHARS` characters.
+
+The harness rejects the `finish` call. The tool result has the diff and a
+review text. The text tells the model to review the change as a strict reviewer
+of the repository: each part of the task instructions, the project
+instructions, no unrelated change, no debug output, tests for each new
+behavior, and clear names and comments. Then the model calls `finish` again
+with the summary. When it changes files, it runs the check again first.
+
+The second `finish` call ends the task as usual. The check gate applies to it.
+The review happens once in each run. The transcript records the review as
+`self_review`, with the size of the diff in characters.
+
+The review does not happen in these cases:
+
+- `MAGI_APPRENTICE_SELF_REVIEW` is `false`.
+- Fewer than 5 model calls are left.
+- 80% of the time limit is used.
+
+In the last two cases, the first `finish` call ends the task. The transcript
+records the review as skipped near a limit.
+
 ## Worker mode
 
 ```sh
@@ -182,6 +211,7 @@ and no check failed.
 | `MAGI_APPRENTICE_BASH_TIMEOUT` | `300` | Default bash timeout in seconds (maximum 1200) |
 | `MAGI_APPRENTICE_PROGRESS_EVERY` | `5` | Tool calls between progress notes |
 | `MAGI_APPRENTICE_CHECK_RETRIES` | `3` | Failed checks before `finish` is accepted |
+| `MAGI_APPRENTICE_SELF_REVIEW` | `true` | One review request before the first accepted `finish`; `false` turns it off |
 
 For llama.cpp, start `llama-server` with `--jinja`. For a hosted provider,
 change only the base URL, the model name, and the key file.

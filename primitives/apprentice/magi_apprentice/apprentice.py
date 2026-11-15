@@ -43,6 +43,17 @@ BUDGET_NOTE = ("Budget: {calls} of {max_calls} model calls are left (and {second
                "with a summary. Do not start new improvements.")
 LAST_CALL = ("The task stopped at a limit. Write the finish summary now: what changed, how it was "
              "verified, and what is left undone. This reply is the summary; there are no tools.")
+SELF_REVIEW = ("Review your change before you finish, as a strict reviewer of this repository. "
+               "Check each point and fix what is wrong: (1) Each part of the task instructions is "
+               "done; (2) the project instructions are followed (generated files, tests, "
+               "documentation style); (3) no change that the task did not ask for (renames, "
+               "reformatting, unrelated edits); (4) no debug output, temporary files, or "
+               "commented-out code; (5) tests for each new behavior, and they test the behavior, "
+               "not the implementation; (6) names and comments are clear, and comments tell why. "
+               "Then call finish again with the summary. If you change files, run the check again "
+               "first.")
+# A review that the model cannot act on is wasted work, so it needs calls left.
+SELF_REVIEW_MIN_CALLS = 5
 
 
 @dataclass
@@ -157,6 +168,29 @@ def _parse_repository(out: str) -> str:
         elif name:
             parts[name].append(line)
     return "\n".join(f"{n}\n" + "\n".join(ls).rstrip() for n, ls in parts.items() if "".join(ls).strip())
+
+
+# One exec gives the diff stat and the diff, so the review sees the whole change
+# at the cost of one tool call. git diff does not show untracked files, so the
+# new files are put in the index as empty entries first; the workflow commits
+# with git add -A, so that index change is harmless.
+DIFF_SCRIPT = "\n".join([
+    "git add --intent-to-add --all 2>/dev/null",
+    "echo '--- git diff --stat ---'",
+    "git diff --stat 2>/dev/null",
+    "echo '--- git diff ---'",
+    "git diff 2>/dev/null",
+])
+
+
+def workdir_diff(tools: Tools) -> str:
+    """The diff of the work directory, for the self-review. Empty when the
+    command fails or the work directory is clean."""
+    try:
+        r = tools.ws.sh(DIFF_SCRIPT, timeout_s=tools.ws.limits.bash_timeout_s)
+    except Exception:  # best effort: the review works without the diff
+        return ""
+    return truncate(_parse_repository(as_text(r.stdout)), tools.ws.limits.tool_output_chars)
 
 
 def add_start_context(task: Task, tools: Tools, transcript: Transcript) -> Task:
@@ -287,6 +321,7 @@ class Apprentice:
         self._noted_eighty = False
         self._noted_steps = False
         self._noted_time = False
+        self._reviewed = False
         tr.record("task", instructions=task.instructions, workdir=task.workdir,
                   check_command=task.check_command, limits=vars(lim))
         add_start_context(task, self.tools, tr)  # before the first model call
@@ -362,9 +397,11 @@ class Apprentice:
                     content, ok = r.content, r.ok
                     if r.finished:
                         content, ok, accept = self._finish_gate(task, r.content, check_fails, res)
+                        if accept and (review := self._self_review(task, res, start)):
+                            content, accept = review, False
                         if accept:
                             finished = r.content
-                        else:
+                        elif not ok:
                             check_fails += 1
                     if reply.finish_reason == "length" and not ok:
                         content += "\n" + CUT_REPLY
@@ -458,3 +495,20 @@ class Apprentice:
             return "check failed; finished without a passing check", False, True
         return (f"finish rejected: the check command failed.\n{out}\n"
                 "Fix the problem, then call finish again."), False, False
+
+    def _self_review(self, task: Task, res: Result, start: float) -> str | None:
+        """The first finish that passes the check gate gets one review request
+        with the diff, instead of the end of the task. Returns None when this
+        finish must be accepted as it is."""
+        lim = self.limits
+        if self._reviewed or not lim.self_review:
+            return None
+        self._reviewed = True
+        # A review near a limit has no value: the model cannot act on it.
+        if (lim.max_steps - res.steps < SELF_REVIEW_MIN_CALLS
+                or self.clock() - start >= lim.max_seconds * 0.8):
+            self.transcript.record("self_review", skipped="near a limit", diff_chars=0)
+            return None
+        diff = workdir_diff(self.tools)
+        self.transcript.record("self_review", diff_chars=len(diff))
+        return f"finish rejected: review your change first.\n{diff or '(no diff)'}\n\n{SELF_REVIEW}"

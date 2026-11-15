@@ -76,6 +76,7 @@ class Limits:
     bash_timeout_max_s: int = 1200
     progress_every: int = 5           # progress note every N tool calls
     check_retries: int = 3            # finish attempts rejected by a failed check
+    self_review: bool = True          # one review request before the first accepted finish
 
     @classmethod
     def from_env(cls) -> "Limits":
@@ -89,6 +90,7 @@ class Limits:
             bash_timeout_s=_int("MAGI_APPRENTICE_BASH_TIMEOUT", d.bash_timeout_s),
             progress_every=_int("MAGI_APPRENTICE_PROGRESS_EVERY", d.progress_every),
             check_retries=_int("MAGI_APPRENTICE_CHECK_RETRIES", d.check_retries),
+            self_review=_env("MAGI_APPRENTICE_SELF_REVIEW", "true") != "false",
         )
 
 
