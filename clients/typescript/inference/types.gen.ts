@@ -43,3 +43,53 @@ export interface WarmRequest {
   detail?: boolean;
 }
 
+/**
+ * One question of a decision (README.md, "Decide").
+ * type: "noul" (yes or no), "choice" (one of choices, at most 26), or
+ * "score" (a whole number from 0 to max, max at most 9).
+ * scale: the meaning of some scores ("0" => "none").
+ * temperature: the calibration of this question for this model
+ * (default 1). The probabilities are softmax(logprob / temperature).
+ */
+export interface Question {
+  id: string;
+  type: string;
+  question: string;
+  choices?: string[];
+  max?: number;
+  scale?: Record<string, string>;
+  temperature?: number;
+}
+
+/**
+ * Answers questions about one state. The model reads the state and each
+ * question once, and gives the probabilities of the labels of the
+ * choices; it writes no text. model: a model name of the host (an
+ * adapter); empty for the base model.
+ */
+export interface DecideRequest {
+  state: string;
+  questions: Question[];
+  model?: string;
+}
+
+/**
+ * probs: one for each choice (noul: yes, no; score: 0 to max).
+ * answer: "yes" or "no", the choice, or the score as text.
+ * expected: the mean score (score only).
+ */
+export interface Answer {
+  id: string;
+  probs: number[];
+  answer: string;
+  confidence: number;
+  expected?: number;
+  ms: number;
+}
+
+export interface DecideResponse {
+  answers: Answer[];
+  model: string;
+  ms: number;
+}
+

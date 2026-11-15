@@ -20,9 +20,10 @@ def call(name: str, **args: Any) -> ToolCall:
     return ToolCall(id=f"c_{name}_{len(json.dumps(args))}", name=name, arguments=json.dumps(args))
 
 
-def reply(*calls: ToolCall, content: str = "", finish_reason: str = "tool_calls") -> Reply:
+def reply(*calls: ToolCall, content: str = "", finish_reason: str = "tool_calls",
+          usage: dict | None = None) -> Reply:
     return Reply(content=content, tool_calls=list(calls), finish_reason=finish_reason,
-                 usage={"prompt_tokens": 100, "completion_tokens": 10})
+                 usage=usage or {"prompt_tokens": 100, "completion_tokens": 10})
 
 
 class FakeModel:
@@ -50,9 +51,13 @@ class MemExecution:
         self.file_ops = file_ops
         self.local = local
         self.execs: list[ex.ExecRequest] = []
+        # When set, every exec returns this stdout (for scripted exec tests).
+        self.stdout_for: str | None = None
 
     def exec(self, req: ex.ExecRequest) -> ex.ExecResult:
         self.execs.append(req)
+        if self.stdout_for is not None:
+            return _res(0, self.stdout_for.encode(), b"")
         if self.local:
             return self.local.exec(req)
         script = req.argv[-1]

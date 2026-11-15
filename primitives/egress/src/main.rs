@@ -99,8 +99,8 @@ async fn serve(cfg: Settings) -> anyhow::Result<()> {
         }
     };
     let secrets = match &cfg.secrets_dir {
-        Some(d) => Secrets::load_dir(d)?,
-        None => Secrets::default(),
+        Some(d) => Arc::new(Secrets::load_dir(d)?),
+        None => Arc::new(Secrets::default()),
     };
     let plugins = Plugins::load(&policy.plugins, magi.clone())?;
     let records = Arc::new(Records::new(5000));

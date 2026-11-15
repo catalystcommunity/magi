@@ -1,0 +1,24 @@
+d5dev-base-guard5 (local): 362/419 with checks (86%), raw 316/419, errors 0, median 2670 ms
+  alias           17/18  raw  16
+  birthday        15/20  raw   2
+  change          17/19  raw  14
+  end             14/16  raw  14
+  event           14/19  raw  14
+  fix             18/18  raw  18
+  hypothetical    12/13  raw  12
+  kin             14/18  raw  12
+  mixed           18/28  raw  13
+  multi-fact       5/16  raw   5
+  new-fact        19/20  raw  20
+  other-fact      17/18  raw  17
+  other-near-self  15/17  raw  16
+  other-update    13/15  raw  11
+  pet-ref         11/17  raw  10
+  plan            16/17  raw  11
+  question        20/20  raw  20
+  reports-to-me   17/18  raw  10
+  request         19/19  raw  19
+  restate         20/20  raw  20
+  same-name       16/18  raw  12
+  small-talk      20/20  raw  19
+  third-person    15/15  raw  11

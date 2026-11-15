@@ -20,7 +20,7 @@ def assignment(**vars):
 def worker(services, model, **kw):
     return Worker(workflow=wf.WorkflowClient(services), execution=MemExecution(),
                   artifacts=art.ArtifactClient(services), model_cfg=ModelConfig(api_key="key-abcdef-1"),
-                  limits=Limits(), model=model, lease_ms=3000, claim_wait_ms=1, **kw)
+                  limits=Limits(self_review=False), model=model, lease_ms=3000, claim_wait_ms=1, **kw)
 
 
 class WorkerTest(unittest.TestCase):
@@ -85,10 +85,20 @@ class WorkerTest(unittest.TestCase):
         self.assertEqual(s.of("complete"), [])  # a lost claim is not completed
 
     def test_model_override(self):
-        cfg, lim = apply_model_override(ModelConfig(), Limits(), '{"name": "big", "max_steps": 7}')
-        self.assertEqual((cfg.name, lim.max_steps), ("big", 7))
+        cfg, lim = apply_model_override(ModelConfig(), Limits(), '{"name": "big", "max_steps": 7, "context_tokens": 60000}')
+        self.assertEqual((cfg.name, lim.max_steps, lim.context_tokens), ("big", 7, 60000))
         cfg, _ = apply_model_override(ModelConfig(base_url="http://a"), Limits(), "other")
         self.assertEqual((cfg.name, cfg.base_url), ("other", "http://a"))
+
+    def test_lessons_var_reaches_the_task(self):
+        model = FakeModel([reply(call("finish", summary="s"))])
+        s = FakeServices([assignment(environment="e", instructions="t",
+                                     lessons="- rl-0001 Keep the state of one run: Set the flags at the start.")])
+        worker(s, model).serve(max_tasks=1)
+        user = model.requests[0][1]["content"]
+        self.assertIn("Lessons from earlier code reviews of this repository. Follow them:\n"
+                      "- rl-0001 Keep the state of one run: Set the flags at the start.", user)
+        self.assertIn("Task instructions:", user)
 
 
 class HttpTransportTest(unittest.TestCase):

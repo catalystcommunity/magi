@@ -135,6 +135,9 @@ func (n noteItem) toolCall(reason string) (string, map[string]string) {
 // of the matching records (knowledgeContext); before is the reply and the
 // message before the newest message, for answers such as "It changed."
 func (s *System) takeNotes(ctx context.Context, text, notes string, before []conversationapi.Utterance) ([]noteItem, string, error) {
+	// The note taker is its own task (a tuned model can do it best); the
+	// model of the request does not apply to it.
+	ctx = backgroundModel(ctx, "note-taker")
 	sc, ok := s.LibrarianModel.(model.SchemaChatter)
 	if !ok || strings.TrimSpace(text) == "" {
 		return nil, "", nil
@@ -207,12 +210,35 @@ func (s *System) applyNotes(ctx context.Context, a workflowapi.Assignment, as co
 	prov.addOwn(notes)
 	prov.addUtterances(before, a.Owner)
 	prov.addUtterances([]conversationapi.Utterance{utt}, a.Owner)
+	// The gate (notegate.go) and the note taker run at the same time, so
+	// that the gate adds no time. A "no" of the gate stops the note taker.
 	start := time.Now()
 	var items []noteItem
 	var served string
+	// Over the model limit of the owner, neither the gate nor the note taker runs.
 	err := s.allowModel(a.Owner)
 	if err == nil {
-		items, served, err = s.takeNotes(ctx, utt.Text, notes, before)
+		nctx, stop := context.WithCancel(ctx)
+		defer stop()
+		type notesResult struct {
+			items  []noteItem
+			served string
+			err    error
+		}
+		ch := make(chan notesResult, 1)
+		go func() {
+			items, served, err := s.takeNotes(nctx, utt.Text, notes, before)
+			ch <- notesResult{items, served, err}
+		}()
+		if g, ok := s.noteGate(ctx, a.Vars["owner_name"], notes, utt.Text); ok || g.Error != "" {
+			log.Gate = &g
+			if g.Skip {
+				stop()
+				return nil
+			}
+		}
+		r := <-ch
+		items, served, err = r.items, r.served, r.err
 	}
 	call := modelCall{Served: served, Ms: time.Since(start).Milliseconds()}
 	if err != nil {

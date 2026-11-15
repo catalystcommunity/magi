@@ -39,6 +39,7 @@ spec:
         - CREATE DATABASE corndogs OWNER magi
         - CREATE DATABASE composer OWNER magi
         - CREATE DATABASE speech OWNER magi
+        - CREATE DATABASE models OWNER magi
 # backup:begin
 ---
 # Base backup every day at 02:00 UTC. WAL is archived continuously to the

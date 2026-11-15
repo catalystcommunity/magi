@@ -1,0 +1,23 @@
+v2test-v3-checkpoint-550-guard5 (local): 982/1012 with checks (97%), raw 947/1012, errors 0, median 1885 ms
+  alias           46/46  raw  46
+  birthday        46/46  raw  46
+  change          46/46  raw  46
+  end             41/46  raw  41
+  event           46/46  raw  46
+  fix             46/46  raw  46
+  hypothetical    46/46  raw  46
+  kin             46/46  raw  42
+  multi-fact      46/46  raw  46
+  new-fact        33/46  raw  33
+  other-fact      42/46  raw  42
+  other-near-self  46/46  raw  46
+  other-update    44/46  raw  44
+  pet-ref         46/46  raw  42
+  plan            46/46  raw  46
+  question        46/46  raw  46
+  reports-to-me   43/46  raw  16
+  request         46/46  raw  46
+  restate         46/46  raw  46
+  same-name       46/46  raw  46
+  small-talk      46/46  raw  46
+  third-person    43/46  raw  43

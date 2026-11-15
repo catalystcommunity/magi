@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { Status, StatusRequest, WarmRequest } from "./types.gen.ts";
+import type { Answer, DecideRequest, DecideResponse, Question, Status, StatusRequest, WarmRequest } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -408,5 +408,115 @@ export function toWarmRequestCbor(v: WarmRequest): Uint8Array {
 
 export function fromWarmRequestCbor(bytes: Uint8Array): WarmRequest {
   return fromWarmRequestCborValue(decode(bytes));
+}
+
+export function toQuestionCborValue(v: Question): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  if (v.max !== undefined) csilMap.set("max", v.max);
+  csilMap.set("type", v.type);
+  if (v.scale !== undefined) csilMap.set("scale", new Map<CborValue, CborValue>(Object.entries(v.scale).map(([csilK, csilV]): [CborValue, CborValue] => [csilK, csilV])));
+  if (v.choices !== undefined) csilMap.set("choices", v.choices);
+  csilMap.set("question", v.question);
+  if (v.temperature !== undefined) csilMap.set("temperature", v.temperature);
+  return csilMap;
+}
+
+export function fromQuestionCborValue(value: CborValue): Question {
+  return {
+    id: asString(requireKey(value, "id")),
+    type: asString(requireKey(value, "type")),
+    question: asString(requireKey(value, "question")),
+    choices: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "choices")),
+    max: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "max")),
+    scale: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : Object.fromEntries(Array.from(asMap(csilV), ([csilK, csilV]): [string, string] => [asString(csilK), asString(csilV)])))(mapGet(value, "scale")),
+    temperature: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "temperature")),
+  };
+}
+
+export function toQuestionCbor(v: Question): Uint8Array {
+  return encodeValue(toQuestionCborValue(v));
+}
+
+export function fromQuestionCbor(bytes: Uint8Array): Question {
+  return fromQuestionCborValue(decode(bytes));
+}
+
+export function toDecideRequestCborValue(v: DecideRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.model !== undefined) csilMap.set("model", v.model);
+  csilMap.set("state", v.state);
+  csilMap.set("questions", v.questions.map((csilE): CborValue => toQuestionCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromDecideRequestCborValue(value: CborValue): DecideRequest {
+  return {
+    state: asString(requireKey(value, "state")),
+    questions: asArray(requireKey(value, "questions")).map((csilE) => fromQuestionCborValue(csilE)),
+    model: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "model")),
+  };
+}
+
+export function toDecideRequestCbor(v: DecideRequest): Uint8Array {
+  return encodeValue(toDecideRequestCborValue(v));
+}
+
+export function fromDecideRequestCbor(bytes: Uint8Array): DecideRequest {
+  return fromDecideRequestCborValue(decode(bytes));
+}
+
+export function toAnswerCborValue(v: Answer): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  csilMap.set("ms", v.ms);
+  csilMap.set("probs", v.probs);
+  csilMap.set("answer", v.answer);
+  if (v.expected !== undefined) csilMap.set("expected", v.expected);
+  csilMap.set("confidence", v.confidence);
+  return csilMap;
+}
+
+export function fromAnswerCborValue(value: CborValue): Answer {
+  return {
+    id: asString(requireKey(value, "id")),
+    probs: asArray(requireKey(value, "probs")).map((csilE) => asNumber(csilE)),
+    answer: asString(requireKey(value, "answer")),
+    confidence: asNumber(requireKey(value, "confidence")),
+    expected: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "expected")),
+    ms: asNumber(requireKey(value, "ms")),
+  };
+}
+
+export function toAnswerCbor(v: Answer): Uint8Array {
+  return encodeValue(toAnswerCborValue(v));
+}
+
+export function fromAnswerCbor(bytes: Uint8Array): Answer {
+  return fromAnswerCborValue(decode(bytes));
+}
+
+export function toDecideResponseCborValue(v: DecideResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("ms", v.ms);
+  csilMap.set("model", v.model);
+  csilMap.set("answers", v.answers.map((csilE): CborValue => toAnswerCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromDecideResponseCborValue(value: CborValue): DecideResponse {
+  return {
+    answers: asArray(requireKey(value, "answers")).map((csilE) => fromAnswerCborValue(csilE)),
+    model: asString(requireKey(value, "model")),
+    ms: asNumber(requireKey(value, "ms")),
+  };
+}
+
+export function toDecideResponseCbor(v: DecideResponse): Uint8Array {
+  return encodeValue(toDecideResponseCborValue(v));
+}
+
+export function fromDecideResponseCbor(bytes: Uint8Array): DecideResponse {
+  return fromDecideResponseCborValue(decode(bytes));
 }
 

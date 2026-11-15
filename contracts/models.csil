@@ -1,0 +1,135 @@
+options {
+  go_package: "modelsapi",
+}
+
+;;; The model catalog of one installation. Each model has a name, an
+;;; endpoint, tags, attributes, costs, and eval scores. A call of Magi asks
+;;; for a model with a selector: a name, or tags and attributes (a class of
+;;; models). A task (the note taker, a persona turn, a decision) has a
+;;; default selector. A persona or a workflow step can give its own.
+;;;
+;;; Keys are not in the catalog. key_ref names a key that Magi has
+;;; ("zen", "inference"); Magi puts the key in the request.
+
+;;; base_url: an OpenAI-compatible base URL (…/v1). An inference host that
+;;; connects out to Magi is http://<host>.revconn/v1.
+;;; model: the model name to send to the endpoint. An inference host gives
+;;; each adapter its own model name (primitives/inference, "Models").
+Endpoint = {
+  base_url: text,
+  model: text,
+  ? key_ref: text,
+  ? timeout_s: uint,
+  ? attempts: uint,
+}
+
+;;; Costs in micro-dollars for each million tokens. 0 is free.
+;;; cached_input_per_mtok: the cost of input from the prompt cache of the
+;;; provider.
+;;; as_of_ms: when the operator read the price. Prices change: select
+;;; tells when a price is older than 90 days ("cost stale").
+;;; source: where the price came from, for example a URL.
+Cost = {
+  input_per_mtok: uint,
+  output_per_mtok: uint,
+  ? cached_input_per_mtok: uint,
+  ? as_of_ms: uint,
+  ? source: text,
+}
+
+;;; tags: classes and abilities, for example "local", "hosted", "small",
+;;; "chat", "tools", "schema", "vision", "decide", "notetaker".
+;;; attributes: facts with a value, for example "base": "gemma-4-12b",
+;;; "context": "32768", "gpu_mib": "8192".
+;;; scores: eval results, "<eval>/<split>" => 0..1.
+;;; calibration: the temperature of each decision question (decide).
+Model = {
+  name: text,
+  description: text,
+  endpoint: Endpoint,
+  tags: [* text],
+  attributes: { * text => text },
+  cost: Cost,
+  scores: { * text => float },
+  calibration: { * text => float },
+  enabled: bool,
+  updated_ms: uint,
+}
+
+;;; A selector. Each given field must match:
+;;; name: this model, then the other models that match the rest as fallback.
+;;; all: the model has each of these tags.
+;;; any: the model has at least one of these tags.
+;;; none: the model has none of these tags.
+;;; attributes: the model has these attribute values.
+;;; max_input_cost, max_output_cost: the most cost for each million tokens.
+;;; rank_by: a score key; the models with a higher score come first.
+;;; only_name: true uses only the named model, with no fallback.
+Selector = {
+  ? name: text,
+  ? all: [* text],
+  ? any: [* text],
+  ? none: [* text],
+  ? attributes: { * text => text },
+  ? max_input_cost: uint,
+  ? max_output_cost: uint,
+  ? rank_by: text,
+  ? only_name: bool,
+}
+
+;;; The default selector of a task, for example "note-taker",
+;;; "persona-turn", "librarian", "decide".
+TaskDefault = {
+  task: text,
+  selector: Selector,
+  ? description: text,
+  updated_ms: uint,
+}
+
+PutModelRequest = { model: Model }
+GetModelRequest = { name: text }
+DeleteModelRequest = { name: text }
+DeleteResponse = { deleted: bool }
+
+ListModelsRequest = { ? tag: text, ? include_disabled: bool }
+ListModelsResponse = { models: [* Model] }
+
+;;; Adds or replaces scores and calibrations of a model (an eval result).
+ScoreRequest = {
+  name: text,
+  ? scores: { * text => float },
+  ? calibration: { * text => float },
+}
+
+PutTaskRequest = { task: TaskDefault }
+GetTaskRequest = { task: text }
+ListTasksRequest = { ? detail: bool }
+ListTasksResponse = { tasks: [* TaskDefault] }
+
+;;; Selects models for a call. selector refines the default of task: its
+;;; given fields replace the fields of the default. With no task, only
+;;; selector applies. strict: a named model must also match the other
+;;; fields (a request of a person can narrow the default, not widen it).
+SelectRequest = {
+  ? task: text,
+  ? selector: Selector,
+  ? limit: uint,
+  ? strict: bool,
+}
+
+;;; reason: why the model is at this place, for the turn log.
+Candidate = { model: Model, reason: text }
+SelectResponse = { candidates: [* Candidate], selector: Selector }
+
+;;; Changes need the scope "models:admin". Reads need a valid token.
+service ModelService {
+  put_model: PutModelRequest -> Model,
+  get_model: GetModelRequest -> Model,
+  delete_model: DeleteModelRequest -> DeleteResponse,
+  list_models: ListModelsRequest -> ListModelsResponse,
+  score: ScoreRequest -> Model,
+  put_task: PutTaskRequest -> TaskDefault,
+  get_task: GetTaskRequest -> TaskDefault,
+  list_tasks: ListTasksRequest -> ListTasksResponse,
+  select: SelectRequest -> SelectResponse,
+}

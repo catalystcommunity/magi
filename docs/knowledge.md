@@ -278,6 +278,27 @@ separate step, the note taker:
    rules and the conflict rule of `remember` apply.
 4. The persona model gets a list of what Magi did, and writes the reply.
 
+### Note gate
+
+The note taker uses the large model, and most messages have no fact
+(questions, requests, small talk). The note gate asks a decision model
+(task `decide`, a small GPU) the question `record` of
+`evals/decide/eval_notes.py`: "Does the message tell something new that
+the notes must keep?" The gate and the note taker start at the same time.
+When the probability of yes is less than `MAGI_NOTE_GATE` (default 0.15),
+Magi stops the note taker, and the turn has no note operations. With no
+answer in 5 seconds, or with an error, the note taker continues. 0 turns
+the gate off. The turn log has the answer (`gate`: yes, model, ms, skip).
+
+On data5 test with 0.15: Gemma 4 E4B with the decision LoRA
+(`gemma-4-e4b-decide`) stops the note taker for 26.1% of the messages
+(26.9% have no fact) and misses 0.4% of the messages that have a fact
+(3 of 729). Plain E4B stops 18.6% and misses 4.1%. data5 has more facts
+than real conversations, so the gate stops more in real use. A missed fact is usually not clear in the
+message; the persona tools can still record it. The question and the
+state must stay the same as in the eval, because the calibration of the
+catalog is for them (`notegate_test.go` checks this).
+
 The note taker gives no operation when the words do not make clear if a
 fact changed or was wrong. Then the persona asks. `update`, `fix`, and
 `retract` need an id from the records. The persona tools stay: the
@@ -332,6 +353,37 @@ same, the value is the object.
 When the note taker gives the same fact about the person and about another
 subject in one message ("Dana's birthday is March 3"), Magi keeps only the
 other subject. Words such as "both" or "we" keep both.
+
+## Review lessons
+
+A review lesson is what a code review taught: a rule that the next change
+must obey. The lessons live in the repository, in
+`magi/compose/baseknowledge/review-lessons.md`. The repository is the source
+of truth. Each lesson has an id (`rl-` and four digits), a title, an area, a
+source (the run id of the review and its date), and one to four sentences.
+
+When `magi-server` starts, it copies the lessons into the knowledge graph of
+that installation (`ImportBaseKnowledge`): one entity of kind `lesson` for
+each lesson, with the title as the label, the text as the summary, the id,
+the area, and the source as properties, and an external reference to the
+file. The `magi` service owns the entities. A lesson that changed in the
+file gets a `fix`; a lesson that the file no longer has gets a `retract`.
+Production gets the same lessons from the same release. The knowledge graph
+is a copy that Magi can search; it is not the authority.
+
+A reviewer adds a lesson at the end of the file: the next free id, a title,
+the area, the source, and the lesson in short sentences. A test parses the
+embedded file, so a bad header or a duplicate id fails `tools/check.sh`.
+
+When a task starts a code change, Magi reads the lessons from the graph and
+scores each one. A lesson of area "all code" gets 3 points. A lesson of an
+area path that the title or the instructions name gets 5 points, but only
+for the repository of Magi. A word of 5 or more letters that the lesson
+title and the task share gives 1 point, up to 3 points. Magi keeps the
+lessons with more than 0 points: the highest score first, then by id, at
+most 8. Magi puts the lessons in the var `lessons` of the run, and the
+apprentice shows them in its first message, before the task instructions.
+If the knowledge service fails, the code change starts without lessons.
 
 ## Investigations
 

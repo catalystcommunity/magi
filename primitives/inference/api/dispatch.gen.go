@@ -29,6 +29,17 @@ func InferenceServiceOps(impl InferenceService) map[string]func(context.Context,
 			}
 			return EncodeStatus(resp), nil
 		},
+		"decide": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeDecideRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Decide(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeDecideResponse(resp), nil
+		},
 	}
 }
 

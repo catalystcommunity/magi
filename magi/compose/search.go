@@ -471,7 +471,8 @@ func (s *System) webTool(ctx context.Context, question string, ts *turnState, na
 		if ts.searched > 6 {
 			return "error: too many searches in one turn; answer with what you found", true
 		}
-		v, err := judgeSearch(ctx, s.LibrarianModel, question, args["query"], args["why"])
+		bg := backgroundModel(ctx, "search-judge")
+		v, err := judgeSearch(bg, s.LibrarianModel, question, args["query"], args["why"])
 		if err != nil {
 			s.Log.Warn("search judge", "err", err)
 			return "error: Magi could not check the query now; try again once, then answer with what you know and say that you could not search", true
@@ -485,7 +486,7 @@ func (s *System) webTool(ctx context.Context, question string, ts *turnState, na
 			s.Log.Warn("search", "err", err)
 			return "error: the search failed: " + err.Error(), true
 		}
-		rs, dropped := filterResults(ctx, s.LibrarianModel, question, rs)
+		rs, dropped := filterResults(bg, s.LibrarianModel, question, rs)
 		s.Log.Info("web search", "results", len(rs), "dropped_injection", dropped)
 		if len(rs) == 0 {
 			return fmt.Sprintf("No results for %q. Search again with other words.", v.Query), true

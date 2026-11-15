@@ -239,7 +239,7 @@ def base(v):
 
 def render(img, v):
     ns = v["NAMESPACE"]
-    urls = {k: f"http://{k}.{ns}.svc:8080" for k in ["artifacts", "conversation", "execution", "knowledge", "source", "speech", "workflow", "release"]}
+    urls = {k: f"http://{k}.{ns}.svc:8080" for k in ["artifacts", "conversation", "execution", "knowledge", "models", "source", "speech", "workflow", "release"]}
     model_egress = v.get("EGRESS") == "true" and v.get("MODEL_EGRESS") == "true"
     # With MODEL_EGRESS, the proxy puts the key (proxy secret "model") in
     # place of this placeholder; see deploy/README.md.
@@ -279,6 +279,7 @@ def render(img, v):
                    volumes=[("data", "/data", "artifacts")], mem="512Mi")
     out += service(v, "conversation", img["IMAGE_CONVERSATION"], db_env("conversation"))
     out += service(v, "knowledge", img["IMAGE_KNOWLEDGE"], db_env("knowledge"))
+    out += service(v, "models", img["IMAGE_MODELS"], db_env("models"), mem="64Mi")
     out += service(v, "workflow", img["IMAGE_WORKFLOW"], db_env("workflow") + [{"name": "MAGI_CORNDOGS_URL", "value": f"corndogs.{ns}.svc:5080"}])
     out += service(v, "source", img["IMAGE_SOURCE"], [{"name": "MAGI_SOURCE_DIR", "value": "/data"}], volumes=[("data", "/data", "source")], mem="512Mi")
     out += service(v, "speech", img["IMAGE_SPEECH"], db_env("speech") + [
@@ -364,6 +365,8 @@ def render(img, v):
         persona = [{"name": "MAGI_PERSONA_MODELS", "value": json.dumps(chain)},
                    {"name": "MAGI_LIBRARIAN_MODELS", "value": json.dumps(librarian)}]
         persona_secrets = [("magi-inference-token", "/etc/magi/inference")]
+        # The key of catalog models with key_ref "inference" (compose/models.go).
+        persona.append({"name": "MAGI_INFERENCE_KEY_FILE", "value": "/etc/magi/inference/token"})
     egress_env = []
     if egress:
         # EGRESS_RULES=true: the ConfigMap magi-egress-rules has rules.json.
@@ -393,7 +396,7 @@ def render(img, v):
         search_env = [{"name": "MAGI_SEARCH_URL", "value": f"http://search.{ns}.svc:8080"}]
         out += search(v)
     mg = service(v, "magi", img["IMAGE_MAGI"], [
-        *model, *svc_token, *persona, *egress_env, *detector_env, *search_env,
+        *model, *svc_token, *persona, {"name": "MAGI_MODELS_URL", "value": urls["models"]}, *egress_env, *detector_env, *search_env,
         *[{"name": f"MAGI_{k.upper()}_URL", "value": u} for k, u in urls.items()],
         {"name": "MAGI_ENV_IMAGE", "value": v["ENV_IMAGE"]},
         # RUNNER: the default runner for code changes (RunnerService).
@@ -464,6 +467,11 @@ def render(img, v):
         # The egress tunnel of runner sandboxes: an upgraded connection that
         # stays open, so it has no request timeout.
         route_rules.insert(0, {"matches": [{"path": {"type": "Exact", "value": "/runner/egress"}}], "backendRefs": [{"name": "magi", "port": 8080}]})
+    # Model calls of the coding apprentice (runner model proxy): a large
+    # answer of a coding model takes minutes. With 120 s the gateway cut
+    # each long call, and the apprentice repeated it many times.
+    route_rules.insert(0, {"matches": [{"path": {"type": "PathPrefix", "value": "/runner/v1/"}}], "backendRefs": [{"name": "magi", "port": 8080}],
+                           "timeouts": {"request": "900s", "backendRequest": "900s"}})
     # Inference hosts connect out and keep idle connections (lib/revconn):
     # no request timeout.
     route_rules.insert(0, {"matches": [{"path": {"type": "Exact", "value": "/inference/connect"}}], "backendRefs": [{"name": "magi", "port": 8080}]})

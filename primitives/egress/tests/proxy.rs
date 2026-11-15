@@ -174,6 +174,19 @@ async fn upstream(seen: Shared, dir: &Path) -> (u16, PathBuf) {
                     let seen = seen.clone();
                     async move {
                         let (parts, body) = req.into_parts();
+                        if parts.uri.path() == "/sse" {
+                            // A streamed answer: one event, a pause, then an
+                            // event with the secret.
+                            let (mut tx, rx) = http_body_util::Channel::<Bytes, std::convert::Infallible>::new(4);
+                            tokio::spawn(async move {
+                                let _ = tx.send_data(Bytes::from("data: {\"n\":1}\n\n")).await;
+                                tokio::time::sleep(std::time::Duration::from_millis(2500)).await;
+                                let _ = tx.send_data(Bytes::from(format!("data: {{\"n\":2,\"t\":\"{SECRET}\"}}\n\ndata: [DONE]\n\n"))).await;
+                            });
+                            let mut r = hyper::Response::new(http_body_util::BodyExt::boxed(rx));
+                            r.headers_mut().insert(hyper::header::CONTENT_TYPE, "text/event-stream".parse().unwrap());
+                            return Ok::<_, std::convert::Infallible>(r);
+                        }
                         let body = body.collect().await.unwrap().to_bytes();
                         let headers: HashMap<String, String> = parts.headers.iter().map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string())).collect();
                         let echo = serde_json::json!({"method": parts.method.as_str(), "path": parts.uri.to_string(), "headers": headers, "body": String::from_utf8_lossy(&body)});
@@ -186,11 +199,11 @@ async fn upstream(seen: Shared, dir: &Path) -> (u16, PathBuf) {
                             _ => None,
                         };
                         if let Some(p) = page {
-                            let mut r = hyper::Response::new(Full::new(Bytes::from(p)));
+                            let mut r = hyper::Response::new(http_body_util::BodyExt::boxed(Full::new(Bytes::from(p))));
                             r.headers_mut().insert(hyper::header::CONTENT_TYPE, "text/html; charset=utf-8".parse().unwrap());
                             return Ok::<_, std::convert::Infallible>(r);
                         }
-                        Ok::<_, std::convert::Infallible>(hyper::Response::new(Full::new(Bytes::from(out))))
+                        Ok::<_, std::convert::Infallible>(hyper::Response::new(http_body_util::BodyExt::boxed(Full::new(Bytes::from(out)))))
                     }
                 });
                 let _ = hyper::server::conn::http1::Builder::new().serve_connection(TokioIo::new(tls), svc).await;
@@ -218,6 +231,7 @@ async fn world_with(ssh_hosts: serde_json::Value, ssh_key: Option<russh::keys::P
     let policy: Policy = serde_json::from_value(serde_json::json!({
         "destinations": [{"host": "localhost", "ports": [up_port]}],
         "secrets": [{"id": "gh", "hosts": ["localhost"]}],
+        "event_stream_hosts": ["localhost"],
         "ssh_hosts": ssh_hosts,
         "plugins": [
             grant("test-actions", "test_actions.wasm", &["out", "in"], &["evaluate"]),
@@ -234,7 +248,7 @@ async fn world_with(ssh_hosts: serde_json::Value, ssh_key: Option<russh::keys::P
     let records = Arc::new(Records::new(100));
     let p = Arc::new(Proxy {
         policy,
-        secrets: Secrets::new([vec![("gh".into(), SECRET.into())], more].concat()),
+        secrets: Arc::new(Secrets::new([vec![("gh".into(), SECRET.into())], more].concat())),
         plugins,
         magi: Some(magi),
         records: records.clone(),
@@ -767,4 +781,20 @@ async fn ssh_proxy() {
     let flows = w.proxy.records.list(Some("env_test"), None, 50);
     assert!(flows.iter().any(|f| f.url.as_deref() == Some("ssh://localhost/git-upload-pack 'org/repo.git'") && f.outcome == "sent"), "{flows:?}");
     assert!(flows.iter().any(|f| f.outcome == "review" && f.method.as_deref() == Some("SSH")), "{flows:?}");
+}
+
+#[tokio::test]
+async fn event_streams_pass_one_event_at_a_time() {
+    need_curl!();
+    let w = world().await;
+    // The first event comes before the pause of the upstream ends.
+    let o = w.curl("localhost", "/sse", &["-N", "--max-time", "1.5"]).await;
+    assert!(o.body.contains(r#"data: {"n":1}"#), "first event was held back: {o:?}");
+    assert!(!o.body.contains(r#""n":2"#), "{o:?}");
+    // The full stream: the secret is removed from the second event.
+    let o = w.curl("localhost", "/sse", &["-N"]).await;
+    assert_eq!(o.code, 200, "{o:?}");
+    assert!(o.body.contains(r#""n":2"#) && o.body.contains("[DONE]"), "{o:?}");
+    assert!(!o.body.contains(SECRET), "secret in the stream: {o:?}");
+    assert!(o.body.contains("[redacted:gh]"), "{o:?}");
 }

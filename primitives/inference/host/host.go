@@ -31,6 +31,25 @@ type Engine struct {
 	Command []string `json:"command"`
 	Port    int      `json:"port"`
 	Model   string   `json:"model"`
+	// Description tells what the base model is for (GET /v1/models).
+	Description string `json:"description,omitempty"`
+	// Models are more model names of the engine: the base model with an
+	// adapter (llama-server per-request LoRA; start the engine with
+	// --lora FILE --lora-init-without-apply).
+	Models map[string]Variant `json:"models,omitempty"`
+}
+
+// Variant is a model name of the engine with an adapter.
+type Variant struct {
+	// Lora is the "lora" field of a llama-server request: the adapter ids
+	// (in the order of --lora) and their scales.
+	Lora        []LoraScale `json:"lora"`
+	Description string      `json:"description,omitempty"`
+}
+
+type LoraScale struct {
+	Id    int     `json:"id"`
+	Scale float64 `json:"scale"`
 }
 
 type Config struct {
@@ -67,6 +86,7 @@ type Host struct {
 	quietFrom time.Time // when the machine became quiet
 	reason    string    // last reason the engine stopped or failed
 	failed    time.Time // when the engine last failed to start or exited
+	ec        *engineClient
 }
 
 // retryFail is how long KeepWarm waits after the engine failed before it
@@ -338,6 +358,24 @@ func (h *Host) OpenAI() http.Handler {
 		defer h.release()
 		r.Body = http.MaxBytesReader(w, r.Body, h.cfg.MaxBody)
 		r.Header.Del("Authorization")
+		if r.Method == http.MethodGet && r.URL.Path == "/v1/models" {
+			h.writeModels(w)
+			return
+		}
+		if r.Method == http.MethodPost && len(h.cfg.Engine.Models) > 0 {
+			name, err := h.applyVariant(r)
+			if err != nil {
+				writeError(w, http.StatusBadRequest, "bad_request", err.Error())
+				return
+			}
+			if name != "" {
+				// The answer names the variant, as the caller asked.
+				rw := &renameWriter{ResponseWriter: w, from: h.cfg.Engine.Model, to: name}
+				proxy.ServeHTTP(rw, r)
+				rw.finish()
+				return
+			}
+		}
 		proxy.ServeHTTP(w, r)
 	})
 }

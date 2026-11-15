@@ -41,6 +41,7 @@ type MagiService interface {
 	GetTaskDiff(ctx context.Context, req GetTaskDiffRequest) (TaskDiff, error)
 	GetTaskOutput(ctx context.Context, req GetTaskOutputRequest) (TaskOutput, error)
 	Decide(ctx context.Context, req DecideRequest) (Task, error)
+	Decision(ctx context.Context, req DecisionRequest) (DecisionResponse, error)
 	CancelTask(ctx context.Context, req CancelTaskRequest) (Task, error)
 	QueryKnowledge(ctx context.Context, req QueryKnowledgeRequest) (QueryKnowledgeResponse, error)
 	Remember(ctx context.Context, req RememberRequest) (RememberResponse, error)

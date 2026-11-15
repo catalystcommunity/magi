@@ -22,3 +22,38 @@ type StatusRequest struct {
 type WarmRequest struct {
 	Detail *bool `json:"detail,omitempty" yaml:"detail,omitempty"`
 }
+
+// Question represents a structured data type
+type Question struct {
+	Id          string            `json:"id" yaml:"id"`
+	Type        string            `json:"type" yaml:"type"`
+	Question    string            `json:"question" yaml:"question"`
+	Choices     []string          `json:"choices,omitempty" yaml:"choices,omitempty"`
+	Max         *uint64           `json:"max,omitempty" yaml:"max,omitempty"`
+	Scale       map[string]string `json:"scale,omitempty" yaml:",inline"`
+	Temperature *float64          `json:"temperature,omitempty" yaml:"temperature,omitempty"`
+}
+
+// DecideRequest represents a structured data type
+type DecideRequest struct {
+	State     string     `json:"state" yaml:"state"`
+	Questions []Question `json:"questions" yaml:"questions"`
+	Model     *string    `json:"model,omitempty" yaml:"model,omitempty"`
+}
+
+// Answer represents a structured data type
+type Answer struct {
+	Id         string    `json:"id" yaml:"id"`
+	Probs      []float64 `json:"probs" yaml:"probs"`
+	Answer     string    `json:"answer" yaml:"answer"`
+	Confidence float64   `json:"confidence" yaml:"confidence"`
+	Expected   *float64  `json:"expected,omitempty" yaml:"expected,omitempty"`
+	Ms         uint64    `json:"ms" yaml:"ms"`
+}
+
+// DecideResponse represents a structured data type
+type DecideResponse struct {
+	Answers []Answer `json:"answers" yaml:"answers"`
+	Model   string   `json:"model" yaml:"model"`
+	Ms      uint64   `json:"ms" yaml:"ms"`
+}

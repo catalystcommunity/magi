@@ -80,6 +80,24 @@ SayRequest = {
   ? speak_reply: bool,
   ? voice: text,
   ? wake_word: bool,
+  ? model: ModelSelector,
+}
+
+;;; The models for the model calls of one request: a name, or a class of
+;;; models by tags and attributes (contracts/models.csil, Selector). It
+;;; refines the default of the task. A named model of a person must also
+;;; agree with the limits of the default (for example, its cost); only an
+;;; operator can change the limits.
+ModelSelector = {
+  ? name: text,
+  ? all: [* text],
+  ? any: [* text],
+  ? none: [* text],
+  ? attributes: { * text => text },
+  ? max_input_cost: uint,
+  ? max_output_cost: uint,
+  ? rank_by: text,
+  ? only_name: bool,
 }
 SayResponse = { message: Message, ? ignored: bool }
 
@@ -304,6 +322,15 @@ StartTaskRequest = {
   ? title: text,
   ? repo: text,
   ? runner: text,
+  ;;; The model of the code change: a JSON object for the apprentice
+  ;;; ({"name": <catalog model name>, and optional "max_tokens",
+  ;;; "max_steps", "context_tokens", "temperature"}). Only an operator
+  ;;; can set it.
+  ? model: text,
+  ;;; The commit of the default branch where the change starts (7 to 40
+  ;;; hex characters): an eval run, which ends at review and never
+  ;;; merges. Only an operator can set it.
+  ? base: text,
 }
 GetTaskRequest = { id: text }
 ListTasksRequest = { ? status: text, ? limit: uint }
@@ -608,6 +635,42 @@ GetPageRequest = { id: text }
 ListPagesRequest = { ? limit: uint }
 ListPagesResponse = { pages: [* Page] }
 
+;;; A question of a decision (contracts/inference.csil, Question).
+;;; type: "noul" (yes or no), "choice" (2 to 26 choices), or "score" (0 to
+;;; max, max at most 9). The catalog gives the calibration of each id for
+;;; the model; an id with no calibration uses temperature 1.
+DecisionQuestion = {
+  id: text,
+  type: text,
+  question: text,
+  ? choices: [* text],
+  ? max: uint,
+  ? scale: { * text => text },
+}
+
+;;; Typed questions about one state, answered with probabilities and no
+;;; text (evals/decide/README.md). task: the task of the model selection
+;;; (default "decide"); model refines it.
+DecisionRequest = {
+  state: text,
+  questions: [* DecisionQuestion],
+  ? task: text,
+  ? model: ModelSelector,
+}
+
+;;; probs: one for each choice (noul: yes, no; score: 0 to max).
+;;; calibrated: the model has a calibration for this question id.
+DecisionAnswer = {
+  id: text,
+  probs: [* float],
+  answer: text,
+  confidence: float,
+  ? expected: float,
+  calibrated: bool,
+}
+
+DecisionResponse = { answers: [* DecisionAnswer], model: text, ms: uint }
+
 service MagiService {
   say: SayRequest -> SayResponse,
   read: ReadRequest -> ReadResponse,
@@ -641,6 +704,7 @@ service MagiService {
   get-task-diff: GetTaskDiffRequest -> TaskDiff,
   get-task-output: GetTaskOutputRequest -> TaskOutput,
   decide: DecideRequest -> Task,
+  decision: DecisionRequest -> DecisionResponse,
   cancel-task: CancelTaskRequest -> Task,
   query-knowledge: QueryKnowledgeRequest -> QueryKnowledgeResponse,
   remember: RememberRequest -> RememberResponse,

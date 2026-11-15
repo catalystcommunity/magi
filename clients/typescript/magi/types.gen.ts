@@ -112,6 +112,26 @@ export interface SayRequest {
   speakReply?: boolean;
   voice?: string;
   wakeWord?: boolean;
+  model?: ModelSelector;
+}
+
+/**
+ * The models for the model calls of one request: a name, or a class of
+ * models by tags and attributes (contracts/models.csil, Selector). It
+ * refines the default of the task. A named model of a person must also
+ * agree with the limits of the default (for example, its cost); only an
+ * operator can change the limits.
+ */
+export interface ModelSelector {
+  name?: string;
+  all?: string[];
+  any?: string[];
+  none?: string[];
+  attributes?: Record<string, string>;
+  maxInputCost?: number;
+  maxOutputCost?: number;
+  rankBy?: string;
+  onlyName?: boolean;
 }
 
 export interface SayResponse {
@@ -497,6 +517,19 @@ export interface StartTaskRequest {
   title?: string;
   repo?: string;
   runner?: string;
+  /**
+   * The model of the code change: a JSON object for the apprentice
+   * ({"name": <catalog model name>, and optional "max_tokens",
+   * "max_steps", "context_tokens", "temperature"}). Only an operator
+   * can set it.
+   */
+  model?: string;
+  /**
+   * The commit of the default branch where the change starts (7 to 40
+   * hex characters): an eval run, which ends at review and never
+   * merges. Only an operator can set it.
+   */
+  base?: string;
 }
 
 export interface GetTaskRequest {
@@ -1095,6 +1128,52 @@ export interface ListPagesRequest {
 
 export interface ListPagesResponse {
   pages: Page[];
+}
+
+/**
+ * A question of a decision (contracts/inference.csil, Question).
+ * type: "noul" (yes or no), "choice" (2 to 26 choices), or "score" (0 to
+ * max, max at most 9). The catalog gives the calibration of each id for
+ * the model; an id with no calibration uses temperature 1.
+ */
+export interface DecisionQuestion {
+  id: string;
+  type: string;
+  question: string;
+  choices?: string[];
+  max?: number;
+  scale?: Record<string, string>;
+}
+
+/**
+ * Typed questions about one state, answered with probabilities and no
+ * text (evals/decide/README.md). task: the task of the model selection
+ * (default "decide"); model refines it.
+ */
+export interface DecisionRequest {
+  state: string;
+  questions: DecisionQuestion[];
+  task?: string;
+  model?: ModelSelector;
+}
+
+/**
+ * probs: one for each choice (noul: yes, no; score: 0 to max).
+ * calibrated: the model has a calibration for this question id.
+ */
+export interface DecisionAnswer {
+  id: string;
+  probs: number[];
+  answer: string;
+  confidence: number;
+  expected?: number;
+  calibrated: boolean;
+}
+
+export interface DecisionResponse {
+  answers: DecisionAnswer[];
+  model: string;
+  ms: number;
 }
 
 /**

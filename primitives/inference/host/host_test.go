@@ -26,8 +26,10 @@ func TestMain(m *testing.M) {
 		http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {})
 		http.HandleFunc("/v1/chat/completions", func(w http.ResponseWriter, r *http.Request) {
 			b, _ := io.ReadAll(r.Body)
-			fmt.Fprintf(w, `{"echo":%q,"auth":%q}`, b, r.Header.Get("Authorization"))
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, `{"model":"local","echo":%q,"auth":%q}`, b, r.Header.Get("Authorization"))
 		})
+		fakeDecideEngine()
 		http.ListenAndServe("127.0.0.1:"+port, nil)
 		os.Exit(0)
 	}

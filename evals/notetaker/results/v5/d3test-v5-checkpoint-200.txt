@@ -1,0 +1,23 @@
+d3test-v5-checkpoint-200 (d3test-v5-checkpoint-200): 821/893 with checks (92%), raw 818/893, errors 1, median 1741 ms
+  alias           36/42  raw  34
+  birthday        42/44  raw  43
+  change          43/43  raw  43
+  end             40/42  raw  40
+  event           37/37  raw  37
+  fix             41/41  raw  41
+  hypothetical    42/43  raw  42
+  kin             31/44  raw  26
+  multi-fact      35/44  raw  37
+  new-fact        33/44  raw  33
+  other-fact      15/23  raw  15
+  other-near-self  42/46  raw  44
+  other-update    18/18  raw  18
+  pet-ref         39/39  raw  39
+  plan            43/45  raw  42
+  question        46/46  raw  46
+  reports-to-me   31/36  raw  32
+  request         45/45  raw  45
+  restate         45/45  raw  45
+  same-name       45/46  raw  46
+  small-talk      46/46  raw  46
+  third-person    26/34  raw  24

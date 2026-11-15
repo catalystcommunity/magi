@@ -11,6 +11,7 @@ credential files outside the repository.
 | Part | Where | Notes |
 | --- | --- | --- |
 | Primitives and `magi` | namespace `magi` | One Deployment and Service each |
+| Model catalog | namespace `magi` | `primitives/models`; the models of each task (`docs/models.md`) |
 | Apprentice worker | namespace `magi` | Claims `apprentice` workflow steps |
 | Environments | namespace `magi-envs` | Pods that the execution service creates |
 | PostgreSQL | namespace `magi` | CloudNativePG cluster `magi-db`, one database per primitive (`base/postgres.yaml`) |

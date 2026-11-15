@@ -1,0 +1,22 @@
+v3dev-checkpoint-550-guard5 (local): 346/373 with checks (93%), raw 345/373, errors 0, median 1981 ms
+  alias           20/20  raw  20
+  birthday        15/15  raw  15
+  change          13/16  raw  15
+  end             20/20  raw  19
+  event           13/16  raw  13
+  fix             12/14  raw  12
+  hypothetical    20/20  raw  20
+  kin             20/20  raw  20
+  multi-fact      11/18  raw  12
+  new-fact        17/20  raw  18
+  other-fact      11/18  raw  12
+  other-near-self  20/20  raw  20
+  pet-ref         20/20  raw  20
+  plan            20/20  raw  20
+  question        20/20  raw  20
+  reports-to-me    8/8   raw   3
+  request         20/20  raw  20
+  restate         20/20  raw  20
+  same-name       14/14  raw  14
+  small-talk      14/14  raw  14
+  third-person    18/20  raw  18

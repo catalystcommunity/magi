@@ -1,0 +1,8 @@
+question     n       T     acc   ECE raw  ECE cal  Brier raw Brier cal
+about      494    1.82   74.3%     0.131    0.208      0.431     0.465
+asks       997    0.55   98.3%     0.043    0.008      0.038     0.030
+count      997    2.34   26.4%     0.271    0.102      0.838     0.748
+kind       931    2.12   50.6%     0.279    0.104      0.721     0.599
+record     997    0.37   88.7%     0.134    0.019      0.199     0.157
+task       997    0.64   86.9%     0.129    0.060      0.233     0.203
+median 279 ms, p90 352 ms for each question; prompt cache used in 100%

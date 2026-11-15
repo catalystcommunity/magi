@@ -1,4 +1,6 @@
 import io
+import socket
+import time
 import json
 import unittest
 import urllib.error
@@ -37,7 +39,25 @@ class Opener:
         o = self.outcomes.pop(0)
         if isinstance(o, Exception):
             raise o
+        if isinstance(o, bytes):
+            return Resp(o)
         return Resp(json.dumps(o).encode())
+
+
+def sse(*events) -> bytes:
+    return b"".join(b"data: " + json.dumps(e).encode() + b"\n\n" for e in events) + b"data: [DONE]\n\n"
+
+
+STREAM = sse(
+    {"choices": [{"index": 0, "delta": {"role": "assistant", "content": "Look"}}]},
+    {"choices": [{"index": 0, "delta": {"content": "ing."}}]},
+    {"choices": [{"index": 0, "delta": {"tool_calls": [{"index": 0, "id": "c1", "type": "function",
+                                                         "function": {"name": "read_file", "arguments": "{\"pa"}}]}}]},
+    {"choices": [{"index": 0, "delta": {"tool_calls": [{"index": 0, "function": {"arguments": "th\": \"a.go\"}"}}]}}]},
+    {"choices": [{"index": 0, "delta": {"tool_calls": [{"index": 1, "id": "c2", "type": "function",
+                                                         "function": {"name": "bash", "arguments": "{}"}}]}}]},
+    {"choices": [{"index": 0, "delta": {}, "finish_reason": "tool_calls"}]},
+    {"choices": [], "usage": {"prompt_tokens": 9, "completion_tokens": 4}})
 
 
 def model(opener, **kw) -> tuple[ChatModel, list[float]]:
@@ -60,17 +80,74 @@ class ModelTest(unittest.TestCase):
         body = json.loads(req.data)
         self.assertEqual(body["model"], "m")
         self.assertEqual(body["tool_choice"], "auto")
-        self.assertEqual(timeout, 300.0)
+        self.assertTrue(body["stream"])
+        self.assertEqual(timeout, 600.0)  # the wait for the start of the answer
         self.assertEqual(r.message()["tool_calls"][0]["function"]["name"], "bash")
 
     def test_retries_429_5xx_and_connection_errors(self):
-        op = Opener([http_error(429, {"Retry-After": "2"}), http_error(503),
+        op = Opener([http_error(429, {"Retry-After": "2"}), http_error(524),
                      urllib.error.URLError("refused"), TimeoutError("slow"), OK])
         m, slept = model(op)
         r = m.complete([], [])
         self.assertEqual(r.tool_calls[0].id, "x1")
         self.assertEqual(len(slept), 4)
         self.assertEqual(slept[0], 2.0)
+
+    def test_joins_a_streamed_answer(self):
+        m, _ = model(Opener([STREAM]))
+        r = m.complete([], [{"type": "function"}])
+        self.assertEqual(r.content, "Looking.")
+        self.assertEqual([(c.id, c.name) for c in r.tool_calls], [("c1", "read_file"), ("c2", "bash")])
+        self.assertEqual(json.loads(r.tool_calls[0].arguments), {"path": "a.go"})
+        self.assertEqual(r.finish_reason, "tool_calls")
+        self.assertEqual(r.usage["completion_tokens"], 4)
+
+    def test_retries_a_provider_that_stops_sending(self):
+        # The socket timeout (idle_s) is raised while the answer is read.
+        op = Opener([socket.timeout("timed out"), STREAM])
+        m, slept = model(op)
+        self.assertEqual(m.complete([], []).tool_calls[0].name, "read_file")
+        self.assertEqual(len(slept), 1)
+
+    def test_no_stream(self):
+        op = Opener([OK])
+        m, _ = model(op, stream=False)
+        m.complete([], [])
+        req, timeout = op.requests[0]
+        self.assertNotIn("stream", json.loads(req.data))
+        self.assertEqual(timeout, 900.0)
+
+    def test_idle_limit_on_a_real_socket(self):
+        # The server sends the start of the answer, then stops. The read
+        # must fail after idle_s, not after first_s.
+        import http.server
+        import threading
+        stop = threading.Event()
+
+        class H(http.server.BaseHTTPRequestHandler):
+            def do_POST(self):
+                self.rfile.read(int(self.headers["Content-Length"]))
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream")
+                self.end_headers()
+                self.wfile.write(b'data: {"choices":[{"delta":{"content":"a"}}]}\n\n')
+                self.wfile.flush()
+                stop.wait(10)
+
+            def log_message(self, *a):
+                pass
+
+        srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            cfg = ModelConfig(base_url=f"http://127.0.0.1:{srv.server_port}/v1", name="m", first_s=5, idle_s=0.3, max_retries=0)
+            start = time.monotonic()
+            with self.assertRaisesRegex(ModelError, "timed out"):
+                ChatModel(cfg, sleep=lambda s: None).complete([], [])
+            self.assertLess(time.monotonic() - start, 3)
+        finally:
+            stop.set()
+            srv.shutdown()
 
     def test_no_retry_on_400(self):
         m, slept = model(Opener([http_error(400)]))

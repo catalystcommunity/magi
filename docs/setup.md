@@ -96,11 +96,15 @@ details.
    `magi-inference-token`, and set `PERSONA_LOCAL_URL` and
    `PERSONA_LOCAL_MODEL`.
 9. **Runners** (for code changes). On each runner machine: install the
-   toolchains, mint a runner token, and install the runner as a service
-   (`magi/README.md`, "Install a runner"). For task VMs on Linux, build and
-   install the kernel with `tools/vm/build-kernel.sh --install USER@HOST`
-   (`magi/README.md`, "Task VMs"). Set `RUNNER`, and `PUBLISHER` for the
-   runner that pushes to the upstream.
+   toolchains (Go, Rust, Python 3.11 or later, and csilgen for
+   `tools/gen.sh`), mint a runner token, and install the runner as a service
+   (`magi/README.md`, "Install a runner"). A runner configuration that
+   already exists keeps its `PATH`. Add
+   `~/.local/share/magi-runner-tools/csilgen/bin` to `sandbox.env.PATH` in
+   it by hand. For task VMs on Linux, build and install the kernel with
+   `tools/vm/build-kernel.sh --install USER@HOST` (`magi/README.md`,
+   "Task VMs"). Set `RUNNER`, and `PUBLISHER` for the runner that pushes to
+   the upstream.
 10. **Egress proxy** (optional). Make the proxy CA, the environment key,
     the policy, and the rules, then set `EGRESS=true`
     (`deploy/README.md`, "Egress proxy").

@@ -9,7 +9,9 @@ replace (
 	github.com/catalystcommunity/magi/primitives/conversation => ../primitives/conversation
 	github.com/catalystcommunity/magi/primitives/execution => ../primitives/execution
 	github.com/catalystcommunity/magi/primitives/identity => ../primitives/identity
+	github.com/catalystcommunity/magi/primitives/inference => ../primitives/inference
 	github.com/catalystcommunity/magi/primitives/knowledge => ../primitives/knowledge
+	github.com/catalystcommunity/magi/primitives/models => ../primitives/models
 	github.com/catalystcommunity/magi/primitives/source => ../primitives/source
 	github.com/catalystcommunity/magi/primitives/speech => ../primitives/speech
 	github.com/catalystcommunity/magi/primitives/workflow => ../primitives/workflow
@@ -22,7 +24,9 @@ require (
 	github.com/catalystcommunity/magi/primitives/conversation v0.0.0
 	github.com/catalystcommunity/magi/primitives/execution v0.0.0
 	github.com/catalystcommunity/magi/primitives/identity v0.0.0
+	github.com/catalystcommunity/magi/primitives/inference v0.0.0
 	github.com/catalystcommunity/magi/primitives/knowledge v0.0.0
+	github.com/catalystcommunity/magi/primitives/models v0.0.0
 	github.com/catalystcommunity/magi/primitives/source v0.0.0
 	github.com/catalystcommunity/magi/primitives/speech v0.0.0
 	github.com/catalystcommunity/magi/primitives/workflow v0.0.0

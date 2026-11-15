@@ -73,13 +73,27 @@ type PutPersonaRequest struct {
 
 // SayRequest represents a structured data type
 type SayRequest struct {
-	Persona    *string `json:"persona,omitempty" yaml:"persona,omitempty"`
-	Text       *string `json:"text,omitempty" yaml:"text,omitempty"`
-	Audio      *[]byte `json:"audio,omitempty" yaml:"audio,omitempty"`
-	AudioType  *string `json:"audio_type,omitempty" yaml:"audio_type,omitempty"`
-	SpeakReply *bool   `json:"speak_reply,omitempty" yaml:"speak_reply,omitempty"`
-	Voice      *string `json:"voice,omitempty" yaml:"voice,omitempty"`
-	WakeWord   *bool   `json:"wake_word,omitempty" yaml:"wake_word,omitempty"`
+	Persona    *string        `json:"persona,omitempty" yaml:"persona,omitempty"`
+	Text       *string        `json:"text,omitempty" yaml:"text,omitempty"`
+	Audio      *[]byte        `json:"audio,omitempty" yaml:"audio,omitempty"`
+	AudioType  *string        `json:"audio_type,omitempty" yaml:"audio_type,omitempty"`
+	SpeakReply *bool          `json:"speak_reply,omitempty" yaml:"speak_reply,omitempty"`
+	Voice      *string        `json:"voice,omitempty" yaml:"voice,omitempty"`
+	WakeWord   *bool          `json:"wake_word,omitempty" yaml:"wake_word,omitempty"`
+	Model      *ModelSelector `json:"model,omitempty" yaml:"model,omitempty"`
+}
+
+// ModelSelector represents a structured data type
+type ModelSelector struct {
+	Name          *string           `json:"name,omitempty" yaml:"name,omitempty"`
+	All           []string          `json:"all,omitempty" yaml:"all,omitempty"`
+	Any           []string          `json:"any,omitempty" yaml:"any,omitempty"`
+	None          []string          `json:"none,omitempty" yaml:"none,omitempty"`
+	Attributes    map[string]string `json:"attributes,omitempty" yaml:",inline"`
+	MaxInputCost  *uint64           `json:"max_input_cost,omitempty" yaml:"max_input_cost,omitempty"`
+	MaxOutputCost *uint64           `json:"max_output_cost,omitempty" yaml:"max_output_cost,omitempty"`
+	RankBy        *string           `json:"rank_by,omitempty" yaml:"rank_by,omitempty"`
+	OnlyName      *bool             `json:"only_name,omitempty" yaml:"only_name,omitempty"`
 }
 
 // SayResponse represents a structured data type
@@ -418,6 +432,8 @@ type StartTaskRequest struct {
 	Title        *string `json:"title,omitempty" yaml:"title,omitempty"`
 	Repo         *string `json:"repo,omitempty" yaml:"repo,omitempty"`
 	Runner       *string `json:"runner,omitempty" yaml:"runner,omitempty"`
+	Model        *string `json:"model,omitempty" yaml:"model,omitempty"`
+	Base         *string `json:"base,omitempty" yaml:"base,omitempty"`
 }
 
 // GetTaskRequest represents a structured data type
@@ -952,6 +968,41 @@ type ListPagesRequest struct {
 // ListPagesResponse represents a structured data type
 type ListPagesResponse struct {
 	Pages []Page `json:"pages" yaml:"pages"`
+}
+
+// DecisionQuestion represents a structured data type
+type DecisionQuestion struct {
+	Id       string            `json:"id" yaml:"id"`
+	Type     string            `json:"type" yaml:"type"`
+	Question string            `json:"question" yaml:"question"`
+	Choices  []string          `json:"choices,omitempty" yaml:"choices,omitempty"`
+	Max      *uint64           `json:"max,omitempty" yaml:"max,omitempty"`
+	Scale    map[string]string `json:"scale,omitempty" yaml:",inline"`
+}
+
+// DecisionRequest represents a structured data type
+type DecisionRequest struct {
+	State     string             `json:"state" yaml:"state"`
+	Questions []DecisionQuestion `json:"questions" yaml:"questions"`
+	Task      *string            `json:"task,omitempty" yaml:"task,omitempty"`
+	Model     *ModelSelector     `json:"model,omitempty" yaml:"model,omitempty"`
+}
+
+// DecisionAnswer represents a structured data type
+type DecisionAnswer struct {
+	Id         string    `json:"id" yaml:"id"`
+	Probs      []float64 `json:"probs" yaml:"probs"`
+	Answer     string    `json:"answer" yaml:"answer"`
+	Confidence float64   `json:"confidence" yaml:"confidence"`
+	Expected   *float64  `json:"expected,omitempty" yaml:"expected,omitempty"`
+	Calibrated bool      `json:"calibrated" yaml:"calibrated"`
+}
+
+// DecisionResponse represents a structured data type
+type DecisionResponse struct {
+	Answers []DecisionAnswer `json:"answers" yaml:"answers"`
+	Model   string           `json:"model" yaml:"model"`
+	Ms      uint64           `json:"ms" yaml:"ms"`
 }
 
 // RunnerClaimRequest represents a structured data type

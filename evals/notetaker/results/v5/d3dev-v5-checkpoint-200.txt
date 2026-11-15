@@ -1,0 +1,22 @@
+d3dev-v5-checkpoint-200 (d3dev-v5-checkpoint-200): 334/373 with checks (90%), raw 336/373, errors 1, median 1744 ms
+  alias           18/20  raw  16
+  birthday        14/15  raw  14
+  change          14/16  raw  15
+  end             20/20  raw  20
+  event            4/16  raw   4
+  fix             12/14  raw  12
+  hypothetical    20/20  raw  20
+  kin             17/20  raw  16
+  multi-fact      11/18  raw  12
+  new-fact        15/20  raw  16
+  other-fact      15/18  raw  16
+  other-near-self  20/20  raw  20
+  pet-ref         20/20  raw  20
+  plan            20/20  raw  20
+  question        20/20  raw  20
+  reports-to-me    8/8   raw   8
+  request         20/20  raw  20
+  restate         20/20  raw  20
+  same-name       14/14  raw  14
+  small-talk      14/14  raw  14
+  third-person    18/20  raw  19

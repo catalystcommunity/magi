@@ -77,8 +77,8 @@ class Workspace:
                 self._file_ops = False
         r = self.sh(f"cat -- {shlex.quote(path)}")
         if r.exit_code != 0:
-            raise ToolError(f"cannot read {path}: {_text(r.stderr).strip()}")
-        return _text(r.stdout)
+            raise ToolError(f"cannot read {path}: {as_text(r.stderr).strip()}")
+        return as_text(r.stdout)
 
     def write(self, path: str, body: str) -> int:
         data = body.encode()
@@ -96,7 +96,7 @@ class Workspace:
         q = shlex.quote(path)
         r = self.sh(f"mkdir -p -- {shlex.quote(parent)} && cat > {q}", stdin=data)
         if r.exit_code != 0:
-            raise ToolError(f"cannot write {path}: {_text(r.stderr).strip()}")
+            raise ToolError(f"cannot write {path}: {as_text(r.stderr).strip()}")
         return len(data)
 
 
@@ -104,7 +104,7 @@ def _unknown_op(e: RpcError) -> bool:
     return e.code == 404 and "unknown operation" in (e.message or "")
 
 
-def _text(b: bytes | str | None) -> str:
+def as_text(b: bytes | str | None) -> str:
     if b is None:
         return ""
     return b if isinstance(b, str) else b.decode("utf-8", "replace")
@@ -238,8 +238,8 @@ class Tools:
                       f"| sort | head -n {LIST_LIMIT + 1}")
         r = self.ws.sh(script)
         if r.exit_code not in (0, 1):
-            raise ToolError(_text(r.stderr).strip() or f"list failed with exit {r.exit_code}")
-        files = [f for f in _text(r.stdout).splitlines() if f]
+            raise ToolError(as_text(r.stderr).strip() or f"list failed with exit {r.exit_code}")
+        files = [f for f in as_text(r.stdout).splitlines() if f]
         more = len(files) > LIST_LIMIT
         out = "\n".join(files[:LIST_LIMIT]) or "(no files)"
         if more:
@@ -262,11 +262,11 @@ class Tools:
                   f"else {' '.join(gr)} -e {pat} {p}; fi | head -n {SEARCH_LIMIT + 1}; "
                   "exit ${PIPESTATUS[0]}")
         r = self.ws.sh(script)
-        if r.exit_code == 1 and not _text(r.stdout).strip():
+        if r.exit_code == 1 and not as_text(r.stdout).strip():
             return ToolResult("no matches")
         if r.exit_code not in (0, 1, 141):
-            raise ToolError(_text(r.stderr).strip() or f"search failed with exit {r.exit_code}")
-        lines = _text(r.stdout).splitlines()
+            raise ToolError(as_text(r.stderr).strip() or f"search failed with exit {r.exit_code}")
+        lines = as_text(r.stdout).splitlines()
         out = "\n".join(lines[:SEARCH_LIMIT])
         if len(lines) > SEARCH_LIMIT:
             out += f"\n[more than {SEARCH_LIMIT} matches; narrow the search]"
@@ -277,7 +277,7 @@ class Tools:
 
 
 def format_exec(r: Any, limit: int) -> str:
-    out, err = _text(r.stdout), _text(r.stderr)
+    out, err = as_text(r.stdout), as_text(r.stderr)
     head = f"exit_code: {r.exit_code}"
     if getattr(r, "timed_out", False):
         head += " (timed out)"

@@ -131,17 +131,28 @@ func (r *Runner) prepare(ctx context.Context, a magiapi.RunnerAssignment, st mag
 		return Result{}, err
 	}
 	branch := "task/" + a.Run
+	// A base starts the branch at an older commit of the default branch; the
+	// bundle of the default branch has its history, so the clone stays the
+	// same.
+	checkout := ""
+	if base := a.Vars["base"]; base != "" {
+		if !compose.IsCommit(base) {
+			return Result{}, fmt.Errorf("base %q is not a commit (7 to 40 hex characters)", base)
+		}
+		checkout = " " + base
+	}
 	res, err := r.exec(ctx, env, w, fmt.Sprintf(`set -e
 git clone -q -b %[1]s %[5]s/repo.bundle %[5]s/repo
 cd %[5]s/repo
 git config user.name %[3]s
 git config user.email %[4]s
-git checkout -q -b %[2]s
-git rev-parse HEAD`, repo.DefaultBranch, branch, shellQuote(r.Cfg.Author.Name), shellQuote(r.Cfg.Author.Email), shellQuote(w)), 120000)
+git checkout -q -b %[2]s%[6]s
+git rev-parse HEAD`, repo.DefaultBranch, branch, shellQuote(r.Cfg.Author.Name), shellQuote(r.Cfg.Author.Email), shellQuote(w), checkout), 120000)
 	if err != nil {
 		return Result{}, err
 	}
 	if res.ExitCode != 0 {
+		// A base that the bundle does not have fails here: git names it.
 		return Result{}, fmt.Errorf("clone failed: %s", tail(string(res.Stderr), 2000))
 	}
 	r.note(ctx, st, fmt.Sprintf("Environment %s is ready on runner %s, branch %s.", env, r.Cfg.Name, branch))
@@ -168,7 +179,7 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 	args := []string{"-m", "magi_apprentice", "run", "--environment", a.Vars["environment"], "--workdir", a.Vars["workdir"],
 		"--instructions", "@" + instr, "--transcript", transcript, "--no-upload"}
 	for flag, v := range map[string]string{"--check-command": gatedCheck(a), "--check-output": a.Vars["check_output"],
-		"--title": a.Vars["title"], "--review-comment": a.Vars["review.comment"], "--model": a.Vars["model"]} {
+		"--title": a.Vars["title"], "--review-comment": a.Vars["review.comment"], "--lessons": a.Vars["lessons"], "--model": a.Vars["model"]} {
 		if v != "" {
 			args = append(args, flag, v)
 		}
@@ -189,6 +200,9 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 		// model also needs room to think before it writes.
 		"MAGI_APPRENTICE_CONTEXT_TOKENS=100000", "MAGI_MODEL_MAX_TOKENS=16384",
 		"MAGI_APPRENTICE_TOOL_OUTPUT_CHARS=16000", "MAGI_APPRENTICE_MAX_SECONDS=3600",
+		// GLM makes about one tool call for each model call: a change of
+		// five files with tests used all of 60 steps (2026-11-14).
+		"MAGI_APPRENTICE_MAX_STEPS=150",
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
@@ -222,6 +236,10 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 		ToolCalls   int    `json:"tool_calls"`
 		CheckPassed *bool  `json:"check_passed"`
 		Error       string `json:"error"`
+		Usage       struct {
+			PromptTokens int     `json:"prompt_tokens"`
+			Cost         float64 `json:"cost"`
+		} `json:"usage"`
 	}
 	if err := json.Unmarshal([]byte(stdout.String()), &out); err != nil {
 		return Result{}, fmt.Errorf("apprentice failed (%v): %s", waitErr, tail(strings.Join(last, "\n"), 3000))
@@ -231,6 +249,13 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 	if out.CheckPassed != nil {
 		outputs["apprentice.check_passed"] = strconv.FormatBool(*out.CheckPassed)
 	}
+	// A provider that reports no cost leaves the outputs and the note out.
+	cost := ""
+	if out.Usage.Cost > 0 {
+		cost = fmt.Sprintf(" (cost $%.3f)", out.Usage.Cost)
+		outputs["apprentice.cost_usd"] = fmt.Sprintf("%.3f", out.Usage.Cost)
+		outputs["apprentice.prompt_tokens"] = strconv.Itoa(out.Usage.PromptTokens)
+	}
 	if b, err := os.ReadFile(transcript); err == nil {
 		if d, err := r.Magi.PutArtifact(ctx, magiapi.RunnerPutArtifactRequest{Step: st, MediaType: "application/x-ndjson", Body: b,
 			Labels: map[string]string{"kind": "apprentice-transcript"}}); err == nil {
@@ -239,7 +264,8 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 			outputs["apprentice.transcript_error"] = tail(err.Error(), 500)
 		}
 	}
-	r.note(ctx, st, fmt.Sprintf("apprentice %s after %d steps, %d tool calls: %s", out.Status, out.Steps, out.ToolCalls, out.Summary))
+	r.note(ctx, st, fmt.Sprintf("apprentice %s after %d steps, %d tool calls%s: %s",
+		out.Status, out.Steps, out.ToolCalls, cost, out.Summary))
 	if out.Status == "error" {
 		return Result{}, fmt.Errorf("apprentice error: %s", firstNonEmpty(out.Error, out.Summary))
 	}
@@ -319,7 +345,14 @@ git rev-parse HEAD`, a.Vars["base_commit"], branch, shellQuote(w)), 120000)
 	out["patch"], out["patch.files"] = patch.Digest, string(files)
 	out["check_output"], out["check.attempts"] = "", "0"
 	r.note(ctx, st, "Checks passed. Waiting for review.")
-	r.report(ctx, st, "normal", "Ready for review", fmt.Sprintf("The checks passed. The change on %s is ready for your review: approve, revise with a comment, or reject.", branch))
+	review := fmt.Sprintf("The checks passed. The change on %s is ready for your review: approve, revise with a comment, or reject.", branch)
+	if base := a.Vars["base"]; base != "" {
+		// An eval run never merges: the grade of the eval decides, so the
+		// reviewer must not approve it.
+		review = fmt.Sprintf("The checks passed. This is an eval run (base %s): it ends at review and never merges. Reject it after the grade. The change on %s is ready for your review.", base, branch)
+		r.note(ctx, st, "Eval run (base "+base+"): it ends at review; approve is refused.")
+	}
+	r.report(ctx, st, "normal", "Ready for review", review)
 	return Result{Outcome: "pass", Outputs: out}, nil
 }
 

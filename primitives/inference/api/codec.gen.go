@@ -665,3 +665,327 @@ func DecodeWarmRequest(csilData []byte) (WarmRequest, error) {
 	}
 	return csilDecWarmRequest(csilRoot)
 }
+
+// csilEncQuestion builds the canonical CBOR value tree for a Question.
+func csilEncQuestion(csilV Question) cborValue {
+	csilEntries := make(cborMap, 0, 7)
+	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
+	if csilV.Max != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("max"), cborUint((*csilV.Max))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("type"), cborText(csilV.Type)})
+	if csilV.Scale != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("scale"), cborEncMap(csilV.Scale, func(csilK string) cborValue { return cborText(csilK) }, func(csilV string) cborValue { return cborText(csilV) })})
+	}
+	if csilV.Choices != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("choices"), cborEncArray(csilV.Choices, func(csilElem string) cborValue { return cborText(csilElem) })})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("question"), cborText(csilV.Question)})
+	if csilV.Temperature != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("temperature"), cborFloat((*csilV.Temperature))})
+	}
+	return csilEntries
+}
+
+// csilDecQuestion reconstructs a Question from a decoded CBOR value tree.
+func csilDecQuestion(csilRoot cborValue) (Question, error) {
+	var csilOut Question
+	{
+		csilField, csilErr := cborRequire(csilRoot, "id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Id = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "type")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Type = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "question")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Question = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "choices"); csilOk {
+		csilVal, csilErr := (func(csilV cborValue) ([]string, error) { return cborDecArray(csilV, cborAsText) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Choices = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "max"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Max = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "scale"); csilOk {
+		csilVal, csilErr := (func(csilV cborValue) (map[string]string, error) { return cborDecMap(csilV, cborAsText, cborAsText) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Scale = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "temperature"); csilOk {
+		csilVal, csilErr := (cborAsF64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Temperature = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeQuestion encodes a Question to canonical CSIL CBOR bytes.
+func EncodeQuestion(csilV Question) []byte {
+	return cborEncode(csilEncQuestion(csilV))
+}
+
+// DecodeQuestion decodes canonical CSIL CBOR bytes into a Question.
+func DecodeQuestion(csilData []byte) (Question, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero Question
+		return csilZero, csilErr
+	}
+	return csilDecQuestion(csilRoot)
+}
+
+// csilEncDecideRequest builds the canonical CBOR value tree for a DecideRequest.
+func csilEncDecideRequest(csilV DecideRequest) cborValue {
+	csilEntries := make(cborMap, 0, 3)
+	if csilV.Model != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("model"), cborText((*csilV.Model))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("state"), cborText(csilV.State)})
+	csilEntries = append(csilEntries, cborEntry{cborText("questions"), cborEncArray(csilV.Questions, func(csilElem Question) cborValue { return csilEncQuestion(csilElem) })})
+	return csilEntries
+}
+
+// csilDecDecideRequest reconstructs a DecideRequest from a decoded CBOR value tree.
+func csilDecDecideRequest(csilRoot cborValue) (DecideRequest, error) {
+	var csilOut DecideRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "state")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.State = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "questions")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]Question, error) { return cborDecArray(csilV, csilDecQuestion) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Questions = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "model"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Model = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeDecideRequest encodes a DecideRequest to canonical CSIL CBOR bytes.
+func EncodeDecideRequest(csilV DecideRequest) []byte {
+	return cborEncode(csilEncDecideRequest(csilV))
+}
+
+// DecodeDecideRequest decodes canonical CSIL CBOR bytes into a DecideRequest.
+func DecodeDecideRequest(csilData []byte) (DecideRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero DecideRequest
+		return csilZero, csilErr
+	}
+	return csilDecDecideRequest(csilRoot)
+}
+
+// csilEncAnswer builds the canonical CBOR value tree for a Answer.
+func csilEncAnswer(csilV Answer) cborValue {
+	csilEntries := make(cborMap, 0, 6)
+	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
+	csilEntries = append(csilEntries, cborEntry{cborText("ms"), cborUint(csilV.Ms)})
+	csilEntries = append(csilEntries, cborEntry{cborText("probs"), cborEncArray(csilV.Probs, func(csilElem float64) cborValue { return cborFloat(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("answer"), cborText(csilV.Answer)})
+	if csilV.Expected != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("expected"), cborFloat((*csilV.Expected))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("confidence"), cborFloat(csilV.Confidence)})
+	return csilEntries
+}
+
+// csilDecAnswer reconstructs a Answer from a decoded CBOR value tree.
+func csilDecAnswer(csilRoot cborValue) (Answer, error) {
+	var csilOut Answer
+	{
+		csilField, csilErr := cborRequire(csilRoot, "id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Id = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "probs")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]float64, error) { return cborDecArray(csilV, cborAsF64) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Probs = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "answer")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Answer = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "confidence")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsF64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Confidence = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "expected"); csilOk {
+		csilVal, csilErr := (cborAsF64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Expected = &csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Ms = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeAnswer encodes a Answer to canonical CSIL CBOR bytes.
+func EncodeAnswer(csilV Answer) []byte {
+	return cborEncode(csilEncAnswer(csilV))
+}
+
+// DecodeAnswer decodes canonical CSIL CBOR bytes into a Answer.
+func DecodeAnswer(csilData []byte) (Answer, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero Answer
+		return csilZero, csilErr
+	}
+	return csilDecAnswer(csilRoot)
+}
+
+// csilEncDecideResponse builds the canonical CBOR value tree for a DecideResponse.
+func csilEncDecideResponse(csilV DecideResponse) cborValue {
+	csilEntries := make(cborMap, 0, 3)
+	csilEntries = append(csilEntries, cborEntry{cborText("ms"), cborUint(csilV.Ms)})
+	csilEntries = append(csilEntries, cborEntry{cborText("model"), cborText(csilV.Model)})
+	csilEntries = append(csilEntries, cborEntry{cborText("answers"), cborEncArray(csilV.Answers, func(csilElem Answer) cborValue { return csilEncAnswer(csilElem) })})
+	return csilEntries
+}
+
+// csilDecDecideResponse reconstructs a DecideResponse from a decoded CBOR value tree.
+func csilDecDecideResponse(csilRoot cborValue) (DecideResponse, error) {
+	var csilOut DecideResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "answers")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]Answer, error) { return cborDecArray(csilV, csilDecAnswer) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Answers = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "model")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Model = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Ms = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeDecideResponse encodes a DecideResponse to canonical CSIL CBOR bytes.
+func EncodeDecideResponse(csilV DecideResponse) []byte {
+	return cborEncode(csilEncDecideResponse(csilV))
+}
+
+// DecodeDecideResponse decodes canonical CSIL CBOR bytes into a DecideResponse.
+func DecodeDecideResponse(csilData []byte) (DecideResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero DecideResponse
+		return csilZero, csilErr
+	}
+	return csilDecDecideResponse(csilRoot)
+}

@@ -1,0 +1,24 @@
+v5dev-checkpoint-493 (v5dev-checkpoint-493): 369/419 with checks (88%), raw 360/419, errors 0, median 1902 ms
+  alias           14/18  raw  12
+  birthday        19/20  raw  19
+  change          19/19  raw  19
+  end             16/16  raw  16
+  event           13/19  raw  13
+  fix             18/18  raw  18
+  hypothetical    13/13  raw  13
+  kin             15/18  raw  13
+  mixed           16/28  raw  15
+  multi-fact       5/16  raw   5
+  new-fact        18/20  raw  19
+  other-fact      16/18  raw  16
+  other-near-self  14/17  raw  15
+  other-update    15/15  raw  15
+  pet-ref         14/17  raw  11
+  plan            17/17  raw  17
+  question        20/20  raw  20
+  reports-to-me   16/18  raw  14
+  request         19/19  raw  19
+  restate         20/20  raw  20
+  same-name       17/18  raw  17
+  small-talk      20/20  raw  20
+  third-person    15/15  raw  14

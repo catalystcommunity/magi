@@ -96,3 +96,148 @@ class WarmRequest:
         return cls.from_dict(json.loads(json_str))
 
 
+@dataclass
+class Question:
+    id: str
+    type: str
+    question: str
+    choices: Optional[List[str]] = None
+    max: Optional[int] = None
+    scale: Optional[Dict[str, str]] = None
+    temperature: Optional[float] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'type') and self.type is not None:
+            result['type'] = self.type
+        if hasattr(self, 'question') and self.question is not None:
+            result['question'] = self.question
+        if hasattr(self, 'choices') and self.choices is not None:
+            result['choices'] = self.choices
+        if hasattr(self, 'max') and self.max is not None:
+            result['max'] = self.max
+        if hasattr(self, 'scale') and self.scale is not None:
+            result['scale'] = self.scale
+        if hasattr(self, 'temperature') and self.temperature is not None:
+            result['temperature'] = self.temperature
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Question':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), type=data.get('type'), question=data.get('question'), choices=data.get('choices'), max=data.get('max'), scale=data.get('scale'), temperature=data.get('temperature'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'Question':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class DecideRequest:
+    state: str
+    questions: List[Question]
+    model: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'state') and self.state is not None:
+            result['state'] = self.state
+        if hasattr(self, 'questions') and self.questions is not None:
+            result['questions'] = self.questions
+        if hasattr(self, 'model') and self.model is not None:
+            result['model'] = self.model
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'DecideRequest':
+        """Create instance from dictionary."""
+        return cls(state=data.get('state'), questions=data.get('questions'), model=data.get('model'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'DecideRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class Answer:
+    id: str
+    probs: List[float]
+    answer: str
+    confidence: float
+    ms: int
+    expected: Optional[float] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'probs') and self.probs is not None:
+            result['probs'] = self.probs
+        if hasattr(self, 'answer') and self.answer is not None:
+            result['answer'] = self.answer
+        if hasattr(self, 'confidence') and self.confidence is not None:
+            result['confidence'] = self.confidence
+        if hasattr(self, 'expected') and self.expected is not None:
+            result['expected'] = self.expected
+        if hasattr(self, 'ms') and self.ms is not None:
+            result['ms'] = self.ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Answer':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), probs=data.get('probs'), answer=data.get('answer'), confidence=data.get('confidence'), expected=data.get('expected'), ms=data.get('ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'Answer':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class DecideResponse:
+    answers: List[Answer]
+    model: str
+    ms: int
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'answers') and self.answers is not None:
+            result['answers'] = self.answers
+        if hasattr(self, 'model') and self.model is not None:
+            result['model'] = self.model
+        if hasattr(self, 'ms') and self.ms is not None:
+            result['ms'] = self.ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'DecideResponse':
+        """Create instance from dictionary."""
+        return cls(answers=data.get('answers'), model=data.get('model'), ms=data.get('ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'DecideResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+

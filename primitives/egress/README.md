@@ -191,6 +191,13 @@ the hosts in `ssh_hosts`:
   policy.
 - `stream_hosts`: a response larger than `max_body` from these hosts goes
   to the client without inspection. From other hosts it stops.
+- `event_stream_hosts`: a `text/event-stream` response (2xx, no content
+  encoding) from these hosts goes to the client one event at a time. The
+  proxy scans the headers and each event for secrets. Plugins do not see
+  the events. A secret that is split over two events is not found, so use
+  this only for trusted hosts, such as a model provider. Without it, the
+  proxy reads the full stream first, and a client of a streamed model answer
+  gets nothing until the answer is complete.
 
 `MAGI_EGRESS_SECRETS_DIR` has one file for each secret. The file name is
 the secret id. A final newline is not part of the value. Names that start

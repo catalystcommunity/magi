@@ -8,14 +8,19 @@ from typing import Callable
 
 from .config import Limits
 from .model import Model, ModelError, Reply
-from .tools import TOOL_SPECS, Tools, format_exec, truncate
+from .tools import TOOL_SPECS, Tools, as_text, format_exec, truncate
 from .transcript import Transcript
 
 SYSTEM_PROMPT = """You are Magi's coding apprentice. You work alone on one task in an isolated \
 environment. The task's repository is in the work directory: {workdir}
 
 Rules:
+- The project instructions in the first message are the rules of the repository owner. Follow \
+them, unless the task instructions say otherwise.
 - Use the tools to inspect, change, build, and test. Do not guess file contents: read or search first.
+- Each model call costs money. When tool calls do not depend on each other, make them in one reply: \
+for example, read three files, or read a file and search, in one reply. Read the files that the task \
+names before you search.
 - Use edit_file for changes to existing files. Copy old_string exactly from read_file output, \
 without the line-number prefix. Use write_file for new files.
 - Keep changes small and focused on the task. Follow the style of the existing code.
@@ -36,6 +41,27 @@ CONTINUE = ("Continue with the task using the tools. When the task is complete, 
             "with a summary.")
 CUT_REPLY = ("Your last reply was cut at the output token limit. Write large files in parts: "
              "write_file with a first part, then edit_file or more write_file calls.")
+BUDGET_NOTE = ("Budget: {calls} of {max_calls} model calls are left (and {seconds} seconds of the "
+               "time limit). Finish the work that is necessary, run the check, and call finish "
+               "with a summary. Do not start new improvements.")
+LAST_CALL = ("The task stopped at a limit. Write the finish summary now: what changed, how it was "
+             "verified, and what is left undone. This reply is the summary; there are no tools.")
+SELF_REVIEW = ("Review your change before you finish, as a strict reviewer of this repository. "
+               "Check each point and fix what is wrong: (1) Each part of the task instructions is "
+               "done; (2) the project instructions are followed (generated files, tests, "
+               "documentation style); (3) no change that the task did not ask for (renames, "
+               "reformatting, unrelated edits); (4) no debug output, temporary files, or "
+               "commented-out code; (5) tests for each new behavior, and they test the behavior, "
+               "not the implementation; (6) names and comments are clear, and comments tell why. "
+               "Then call finish again with the summary. If you change files, run the check again "
+               "first.")
+# A review that the model cannot act on is wasted work, so it needs calls left.
+SELF_REVIEW_MIN_CALLS = 5
+# Compaction can leave a finish call with a stub summary. The model then sends
+# that stub as the summary of its next finish call, so the gate sends it back.
+STUB_SUMMARY = ("finish rejected: this summary is a compaction stub, not the report of the task. "
+                "Write the full summary: what you changed, how you verified it, and what is left "
+                "undone. Then call finish again.")
 
 
 @dataclass
@@ -46,6 +72,13 @@ class Task:
     check_output: str | None = None
     title: str | None = None
     review_comment: str | None = None
+    # The review lessons that relate to this task, one line for each.
+    lessons: str | None = None
+    # Set by the harness before the first model call. The text of AGENTS.md
+    # (or CLAUDE.md) and the git picture of the work directory.
+    project_instructions: str | None = None
+    project_instructions_file: str | None = None
+    repository: str | None = None
 
 
 @dataclass
@@ -62,11 +95,30 @@ class Result:
 Steering = Callable[[], list[str]]
 
 
+def add_usage(usage: dict, reply: Reply) -> None:
+    """Add the usage of one answer to the totals of a task. A provider can
+    leave a field out, so each one counts as 0."""
+    for k in ("prompt_tokens", "completion_tokens"):
+        usage[k] += int(reply.usage.get(k) or 0)
+    details = reply.usage.get("prompt_tokens_details") or {}
+    usage["cached_tokens"] += int(details.get("cached_tokens") or 0)
+    usage["cost"] += float(reply.usage.get("cost") or 0.0)
+
+
 def build_prompt(task: Task, limits: Limits) -> list[dict]:
     user = []
     if task.title:
         user.append(f"Title: {task.title.strip()}")
-    user += [f"Task instructions:\n{task.instructions.strip()}", f"Work directory: {task.workdir}"]
+    if task.project_instructions is not None:
+        user.append(f"Project instructions (from {task.project_instructions_file or 'AGENTS.md'}):\n"
+                    + task.project_instructions)
+    if task.lessons and task.lessons.strip():
+        user.append("Lessons from earlier code reviews of this repository. Follow them:\n"
+                    + task.lessons.strip())
+    user += [f"Task instructions:\n{task.instructions.strip()}", f"Work directory: {task.workdir}",
+             f"Budget: {limits.max_steps} model calls, {limits.max_seconds} seconds."]
+    if task.repository:
+        user.append(f"Repository:\n{task.repository}")
     if task.check_command:
         user.append(f"Check command: `{task.check_command}` in the work directory. Run it and make "
                     "it pass before you call finish. The harness also runs it when you call finish.")
@@ -78,6 +130,104 @@ def build_prompt(task: Task, limits: Limits) -> list[dict]:
                     + truncate(task.review_comment, limits.tool_output_chars))
     return [{"role": "system", "content": SYSTEM_PROMPT.format(workdir=task.workdir)},
             {"role": "user", "content": "\n\n".join(user)}]
+
+
+INSTRUCTIONS_MAX_CHARS = 20000
+STATUS_MAX_LINES = 50
+
+# One exec gives the three parts of the repository picture. Each part writes a
+# header line, so a part whose command failed is left out.
+REPOSITORY_SCRIPT = "\n".join([
+    "echo '--- git status --short ---'",
+    f"git status --short 2>/dev/null | head -n {STATUS_MAX_LINES}",
+    "echo '--- git log --oneline -5 ---'",
+    "git log --oneline -5 2>/dev/null",
+    "echo '--- top-level entries ---'",
+    "ls -A | sort | tr '\\n' ' '; echo",
+])
+
+
+def read_project_instructions(tools: Tools) -> tuple[str | None, str | None]:
+    """Read AGENTS.md from the work directory, or CLAUDE.md when there is no
+    AGENTS.md. Returns (text, file name); (None, None) when neither is there.
+    A missing file is not an error."""
+    for name in ("AGENTS.md", "CLAUDE.md"):
+        try:
+            text = tools.ws.read(tools.ws.path(name)).strip()
+        except Exception:  # a missing file is not an error; nor is a broken service
+            continue
+        if text:
+            return _cut_instructions(text), name
+    return None, None
+
+
+def _cut_instructions(text: str) -> str:
+    if len(text) <= INSTRUCTIONS_MAX_CHARS:
+        return text
+    cut = len(text) - INSTRUCTIONS_MAX_CHARS
+    return (text[:INSTRUCTIONS_MAX_CHARS]
+            + f"\n\n[The file was cut here; {cut} more characters are not shown. "
+              "Read the file for the rest.]")
+
+
+def repository_picture(tools: Tools) -> str:
+    """The git status, the last commits, and the top-level entries of the work
+    directory, from one exec. A part whose command failed is left out."""
+    try:
+        r = tools.ws.sh(REPOSITORY_SCRIPT, timeout_s=tools.ws.limits.bash_timeout_s)
+    except Exception:  # best effort: the task can run without the picture
+        return ""
+    return truncate(_parse_repository(as_text(r.stdout)), tools.ws.limits.tool_output_chars)
+
+
+def _parse_repository(out: str) -> str:
+    """Keep the parts between the header lines that have content."""
+    parts: dict[str, list[str]] = {}
+    name: str | None = None
+    for line in out.splitlines():
+        if line.startswith("--- ") and line.endswith(" ---"):
+            name = line[4:-4]
+            parts.setdefault(name, [])
+        elif name:
+            parts[name].append(line)
+    return "\n".join(f"{n}\n" + "\n".join(ls).rstrip() for n, ls in parts.items() if "".join(ls).strip())
+
+
+# One exec gives the diff stat and the diff, so the review sees the whole change
+# at the cost of one tool call. git diff does not show untracked files, so the
+# new files are put in the index as empty entries first. The entries are removed
+# again at the end: the apprentice does not stage files, and an index that is
+# not empty breaks git stash, which the system prompt tells the model to run.
+# The workflow commits with git add -A, so no staged work is lost.
+DIFF_SCRIPT = "\n".join([
+    "git add --intent-to-add --all 2>/dev/null",
+    "echo '--- git diff --stat ---'",
+    "git diff --stat 2>/dev/null",
+    "echo '--- git diff ---'",
+    "git diff 2>/dev/null",
+    "git reset -q",
+])
+
+
+def workdir_diff(tools: Tools) -> str:
+    """The diff of the work directory, for the self-review. Empty when the
+    command fails or the work directory is clean."""
+    try:
+        r = tools.ws.sh(DIFF_SCRIPT, timeout_s=tools.ws.limits.bash_timeout_s)
+    except Exception:  # best effort: the review works without the diff
+        return ""
+    return truncate(_parse_repository(as_text(r.stdout)), tools.ws.limits.tool_output_chars)
+
+
+def add_start_context(task: Task, tools: Tools, transcript: Transcript) -> Task:
+    """Give the task the project instructions and the repository picture.
+    The harness calls this once, before the first model call."""
+    text, name = read_project_instructions(tools)
+    task.project_instructions, task.project_instructions_file = text, name
+    task.repository = repository_picture(tools)
+    transcript.record("start_context", file=name, instructions_chars=len(text or ""),
+                      repository_chars=len(task.repository or ""))
+    return task
 
 
 class Context:
@@ -122,7 +272,10 @@ class Context:
                 m["_compacted"] = True
             elif m["role"] == "assistant":
                 for c in m.get("tool_calls") or []:
-                    c["function"]["arguments"] = _shrink_args(c["function"]["arguments"])
+                    # A finish summary is the report of the task. The model
+                    # reuses it for its next finish call, so it must stay whole.
+                    if c["function"]["name"] != "finish":
+                        c["function"]["arguments"] = _shrink_args(c["function"]["arguments"])
                 if len(m.get("content") or "") > 2000:
                     m["content"] = truncate(m["content"], 1000)
         for m in self.messages[end:]:
@@ -193,12 +346,18 @@ class Apprentice:
 
     def run(self, task: Task) -> Result:
         lim, tr = self.limits, self.transcript
-        ctx = Context(build_prompt(task, lim), lim.context_tokens)
+        # Each budget note goes in once per run, so the flags are reset here.
+        self._noted_eighty = False
+        self._noted_steps = False
+        self._noted_time = False
+        self._reviewed = False
         tr.record("task", instructions=task.instructions, workdir=task.workdir,
                   check_command=task.check_command, limits=vars(lim))
+        add_start_context(task, self.tools, tr)  # before the first model call
+        ctx = Context(build_prompt(task, lim), lim.context_tokens)
         start = self.clock()
         res = Result(status="error", summary="")
-        usage = {"prompt_tokens": 0, "completion_tokens": 0}
+        usage = {"prompt_tokens": 0, "completion_tokens": 0, "cached_tokens": 0, "cost": 0.0}
         recent: list[str] = []
         idle = 0
         check_fails = 0
@@ -212,11 +371,14 @@ class Apprentice:
 
         while True:
             if res.steps >= lim.max_steps:
-                return done("step_limit", f"Stopped after {res.steps} model calls (step limit).")
+                summary = f"Stopped after {res.steps} model calls (step limit)."
+                return done("step_limit", self._last_call(ctx, res.steps, summary, usage))
             if self.clock() - start > lim.max_seconds:
-                return done("time_limit", f"Stopped after {lim.max_seconds} s (time limit).")
+                summary = f"Stopped after {lim.max_seconds} s (time limit)."
+                return done("time_limit", self._last_call(ctx, res.steps, summary, usage))
             if self.should_stop and (why := self.should_stop()):
                 return done("stopped", f"Stopped: {why}")
+            self._budget_note(ctx, res.steps, start)
             for note in (self.steering() if self.steering else []) or []:
                 ctx.messages.append({"role": "user", "content": f"Operator steering note: {note}"})
                 tr.record("steering", note=note)
@@ -236,8 +398,7 @@ class Apprentice:
                 tr.record("model_error", step=res.steps, error=str(e))
                 return done("error", "The model call failed.", str(e))
             sent = len(ctx.messages)
-            for k in usage:
-                usage[k] += int(reply.usage.get(k) or 0)
+            add_usage(usage, reply)
             tr.record("model_response", step=res.steps, duration_ms=int((time.monotonic() - t0) * 1000),
                       content=reply.content, finish_reason=reply.finish_reason,
                       tool_calls=[vars(c) for c in reply.tool_calls], usage=reply.usage,
@@ -264,9 +425,11 @@ class Apprentice:
                     content, ok = r.content, r.ok
                     if r.finished:
                         content, ok, accept = self._finish_gate(task, r.content, check_fails, res)
+                        if accept and (review := self._self_review(task, res, start)):
+                            content, accept = review, False
                         if accept:
                             finished = r.content
-                        else:
+                        elif not ok:
                             check_fails += 1
                     if reply.finish_reason == "length" and not ok:
                         content += "\n" + CUT_REPLY
@@ -282,6 +445,49 @@ class Apprentice:
                                      "content": content})
             if finished is not None:
                 return done("finished", finished.strip() or "(no summary)")
+
+    def _budget_note(self, ctx: Context, steps: int, start: float) -> None:
+        """Tell the model once at 80% of each limit, and again when 5 steps are
+        left, so that it ends with a summary instead of a hard stop. The two
+        step notes are independent: with a small step limit, 5 steps are left
+        before 80% are used."""
+        lim = self.limits
+        elapsed = self.clock() - start
+        left = lim.max_steps - steps
+        note = BUDGET_NOTE.format(calls=left, max_calls=lim.max_steps,
+                                  seconds=max(0, int(lim.max_seconds - elapsed)))
+        if steps and not self._noted_steps and left <= 5:
+            self._noted_steps = True
+            self._send_note(ctx, note)
+        if not self._noted_eighty and steps >= lim.max_steps * 0.8:
+            self._noted_eighty = True
+            self._send_note(ctx, note)
+        if not self._noted_time and elapsed >= lim.max_seconds * 0.8:
+            self._noted_time = True
+            self._send_note(ctx, note)
+
+    def _send_note(self, ctx: Context, text: str) -> None:
+        ctx.messages.append({"role": "user", "content": text})
+        self.transcript.record("budget_note", note=text)
+
+    def _last_call(self, ctx: Context, steps: int, summary: str, usage: dict) -> str:
+        """One model call without tools, so that a task stopped at a limit
+        still ends with a summary. The status stays step_limit or time_limit."""
+        ctx.messages.append({"role": "user", "content": LAST_CALL})
+        if ctx.tokens() > self.limits.context_tokens:
+            self.transcript.record("compaction", removed_chars=ctx.compact(),
+                                   est_tokens=ctx.tokens())
+        self.transcript.record("last_call", note=LAST_CALL)
+        try:
+            reply = self.model.complete(ctx.wire(), [])
+        except ModelError as e:
+            self.transcript.record("model_error", step=steps, error=str(e), last_call=True)
+            return summary
+        add_usage(usage, reply)
+        self.transcript.record("model_response", step=steps, content=reply.content,
+                               finish_reason=reply.finish_reason, tool_calls=[], usage=reply.usage,
+                               last_call=True)
+        return reply.content.strip() or summary
 
     def _complete(self, ctx: Context, msgs: list[dict]) -> Reply:
         chars = ctx.chars()
@@ -303,6 +509,8 @@ class Apprentice:
     def _finish_gate(self, task: Task, summary: str, fails: int, res: Result) -> tuple[str, bool, bool]:
         """Run the check command when the model calls finish.
         Returns (tool result text, ok, accept finish)."""
+        if summary.lstrip().startswith("[compacted"):
+            return STUB_SUMMARY, True, False
         if not task.check_command:
             return "finished", True, True
         r = self.tools.ws.sh(task.check_command, timeout_s=self.limits.bash_timeout_max_s)
@@ -316,3 +524,20 @@ class Apprentice:
             return "check failed; finished without a passing check", False, True
         return (f"finish rejected: the check command failed.\n{out}\n"
                 "Fix the problem, then call finish again."), False, False
+
+    def _self_review(self, task: Task, res: Result, start: float) -> str | None:
+        """The first finish that passes the check gate gets one review request
+        with the diff, instead of the end of the task. Returns None when this
+        finish must be accepted as it is."""
+        lim = self.limits
+        if self._reviewed or not lim.self_review:
+            return None
+        self._reviewed = True
+        # A review near a limit has no value: the model cannot act on it.
+        if (lim.max_steps - res.steps < SELF_REVIEW_MIN_CALLS
+                or self.clock() - start >= lim.max_seconds * 0.8):
+            self.transcript.record("self_review", skipped="near a limit", diff_chars=0)
+            return None
+        diff = workdir_diff(self.tools)
+        self.transcript.record("self_review", diff_chars=len(diff))
+        return f"finish rejected: review your change first.\n{diff or '(no diff)'}\n\n{SELF_REVIEW}"

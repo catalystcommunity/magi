@@ -138,7 +138,7 @@ func TestRunnerProxyChargesRunOwner(t *testing.T) {
 	iss := &authn.Issuer{Name: "test", KeyID: "k1", Key: priv}
 	ver := &authn.Verifier{Issuer: "test", Keys: map[string]ed25519.PublicKey{"k1": pub}}
 	s, _ := testLimits(Limits{ModelPerMinute: 2})
-	proxy := httptest.NewServer(ModelProxy(ver, &model.Client{BaseURL: provider.URL, Model: "m"}, s))
+	proxy := httptest.NewServer(ModelProxy(ver, &model.Client{BaseURL: provider.URL, Model: "m"}, nil, slog.New(slog.NewTextHandler(io.Discard, nil)), s))
 	defer proxy.Close()
 	call := func(runner string) (int, string) {
 		tok, _ := iss.Issue(authn.Principal{Subject: "runner:" + runner, Kind: authn.KindService, Scopes: []string{ScopeRunner}}, time.Hour)

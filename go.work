@@ -12,6 +12,7 @@ use (
 	./primitives/identity
 	./primitives/inference
 	./primitives/knowledge
+	./primitives/models
 	./primitives/release/goapi
 	./primitives/source
 	./primitives/speech

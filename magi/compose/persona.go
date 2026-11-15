@@ -73,6 +73,8 @@ type turnLog struct {
 	Models []modelCall `json:"models"`
 	// Notes is the model call of the note taker, when it ran.
 	Notes *modelCall `json:"notes,omitempty"`
+	// Gate is the answer of the note gate (notegate.go), when it ran.
+	Gate *gateResult `json:"gate,omitempty"`
 	// Phases is the time of each part of the turn, in milliseconds:
 	// queue (from the message to the start of the turn), read, related,
 	// context, notes, models, tools.
@@ -108,6 +110,9 @@ const personaTokens = 4096
 func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note func(string)) (Result, error) {
 	streamID, uttID := a.Vars["stream"], a.Vars["utterance"]
 	persona := personaOr(optional(a.Vars["persona"]))
+	// The model calls of the turn: the default of this persona, then of all
+	// persona turns, refined by the model of the request (models.go).
+	ctx = modelVars(WithModelTask(ctx, personaTask(persona)), a.Vars)
 	ph := newPhases()
 	// The turns of one stream run in order: a reply sees the replies
 	// before it. Turns of other streams run at the same time.
@@ -412,7 +417,12 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 	}
 	ph.mark("tools")
 	log.Phases = ph.ms
-	s.Log.Info("persona turn", "run", a.Run, "model", served, "model_ms", ms, "calls", len(log.Models), "models", log.Models, "phases", ph.ms)
+	notesModel := ""
+	if log.Notes != nil {
+		notesModel = log.Notes.Served
+	}
+	s.Log.Info("persona turn", "run", a.Run, "model", served, "model_ms", ms, "calls", len(log.Models), "models", log.Models,
+		"notes_model", notesModel, "gate", log.Gate, "phases", ph.ms)
 	if body, err := json.Marshal(log); err == nil {
 		if _, err := s.Conversation.Annotate(ctx, conversationapi.AnnotateRequest{Utterance: uttID, Kind: "interpretation", Body: string(body)}); err != nil {
 			s.Log.Warn("annotate", "err", err)
@@ -540,7 +550,7 @@ func (s *System) runPersonaTool(ctx context.Context, a workflowapi.Assignment, a
 		// Only the note taker gives this (an "event" item).
 		return s.recordEvent(ctx, a.Owner, displayName(a), args["subject"], args["title"], &utt.Id), nil
 	case "start_code_change":
-		run, err := s.startCodeChange(ctx, a.Owner, origin{stream: utt.Stream, utterance: utt.Id, persona: as.persona}, args["title"], args["instructions"], args["repo"], args["runner"])
+		run, err := s.startCodeChange(ctx, a.Owner, origin{stream: utt.Stream, utterance: utt.Id, persona: as.persona}, args["title"], args["instructions"], args["repo"], args["runner"], "", "")
 		if err != nil {
 			return "error: " + err.Error(), nil
 		}

@@ -39,3 +39,7 @@ class InferenceClient:
         """warm"""
         return Status.from_cbor(self._transport.call("InferenceService", "warm", req.to_cbor()))
 
+    def decide(self, req: DecideRequest) -> DecideResponse:
+        """decide"""
+        return DecideResponse.from_cbor(self._transport.call("InferenceService", "decide", req.to_cbor()))
+

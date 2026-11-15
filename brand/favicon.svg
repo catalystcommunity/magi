@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Magi small icon</title>
+  <desc id="desc">The guide's dark blue head and shoulders with a yellow forehead star on an ivory background.</desc>
+  <rect width="64" height="64" rx="12" fill="#F7F5EF"/>
+  <circle cx="32" cy="24" r="19" fill="#142D4E"/>
+  <path d="M27 39 H37 V44 C47 45 54 50 54 60 H10 C10 50 17 45 27 44Z" fill="#142D4E"/>
+  <path d="M32 10 L35.09 16.25 L42 17.25 L37 22.13 L38.18 29 L32 25.76 L25.82 29 L27 22.13 L22 17.25 L28.91 16.25Z" fill="#FFD34E"/>
+</svg>
