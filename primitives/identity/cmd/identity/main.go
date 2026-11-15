@@ -3,7 +3,10 @@
 //	identity [serve]                    run the service
 //	identity keygen --issuer magi --out key.json [--public key.pub.json]
 //	identity mint --key key.json --subject service:x --scopes a,b --ttl 720h --out token.txt
-//	identity stop-machine --subject inference:x  refuse renewal to its current tokens
+//	identity mint --key key.json --role runner|fleet|inference --name x --out token.txt
+//	identity revoke --deny-list deny.json --subject runner:x | --token-id ID   refuse tokens now (services reload the file)
+//	identity show --token token.txt   print subject, id and expiry of a token
+//	identity stop-machine --subject inference:x [--deny-list deny.json]  refuse renewal; with a deny list, refuse its current tokens too
 //	identity app-keys generate --file keys.json --domain d --user-id u --app-id magi --instance-id i
 //	identity app-keys enroll --file keys.json --linkkeys-runtime rt.json   (uses the runtime API key)
 //	identity app-keys renew --file keys.json --linkkeys-runtime rt.json
@@ -55,6 +58,10 @@ func main() {
 		err = keygen(args)
 	case "mint":
 		err = mint(args)
+	case "revoke":
+		err = revoke(args)
+	case "show":
+		err = show(args)
 	case "stop-machine":
 		err = stopMachine(args)
 	case "app-keys":
@@ -62,7 +69,7 @@ func main() {
 	case "credential-key":
 		err = credentialKey(args)
 	default:
-		err = fmt.Errorf("unknown command %q (serve, keygen, mint, stop-machine, app-keys, credential-key)", cmd)
+		err = fmt.Errorf("unknown command %q (serve, keygen, mint, revoke, show, stop-machine, app-keys, credential-key)", cmd)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "identity:", err)
@@ -110,17 +117,111 @@ func keygen(args []string) error {
 	return nil
 }
 
+// Token lifetime limits for `identity mint`.
+const (
+	// MaxMintTTL is the longest token that mint makes (the admin
+	// IssueServiceToken call has the same limit).
+	MaxMintTTL = 365 * 24 * time.Hour
+	// MaxOperatorTTL is the longest token with operator power: scope
+	// magi:operate or a wildcard. It cannot be renewed or stopped, so it
+	// is kept short. Revoke one early with `identity revoke`.
+	MaxOperatorTTL = 90 * 24 * time.Hour
+	// DefaultTTL is the lifetime when --ttl is not given.
+	DefaultTTL = 720 * time.Hour
+	// DefaultFleetTTL is the default for a fleet (operator) token.
+	DefaultFleetTTL = 7 * 24 * time.Hour
+)
+
+// operatorScope is the scope for fleet calls (see magi/compose ScopeOperate).
+const operatorScope = "magi:operate"
+
+// checkMint refuses a token that would live too long or hold a wildcard
+// scope by accident.
+func checkMint(subject string, scopes []string, ttl time.Duration, allowWildcard bool) error {
+	if ttl <= 0 {
+		return errors.New("--ttl must be positive")
+	}
+	if ttl > MaxMintTTL {
+		return fmt.Errorf("--ttl %s is over the limit of %s", ttl, MaxMintTTL)
+	}
+	operator := false
+	for _, s := range scopes {
+		if s == "*" {
+			if !allowWildcard {
+				return errors.New("scope * holds every scope; name the scopes, or pass --allow-wildcard")
+			}
+			operator = true
+		}
+		if s == operatorScope {
+			operator = true
+		}
+	}
+	if operator && ttl > MaxOperatorTTL {
+		return fmt.Errorf("--ttl %s is over the limit of %s for a token with operator scope", ttl, MaxOperatorTTL)
+	}
+	return nil
+}
+
+// roleToken fills subject, scopes and default ttl from --role and --name.
+//
+//	runner: runner:<name>, scope magi:runner (renews itself)
+//	fleet: service:fleet-<name>, scope magi:operate (does not renew)
+//	inference: inference:<name>, scope inference:host (renews itself)
+func roleToken(role, name string) (subject string, scopes []string, ttl time.Duration, err error) {
+	if name == "" || strings.ContainsAny(name, "/:@ \t\n") {
+		return "", nil, 0, errors.New("--name is required with --role and must not contain / : @ or spaces")
+	}
+	switch role {
+	case "runner":
+		return "runner:" + name, []string{"magi:runner"}, DefaultTTL, nil
+	case "fleet":
+		return "service:fleet-" + name, []string{operatorScope}, DefaultFleetTTL, nil
+	case "inference":
+		return "inference:" + name, []string{"inference:host"}, DefaultTTL, nil
+	}
+	return "", nil, 0, fmt.Errorf("unknown --role %q (runner, fleet, inference)", role)
+}
+
 func mint(args []string) error {
 	fs := flag.NewFlagSet("mint", flag.ExitOnError)
 	key := fs.String("key", env("MAGI_ISSUER_KEY", ""), "issuer key file")
 	subject := fs.String("subject", "", "service:<name>, runner:<name>, inference:<name>, or user:<name>@<domain>")
+	role := fs.String("role", "", "runner, fleet or inference: sets the subject, scopes and default ttl from --name")
+	name := fs.String("name", "", "machine name with --role; otherwise the display name of a user (not an identifier)")
 	scopes := fs.String("scopes", "", "comma-separated scopes")
-	ttl := fs.Duration("ttl", 720*time.Hour, "token lifetime")
+	ttl := fs.Duration("ttl", 0, fmt.Sprintf("token lifetime (default %s, fleet %s; at most %s, operator scope %s)", DefaultTTL, DefaultFleetTTL, MaxMintTTL, MaxOperatorTTL))
 	out := fs.String("out", "", "token file to create (mode 600)")
-	name := fs.String("name", "", "display name of a user (not an identifier)")
+	wildcard := fs.Bool("allow-wildcard", false, "allow the scope *")
 	fs.Parse(args)
+	var sc []string
+	for _, s := range strings.Split(*scopes, ",") {
+		if s = strings.TrimSpace(s); s != "" {
+			sc = append(sc, s)
+		}
+	}
+	life := *ttl
+	displayName := *name
+	if *role != "" {
+		displayName = ""
+		if *subject != "" {
+			return errors.New("--role and --subject are exclusive")
+		}
+		var rs []string
+		var rt time.Duration
+		var err error
+		if *subject, rs, rt, err = roleToken(*role, *name); err != nil {
+			return err
+		}
+		sc = append(sc, rs...)
+		if life == 0 {
+			life = rt
+		}
+	}
+	if life == 0 {
+		life = DefaultTTL
+	}
 	if *key == "" || *subject == "" || *out == "" {
-		return errors.New("--key, --subject, and --out are required")
+		return errors.New("--key, --subject (or --role), and --out are required")
 	}
 	kind := authn.KindService
 	if strings.HasPrefix(*subject, "user:") {
@@ -131,24 +232,74 @@ func mint(args []string) error {
 		// primitives/inference, "Connect out").
 		return errors.New("subject must start with service:, runner:, inference:, or user:")
 	}
+	if err := checkMint(*subject, sc, life, *wildcard); err != nil {
+		return err
+	}
 	iss, err := authn.LoadIssuer(*key)
 	if err != nil {
 		return err
 	}
-	var sc []string
-	for _, s := range strings.Split(*scopes, ",") {
-		if s = strings.TrimSpace(s); s != "" {
-			sc = append(sc, s)
-		}
-	}
-	tok, err := iss.Issue(authn.Principal{Subject: *subject, Kind: kind, Scopes: sc, Name: *name}, *ttl)
+	tok, err := iss.Issue(authn.Principal{Subject: *subject, Kind: kind, Scopes: sc, Name: displayName}, life)
 	if err != nil {
 		return err
 	}
 	if err := writePrivate(*out, []byte(tok+"\n")); err != nil {
 		return err
 	}
-	fmt.Printf("token for %s written to %s (expires %s)\n", *subject, *out, time.Now().Add(*ttl).UTC().Format(time.RFC3339))
+	fmt.Printf("token for %s written to %s (expires %s)\n", *subject, *out, time.Now().Add(life).UTC().Format(time.RFC3339))
+	return nil
+}
+
+// revoke adds a subject or one token id to the deny list file. Services that
+// read the file (MAGI_DENY_LIST) refuse the token within authn.DefaultDenyReload
+// after the file reaches them.
+func revoke(args []string) error {
+	fs := flag.NewFlagSet("revoke", flag.ExitOnError)
+	file := fs.String("deny-list", env(authn.DenyListEnv, ""), "deny list file")
+	subject := fs.String("subject", "", "refuse every token of this subject issued up to now")
+	id := fs.String("token-id", "", "refuse one token by its id (jti; see `identity show`)")
+	fs.Parse(args)
+	if *file == "" || (*subject == "") == (*id == "") {
+		return errors.New("--deny-list and exactly one of --subject or --token-id are required")
+	}
+	if *subject != "" {
+		if err := authn.RevokeSubject(*file, *subject, time.Now()); err != nil {
+			return err
+		}
+		fmt.Printf("tokens of %s issued up to now are refused once %s reaches the services (within %s of the change)\n", *subject, *file, authn.DefaultDenyReload)
+		return nil
+	}
+	if err := authn.RevokeToken(*file, *id); err != nil {
+		return err
+	}
+	fmt.Printf("token %s is refused once %s reaches the services (within %s of the change)\n", *id, *file, authn.DefaultDenyReload)
+	return nil
+}
+
+// show prints what a token file says, without checking the signature. Use it
+// to find the id of a token to revoke.
+func show(args []string) error {
+	fs := flag.NewFlagSet("show", flag.ExitOnError)
+	file := fs.String("token", "", "token file")
+	fs.Parse(args)
+	b, err := os.ReadFile(*file)
+	if err != nil {
+		return err
+	}
+	parts := strings.Split(strings.TrimSpace(string(b)), ".")
+	if len(parts) != 3 {
+		return errors.New("not a token file")
+	}
+	body, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return err
+	}
+	var p authn.Principal
+	if err := json.Unmarshal(body, &p); err != nil {
+		return err
+	}
+	fmt.Printf("subject %s\nid %s\nscopes %s\nissued %s\nexpires %s\n", p.Subject, p.ID, strings.Join(p.Scopes, ","),
+		time.Unix(p.IssuedAt, 0).UTC().Format(time.RFC3339), time.Unix(p.Expires, 0).UTC().Format(time.RFC3339))
 	return nil
 }
 
@@ -284,6 +435,7 @@ func stopMachine(args []string) error {
 	fs := flag.NewFlagSet("stop-machine", flag.ExitOnError)
 	subject := fs.String("subject", "", "inference:<name> or runner:<name>")
 	dbURL := fs.String("database-url", env("MAGI_DATABASE_URL", ""), "PostgreSQL URL")
+	deny := fs.String("deny-list", "", "deny list file: also refuse the current tokens of the subject (see revoke)")
 	fs.Parse(args)
 	if !strings.HasPrefix(*subject, "inference:") && !strings.HasPrefix(*subject, "runner:") {
 		return errors.New("subject must start with inference: or runner:")
@@ -297,7 +449,14 @@ func stopMachine(args []string) error {
 	if err := db.StopMachine(ctx, *subject, time.Now().UnixMilli()); err != nil {
 		return err
 	}
-	fmt.Printf("renewal stopped for %s; its tokens expire in at most %s\n", *subject, server.MachineTokenTTL)
+	if *deny != "" {
+		if err := authn.RevokeSubject(*deny, *subject, time.Now()); err != nil {
+			return err
+		}
+		fmt.Printf("renewal stopped for %s; its current tokens are refused once %s reaches the services\n", *subject, *deny)
+		return nil
+	}
+	fmt.Printf("renewal stopped for %s; its tokens expire in at most %s (use --deny-list to refuse them sooner)\n", *subject, server.MachineTokenTTL)
 	return nil
 }
 

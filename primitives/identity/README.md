@@ -98,6 +98,22 @@ The runtime file is private. Do not put it in an image or in the repository:
 
 `tcp_address` is the CSIL-RPC TCP endpoint of the RP server. Port 4987 is
 the default. `fingerprints` are the SHA-256 pins of the RP TLS key.
+Each pin must be 64 hex characters. Identity refuses to start otherwise.
+The connection fails closed: no pins, a wrong pin, or a certificate outside
+its validity period stops the handshake, and the API key is not sent. There
+is no automatic re-pin and no reload: Identity reads the file at start.
+
+### Rotating the RP TLS key
+
+1. Add the new pin to `fingerprints` and keep the old one. Both are valid.
+2. Restart Identity (and run `app-keys enroll` or `renew` with the new file
+   if you use them) so it loads the file.
+3. Rotate the RP server key. Calls keep working during the change.
+4. Check that calls succeed against the new key. Then remove the old pin
+   and restart again.
+
+If you rotate the server key first, every call fails with `not pinned`
+until the file has the new pin and Identity restarts.
 
 ## Bootstrap commands
 
@@ -105,6 +121,10 @@ the default. `fingerprints` are the SHA-256 pins of the RP TLS key.
 identity keygen --issuer magi --out key.json --public key.pub.json
 identity mint --key key.json --subject service:magi --scopes a,b --ttl 720h --out token.txt
 identity mint --key key.json --subject runner:NAME --scopes magi:runner --ttl 2160h --out runner.token
+identity mint --key key.json --role runner --name NAME --out runner.token      # same, with the default 720h
+identity mint --key key.json --role fleet --name ops --out fleet.token         # service:fleet-ops, scope magi:operate, 7 days
+identity revoke --deny-list deny.json --subject runner:NAME                   # refuse its tokens now (see Token lifecycle)
+identity show --token runner.token                                            # subject, token id, expiry
 identity app-keys generate --file app-keys.json --domain DOMAIN --user-id ACCOUNT_UUID --app-id magi --instance-id NAME
 identity app-keys enroll --file app-keys.json --linkkeys-runtime runtime.json [--tcp-addr HOST:4987]
 identity app-keys renew --file app-keys.json --linkkeys-runtime runtime.json
@@ -128,7 +148,7 @@ token becomes a 30-day token at the first start.
   add scopes.
 - An expired token cannot renew. Then mint a new token.
 - Table `identity_machines` records each machine and its last renewal.
-- To stop a machine, run `identity stop-machine --subject inference:<name>`
+- To stop a machine, run `identity stop-machine --subject inference:<name>` (or `runner:<name>`)
   (with `MAGI_DATABASE_URL`, for example in the identity pod). No token of
   that machine issued before that time renews. Its current token stays
   valid until it expires: at most 30 days. A token that you mint after the
@@ -140,6 +160,54 @@ renews has neither problem.
 
 Both commands make files with mode 600 and do not overwrite files. Give
 `key.pub.json` to other services in `MAGI_AUTH_KEYS`.
+
+## Token lifecycle (install, expiry, revocation)
+
+Make the tokens at install with `identity mint`. `--role runner|fleet|inference
+--name X` sets the subject, scopes and default lifetime:
+
+| Role | Subject | Scope | Default ttl | Renews |
+|---|---|---|---|---|
+| `runner` | `runner:X` | `magi:runner` | 720h | yes (30 days each) |
+| `inference` | `inference:X` | `inference:host` | 720h | yes |
+| `fleet` | `service:fleet-X` | `magi:operate` | 168h | no |
+
+Limits that `mint` enforces: `--ttl` must be positive and at most 365 days
+(the same cap as the admin `IssueServiceToken` call); a token with scope
+`magi:operate` or `*` is limited to 90 days; the scope `*` needs
+`--allow-wildcard`. A fleet token cannot renew, so mint a new one before it
+ends. The runner's own apprentice token (`service:apprentice`, no scopes,
+made in memory when the runner starts) is not minted by this command. It
+dies with the runner process because its issuer key is never saved.
+
+Revocation has two parts, and the bound for each is documented here:
+
+1. Deny list (any token, effective within about 2 minutes). Set
+   `MAGI_DENY_LIST=/path/deny.json` on each service (every service that
+   calls `authn.LoadVerifier` reads it). The file looks like
+   `{"subjects": {"runner:x": 1767225600}, "tokens": ["<jti>"]}`. A subject
+   entry refuses every token of that subject issued at or before that Unix
+   time (a token you mint a second later works). A token entry refuses one
+   token by its id (`identity show --token FILE` prints it; tokens made
+   before this change have no id, so revoke those by subject). Services
+   look at the file every 10 seconds and need no restart. If you deliver
+   the file as a Kubernetes Secret or ConfigMap, the kubelet takes up to
+   about 90 seconds to refresh a mounted volume (not with `subPath`). Plan
+   for 2 minutes in total. A missing file is an empty list. A file that
+   cannot be parsed stops a service from starting, and a running service
+   keeps the last good list.
+   - `identity revoke --deny-list deny.json --subject runner:x` (or
+     `--token-id ID`) edits the file. Deploy the file to every service.
+2. Renewal (runner and inference hosts only). `identity stop-machine
+   --subject runner:x` refuses renewal to every current token. Alone, it
+   leaves the current token valid until it expires (at most 30 days). Add
+   `--deny-list deny.json` to write the deny entry in the same step.
+
+To revoke a runner now: run `stop-machine --subject runner:x --deny-list
+deny.json`, then deploy `deny.json`. To revoke a fleet token: `revoke
+--subject service:fleet-X`, then deploy the file. Without a deployed deny
+list a fleet token stays valid to its expiry (at most 90 days).
+To remove a revocation, edit the file: delete the entry.
 
 ## Code
 
