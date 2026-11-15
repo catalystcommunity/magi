@@ -129,7 +129,7 @@ class Worker:
         task = Task(instructions=instructions, workdir=v.get("workdir") or "/work/repo",
                     check_command=v.get("check_command") or self.check_command or None,
                     check_output=v.get("check_output") or None, title=v.get("title") or None,
-                    review_comment=v.get("review.comment") or None)
+                    review_comment=v.get("review.comment") or None, lessons=v.get("lessons") or None)
         with Heartbeat(self.wf, a, self.lease_ms) as hb:
             self._progress(a, f"apprentice started (attempt {a.attempt}, model {model_cfg.name})")
             out = run_task(

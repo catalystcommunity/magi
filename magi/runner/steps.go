@@ -158,7 +158,7 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 	args := []string{"-m", "magi_apprentice", "run", "--environment", a.Vars["environment"], "--workdir", a.Vars["workdir"],
 		"--instructions", "@" + instr, "--transcript", transcript, "--no-upload"}
 	for flag, v := range map[string]string{"--check-command": a.Vars["check_command"], "--check-output": a.Vars["check_output"],
-		"--title": a.Vars["title"], "--review-comment": a.Vars["review.comment"], "--model": a.Vars["model"]} {
+		"--title": a.Vars["title"], "--review-comment": a.Vars["review.comment"], "--lessons": a.Vars["lessons"], "--model": a.Vars["model"]} {
 		if v != "" {
 			args = append(args, flag, v)
 		}

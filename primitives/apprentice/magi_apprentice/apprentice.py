@@ -72,6 +72,8 @@ class Task:
     check_output: str | None = None
     title: str | None = None
     review_comment: str | None = None
+    # The review lessons that relate to this task, one line for each.
+    lessons: str | None = None
     # Set by the harness before the first model call. The text of AGENTS.md
     # (or CLAUDE.md) and the git picture of the work directory.
     project_instructions: str | None = None
@@ -110,6 +112,9 @@ def build_prompt(task: Task, limits: Limits) -> list[dict]:
     if task.project_instructions is not None:
         user.append(f"Project instructions (from {task.project_instructions_file or 'AGENTS.md'}):\n"
                     + task.project_instructions)
+    if task.lessons and task.lessons.strip():
+        user.append("Lessons from earlier code reviews of this repository. Follow them:\n"
+                    + task.lessons.strip())
     user += [f"Task instructions:\n{task.instructions.strip()}", f"Work directory: {task.workdir}",
              f"Budget: {limits.max_steps} model calls, {limits.max_seconds} seconds."]
     if task.repository:

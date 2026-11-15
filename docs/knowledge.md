@@ -252,6 +252,16 @@ A reviewer adds a lesson at the end of the file: the next free id, a title,
 the area, the source, and the lesson in short sentences. A test parses the
 embedded file, so a bad header or a duplicate id fails `tools/check.sh`.
 
+When a task starts a code change, Magi reads the lessons from the graph and
+scores each one. A lesson of area "all code" gets 3 points. A lesson of an
+area path that the title or the instructions name gets 5 points, but only
+for the repository of Magi. A word of 5 or more letters that the lesson
+title and the task share gives 1 point, up to 3 points. Magi keeps the
+lessons with more than 0 points: the highest score first, then by id, at
+most 8. Magi puts the lessons in the var `lessons` of the run, and the
+apprentice shows them in its first message, before the task instructions.
+If the knowledge service fails, the code change starts without lessons.
+
 ## Investigations
 
 A question that needs data from many systems, calculations, or answers of
