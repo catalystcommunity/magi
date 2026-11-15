@@ -179,6 +179,9 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 		// model also needs room to think before it writes.
 		"MAGI_APPRENTICE_CONTEXT_TOKENS=100000", "MAGI_MODEL_MAX_TOKENS=16384",
 		"MAGI_APPRENTICE_TOOL_OUTPUT_CHARS=16000", "MAGI_APPRENTICE_MAX_SECONDS=3600",
+		// GLM makes about one tool call for each model call: a change of
+		// five files with tests used all of 60 steps (2026-11-14).
+		"MAGI_APPRENTICE_MAX_STEPS=150",
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
