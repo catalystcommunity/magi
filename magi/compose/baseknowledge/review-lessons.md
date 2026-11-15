@@ -54,3 +54,22 @@ Source: run_WSRXhief4PHJIEeoWMd0 (review 2026-11-14)
 
 An error test must reach the code path that it names, and check the error
 text. A test input that fails for an other reason passes and tests nothing.
+
+## rl-0006: A test calls the code that it tests
+
+Area: all code
+Source: coding eval runs run_QcvQXqxVAJLInUH-35sn and run_yeHz6X31YeA34f-h4o0v (review 2026-11-15)
+
+A test must call the real function or step, for example Runner.work or
+run_task. Do not write a copy of its logic in the test. A test of a copy
+passes when the code is wrong. If the real code is hard to call, use the
+fakes that the other tests of the package use.
+
+## rl-0007: One helper for a repeated block
+
+Area: all code
+Source: coding eval runs run_ZxwL_MGQ99CRMRUjhj7- and run_QcvQXqxVAJLInUH-35sn (review 2026-11-15)
+
+When the same block of several lines appears two or more times, put it in
+one helper or one constant. A message text and a usage sum are examples.
+This lesson is about a block of lines, and rl-0002 is about one expression.
