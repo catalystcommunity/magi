@@ -29,6 +29,18 @@ export interface Ref {
   title?: string;
 }
 
+/**
+ * trust (Entity, Claim, and the requests that make them) says where the
+ * record came from: "person" (the person said or confirmed it), "named"
+ * (a configured source), "own" (Magi wrote it from the person's own
+ * inputs), or "untrusted" (text of others, the web, or a task). The store
+ * gives old records "own"; a client that gets none shows the record as
+ * unverified. An untrusted record is stored
+ * apart (trust is indexed), is shown labeled and quoted, and is never
+ * returned to the planner as an instruction. Only the person can change
+ * untrusted to another value, with change operation "promote" (see
+ * docs/knowledge.md, "Trust").
+ */
 export interface Entity {
   id: string;
   kind: string;
@@ -135,9 +147,19 @@ export interface Evidence {
 }
 
 /**
- * One change of a record. operation is "create", "fix", "update",
- * "retract", "merge", "unmerge", or "dispute". before and after are JSON
- * text of the changed fields; an erased retraction keeps neither.
+ * One change of a record: a row of the audit log. operation is "create",
+ * "fix", "update", "retract", "promote", "merge", "unmerge", "edit",
+ * "visibility", "assert", "dispute", or "undo". before and after are JSON
+ * text of the changed fields (enough to undo it); an erased retraction keeps
+ * neither.
+ * actor: the subject whose record it is, and for a call that acts for a
+ * person, that person. via: the subject of the caller when it is another
+ * (for example service:magi); absent when the actor made the call.
+ * trust: the trust of the record after the change (entities and claims).
+ * origin: JSON text that the caller gave (for Magi: persona, tool, turn,
+ * run, and confirmed, which tells that the person confirmed the action).
+ * undoes: the id of the change that this change undid. undone_by: the id
+ * of the change that undid this one; a change with it set cannot be undone.
  */
 export interface Change {
   id: string;
@@ -235,7 +257,20 @@ export interface AssertRequest {
 }
 
 /**
- * Changes a record. operation is "fix", "update", or "retract".
+ * Changes a record. operation is "fix", "update", "retract", "promote", or
+ * "undo".
+ * undo: id is the id of a change (not of a record). Restores the state
+ * before that change and writes an audit row with undoes set. Only the
+ * person (a user token for themself), an admin, or a service with
+ * knowledge:undo (matched by name) can do it. It is refused when a later
+ * change of the record depends on it (undo that one first), when it was
+ * undone already, when the content was erased, and when it would raise
+ * the trust of a record (only promote does that). Changes that cannot be
+ * undone: undo, unmerge, assert, dispute, and changes of groups.
+ * origin (also in put-entity, assert, merge): JSON text for the audit log.
+ * promote: entities and claims; sets trust from "untrusted" to "person".
+ * Only the person can do it (the caller is the person; a service cannot
+ * without knowledge:promote), and set is not used.
  * fix: the fields in set replace the stored ones (any record type).
  * update: claims only; ends the claim at at_ms (default now) and makes a
  * new claim with the fields in set; the response is the new claim.
@@ -443,6 +478,11 @@ export interface TimelineResponse {
   changes: Change[];
 }
 
+/**
+ * The changes of record id, oldest first. With an empty id: the audit
+ * log of the caller, the changes of all records that the caller owns,
+ * newest first (since_ms: not before; limit: at most, default 100, 1000).
+ */
 export interface HistoryRequest {
   id: string;
   actFor?: string;

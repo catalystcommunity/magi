@@ -2483,6 +2483,9 @@ def _encode_knowledge_fact_value(v: "KnowledgeFact") -> Dict[Any, Any]:
     if csil_x is not None:
         csil_m["other"] = csil_x
     csil_m["stale"] = v.stale
+    csil_x = v.trust
+    if csil_x is not None:
+        csil_m["trust"] = csil_x
     csil_x = v.value
     if csil_x is not None:
         csil_m["value"] = csil_x
@@ -2500,9 +2503,6 @@ def _encode_knowledge_fact_value(v: "KnowledgeFact") -> Dict[Any, Any]:
     csil_x = v.valid_from_ms
     if csil_x is not None:
         csil_m["valid_from_ms"] = csil_x
-    csil_x = v.trust
-    if csil_x is not None:
-        csil_m["trust"] = csil_x
     return csil_m
 
 def _decode_knowledge_fact_value(tree: Any) -> "KnowledgeFact":
@@ -2543,6 +2543,9 @@ def _encode_knowledge_item_value(v: "KnowledgeItem") -> Dict[Any, Any]:
     csil_m["mine"] = v.mine
     csil_m["facts"] = [_encode_knowledge_fact_value(csil_e) for csil_e in v.facts]
     csil_m["label"] = v.label
+    csil_x = v.trust
+    if csil_x is not None:
+        csil_m["trust"] = csil_x
     csil_x = v.system
     if csil_x is not None:
         csil_m["system"] = csil_x
@@ -2552,9 +2555,6 @@ def _encode_knowledge_item_value(v: "KnowledgeItem") -> Dict[Any, Any]:
         csil_m["locator"] = csil_x
     csil_m["summary"] = v.summary
     csil_m["properties"] = v.properties
-    csil_x = v.trust
-    if csil_x is not None:
-        csil_m["trust"] = csil_x
     return csil_m
 
 def _decode_knowledge_item_value(tree: Any) -> "KnowledgeItem":
@@ -2802,31 +2802,31 @@ ChangeKnowledgeRequest.from_cbor = staticmethod(_change_knowledge_request_from_c
 def _encode_knowledge_change_value(v: "KnowledgeChange") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["id"] = v.id
+    csil_x = v.via
+    if csil_x is not None:
+        csil_m["via"] = csil_x
     csil_m["actor"] = v.actor
     csil_x = v.after
     if csil_x is not None:
         csil_m["after"] = csil_x
     csil_m["at_ms"] = v.at_ms
+    csil_x = v.trust
+    if csil_x is not None:
+        csil_m["trust"] = csil_x
     csil_x = v.before
     if csil_x is not None:
         csil_m["before"] = csil_x
+    csil_x = v.origin
+    if csil_x is not None:
+        csil_m["origin"] = csil_x
     csil_x = v.reason
     if csil_x is not None:
         csil_m["reason"] = csil_x
     csil_m["record"] = v.record
-    csil_m["operation"] = v.operation
-    csil_x = v.via
-    if csil_x is not None:
-        csil_m["via"] = csil_x
-    csil_x = v.trust
-    if csil_x is not None:
-        csil_m["trust"] = csil_x
-    csil_x = v.origin
-    if csil_x is not None:
-        csil_m["origin"] = csil_x
     csil_x = v.undoes
     if csil_x is not None:
         csil_m["undoes"] = csil_x
+    csil_m["operation"] = v.operation
     csil_x = v.undone_by
     if csil_x is not None:
         csil_m["undone_by"] = csil_x
@@ -2944,12 +2944,12 @@ UnmergeKnowledgeRequest.from_cbor = staticmethod(_unmerge_knowledge_request_from
 def _encode_knowledge_history_request_value(v: "KnowledgeHistoryRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["id"] = v.id
-    csil_x = v.since_ms
-    if csil_x is not None:
-        csil_m["since_ms"] = csil_x
     csil_x = v.limit
     if csil_x is not None:
         csil_m["limit"] = csil_x
+    csil_x = v.since_ms
+    if csil_x is not None:
+        csil_m["since_ms"] = csil_x
     return csil_m
 
 def _decode_knowledge_history_request_value(tree: Any) -> "KnowledgeHistoryRequest":

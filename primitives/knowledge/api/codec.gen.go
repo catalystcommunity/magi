@@ -623,10 +623,13 @@ func DecodeRef(csilData []byte) (Ref, error) {
 
 // csilEncEntity builds the canonical CBOR value tree for a Entity.
 func csilEncEntity(csilV Entity) cborValue {
-	csilEntries := make(cborMap, 0, 13)
+	csilEntries := make(cborMap, 0, 14)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
 	csilEntries = append(csilEntries, cborEntry{cborText("label"), cborText(csilV.Label)})
+	if csilV.Trust != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("trust"), cborText((*csilV.Trust))})
+	}
 	csilEntries = append(csilEntries, cborEntry{cborText("owners"), cborEncArray(csilV.Owners, func(csilElem string) cborValue { return cborText(csilElem) })})
 	csilEntries = append(csilEntries, cborEntry{cborText("aliases"), cborEncArray(csilV.Aliases, func(csilElem string) cborValue { return cborText(csilElem) })})
 	csilEntries = append(csilEntries, cborEntry{cborText("readers"), cborEncArray(csilV.Readers, func(csilElem string) cborValue { return cborText(csilElem) })})
@@ -640,9 +643,6 @@ func csilEncEntity(csilV Entity) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("updated_ms"), cborUint(csilV.UpdatedMs)})
 	if csilV.MergedInto != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("merged_into"), cborText((*csilV.MergedInto))})
-	}
-	if csilV.Trust != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("trust"), cborText((*csilV.Trust))})
 	}
 	return csilEntries
 }
@@ -812,9 +812,12 @@ func DecodeEntity(csilData []byte) (Entity, error) {
 
 // csilEncClaim builds the canonical CBOR value tree for a Claim.
 func csilEncClaim(csilV Claim) cborValue {
-	csilEntries := make(cborMap, 0, 18)
+	csilEntries := make(cborMap, 0, 19)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("stale"), cborBool(csilV.Stale)})
+	if csilV.Trust != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("trust"), cborText((*csilV.Trust))})
+	}
 	if csilV.Value != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("value"), cborText((*csilV.Value))})
 	}
@@ -842,9 +845,6 @@ func csilEncClaim(csilV Claim) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("derived_from"), cborEncArray(csilV.DerivedFrom, func(csilElem string) cborValue { return cborText(csilElem) })})
 	if csilV.ValidFromMs != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("valid_from_ms"), cborUint((*csilV.ValidFromMs))})
-	}
-	if csilV.Trust != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("trust"), cborText((*csilV.Trust))})
 	}
 	return csilEntries
 }
@@ -1544,38 +1544,38 @@ func DecodeEvidence(csilData []byte) (Evidence, error) {
 
 // csilEncChange builds the canonical CBOR value tree for a Change.
 func csilEncChange(csilV Change) cborValue {
-	csilEntries := make(cborMap, 0, 9)
+	csilEntries := make(cborMap, 0, 14)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
+	if csilV.Via != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("via"), cborText((*csilV.Via))})
+	}
 	csilEntries = append(csilEntries, cborEntry{cborText("actor"), cborText(csilV.Actor)})
 	if csilV.After != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("after"), cborText((*csilV.After))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("at_ms"), cborUint(csilV.AtMs)})
+	if csilV.Trust != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("trust"), cborText((*csilV.Trust))})
+	}
 	if csilV.Before != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("before"), cborText((*csilV.Before))})
+	}
+	if csilV.Origin != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("origin"), cborText((*csilV.Origin))})
 	}
 	if csilV.Reason != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("reason"), cborText((*csilV.Reason))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("record"), cborText(csilV.Record)})
-	csilEntries = append(csilEntries, cborEntry{cborText("operation"), cborText(csilV.Operation)})
-	if csilV.Utterance != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("utterance"), cborText((*csilV.Utterance))})
-	}
-	if csilV.Via != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("via"), cborText((*csilV.Via))})
-	}
-	if csilV.Trust != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("trust"), cborText((*csilV.Trust))})
-	}
-	if csilV.Origin != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("origin"), cborText((*csilV.Origin))})
-	}
 	if csilV.Undoes != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("undoes"), cborText((*csilV.Undoes))})
 	}
+	csilEntries = append(csilEntries, cborEntry{cborText("operation"), cborText(csilV.Operation)})
 	if csilV.UndoneBy != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("undone_by"), cborText((*csilV.UndoneBy))})
+	}
+	if csilV.Utterance != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("utterance"), cborText((*csilV.Utterance))})
 	}
 	return csilEntries
 }
@@ -1951,9 +1951,15 @@ func DecodeGroup(csilData []byte) (Group, error) {
 
 // csilEncPutEntityRequest builds the canonical CBOR value tree for a PutEntityRequest.
 func csilEncPutEntityRequest(csilV PutEntityRequest) cborValue {
-	csilEntries := make(cborMap, 0, 11)
+	csilEntries := make(cborMap, 0, 13)
 	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
 	csilEntries = append(csilEntries, cborEntry{cborText("label"), cborText(csilV.Label)})
+	if csilV.Trust != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("trust"), cborText((*csilV.Trust))})
+	}
+	if csilV.Origin != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("origin"), cborText((*csilV.Origin))})
+	}
 	if csilV.Owners != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("owners"), cborEncArray(csilV.Owners, func(csilElem string) cborValue { return cborText(csilElem) })})
 	}
@@ -1980,12 +1986,6 @@ func csilEncPutEntityRequest(csilV PutEntityRequest) cborValue {
 	}
 	if csilV.Properties != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("properties"), cborEncMap(csilV.Properties, func(csilK string) cborValue { return cborText(csilK) }, func(csilV string) cborValue { return cborText(csilV) })})
-	}
-	if csilV.Trust != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("trust"), cborText((*csilV.Trust))})
-	}
-	if csilV.Origin != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("origin"), cborText((*csilV.Origin))})
 	}
 	return csilEntries
 }
@@ -2159,12 +2159,18 @@ func DecodeSelfRequest(csilData []byte) (SelfRequest, error) {
 
 // csilEncAssertRequest builds the canonical CBOR value tree for a AssertRequest.
 func csilEncAssertRequest(csilV AssertRequest) cborValue {
-	csilEntries := make(cborMap, 0, 14)
+	csilEntries := make(cborMap, 0, 16)
+	if csilV.Trust != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("trust"), cborText((*csilV.Trust))})
+	}
 	if csilV.Value != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("value"), cborText((*csilV.Value))})
 	}
 	if csilV.Object != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("object"), cborText((*csilV.Object))})
+	}
+	if csilV.Origin != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("origin"), cborText((*csilV.Origin))})
 	}
 	if csilV.Owners != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("owners"), cborEncArray(csilV.Owners, func(csilElem string) cborValue { return cborText(csilElem) })})
@@ -2197,12 +2203,6 @@ func csilEncAssertRequest(csilV AssertRequest) cborValue {
 	}
 	if csilV.ValidFromMs != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("valid_from_ms"), cborUint((*csilV.ValidFromMs))})
-	}
-	if csilV.Trust != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("trust"), cborText((*csilV.Trust))})
-	}
-	if csilV.Origin != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("origin"), cborText((*csilV.Origin))})
 	}
 	return csilEntries
 }
@@ -2350,7 +2350,7 @@ func DecodeAssertRequest(csilData []byte) (AssertRequest, error) {
 
 // csilEncChangeRequest builds the canonical CBOR value tree for a ChangeRequest.
 func csilEncChangeRequest(csilV ChangeRequest) cborValue {
-	csilEntries := make(cborMap, 0, 8)
+	csilEntries := make(cborMap, 0, 9)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	if csilV.Set != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("set"), cborEncMap(csilV.Set, func(csilK string) cborValue { return cborText(csilK) }, func(csilV string) cborValue { return cborText(csilV) })})
@@ -2361,6 +2361,9 @@ func csilEncChangeRequest(csilV ChangeRequest) cborValue {
 	if csilV.Erase != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("erase"), cborBool((*csilV.Erase))})
 	}
+	if csilV.Origin != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("origin"), cborText((*csilV.Origin))})
+	}
 	if csilV.Reason != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("reason"), cborText((*csilV.Reason))})
 	}
@@ -2370,9 +2373,6 @@ func csilEncChangeRequest(csilV ChangeRequest) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("operation"), cborText(csilV.Operation)})
 	if csilV.Utterance != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("utterance"), cborText((*csilV.Utterance))})
-	}
-	if csilV.Origin != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("origin"), cborText((*csilV.Origin))})
 	}
 	return csilEntries
 }
@@ -2550,9 +2550,12 @@ func DecodeChangeResponse(csilData []byte) (ChangeResponse, error) {
 
 // csilEncMergeRequest builds the canonical CBOR value tree for a MergeRequest.
 func csilEncMergeRequest(csilV MergeRequest) cborValue {
-	csilEntries := make(cborMap, 0, 5)
+	csilEntries := make(cborMap, 0, 6)
 	csilEntries = append(csilEntries, cborEntry{cborText("keep"), cborText(csilV.Keep)})
 	csilEntries = append(csilEntries, cborEntry{cborText("merge"), cborText(csilV.Merge)})
+	if csilV.Origin != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("origin"), cborText((*csilV.Origin))})
+	}
 	if csilV.Reason != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("reason"), cborText((*csilV.Reason))})
 	}
@@ -2561,9 +2564,6 @@ func csilEncMergeRequest(csilV MergeRequest) cborValue {
 	}
 	if csilV.Utterance != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("utterance"), cborText((*csilV.Utterance))})
-	}
-	if csilV.Origin != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("origin"), cborText((*csilV.Origin))})
 	}
 	return csilEntries
 }
@@ -4107,16 +4107,16 @@ func DecodeTimelineResponse(csilData []byte) (TimelineResponse, error) {
 
 // csilEncHistoryRequest builds the canonical CBOR value tree for a HistoryRequest.
 func csilEncHistoryRequest(csilV HistoryRequest) cborValue {
-	csilEntries := make(cborMap, 0, 2)
+	csilEntries := make(cborMap, 0, 4)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
+	if csilV.Limit != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("limit"), cborUint((*csilV.Limit))})
+	}
 	if csilV.ActFor != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("act_for"), cborText((*csilV.ActFor))})
 	}
 	if csilV.SinceMs != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("since_ms"), cborUint((*csilV.SinceMs))})
-	}
-	if csilV.Limit != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("limit"), cborUint((*csilV.Limit))})
 	}
 	return csilEntries
 }

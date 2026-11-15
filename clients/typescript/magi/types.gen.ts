@@ -662,6 +662,9 @@ export interface KnowledgeFact {
   stale: boolean;
   mine: boolean;
   disputed: boolean;
+  /**
+   * person, named, own, or untrusted (docs/knowledge.md, "Trust"). Absent: shown as unverified.
+   */
   trust?: string;
 }
 
@@ -737,7 +740,13 @@ export interface RememberResponse {
  * only), or "retract" (it was never true, or forget it). field and value
  * give the new value: for a fact, field "value" (default) or "object" (a
  * name) or "relation"; for an entity, "label" (default), "summary", or
- * "kind".
+ * "kind". "promote" moves an untrusted record to trusted (docs/knowledge.md,
+ * "Trust"); only a person's token can do it, and field and value are not used.
+ * "undo" restores the state before a change: id is the id of the change (from
+ * knowledge-history), not of a record. Only a person's token can do it.
+ * It is refused when later changes depend on it, when it was undone, when the
+ * content was erased, and when it would raise trust. The undo is itself a
+ * change in the audit log.
  */
 export interface ChangeKnowledgeRequest {
   id: string;
@@ -748,6 +757,13 @@ export interface ChangeKnowledgeRequest {
   erase?: boolean;
 }
 
+/**
+ * One row of the audit log. actor is the person whose memory it is; via is
+ * who made the call when that is another subject (service:magi); origin is
+ * JSON with what Magi knows of the write (persona, tool, turn, run, and
+ * confirmed: the person confirmed it); trust is the trust label of the record
+ * after the change; undoes and undone_by link a change to its undo.
+ */
 export interface KnowledgeChange {
   id: string;
   record: string;
@@ -784,6 +800,10 @@ export interface UnmergeKnowledgeRequest {
   change: string;
 }
 
+/**
+ * The changes of a record; with an empty id, the audit log of the caller (all
+ * changes of their memory, newest first; since_ms and limit narrow it).
+ */
 export interface KnowledgeHistoryRequest {
   id: string;
   sinceMs?: number;

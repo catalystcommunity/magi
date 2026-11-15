@@ -755,6 +755,7 @@ data class KnowledgeChange(
     val trust: String? = null,
     val origin: String? = null,
     val undoes: String? = null,
+    // wire key: undone_by
     val undoneBy: String? = null
 )
 
@@ -779,6 +780,7 @@ data class UnmergeKnowledgeRequest(
 /** KnowledgeHistoryRequest record. */
 data class KnowledgeHistoryRequest(
     val id: String,
+    // wire key: since_ms
     val sinceMs: ULong? = null,
     val limit: ULong? = null
 )

@@ -415,6 +415,9 @@ def _encode_entity_value(v: "Entity") -> Dict[Any, Any]:
     csil_m["id"] = v.id
     csil_m["kind"] = v.kind
     csil_m["label"] = v.label
+    csil_x = v.trust
+    if csil_x is not None:
+        csil_m["trust"] = csil_x
     csil_m["owners"] = v.owners
     csil_m["aliases"] = v.aliases
     csil_m["readers"] = v.readers
@@ -429,9 +432,6 @@ def _encode_entity_value(v: "Entity") -> Dict[Any, Any]:
     csil_x = v.merged_into
     if csil_x is not None:
         csil_m["merged_into"] = csil_x
-    csil_x = v.trust
-    if csil_x is not None:
-        csil_m["trust"] = csil_x
     return csil_m
 
 def _decode_entity_value(tree: Any) -> "Entity":
@@ -469,6 +469,9 @@ def _encode_claim_value(v: "Claim") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["id"] = v.id
     csil_m["stale"] = v.stale
+    csil_x = v.trust
+    if csil_x is not None:
+        csil_m["trust"] = csil_x
     csil_x = v.value
     if csil_x is not None:
         csil_m["value"] = csil_x
@@ -497,9 +500,6 @@ def _encode_claim_value(v: "Claim") -> Dict[Any, Any]:
     csil_x = v.valid_from_ms
     if csil_x is not None:
         csil_m["valid_from_ms"] = csil_x
-    csil_x = v.trust
-    if csil_x is not None:
-        csil_m["trust"] = csil_x
     return csil_m
 
 def _decode_claim_value(tree: Any) -> "Claim":
@@ -684,37 +684,37 @@ Evidence.from_cbor = staticmethod(_evidence_from_cbor)
 def _encode_change_value(v: "Change") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["id"] = v.id
+    csil_x = v.via
+    if csil_x is not None:
+        csil_m["via"] = csil_x
     csil_m["actor"] = v.actor
     csil_x = v.after
     if csil_x is not None:
         csil_m["after"] = csil_x
     csil_m["at_ms"] = v.at_ms
+    csil_x = v.trust
+    if csil_x is not None:
+        csil_m["trust"] = csil_x
     csil_x = v.before
     if csil_x is not None:
         csil_m["before"] = csil_x
+    csil_x = v.origin
+    if csil_x is not None:
+        csil_m["origin"] = csil_x
     csil_x = v.reason
     if csil_x is not None:
         csil_m["reason"] = csil_x
     csil_m["record"] = v.record
-    csil_m["operation"] = v.operation
-    csil_x = v.utterance
-    if csil_x is not None:
-        csil_m["utterance"] = csil_x
-    csil_x = v.via
-    if csil_x is not None:
-        csil_m["via"] = csil_x
-    csil_x = v.trust
-    if csil_x is not None:
-        csil_m["trust"] = csil_x
-    csil_x = v.origin
-    if csil_x is not None:
-        csil_m["origin"] = csil_x
     csil_x = v.undoes
     if csil_x is not None:
         csil_m["undoes"] = csil_x
+    csil_m["operation"] = v.operation
     csil_x = v.undone_by
     if csil_x is not None:
         csil_m["undone_by"] = csil_x
+    csil_x = v.utterance
+    if csil_x is not None:
+        csil_m["utterance"] = csil_x
     return csil_m
 
 def _decode_change_value(tree: Any) -> "Change":
@@ -828,6 +828,12 @@ def _encode_put_entity_request_value(v: "PutEntityRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["kind"] = v.kind
     csil_m["label"] = v.label
+    csil_x = v.trust
+    if csil_x is not None:
+        csil_m["trust"] = csil_x
+    csil_x = v.origin
+    if csil_x is not None:
+        csil_m["origin"] = csil_x
     csil_x = v.owners
     if csil_x is not None:
         csil_m["owners"] = csil_x
@@ -855,12 +861,6 @@ def _encode_put_entity_request_value(v: "PutEntityRequest") -> Dict[Any, Any]:
     csil_x = v.properties
     if csil_x is not None:
         csil_m["properties"] = csil_x
-    csil_x = v.trust
-    if csil_x is not None:
-        csil_m["trust"] = csil_x
-    csil_x = v.origin
-    if csil_x is not None:
-        csil_m["origin"] = csil_x
     return csil_m
 
 def _decode_put_entity_request_value(tree: Any) -> "PutEntityRequest":
@@ -924,12 +924,18 @@ SelfRequest.from_cbor = staticmethod(_self_request_from_cbor)
 
 def _encode_assert_request_value(v: "AssertRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
+    csil_x = v.trust
+    if csil_x is not None:
+        csil_m["trust"] = csil_x
     csil_x = v.value
     if csil_x is not None:
         csil_m["value"] = csil_x
     csil_x = v.object
     if csil_x is not None:
         csil_m["object"] = csil_x
+    csil_x = v.origin
+    if csil_x is not None:
+        csil_m["origin"] = csil_x
     csil_x = v.owners
     if csil_x is not None:
         csil_m["owners"] = csil_x
@@ -962,12 +968,6 @@ def _encode_assert_request_value(v: "AssertRequest") -> Dict[Any, Any]:
     csil_x = v.valid_from_ms
     if csil_x is not None:
         csil_m["valid_from_ms"] = csil_x
-    csil_x = v.trust
-    if csil_x is not None:
-        csil_m["trust"] = csil_x
-    csil_x = v.origin
-    if csil_x is not None:
-        csil_m["origin"] = csil_x
     return csil_m
 
 def _decode_assert_request_value(tree: Any) -> "AssertRequest":
@@ -1015,6 +1015,9 @@ def _encode_change_request_value(v: "ChangeRequest") -> Dict[Any, Any]:
     csil_x = v.erase
     if csil_x is not None:
         csil_m["erase"] = csil_x
+    csil_x = v.origin
+    if csil_x is not None:
+        csil_m["origin"] = csil_x
     csil_x = v.reason
     if csil_x is not None:
         csil_m["reason"] = csil_x
@@ -1025,9 +1028,6 @@ def _encode_change_request_value(v: "ChangeRequest") -> Dict[Any, Any]:
     csil_x = v.utterance
     if csil_x is not None:
         csil_m["utterance"] = csil_x
-    csil_x = v.origin
-    if csil_x is not None:
-        csil_m["origin"] = csil_x
     return csil_m
 
 def _decode_change_request_value(tree: Any) -> "ChangeRequest":
@@ -1099,6 +1099,9 @@ def _encode_merge_request_value(v: "MergeRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["keep"] = v.keep
     csil_m["merge"] = v.merge
+    csil_x = v.origin
+    if csil_x is not None:
+        csil_m["origin"] = csil_x
     csil_x = v.reason
     if csil_x is not None:
         csil_m["reason"] = csil_x
@@ -1108,9 +1111,6 @@ def _encode_merge_request_value(v: "MergeRequest") -> Dict[Any, Any]:
     csil_x = v.utterance
     if csil_x is not None:
         csil_m["utterance"] = csil_x
-    csil_x = v.origin
-    if csil_x is not None:
-        csil_m["origin"] = csil_x
     return csil_m
 
 def _decode_merge_request_value(tree: Any) -> "MergeRequest":
@@ -1797,15 +1797,15 @@ TimelineResponse.from_cbor = staticmethod(_timeline_response_from_cbor)
 def _encode_history_request_value(v: "HistoryRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["id"] = v.id
+    csil_x = v.limit
+    if csil_x is not None:
+        csil_m["limit"] = csil_x
     csil_x = v.act_for
     if csil_x is not None:
         csil_m["act_for"] = csil_x
     csil_x = v.since_ms
     if csil_x is not None:
         csil_m["since_ms"] = csil_x
-    csil_x = v.limit
-    if csil_x is not None:
-        csil_m["limit"] = csil_x
     return csil_m
 
 def _decode_history_request_value(tree: Any) -> "HistoryRequest":

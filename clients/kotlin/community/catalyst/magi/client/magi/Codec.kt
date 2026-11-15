@@ -2001,6 +2001,7 @@ fun KnowledgeFact.toCborValue(): CborValue {
     csilEntries.add(CborValue.CText("mine") to CborValue.CBool(this.mine))
     this.other?.let { csilV -> csilEntries.add(CborValue.CText("other") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("stale") to CborValue.CBool(this.stale))
+    this.trust?.let { csilV -> csilEntries.add(CborValue.CText("trust") to CborValue.CText(csilV)) }
     this.value?.let { csilV -> csilEntries.add(CborValue.CText("value") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("status") to CborValue.CText(this.status))
     csilEntries.add(CborValue.CText("disputed") to CborValue.CBool(this.disputed))
@@ -2046,6 +2047,7 @@ fun KnowledgeItem.toCborValue(): CborValue {
     csilEntries.add(CborValue.CText("mine") to CborValue.CBool(this.mine))
     csilEntries.add(CborValue.CText("facts") to CborValue.CArray((this.facts).map { csilE -> csilE.toCborValue() }))
     csilEntries.add(CborValue.CText("label") to CborValue.CText(this.label))
+    this.trust?.let { csilV -> csilEntries.add(CborValue.CText("trust") to CborValue.CText(csilV)) }
     this.system?.let { csilV -> csilEntries.add(CborValue.CText("system") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("aliases") to CborValue.CArray((this.aliases).map { csilE -> CborValue.CText(csilE) }))
     this.locator?.let { csilV -> csilEntries.add(CborValue.CText("locator") to CborValue.CText(csilV)) }
@@ -2240,17 +2242,17 @@ fun changeKnowledgeRequestFromCbor(bytes: ByteArray): ChangeKnowledgeRequest = c
 fun KnowledgeChange.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
     csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    this.via?.let { csilV -> csilEntries.add(CborValue.CText("via") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("actor") to CborValue.CText(this.actor))
     this.after?.let { csilV -> csilEntries.add(CborValue.CText("after") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("at_ms") to CborValue.CUint(this.atMs))
+    this.trust?.let { csilV -> csilEntries.add(CborValue.CText("trust") to CborValue.CText(csilV)) }
     this.before?.let { csilV -> csilEntries.add(CborValue.CText("before") to CborValue.CText(csilV)) }
+    this.origin?.let { csilV -> csilEntries.add(CborValue.CText("origin") to CborValue.CText(csilV)) }
     this.reason?.let { csilV -> csilEntries.add(CborValue.CText("reason") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("record") to CborValue.CText(this.record))
-    csilEntries.add(CborValue.CText("operation") to CborValue.CText(this.operation))
-    this.via?.let { csilV -> csilEntries.add(CborValue.CText("via") to CborValue.CText(csilV)) }
-    this.trust?.let { csilV -> csilEntries.add(CborValue.CText("trust") to CborValue.CText(csilV)) }
-    this.origin?.let { csilV -> csilEntries.add(CborValue.CText("origin") to CborValue.CText(csilV)) }
     this.undoes?.let { csilV -> csilEntries.add(CborValue.CText("undoes") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("operation") to CborValue.CText(this.operation))
     this.undoneBy?.let { csilV -> csilEntries.add(CborValue.CText("undone_by") to CborValue.CText(csilV)) }
     return CborValue.CMap(csilEntries)
 }
@@ -2346,8 +2348,8 @@ fun unmergeKnowledgeRequestFromCbor(bytes: ByteArray): UnmergeKnowledgeRequest =
 fun KnowledgeHistoryRequest.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
     csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
-    this.sinceMs?.let { csilV -> csilEntries.add(CborValue.CText("since_ms") to CborValue.CUint(csilV)) }
     this.limit?.let { csilV -> csilEntries.add(CborValue.CText("limit") to CborValue.CUint(csilV)) }
+    this.sinceMs?.let { csilV -> csilEntries.add(CborValue.CText("since_ms") to CborValue.CUint(csilV)) }
     return CborValue.CMap(csilEntries)
 }
 

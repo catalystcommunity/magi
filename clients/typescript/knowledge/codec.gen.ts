@@ -393,6 +393,7 @@ export function toEntityCborValue(v: Entity): CborValue {
   csilMap.set("id", v.id);
   csilMap.set("kind", v.kind);
   csilMap.set("label", v.label);
+  if (v.trust !== undefined) csilMap.set("trust", v.trust);
   csilMap.set("owners", v.owners);
   csilMap.set("aliases", v.aliases);
   csilMap.set("readers", v.readers);
@@ -403,7 +404,6 @@ export function toEntityCborValue(v: Entity): CborValue {
   csilMap.set("properties", new Map<CborValue, CborValue>(Object.entries(v.properties).map(([csilK, csilV]): [CborValue, CborValue] => [csilK, csilV])));
   csilMap.set("updated_ms", v.updatedMs);
   if (v.mergedInto !== undefined) csilMap.set("merged_into", v.mergedInto);
-  if (v.trust !== undefined) csilMap.set("trust", v.trust);
   return csilMap;
 }
 
@@ -438,6 +438,7 @@ export function toClaimCborValue(v: Claim): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("id", v.id);
   csilMap.set("stale", v.stale);
+  if (v.trust !== undefined) csilMap.set("trust", v.trust);
   if (v.value !== undefined) csilMap.set("value", v.value);
   if (v.object !== undefined) csilMap.set("object", v.object);
   csilMap.set("owners", v.owners);
@@ -454,7 +455,6 @@ export function toClaimCborValue(v: Claim): CborValue {
   if (v.validToMs !== undefined) csilMap.set("valid_to_ms", v.validToMs);
   csilMap.set("derived_from", v.derivedFrom);
   if (v.validFromMs !== undefined) csilMap.set("valid_from_ms", v.validFromMs);
-  if (v.trust !== undefined) csilMap.set("trust", v.trust);
   return csilMap;
 }
 
@@ -617,19 +617,19 @@ export function fromEvidenceCbor(bytes: Uint8Array): Evidence {
 export function toChangeCborValue(v: Change): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("id", v.id);
+  if (v.via !== undefined) csilMap.set("via", v.via);
   csilMap.set("actor", v.actor);
   if (v.after !== undefined) csilMap.set("after", v.after);
   csilMap.set("at_ms", v.atMs);
+  if (v.trust !== undefined) csilMap.set("trust", v.trust);
   if (v.before !== undefined) csilMap.set("before", v.before);
+  if (v.origin !== undefined) csilMap.set("origin", v.origin);
   if (v.reason !== undefined) csilMap.set("reason", v.reason);
   csilMap.set("record", v.record);
-  csilMap.set("operation", v.operation);
-  if (v.utterance !== undefined) csilMap.set("utterance", v.utterance);
-  if (v.via !== undefined) csilMap.set("via", v.via);
-  if (v.trust !== undefined) csilMap.set("trust", v.trust);
-  if (v.origin !== undefined) csilMap.set("origin", v.origin);
   if (v.undoes !== undefined) csilMap.set("undoes", v.undoes);
+  csilMap.set("operation", v.operation);
   if (v.undoneBy !== undefined) csilMap.set("undone_by", v.undoneBy);
+  if (v.utterance !== undefined) csilMap.set("utterance", v.utterance);
   return csilMap;
 }
 
@@ -730,6 +730,8 @@ export function toPutEntityRequestCborValue(v: PutEntityRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("kind", v.kind);
   csilMap.set("label", v.label);
+  if (v.trust !== undefined) csilMap.set("trust", v.trust);
+  if (v.origin !== undefined) csilMap.set("origin", v.origin);
   if (v.owners !== undefined) csilMap.set("owners", v.owners);
   if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
   if (v.aliases !== undefined) csilMap.set("aliases", v.aliases);
@@ -739,8 +741,6 @@ export function toPutEntityRequestCborValue(v: PutEntityRequest): CborValue {
   if (v.utterance !== undefined) csilMap.set("utterance", v.utterance);
   if (v.confidence !== undefined) csilMap.set("confidence", v.confidence);
   if (v.properties !== undefined) csilMap.set("properties", new Map<CborValue, CborValue>(Object.entries(v.properties).map(([csilK, csilV]): [CborValue, CborValue] => [csilK, csilV])));
-  if (v.trust !== undefined) csilMap.set("trust", v.trust);
-  if (v.origin !== undefined) csilMap.set("origin", v.origin);
   return csilMap;
 }
 
@@ -794,8 +794,10 @@ export function fromSelfRequestCbor(bytes: Uint8Array): SelfRequest {
 
 export function toAssertRequestCborValue(v: AssertRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
+  if (v.trust !== undefined) csilMap.set("trust", v.trust);
   if (v.value !== undefined) csilMap.set("value", v.value);
   if (v.object !== undefined) csilMap.set("object", v.object);
+  if (v.origin !== undefined) csilMap.set("origin", v.origin);
   if (v.owners !== undefined) csilMap.set("owners", v.owners);
   if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
   if (v.readers !== undefined) csilMap.set("readers", v.readers);
@@ -808,8 +810,6 @@ export function toAssertRequestCborValue(v: AssertRequest): CborValue {
   if (v.validToMs !== undefined) csilMap.set("valid_to_ms", v.validToMs);
   if (v.derivedFrom !== undefined) csilMap.set("derived_from", v.derivedFrom);
   if (v.validFromMs !== undefined) csilMap.set("valid_from_ms", v.validFromMs);
-  if (v.trust !== undefined) csilMap.set("trust", v.trust);
-  if (v.origin !== undefined) csilMap.set("origin", v.origin);
   return csilMap;
 }
 
@@ -848,11 +848,11 @@ export function toChangeRequestCborValue(v: ChangeRequest): CborValue {
   if (v.set !== undefined) csilMap.set("set", new Map<CborValue, CborValue>(Object.entries(v.set).map(([csilK, csilV]): [CborValue, CborValue] => [csilK, csilV])));
   if (v.atMs !== undefined) csilMap.set("at_ms", v.atMs);
   if (v.erase !== undefined) csilMap.set("erase", v.erase);
+  if (v.origin !== undefined) csilMap.set("origin", v.origin);
   if (v.reason !== undefined) csilMap.set("reason", v.reason);
   if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
   csilMap.set("operation", v.operation);
   if (v.utterance !== undefined) csilMap.set("utterance", v.utterance);
-  if (v.origin !== undefined) csilMap.set("origin", v.origin);
   return csilMap;
 }
 
@@ -910,10 +910,10 @@ export function toMergeRequestCborValue(v: MergeRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("keep", v.keep);
   csilMap.set("merge", v.merge);
+  if (v.origin !== undefined) csilMap.set("origin", v.origin);
   if (v.reason !== undefined) csilMap.set("reason", v.reason);
   if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
   if (v.utterance !== undefined) csilMap.set("utterance", v.utterance);
-  if (v.origin !== undefined) csilMap.set("origin", v.origin);
   return csilMap;
 }
 
@@ -1443,9 +1443,9 @@ export function fromTimelineResponseCbor(bytes: Uint8Array): TimelineResponse {
 export function toHistoryRequestCborValue(v: HistoryRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("id", v.id);
+  if (v.limit !== undefined) csilMap.set("limit", v.limit);
   if (v.actFor !== undefined) csilMap.set("act_for", v.actFor);
   if (v.sinceMs !== undefined) csilMap.set("since_ms", v.sinceMs);
-  if (v.limit !== undefined) csilMap.set("limit", v.limit);
   return csilMap;
 }
 
