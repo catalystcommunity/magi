@@ -145,6 +145,28 @@ class LoopTest(unittest.TestCase):
         self.assertEqual(r.status, "error")
         self.assertIn("401", r.error)
 
+    def test_usage_sums_cost_and_cached_tokens(self):
+        # The provider gives the cost in dollars and the cached prompt tokens
+        # inside prompt_tokens_details. A missing field counts as 0.
+        a, _, _, _ = apprentice(
+            [reply(call("write_file", path="x", content="1"),
+                   usage={"prompt_tokens": 100, "completion_tokens": 10, "cost": 0.01,
+                          "prompt_tokens_details": {"cached_tokens": 40}}),
+             reply(call("finish", summary="s"),
+                   usage={"prompt_tokens": 200, "cost": 0.02, "prompt_tokens_details": {}})],
+            limits=Limits(self_review=False))
+        r = a.run(Task("t"))
+        self.assertEqual(r.usage["cost"], 0.03)
+        self.assertEqual(r.usage["cached_tokens"], 40)
+        self.assertEqual(r.usage["prompt_tokens"], 300)
+        self.assertEqual(r.usage["completion_tokens"], 10)
+
+    def test_usage_without_cost_or_details(self):
+        a, _, _, _ = apprentice([reply(call("finish", summary="s"))], limits=Limits(self_review=False))
+        r = a.run(Task("t"))
+        self.assertEqual(r.usage, {"prompt_tokens": 100, "completion_tokens": 10,
+                                   "cached_tokens": 0, "cost": 0.0})
+
 
 class BudgetTest(unittest.TestCase):
     """The budget notes and the last call at a limit."""
@@ -194,7 +216,8 @@ class BudgetTest(unittest.TestCase):
         self.assertNotIn("model calls are left", model.requests[0][-1]["content"])
 
     def test_last_call_at_the_step_limit(self):
-        script = [reply(call("bash", command="true"))] * 3 + [reply(content="I changed a.py.")]
+        script = [reply(call("bash", command="true"))] * 3 + [
+            reply(content="I changed a.py.", usage={"prompt_tokens": 100, "cost": 0.04})]
         a, model, _, tr = apprentice(script, limits=Limits(max_steps=3))
         r = a.run(Task("t"))
         self.assertEqual((r.status, r.summary, r.steps), ("step_limit", "I changed a.py.", 3))
@@ -203,8 +226,9 @@ class BudgetTest(unittest.TestCase):
         self.assertIn("finish summary", model.requests[-1][-1]["content"])
         self.assertIn("last_call", kinds(tr))
         self.assertEqual(kinds(tr)[-1], "result")
-        # the last call is not a step, but its tokens are counted
+        # the last call is not a step, but its tokens and cost are counted
         self.assertEqual(r.usage["prompt_tokens"], 400)
+        self.assertEqual(r.usage["cost"], 0.04)
         self.assertEqual(len(model.requests), 4)
 
     def test_failed_last_call_keeps_the_summary(self):

@@ -215,6 +215,10 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 		ToolCalls   int    `json:"tool_calls"`
 		CheckPassed *bool  `json:"check_passed"`
 		Error       string `json:"error"`
+		Usage       struct {
+			PromptTokens int     `json:"prompt_tokens"`
+			Cost         float64 `json:"cost"`
+		} `json:"usage"`
 	}
 	if err := json.Unmarshal([]byte(stdout.String()), &out); err != nil {
 		return Result{}, fmt.Errorf("apprentice failed (%v): %s", waitErr, tail(strings.Join(last, "\n"), 3000))
@@ -224,6 +228,13 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 	if out.CheckPassed != nil {
 		outputs["apprentice.check_passed"] = strconv.FormatBool(*out.CheckPassed)
 	}
+	// A provider that reports no cost leaves the outputs and the note out.
+	cost := ""
+	if out.Usage.Cost > 0 {
+		cost = fmt.Sprintf(" (cost $%.3f)", out.Usage.Cost)
+		outputs["apprentice.cost_usd"] = fmt.Sprintf("%.3f", out.Usage.Cost)
+		outputs["apprentice.prompt_tokens"] = strconv.Itoa(out.Usage.PromptTokens)
+	}
 	if b, err := os.ReadFile(transcript); err == nil {
 		if d, err := r.Magi.PutArtifact(ctx, magiapi.RunnerPutArtifactRequest{Step: st, MediaType: "application/x-ndjson", Body: b,
 			Labels: map[string]string{"kind": "apprentice-transcript"}}); err == nil {
@@ -232,7 +243,8 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 			outputs["apprentice.transcript_error"] = tail(err.Error(), 500)
 		}
 	}
-	r.note(ctx, st, fmt.Sprintf("apprentice %s after %d steps, %d tool calls: %s", out.Status, out.Steps, out.ToolCalls, out.Summary))
+	r.note(ctx, st, fmt.Sprintf("apprentice %s after %d steps, %d tool calls%s: %s",
+		out.Status, out.Steps, out.ToolCalls, cost, out.Summary))
 	if out.Status == "error" {
 		return Result{}, fmt.Errorf("apprentice error: %s", firstNonEmpty(out.Error, out.Summary))
 	}

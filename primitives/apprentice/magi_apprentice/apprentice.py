@@ -18,6 +18,9 @@ Rules:
 - The project instructions in the first message are the rules of the repository owner. Follow \
 them, unless the task instructions say otherwise.
 - Use the tools to inspect, change, build, and test. Do not guess file contents: read or search first.
+- Each model call costs money. When tool calls do not depend on each other, make them in one reply: \
+for example, read three files, or read a file and search, in one reply. Read the files that the task \
+names before you search.
 - Use edit_file for changes to existing files. Copy old_string exactly from read_file output, \
 without the line-number prefix. Use write_file for new files.
 - Keep changes small and focused on the task. Follow the style of the existing code.
@@ -83,6 +86,16 @@ class Result:
 
 
 Steering = Callable[[], list[str]]
+
+
+def add_usage(usage: dict, reply: Reply) -> None:
+    """Add the usage of one answer to the totals of a task. A provider can
+    leave a field out, so each one counts as 0."""
+    for k in ("prompt_tokens", "completion_tokens"):
+        usage[k] += int(reply.usage.get(k) or 0)
+    details = reply.usage.get("prompt_tokens_details") or {}
+    usage["cached_tokens"] += int(details.get("cached_tokens") or 0)
+    usage["cost"] += float(reply.usage.get("cost") or 0.0)
 
 
 def build_prompt(task: Task, limits: Limits) -> list[dict]:
@@ -328,7 +341,7 @@ class Apprentice:
         ctx = Context(build_prompt(task, lim), lim.context_tokens)
         start = self.clock()
         res = Result(status="error", summary="")
-        usage = {"prompt_tokens": 0, "completion_tokens": 0}
+        usage = {"prompt_tokens": 0, "completion_tokens": 0, "cached_tokens": 0, "cost": 0.0}
         recent: list[str] = []
         idle = 0
         check_fails = 0
@@ -369,8 +382,7 @@ class Apprentice:
                 tr.record("model_error", step=res.steps, error=str(e))
                 return done("error", "The model call failed.", str(e))
             sent = len(ctx.messages)
-            for k in usage:
-                usage[k] += int(reply.usage.get(k) or 0)
+            add_usage(usage, reply)
             tr.record("model_response", step=res.steps, duration_ms=int((time.monotonic() - t0) * 1000),
                       content=reply.content, finish_reason=reply.finish_reason,
                       tool_calls=[vars(c) for c in reply.tool_calls], usage=reply.usage,
@@ -455,8 +467,7 @@ class Apprentice:
         except ModelError as e:
             self.transcript.record("model_error", step=steps, error=str(e), last_call=True)
             return summary
-        for k in usage:
-            usage[k] += int(reply.usage.get(k) or 0)
+        add_usage(usage, reply)
         self.transcript.record("model_response", step=steps, content=reply.content,
                                finish_reason=reply.finish_reason, tool_calls=[], usage=reply.usage,
                                last_call=True)

@@ -20,9 +20,10 @@ def call(name: str, **args: Any) -> ToolCall:
     return ToolCall(id=f"c_{name}_{len(json.dumps(args))}", name=name, arguments=json.dumps(args))
 
 
-def reply(*calls: ToolCall, content: str = "", finish_reason: str = "tool_calls") -> Reply:
+def reply(*calls: ToolCall, content: str = "", finish_reason: str = "tool_calls",
+          usage: dict | None = None) -> Reply:
     return Reply(content=content, tool_calls=list(calls), finish_reason=finish_reason,
-                 usage={"prompt_tokens": 100, "completion_tokens": 10})
+                 usage=usage or {"prompt_tokens": 100, "completion_tokens": 10})
 
 
 class FakeModel:

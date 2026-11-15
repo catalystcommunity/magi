@@ -1,0 +1,112 @@
+package runner
+
+import (
+	"context"
+	"crypto/ed25519"
+	"crypto/rand"
+	"io"
+	"log/slog"
+	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/catalystcommunity/magi/lib/authn"
+	"github.com/catalystcommunity/magi/lib/rpc"
+	magiapi "github.com/catalystcommunity/magi/magi/api"
+)
+
+func hasNote(notes []string, want string) bool {
+	for _, n := range notes {
+		if strings.Contains(n, want) {
+			return true
+		}
+	}
+	return false
+}
+
+// fakeApprentice writes a Python package that stands in for
+// `python -m magi_apprentice run`: it prints the JSON result line that the
+// test wants.
+func fakeApprentice(t *testing.T, result string) (python, path string) {
+	t.Helper()
+	python, err := exec.LookPath("python3")
+	if err != nil {
+		t.Skip("python3 is not installed")
+	}
+	d := t.TempDir()
+	pkg := filepath.Join(d, "magi_apprentice")
+	if err := os.MkdirAll(pkg, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	script := "import json\nprint(json.dumps(" + result + "))\n"
+	if err := os.WriteFile(filepath.Join(pkg, "__main__.py"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return python, d
+}
+
+// workStep runs the work step with a fake apprentice. It returns the outputs
+// and the notes that the runner sent.
+func workStep(t *testing.T, result string) (map[string]string, []string) {
+	t.Helper()
+	python, path := fakeApprentice(t, result)
+	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
+	iss := &authn.Issuer{Name: "test", KeyID: "k1", Key: priv}
+	fake := &fakeMagi{artifacts: map[string][]byte{}}
+	srv := &rpc.Server{Verifier: &authn.Verifier{Issuer: "test", Keys: map[string]ed25519.PublicKey{"k1": pub}}, MaxBody: 64 << 20}
+	srv.Register("RunnerService", magiapi.RunnerServiceOps(fake))
+	ts := httptest.NewServer(rpc.Mux(srv, nil))
+	defer ts.Close()
+	tok, _ := iss.Issue(authn.Principal{Subject: "runner:test", Kind: authn.KindService, Scopes: []string{"magi:runner"}}, time.Hour)
+	state := t.TempDir()
+	r := &Runner{Cfg: Config{StateDir: state}, Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Magi: magiapi.NewRunnerClient(rpc.NewClient(ts.URL, rpc.StaticToken(tok)))}
+	r.Cfg.Apprentice.Python, r.Cfg.Apprentice.Path = python, path
+	res, err := r.work(context.Background(),
+		magiapi.RunnerAssignment{Run: "run_w", Step: "work", Vars: map[string]string{
+			"environment": "e", "workdir": "/work/repo", "instructions": "do it"}},
+		magiapi.RunnerStep{Run: "run_w", Step: "work", Claim: "c"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return res.Outputs, fake.notes
+}
+
+// The work step turns the usage of the apprentice into outputs and a note
+// with the cost.
+func TestWorkStepCostOutputs(t *testing.T) {
+	outputs, notes := workStep(t, `{"status": "finished", "summary": "done", "steps": 3, "tool_calls": 7,
+		"usage": {"prompt_tokens": 1200, "completion_tokens": 300, "cached_tokens": 400, "cost": 0.031}}`)
+	if outputs["apprentice.cost_usd"] != "0.031" {
+		t.Errorf("cost_usd = %q", outputs["apprentice.cost_usd"])
+	}
+	if outputs["apprentice.prompt_tokens"] != "1200" {
+		t.Errorf("prompt_tokens = %q", outputs["apprentice.prompt_tokens"])
+	}
+	if !hasNote(notes, "apprentice finished after 3 steps, 7 tool calls (cost $0.031): done") {
+		t.Errorf("no note with the cost: %q", notes)
+	}
+}
+
+// A provider that reports no cost leaves the outputs and the note out.
+func TestWorkStepWithoutCost(t *testing.T) {
+	outputs, notes := workStep(t, `{"status": "finished", "summary": "done", "steps": 2, "tool_calls": 4,
+		"usage": {"prompt_tokens": 900, "completion_tokens": 100}}`)
+	for _, k := range []string{"apprentice.cost_usd", "apprentice.prompt_tokens"} {
+		if v, ok := outputs[k]; ok {
+			t.Errorf("%s is set without a cost: %q", k, v)
+		}
+	}
+	for _, n := range notes {
+		if strings.Contains(n, "cost") {
+			t.Errorf("note tells a cost without one: %q", n)
+		}
+	}
+	if !hasNote(notes, "apprentice finished after 2 steps, 4 tool calls: done") {
+		t.Errorf("no note without the cost: %q", notes)
+	}
+}
