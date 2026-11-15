@@ -13,6 +13,18 @@ spec:
     size: 10Gi
     storageClass: ${STORAGE_CLASS}
   resources: {requests: {cpu: 100m, memory: 256Mi}, limits: {cpu: "2", memory: 1Gi}}
+  # backup:begin (kept only when BACKUP_DESTINATION_PATH is set in the values file)
+  backup:
+    retentionPolicy: ${BACKUP_RETENTION}
+    barmanObjectStore:
+      destinationPath: ${BACKUP_DESTINATION_PATH}
+      endpointURL: ${BACKUP_ENDPOINT_URL}
+      s3Credentials:
+        accessKeyId: {name: magi-db-backup, key: ACCESS_KEY_ID}
+        secretAccessKey: {name: magi-db-backup, key: ACCESS_SECRET_KEY}
+      wal: {compression: gzip}
+      data: {compression: gzip}
+  # backup:end
   bootstrap:
     initdb:
       database: magi
@@ -27,3 +39,20 @@ spec:
         - CREATE DATABASE corndogs OWNER magi
         - CREATE DATABASE composer OWNER magi
         - CREATE DATABASE speech OWNER magi
+# backup:begin
+---
+# Base backup every day at 02:00 UTC. WAL is archived continuously to the
+# same object store, so a restore can stop at any point in time inside the
+# retention window. Bucket credentials live in Secret magi-db-backup, never here.
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: magi-db-daily
+  namespace: ${NAMESPACE}
+  labels: {app.kubernetes.io/part-of: magi}
+spec:
+  schedule: "0 0 2 * * *"
+  backupOwnerReference: self
+  immediate: true
+  cluster: {name: magi-db}
+# backup:end
