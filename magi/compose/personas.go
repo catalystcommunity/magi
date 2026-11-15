@@ -277,6 +277,9 @@ func (s *System) extraTool(ctx context.Context, a workflowapi.Assignment, as con
 		if (outcome == "merge") != (run.CurrentStep == "pr-wait") {
 			return fmt.Sprintf("error: at step %s the outcome %s is not possible (merge is for an open pull request, step pr-wait; approve, revise, and reject are for review)", run.CurrentStep, outcome), nil, true
 		}
+		if outcome == "approve" && run.Vars["base"] != "" {
+			return fmt.Sprintf("error: an eval run (base %s) ends at review; reject it after the grade", run.Vars["base"]), nil, true
+		}
 		switch outcome {
 		case "revise":
 			if strings.TrimSpace(args["comment"]) == "" {

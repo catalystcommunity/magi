@@ -1756,6 +1756,7 @@ class StartTaskRequest:
     repo: Optional[str] = None
     runner: Optional[str] = None
     model: Optional[str] = None
+    base: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -1771,12 +1772,14 @@ class StartTaskRequest:
             result['runner'] = self.runner
         if hasattr(self, 'model') and self.model is not None:
             result['model'] = self.model
+        if hasattr(self, 'base') and self.base is not None:
+            result['base'] = self.base
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'StartTaskRequest':
         """Create instance from dictionary."""
-        return cls(kind=data.get('kind'), instructions=data.get('instructions'), title=data.get('title'), repo=data.get('repo'), runner=data.get('runner'), model=data.get('model'))
+        return cls(kind=data.get('kind'), instructions=data.get('instructions'), title=data.get('title'), repo=data.get('repo'), runner=data.get('runner'), model=data.get('model'), base=data.get('base'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

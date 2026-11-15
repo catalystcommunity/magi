@@ -121,17 +121,28 @@ func (r *Runner) prepare(ctx context.Context, a magiapi.RunnerAssignment, st mag
 		return Result{}, err
 	}
 	branch := "task/" + a.Run
+	// A base starts the branch at an older commit of the default branch; the
+	// bundle of the default branch has its history, so the clone stays the
+	// same.
+	checkout := ""
+	if base := a.Vars["base"]; base != "" {
+		if !compose.IsCommit(base) {
+			return Result{}, fmt.Errorf("base %q is not a commit (7 to 40 hex characters)", base)
+		}
+		checkout = " " + base
+	}
 	res, err := r.exec(ctx, env, w, fmt.Sprintf(`set -e
 git clone -q -b %[1]s %[5]s/repo.bundle %[5]s/repo
 cd %[5]s/repo
 git config user.name %[3]s
 git config user.email %[4]s
-git checkout -q -b %[2]s
-git rev-parse HEAD`, repo.DefaultBranch, branch, shellQuote(r.Cfg.Author.Name), shellQuote(r.Cfg.Author.Email), shellQuote(w)), 120000)
+git checkout -q -b %[2]s%[6]s
+git rev-parse HEAD`, repo.DefaultBranch, branch, shellQuote(r.Cfg.Author.Name), shellQuote(r.Cfg.Author.Email), shellQuote(w), checkout), 120000)
 	if err != nil {
 		return Result{}, err
 	}
 	if res.ExitCode != 0 {
+		// A base that the bundle does not have fails here: git names it.
 		return Result{}, fmt.Errorf("clone failed: %s", tail(string(res.Stderr), 2000))
 	}
 	r.note(ctx, st, fmt.Sprintf("Environment %s is ready on runner %s, branch %s.", env, r.Cfg.Name, branch))
@@ -324,7 +335,14 @@ git rev-parse HEAD`, a.Vars["base_commit"], branch, shellQuote(w)), 120000)
 	out["patch"], out["patch.files"] = patch.Digest, string(files)
 	out["check_output"], out["check.attempts"] = "", "0"
 	r.note(ctx, st, "Checks passed. Waiting for review.")
-	r.report(ctx, st, "normal", "Ready for review", fmt.Sprintf("The checks passed. The change on %s is ready for your review: approve, revise with a comment, or reject.", branch))
+	review := fmt.Sprintf("The checks passed. The change on %s is ready for your review: approve, revise with a comment, or reject.", branch)
+	if base := a.Vars["base"]; base != "" {
+		// An eval run never merges: the grade of the eval decides, so the
+		// reviewer must not approve it.
+		review = fmt.Sprintf("The checks passed. This is an eval run (base %s): it ends at review and never merges. Reject it after the grade. The change on %s is ready for your review.", base, branch)
+		r.note(ctx, st, "Eval run (base "+base+"): it ends at review; approve is refused.")
+	}
+	r.report(ctx, st, "normal", "Ready for review", review)
 	return Result{Outcome: "pass", Outputs: out}, nil
 }
 

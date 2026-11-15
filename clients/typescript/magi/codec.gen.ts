@@ -1716,6 +1716,7 @@ export function fromTaskCbor(bytes: Uint8Array): Task {
 
 export function toStartTaskRequestCborValue(v: StartTaskRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
+  if (v.base !== undefined) csilMap.set("base", v.base);
   csilMap.set("kind", v.kind);
   if (v.repo !== undefined) csilMap.set("repo", v.repo);
   if (v.model !== undefined) csilMap.set("model", v.model);
@@ -1733,6 +1734,7 @@ export function fromStartTaskRequestCborValue(value: CborValue): StartTaskReques
     repo: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "repo")),
     runner: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "runner")),
     model: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "model")),
+    base: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "base")),
   };
 }
 

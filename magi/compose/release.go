@@ -104,6 +104,21 @@ mkdir -p %[1]s/out
 cd magi && GOWORK=off CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o %[1]s/out/app ./cmd/magi-server`, work)
 }
 
+// IsCommit reports whether s is a Git commit id: 7 to 40 hex characters,
+// the short and the full form. A runner checks a base again before it goes
+// into a shell script.
+func IsCommit(s string) bool {
+	if len(s) < 7 || len(s) > 40 {
+		return false
+	}
+	for _, c := range s {
+		if !strings.ContainsRune("0123456789abcdef", c) {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *System) findRelease(ctx context.Context, reason string) (releaseapi.Release, bool) {
 	res, err := s.Release.List(ctx, releaseapi.ListReleasesRequest{Limit: ptr(uint64(50))})
 	if err != nil {

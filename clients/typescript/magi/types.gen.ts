@@ -524,6 +524,12 @@ export interface StartTaskRequest {
    * can set it.
    */
   model?: string;
+  /**
+   * The commit of the default branch where the change starts (7 to 40
+   * hex characters): an eval run, which ends at review and never
+   * merges. Only an operator can set it.
+   */
+  base?: string;
 }
 
 export interface GetTaskRequest {

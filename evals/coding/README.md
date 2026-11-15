@@ -48,7 +48,7 @@ The candidate runs in the code-change workflow of Magi (a sandbox on a
 runner). Start the case with the model of the candidate:
 
 ```
-magi start -repo magi -title "<title of the case>" -model '{"name": "<candidate model>"}' "$(cat cases/<id>.md)"
+magi start -repo magi -title "<title of the case>" -base <base of the case> -model '{"name": "<candidate model>"}' "$(cat cases/<id>.md)"
 ```
 
 The `-model` flag needs an operator. The name is a model of the catalog
@@ -56,3 +56,13 @@ The `-model` flag needs an operator. The name is a model of the catalog
 apprentice to it. Without the flag, the task default of
 `step.code-change.work` selects the model. Do not run a candidate with
 `magi_apprentice run --local`: that mode has no isolation.
+
+The `-base` flag needs an operator too. It is the commit of the default
+branch where the change of the case started. A run with a base is an eval
+run: it starts at that commit, it ends at review, and it never merges or
+publishes. Magi refuses the decision approve on such a run. Grade the run,
+then close it:
+
+```
+magi decide RUN reject
+```

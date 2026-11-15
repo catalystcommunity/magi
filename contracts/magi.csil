@@ -327,6 +327,10 @@ StartTaskRequest = {
   ;;; "max_steps", "context_tokens", "temperature"}). Only an operator
   ;;; can set it.
   ? model: text,
+  ;;; The commit of the default branch where the change starts (7 to 40
+  ;;; hex characters): an eval run, which ends at review and never
+  ;;; merges. Only an operator can set it.
+  ? base: text,
 }
 GetTaskRequest = { id: text }
 ListTasksRequest = { ? status: text, ? limit: uint }

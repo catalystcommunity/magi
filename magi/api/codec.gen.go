@@ -4300,7 +4300,10 @@ func DecodeTask(csilData []byte) (Task, error) {
 
 // csilEncStartTaskRequest builds the canonical CBOR value tree for a StartTaskRequest.
 func csilEncStartTaskRequest(csilV StartTaskRequest) cborValue {
-	csilEntries := make(cborMap, 0, 6)
+	csilEntries := make(cborMap, 0, 7)
+	if csilV.Base != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("base"), cborText((*csilV.Base))})
+	}
 	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
 	if csilV.Repo != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("repo"), cborText((*csilV.Repo))})
@@ -4370,6 +4373,13 @@ func csilDecStartTaskRequest(csilRoot cborValue) (StartTaskRequest, error) {
 			return csilOut, csilErr
 		}
 		csilOut.Model = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "base"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Base = &csilVal
 	}
 	return csilOut, nil
 }

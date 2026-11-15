@@ -2036,6 +2036,9 @@ Task.from_cbor = staticmethod(_task_from_cbor)
 
 def _encode_start_task_request_value(v: "StartTaskRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
+    csil_x = v.base
+    if csil_x is not None:
+        csil_m["base"] = csil_x
     csil_m["kind"] = v.kind
     csil_x = v.repo
     if csil_x is not None:
@@ -2061,6 +2064,7 @@ def _decode_start_task_request_value(tree: Any) -> "StartTaskRequest":
         repo=(None if tree.get("repo") is None else _csil_expect_text(tree["repo"])),
         runner=(None if tree.get("runner") is None else _csil_expect_text(tree["runner"])),
         model=(None if tree.get("model") is None else _csil_expect_text(tree["model"])),
+        base=(None if tree.get("base") is None else _csil_expect_text(tree["base"])),
     )
 
 

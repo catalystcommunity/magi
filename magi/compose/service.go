@@ -55,7 +55,18 @@ func (m *Service) StartTask(ctx context.Context, req magiapi.StartTaskRequest) (
 			return magiapi.Task{}, err
 		}
 	}
-	run, err := m.S.startCodeChange(m.S.AsService(ctx), caller.Subject, origin{}, title, req.Instructions, deref(req.Repo), deref(req.Runner), model)
+	base := deref(req.Base)
+	if base != "" {
+		// A base makes an eval run, which starts at an older commit, so
+		// only an operator starts one.
+		if err := m.S.isOperator(ctx); err != nil {
+			return magiapi.Task{}, err
+		}
+		if !IsCommit(base) {
+			return magiapi.Task{}, rpc.Invalid("base must be a commit of the default branch (7 to 40 hex characters)")
+		}
+	}
+	run, err := m.S.startCodeChange(m.S.AsService(ctx), caller.Subject, origin{}, title, req.Instructions, deref(req.Repo), deref(req.Runner), model, base)
 	if err != nil {
 		return magiapi.Task{}, err
 	}
@@ -67,8 +78,10 @@ type origin struct{ stream, utterance, persona string }
 
 // startCodeChange starts a code-change run owned by owner. ctx must carry
 // the service token. The run reports to the stream of from. model is the
-// model var of the run: a JSON object for the apprentice, or empty.
-func (s *System) startCodeChange(ctx context.Context, owner string, from origin, title, instructions, repo, runner, model string) (workflowapi.Run, error) {
+// model var of the run: a JSON object for the apprentice, or empty. base is
+// the commit of the default branch where the change starts, or empty: with a
+// base the run is an eval run, which ends at review.
+func (s *System) startCodeChange(ctx context.Context, owner string, from origin, title, instructions, repo, runner, model, base string) (workflowapi.Run, error) {
 	if strings.TrimSpace(instructions) == "" {
 		return workflowapi.Run{}, rpc.Invalid("instructions are required")
 	}
@@ -89,6 +102,9 @@ func (s *System) startCodeChange(ctx context.Context, owner string, from origin,
 		"runner": runner, "publisher": publisher, "stream": from.stream, "utterance": from.utterance, "persona": from.persona}
 	if model != "" {
 		vars["model"] = model
+	}
+	if base != "" {
+		vars["base"] = base
 	}
 	if lessons != "" {
 		vars["lessons"] = lessons
@@ -161,6 +177,11 @@ func (m *Service) Decide(ctx context.Context, req magiapi.DecideRequest) (magiap
 	}
 	if run.Status != "waiting" {
 		return magiapi.Task{}, rpc.Conflict("the task is not waiting for a decision (status %s)", run.Status)
+	}
+	if req.Outcome == "approve" && run.Vars["base"] != "" {
+		// An eval run starts at an older commit; its change is graded, not
+		// merged, so it never reaches the upstream.
+		return magiapi.Task{}, rpc.Invalid("an eval run (base %s) ends at review; reject it after the grade", run.Vars["base"])
 	}
 	run, err = m.S.Workflow.Decide(uctx, workflowapi.DecideRequest{Run: run.Id, Step: run.CurrentStep, Outcome: req.Outcome, Comment: req.Comment})
 	if err != nil {
