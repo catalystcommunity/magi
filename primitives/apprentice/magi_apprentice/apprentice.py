@@ -38,6 +38,11 @@ CONTINUE = ("Continue with the task using the tools. When the task is complete, 
             "with a summary.")
 CUT_REPLY = ("Your last reply was cut at the output token limit. Write large files in parts: "
              "write_file with a first part, then edit_file or more write_file calls.")
+BUDGET_NOTE = ("Budget: {calls} of {max_calls} model calls are left (and {seconds} seconds of the "
+               "time limit). Finish the work that is necessary, run the check, and call finish "
+               "with a summary. Do not start new improvements.")
+LAST_CALL = ("The task stopped at a limit. Write the finish summary now: what changed, how it was "
+             "verified, and what is left undone. This reply is the summary; there are no tools.")
 
 
 @dataclass
@@ -76,7 +81,8 @@ def build_prompt(task: Task, limits: Limits) -> list[dict]:
     if task.project_instructions is not None:
         user.append(f"Project instructions (from {task.project_instructions_file or 'AGENTS.md'}):\n"
                     + task.project_instructions)
-    user += [f"Task instructions:\n{task.instructions.strip()}", f"Work directory: {task.workdir}"]
+    user += [f"Task instructions:\n{task.instructions.strip()}", f"Work directory: {task.workdir}",
+             f"Budget: {limits.max_steps} model calls, {limits.max_seconds} seconds."]
     if task.repository:
         user.append(f"Repository:\n{task.repository}")
     if task.check_command:
@@ -277,6 +283,10 @@ class Apprentice:
 
     def run(self, task: Task) -> Result:
         lim, tr = self.limits, self.transcript
+        # Each budget note goes in once per run, so the flags are reset here.
+        self._noted_eighty = False
+        self._noted_steps = False
+        self._noted_time = False
         tr.record("task", instructions=task.instructions, workdir=task.workdir,
                   check_command=task.check_command, limits=vars(lim))
         add_start_context(task, self.tools, tr)  # before the first model call
@@ -297,11 +307,14 @@ class Apprentice:
 
         while True:
             if res.steps >= lim.max_steps:
-                return done("step_limit", f"Stopped after {res.steps} model calls (step limit).")
+                summary = f"Stopped after {res.steps} model calls (step limit)."
+                return done("step_limit", self._last_call(ctx, res.steps, summary, usage))
             if self.clock() - start > lim.max_seconds:
-                return done("time_limit", f"Stopped after {lim.max_seconds} s (time limit).")
+                summary = f"Stopped after {lim.max_seconds} s (time limit)."
+                return done("time_limit", self._last_call(ctx, res.steps, summary, usage))
             if self.should_stop and (why := self.should_stop()):
                 return done("stopped", f"Stopped: {why}")
+            self._budget_note(ctx, res.steps, start)
             for note in (self.steering() if self.steering else []) or []:
                 ctx.messages.append({"role": "user", "content": f"Operator steering note: {note}"})
                 tr.record("steering", note=note)
@@ -367,6 +380,50 @@ class Apprentice:
                                      "content": content})
             if finished is not None:
                 return done("finished", finished.strip() or "(no summary)")
+
+    def _budget_note(self, ctx: Context, steps: int, start: float) -> None:
+        """Tell the model once at 80% of each limit, and again when 5 steps are
+        left, so that it ends with a summary instead of a hard stop. The two
+        step notes are independent: with a small step limit, 5 steps are left
+        before 80% are used."""
+        lim = self.limits
+        elapsed = self.clock() - start
+        left = lim.max_steps - steps
+        note = BUDGET_NOTE.format(calls=left, max_calls=lim.max_steps,
+                                  seconds=max(0, int(lim.max_seconds - elapsed)))
+        if steps and not self._noted_steps and left <= 5:
+            self._noted_steps = True
+            self._send_note(ctx, note)
+        if not self._noted_eighty and steps >= lim.max_steps * 0.8:
+            self._noted_eighty = True
+            self._send_note(ctx, note)
+        if not self._noted_time and elapsed >= lim.max_seconds * 0.8:
+            self._noted_time = True
+            self._send_note(ctx, note)
+
+    def _send_note(self, ctx: Context, text: str) -> None:
+        ctx.messages.append({"role": "user", "content": text})
+        self.transcript.record("budget_note", note=text)
+
+    def _last_call(self, ctx: Context, steps: int, summary: str, usage: dict) -> str:
+        """One model call without tools, so that a task stopped at a limit
+        still ends with a summary. The status stays step_limit or time_limit."""
+        ctx.messages.append({"role": "user", "content": LAST_CALL})
+        if ctx.tokens() > self.limits.context_tokens:
+            self.transcript.record("compaction", removed_chars=ctx.compact(),
+                                   est_tokens=ctx.tokens())
+        self.transcript.record("last_call", note=LAST_CALL)
+        try:
+            reply = self.model.complete(ctx.wire(), [])
+        except ModelError as e:
+            self.transcript.record("model_error", step=steps, error=str(e), last_call=True)
+            return summary
+        for k in usage:
+            usage[k] += int(reply.usage.get(k) or 0)
+        self.transcript.record("model_response", step=steps, content=reply.content,
+                               finish_reason=reply.finish_reason, tool_calls=[], usage=reply.usage,
+                               last_call=True)
+        return reply.content.strip() or summary
 
     def _complete(self, ctx: Context, msgs: list[dict]) -> Reply:
         chars = ctx.chars()

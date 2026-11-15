@@ -125,6 +125,101 @@ class LoopTest(unittest.TestCase):
         self.assertIn("401", r.error)
 
 
+class BudgetTest(unittest.TestCase):
+    """The budget notes and the last call at a limit."""
+
+    def notes(self, tr):
+        return [json.loads(l) for l in tr.records if json.loads(l)["kind"] == "budget_note"]
+
+    def test_two_step_notes_at_the_right_steps(self):
+        # With 10 steps, 5 are left after step 5 and 80% are used at step 8.
+        # Each note goes in once, before the next model call.
+        script = [reply(call("bash", command="true"))] * 10
+        a, model, _, tr = apprentice(script, limits=Limits(max_steps=10))
+        a.run(Task("t"))
+        notes = self.notes(tr)
+        self.assertEqual(len(notes), 2)
+        self.assertIn("Budget: 5 of 10 model calls are left", notes[0]["note"])
+        self.assertIn("Budget: 2 of 10 model calls are left", notes[1]["note"])
+        # the first note is in the request of step 6, the second in step 9
+        self.assertIn("Budget: 5 of 10", model.requests[5][-1]["content"])
+        self.assertIn("Budget: 2 of 10", model.requests[8][-1]["content"])
+        self.assertNotIn("model calls are left", model.requests[4][-1]["content"])
+
+    def test_two_runs_each_get_the_step_note(self):
+        # The note flags are state of one run, not of the object.
+        a, model, _, tr = apprentice([reply(call("bash", command="true"))] * 20,
+                                     limits=Limits(max_steps=10))
+        for _ in range(2):
+            a.run(Task("t"))
+        self.assertEqual(len(self.notes(tr)), 4)
+        # the first run has 10 steps and one last call, so the second starts at 12
+        self.assertIn("Budget: 5 of 10", model.requests[5][-1]["content"])
+        self.assertIn("Budget: 5 of 10", model.requests[16][-1]["content"])
+
+    def test_time_note_uses_the_apprentice_clock(self):
+        # Clock values: the start, then the limit check and the note check of
+        # each loop turn. The fifth value puts the task at 80% of 1000 s, so
+        # the note goes in before the second model call.
+        t = iter([0, 0, 0, 0, 800, 800, 800])
+        a, model, _, tr = apprentice([reply(call("bash", command="true")),
+                                      reply(call("finish", summary="s"))],
+                                     limits=Limits(max_seconds=1000), clock=lambda: next(t))
+        a.run(Task("t"))
+        notes = self.notes(tr)
+        self.assertEqual(len(notes), 1)
+        self.assertIn("Budget: 59 of 60 model calls are left (and 200 seconds", notes[0]["note"])
+        self.assertIn("Budget: 59 of 60", model.requests[1][-1]["content"])
+        self.assertNotIn("model calls are left", model.requests[0][-1]["content"])
+
+    def test_last_call_at_the_step_limit(self):
+        script = [reply(call("bash", command="true"))] * 3 + [reply(content="I changed a.py.")]
+        a, model, _, tr = apprentice(script, limits=Limits(max_steps=3))
+        r = a.run(Task("t"))
+        self.assertEqual((r.status, r.summary, r.steps), ("step_limit", "I changed a.py.", 3))
+        # the last call has no tools and asks for the summary
+        self.assertEqual(model.requests[-1][-1]["role"], "user")
+        self.assertIn("finish summary", model.requests[-1][-1]["content"])
+        self.assertIn("last_call", kinds(tr))
+        self.assertEqual(kinds(tr)[-1], "result")
+        # the last call is not a step, but its tokens are counted
+        self.assertEqual(r.usage["prompt_tokens"], 400)
+        self.assertEqual(len(model.requests), 4)
+
+    def test_failed_last_call_keeps_the_summary(self):
+        class Broken(FakeModel):
+            def complete(self, messages, tools):
+                if not tools:
+                    raise ModelError("HTTP 500: down")
+                return super().complete(messages, tools)
+        model = Broken([reply(call("bash", command="true"))] * 3)
+        lim = Limits(max_steps=3)
+        a = Apprentice(model, Tools(Workspace(MemExecution(), "env", "/w", lim)), lim,
+                       Transcript(Redactor()))
+        r = a.run(Task("t"))
+        self.assertEqual(r.status, "step_limit")
+        self.assertEqual(r.summary, "Stopped after 3 model calls (step limit).")
+
+    def test_no_notes_in_a_short_task(self):
+        a, model, _, tr = apprentice([reply(call("write_file", path="x", content="1")),
+                                      reply(call("finish", summary="s"))])
+        r = a.run(Task("t"))
+        self.assertEqual(r.status, "finished")
+        self.assertEqual(self.notes(tr), [])
+        # the budget line in the first message is not a note
+        self.assertIn("Budget: 60 model calls, 1800 seconds.", model.requests[0][1]["content"])
+        self.assertNotIn("model calls are left", model.requests[0][1]["content"])
+        self.assertNotIn("last_call", kinds(tr))
+
+    def test_budget_line_in_the_first_message(self):
+        a, model, _, _ = apprentice([reply(call("finish", summary="s"))],
+                                    limits=Limits(max_steps=12, max_seconds=345))
+        a.run(Task("t"))
+        user = model.requests[0][1]["content"]
+        self.assertIn("Budget: 12 model calls, 345 seconds.", user)
+        self.assertLess(user.index("Work directory:"), user.index("Budget: 12 model calls"))
+
+
 class RedactionTest(unittest.TestCase):
     def test_secrets_never_reach_transcript_or_context(self):
         os.environ["MAGI_FAKE_TOKEN"] = "env-token-abcdef"
