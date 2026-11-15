@@ -42,6 +42,9 @@ The harness reads the files and runs the command through the ExecutionService,
 in the same way as the tools. It does not read the files of the host that the
 harness runs on.
 
+After the work directory line, the first user message states the budget. See
+the section "Limits and budget".
+
 The system prompt says that the project instructions are the rules of the
 repository owner, and that the agent must follow them, unless the task
 instructions say otherwise.
@@ -75,6 +78,30 @@ finishes with `apprentice.check_passed` = `false`.
 - Before each model call, the harness calls a steering hook. The hook returns
   operator notes. The default hook returns no notes, because the workflow
   service cannot send messages to a worker yet.
+
+## Limits and budget
+
+The first user message states the budget. It gives the number of model calls
+and the time limit.
+
+The harness sends a budget note as a user message before a model call. It sends
+a note at these points:
+
+- 80% of the model calls are used.
+- 5 model calls are left.
+- 80% of the time limit is used.
+
+Each note goes in once. The note says how many model calls and how many seconds
+are left. It tells the model to finish the necessary work, run the check, and
+call `finish` with a summary. It also tells the model not to start new
+improvements. The transcript records each note as `budget_note`.
+
+When a limit stops the loop and the model did not call `finish`, the harness
+makes one more model call. This call has no tools. The message asks for the
+finish summary: what changed, how it was verified, and what is left undone. The
+reply becomes `apprentice.summary`. The status stays `step_limit` or
+`time_limit`. When that call fails, the harness keeps the summary text that
+says that the task stopped at the limit.
 
 ## Worker mode
 
