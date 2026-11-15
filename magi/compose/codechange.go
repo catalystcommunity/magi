@@ -164,13 +164,23 @@ func (s *System) prepare(ctx context.Context, a workflowapi.Assignment, note fun
 		return Result{}, fmt.Errorf("write bundle: %w", err)
 	}
 	branch := "task/" + a.Run
+	// A base starts the branch at an older commit of the default branch; the
+	// bundle of the default branch has its history, so the clone stays the
+	// same.
+	checkout := ""
+	if base := a.Vars["base"]; base != "" {
+		if !IsCommit(base) {
+			return Result{}, fmt.Errorf("base %q is not a commit (7 to 40 hex characters)", base)
+		}
+		checkout = " " + base
+	}
 	script := fmt.Sprintf(`set -e
 git clone -q -b %[1]s /work/repo.bundle /work/repo
 cd /work/repo
 git config user.name Magi
 git config user.email magi@example.local
-git checkout -q -b %[2]s
-git rev-parse HEAD`, repo.DefaultBranch, branch)
+git checkout -q -b %[2]s%[3]s
+git rev-parse HEAD`, repo.DefaultBranch, branch, checkout)
 	r, err := s.exec(ctx, envr.Id, "/work", script, 120000)
 	if err != nil {
 		return Result{}, err
@@ -256,7 +266,14 @@ git rev-parse HEAD`, msg, a.Vars["base_commit"], branch)
 	out["check_output"] = ""
 	out["check.attempts"] = "0"
 	note("Checks passed. Waiting for review.")
-	s.report(ctx, a, "normal", "Ready for review", fmt.Sprintf("The checks passed. The change on %s is ready for your review. Tell me to approve, revise with a comment, or reject, or decide in the Tasks view.", branch))
+	review := fmt.Sprintf("The checks passed. The change on %s is ready for your review. Tell me to approve, revise with a comment, or reject, or decide in the Tasks view.", branch)
+	if base := a.Vars["base"]; base != "" {
+		// An eval run never merges: the grade of the eval decides, so the
+		// reviewer must not approve it.
+		review = fmt.Sprintf("The checks passed. This is an eval run (base %s): it ends at review and never merges. Reject it after the grade. The change on %s is ready for your review.", base, branch)
+		note("Eval run (base " + base + "): it ends at review; approve is refused.")
+	}
+	s.report(ctx, a, "normal", "Ready for review", review)
 	return Result{Outcome: "pass", Outputs: out}, nil
 }
 
