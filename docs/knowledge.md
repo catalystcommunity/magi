@@ -231,6 +231,27 @@ When the note taker gives the same fact about the person and about another
 subject in one message ("Dana's birthday is March 3"), Magi keeps only the
 other subject. Words such as "both" or "we" keep both.
 
+## Review lessons
+
+A review lesson is what a code review taught: a rule that the next change
+must obey. The lessons live in the repository, in
+`magi/compose/baseknowledge/review-lessons.md`. The repository is the source
+of truth. Each lesson has an id (`rl-` and four digits), a title, an area, a
+source (the run id of the review and its date), and one to four sentences.
+
+When `magi-server` starts, it copies the lessons into the knowledge graph of
+that installation (`ImportBaseKnowledge`): one entity of kind `lesson` for
+each lesson, with the title as the label, the text as the summary, the id,
+the area, and the source as properties, and an external reference to the
+file. The `magi` service owns the entities. A lesson that changed in the
+file gets a `fix`; a lesson that the file no longer has gets a `retract`.
+Production gets the same lessons from the same release. The knowledge graph
+is a copy that Magi can search; it is not the authority.
+
+A reviewer adds a lesson at the end of the file: the next free id, a title,
+the area, the source, and the lesson in short sentences. A test parses the
+embedded file, so a bad header or a duplicate id fails `tools/check.sh`.
+
 ## Investigations
 
 A question that needs data from many systems, calculations, or answers of
