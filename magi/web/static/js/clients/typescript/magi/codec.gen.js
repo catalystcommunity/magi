@@ -526,6 +526,8 @@ export function toSayRequestCborValue(v) {
         csilMap.set("text", v.text);
     if (v.audio !== undefined)
         csilMap.set("audio", v.audio);
+    if (v.model !== undefined)
+        csilMap.set("model", toModelSelectorCborValue(v.model));
     if (v.voice !== undefined)
         csilMap.set("voice", v.voice);
     if (v.persona !== undefined)
@@ -547,6 +549,7 @@ export function fromSayRequestCborValue(value) {
         speakReply: ((csilV) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "speak_reply")),
         voice: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "voice")),
         wakeWord: ((csilV) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "wake_word")),
+        model: ((csilV) => csilV === undefined ? undefined : fromModelSelectorCborValue(csilV))(mapGet(value, "model")),
     };
 }
 export function toSayRequestCbor(v) {
@@ -554,6 +557,47 @@ export function toSayRequestCbor(v) {
 }
 export function fromSayRequestCbor(bytes) {
     return fromSayRequestCborValue(decode(bytes));
+}
+export function toModelSelectorCborValue(v) {
+    const csilMap = new Map();
+    if (v.all !== undefined)
+        csilMap.set("all", v.all);
+    if (v.any !== undefined)
+        csilMap.set("any", v.any);
+    if (v.name !== undefined)
+        csilMap.set("name", v.name);
+    if (v.none !== undefined)
+        csilMap.set("none", v.none);
+    if (v.rankBy !== undefined)
+        csilMap.set("rank_by", v.rankBy);
+    if (v.onlyName !== undefined)
+        csilMap.set("only_name", v.onlyName);
+    if (v.attributes !== undefined)
+        csilMap.set("attributes", new Map(Object.entries(v.attributes).map(([csilK, csilV]) => [csilK, csilV])));
+    if (v.maxInputCost !== undefined)
+        csilMap.set("max_input_cost", v.maxInputCost);
+    if (v.maxOutputCost !== undefined)
+        csilMap.set("max_output_cost", v.maxOutputCost);
+    return csilMap;
+}
+export function fromModelSelectorCborValue(value) {
+    return {
+        name: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "name")),
+        all: ((csilV) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "all")),
+        any: ((csilV) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "any")),
+        none: ((csilV) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "none")),
+        attributes: ((csilV) => csilV === undefined ? undefined : Object.fromEntries(Array.from(asMap(csilV), ([csilK, csilV]) => [asString(csilK), asString(csilV)])))(mapGet(value, "attributes")),
+        maxInputCost: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "max_input_cost")),
+        maxOutputCost: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "max_output_cost")),
+        rankBy: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "rank_by")),
+        onlyName: ((csilV) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "only_name")),
+    };
+}
+export function toModelSelectorCbor(v) {
+    return encodeValue(toModelSelectorCborValue(v));
+}
+export function fromModelSelectorCbor(bytes) {
+    return fromModelSelectorCborValue(decode(bytes));
 }
 export function toSayResponseCborValue(v) {
     const csilMap = new Map();
@@ -1528,9 +1572,13 @@ export function fromTaskCbor(bytes) {
 }
 export function toStartTaskRequestCborValue(v) {
     const csilMap = new Map();
+    if (v.base !== undefined)
+        csilMap.set("base", v.base);
     csilMap.set("kind", v.kind);
     if (v.repo !== undefined)
         csilMap.set("repo", v.repo);
+    if (v.model !== undefined)
+        csilMap.set("model", v.model);
     if (v.title !== undefined)
         csilMap.set("title", v.title);
     if (v.runner !== undefined)
@@ -1545,6 +1593,8 @@ export function fromStartTaskRequestCborValue(value) {
         title: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "title")),
         repo: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "repo")),
         runner: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "runner")),
+        model: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "model")),
+        base: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "base")),
     };
 }
 export function toStartTaskRequestCbor(v) {
@@ -2480,6 +2530,38 @@ export function toListRunnersResponseCbor(v) {
 export function fromListRunnersResponseCbor(bytes) {
     return fromListRunnersResponseCborValue(decode(bytes));
 }
+export function toGetAccessRequestCborValue(v) {
+    const csilMap = new Map();
+    return csilMap;
+}
+export function fromGetAccessRequestCborValue(value) {
+    void value;
+    return {};
+}
+export function toGetAccessRequestCbor(v) {
+    return encodeValue(toGetAccessRequestCborValue(v));
+}
+export function fromGetAccessRequestCbor(bytes) {
+    return fromGetAccessRequestCborValue(decode(bytes));
+}
+export function toAccessCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("subject", v.subject);
+    csilMap.set("operator", v.operator);
+    return csilMap;
+}
+export function fromAccessCborValue(value) {
+    return {
+        subject: asString(requireKey(value, "subject")),
+        operator: asBool(requireKey(value, "operator")),
+    };
+}
+export function toAccessCbor(v) {
+    return encodeValue(toAccessCborValue(v));
+}
+export function fromAccessCbor(bytes) {
+    return fromAccessCborValue(decode(bytes));
+}
 export function toPutRunnerPackageRequestCborValue(v) {
     const csilMap = new Map();
     csilMap.set("os", v.os);
@@ -3115,6 +3197,106 @@ export function toListPagesResponseCbor(v) {
 }
 export function fromListPagesResponseCbor(bytes) {
     return fromListPagesResponseCborValue(decode(bytes));
+}
+export function toDecisionQuestionCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("id", v.id);
+    if (v.max !== undefined)
+        csilMap.set("max", v.max);
+    csilMap.set("type", v.type);
+    if (v.scale !== undefined)
+        csilMap.set("scale", new Map(Object.entries(v.scale).map(([csilK, csilV]) => [csilK, csilV])));
+    if (v.choices !== undefined)
+        csilMap.set("choices", v.choices);
+    csilMap.set("question", v.question);
+    return csilMap;
+}
+export function fromDecisionQuestionCborValue(value) {
+    return {
+        id: asString(requireKey(value, "id")),
+        type: asString(requireKey(value, "type")),
+        question: asString(requireKey(value, "question")),
+        choices: ((csilV) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "choices")),
+        max: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "max")),
+        scale: ((csilV) => csilV === undefined ? undefined : Object.fromEntries(Array.from(asMap(csilV), ([csilK, csilV]) => [asString(csilK), asString(csilV)])))(mapGet(value, "scale")),
+    };
+}
+export function toDecisionQuestionCbor(v) {
+    return encodeValue(toDecisionQuestionCborValue(v));
+}
+export function fromDecisionQuestionCbor(bytes) {
+    return fromDecisionQuestionCborValue(decode(bytes));
+}
+export function toDecisionRequestCborValue(v) {
+    const csilMap = new Map();
+    if (v.task !== undefined)
+        csilMap.set("task", v.task);
+    if (v.model !== undefined)
+        csilMap.set("model", toModelSelectorCborValue(v.model));
+    csilMap.set("state", v.state);
+    csilMap.set("questions", v.questions.map((csilE) => toDecisionQuestionCborValue(csilE)));
+    return csilMap;
+}
+export function fromDecisionRequestCborValue(value) {
+    return {
+        state: asString(requireKey(value, "state")),
+        questions: asArray(requireKey(value, "questions")).map((csilE) => fromDecisionQuestionCborValue(csilE)),
+        task: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "task")),
+        model: ((csilV) => csilV === undefined ? undefined : fromModelSelectorCborValue(csilV))(mapGet(value, "model")),
+    };
+}
+export function toDecisionRequestCbor(v) {
+    return encodeValue(toDecisionRequestCborValue(v));
+}
+export function fromDecisionRequestCbor(bytes) {
+    return fromDecisionRequestCborValue(decode(bytes));
+}
+export function toDecisionAnswerCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("id", v.id);
+    csilMap.set("probs", v.probs);
+    csilMap.set("answer", v.answer);
+    if (v.expected !== undefined)
+        csilMap.set("expected", v.expected);
+    csilMap.set("calibrated", v.calibrated);
+    csilMap.set("confidence", v.confidence);
+    return csilMap;
+}
+export function fromDecisionAnswerCborValue(value) {
+    return {
+        id: asString(requireKey(value, "id")),
+        probs: asArray(requireKey(value, "probs")).map((csilE) => asNumber(csilE)),
+        answer: asString(requireKey(value, "answer")),
+        confidence: asNumber(requireKey(value, "confidence")),
+        expected: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "expected")),
+        calibrated: asBool(requireKey(value, "calibrated")),
+    };
+}
+export function toDecisionAnswerCbor(v) {
+    return encodeValue(toDecisionAnswerCborValue(v));
+}
+export function fromDecisionAnswerCbor(bytes) {
+    return fromDecisionAnswerCborValue(decode(bytes));
+}
+export function toDecisionResponseCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("ms", v.ms);
+    csilMap.set("model", v.model);
+    csilMap.set("answers", v.answers.map((csilE) => toDecisionAnswerCborValue(csilE)));
+    return csilMap;
+}
+export function fromDecisionResponseCborValue(value) {
+    return {
+        answers: asArray(requireKey(value, "answers")).map((csilE) => fromDecisionAnswerCborValue(csilE)),
+        model: asString(requireKey(value, "model")),
+        ms: asNumber(requireKey(value, "ms")),
+    };
+}
+export function toDecisionResponseCbor(v) {
+    return encodeValue(toDecisionResponseCborValue(v));
+}
+export function fromDecisionResponseCbor(bytes) {
+    return fromDecisionResponseCborValue(decode(bytes));
 }
 export function toRunnerClaimRequestCborValue(v) {
     const csilMap = new Map();

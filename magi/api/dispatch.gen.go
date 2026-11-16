@@ -585,6 +585,17 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			}
 			return EncodeListRunnersResponse(resp), nil
 		},
+		"get-access": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeGetAccessRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.GetAccess(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeAccess(resp), nil
+		},
 		"put-runner-package": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodePutRunnerPackageRequest(b)
 			if err != nil {

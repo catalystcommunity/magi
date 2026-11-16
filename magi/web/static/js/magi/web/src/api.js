@@ -53,9 +53,12 @@ export const magi = new MagiAsyncClient(transport);
 export const identity = new IdentityAsyncClient(transport);
 export const [me, setMe] = createSignal(null);
 export function signOut() { setToken(null); setMe(null); }
+// operator: the caller can make operator calls (get-access). Clients use it
+// only to show or hide links; the server checks each call again.
+export const [operator, setOperator] = createSignal(false);
 function parse() {
     const [v, ...rest] = location.hash.replace(/^#\/?/, "").split("/");
-    const views = ["talk", "questions", "network", "tasks", "task", "knowledge", "words", "page", "terminal"];
+    const views = ["talk", "questions", "network", "tasks", "task", "knowledge", "words", "page", "terminal", "admin"];
     return { view: views.includes(v) ? v : "talk", arg: decodeURIComponent(rest.join("/")) };
 }
 export const [route, setRoute] = createSignal(parse());

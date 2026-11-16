@@ -2,13 +2,14 @@
 import { createSignal } from "solid-js";
 import { For, Show, Switch, Match, aria } from "./flow.ts";
 import { render } from "solid-js/web";
-import { identity, me, setMe, hasToken, setToken, signOut, route, go, notice, questionCount, networkCount, refreshCounts, errText, personaName, type View } from "./api.ts";
+import { identity, magi, me, setMe, hasToken, setToken, signOut, route, go, notice, questionCount, networkCount, refreshCounts, errText, personaName, operator, setOperator, type View } from "./api.ts";
 import { Conversation, PersonaList, PersonaOrb, startConversation } from "./conversation.tsx";
 import { Questions, Network } from "./review.tsx";
 import { Tasks, TaskView } from "./tasks.tsx";
 import { PageView } from "./page.tsx";
 import { TerminalView } from "./terminal.tsx";
 import { Knowledge, Words } from "./knowledge.tsx";
+import { Admin } from "./admin.tsx";
 import { tray, dismiss, startAttention, askForNotifications } from "./attention.ts";
 import type { Notice } from "../../../clients/typescript/magi/types.gen.ts";
 
@@ -81,6 +82,7 @@ async function start() {
     const w = await identity.whoAmI({});
     setMe({ subject: w.subject, name: w.name ?? w.subject.replace(/^user:/, "") });
   } catch { setMe(null); return setPhase("signin"); }
+  try { setOperator((await magi.getAccess({})).operator); } catch { setOperator(false); }
   setPhase("app");
   startConversation();
   startAttention();
@@ -113,6 +115,7 @@ const tabs: Tab[] = [
   { view: "tasks", label: "Tasks" },
   { view: "knowledge", label: "Knowledge" },
   { view: "words", label: "Words" },
+  { view: "admin", label: "Admin" },
 ];
 
 function Shell() {
@@ -121,8 +124,9 @@ function Shell() {
     <header class="top">
       <a class="brand" href="#/talk" aria-label="Magi, talk"><PersonaOrb /><span class="wordmark">Magi</span></a>
       <nav class="tabs" aria-label="Sections">
-        <For each={tabs.filter((t) => t.view !== "network")}>{(t: Tab) => <TabLink t={t} active={active} />}</For>
+        <For each={tabs.filter((t) => t.view !== "network" && t.view !== "admin")}>{(t: Tab) => <TabLink t={t} active={active} />}</For>
         <Show when={() => networkCount() !== null}><TabLink t={tabs[2]} active={active} /></Show>
+        <Show when={operator}><TabLink t={tabs[6]} active={active} /></Show>
       </nav>
       <div class="me">
         <span class="me-name" title={() => me()?.subject ?? ""}>{() => me()?.name}</span>
@@ -141,6 +145,7 @@ function Shell() {
           <Match when={() => route().view === "words"}><Words /></Match>
           <Match when={() => route().view === "page"}>{() => <PageView id={route().arg} />}</Match>
           <Match when={() => route().view === "terminal"}>{() => <TerminalView id={route().arg} />}</Match>
+          <Match when={() => route().view === "admin"}><Admin /></Match>
         </Switch>
         {/* The conversation stays mounted, so its long poll and scroll position stay. */}
         <div class="talk-wrap" hidden={() => route().view !== "talk"}><Conversation /></div>

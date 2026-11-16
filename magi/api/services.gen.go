@@ -55,6 +55,7 @@ type MagiService interface {
 	DeleteLexiconWord(ctx context.Context, req DeleteLexiconWordRequest) (DeleteLexiconWordResponse, error)
 	Speak(ctx context.Context, req SpeakRequest) (SpeakResponse, error)
 	ListRunners(ctx context.Context, req ListRunnersRequest) (ListRunnersResponse, error)
+	GetAccess(ctx context.Context, req GetAccessRequest) (Access, error)
 	PutRunnerPackage(ctx context.Context, req PutRunnerPackageRequest) (PutRunnerPackageResponse, error)
 	SetRunnerRelease(ctx context.Context, req SetRunnerReleaseRequest) (SetRunnerReleaseResponse, error)
 	PutAppRelease(ctx context.Context, req PutAppReleaseRequest) (AppRelease, error)

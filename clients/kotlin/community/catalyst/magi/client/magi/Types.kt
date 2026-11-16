@@ -894,6 +894,15 @@ data class ListRunnersResponse(
     val release: String? = null
 )
 
+/** GetAccessRequest record. */
+class GetAccessRequest
+
+/** Access record. */
+data class Access(
+    val subject: String,
+    val operator: Boolean
+)
+
 /** PutRunnerPackageRequest record. */
 data class PutRunnerPackageRequest(
     val version: String,
