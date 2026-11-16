@@ -711,17 +711,20 @@ class OpenStreamRequest:
 @dataclass
 class ListStreamsRequest:
     person: Optional[str] = None
+    all: Optional[bool] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'person') and self.person is not None:
             result['person'] = self.person
+        if hasattr(self, 'all') and self.all is not None:
+            result['all'] = self.all
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListStreamsRequest':
         """Create instance from dictionary."""
-        return cls(person=data.get('person'))
+        return cls(person=data.get('person'), all=data.get('all'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

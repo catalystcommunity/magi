@@ -14,7 +14,7 @@ Contract: `contracts/conversation.csil`. Service: `ConversationService`.
 | Operation | Function |
 | --- | --- |
 | `put-persona`, `get-persona`, `list-personas` | Personas with their sharing setting (`never`, `private`, `public`) and audience (`members`). `put-persona` needs `conversation:admin`. |
-| `open-stream`, `get-stream`, `list-streams` | The stream of a person and a persona. `open-stream` makes it when it is not there. |
+| `open-stream`, `get-stream`, `list-streams` | The stream of a person and a persona. `open-stream` makes it when it is not there. With `all`, `list-streams` returns the streams of all people, newest first. `all` needs `conversation:act-as` or `conversation:admin`, and it is exclusive with `person`. |
 | `post` | Adds an utterance to a stream, with links. `seq` increases by one in each stream. A new utterance is private and not classified. |
 | `list-utterances` | Utterances of a stream after `after_seq` (oldest first), or the newest before `before_seq`, with their current links. With `wait_ms`, the call waits for new utterances (maximum 30 s). |
 | `get-utterance`, `get-utterances` | Utterances by id. |

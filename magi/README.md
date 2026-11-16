@@ -211,10 +211,10 @@ client shows the lexicon in the Words tab.
 
 ## Admin views
 
-Operators see the Admin tab. The run views (the four ops in the table) check
-the role of the caller for that view, and Magi logs each call with the caller
-subject. The role of each run view is `admin.tasks` today; a later task reads
-the roles from the database. The runner list (`list-runners`) needs no role:
+Operators see the Admin tab. The run and chat views (the ops in the table)
+check the role of the caller for that view, and Magi logs each call with the
+caller subject. The role of each view is fixed today; a later task reads the
+roles from the database. The runner list (`list-runners`) needs no role:
 any signed-in person can read it.
 
 | Op | Returns | Role |
@@ -223,11 +223,23 @@ any signed-in person can read it.
 | `admin-get-run` | One run: summary, run data, steps | `admin.tasks` |
 | `admin-get-run-output` | One output of a run (check output, transcript) | `admin.tasks` |
 | `admin-get-run-diff` | The patch and the file list of a run | `admin.tasks` |
+| `admin-list-chats` | The chats of all people, newest first | `admin.chats` |
+| `admin-read-chat` | One chat: summary and the newest messages | `admin.chats` |
+| `admin-turn-log` | The turn log (the model calls) of a persona reply | `admin.chats` |
 
 Magi reads the records with its service token (`workflow:act-as`). The runs
 come newest first. The limit is 50 by default and 500 at most. There is no
 filter on the owner: the workflow service does not offer one. Magi cuts each
 value of the run data at 4096 bytes and adds a mark that says that it is cut.
+
+The chat views read the conversation service with the service token of Magi
+(`conversation:act-as`). `admin-list-chats` filters by `person` or `persona`.
+`admin-read-chat` returns the newest messages of one chat. With `before_seq`,
+it returns the messages before that seq (for scrolling back). The limit is 50
+by default and 200 at most. `admin-turn-log` takes the id of the message of a
+person. It returns the interpretation annotation of that message. The
+annotation holds the log of the model calls of the persona reply. Admins read
+private messages too; Magi logs each read.
 
 ## Egress
 

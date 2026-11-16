@@ -640,6 +640,39 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			}
 			return EncodeTaskDiff(resp), nil
 		},
+		"admin-list-chats": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeAdminListChatsRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.AdminListChats(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeAdminListChatsResponse(resp), nil
+		},
+		"admin-read-chat": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeAdminReadChatRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.AdminReadChat(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeAdminReadChatResponse(resp), nil
+		},
+		"admin-turn-log": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeAdminTurnLogRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.AdminTurnLog(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeAdminTurnLogResponse(resp), nil
+		},
 		"put-runner-package": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodePutRunnerPackageRequest(b)
 			if err != nil {
