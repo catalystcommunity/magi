@@ -466,6 +466,42 @@ func (c *MagiClient) GetAccess(ctx context.Context, req GetAccessRequest) (Acces
 	return DecodeAccess(csilResp)
 }
 
+func (c *MagiClient) AdminListRuns(ctx context.Context, req AdminListRunsRequest) (AdminListRunsResponse, error) {
+	var csilZero AdminListRunsResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "admin-list-runs", EncodeAdminListRunsRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeAdminListRunsResponse(csilResp)
+}
+
+func (c *MagiClient) AdminGetRun(ctx context.Context, req AdminGetRunRequest) (AdminRun, error) {
+	var csilZero AdminRun
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "admin-get-run", EncodeAdminGetRunRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeAdminRun(csilResp)
+}
+
+func (c *MagiClient) AdminGetRunOutput(ctx context.Context, req AdminGetRunOutputRequest) (TaskOutput, error) {
+	var csilZero TaskOutput
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "admin-get-run-output", EncodeAdminGetRunOutputRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeTaskOutput(csilResp)
+}
+
+func (c *MagiClient) AdminGetRunDiff(ctx context.Context, req AdminGetRunRequest) (TaskDiff, error) {
+	var csilZero TaskDiff
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "admin-get-run-diff", EncodeAdminGetRunRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeTaskDiff(csilResp)
+}
+
 func (c *MagiClient) PutRunnerPackage(ctx context.Context, req PutRunnerPackageRequest) (PutRunnerPackageResponse, error) {
 	var csilZero PutRunnerPackageResponse
 	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "put-runner-package", EncodePutRunnerPackageRequest(req))

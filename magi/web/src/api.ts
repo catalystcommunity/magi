@@ -48,10 +48,10 @@ export const [operator, setOperator] = createSignal(false);
 
 // --- Views ----------------------------------------------------------------
 // The view is in the URL hash, so the back button and links work.
-export type View = "talk" | "questions" | "network" | "tasks" | "task" | "knowledge" | "words" | "page" | "terminal" | "admin";
+export type View = "talk" | "questions" | "network" | "tasks" | "task" | "knowledge" | "words" | "page" | "terminal" | "admin" | "admin-runs" | "admin-run";
 function parse(): { view: View; arg: string } {
   const [v, ...rest] = location.hash.replace(/^#\/?/, "").split("/");
-  const views: View[] = ["talk", "questions", "network", "tasks", "task", "knowledge", "words", "page", "terminal", "admin"];
+  const views: View[] = ["talk", "questions", "network", "tasks", "task", "knowledge", "words", "page", "terminal", "admin", "admin-runs", "admin-run"];
   return { view: views.includes(v as View) ? (v as View) : "talk", arg: decodeURIComponent(rest.join("/")) };
 }
 export const [route, setRoute] = createSignal(parse());

@@ -513,6 +513,32 @@ ListRunnersResponse = { runners: [* RunnerInfo], ? release: text }
 GetAccessRequest = { }
 Access = { subject: text, operator: bool }
 
+;;; Admin calls: the admin views. Magi reads the records of all people with
+;;; its service token, after it checks the role of the caller for that view.
+;;; Magi logs each call with the caller subject.
+AdminRunSummary = {
+  id: text,
+  definition: text,
+  owner: text,
+  status: text,
+  current_step: text,
+  ? title: text,
+  ? error: text,
+  created_ms: uint,
+  updated_ms: uint,
+}
+;;; definition: "code-change", "persona-turn", "todo", or empty (all).
+;;; status: "running", "waiting", "succeeded", "failed", "cancelled", or
+;;; empty. Newest first. limit: default 50, at most 500.
+AdminListRunsRequest = { ? definition: text, ? status: text, ? limit: uint }
+AdminListRunsResponse = { runs: [* AdminRunSummary] }
+;;; vars are the run data (instructions, outputs, artifact digests). Magi
+;;; cuts each value at 4096 bytes and adds a mark that says that it is cut.
+AdminRun = { summary: AdminRunSummary, vars: { * text => text }, steps: [* TaskStep] }
+AdminGetRunRequest = { id: text }
+;;; name: "check.output" or "apprentice.transcript" (see get-task-output).
+AdminGetRunOutputRequest = { id: text, name: text }
+
 ;;; Operator calls (scope "magi:operate", or a subject in MAGI_ADMINS).
 ;;; A runner package is a gzip tar file with magi-runner and apprentice/.
 ;;; set-runner-release tells runners to update to version; each runner
@@ -705,6 +731,10 @@ service MagiService {
   speak: SpeakRequest -> SpeakResponse,
   list-runners: ListRunnersRequest -> ListRunnersResponse,
   get-access: GetAccessRequest -> Access,
+  admin-list-runs: AdminListRunsRequest -> AdminListRunsResponse,
+  admin-get-run: AdminGetRunRequest -> AdminRun,
+  admin-get-run-output: AdminGetRunOutputRequest -> TaskOutput,
+  admin-get-run-diff: AdminGetRunRequest -> TaskDiff,
   put-runner-package: PutRunnerPackageRequest -> PutRunnerPackageResponse,
   set-runner-release: SetRunnerReleaseRequest -> SetRunnerReleaseResponse,
   put-app-release: PutAppReleaseRequest -> AppRelease,

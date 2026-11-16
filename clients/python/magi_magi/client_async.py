@@ -219,6 +219,22 @@ class MagiAsyncClient:
         """get-access"""
         return Access.from_cbor(await self._transport.call("MagiService", "get-access", req.to_cbor()))
 
+    async def admin_list_runs(self, req: AdminListRunsRequest) -> AdminListRunsResponse:
+        """admin-list-runs"""
+        return AdminListRunsResponse.from_cbor(await self._transport.call("MagiService", "admin-list-runs", req.to_cbor()))
+
+    async def admin_get_run(self, req: AdminGetRunRequest) -> AdminRun:
+        """admin-get-run"""
+        return AdminRun.from_cbor(await self._transport.call("MagiService", "admin-get-run", req.to_cbor()))
+
+    async def admin_get_run_output(self, req: AdminGetRunOutputRequest) -> TaskOutput:
+        """admin-get-run-output"""
+        return TaskOutput.from_cbor(await self._transport.call("MagiService", "admin-get-run-output", req.to_cbor()))
+
+    async def admin_get_run_diff(self, req: AdminGetRunRequest) -> TaskDiff:
+        """admin-get-run-diff"""
+        return TaskDiff.from_cbor(await self._transport.call("MagiService", "admin-get-run-diff", req.to_cbor()))
+
     async def put_runner_package(self, req: PutRunnerPackageRequest) -> PutRunnerPackageResponse:
         """put-runner-package"""
         return PutRunnerPackageResponse.from_cbor(await self._transport.call("MagiService", "put-runner-package", req.to_cbor()))

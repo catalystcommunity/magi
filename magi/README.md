@@ -211,7 +211,23 @@ client shows the lexicon in the Words tab.
 
 ## Admin views
 
-Operators see the Admin tab. Each admin call checks isOperator on the server.
+Operators see the Admin tab. The run views (the four ops in the table) check
+the role of the caller for that view, and Magi logs each call with the caller
+subject. The role of each run view is `admin.tasks` today; a later task reads
+the roles from the database. The runner list (`list-runners`) needs no role:
+any signed-in person can read it.
+
+| Op | Returns | Role |
+| --- | --- | --- |
+| `admin-list-runs` | The runs of all people, newest first | `admin.tasks` |
+| `admin-get-run` | One run: summary, run data, steps | `admin.tasks` |
+| `admin-get-run-output` | One output of a run (check output, transcript) | `admin.tasks` |
+| `admin-get-run-diff` | The patch and the file list of a run | `admin.tasks` |
+
+Magi reads the records with its service token (`workflow:act-as`). The runs
+come newest first. The limit is 50 by default and 500 at most. There is no
+filter on the owner: the workflow service does not offer one. Magi cuts each
+value of the run data at 4096 bytes and adds a mark that says that it is cut.
 
 ## Egress
 

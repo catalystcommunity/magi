@@ -903,6 +903,52 @@ data class Access(
     val operator: Boolean
 )
 
+/** AdminRunSummary record. */
+data class AdminRunSummary(
+    val id: String,
+    val definition: String,
+    val owner: String,
+    val status: String,
+    // wire key: current_step
+    val currentStep: String,
+    val title: String? = null,
+    val error: String? = null,
+    // wire key: created_ms
+    val createdMs: ULong,
+    // wire key: updated_ms
+    val updatedMs: ULong
+)
+
+/** AdminListRunsRequest record. */
+data class AdminListRunsRequest(
+    val definition: String? = null,
+    val status: String? = null,
+    val limit: ULong? = null
+)
+
+/** AdminListRunsResponse record. */
+data class AdminListRunsResponse(
+    val runs: List<AdminRunSummary>
+)
+
+/** AdminRun record. */
+data class AdminRun(
+    val summary: AdminRunSummary,
+    val vars: Map<String, String>,
+    val steps: List<TaskStep>
+)
+
+/** AdminGetRunRequest record. */
+data class AdminGetRunRequest(
+    val id: String
+)
+
+/** AdminGetRunOutputRequest record. */
+data class AdminGetRunOutputRequest(
+    val id: String,
+    val name: String
+)
+
 /** PutRunnerPackageRequest record. */
 data class PutRunnerPackageRequest(
     val version: String,
