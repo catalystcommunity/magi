@@ -133,17 +133,14 @@ func procNames(pid int, d string) bool {
 
 // removeVMSockets removes the socket files that an earlier launch left.
 // A virtiofsd that still runs holds fs.sock, and a hypervisor that still
-// runs holds vsock.sock.
+// runs holds vsock.sock. A vsock.sock_<port> file is not left by a launch:
+// the host listens on it for guest connections (the egress proxy, see
+// ListenProxy), and the runner opens it before a resume. Its removal would
+// leave the listener on a deleted path, and the guest would lose its route
+// out.
 func (s *Sandboxes) removeVMSockets(id string) {
-	vd := s.vmDir(id)
-	entries, err := os.ReadDir(vd)
-	if err != nil {
-		return
-	}
-	for _, e := range entries {
-		if e.Name() == "fs.sock" || e.Name() == "vsock.sock" || strings.HasPrefix(e.Name(), "vsock.sock_") {
-			os.Remove(filepath.Join(vd, e.Name()))
-		}
+	for _, f := range []string{"fs.sock", "vsock.sock"} {
+		os.Remove(filepath.Join(s.vmDir(id), f))
 	}
 }
 
@@ -157,9 +154,6 @@ func (s *Sandboxes) prepareVM(id string, env map[string]string) error {
 	}
 	s.stopVMProcesses(id)
 	s.removeVMSockets(id)
-	for _, f := range []string{"fs.sock", "vsock.sock"} {
-		os.Remove(filepath.Join(vd, f))
-	}
 	if err := s.writeView(id); err != nil {
 		return err
 	}

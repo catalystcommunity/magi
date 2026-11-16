@@ -1,6 +1,7 @@
 package sandbox
 
 import (
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -86,11 +87,17 @@ func TestVMStaleProcesses(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Socket files that an earlier launch left.
-	for _, f := range []string{"fs.sock", "vsock.sock", "vsock.sock_3128"} {
+	for _, f := range []string{"fs.sock", "vsock.sock"} {
 		if err := os.WriteFile(filepath.Join(d, "vm", f), nil, 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
+	// The egress proxy listener that the runner opens before a resume.
+	proxy, err := net.Listen("unix", filepath.Join(d, "vm", "vsock.sock_3128"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer proxy.Close()
 	s.stopVMProcesses(id)
 	s.removeVMSockets(id)
 	stopped(t, fsdGone)
@@ -100,11 +107,18 @@ func TestVMStaleProcesses(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(d, "vm", "fs.sock.pid")); err == nil {
 		t.Fatal("the pid file of the old virtiofsd is still there")
 	}
-	for _, f := range []string{"fs.sock", "vsock.sock", "vsock.sock_3128"} {
+	for _, f := range []string{"fs.sock", "vsock.sock"} {
 		if _, err := os.Stat(filepath.Join(d, "vm", f)); err == nil {
 			t.Fatalf("the stale socket %s is still there", f)
 		}
 	}
+	// vsock.sock_3128 is the egress proxy listener of the host, which the
+	// runner opens before a resume; without it the guest has no route out.
+	c, err := net.Dial("unix", filepath.Join(d, "vm", "vsock.sock_3128"))
+	if err != nil {
+		t.Fatalf("the launch removed the proxy listener socket: %v", err)
+	}
+	c.Close()
 }
 
 // A pid file that names no process of this environment stops nothing: the
