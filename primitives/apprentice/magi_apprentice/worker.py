@@ -10,6 +10,7 @@ from typing import Any, Callable
 from ._clients import RpcError, workflow as wf
 from .apprentice import Steering, Task
 from .config import Limits, ModelConfig
+from .guards import outcome_of, round_comment
 from .model import Model
 from .runner import apply_model_override, run_task
 
@@ -129,7 +130,7 @@ class Worker:
         task = Task(instructions=instructions, workdir=v.get("workdir") or "/work/repo",
                     check_command=v.get("check_command") or self.check_command or None,
                     check_output=v.get("check_output") or None, title=v.get("title") or None,
-                    review_comment=v.get("review.comment") or None, lessons=v.get("lessons") or None)
+                    review_comment=round_comment(v), lessons=v.get("lessons") or None)
         with Heartbeat(self.wf, a, self.lease_ms) as hb:
             self._progress(a, f"apprentice started (attempt {a.attempt}, model {model_cfg.name})")
             out = run_task(
@@ -153,9 +154,14 @@ class Worker:
                 outputs["apprentice.transcript_error"] = out.upload_error[:500]
             self._progress(a, f"apprentice {r.status} after {r.steps} steps, {r.tool_calls} tool calls: "
                               f"{r.summary}", ref=out.transcript_digest)
-        if r.status == "error":
+        outcome = outcome_of(r.status)
+        # Each round sets it, so that a later round does not see an old value.
+        outputs["apprentice.blocked"] = "true" if outcome == "blocked" else ""
+        if r.error:
+            outputs["apprentice.error"] = r.error[:2000]
+        if outcome == "fail":
             self._complete(a, "fail", outputs, r.error or r.summary)
-        elif r.status == "stopped":  # worker shutdown: let another worker retry
+        elif outcome == "retry":
             self._complete(a, "retry", outputs, r.summary)
         else:
-            self._complete(a, "done", outputs)
+            self._complete(a, outcome, outputs)

@@ -43,7 +43,34 @@ def busy_reason(code: int, body: str) -> str | None:
 
 
 class ModelError(Exception):
-    pass
+    """A model call that failed. kind says what the caller can do:
+    "budget" (the account has no money or quota left: a retry cannot work),
+    "unavailable" (the endpoint did not answer in the retries: try later),
+    or "error" (anything else)."""
+
+    def __init__(self, message: str, kind: str = "error"):
+        super().__init__(message)
+        self.kind = kind
+
+
+# Answers that say the account is out of money or quota. A provider sends
+# them as 402 or as 429; a 429 for a short rate limit does not match.
+BUDGET_TYPES = {"BudgetLimitError", "insufficient_quota", "insufficient_balance", "billing_hard_limit_reached"}
+
+
+def budget_error(code: int, body: str) -> bool:
+    """Whether an error answer says that the money or the quota is used up."""
+    if code == 402:
+        return True
+    if code != 429:
+        return False
+    try:
+        err = json.loads(body).get("error") or {}
+    except (ValueError, AttributeError):
+        return False
+    if not isinstance(err, dict):
+        return False
+    return err.get("type") in BUDGET_TYPES or err.get("code") in BUDGET_TYPES
 
 
 # Thinking models send their reasoning next to the content. Providers do not
@@ -247,6 +274,8 @@ class ChatModel:
             except urllib.error.HTTPError as e:
                 detail = e.read()[:500].decode("utf-8", "replace")
                 last = f"HTTP {e.code}: {detail}"
+                if budget_error(e.code, detail):
+                    raise ModelError(last, kind="budget") from None
                 if e.code not in RETRY_STATUS:
                     raise ModelError(last) from None
                 ra = e.headers.get("Retry-After") if e.headers else None
@@ -259,7 +288,8 @@ class ChatModel:
                             if ra and ra.isdigit() and float(ra) > 0 else BUSY_WAIT_DEFAULT_S)
                     if waited + wait > self.cfg.busy_wait_s:
                         raise ModelError(f"the inference host was busy for {int(waited)} s "
-                                         f"(the limit is {int(self.cfg.busy_wait_s)} s): {last}") from None
+                                         f"(the limit is {int(self.cfg.busy_wait_s)} s): {last}",
+                                         kind="unavailable") from None
                     waited += wait
                     if self.on_wait:
                         self.on_wait(wait, reason)
@@ -274,7 +304,8 @@ class ChatModel:
             except CallTimeout as e:
                 last = str(e)
             if attempt >= self.cfg.max_retries:
-                raise ModelError(f"model request failed after {self.cfg.max_retries + 1} attempts: {last}")
+                raise ModelError(f"model request failed after {self.cfg.max_retries + 1} attempts: {last}",
+                                 kind="unavailable")
             attempt += 1
             self._sleep(delay)
 

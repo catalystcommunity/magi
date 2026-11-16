@@ -12,6 +12,7 @@ import time
 from ._clients import artifacts as art, execution as ex, token_source, transport, workflow as wf
 from .apprentice import Task
 from .config import Limits, ModelConfig, ServiceConfig
+from .guards import outcome_of
 from .local import LocalExecution
 from .runner import apply_model_override, run_task
 from .worker import DEFAULT_CHECK, Worker
@@ -74,7 +75,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                    on_progress=lambda n: logging.info("progress: %s", n),
                    transcript_path=args.transcript, extra_secrets=(token_source(sc.token_file)(),))
     r = out.result
-    print(json.dumps({"status": r.status, "summary": r.summary, "steps": r.steps,
+    print(json.dumps({"status": r.status, "outcome": outcome_of(r.status), "summary": r.summary, "steps": r.steps,
                       "tool_calls": r.tool_calls, "check_passed": r.check_passed, "error": r.error,
                       "transcript": out.transcript_digest or args.transcript,
                       "upload_error": out.upload_error, "usage": r.usage,

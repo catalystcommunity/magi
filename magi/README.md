@@ -68,7 +68,15 @@ prepare -> work (apprentice) -> check --pass--> review (human) --approve--> merg
   and makes branch `task/<run>`.
 - `work` is done by the apprentice (queue `apprentice`).
 - `check` runs `./tools/check.sh`. On success it commits and moves the branch
-  out as a bundle (`push-bundle`). Three failures stop the task.
+  out as a bundle (`push-bundle`). Three failures stop the task. A failure
+  with an environment error in the output (for example `Connection reset by
+  peer`) goes to `blocked`, and does not count as a failure.
+- `blocked` waits for `decide` from the run owner when the apprentice stopped
+  without a result (a guard stop, a model endpoint that is down, or no money
+  or quota left at the provider), or when the environment broke the check.
+  `resume` starts another work round with the comment, `check` runs the
+  checks on the work as it is, and `reject` ends the task. The work stays in
+  the environment.
 - `review` waits for `decide` from the run owner. A message is not a
   decision.
 - `release` builds `magi-server` in the environment, pushes an image, and

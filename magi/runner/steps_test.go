@@ -64,6 +64,13 @@ func workStep(t *testing.T, result string) (map[string]string, []string) {
 // the apprentice got.
 func workStepVars(t *testing.T, result string, vars map[string]string) (map[string]string, []string, string) {
 	t.Helper()
+	res, notes, args := workStepResult(t, result, vars)
+	return res.Outputs, notes, args
+}
+
+// workStepResult runs the work step and gives the whole result.
+func workStepResult(t *testing.T, result string, vars map[string]string) (Result, []string, string) {
+	t.Helper()
 	python, path := fakeApprentice(t, result)
 	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
 	iss := &authn.Issuer{Name: "test", KeyID: "k1", Key: priv}
@@ -93,7 +100,42 @@ func workStepVars(t *testing.T, result string, vars map[string]string) (map[stri
 	if err != nil {
 		t.Fatal(err)
 	}
-	return res.Outputs, fake.notes, string(b)
+	return res, fake.notes, string(b)
+}
+
+// A guard stop or a gone endpoint is the outcome "blocked", not a failed
+// step: the work stays, and a person decides. The error goes to the outputs.
+func TestWorkStepBlocked(t *testing.T) {
+	res, notes, _ := workStepResult(t, `{"status": "blocked_provider", "outcome": "blocked", "summary": "The model call failed.",
+		"steps": 1, "tool_calls": 0, "error": "HTTP 429: BudgetLimitError"}`, nil)
+	if res.Outcome != "blocked" || res.Outputs["apprentice.blocked"] != "true" ||
+		res.Outputs["apprentice.error"] != "HTTP 429: BudgetLimitError" || res.Outputs["apprentice.status"] != "blocked_provider" {
+		t.Fatalf("result = %+v", res)
+	}
+	if !hasNote(notes, "apprentice blocked_provider after 1 steps, 0 tool calls: The model call failed.") {
+		t.Errorf("notes = %q", notes)
+	}
+	// A done round clears the flag of an earlier blocked round.
+	res, _, _ = workStepResult(t, `{"status": "finished", "outcome": "done", "summary": "done", "steps": 2, "tool_calls": 2}`,
+		map[string]string{"apprentice.blocked": "true"})
+	if v, ok := res.Outputs["apprentice.blocked"]; res.Outcome != "done" || !ok || v != "" {
+		t.Fatalf("result = %+v", res)
+	}
+}
+
+// After a blocked round the apprentice gets the comment of the "blocked"
+// decision; after a review, the review comment.
+func TestWorkStepRoundComment(t *testing.T) {
+	vars := map[string]string{"review.comment": "fix the test", "blocked.comment": "use the cache", "apprentice.blocked": "true"}
+	_, _, args := workStepResult(t, `{"status": "finished", "outcome": "done", "summary": "ok", "steps": 1, "tool_calls": 1}`, vars)
+	if !strings.Contains(args, "--review-comment\nuse the cache") {
+		t.Errorf("arguments after a blocked round = %q", args)
+	}
+	vars = map[string]string{"review.comment": "fix the test", "blocked.comment": "use the cache", "apprentice.blocked": ""}
+	_, _, args = workStepResult(t, `{"status": "finished", "outcome": "done", "summary": "ok", "steps": 1, "tool_calls": 1}`, vars)
+	if !strings.Contains(args, "--review-comment\nfix the test") {
+		t.Errorf("arguments after a review = %q", args)
+	}
 }
 
 // The work step turns the usage of the apprentice into outputs and a note
@@ -143,5 +185,20 @@ func TestWorkStepPassesLessons(t *testing.T) {
 	_, _, args = workStepVars(t, `{"status": "finished", "summary": "done", "steps": 1, "tool_calls": 1}`, nil)
 	if strings.Contains(args, "--lessons") {
 		t.Errorf("arguments = %q: --lessons without a value", args)
+	}
+}
+
+// The check step sends a failure to the blocked step only when the output
+// names an environment error.
+func TestEnvironmentLine(t *testing.T) {
+	for _, c := range []struct{ output, want string }{
+		{"== rust primitives/egress\nerror: failed to get `serde` as a dependency\n  download of config.json failed\n  Connection reset by peer (os error 104)\nFAIL: rust",
+			"download of config.json failed"},
+		{"== go\n--- FAIL: TestX (0.01s)\n    x_test.go:9: got 2, want 3\nFAIL", ""},
+		{"write /work/repo/x: no space left on device", "write /work/repo/x: no space left on device"},
+	} {
+		if got := environmentLine(c.output); got != c.want {
+			t.Errorf("environmentLine(%q) = %q, want %q", c.output, got, c.want)
+		}
 	}
 }

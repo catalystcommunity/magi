@@ -19,6 +19,12 @@ OK_REPLY = {"choices": [{"finish_reason": "tool_calls", "message": {"role": "ass
     {"id": "x1", "type": "function", "function": {"name": "finish", "arguments": "{\"summary\": \"done\"}"}}]}}]}
 
 
+def distinct_calls(n: int) -> list:
+    """n replies with a different bash command each, so that the repeat
+    guard does not end the run."""
+    return [reply(call("bash", command=f"true {i}")) for i in range(n)]
+
+
 def apprentice(script, files=None, limits=None, **kw):
     lim = limits or Limits()
     m = MemExecution(files)
@@ -351,7 +357,7 @@ class BudgetTest(unittest.TestCase):
     def test_two_step_notes_at_the_right_steps(self):
         # With 10 steps, 5 are left after step 5 and 80% are used at step 8.
         # Each note goes in once, before the next model call.
-        script = [reply(call("bash", command="true"))] * 10
+        script = distinct_calls(10)
         a, model, _, tr = apprentice(script, limits=Limits(max_steps=10))
         a.run(Task("t"))
         notes = self.notes(tr)
@@ -365,7 +371,7 @@ class BudgetTest(unittest.TestCase):
 
     def test_two_runs_each_get_the_step_note(self):
         # The note flags are state of one run, not of the object.
-        a, model, _, tr = apprentice([reply(call("bash", command="true"))] * 20,
+        a, model, _, tr = apprentice(distinct_calls(20),
                                      limits=Limits(max_steps=10))
         for _ in range(2):
             a.run(Task("t"))
@@ -534,7 +540,7 @@ class SelfReviewTest(unittest.TestCase):
 
     def test_no_review_when_few_calls_are_left(self):
         # 5 calls are left after step 55 of 60, so the review is skipped.
-        script = [reply(call("bash", command="true"))] * 55 + [reply(call("finish", summary="done"))]
+        script = distinct_calls(55) + [reply(call("finish", summary="done"))]
         e = diff_exec()
         model = FakeModel(script)
         lim = Limits(max_steps=60)
@@ -548,8 +554,7 @@ class SelfReviewTest(unittest.TestCase):
         # The clock gives 80% of 1000 s at the finish, so the review is skipped.
         t = iter([0] * 56 + [800] * 100)
         e = diff_exec()
-        model = FakeModel([reply(call("bash", command="true"))] * 55
-                          + [reply(call("finish", summary="done"))])
+        model = FakeModel(distinct_calls(55) + [reply(call("finish", summary="done"))])
         lim = Limits(max_steps=60, max_seconds=1000)
         tr = Transcript(Redactor())
         r = Apprentice(model, Tools(Workspace(e, "env", "/w", lim)), lim, tr,

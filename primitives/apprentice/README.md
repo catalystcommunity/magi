@@ -121,7 +121,33 @@ to the model. After a thinking cut, the harness compacts the context when the
 estimate is above 60% of `MAGI_APPRENTICE_CONTEXT_TOKENS`, because a long
 context makes long thinking more likely. Three replies in a row without a tool
 call still end the task as `stalled`. The summary then says that the replies
-were cut while the model was thinking, and how many times.
+were cut while the model was thinking, and how many times. Six thinking cuts
+in one run also end the task as `stalled`, also when tool calls come between
+them.
+
+## Run guards
+
+Rules in code (`guards.py`) stop a run that goes wrong. They do not call a
+model. Each rule first sends a note to the model, and then ends the run when
+the model does not change its approach. The transcript records each rule as
+`guard`.
+
+| Rule | Note | End |
+| --- | --- | --- |
+| The same tool call with the same result, in the last 10 calls | at 3 | at 5, status `loop` |
+| The same error lines from different commands (numbers and `/tmp` paths removed) | at 3 | at 5, status `loop` |
+| No `edit_file` or `write_file` | after 40 steps (25 in a round with a review comment) | after 120 steps (75), status `no_progress` |
+| An environment error in a failed tool result (for example `Connection reset by peer`, `no space left on device`) | once for each kind: do not fix the environment, report it | none |
+
+The end of a run by a rule makes one more model call without tools, for the
+summary, as at a limit.
+
+## Model errors
+
+A model error has a kind. A 402, or a 429 whose error type says that the money
+or the quota is used up (for example `BudgetLimitError`), ends the call at
+once with no retry: status `blocked_provider`. A call that fails after all its
+retries is `model_unavailable`. Other errors are `error`.
 
 ## Self-review
 
@@ -178,14 +204,20 @@ Assignment vars:
 | `model` | A model name, or JSON with `name`, `temperature`, `max_tokens`, `max_steps`. The base URL and the key cannot change through vars. |
 
 Outputs: `apprentice.summary`, `apprentice.transcript` (artifact digest), `apprentice.steps`,
-`apprentice.status`, `apprentice.tool_calls`, and `apprentice.check_passed` (when a check
-ran).
+`apprentice.status`, `apprentice.tool_calls`, `apprentice.check_passed` (when a check
+ran), and `apprentice.blocked` (`true` after a blocked round, empty after the others). After
+a blocked round, the next round gets `blocked.comment` (the comment of the person's
+decision) in place of `review.comment`.
 
 Outcomes:
 
 - `done`: the apprentice finished, or it stopped at a step or time limit
   (`apprentice.status` tells which). The workflow checks are the independent
   judgment.
+- `blocked`: status `loop`, `no_progress`, `stalled`, `blocked_provider`, or
+  `model_unavailable`. The work stays in the environment, and a person
+  decides (step `blocked` of the code-change workflow). `apprentice.error` has
+  the error of the model call.
 - `fail`: an error that the apprentice cannot recover from, for example a model
   that does not answer. `error` has the cause.
 - `retry`: the worker got SIGTERM during the task.

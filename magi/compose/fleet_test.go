@@ -1,11 +1,14 @@
 package compose
 
 import (
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	magiapi "github.com/catalystcommunity/magi/magi/api"
+	workflowapi "github.com/catalystcommunity/magi/primitives/workflow/api"
 )
 
 func TestChooseRunners(t *testing.T) {
@@ -53,5 +56,25 @@ func TestCodeChangeQueues(t *testing.T) {
 		if q, ok := want[st.Id]; ok && deref(st.Queue) != q {
 			t.Errorf("%s queue = %s, want %s", st.Id, deref(st.Queue), q)
 		}
+	}
+}
+
+// A blocked work round waits for a person, and each decision leads on: a
+// check failure there would start another work round on its own.
+func TestCodeChangeBlockedStep(t *testing.T) {
+	d := codeChangeDefinition(true)
+	steps := map[string]workflowapi.Step{}
+	for _, st := range d.Steps {
+		steps[st.Id] = st
+	}
+	if got := steps["work"].Next["blocked"]; got != "blocked" {
+		t.Fatalf("work blocked -> %q", got)
+	}
+	b := steps["blocked"]
+	if b.Kind != "human" || !slices.Equal(b.Outcomes, []string{"resume", "check", "reject"}) {
+		t.Fatalf("blocked step = %+v", b)
+	}
+	if !maps.Equal(b.Next, map[string]string{"resume": "work", "check": "check", "reject": "cleanup"}) {
+		t.Fatalf("blocked next = %v", b.Next)
 	}
 }

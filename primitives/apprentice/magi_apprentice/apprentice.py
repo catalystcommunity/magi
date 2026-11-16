@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 from .config import Limits
+from .guards import Guards
 from .model import Model, ModelError, Reply
 from .tools import TOOL_SPECS, Tools, as_text, format_exec, truncate
 from .transcript import Transcript
@@ -94,7 +95,9 @@ class Task:
 
 @dataclass
 class Result:
-    status: str  # finished, stalled, step_limit, time_limit, stopped, error
+    # finished, stalled, step_limit, time_limit, stopped, loop, no_progress,
+    # blocked_provider (no money or quota left), model_unavailable, error
+    status: str
     summary: str
     steps: int = 0
     tool_calls: int = 0
@@ -395,6 +398,7 @@ class Apprentice:
         idle = 0
         thinking_cuts = 0
         check_fails = 0
+        guards = Guards(revise=bool(task.review_comment))
         sent = 0  # messages already recorded
 
         def done(status: str, summary: str, error: str | None = None) -> Result:
@@ -413,6 +417,11 @@ class Apprentice:
             if self.should_stop and (why := self.should_stop()):
                 return done("stopped", f"Stopped: {why}")
             self._budget_note(ctx, res.steps, start)
+            if (g := guards.step()) is not None:
+                tr.record("guard", rule=g.reason, note=g.note, stop=g.stop)
+                if g.stop:
+                    return done(g.stop, self._last_call(ctx, res.steps, f"Stopped: {g.reason}.", usage))
+                ctx.messages.append({"role": "user", "content": g.note})
             for note in (self.steering() if self.steering else []) or []:
                 ctx.messages.append({"role": "user", "content": f"Operator steering note: {note}"})
                 tr.record("steering", note=note)
@@ -429,8 +438,12 @@ class Apprentice:
             try:
                 reply = self._complete(ctx, msgs)
             except ModelError as e:
-                tr.record("model_error", step=res.steps, error=str(e))
-                return done("error", "The model call failed.", str(e))
+                tr.record("model_error", step=res.steps, error=str(e), error_kind=e.kind)
+                # Each kind has its own status, so that the workflow can wait
+                # (an endpoint that is down) or ask a person (no money left)
+                # instead of failing the task and losing its work.
+                status = {"budget": "blocked_provider", "unavailable": "model_unavailable"}.get(e.kind, "error")
+                return done(status, "The model call failed.", str(e))
             sent = len(ctx.messages)
             add_usage(usage, reply)
             tr.record("model_response", step=res.steps, duration_ms=int((time.monotonic() - t0) * 1000),
@@ -447,6 +460,9 @@ class Apprentice:
                 if thinking_cut:
                     thinking_cuts += 1
                     tr.record("thinking_cut", step=res.steps, reasoning_chars=len(reply.reasoning))
+                    if (g := guards.thinking_cut()) is not None:
+                        tr.record("guard", rule=g.reason, note=None, stop=g.stop)
+                        return done(g.stop, self._stall_summary(reply, guards.thinking_cuts))
                 if idle >= 3:
                     return done("stalled", self._stall_summary(reply, thinking_cuts))
                 if thinking_cut:
@@ -469,6 +485,8 @@ class Apprentice:
             idle, thinking_cuts = 0, 0
 
             finished: str | None = None
+            notes: list[str] = []  # guard notes, after the tool results of this reply
+            stop = None
             for call in reply.tool_calls:
                 if finished is not None:
                     content, ok = "skipped: finish was called", False
@@ -491,6 +509,11 @@ class Apprentice:
                     tr.record("tool_result", id=call.id, name=call.name, ok=ok,
                               duration_ms=int((time.monotonic() - t1) * 1000), content=content)
                     res.tool_calls += 1
+                    if not r.finished and (g := guards.tool(call.name, call.arguments, content, ok)) is not None:
+                        tr.record("guard", rule=g.reason, note=g.note, stop=g.stop)
+                        if g.note:
+                            notes.append(g.note)
+                        stop = stop or g
                     recent.append(_describe(call.name, call.arguments, ok))
                     if self.on_progress and res.tool_calls % lim.progress_every == 0:
                         self.on_progress(f"step {res.steps}, {res.tool_calls} tool calls: "
@@ -499,6 +522,10 @@ class Apprentice:
                                      "content": content})
             if finished is not None:
                 return done("finished", finished.strip() or "(no summary)")
+            if stop is not None and stop.stop:
+                return done(stop.stop, self._last_call(ctx, res.steps, f"Stopped: {stop.reason}.", usage))
+            for note in notes:
+                ctx.messages.append({"role": "user", "content": note})
 
     def _stall_summary(self, reply: Reply, thinking_cuts: int) -> str:
         """The summary of a stalled run. Three replies without a tool call end

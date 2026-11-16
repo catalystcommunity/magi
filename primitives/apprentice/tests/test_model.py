@@ -274,3 +274,41 @@ class ModelTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BudgetErrorTest(unittest.TestCase):
+    """An answer that says the money or the quota is used up ends the call at
+    once: retries cannot help, and each one fails a queued task."""
+
+    BUDGET = json.dumps({"type": "error", "error": {"type": "BudgetLimitError",
+                                                    "message": "Spend limit exhausted."},
+                         "metadata": {"resetsAt": "2026-12-01T00:00:00.000Z"}}).encode()
+
+    def test_a_budget_429_is_not_retried(self):
+        op = Opener([http_error(429, {"Retry-After": "2"}, self.BUDGET), OK])
+        m, slept = model(op)
+        with self.assertRaises(ModelError) as cm:
+            m.complete([{"role": "user", "content": "hi"}], [])
+        self.assertEqual(cm.exception.kind, "budget")
+        self.assertIn("Spend limit exhausted", str(cm.exception))
+        self.assertEqual((len(op.requests), slept), (1, []))
+
+    def test_a_402_is_a_budget_error(self):
+        op = Opener([http_error(402, None, b'{"error":{"message":"Insufficient balance"}}')])
+        m, _ = model(op)
+        with self.assertRaises(ModelError) as cm:
+            m.complete([{"role": "user", "content": "hi"}], [])
+        self.assertEqual((cm.exception.kind, len(op.requests)), ("budget", 1))
+
+    def test_a_rate_limit_429_is_still_retried(self):
+        op = Opener([http_error(429, {"Retry-After": "2"}, b'{"error":{"type":"rate_limit_exceeded"}}'), OK])
+        m, slept = model(op)
+        m.complete([{"role": "user", "content": "hi"}], [])
+        self.assertEqual((len(op.requests), slept), (2, [2.0]))
+
+    def test_used_up_retries_are_an_unavailable_endpoint(self):
+        op = Opener([http_error(524)] * 3)
+        m, _ = model(op, max_retries=2)
+        with self.assertRaises(ModelError) as cm:
+            m.complete([{"role": "user", "content": "hi"}], [])
+        self.assertEqual((cm.exception.kind, len(op.requests)), ("unavailable", 3))

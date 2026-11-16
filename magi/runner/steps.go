@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -169,7 +170,7 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 	args := []string{"-m", "magi_apprentice", "run", "--environment", a.Vars["environment"], "--workdir", a.Vars["workdir"],
 		"--instructions", "@" + instr, "--transcript", transcript, "--no-upload"}
 	for flag, v := range map[string]string{"--check-command": a.Vars["check_command"], "--check-output": a.Vars["check_output"],
-		"--title": a.Vars["title"], "--review-comment": a.Vars["review.comment"], "--lessons": a.Vars["lessons"], "--model": a.Vars["model"]} {
+		"--title": a.Vars["title"], "--review-comment": roundComment(a.Vars), "--lessons": a.Vars["lessons"], "--model": a.Vars["model"]} {
 		if v != "" {
 			args = append(args, flag, v)
 		}
@@ -220,7 +221,10 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 	}
 	waitErr := cmd.Wait()
 	var out struct {
-		Status      string `json:"status"`
+		Status string `json:"status"`
+		// Outcome is the workflow outcome of the status (guards.outcome_of in
+		// the apprentice): done, blocked, fail, or retry.
+		Outcome     string `json:"outcome"`
 		Summary     string `json:"summary"`
 		Steps       int    `json:"steps"`
 		ToolCalls   int    `json:"tool_calls"`
@@ -256,10 +260,53 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 	}
 	r.note(ctx, st, fmt.Sprintf("apprentice %s after %d steps, %d tool calls%s: %s",
 		out.Status, out.Steps, out.ToolCalls, cost, out.Summary))
-	if out.Status == "error" {
-		return Result{}, fmt.Errorf("apprentice error: %s", firstNonEmpty(out.Error, out.Summary))
+	// Each round sets it, so that a later round does not see an old value.
+	outputs["apprentice.blocked"] = ""
+	switch out.Outcome {
+	case "fail", "":
+		if out.Status == "error" || out.Outcome == "fail" {
+			return Result{}, fmt.Errorf("apprentice error: %s", firstNonEmpty(out.Error, out.Summary))
+		}
+	case "blocked":
+		// The endpoint or the money is gone, or a guard stopped a run that
+		// went wrong. The work stays in the environment, and a person
+		// decides: resume, check what is there, or reject.
+		outputs["apprentice.blocked"] = "true"
+		if out.Error != "" {
+			outputs["apprentice.error"] = tail(out.Error, 2000)
+		}
+		return Result{Outcome: "blocked", Outputs: outputs}, nil
+	case "retry":
+		return Result{Outcome: "retry", Outputs: outputs}, nil
 	}
 	return Result{Outcome: "done", Outputs: outputs}, nil
+}
+
+// environmentPatterns are errors that the environment causes. The apprentice
+// has the same list (guards.ENVIRONMENT_PATTERNS) for its tool results.
+var environmentPatterns = regexp.MustCompile(`(?i)connection reset by peer|connection refused|could not resolve host|` +
+	`temporary failure in name resolution|no such host|CONNECT tunnel failed|unable to update registry|download of \S+ failed|` +
+	`no space left on device|virtiofsd did not start|read-only file system`)
+
+// environmentLine is the first line of output with an environment error, or "".
+func environmentLine(output string) string {
+	for _, line := range strings.Split(output, "\n") {
+		if environmentPatterns.MatchString(line) {
+			return tail(strings.TrimSpace(line), 300)
+		}
+	}
+	return ""
+}
+
+// roundComment is the comment of a person for the next work round: after a
+// blocked round, the comment of the "blocked" decision (resume); otherwise
+// the review comment (revise). The apprentice worker has the same rule
+// (guards.round_comment).
+func roundComment(vars map[string]string) string {
+	if vars["apprentice.blocked"] == "true" {
+		return vars["blocked.comment"]
+	}
+	return vars["review.comment"]
 }
 
 func (r *Runner) check(ctx context.Context, a magiapi.RunnerAssignment, st magiapi.RunnerStep) (Result, error) {
@@ -276,9 +323,21 @@ func (r *Runner) check(ctx context.Context, a magiapi.RunnerAssignment, st magia
 	if err != nil {
 		return Result{}, fmt.Errorf("store check output: %w", err)
 	}
+	if (res.ExitCode != 0 || res.TimedOut) && environmentLine(output) != "" {
+		// The environment broke the check, not the change: another work round
+		// cannot fix it, and it must not count toward give-up. A person
+		// decides: run the check again, resume, or reject.
+		line := environmentLine(output)
+		r.post(ctx, st, "The checks failed because of the environment, not the change: "+line+
+			". The work is kept. Decide on the task: check runs the checks again.")
+		return Result{Outcome: "blocked", Outputs: map[string]string{"check.output": art.Digest, "check.blocked": line,
+			"check_output": tail(output, 6000), "apprentice.blocked": "true"}}, nil
+	}
 	attempts, _ := strconv.Atoi(a.Vars["check.attempts"])
 	attempts++
-	out := map[string]string{"check.output": art.Digest, "check.attempts": strconv.Itoa(attempts)}
+	// A check that ran on its own terms ends a blocked state: the next round
+	// gets the review comment, not an old comment of a blocked decision.
+	out := map[string]string{"check.output": art.Digest, "check.attempts": strconv.Itoa(attempts), "apprentice.blocked": ""}
 	failed := func(why string) (Result, error) {
 		out["check_output"] = why
 		if attempts >= maxCheckAttempts {

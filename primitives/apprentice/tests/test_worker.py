@@ -132,7 +132,8 @@ class HttpTransportTest(unittest.TestCase):
             t = HttpTransport(f"http://127.0.0.1:{srv.server_port}", token=lambda: "tok-123456")
             w = Worker(workflow=wf.WorkflowClient(t), execution=MemExecution(), artifacts=art.ArtifactClient(t),
                        model_cfg=ModelConfig(), limits=Limits(), lease_ms=3000, claim_wait_ms=1,
-                       model=FakeModel([reply(call("finish", summary="ok"))]), check_command=None)
+                       # The self-review sends the first finish back.
+                       model=FakeModel([reply(call("finish", summary="ok"))] * 2), check_command=None)
             w.serve(max_tasks=1)
         finally:
             srv.shutdown()

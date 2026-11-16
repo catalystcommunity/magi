@@ -49,8 +49,15 @@ func codeChangeDefinition(runners bool) workflowapi.Definition {
 		Start:       "prepare",
 		Steps: []workflowapi.Step{
 			task("prepare", "magi.prepare", map[string]string{"done": "work"}, 2),
-			task("work", "apprentice", map[string]string{"done": "check"}, 2),
-			task("check", "magi.check", map[string]string{"pass": "review", "fail-checks": "work", "give-up": "cleanup"}, 2),
+			task("work", "apprentice", map[string]string{"done": "check", "blocked": "blocked"}, 2),
+			// The apprentice stopped without a result that the check can judge:
+			// the model endpoint or its money is gone, or a guard ended a run
+			// that went wrong (a loop, no progress, stalled thinking). The work
+			// stays in the environment. A check failure here would start
+			// another work round, so a person decides first.
+			{Id: "blocked", Kind: "human", Prompt: ptr("The apprentice stopped (apprentice.status, apprentice.summary, apprentice.error), or the environment broke the checks (check.blocked). Resume to start another work round (the comment goes to the apprentice), check to run the checks on the work as it is, or reject."),
+				Outcomes: []string{"resume", "check", "reject"}, Next: map[string]string{"resume": "work", "check": "check", "reject": "cleanup"}},
+			task("check", "magi.check", map[string]string{"pass": "review", "fail-checks": "work", "give-up": "cleanup", "blocked": "blocked"}, 2),
 			{Id: "review", Kind: "human", Prompt: ptr("Read the change and the check results. Approve to merge, revise to send it back to the apprentice with a comment, or reject."),
 				Outcomes: []string{"approve", "revise", "reject"}, Next: map[string]string{"approve": "merge", "revise": "work", "reject": "cleanup"}},
 			task("merge", "magi.merge", map[string]string{"done": "release", "conflict": "cleanup", "build-failed": "cleanup"}, 2),
