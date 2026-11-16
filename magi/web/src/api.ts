@@ -42,12 +42,16 @@ export type Me = { subject: string; name: string };
 export const [me, setMe] = createSignal<Me | null>(null);
 export function signOut() { setToken(null); setMe(null); }
 
+// operator: the caller can make operator calls (get-access). Clients use it
+// only to show or hide links; the server checks each call again.
+export const [operator, setOperator] = createSignal(false);
+
 // --- Views ----------------------------------------------------------------
 // The view is in the URL hash, so the back button and links work.
-export type View = "talk" | "questions" | "network" | "tasks" | "task" | "knowledge" | "words" | "page" | "terminal";
+export type View = "talk" | "questions" | "network" | "tasks" | "task" | "knowledge" | "words" | "page" | "terminal" | "admin";
 function parse(): { view: View; arg: string } {
   const [v, ...rest] = location.hash.replace(/^#\/?/, "").split("/");
-  const views: View[] = ["talk", "questions", "network", "tasks", "task", "knowledge", "words", "page", "terminal"];
+  const views: View[] = ["talk", "questions", "network", "tasks", "task", "knowledge", "words", "page", "terminal", "admin"];
   return { view: views.includes(v as View) ? (v as View) : "talk", arg: decodeURIComponent(rest.join("/")) };
 }
 export const [route, setRoute] = createSignal(parse());

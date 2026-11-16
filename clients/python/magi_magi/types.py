@@ -3115,6 +3115,38 @@ class ListRunnersResponse:
 
 
 @dataclass
+class GetAccessRequest:
+    pass
+
+@dataclass
+class Access:
+    subject: str
+    operator: bool
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'subject') and self.subject is not None:
+            result['subject'] = self.subject
+        if hasattr(self, 'operator') and self.operator is not None:
+            result['operator'] = self.operator
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Access':
+        """Create instance from dictionary."""
+        return cls(subject=data.get('subject'), operator=data.get('operator'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'Access':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
 class PutRunnerPackageRequest:
     version: str
     os: str

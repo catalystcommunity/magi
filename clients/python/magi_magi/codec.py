@@ -3347,6 +3347,51 @@ def _list_runners_response_from_cbor(data: bytes) -> "ListRunnersResponse":
 ListRunnersResponse.to_cbor = _list_runners_response_to_cbor
 ListRunnersResponse.from_cbor = staticmethod(_list_runners_response_from_cbor)
 
+def _encode_get_access_request_value(v: "GetAccessRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    return csil_m
+
+def _decode_get_access_request_value(tree: Any) -> "GetAccessRequest":
+    tree = _csil_expect_map(tree)
+    return GetAccessRequest()
+
+
+def _get_access_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_get_access_request_value(self))
+
+
+def _get_access_request_from_cbor(data: bytes) -> "GetAccessRequest":
+    return _decode_get_access_request_value(cbor_decode(data))
+
+
+GetAccessRequest.to_cbor = _get_access_request_to_cbor
+GetAccessRequest.from_cbor = staticmethod(_get_access_request_from_cbor)
+
+def _encode_access_value(v: "Access") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["subject"] = v.subject
+    csil_m["operator"] = v.operator
+    return csil_m
+
+def _decode_access_value(tree: Any) -> "Access":
+    tree = _csil_expect_map(tree)
+    return Access(
+        subject=_csil_expect_text(tree["subject"]),
+        operator=_csil_expect_bool(tree["operator"]),
+    )
+
+
+def _access_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_access_value(self))
+
+
+def _access_from_cbor(data: bytes) -> "Access":
+    return _decode_access_value(cbor_decode(data))
+
+
+Access.to_cbor = _access_to_cbor
+Access.from_cbor = staticmethod(_access_from_cbor)
+
 def _encode_put_runner_package_request_value(v: "PutRunnerPackageRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["os"] = v.os

@@ -2680,6 +2680,44 @@ fun listRunnersResponseFromCborValue(cbor: CborValue): ListRunnersResponse {
 /** Decode CSIL CBOR bytes into a ListRunnersResponse. */
 fun listRunnersResponseFromCbor(bytes: ByteArray): ListRunnersResponse = listRunnersResponseFromCborValue(CsilCbor.decode(bytes))
 
+/** The CBOR value tree for a GetAccessRequest (deep, canonical key order). */
+fun GetAccessRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a GetAccessRequest to canonical CSIL CBOR bytes. */
+fun GetAccessRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a GetAccessRequest from a decoded CBOR value tree. */
+fun getAccessRequestFromCborValue(cbor: CborValue): GetAccessRequest {
+    return GetAccessRequest()
+}
+
+/** Decode CSIL CBOR bytes into a GetAccessRequest. */
+fun getAccessRequestFromCbor(bytes: ByteArray): GetAccessRequest = getAccessRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a Access (deep, canonical key order). */
+fun Access.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("subject") to CborValue.CText(this.subject))
+    csilEntries.add(CborValue.CText("operator") to CborValue.CBool(this.operator))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a Access to canonical CSIL CBOR bytes. */
+fun Access.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a Access from a decoded CBOR value tree. */
+fun accessFromCborValue(cbor: CborValue): Access {
+    val subject = CsilCbor.asText(CsilCbor.require(cbor, "subject"))
+    val operator = CsilCbor.asBoolean(CsilCbor.require(cbor, "operator"))
+    return Access(subject = subject, operator = operator)
+}
+
+/** Decode CSIL CBOR bytes into a Access. */
+fun accessFromCbor(bytes: ByteArray): Access = accessFromCborValue(CsilCbor.decode(bytes))
+
 /** The CBOR value tree for a PutRunnerPackageRequest (deep, canonical key order). */
 fun PutRunnerPackageRequest.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
@@ -4461,6 +4499,8 @@ private fun csilToCborValue(value: Any?): CborValue = when (value) {
     is RunnerInfo -> value.toCborValue()
     is ListRunnersRequest -> value.toCborValue()
     is ListRunnersResponse -> value.toCborValue()
+    is GetAccessRequest -> value.toCborValue()
+    is Access -> value.toCborValue()
     is PutRunnerPackageRequest -> value.toCborValue()
     is PutRunnerPackageResponse -> value.toCborValue()
     is SetRunnerReleaseRequest -> value.toCborValue()
@@ -4639,6 +4679,8 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     RunnerInfo::class -> runnerInfoFromCborValue(cbor)
     ListRunnersRequest::class -> listRunnersRequestFromCborValue(cbor)
     ListRunnersResponse::class -> listRunnersResponseFromCborValue(cbor)
+    GetAccessRequest::class -> getAccessRequestFromCborValue(cbor)
+    Access::class -> accessFromCborValue(cbor)
     PutRunnerPackageRequest::class -> putRunnerPackageRequestFromCborValue(cbor)
     PutRunnerPackageResponse::class -> putRunnerPackageResponseFromCborValue(cbor)
     SetRunnerReleaseRequest::class -> setRunnerReleaseRequestFromCborValue(cbor)

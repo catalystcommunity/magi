@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { AckNoticeRequest, Activity, ActivityRequest, AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, ChangeKnowledgeRequest, ChangeKnowledgeResponse, CheckOverlapRequest, CheckOverlapResponse, ConnectRequest, ConnectResponse, Connection, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideRequest, DecisionAnswer, DecisionQuestion, DecisionRequest, DecisionResponse, DeleteLexiconWordRequest, DeleteLexiconWordResponse, DeliverNoticeRequest, Device, DisconnectRequest, EgressDestinationRequest, EgressDestinationResponse, EgressDetectRequest, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressFlow, EgressFlowHeader, EgressReportRequest, EgressReportResponse, EgressReview, EgressReviewHeader, EgressSecretRule, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, FileChange, FinishTodoRequest, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetPageRequest, GetTaskDiffRequest, GetTaskOutputRequest, GetTaskRequest, HistoryMessage, ImportHistoryRequest, ImportHistoryResponse, ImportedMessage, KnowledgeChange, KnowledgeFact, KnowledgeHistoryRequest, KnowledgeHistoryResponse, KnowledgeItem, KnowledgeRecord, LexiconWord, LinkRequest, ListConnectionsRequest, ListConnectionsResponse, ListDevicesRequest, ListDevicesResponse, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListNoticesRequest, ListNoticesResponse, ListPagesRequest, ListPagesResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListTodosRequest, ListTodosResponse, ListVoicesRequest, ListVoicesResponse, ListenRequest, ListenResponse, MergeKnowledgeRequest, Message, MessageLink, ModelSelector, Notice, NoticeDelivery, Page, PersonaInfo, PutAppReleaseRequest, PutDeviceRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, RememberResponse, RemoveDeviceRequest, ReportDeliveryRequest, ReportDeliveryResponse, ReviewItem, RunnerAck, RunnerAssignment, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerEgressProxy, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerInfo, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, RunnerTerminal, RunnerTerminalsRequest, RunnerTerminalsResponse, RunnerUpdate, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, SpeechPart, StartTaskRequest, StopSpeechRequest, StopSpeechResponse, Task, TaskDiff, TaskOutput, TaskStep, Todo, TraceRequest, TraceResponse, UnlinkRequest, UnmergeKnowledgeRequest, VoiceInfo, WaitNoticesRequest, WaitNoticesResponse, WordTime } from "./types.gen.ts";
+import type { Access, AckNoticeRequest, Activity, ActivityRequest, AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, ChangeKnowledgeRequest, ChangeKnowledgeResponse, CheckOverlapRequest, CheckOverlapResponse, ConnectRequest, ConnectResponse, Connection, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideRequest, DecisionAnswer, DecisionQuestion, DecisionRequest, DecisionResponse, DeleteLexiconWordRequest, DeleteLexiconWordResponse, DeliverNoticeRequest, Device, DisconnectRequest, EgressDestinationRequest, EgressDestinationResponse, EgressDetectRequest, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressFlow, EgressFlowHeader, EgressReportRequest, EgressReportResponse, EgressReview, EgressReviewHeader, EgressSecretRule, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, FileChange, FinishTodoRequest, GetAccessRequest, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetPageRequest, GetTaskDiffRequest, GetTaskOutputRequest, GetTaskRequest, HistoryMessage, ImportHistoryRequest, ImportHistoryResponse, ImportedMessage, KnowledgeChange, KnowledgeFact, KnowledgeHistoryRequest, KnowledgeHistoryResponse, KnowledgeItem, KnowledgeRecord, LexiconWord, LinkRequest, ListConnectionsRequest, ListConnectionsResponse, ListDevicesRequest, ListDevicesResponse, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListNoticesRequest, ListNoticesResponse, ListPagesRequest, ListPagesResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListTodosRequest, ListTodosResponse, ListVoicesRequest, ListVoicesResponse, ListenRequest, ListenResponse, MergeKnowledgeRequest, Message, MessageLink, ModelSelector, Notice, NoticeDelivery, Page, PersonaInfo, PutAppReleaseRequest, PutDeviceRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, RememberResponse, RemoveDeviceRequest, ReportDeliveryRequest, ReportDeliveryResponse, ReviewItem, RunnerAck, RunnerAssignment, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerEgressProxy, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerInfo, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, RunnerTerminal, RunnerTerminalsRequest, RunnerTerminalsResponse, RunnerUpdate, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, SpeechPart, StartTaskRequest, StopSpeechRequest, StopSpeechResponse, Task, TaskDiff, TaskOutput, TaskStep, Todo, TraceRequest, TraceResponse, UnlinkRequest, UnmergeKnowledgeRequest, VoiceInfo, WaitNoticesRequest, WaitNoticesResponse, WordTime } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -2790,6 +2790,46 @@ export function toListRunnersResponseCbor(v: ListRunnersResponse): Uint8Array {
 
 export function fromListRunnersResponseCbor(bytes: Uint8Array): ListRunnersResponse {
   return fromListRunnersResponseCborValue(decode(bytes));
+}
+
+export function toGetAccessRequestCborValue(v: GetAccessRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  return csilMap;
+}
+
+export function fromGetAccessRequestCborValue(value: CborValue): GetAccessRequest {
+  void value;
+  return {} as GetAccessRequest;
+}
+
+export function toGetAccessRequestCbor(v: GetAccessRequest): Uint8Array {
+  return encodeValue(toGetAccessRequestCborValue(v));
+}
+
+export function fromGetAccessRequestCbor(bytes: Uint8Array): GetAccessRequest {
+  return fromGetAccessRequestCborValue(decode(bytes));
+}
+
+export function toAccessCborValue(v: Access): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("subject", v.subject);
+  csilMap.set("operator", v.operator);
+  return csilMap;
+}
+
+export function fromAccessCborValue(value: CborValue): Access {
+  return {
+    subject: asString(requireKey(value, "subject")),
+    operator: asBool(requireKey(value, "operator")),
+  };
+}
+
+export function toAccessCbor(v: Access): Uint8Array {
+  return encodeValue(toAccessCborValue(v));
+}
+
+export function fromAccessCbor(bytes: Uint8Array): Access {
+  return fromAccessCborValue(decode(bytes));
 }
 
 export function toPutRunnerPackageRequestCborValue(v: PutRunnerPackageRequest): CborValue {

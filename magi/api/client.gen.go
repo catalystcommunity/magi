@@ -457,6 +457,15 @@ func (c *MagiClient) ListRunners(ctx context.Context, req ListRunnersRequest) (L
 	return DecodeListRunnersResponse(csilResp)
 }
 
+func (c *MagiClient) GetAccess(ctx context.Context, req GetAccessRequest) (Access, error) {
+	var csilZero Access
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "get-access", EncodeGetAccessRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeAccess(csilResp)
+}
+
 func (c *MagiClient) PutRunnerPackage(ctx context.Context, req PutRunnerPackageRequest) (PutRunnerPackageResponse, error) {
 	var csilZero PutRunnerPackageResponse
 	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "put-runner-package", EncodePutRunnerPackageRequest(req))

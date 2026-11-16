@@ -164,6 +164,9 @@ class MagiClient(private val transport: Transport) {
     fun listRunners(request: ListRunnersRequest): ListRunnersResponse {
         return decode<ListRunnersResponse>(transport.call("MagiService", "list-runners", encode(request)))
     }
+    fun getAccess(request: GetAccessRequest): Access {
+        return decode<Access>(transport.call("MagiService", "get-access", encode(request)))
+    }
     fun putRunnerPackage(request: PutRunnerPackageRequest): PutRunnerPackageResponse {
         return decode<PutRunnerPackageResponse>(transport.call("MagiService", "put-runner-package", encode(request)))
     }
