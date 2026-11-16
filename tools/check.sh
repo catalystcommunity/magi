@@ -15,7 +15,7 @@ unformatted=$(gofmt -l lib primitives magi tools 2>/dev/null | grep -v '\.gen\.g
 # The database tests skip without a database, so a change to database code
 # can pass its check with its own tests not run. Run them on a throwaway
 # PostgreSQL when the runner tools are there. One database serves the whole
-# check: each test makes and drops its own database inside it.
+# check: the tests write into it directly, so they must use unique ids.
 go_tests() {
   for mod in $(find lib primitives magi tools -name go.mod -not -path '*/node_modules/*' -exec dirname {} \; | sort); do
     step "go vet + test: $mod"
@@ -26,14 +26,23 @@ if [[ -n ${MAGI_TEST_DATABASE_URL:-} ]]; then
   echo "database tests: run (MAGI_TEST_DATABASE_URL is set)"
   go_tests
 elif command -v initdb >/dev/null && command -v pg_ctl >/dev/null; then
-  echo "database tests: run (throwaway PostgreSQL 18)"
-  # test-db.sh passes the status of its command on. A failed module must not
-  # stop the other modules, so the inner loop records the failure and this
-  # script reports it.
-  tools/test-db.sh -- bash -c "$(declare -f step fail go_tests)
+  # A sandbox can make PostgreSQL fail to start (for example an unreadable
+  # /etc, so initdb cannot look up its user). Probe with a command that
+  # only starts and stops the server. A failed probe must not fail the
+  # check: run the tests without a database, as before.
+  if probe=$(tools/test-db.sh -- true 2>&1); then
+    echo "database tests: run (throwaway PostgreSQL 18)"
+    # test-db.sh passes the status of its command on. A failed module must
+    # not stop the other modules, so the inner loop records the failure and
+    # this script reports it.
+    tools/test-db.sh -- bash -c "$(declare -f step fail go_tests)
 status=0
 go_tests
 exit \$status" || fail "go modules (database tests)"
+  else
+    echo "database tests: skipped (PostgreSQL did not start: $(head -1 <<<"$probe"))"
+    go_tests
+  fi
 else
   echo "database tests: skipped (no PostgreSQL; set MAGI_TEST_DATABASE_URL or install the runner tools)"
   go_tests
