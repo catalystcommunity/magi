@@ -21,9 +21,9 @@ def call(name: str, **args: Any) -> ToolCall:
 
 
 def reply(*calls: ToolCall, content: str = "", finish_reason: str = "tool_calls",
-          usage: dict | None = None) -> Reply:
+          usage: dict | None = None, reasoning: str = "") -> Reply:
     return Reply(content=content, tool_calls=list(calls), finish_reason=finish_reason,
-                 usage=usage or {"prompt_tokens": 100, "completion_tokens": 10})
+                 usage=usage or {"prompt_tokens": 100, "completion_tokens": 10}, reasoning=reasoning)
 
 
 class FakeModel:

@@ -109,6 +109,34 @@ class ModelTest(unittest.TestCase):
         self.assertEqual(r.finish_reason, "tool_calls")
         self.assertEqual(r.usage["completion_tokens"], 4)
 
+    def test_reads_the_reasoning_of_a_full_reply(self):
+        # A thinking model sends its reasoning next to the content. Providers
+        # do not agree on the field name, so both are read.
+        data = {"choices": [{"finish_reason": "length", "message": {
+            "role": "assistant", "content": "", "reasoning_content": "I must check the tests first."}}]}
+        m, _ = model(Opener([data]))
+        r = m.complete([], [])
+        self.assertEqual(r.reasoning, "I must check the tests first.")
+        self.assertEqual(r.content, "")
+        data["choices"][0]["message"] = {"role": "assistant", "content": "", "reasoning": "Other field."}
+        m2, _ = model(Opener([data]))
+        self.assertEqual(m2.complete([], []).reasoning, "Other field.")
+        # the reasoning does not go back to the model in the next request
+        self.assertEqual(r.message(), {"role": "assistant", "content": ""})
+
+    def test_reads_the_reasoning_of_a_streamed_answer(self):
+        stream = sse(
+            {"choices": [{"index": 0, "delta": {"role": "assistant", "reasoning_content": "Step one."}}]},
+            {"choices": [{"index": 0, "delta": {"reasoning": " Step two."}}]},
+            {"choices": [{"index": 0, "delta": {"content": ""}, "finish_reason": "length"}]},
+            {"choices": [], "usage": {"prompt_tokens": 9, "completion_tokens": 16384}})
+        m, _ = model(Opener([stream]))
+        r = m.complete([], [])
+        self.assertEqual(r.reasoning, "Step one. Step two.")
+        self.assertEqual(r.content, "")
+        self.assertEqual(r.finish_reason, "length")
+        self.assertEqual(r.message(), {"role": "assistant", "content": ""})
+
     def test_retries_a_provider_that_stops_sending(self):
         # The socket timeout (idle_s) is raised while the answer is read.
         op = Opener([socket.timeout("timed out"), STREAM])
