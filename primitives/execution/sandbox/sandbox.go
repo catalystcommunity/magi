@@ -99,6 +99,10 @@ type Sandboxes struct {
 	Cfg  Config
 	mu   sync.Mutex
 	cmds map[string]*exec.Cmd
+	// launches serializes the launches of one environment: a step and the
+	// collect loop can resume the same environment at the same time, and
+	// two virtiofsd of one environment cannot both hold fs.sock.pid.
+	launches map[string]*sync.Mutex
 }
 
 var idRE = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
@@ -356,8 +360,13 @@ func unixAt(dir, name string, f func(path string) error) error {
 }
 
 // Resume starts envd again in an existing environment, for example after
-// the runner restarted. The work directory is kept.
+// the runner restarted. The work directory is kept. Only one caller at a
+// time launches: a second caller waits and then sees the environment
+// alive.
 func (s *Sandboxes) Resume(id string, env map[string]string) error {
+	l := s.launchLock(id)
+	l.Lock()
+	defer l.Unlock()
 	if s.Alive(id) {
 		return nil
 	}
@@ -367,6 +376,21 @@ func (s *Sandboxes) Resume(id string, env map[string]string) error {
 	os.Remove(filepath.Join(s.Dir(id), "state", "addr"))
 	os.Remove(filepath.Join(s.Dir(id), "exited"))
 	return s.launch(id, env)
+}
+
+// launchLock returns the launch lock of an environment.
+func (s *Sandboxes) launchLock(id string) *sync.Mutex {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.launches == nil {
+		s.launches = map[string]*sync.Mutex{}
+	}
+	l, ok := s.launches[id]
+	if !ok {
+		l = &sync.Mutex{}
+		s.launches[id] = l
+	}
+	return l
 }
 
 func (s *Sandboxes) launch(id string, env map[string]string) error {

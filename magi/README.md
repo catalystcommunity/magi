@@ -293,6 +293,14 @@ A Linux runner with `/dev/kvm` can run each environment in a VM. Set
 - SSH: the guest trusts the SSH host key of the proxy
   (`/etc/ssh/ssh_known_hosts`). The proxy ends SSH and runs each command on
   the host with its own key (`primitives/egress/README.md`, "SSH").
+- When the runner restarts, it resumes the VM of each running task. The
+  old virtiofsd of an environment can stay alive for a few seconds, and it
+  holds the pid file next to its socket. Before a launch starts a new
+  virtiofsd, it stops the processes that the pid files of the environment
+  name, and it removes the old socket files. When two parts of the runner
+  resume the same environment at the same time, one launch waits for the
+  other. When virtiofsd still does not start, the launch runs once more
+  after 2 seconds, and the error has the last lines of `envd.log`.
 
 ### Task VMs (macOS)
 

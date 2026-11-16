@@ -143,6 +143,16 @@ each name an address in `198.18.0.0/15`. The kernel comes from
 `tools/vm/build-kernel.sh`; `tools/vm/build-kernel.sh --install
 [USER@HOST]` puts it where the runner configuration expects it. `MAGI_TEST_VM_KERNEL` turns on the VM tests.
 
+Before a launch starts virtiofsd, it stops the processes that an earlier
+launch of the same environment left: the pid files of the environment name
+them, and each pid must belong to the environment directory. Then it
+removes the old socket files. This closes the virtiofsd race after a
+runner restart: an old virtiofsd holds the pid file next to its socket, so
+a new one exits at once. `Resume` serializes the launches of one
+environment, so two resumes at the same time launch once. When virtiofsd
+still does not start, the launch runs once more after 2 s, and the error
+has the last lines of `envd.log`.
+
 With `VM.Template` (a Mac), each environment is an APFS clone of a macOS
 template that `magi-vz` (`tools/vm/macos`) runs with no network card. The
 shares are at `/Volumes/My Shared Files`; a launchd daemon in the template
