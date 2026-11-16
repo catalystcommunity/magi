@@ -9,7 +9,7 @@ import { Tasks, TaskView } from "./tasks.tsx";
 import { PageView } from "./page.tsx";
 import { TerminalView } from "./terminal.tsx";
 import { Knowledge, Words } from "./knowledge.tsx";
-import { Admin } from "./admin.tsx";
+import { Admin, AdminRuns, AdminRunView } from "./admin.tsx";
 import { tray, dismiss, startAttention, askForNotifications } from "./attention.ts";
 import type { Notice } from "../../../clients/typescript/magi/types.gen.ts";
 
@@ -119,7 +119,9 @@ const tabs: Tab[] = [
 ];
 
 function Shell() {
-  const active = (v: View) => route().view === v || (v === "tasks" && (route().view === "task" || route().view === "terminal"));
+  // The Admin tab stays active in the admin views, as the Tasks tab does for a task.
+  const active = (v: View) => route().view === v || (v === "tasks" && (route().view === "task" || route().view === "terminal")) ||
+    (v === "admin" && route().view.startsWith("admin"));
   return <div class={() => "shell" + (route().view === "terminal" ? " terminal-mode" : "")}>
     <header class="top">
       <a class="brand" href="#/talk" aria-label="Magi, talk"><PersonaOrb /><span class="wordmark">Magi</span></a>
@@ -146,6 +148,8 @@ function Shell() {
           <Match when={() => route().view === "page"}>{() => <PageView id={route().arg} />}</Match>
           <Match when={() => route().view === "terminal"}>{() => <TerminalView id={route().arg} />}</Match>
           <Match when={() => route().view === "admin"}><Admin /></Match>
+          <Match when={() => route().view === "admin-runs"}><AdminRuns /></Match>
+          <Match when={() => route().view === "admin-run"}>{() => <AdminRunView id={route().arg} />}</Match>
         </Switch>
         {/* The conversation stays mounted, so its long poll and scroll position stay. */}
         <div class="talk-wrap" hidden={() => route().view !== "talk"}><Conversation /></div>

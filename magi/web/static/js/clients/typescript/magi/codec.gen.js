@@ -2562,6 +2562,149 @@ export function toAccessCbor(v) {
 export function fromAccessCbor(bytes) {
     return fromAccessCborValue(decode(bytes));
 }
+export function toAdminRunSummaryCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("id", v.id);
+    if (v.error !== undefined)
+        csilMap.set("error", v.error);
+    csilMap.set("owner", v.owner);
+    if (v.title !== undefined)
+        csilMap.set("title", v.title);
+    csilMap.set("status", v.status);
+    csilMap.set("created_ms", v.createdMs);
+    csilMap.set("definition", v.definition);
+    csilMap.set("updated_ms", v.updatedMs);
+    csilMap.set("current_step", v.currentStep);
+    return csilMap;
+}
+export function fromAdminRunSummaryCborValue(value) {
+    return {
+        id: asString(requireKey(value, "id")),
+        definition: asString(requireKey(value, "definition")),
+        owner: asString(requireKey(value, "owner")),
+        status: asString(requireKey(value, "status")),
+        currentStep: asString(requireKey(value, "current_step")),
+        title: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "title")),
+        error: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "error")),
+        createdMs: asNumber(requireKey(value, "created_ms")),
+        updatedMs: asNumber(requireKey(value, "updated_ms")),
+    };
+}
+export function toAdminRunSummaryCbor(v) {
+    return encodeValue(toAdminRunSummaryCborValue(v));
+}
+export function fromAdminRunSummaryCbor(bytes) {
+    return fromAdminRunSummaryCborValue(decode(bytes));
+}
+export function toAdminListRunsRequestCborValue(v) {
+    const csilMap = new Map();
+    if (v.limit !== undefined)
+        csilMap.set("limit", v.limit);
+    if (v.status !== undefined)
+        csilMap.set("status", v.status);
+    if (v.definition !== undefined)
+        csilMap.set("definition", v.definition);
+    return csilMap;
+}
+export function fromAdminListRunsRequestCborValue(value) {
+    return {
+        definition: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "definition")),
+        status: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "status")),
+        limit: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
+    };
+}
+export function toAdminListRunsRequestCbor(v) {
+    return encodeValue(toAdminListRunsRequestCborValue(v));
+}
+export function fromAdminListRunsRequestCbor(bytes) {
+    return fromAdminListRunsRequestCborValue(decode(bytes));
+}
+export function toAdminListRunsResponseCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("runs", v.runs.map((csilE) => toAdminRunSummaryCborValue(csilE)));
+    return csilMap;
+}
+export function fromAdminListRunsResponseCborValue(value) {
+    return {
+        runs: asArray(requireKey(value, "runs")).map((csilE) => fromAdminRunSummaryCborValue(csilE)),
+    };
+}
+export function toAdminListRunsResponseCbor(v) {
+    return encodeValue(toAdminListRunsResponseCborValue(v));
+}
+export function fromAdminListRunsResponseCbor(bytes) {
+    return fromAdminListRunsResponseCborValue(decode(bytes));
+}
+export function toAdminRunCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("vars", new Map(Object.entries(v.vars).map(([csilK, csilV]) => [csilK, csilV])));
+    csilMap.set("steps", v.steps.map((csilE) => toTaskStepCborValue(csilE)));
+    csilMap.set("summary", toAdminRunSummaryCborValue(v.summary));
+    return csilMap;
+}
+export function fromAdminRunCborValue(value) {
+    return {
+        summary: fromAdminRunSummaryCborValue(requireKey(value, "summary")),
+        vars: Object.fromEntries(Array.from(asMap(requireKey(value, "vars")), ([csilK, csilV]) => [asString(csilK), asString(csilV)])),
+        steps: asArray(requireKey(value, "steps")).map((csilE) => fromTaskStepCborValue(csilE)),
+    };
+}
+export function toAdminRunCbor(v) {
+    return encodeValue(toAdminRunCborValue(v));
+}
+export function fromAdminRunCbor(bytes) {
+    return fromAdminRunCborValue(decode(bytes));
+}
+export function toAdminGetRunRequestCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("id", v.id);
+    return csilMap;
+}
+export function fromAdminGetRunRequestCborValue(value) {
+    return {
+        id: asString(requireKey(value, "id")),
+    };
+}
+export function toAdminGetRunRequestCbor(v) {
+    return encodeValue(toAdminGetRunRequestCborValue(v));
+}
+export function fromAdminGetRunRequestCbor(bytes) {
+    return fromAdminGetRunRequestCborValue(decode(bytes));
+}
+export function toAdminGetRunOutputRequestCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("id", v.id);
+    csilMap.set("name", v.name);
+    return csilMap;
+}
+export function fromAdminGetRunOutputRequestCborValue(value) {
+    return {
+        id: asString(requireKey(value, "id")),
+        name: asString(requireKey(value, "name")),
+    };
+}
+export function toAdminGetRunOutputRequestCbor(v) {
+    return encodeValue(toAdminGetRunOutputRequestCborValue(v));
+}
+export function fromAdminGetRunOutputRequestCbor(bytes) {
+    return fromAdminGetRunOutputRequestCborValue(decode(bytes));
+}
+export function toAdminGetRunDiffRequestCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("id", v.id);
+    return csilMap;
+}
+export function fromAdminGetRunDiffRequestCborValue(value) {
+    return {
+        id: asString(requireKey(value, "id")),
+    };
+}
+export function toAdminGetRunDiffRequestCbor(v) {
+    return encodeValue(toAdminGetRunDiffRequestCborValue(v));
+}
+export function fromAdminGetRunDiffRequestCbor(bytes) {
+    return fromAdminGetRunDiffRequestCborValue(decode(bytes));
+}
 export function toPutRunnerPackageRequestCborValue(v) {
     const csilMap = new Map();
     csilMap.set("os", v.os);

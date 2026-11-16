@@ -7253,6 +7253,425 @@ func DecodeAccess(csilData []byte) (Access, error) {
 	return csilDecAccess(csilRoot)
 }
 
+// csilEncAdminRunSummary builds the canonical CBOR value tree for a AdminRunSummary.
+func csilEncAdminRunSummary(csilV AdminRunSummary) cborValue {
+	csilEntries := make(cborMap, 0, 9)
+	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
+	if csilV.Error != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("error"), cborText((*csilV.Error))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("owner"), cborText(csilV.Owner)})
+	if csilV.Title != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("title"), cborText((*csilV.Title))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("status"), cborText(csilV.Status)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_ms"), cborUint(csilV.CreatedMs)})
+	csilEntries = append(csilEntries, cborEntry{cborText("definition"), cborText(csilV.Definition)})
+	csilEntries = append(csilEntries, cborEntry{cborText("updated_ms"), cborUint(csilV.UpdatedMs)})
+	csilEntries = append(csilEntries, cborEntry{cborText("current_step"), cborText(csilV.CurrentStep)})
+	return csilEntries
+}
+
+// csilDecAdminRunSummary reconstructs a AdminRunSummary from a decoded CBOR value tree.
+func csilDecAdminRunSummary(csilRoot cborValue) (AdminRunSummary, error) {
+	var csilOut AdminRunSummary
+	{
+		csilField, csilErr := cborRequire(csilRoot, "id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Id = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "definition")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Definition = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "owner")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Owner = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "status")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Status = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "current_step")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.CurrentStep = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "title"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Title = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "error"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Error = &csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "created_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.CreatedMs = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "updated_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.UpdatedMs = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeAdminRunSummary encodes a AdminRunSummary to canonical CSIL CBOR bytes.
+func EncodeAdminRunSummary(csilV AdminRunSummary) []byte {
+	return cborEncode(csilEncAdminRunSummary(csilV))
+}
+
+// DecodeAdminRunSummary decodes canonical CSIL CBOR bytes into a AdminRunSummary.
+func DecodeAdminRunSummary(csilData []byte) (AdminRunSummary, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero AdminRunSummary
+		return csilZero, csilErr
+	}
+	return csilDecAdminRunSummary(csilRoot)
+}
+
+// csilEncAdminListRunsRequest builds the canonical CBOR value tree for a AdminListRunsRequest.
+func csilEncAdminListRunsRequest(csilV AdminListRunsRequest) cborValue {
+	csilEntries := make(cborMap, 0, 3)
+	if csilV.Limit != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("limit"), cborUint((*csilV.Limit))})
+	}
+	if csilV.Status != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("status"), cborText((*csilV.Status))})
+	}
+	if csilV.Definition != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("definition"), cborText((*csilV.Definition))})
+	}
+	return csilEntries
+}
+
+// csilDecAdminListRunsRequest reconstructs a AdminListRunsRequest from a decoded CBOR value tree.
+func csilDecAdminListRunsRequest(csilRoot cborValue) (AdminListRunsRequest, error) {
+	var csilOut AdminListRunsRequest
+	if csilField, csilOk := cborMapGet(csilRoot, "definition"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Definition = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "status"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Status = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "limit"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Limit = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeAdminListRunsRequest encodes a AdminListRunsRequest to canonical CSIL CBOR bytes.
+func EncodeAdminListRunsRequest(csilV AdminListRunsRequest) []byte {
+	return cborEncode(csilEncAdminListRunsRequest(csilV))
+}
+
+// DecodeAdminListRunsRequest decodes canonical CSIL CBOR bytes into a AdminListRunsRequest.
+func DecodeAdminListRunsRequest(csilData []byte) (AdminListRunsRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero AdminListRunsRequest
+		return csilZero, csilErr
+	}
+	return csilDecAdminListRunsRequest(csilRoot)
+}
+
+// csilEncAdminListRunsResponse builds the canonical CBOR value tree for a AdminListRunsResponse.
+func csilEncAdminListRunsResponse(csilV AdminListRunsResponse) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("runs"), cborEncArray(csilV.Runs, func(csilElem AdminRunSummary) cborValue { return csilEncAdminRunSummary(csilElem) })})
+	return csilEntries
+}
+
+// csilDecAdminListRunsResponse reconstructs a AdminListRunsResponse from a decoded CBOR value tree.
+func csilDecAdminListRunsResponse(csilRoot cborValue) (AdminListRunsResponse, error) {
+	var csilOut AdminListRunsResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "runs")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]AdminRunSummary, error) { return cborDecArray(csilV, csilDecAdminRunSummary) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Runs = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeAdminListRunsResponse encodes a AdminListRunsResponse to canonical CSIL CBOR bytes.
+func EncodeAdminListRunsResponse(csilV AdminListRunsResponse) []byte {
+	return cborEncode(csilEncAdminListRunsResponse(csilV))
+}
+
+// DecodeAdminListRunsResponse decodes canonical CSIL CBOR bytes into a AdminListRunsResponse.
+func DecodeAdminListRunsResponse(csilData []byte) (AdminListRunsResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero AdminListRunsResponse
+		return csilZero, csilErr
+	}
+	return csilDecAdminListRunsResponse(csilRoot)
+}
+
+// csilEncAdminRun builds the canonical CBOR value tree for a AdminRun.
+func csilEncAdminRun(csilV AdminRun) cborValue {
+	csilEntries := make(cborMap, 0, 3)
+	csilEntries = append(csilEntries, cborEntry{cborText("vars"), cborEncMap(csilV.Vars, func(csilK string) cborValue { return cborText(csilK) }, func(csilV string) cborValue { return cborText(csilV) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("steps"), cborEncArray(csilV.Steps, func(csilElem TaskStep) cborValue { return csilEncTaskStep(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("summary"), csilEncAdminRunSummary(csilV.Summary)})
+	return csilEntries
+}
+
+// csilDecAdminRun reconstructs a AdminRun from a decoded CBOR value tree.
+func csilDecAdminRun(csilRoot cborValue) (AdminRun, error) {
+	var csilOut AdminRun
+	{
+		csilField, csilErr := cborRequire(csilRoot, "summary")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (csilDecAdminRunSummary)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Summary = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "vars")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) (map[string]string, error) { return cborDecMap(csilV, cborAsText, cborAsText) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Vars = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "steps")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]TaskStep, error) { return cborDecArray(csilV, csilDecTaskStep) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Steps = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeAdminRun encodes a AdminRun to canonical CSIL CBOR bytes.
+func EncodeAdminRun(csilV AdminRun) []byte {
+	return cborEncode(csilEncAdminRun(csilV))
+}
+
+// DecodeAdminRun decodes canonical CSIL CBOR bytes into a AdminRun.
+func DecodeAdminRun(csilData []byte) (AdminRun, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero AdminRun
+		return csilZero, csilErr
+	}
+	return csilDecAdminRun(csilRoot)
+}
+
+// csilEncAdminGetRunRequest builds the canonical CBOR value tree for a AdminGetRunRequest.
+func csilEncAdminGetRunRequest(csilV AdminGetRunRequest) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
+	return csilEntries
+}
+
+// csilDecAdminGetRunRequest reconstructs a AdminGetRunRequest from a decoded CBOR value tree.
+func csilDecAdminGetRunRequest(csilRoot cborValue) (AdminGetRunRequest, error) {
+	var csilOut AdminGetRunRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Id = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeAdminGetRunRequest encodes a AdminGetRunRequest to canonical CSIL CBOR bytes.
+func EncodeAdminGetRunRequest(csilV AdminGetRunRequest) []byte {
+	return cborEncode(csilEncAdminGetRunRequest(csilV))
+}
+
+// DecodeAdminGetRunRequest decodes canonical CSIL CBOR bytes into a AdminGetRunRequest.
+func DecodeAdminGetRunRequest(csilData []byte) (AdminGetRunRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero AdminGetRunRequest
+		return csilZero, csilErr
+	}
+	return csilDecAdminGetRunRequest(csilRoot)
+}
+
+// csilEncAdminGetRunOutputRequest builds the canonical CBOR value tree for a AdminGetRunOutputRequest.
+func csilEncAdminGetRunOutputRequest(csilV AdminGetRunOutputRequest) cborValue {
+	csilEntries := make(cborMap, 0, 2)
+	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
+	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
+	return csilEntries
+}
+
+// csilDecAdminGetRunOutputRequest reconstructs a AdminGetRunOutputRequest from a decoded CBOR value tree.
+func csilDecAdminGetRunOutputRequest(csilRoot cborValue) (AdminGetRunOutputRequest, error) {
+	var csilOut AdminGetRunOutputRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Id = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "name")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Name = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeAdminGetRunOutputRequest encodes a AdminGetRunOutputRequest to canonical CSIL CBOR bytes.
+func EncodeAdminGetRunOutputRequest(csilV AdminGetRunOutputRequest) []byte {
+	return cborEncode(csilEncAdminGetRunOutputRequest(csilV))
+}
+
+// DecodeAdminGetRunOutputRequest decodes canonical CSIL CBOR bytes into a AdminGetRunOutputRequest.
+func DecodeAdminGetRunOutputRequest(csilData []byte) (AdminGetRunOutputRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero AdminGetRunOutputRequest
+		return csilZero, csilErr
+	}
+	return csilDecAdminGetRunOutputRequest(csilRoot)
+}
+
+// csilEncAdminGetRunDiffRequest builds the canonical CBOR value tree for a AdminGetRunDiffRequest.
+func csilEncAdminGetRunDiffRequest(csilV AdminGetRunDiffRequest) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
+	return csilEntries
+}
+
+// csilDecAdminGetRunDiffRequest reconstructs a AdminGetRunDiffRequest from a decoded CBOR value tree.
+func csilDecAdminGetRunDiffRequest(csilRoot cborValue) (AdminGetRunDiffRequest, error) {
+	var csilOut AdminGetRunDiffRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Id = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeAdminGetRunDiffRequest encodes a AdminGetRunDiffRequest to canonical CSIL CBOR bytes.
+func EncodeAdminGetRunDiffRequest(csilV AdminGetRunDiffRequest) []byte {
+	return cborEncode(csilEncAdminGetRunDiffRequest(csilV))
+}
+
+// DecodeAdminGetRunDiffRequest decodes canonical CSIL CBOR bytes into a AdminGetRunDiffRequest.
+func DecodeAdminGetRunDiffRequest(csilData []byte) (AdminGetRunDiffRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero AdminGetRunDiffRequest
+		return csilZero, csilErr
+	}
+	return csilDecAdminGetRunDiffRequest(csilRoot)
+}
+
 // csilEncPutRunnerPackageRequest builds the canonical CBOR value tree for a PutRunnerPackageRequest.
 func csilEncPutRunnerPackageRequest(csilV PutRunnerPackageRequest) cborValue {
 	csilEntries := make(cborMap, 0, 4)

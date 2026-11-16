@@ -893,6 +893,63 @@ export interface Access {
 }
 
 /**
+ * Admin calls: the admin views. Magi reads the records of all people with
+ * its service token, after it checks the role of the caller for that view.
+ * Magi logs each call with the caller subject.
+ */
+export interface AdminRunSummary {
+  id: string;
+  definition: string;
+  owner: string;
+  status: string;
+  currentStep: string;
+  title?: string;
+  error?: string;
+  createdMs: number;
+  updatedMs: number;
+}
+
+/**
+ * definition: "code-change", "persona-turn", "todo", or empty (all).
+ * status: "running", "waiting", "succeeded", "failed", "cancelled", or
+ * empty. Newest first. limit: default 50, at most 500.
+ */
+export interface AdminListRunsRequest {
+  definition?: string;
+  status?: string;
+  limit?: number;
+}
+
+export interface AdminListRunsResponse {
+  runs: AdminRunSummary[];
+}
+
+/**
+ * vars are the run data (instructions, outputs, artifact digests).
+ */
+export interface AdminRun {
+  summary: AdminRunSummary;
+  vars: Record<string, string>;
+  steps: TaskStep[];
+}
+
+export interface AdminGetRunRequest {
+  id: string;
+}
+
+/**
+ * name: "check.output" or "apprentice.transcript" (see get-task-output).
+ */
+export interface AdminGetRunOutputRequest {
+  id: string;
+  name: string;
+}
+
+export interface AdminGetRunDiffRequest {
+  id: string;
+}
+
+/**
  * Operator calls (scope "magi:operate", or a subject in MAGI_ADMINS).
  * A runner package is a gzip tar file with magi-runner and apprentice/.
  * set-runner-release tells runners to update to version; each runner

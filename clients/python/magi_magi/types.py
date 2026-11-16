@@ -3147,6 +3147,220 @@ class Access:
 
 
 @dataclass
+class AdminRunSummary:
+    id: str
+    definition: str
+    owner: str
+    status: str
+    current_step: str
+    created_ms: int
+    updated_ms: int
+    title: Optional[str] = None
+    error: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'definition') and self.definition is not None:
+            result['definition'] = self.definition
+        if hasattr(self, 'owner') and self.owner is not None:
+            result['owner'] = self.owner
+        if hasattr(self, 'status') and self.status is not None:
+            result['status'] = self.status
+        if hasattr(self, 'current_step') and self.current_step is not None:
+            result['current_step'] = self.current_step
+        if hasattr(self, 'title') and self.title is not None:
+            result['title'] = self.title
+        if hasattr(self, 'error') and self.error is not None:
+            result['error'] = self.error
+        if hasattr(self, 'created_ms') and self.created_ms is not None:
+            result['created_ms'] = self.created_ms
+        if hasattr(self, 'updated_ms') and self.updated_ms is not None:
+            result['updated_ms'] = self.updated_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'AdminRunSummary':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), definition=data.get('definition'), owner=data.get('owner'), status=data.get('status'), current_step=data.get('current_step'), title=data.get('title'), error=data.get('error'), created_ms=data.get('created_ms'), updated_ms=data.get('updated_ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'AdminRunSummary':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class AdminListRunsRequest:
+    definition: Optional[str] = None
+    status: Optional[str] = None
+    limit: Optional[int] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'definition') and self.definition is not None:
+            result['definition'] = self.definition
+        if hasattr(self, 'status') and self.status is not None:
+            result['status'] = self.status
+        if hasattr(self, 'limit') and self.limit is not None:
+            result['limit'] = self.limit
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'AdminListRunsRequest':
+        """Create instance from dictionary."""
+        return cls(definition=data.get('definition'), status=data.get('status'), limit=data.get('limit'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'AdminListRunsRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class AdminListRunsResponse:
+    runs: List[AdminRunSummary]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'runs') and self.runs is not None:
+            result['runs'] = self.runs
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'AdminListRunsResponse':
+        """Create instance from dictionary."""
+        return cls(runs=data.get('runs'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'AdminListRunsResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class AdminRun:
+    summary: AdminRunSummary
+    vars: Dict[str, str]
+    steps: List[TaskStep]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'summary') and self.summary is not None:
+            result['summary'] = self.summary
+        if hasattr(self, 'vars') and self.vars is not None:
+            result['vars'] = self.vars
+        if hasattr(self, 'steps') and self.steps is not None:
+            result['steps'] = self.steps
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'AdminRun':
+        """Create instance from dictionary."""
+        return cls(summary=data.get('summary'), vars=data.get('vars'), steps=data.get('steps'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'AdminRun':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class AdminGetRunRequest:
+    id: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'AdminGetRunRequest':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'AdminGetRunRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class AdminGetRunOutputRequest:
+    id: str
+    name: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'name') and self.name is not None:
+            result['name'] = self.name
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'AdminGetRunOutputRequest':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), name=data.get('name'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'AdminGetRunOutputRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class AdminGetRunDiffRequest:
+    id: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'AdminGetRunDiffRequest':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'AdminGetRunDiffRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
 class PutRunnerPackageRequest:
     version: str
     os: str

@@ -759,6 +759,54 @@ type Access struct {
 	Operator bool   `json:"operator" yaml:"operator"`
 }
 
+// AdminRunSummary represents a structured data type
+type AdminRunSummary struct {
+	Id          string  `json:"id" yaml:"id"`
+	Definition  string  `json:"definition" yaml:"definition"`
+	Owner       string  `json:"owner" yaml:"owner"`
+	Status      string  `json:"status" yaml:"status"`
+	CurrentStep string  `json:"current_step" yaml:"current_step"`
+	Title       *string `json:"title,omitempty" yaml:"title,omitempty"`
+	Error       *string `json:"error,omitempty" yaml:"error,omitempty"`
+	CreatedMs   uint64  `json:"created_ms" yaml:"created_ms"`
+	UpdatedMs   uint64  `json:"updated_ms" yaml:"updated_ms"`
+}
+
+// AdminListRunsRequest represents a structured data type
+type AdminListRunsRequest struct {
+	Definition *string `json:"definition,omitempty" yaml:"definition,omitempty"`
+	Status     *string `json:"status,omitempty" yaml:"status,omitempty"`
+	Limit      *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+}
+
+// AdminListRunsResponse represents a structured data type
+type AdminListRunsResponse struct {
+	Runs []AdminRunSummary `json:"runs" yaml:"runs"`
+}
+
+// AdminRun represents a structured data type
+type AdminRun struct {
+	Summary AdminRunSummary   `json:"summary" yaml:"summary"`
+	Vars    map[string]string `json:"vars" yaml:",inline"`
+	Steps   []TaskStep        `json:"steps" yaml:"steps"`
+}
+
+// AdminGetRunRequest represents a structured data type
+type AdminGetRunRequest struct {
+	Id string `json:"id" yaml:"id"`
+}
+
+// AdminGetRunOutputRequest represents a structured data type
+type AdminGetRunOutputRequest struct {
+	Id   string `json:"id" yaml:"id"`
+	Name string `json:"name" yaml:"name"`
+}
+
+// AdminGetRunDiffRequest represents a structured data type
+type AdminGetRunDiffRequest struct {
+	Id string `json:"id" yaml:"id"`
+}
+
 // PutRunnerPackageRequest represents a structured data type
 type PutRunnerPackageRequest struct {
 	Version string `json:"version" yaml:"version"`
