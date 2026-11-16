@@ -949,6 +949,55 @@ data class AdminGetRunOutputRequest(
     val name: String
 )
 
+/** AdminChat record. */
+data class AdminChat(
+    val stream: String,
+    val person: String,
+    val persona: String,
+    // wire key: last_seq
+    val lastSeq: ULong,
+    // wire key: created_ms
+    val createdMs: ULong,
+    // wire key: updated_ms
+    val updatedMs: ULong
+)
+
+/** AdminListChatsRequest record. */
+data class AdminListChatsRequest(
+    val person: String? = null,
+    val persona: String? = null
+)
+
+/** AdminListChatsResponse record. */
+data class AdminListChatsResponse(
+    val chats: List<AdminChat>
+)
+
+/** AdminReadChatRequest record. */
+data class AdminReadChatRequest(
+    val stream: String,
+    // wire key: before_seq
+    val beforeSeq: ULong? = null,
+    val limit: ULong? = null
+)
+
+/** AdminReadChatResponse record. */
+data class AdminReadChatResponse(
+    val chat: AdminChat,
+    val messages: List<Message>
+)
+
+/** AdminTurnLogRequest record. */
+data class AdminTurnLogRequest(
+    val message: String
+)
+
+/** AdminTurnLogResponse record. */
+data class AdminTurnLogResponse(
+    val message: String,
+    val log: String? = null
+)
+
 /** PutRunnerPackageRequest record. */
 data class PutRunnerPackageRequest(
     val version: String,

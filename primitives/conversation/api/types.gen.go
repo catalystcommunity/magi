@@ -186,6 +186,7 @@ type OpenStreamRequest struct {
 // ListStreamsRequest represents a structured data type
 type ListStreamsRequest struct {
 	Person *string `json:"person,omitempty" yaml:"person,omitempty"`
+	All    *bool   `json:"all,omitempty" yaml:"all,omitempty"`
 }
 
 // ListStreamsResponse represents a structured data type

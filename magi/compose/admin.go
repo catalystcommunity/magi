@@ -7,12 +7,17 @@ import (
 
 	"github.com/catalystcommunity/magi/lib/rpc"
 	magiapi "github.com/catalystcommunity/magi/magi/api"
+	conversationapi "github.com/catalystcommunity/magi/primitives/conversation/api"
 	workflowapi "github.com/catalystcommunity/magi/primitives/workflow/api"
 )
 
 // RoleAdminTasks is the role that reads the runs of all people. A later task
 // adds the other roles of the admin views.
 const RoleAdminTasks = "admin.tasks"
+
+// RoleAdminChats is the role that reads the chats and turn logs of all
+// people.
+const RoleAdminChats = "admin.chats"
 
 // adminCall checks that the caller holds role for op on target, and logs the
 // call. It runs before any primitive call, so a caller that fails it reads
@@ -123,4 +128,95 @@ func (m *Service) AdminGetRunDiff(ctx context.Context, req magiapi.AdminGetRunRe
 		return magiapi.TaskDiff{}, err
 	}
 	return m.S.taskDiff(ctx, run)
+}
+
+// adminChat is the chat row of a stream for the admin views.
+func adminChat(st conversationapi.Stream) magiapi.AdminChat {
+	return magiapi.AdminChat{Stream: st.Id, Person: st.Person, Persona: st.Persona, LastSeq: st.LastSeq,
+		CreatedMs: st.CreatedMs, UpdatedMs: st.UpdatedMs}
+}
+
+// The default and the maximum number of messages that admin-read-chat
+// returns.
+const (
+	adminChatDefault = 50
+	adminChatMax     = 200
+)
+
+// AdminListChats lists the chats of all people, newest first. With person or
+// persona, only those chats.
+func (m *Service) AdminListChats(ctx context.Context, req magiapi.AdminListChatsRequest) (magiapi.AdminListChatsResponse, error) {
+	if err := m.S.adminCall(ctx, RoleAdminChats, "admin-list-chats", deref(req.Person)); err != nil {
+		return magiapi.AdminListChatsResponse{}, err
+	}
+	sctx := m.S.AsService(ctx)
+	list := conversationapi.ListStreamsRequest{All: ptr(true)}
+	if person := deref(req.Person); person != "" {
+		list = conversationapi.ListStreamsRequest{Person: req.Person}
+	}
+	res, err := m.S.Conversation.ListStreams(sctx, list)
+	if err != nil {
+		return magiapi.AdminListChatsResponse{}, err
+	}
+	out := magiapi.AdminListChatsResponse{Chats: []magiapi.AdminChat{}}
+	for _, st := range res.Streams {
+		if persona := deref(req.Persona); persona != "" && st.Persona != persona {
+			continue
+		}
+		out.Chats = append(out.Chats, adminChat(st))
+	}
+	return out, nil
+}
+
+// AdminReadChat reads the newest messages of a chat, or the ones before
+// before_seq (for scrolling back).
+func (m *Service) AdminReadChat(ctx context.Context, req magiapi.AdminReadChatRequest) (magiapi.AdminReadChatResponse, error) {
+	if err := m.S.adminCall(ctx, RoleAdminChats, "admin-read-chat", req.Stream); err != nil {
+		return magiapi.AdminReadChatResponse{}, err
+	}
+	sctx := m.S.AsService(ctx)
+	st, err := m.S.Conversation.GetStream(sctx, conversationapi.GetStreamRequest{Id: req.Stream})
+	if err != nil {
+		return magiapi.AdminReadChatResponse{}, err
+	}
+	limit := uint64(adminChatDefault)
+	if l := deref(req.Limit); l > 0 {
+		limit = min(l, adminChatMax)
+	}
+	// Without before_seq, the newest messages: the ones before last_seq+1.
+	before := deref(req.BeforeSeq)
+	if before == 0 {
+		before = st.LastSeq + 1
+	}
+	res, err := m.S.Conversation.ListUtterances(sctx, conversationapi.ListUtterancesRequest{
+		Stream: st.Id, BeforeSeq: ptr(before), Limit: ptr(limit)})
+	if err != nil {
+		return magiapi.AdminReadChatResponse{}, err
+	}
+	msgs, err := m.S.messages(sctx, res.Utterances, res.Links, false)
+	if err != nil {
+		return magiapi.AdminReadChatResponse{}, err
+	}
+	return magiapi.AdminReadChatResponse{Chat: adminChat(st), Messages: msgs}, nil
+}
+
+// AdminTurnLog returns the turn log of the persona reply to message: the
+// body of the newest interpretation annotation of that message.
+func (m *Service) AdminTurnLog(ctx context.Context, req magiapi.AdminTurnLogRequest) (magiapi.AdminTurnLogResponse, error) {
+	if err := m.S.adminCall(ctx, RoleAdminChats, "admin-turn-log", req.Message); err != nil {
+		return magiapi.AdminTurnLogResponse{}, err
+	}
+	res, err := m.S.Conversation.ListAnnotations(m.S.AsService(ctx), conversationapi.ListAnnotationsRequest{Utterance: req.Message})
+	if err != nil {
+		return magiapi.AdminTurnLogResponse{}, err
+	}
+	out := magiapi.AdminTurnLogResponse{Message: req.Message}
+	// The store returns the annotations oldest first, so the last match is
+	// the newest one.
+	for _, an := range res.Annotations {
+		if an.Kind == "interpretation" {
+			out.Log = ptr(an.Body)
+		}
+	}
+	return out, nil
 }

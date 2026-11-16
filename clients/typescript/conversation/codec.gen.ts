@@ -882,6 +882,7 @@ export function fromOpenStreamRequestCbor(bytes: Uint8Array): OpenStreamRequest 
 
 export function toListStreamsRequestCborValue(v: ListStreamsRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
+  if (v.all !== undefined) csilMap.set("all", v.all);
   if (v.person !== undefined) csilMap.set("person", v.person);
   return csilMap;
 }
@@ -889,6 +890,7 @@ export function toListStreamsRequestCborValue(v: ListStreamsRequest): CborValue 
 export function fromListStreamsRequestCborValue(value: CborValue): ListStreamsRequest {
   return {
     person: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "person")),
+    all: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "all")),
   };
 }
 
