@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { AppRef, ApplicationRequest, BeginGrantRequest, BeginGrantResponse, BeginLoginRequest, BeginLoginResponse, Credential, CredentialRef, EmptyResponse, ExpiringGrantsRequest, ForgetGrantRequest, Grant, IssueServiceTokenRequest, ListCredentialsRequest, ListCredentialsResponse, ListGrantsRequest, ListGrantsResponse, PollLoginRequest, PollLoginResponse, PresentGrantRequest, PresentGrantResponse, PutCredentialRequest, RefreshRequest, TokenResponse, WhoAmIRequest, WhoAmIResponse } from "./types.gen.ts";
+import type { AppRef, ApplicationRequest, BeginGrantRequest, BeginGrantResponse, BeginLoginRequest, BeginLoginResponse, Credential, CredentialRef, EmptyResponse, ExpiringGrantsRequest, ForgetGrantRequest, Grant, IssueServiceTokenRequest, KnownUser, ListCredentialsRequest, ListCredentialsResponse, ListGrantsRequest, ListGrantsResponse, ListRolesRequest, ListRolesResponse, ListUsersRequest, ListUsersResponse, PollLoginRequest, PollLoginResponse, PresentGrantRequest, PresentGrantResponse, PutCredentialRequest, RefreshRequest, RoleAssignment, SetRoleSubjectsRequest, SetSubjectRolesRequest, TokenResponse, WhoAmIRequest, WhoAmIResponse } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -960,5 +960,179 @@ export function toListCredentialsResponseCbor(v: ListCredentialsResponse): Uint8
 
 export function fromListCredentialsResponseCbor(bytes: Uint8Array): ListCredentialsResponse {
   return fromListCredentialsResponseCborValue(decode(bytes));
+}
+
+export function toRoleAssignmentCborValue(v: RoleAssignment): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("role", v.role);
+  csilMap.set("subject", v.subject);
+  csilMap.set("granted_by", v.grantedBy);
+  csilMap.set("granted_ms", v.grantedMs);
+  return csilMap;
+}
+
+export function fromRoleAssignmentCborValue(value: CborValue): RoleAssignment {
+  return {
+    subject: asString(requireKey(value, "subject")),
+    role: asString(requireKey(value, "role")),
+    grantedBy: asString(requireKey(value, "granted_by")),
+    grantedMs: asNumber(requireKey(value, "granted_ms")),
+  };
+}
+
+export function toRoleAssignmentCbor(v: RoleAssignment): Uint8Array {
+  return encodeValue(toRoleAssignmentCborValue(v));
+}
+
+export function fromRoleAssignmentCbor(bytes: Uint8Array): RoleAssignment {
+  return fromRoleAssignmentCborValue(decode(bytes));
+}
+
+export function toListRolesRequestCborValue(v: ListRolesRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.role !== undefined) csilMap.set("role", v.role);
+  if (v.subject !== undefined) csilMap.set("subject", v.subject);
+  return csilMap;
+}
+
+export function fromListRolesRequestCborValue(value: CborValue): ListRolesRequest {
+  return {
+    subject: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "subject")),
+    role: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "role")),
+  };
+}
+
+export function toListRolesRequestCbor(v: ListRolesRequest): Uint8Array {
+  return encodeValue(toListRolesRequestCborValue(v));
+}
+
+export function fromListRolesRequestCbor(bytes: Uint8Array): ListRolesRequest {
+  return fromListRolesRequestCborValue(decode(bytes));
+}
+
+export function toListRolesResponseCborValue(v: ListRolesResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("assignments", v.assignments.map((csilE): CborValue => toRoleAssignmentCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromListRolesResponseCborValue(value: CborValue): ListRolesResponse {
+  return {
+    assignments: asArray(requireKey(value, "assignments")).map((csilE) => fromRoleAssignmentCborValue(csilE)),
+  };
+}
+
+export function toListRolesResponseCbor(v: ListRolesResponse): Uint8Array {
+  return encodeValue(toListRolesResponseCborValue(v));
+}
+
+export function fromListRolesResponseCbor(bytes: Uint8Array): ListRolesResponse {
+  return fromListRolesResponseCborValue(decode(bytes));
+}
+
+export function toSetSubjectRolesRequestCborValue(v: SetSubjectRolesRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("roles", v.roles);
+  csilMap.set("subject", v.subject);
+  return csilMap;
+}
+
+export function fromSetSubjectRolesRequestCborValue(value: CborValue): SetSubjectRolesRequest {
+  return {
+    subject: asString(requireKey(value, "subject")),
+    roles: asArray(requireKey(value, "roles")).map((csilE) => asString(csilE)),
+  };
+}
+
+export function toSetSubjectRolesRequestCbor(v: SetSubjectRolesRequest): Uint8Array {
+  return encodeValue(toSetSubjectRolesRequestCborValue(v));
+}
+
+export function fromSetSubjectRolesRequestCbor(bytes: Uint8Array): SetSubjectRolesRequest {
+  return fromSetSubjectRolesRequestCborValue(decode(bytes));
+}
+
+export function toSetRoleSubjectsRequestCborValue(v: SetRoleSubjectsRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("role", v.role);
+  csilMap.set("subjects", v.subjects);
+  return csilMap;
+}
+
+export function fromSetRoleSubjectsRequestCborValue(value: CborValue): SetRoleSubjectsRequest {
+  return {
+    role: asString(requireKey(value, "role")),
+    subjects: asArray(requireKey(value, "subjects")).map((csilE) => asString(csilE)),
+  };
+}
+
+export function toSetRoleSubjectsRequestCbor(v: SetRoleSubjectsRequest): Uint8Array {
+  return encodeValue(toSetRoleSubjectsRequestCborValue(v));
+}
+
+export function fromSetRoleSubjectsRequestCbor(bytes: Uint8Array): SetRoleSubjectsRequest {
+  return fromSetRoleSubjectsRequestCborValue(decode(bytes));
+}
+
+export function toListUsersRequestCborValue(v: ListUsersRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.limit !== undefined) csilMap.set("limit", v.limit);
+  return csilMap;
+}
+
+export function fromListUsersRequestCborValue(value: CborValue): ListUsersRequest {
+  return {
+    limit: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
+  };
+}
+
+export function toListUsersRequestCbor(v: ListUsersRequest): Uint8Array {
+  return encodeValue(toListUsersRequestCborValue(v));
+}
+
+export function fromListUsersRequestCbor(bytes: Uint8Array): ListUsersRequest {
+  return fromListUsersRequestCborValue(decode(bytes));
+}
+
+export function toKnownUserCborValue(v: KnownUser): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("subject", v.subject);
+  csilMap.set("last_seen_ms", v.lastSeenMs);
+  return csilMap;
+}
+
+export function fromKnownUserCborValue(value: CborValue): KnownUser {
+  return {
+    subject: asString(requireKey(value, "subject")),
+    lastSeenMs: asNumber(requireKey(value, "last_seen_ms")),
+  };
+}
+
+export function toKnownUserCbor(v: KnownUser): Uint8Array {
+  return encodeValue(toKnownUserCborValue(v));
+}
+
+export function fromKnownUserCbor(bytes: Uint8Array): KnownUser {
+  return fromKnownUserCborValue(decode(bytes));
+}
+
+export function toListUsersResponseCborValue(v: ListUsersResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("users", v.users.map((csilE): CborValue => toKnownUserCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromListUsersResponseCborValue(value: CborValue): ListUsersResponse {
+  return {
+    users: asArray(requireKey(value, "users")).map((csilE) => fromKnownUserCborValue(csilE)),
+  };
+}
+
+export function toListUsersResponseCbor(v: ListUsersResponse): Uint8Array {
+  return encodeValue(toListUsersResponseCborValue(v));
+}
+
+export function fromListUsersResponseCbor(bytes: Uint8Array): ListUsersResponse {
+  return fromListUsersResponseCborValue(decode(bytes));
 }
 

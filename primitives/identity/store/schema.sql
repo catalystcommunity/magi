@@ -92,3 +92,14 @@ CREATE TABLE IF NOT EXISTS identity_credentials (
   updated_ms bigint NOT NULL,
   PRIMARY KEY (owner, system)
 );
+
+-- Role assignments. The primitive does not know the meaning of a role:
+-- Magi defines which role names exist and what they permit.
+CREATE TABLE IF NOT EXISTS identity_roles (
+  subject    text   NOT NULL,
+  role       text   NOT NULL,
+  granted_by text   NOT NULL,
+  granted_ms bigint NOT NULL,
+  PRIMARY KEY (subject, role)
+);
+CREATE INDEX IF NOT EXISTS identity_roles_role ON identity_roles (role);

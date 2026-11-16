@@ -2,8 +2,8 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { AppRef, ApplicationRequest, BeginGrantRequest, BeginGrantResponse, BeginLoginRequest, BeginLoginResponse, Credential, CredentialRef, EmptyResponse, ExpiringGrantsRequest, ForgetGrantRequest, IssueServiceTokenRequest, ListCredentialsRequest, ListCredentialsResponse, ListGrantsRequest, ListGrantsResponse, PollLoginRequest, PollLoginResponse, PresentGrantRequest, PresentGrantResponse, PutCredentialRequest, RefreshRequest, TokenResponse, WhoAmIRequest, WhoAmIResponse } from "./types.gen.ts";
-import { fromAppRefCbor, fromBeginGrantResponseCbor, fromBeginLoginResponseCbor, fromCredentialCbor, fromEmptyResponseCbor, fromListCredentialsResponseCbor, fromListGrantsResponseCbor, fromPollLoginResponseCbor, fromPresentGrantResponseCbor, fromTokenResponseCbor, fromWhoAmIResponseCbor, toApplicationRequestCbor, toBeginGrantRequestCbor, toBeginLoginRequestCbor, toCredentialRefCbor, toExpiringGrantsRequestCbor, toForgetGrantRequestCbor, toIssueServiceTokenRequestCbor, toListCredentialsRequestCbor, toListGrantsRequestCbor, toPollLoginRequestCbor, toPresentGrantRequestCbor, toPutCredentialRequestCbor, toRefreshRequestCbor, toWhoAmIRequestCbor } from "./codec.gen.ts";
+import type { AppRef, ApplicationRequest, BeginGrantRequest, BeginGrantResponse, BeginLoginRequest, BeginLoginResponse, Credential, CredentialRef, EmptyResponse, ExpiringGrantsRequest, ForgetGrantRequest, IssueServiceTokenRequest, ListCredentialsRequest, ListCredentialsResponse, ListGrantsRequest, ListGrantsResponse, ListRolesRequest, ListRolesResponse, ListUsersRequest, ListUsersResponse, PollLoginRequest, PollLoginResponse, PresentGrantRequest, PresentGrantResponse, PutCredentialRequest, RefreshRequest, SetRoleSubjectsRequest, SetSubjectRolesRequest, TokenResponse, WhoAmIRequest, WhoAmIResponse } from "./types.gen.ts";
+import { fromAppRefCbor, fromBeginGrantResponseCbor, fromBeginLoginResponseCbor, fromCredentialCbor, fromEmptyResponseCbor, fromListCredentialsResponseCbor, fromListGrantsResponseCbor, fromListRolesResponseCbor, fromListUsersResponseCbor, fromPollLoginResponseCbor, fromPresentGrantResponseCbor, fromTokenResponseCbor, fromWhoAmIResponseCbor, toApplicationRequestCbor, toBeginGrantRequestCbor, toBeginLoginRequestCbor, toCredentialRefCbor, toExpiringGrantsRequestCbor, toForgetGrantRequestCbor, toIssueServiceTokenRequestCbor, toListCredentialsRequestCbor, toListGrantsRequestCbor, toListRolesRequestCbor, toListUsersRequestCbor, toPollLoginRequestCbor, toPresentGrantRequestCbor, toPutCredentialRequestCbor, toRefreshRequestCbor, toSetRoleSubjectsRequestCbor, toSetSubjectRolesRequestCbor, toWhoAmIRequestCbor } from "./codec.gen.ts";
 
 export interface ServiceTransport {
   call(service: string, op: string, req: Uint8Array): Uint8Array;
@@ -145,6 +145,42 @@ export class IdentityClient {
   forgetCredential(req: CredentialRef): EmptyResponse {
     const csilResp = this.t.call("IdentityService", "forget-credential", toCredentialRefCbor(req));
     return fromEmptyResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  listRoles(req: ListRolesRequest): ListRolesResponse {
+    const csilResp = this.t.call("IdentityService", "list-roles", toListRolesRequestCbor(req));
+    return fromListRolesResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  setSubjectRoles(req: SetSubjectRolesRequest): ListRolesResponse {
+    const csilResp = this.t.call("IdentityService", "set-subject-roles", toSetSubjectRolesRequestCbor(req));
+    return fromListRolesResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  setRoleSubjects(req: SetRoleSubjectsRequest): ListRolesResponse {
+    const csilResp = this.t.call("IdentityService", "set-role-subjects", toSetRoleSubjectsRequestCbor(req));
+    return fromListRolesResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  listUsers(req: ListUsersRequest): ListUsersResponse {
+    const csilResp = this.t.call("IdentityService", "list-users", toListUsersRequestCbor(req));
+    return fromListUsersResponseCbor(csilResp);
   }
 }
 

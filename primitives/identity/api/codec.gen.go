@@ -2076,3 +2076,393 @@ func DecodeListCredentialsResponse(csilData []byte) (ListCredentialsResponse, er
 	}
 	return csilDecListCredentialsResponse(csilRoot)
 }
+
+// csilEncRoleAssignment builds the canonical CBOR value tree for a RoleAssignment.
+func csilEncRoleAssignment(csilV RoleAssignment) cborValue {
+	csilEntries := make(cborMap, 0, 4)
+	csilEntries = append(csilEntries, cborEntry{cborText("role"), cborText(csilV.Role)})
+	csilEntries = append(csilEntries, cborEntry{cborText("subject"), cborText(csilV.Subject)})
+	csilEntries = append(csilEntries, cborEntry{cborText("granted_by"), cborText(csilV.GrantedBy)})
+	csilEntries = append(csilEntries, cborEntry{cborText("granted_ms"), cborUint(csilV.GrantedMs)})
+	return csilEntries
+}
+
+// csilDecRoleAssignment reconstructs a RoleAssignment from a decoded CBOR value tree.
+func csilDecRoleAssignment(csilRoot cborValue) (RoleAssignment, error) {
+	var csilOut RoleAssignment
+	{
+		csilField, csilErr := cborRequire(csilRoot, "subject")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Subject = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "role")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Role = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "granted_by")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.GrantedBy = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "granted_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.GrantedMs = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeRoleAssignment encodes a RoleAssignment to canonical CSIL CBOR bytes.
+func EncodeRoleAssignment(csilV RoleAssignment) []byte {
+	return cborEncode(csilEncRoleAssignment(csilV))
+}
+
+// DecodeRoleAssignment decodes canonical CSIL CBOR bytes into a RoleAssignment.
+func DecodeRoleAssignment(csilData []byte) (RoleAssignment, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero RoleAssignment
+		return csilZero, csilErr
+	}
+	return csilDecRoleAssignment(csilRoot)
+}
+
+// csilEncListRolesRequest builds the canonical CBOR value tree for a ListRolesRequest.
+func csilEncListRolesRequest(csilV ListRolesRequest) cborValue {
+	csilEntries := make(cborMap, 0, 2)
+	if csilV.Role != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("role"), cborText((*csilV.Role))})
+	}
+	if csilV.Subject != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("subject"), cborText((*csilV.Subject))})
+	}
+	return csilEntries
+}
+
+// csilDecListRolesRequest reconstructs a ListRolesRequest from a decoded CBOR value tree.
+func csilDecListRolesRequest(csilRoot cborValue) (ListRolesRequest, error) {
+	var csilOut ListRolesRequest
+	if csilField, csilOk := cborMapGet(csilRoot, "subject"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Subject = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "role"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Role = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeListRolesRequest encodes a ListRolesRequest to canonical CSIL CBOR bytes.
+func EncodeListRolesRequest(csilV ListRolesRequest) []byte {
+	return cborEncode(csilEncListRolesRequest(csilV))
+}
+
+// DecodeListRolesRequest decodes canonical CSIL CBOR bytes into a ListRolesRequest.
+func DecodeListRolesRequest(csilData []byte) (ListRolesRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ListRolesRequest
+		return csilZero, csilErr
+	}
+	return csilDecListRolesRequest(csilRoot)
+}
+
+// csilEncListRolesResponse builds the canonical CBOR value tree for a ListRolesResponse.
+func csilEncListRolesResponse(csilV ListRolesResponse) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("assignments"), cborEncArray(csilV.Assignments, func(csilElem RoleAssignment) cborValue { return csilEncRoleAssignment(csilElem) })})
+	return csilEntries
+}
+
+// csilDecListRolesResponse reconstructs a ListRolesResponse from a decoded CBOR value tree.
+func csilDecListRolesResponse(csilRoot cborValue) (ListRolesResponse, error) {
+	var csilOut ListRolesResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "assignments")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]RoleAssignment, error) { return cborDecArray(csilV, csilDecRoleAssignment) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Assignments = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeListRolesResponse encodes a ListRolesResponse to canonical CSIL CBOR bytes.
+func EncodeListRolesResponse(csilV ListRolesResponse) []byte {
+	return cborEncode(csilEncListRolesResponse(csilV))
+}
+
+// DecodeListRolesResponse decodes canonical CSIL CBOR bytes into a ListRolesResponse.
+func DecodeListRolesResponse(csilData []byte) (ListRolesResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ListRolesResponse
+		return csilZero, csilErr
+	}
+	return csilDecListRolesResponse(csilRoot)
+}
+
+// csilEncSetSubjectRolesRequest builds the canonical CBOR value tree for a SetSubjectRolesRequest.
+func csilEncSetSubjectRolesRequest(csilV SetSubjectRolesRequest) cborValue {
+	csilEntries := make(cborMap, 0, 2)
+	csilEntries = append(csilEntries, cborEntry{cborText("roles"), cborEncArray(csilV.Roles, func(csilElem string) cborValue { return cborText(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("subject"), cborText(csilV.Subject)})
+	return csilEntries
+}
+
+// csilDecSetSubjectRolesRequest reconstructs a SetSubjectRolesRequest from a decoded CBOR value tree.
+func csilDecSetSubjectRolesRequest(csilRoot cborValue) (SetSubjectRolesRequest, error) {
+	var csilOut SetSubjectRolesRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "subject")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Subject = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "roles")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]string, error) { return cborDecArray(csilV, cborAsText) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Roles = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeSetSubjectRolesRequest encodes a SetSubjectRolesRequest to canonical CSIL CBOR bytes.
+func EncodeSetSubjectRolesRequest(csilV SetSubjectRolesRequest) []byte {
+	return cborEncode(csilEncSetSubjectRolesRequest(csilV))
+}
+
+// DecodeSetSubjectRolesRequest decodes canonical CSIL CBOR bytes into a SetSubjectRolesRequest.
+func DecodeSetSubjectRolesRequest(csilData []byte) (SetSubjectRolesRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero SetSubjectRolesRequest
+		return csilZero, csilErr
+	}
+	return csilDecSetSubjectRolesRequest(csilRoot)
+}
+
+// csilEncSetRoleSubjectsRequest builds the canonical CBOR value tree for a SetRoleSubjectsRequest.
+func csilEncSetRoleSubjectsRequest(csilV SetRoleSubjectsRequest) cborValue {
+	csilEntries := make(cborMap, 0, 2)
+	csilEntries = append(csilEntries, cborEntry{cborText("role"), cborText(csilV.Role)})
+	csilEntries = append(csilEntries, cborEntry{cborText("subjects"), cborEncArray(csilV.Subjects, func(csilElem string) cborValue { return cborText(csilElem) })})
+	return csilEntries
+}
+
+// csilDecSetRoleSubjectsRequest reconstructs a SetRoleSubjectsRequest from a decoded CBOR value tree.
+func csilDecSetRoleSubjectsRequest(csilRoot cborValue) (SetRoleSubjectsRequest, error) {
+	var csilOut SetRoleSubjectsRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "role")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Role = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "subjects")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]string, error) { return cborDecArray(csilV, cborAsText) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Subjects = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeSetRoleSubjectsRequest encodes a SetRoleSubjectsRequest to canonical CSIL CBOR bytes.
+func EncodeSetRoleSubjectsRequest(csilV SetRoleSubjectsRequest) []byte {
+	return cborEncode(csilEncSetRoleSubjectsRequest(csilV))
+}
+
+// DecodeSetRoleSubjectsRequest decodes canonical CSIL CBOR bytes into a SetRoleSubjectsRequest.
+func DecodeSetRoleSubjectsRequest(csilData []byte) (SetRoleSubjectsRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero SetRoleSubjectsRequest
+		return csilZero, csilErr
+	}
+	return csilDecSetRoleSubjectsRequest(csilRoot)
+}
+
+// csilEncListUsersRequest builds the canonical CBOR value tree for a ListUsersRequest.
+func csilEncListUsersRequest(csilV ListUsersRequest) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	if csilV.Limit != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("limit"), cborUint((*csilV.Limit))})
+	}
+	return csilEntries
+}
+
+// csilDecListUsersRequest reconstructs a ListUsersRequest from a decoded CBOR value tree.
+func csilDecListUsersRequest(csilRoot cborValue) (ListUsersRequest, error) {
+	var csilOut ListUsersRequest
+	if csilField, csilOk := cborMapGet(csilRoot, "limit"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Limit = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeListUsersRequest encodes a ListUsersRequest to canonical CSIL CBOR bytes.
+func EncodeListUsersRequest(csilV ListUsersRequest) []byte {
+	return cborEncode(csilEncListUsersRequest(csilV))
+}
+
+// DecodeListUsersRequest decodes canonical CSIL CBOR bytes into a ListUsersRequest.
+func DecodeListUsersRequest(csilData []byte) (ListUsersRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ListUsersRequest
+		return csilZero, csilErr
+	}
+	return csilDecListUsersRequest(csilRoot)
+}
+
+// csilEncKnownUser builds the canonical CBOR value tree for a KnownUser.
+func csilEncKnownUser(csilV KnownUser) cborValue {
+	csilEntries := make(cborMap, 0, 2)
+	csilEntries = append(csilEntries, cborEntry{cborText("subject"), cborText(csilV.Subject)})
+	csilEntries = append(csilEntries, cborEntry{cborText("last_seen_ms"), cborUint(csilV.LastSeenMs)})
+	return csilEntries
+}
+
+// csilDecKnownUser reconstructs a KnownUser from a decoded CBOR value tree.
+func csilDecKnownUser(csilRoot cborValue) (KnownUser, error) {
+	var csilOut KnownUser
+	{
+		csilField, csilErr := cborRequire(csilRoot, "subject")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Subject = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "last_seen_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.LastSeenMs = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeKnownUser encodes a KnownUser to canonical CSIL CBOR bytes.
+func EncodeKnownUser(csilV KnownUser) []byte {
+	return cborEncode(csilEncKnownUser(csilV))
+}
+
+// DecodeKnownUser decodes canonical CSIL CBOR bytes into a KnownUser.
+func DecodeKnownUser(csilData []byte) (KnownUser, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero KnownUser
+		return csilZero, csilErr
+	}
+	return csilDecKnownUser(csilRoot)
+}
+
+// csilEncListUsersResponse builds the canonical CBOR value tree for a ListUsersResponse.
+func csilEncListUsersResponse(csilV ListUsersResponse) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("users"), cborEncArray(csilV.Users, func(csilElem KnownUser) cborValue { return csilEncKnownUser(csilElem) })})
+	return csilEntries
+}
+
+// csilDecListUsersResponse reconstructs a ListUsersResponse from a decoded CBOR value tree.
+func csilDecListUsersResponse(csilRoot cborValue) (ListUsersResponse, error) {
+	var csilOut ListUsersResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "users")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]KnownUser, error) { return cborDecArray(csilV, csilDecKnownUser) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Users = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeListUsersResponse encodes a ListUsersResponse to canonical CSIL CBOR bytes.
+func EncodeListUsersResponse(csilV ListUsersResponse) []byte {
+	return cborEncode(csilEncListUsersResponse(csilV))
+}
+
+// DecodeListUsersResponse decodes canonical CSIL CBOR bytes into a ListUsersResponse.
+func DecodeListUsersResponse(csilData []byte) (ListUsersResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ListUsersResponse
+		return csilZero, csilErr
+	}
+	return csilDecListUsersResponse(csilRoot)
+}

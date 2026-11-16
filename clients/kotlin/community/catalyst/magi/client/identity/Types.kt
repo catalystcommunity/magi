@@ -267,3 +267,53 @@ data class ListCredentialsResponse(
     val credentials: List<Credential>
 )
 
+/** RoleAssignment record. */
+data class RoleAssignment(
+    val subject: String,
+    val role: String,
+    // wire key: granted_by
+    val grantedBy: String,
+    // wire key: granted_ms
+    val grantedMs: ULong
+)
+
+/** ListRolesRequest record. */
+data class ListRolesRequest(
+    val subject: String? = null,
+    val role: String? = null
+)
+
+/** ListRolesResponse record. */
+data class ListRolesResponse(
+    val assignments: List<RoleAssignment>
+)
+
+/** SetSubjectRolesRequest record. */
+data class SetSubjectRolesRequest(
+    val subject: String,
+    val roles: List<String>
+)
+
+/** SetRoleSubjectsRequest record. */
+data class SetRoleSubjectsRequest(
+    val role: String,
+    val subjects: List<String>
+)
+
+/** ListUsersRequest record. */
+data class ListUsersRequest(
+    val limit: ULong? = null
+)
+
+/** KnownUser record. */
+data class KnownUser(
+    val subject: String,
+    // wire key: last_seen_ms
+    val lastSeenMs: ULong
+)
+
+/** ListUsersResponse record. */
+data class ListUsersResponse(
+    val users: List<KnownUser>
+)
+

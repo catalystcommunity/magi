@@ -224,3 +224,58 @@ export interface ListCredentialsResponse {
   credentials: Credential[];
 }
 
+/**
+ * The primitive does not know the meaning of a role: Magi defines which
+ * role names exist and what they permit. It only keeps the assignments.
+ */
+export interface RoleAssignment {
+  subject: string;
+  role: string;
+  grantedBy: string;
+  grantedMs: number;
+}
+
+/**
+ * One of subject or role is set: the roles of a subject, or the subjects of a role.
+ */
+export interface ListRolesRequest {
+  subject?: string;
+  role?: string;
+}
+
+export interface ListRolesResponse {
+  assignments: RoleAssignment[];
+}
+
+/**
+ * Replaces the roles of one subject (the editor by user).
+ */
+export interface SetSubjectRolesRequest {
+  subject: string;
+  roles: string[];
+}
+
+/**
+ * Replaces the subjects of one role (the editor by role).
+ */
+export interface SetRoleSubjectsRequest {
+  role: string;
+  subjects: string[];
+}
+
+/**
+ * The subjects that signed in (identity_sessions), newest first, so an editor can pick a person. limit default 100, at most 1000.
+ */
+export interface ListUsersRequest {
+  limit?: number;
+}
+
+export interface KnownUser {
+  subject: string;
+  lastSeenMs: number;
+}
+
+export interface ListUsersResponse {
+  users: KnownUser[];
+}
+
