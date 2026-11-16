@@ -35,6 +35,10 @@ class ModelConfig:
     idle_s: float = 90.0
     stream: bool = True
     max_retries: int = 5
+    # The most time that one call waits for a busy inference host. A host that
+    # stops its engine while the machine is busy answers 503 with a wait, not
+    # with a failure. These waits do not use up the retries.
+    busy_wait_s: float = 1800.0
     max_tokens: int = 4096
     temperature: float | None = 0.2
     # Extra fields merged into each request body (for example top_p).
@@ -60,6 +64,7 @@ class ModelConfig:
             idle_s=float(_env("MAGI_MODEL_IDLE_TIMEOUT", "90")),
             stream=_env("MAGI_MODEL_STREAM", "true") != "false",
             max_retries=_int("MAGI_MODEL_MAX_RETRIES", 5),
+            busy_wait_s=float(_env("MAGI_MODEL_BUSY_WAIT_S", "1800")),
             max_tokens=_int("MAGI_MODEL_MAX_TOKENS", 4096),
             temperature=_float("MAGI_MODEL_TEMPERATURE", 0.2),
         )
