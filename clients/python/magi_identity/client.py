@@ -91,3 +91,19 @@ class IdentityClient:
         """forget-credential"""
         return EmptyResponse.from_cbor(self._transport.call("IdentityService", "forget-credential", req.to_cbor()))
 
+    def list_roles(self, req: ListRolesRequest) -> ListRolesResponse:
+        """list-roles"""
+        return ListRolesResponse.from_cbor(self._transport.call("IdentityService", "list-roles", req.to_cbor()))
+
+    def set_subject_roles(self, req: SetSubjectRolesRequest) -> ListRolesResponse:
+        """set-subject-roles"""
+        return ListRolesResponse.from_cbor(self._transport.call("IdentityService", "set-subject-roles", req.to_cbor()))
+
+    def set_role_subjects(self, req: SetRoleSubjectsRequest) -> ListRolesResponse:
+        """set-role-subjects"""
+        return ListRolesResponse.from_cbor(self._transport.call("IdentityService", "set-role-subjects", req.to_cbor()))
+
+    def list_users(self, req: ListUsersRequest) -> ListUsersResponse:
+        """list-users"""
+        return ListUsersResponse.from_cbor(self._transport.call("IdentityService", "list-users", req.to_cbor()))
+

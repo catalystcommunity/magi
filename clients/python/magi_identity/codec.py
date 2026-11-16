@@ -1099,3 +1099,211 @@ def _list_credentials_response_from_cbor(data: bytes) -> "ListCredentialsRespons
 
 ListCredentialsResponse.to_cbor = _list_credentials_response_to_cbor
 ListCredentialsResponse.from_cbor = staticmethod(_list_credentials_response_from_cbor)
+
+def _encode_role_assignment_value(v: "RoleAssignment") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["role"] = v.role
+    csil_m["subject"] = v.subject
+    csil_m["granted_by"] = v.granted_by
+    csil_m["granted_ms"] = v.granted_ms
+    return csil_m
+
+def _decode_role_assignment_value(tree: Any) -> "RoleAssignment":
+    tree = _csil_expect_map(tree)
+    return RoleAssignment(
+        subject=_csil_expect_text(tree["subject"]),
+        role=_csil_expect_text(tree["role"]),
+        granted_by=_csil_expect_text(tree["granted_by"]),
+        granted_ms=_csil_expect_uint(tree["granted_ms"]),
+    )
+
+
+def _role_assignment_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_role_assignment_value(self))
+
+
+def _role_assignment_from_cbor(data: bytes) -> "RoleAssignment":
+    return _decode_role_assignment_value(cbor_decode(data))
+
+
+RoleAssignment.to_cbor = _role_assignment_to_cbor
+RoleAssignment.from_cbor = staticmethod(_role_assignment_from_cbor)
+
+def _encode_list_roles_request_value(v: "ListRolesRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.role
+    if csil_x is not None:
+        csil_m["role"] = csil_x
+    csil_x = v.subject
+    if csil_x is not None:
+        csil_m["subject"] = csil_x
+    return csil_m
+
+def _decode_list_roles_request_value(tree: Any) -> "ListRolesRequest":
+    tree = _csil_expect_map(tree)
+    return ListRolesRequest(
+        subject=(None if tree.get("subject") is None else _csil_expect_text(tree["subject"])),
+        role=(None if tree.get("role") is None else _csil_expect_text(tree["role"])),
+    )
+
+
+def _list_roles_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_roles_request_value(self))
+
+
+def _list_roles_request_from_cbor(data: bytes) -> "ListRolesRequest":
+    return _decode_list_roles_request_value(cbor_decode(data))
+
+
+ListRolesRequest.to_cbor = _list_roles_request_to_cbor
+ListRolesRequest.from_cbor = staticmethod(_list_roles_request_from_cbor)
+
+def _encode_list_roles_response_value(v: "ListRolesResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["assignments"] = [_encode_role_assignment_value(csil_e) for csil_e in v.assignments]
+    return csil_m
+
+def _decode_list_roles_response_value(tree: Any) -> "ListRolesResponse":
+    tree = _csil_expect_map(tree)
+    return ListRolesResponse(
+        assignments=[_decode_role_assignment_value(csil_e) for csil_e in _csil_expect_array(tree["assignments"])],
+    )
+
+
+def _list_roles_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_roles_response_value(self))
+
+
+def _list_roles_response_from_cbor(data: bytes) -> "ListRolesResponse":
+    return _decode_list_roles_response_value(cbor_decode(data))
+
+
+ListRolesResponse.to_cbor = _list_roles_response_to_cbor
+ListRolesResponse.from_cbor = staticmethod(_list_roles_response_from_cbor)
+
+def _encode_set_subject_roles_request_value(v: "SetSubjectRolesRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["roles"] = v.roles
+    csil_m["subject"] = v.subject
+    return csil_m
+
+def _decode_set_subject_roles_request_value(tree: Any) -> "SetSubjectRolesRequest":
+    tree = _csil_expect_map(tree)
+    return SetSubjectRolesRequest(
+        subject=_csil_expect_text(tree["subject"]),
+        roles=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["roles"])],
+    )
+
+
+def _set_subject_roles_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_set_subject_roles_request_value(self))
+
+
+def _set_subject_roles_request_from_cbor(data: bytes) -> "SetSubjectRolesRequest":
+    return _decode_set_subject_roles_request_value(cbor_decode(data))
+
+
+SetSubjectRolesRequest.to_cbor = _set_subject_roles_request_to_cbor
+SetSubjectRolesRequest.from_cbor = staticmethod(_set_subject_roles_request_from_cbor)
+
+def _encode_set_role_subjects_request_value(v: "SetRoleSubjectsRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["role"] = v.role
+    csil_m["subjects"] = v.subjects
+    return csil_m
+
+def _decode_set_role_subjects_request_value(tree: Any) -> "SetRoleSubjectsRequest":
+    tree = _csil_expect_map(tree)
+    return SetRoleSubjectsRequest(
+        role=_csil_expect_text(tree["role"]),
+        subjects=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["subjects"])],
+    )
+
+
+def _set_role_subjects_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_set_role_subjects_request_value(self))
+
+
+def _set_role_subjects_request_from_cbor(data: bytes) -> "SetRoleSubjectsRequest":
+    return _decode_set_role_subjects_request_value(cbor_decode(data))
+
+
+SetRoleSubjectsRequest.to_cbor = _set_role_subjects_request_to_cbor
+SetRoleSubjectsRequest.from_cbor = staticmethod(_set_role_subjects_request_from_cbor)
+
+def _encode_list_users_request_value(v: "ListUsersRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.limit
+    if csil_x is not None:
+        csil_m["limit"] = csil_x
+    return csil_m
+
+def _decode_list_users_request_value(tree: Any) -> "ListUsersRequest":
+    tree = _csil_expect_map(tree)
+    return ListUsersRequest(
+        limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
+    )
+
+
+def _list_users_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_users_request_value(self))
+
+
+def _list_users_request_from_cbor(data: bytes) -> "ListUsersRequest":
+    return _decode_list_users_request_value(cbor_decode(data))
+
+
+ListUsersRequest.to_cbor = _list_users_request_to_cbor
+ListUsersRequest.from_cbor = staticmethod(_list_users_request_from_cbor)
+
+def _encode_known_user_value(v: "KnownUser") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.name
+    if csil_x is not None:
+        csil_m["name"] = csil_x
+    csil_m["subject"] = v.subject
+    csil_m["last_seen_ms"] = v.last_seen_ms
+    return csil_m
+
+def _decode_known_user_value(tree: Any) -> "KnownUser":
+    tree = _csil_expect_map(tree)
+    return KnownUser(
+        subject=_csil_expect_text(tree["subject"]),
+        last_seen_ms=_csil_expect_uint(tree["last_seen_ms"]),
+        name=(None if tree.get("name") is None else _csil_expect_text(tree["name"])),
+    )
+
+
+def _known_user_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_known_user_value(self))
+
+
+def _known_user_from_cbor(data: bytes) -> "KnownUser":
+    return _decode_known_user_value(cbor_decode(data))
+
+
+KnownUser.to_cbor = _known_user_to_cbor
+KnownUser.from_cbor = staticmethod(_known_user_from_cbor)
+
+def _encode_list_users_response_value(v: "ListUsersResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["users"] = [_encode_known_user_value(csil_e) for csil_e in v.users]
+    return csil_m
+
+def _decode_list_users_response_value(tree: Any) -> "ListUsersResponse":
+    tree = _csil_expect_map(tree)
+    return ListUsersResponse(
+        users=[_decode_known_user_value(csil_e) for csil_e in _csil_expect_array(tree["users"])],
+    )
+
+
+def _list_users_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_users_response_value(self))
+
+
+def _list_users_response_from_cbor(data: bytes) -> "ListUsersResponse":
+    return _decode_list_users_response_value(cbor_decode(data))
+
+
+ListUsersResponse.to_cbor = _list_users_response_to_cbor
+ListUsersResponse.from_cbor = staticmethod(_list_users_response_from_cbor)

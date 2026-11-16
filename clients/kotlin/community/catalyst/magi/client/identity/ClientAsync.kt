@@ -61,5 +61,17 @@ class IdentityAsyncClient(private val transport: AsyncTransport) {
     suspend fun forgetCredential(request: CredentialRef): EmptyResponse {
         return decode<EmptyResponse>(transport.call("IdentityService", "forget-credential", encode(request)))
     }
+    suspend fun listRoles(request: ListRolesRequest): ListRolesResponse {
+        return decode<ListRolesResponse>(transport.call("IdentityService", "list-roles", encode(request)))
+    }
+    suspend fun setSubjectRoles(request: SetSubjectRolesRequest): ListRolesResponse {
+        return decode<ListRolesResponse>(transport.call("IdentityService", "set-subject-roles", encode(request)))
+    }
+    suspend fun setRoleSubjects(request: SetRoleSubjectsRequest): ListRolesResponse {
+        return decode<ListRolesResponse>(transport.call("IdentityService", "set-role-subjects", encode(request)))
+    }
+    suspend fun listUsers(request: ListUsersRequest): ListUsersResponse {
+        return decode<ListUsersResponse>(transport.call("IdentityService", "list-users", encode(request)))
+    }
 }
 

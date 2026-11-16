@@ -920,6 +920,174 @@ fun listCredentialsResponseFromCborValue(cbor: CborValue): ListCredentialsRespon
 /** Decode CSIL CBOR bytes into a ListCredentialsResponse. */
 fun listCredentialsResponseFromCbor(bytes: ByteArray): ListCredentialsResponse = listCredentialsResponseFromCborValue(CsilCbor.decode(bytes))
 
+/** The CBOR value tree for a RoleAssignment (deep, canonical key order). */
+fun RoleAssignment.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("role") to CborValue.CText(this.role))
+    csilEntries.add(CborValue.CText("subject") to CborValue.CText(this.subject))
+    csilEntries.add(CborValue.CText("granted_by") to CborValue.CText(this.grantedBy))
+    csilEntries.add(CborValue.CText("granted_ms") to CborValue.CUint(this.grantedMs))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a RoleAssignment to canonical CSIL CBOR bytes. */
+fun RoleAssignment.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a RoleAssignment from a decoded CBOR value tree. */
+fun roleAssignmentFromCborValue(cbor: CborValue): RoleAssignment {
+    val subject = CsilCbor.asText(CsilCbor.require(cbor, "subject"))
+    val role = CsilCbor.asText(CsilCbor.require(cbor, "role"))
+    val grantedBy = CsilCbor.asText(CsilCbor.require(cbor, "granted_by"))
+    val grantedMs = CsilCbor.asULong(CsilCbor.require(cbor, "granted_ms"))
+    return RoleAssignment(subject = subject, role = role, grantedBy = grantedBy, grantedMs = grantedMs)
+}
+
+/** Decode CSIL CBOR bytes into a RoleAssignment. */
+fun roleAssignmentFromCbor(bytes: ByteArray): RoleAssignment = roleAssignmentFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListRolesRequest (deep, canonical key order). */
+fun ListRolesRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.role?.let { csilV -> csilEntries.add(CborValue.CText("role") to CborValue.CText(csilV)) }
+    this.subject?.let { csilV -> csilEntries.add(CborValue.CText("subject") to CborValue.CText(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListRolesRequest to canonical CSIL CBOR bytes. */
+fun ListRolesRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListRolesRequest from a decoded CBOR value tree. */
+fun listRolesRequestFromCborValue(cbor: CborValue): ListRolesRequest {
+    val subject = CsilCbor.mapGet(cbor, "subject")?.let { csilV -> CsilCbor.asText(csilV) }
+    val role = CsilCbor.mapGet(cbor, "role")?.let { csilV -> CsilCbor.asText(csilV) }
+    return ListRolesRequest(subject = subject, role = role)
+}
+
+/** Decode CSIL CBOR bytes into a ListRolesRequest. */
+fun listRolesRequestFromCbor(bytes: ByteArray): ListRolesRequest = listRolesRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListRolesResponse (deep, canonical key order). */
+fun ListRolesResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("assignments") to CborValue.CArray((this.assignments).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListRolesResponse to canonical CSIL CBOR bytes. */
+fun ListRolesResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListRolesResponse from a decoded CBOR value tree. */
+fun listRolesResponseFromCborValue(cbor: CborValue): ListRolesResponse {
+    val assignments = CsilCbor.asArray(CsilCbor.require(cbor, "assignments")).map { csilE -> roleAssignmentFromCborValue(csilE) }
+    return ListRolesResponse(assignments = assignments)
+}
+
+/** Decode CSIL CBOR bytes into a ListRolesResponse. */
+fun listRolesResponseFromCbor(bytes: ByteArray): ListRolesResponse = listRolesResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a SetSubjectRolesRequest (deep, canonical key order). */
+fun SetSubjectRolesRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("roles") to CborValue.CArray((this.roles).map { csilE -> CborValue.CText(csilE) }))
+    csilEntries.add(CborValue.CText("subject") to CborValue.CText(this.subject))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a SetSubjectRolesRequest to canonical CSIL CBOR bytes. */
+fun SetSubjectRolesRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a SetSubjectRolesRequest from a decoded CBOR value tree. */
+fun setSubjectRolesRequestFromCborValue(cbor: CborValue): SetSubjectRolesRequest {
+    val subject = CsilCbor.asText(CsilCbor.require(cbor, "subject"))
+    val roles = CsilCbor.asArray(CsilCbor.require(cbor, "roles")).map { csilE -> CsilCbor.asText(csilE) }
+    return SetSubjectRolesRequest(subject = subject, roles = roles)
+}
+
+/** Decode CSIL CBOR bytes into a SetSubjectRolesRequest. */
+fun setSubjectRolesRequestFromCbor(bytes: ByteArray): SetSubjectRolesRequest = setSubjectRolesRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a SetRoleSubjectsRequest (deep, canonical key order). */
+fun SetRoleSubjectsRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("role") to CborValue.CText(this.role))
+    csilEntries.add(CborValue.CText("subjects") to CborValue.CArray((this.subjects).map { csilE -> CborValue.CText(csilE) }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a SetRoleSubjectsRequest to canonical CSIL CBOR bytes. */
+fun SetRoleSubjectsRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a SetRoleSubjectsRequest from a decoded CBOR value tree. */
+fun setRoleSubjectsRequestFromCborValue(cbor: CborValue): SetRoleSubjectsRequest {
+    val role = CsilCbor.asText(CsilCbor.require(cbor, "role"))
+    val subjects = CsilCbor.asArray(CsilCbor.require(cbor, "subjects")).map { csilE -> CsilCbor.asText(csilE) }
+    return SetRoleSubjectsRequest(role = role, subjects = subjects)
+}
+
+/** Decode CSIL CBOR bytes into a SetRoleSubjectsRequest. */
+fun setRoleSubjectsRequestFromCbor(bytes: ByteArray): SetRoleSubjectsRequest = setRoleSubjectsRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListUsersRequest (deep, canonical key order). */
+fun ListUsersRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.limit?.let { csilV -> csilEntries.add(CborValue.CText("limit") to CborValue.CUint(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListUsersRequest to canonical CSIL CBOR bytes. */
+fun ListUsersRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListUsersRequest from a decoded CBOR value tree. */
+fun listUsersRequestFromCborValue(cbor: CborValue): ListUsersRequest {
+    val limit = CsilCbor.mapGet(cbor, "limit")?.let { csilV -> CsilCbor.asULong(csilV) }
+    return ListUsersRequest(limit = limit)
+}
+
+/** Decode CSIL CBOR bytes into a ListUsersRequest. */
+fun listUsersRequestFromCbor(bytes: ByteArray): ListUsersRequest = listUsersRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a KnownUser (deep, canonical key order). */
+fun KnownUser.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.name?.let { csilV -> csilEntries.add(CborValue.CText("name") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("subject") to CborValue.CText(this.subject))
+    csilEntries.add(CborValue.CText("last_seen_ms") to CborValue.CUint(this.lastSeenMs))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a KnownUser to canonical CSIL CBOR bytes. */
+fun KnownUser.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a KnownUser from a decoded CBOR value tree. */
+fun knownUserFromCborValue(cbor: CborValue): KnownUser {
+    val subject = CsilCbor.asText(CsilCbor.require(cbor, "subject"))
+    val lastSeenMs = CsilCbor.asULong(CsilCbor.require(cbor, "last_seen_ms"))
+    val name = CsilCbor.mapGet(cbor, "name")?.let { csilV -> CsilCbor.asText(csilV) }
+    return KnownUser(subject = subject, lastSeenMs = lastSeenMs, name = name)
+}
+
+/** Decode CSIL CBOR bytes into a KnownUser. */
+fun knownUserFromCbor(bytes: ByteArray): KnownUser = knownUserFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a ListUsersResponse (deep, canonical key order). */
+fun ListUsersResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("users") to CborValue.CArray((this.users).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a ListUsersResponse to canonical CSIL CBOR bytes. */
+fun ListUsersResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a ListUsersResponse from a decoded CBOR value tree. */
+fun listUsersResponseFromCborValue(cbor: CborValue): ListUsersResponse {
+    val users = CsilCbor.asArray(CsilCbor.require(cbor, "users")).map { csilE -> knownUserFromCborValue(csilE) }
+    return ListUsersResponse(users = users)
+}
+
+/** Decode CSIL CBOR bytes into a ListUsersResponse. */
+fun listUsersResponseFromCbor(bytes: ByteArray): ListUsersResponse = listUsersResponseFromCborValue(CsilCbor.decode(bytes))
+
 /** Encode a generated CSIL record to canonical CBOR bytes. */
 fun <T> encode(value: T): ByteArray = CsilCbor.encode(csilToCborValue(value))
 
@@ -951,6 +1119,14 @@ private fun csilToCborValue(value: Any?): CborValue = when (value) {
     is Credential -> value.toCborValue()
     is ListCredentialsRequest -> value.toCborValue()
     is ListCredentialsResponse -> value.toCborValue()
+    is RoleAssignment -> value.toCborValue()
+    is ListRolesRequest -> value.toCborValue()
+    is ListRolesResponse -> value.toCborValue()
+    is SetSubjectRolesRequest -> value.toCborValue()
+    is SetRoleSubjectsRequest -> value.toCborValue()
+    is ListUsersRequest -> value.toCborValue()
+    is KnownUser -> value.toCborValue()
+    is ListUsersResponse -> value.toCborValue()
     else -> throw CborError("no CSIL CBOR codec for ${value::class}")
 }
 
@@ -985,5 +1161,13 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     Credential::class -> credentialFromCborValue(cbor)
     ListCredentialsRequest::class -> listCredentialsRequestFromCborValue(cbor)
     ListCredentialsResponse::class -> listCredentialsResponseFromCborValue(cbor)
+    RoleAssignment::class -> roleAssignmentFromCborValue(cbor)
+    ListRolesRequest::class -> listRolesRequestFromCborValue(cbor)
+    ListRolesResponse::class -> listRolesResponseFromCborValue(cbor)
+    SetSubjectRolesRequest::class -> setSubjectRolesRequestFromCborValue(cbor)
+    SetRoleSubjectsRequest::class -> setRoleSubjectsRequestFromCborValue(cbor)
+    ListUsersRequest::class -> listUsersRequestFromCborValue(cbor)
+    KnownUser::class -> knownUserFromCborValue(cbor)
+    ListUsersResponse::class -> listUsersResponseFromCborValue(cbor)
     else -> throw CborError("no CSIL CBOR codec for $type")
 }
