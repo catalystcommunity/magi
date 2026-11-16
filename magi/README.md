@@ -143,8 +143,8 @@ host, so dev and production runners on one machine do not share files.
    the system Python is older) on the runner machine, without root:
    `ssh USER@HOST 'bash -s' < tools/install-runner-tools.sh`. On Linux,
    bubblewrap must be installed (`apt install bubblewrap`). The script also
-   installs Cloud Hypervisor, and virtiofsd when the system has none, for
-   task VMs.
+   installs PostgreSQL for the database tests of `tools/test-db.sh`, Cloud
+   Hypervisor, and virtiofsd when the system has none, for task VMs.
 2. Make a runner token: `identity mint --subject runner:NAME --scopes
    magi:runner --ttl 2160h --out runner-NAME.token`.
 3. Install the runner:

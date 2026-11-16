@@ -11,6 +11,7 @@ you change a primitive. `docs/plan.md` has the goal and the parts.
 | Purpose | Command |
 | --- | --- |
 | Test one Go module (fast) | `cd <module> && GOWORK=off go test -count=1 ./...` |
+| Run database tests of one module | `tools/test-db.sh -- sh -c 'cd <module> && GOWORK=off go test -count=1 ./...'` |
 | Vet one Go module | `cd <module> && GOWORK=off go vet ./...` |
 | Format Go | `gofmt -w <files>` (`tools/check.sh` fails on unformatted files) |
 | Test the Python harness | `cd primitives/apprentice && python3 -m unittest discover -s tests -q` |
@@ -22,7 +23,9 @@ A Go module is a directory with `go.mod`: `lib/rpc`, `lib/authn`, `lib/revconn`,
 change first. Run `tools/check.sh` last.
 
 Integration tests skip when their test services are not there (for
-example `MAGI_TEST_DATABASE_URL`). A skipped test is not a failure.
+example `MAGI_TEST_DATABASE_URL`). A skipped test is not a failure. A test
+that skips for a missing database is not a pass of that test. Run it with
+`tools/test-db.sh`.
 
 ## Rules
 
