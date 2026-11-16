@@ -2,9 +2,11 @@ package server_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -582,6 +584,60 @@ func TestImportLegacy(t *testing.T) {
 	}
 	_, err = ca.GetUtterance(ctx, api.GetUtteranceRequest{Id: "u5"})
 	wantCode(t, err, http.StatusNotFound)
+}
+
+// TestListAllStreams covers the all flag of list-streams: a privileged
+// caller reads the streams of all people, newest first, and a plain person
+// does not. The subjects are unique, so a second run on the same database
+// reads only its own streams.
+func TestListAllStreams(t *testing.T) {
+	e := setup(t, 1, time.Second)
+	ctx := context.Background()
+	suffix := time.Now().UnixNano()
+	subject := func(name string) string { return fmt.Sprintf("user:%s%d@example.local", name, suffix) }
+	alice, bob := subject("alice"), subject("bob")
+	admin := e.client(0, "user:root@example.local", server.ScopeAdmin)
+	librarian := e.client(0, "service:magi", server.ScopeActAs)
+	must[api.Persona](t)(admin.PutPersona(ctx, api.PutPersonaRequest{Id: magi, Name: "Magi", Sharing: "private"}))
+	a := e.client(0, alice)
+	b := e.client(0, bob)
+	sa := must[api.Stream](t)(a.OpenStream(ctx, api.OpenStreamRequest{Persona: magi}))
+	// A new millisecond makes the stream of bob strictly newer than the one
+	// of alice, so the order of the answer is fixed.
+	time.Sleep(2 * time.Millisecond)
+	sb := must[api.Stream](t)(b.OpenStream(ctx, api.OpenStreamRequest{Persona: magi}))
+	// The stream of bob is newer: it must come first.
+	must[api.Utterance](t)(b.Post(ctx, api.PostRequest{Stream: sb.Id, Text: "hello"}))
+
+	t.Run("act-as reads all, newest first", func(t *testing.T) {
+		l := must[api.ListStreamsResponse](t)(librarian.ListStreams(ctx, api.ListStreamsRequest{All: ptr(true)}))
+		if len(l.Streams) != 2 || l.Streams[0].Id != sb.Id || l.Streams[1].Id != sa.Id {
+			t.Fatalf("all streams = %+v", l.Streams)
+		}
+		if l.Streams[0].Person != bob || l.Streams[0].Persona != magi || l.Streams[0].LastSeq != 1 {
+			t.Fatalf("newest stream = %+v", l.Streams[0])
+		}
+	})
+
+	t.Run("a plain person is denied", func(t *testing.T) {
+		_, err := a.ListStreams(ctx, api.ListStreamsRequest{All: ptr(true)})
+		wantCode(t, err, http.StatusForbidden)
+		if !strings.Contains(err.Error(), server.ScopeActAs) {
+			t.Fatalf("the error does not name the scope: %v", err)
+		}
+	})
+
+	t.Run("person and all are exclusive", func(t *testing.T) {
+		// A plain person gets the same client error, not 403: the check runs
+		// before the privilege check.
+		for _, c := range []*api.ConversationClient{librarian, a} {
+			_, err := c.ListStreams(ctx, api.ListStreamsRequest{All: ptr(true), Person: ptr(alice)})
+			wantCode(t, err, http.StatusBadRequest)
+			if !strings.Contains(err.Error(), "person and all are exclusive") {
+				t.Fatalf("the error does not name the rule: %v", err)
+			}
+		}
+	})
 }
 
 func TestConcurrentPostsGetDistinctSeq(t *testing.T) {

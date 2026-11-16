@@ -248,8 +248,13 @@ export interface OpenStreamRequest {
   person?: string;
 }
 
+/**
+ * all: the streams of all people, newest first. It needs
+ * conversation:act-as or conversation:admin. Do not set person with all.
+ */
 export interface ListStreamsRequest {
   person?: string;
+  all?: boolean;
 }
 
 export interface ListStreamsResponse {

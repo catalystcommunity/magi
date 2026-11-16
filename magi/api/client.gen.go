@@ -502,6 +502,33 @@ func (c *MagiClient) AdminGetRunDiff(ctx context.Context, req AdminGetRunRequest
 	return DecodeTaskDiff(csilResp)
 }
 
+func (c *MagiClient) AdminListChats(ctx context.Context, req AdminListChatsRequest) (AdminListChatsResponse, error) {
+	var csilZero AdminListChatsResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "admin-list-chats", EncodeAdminListChatsRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeAdminListChatsResponse(csilResp)
+}
+
+func (c *MagiClient) AdminReadChat(ctx context.Context, req AdminReadChatRequest) (AdminReadChatResponse, error) {
+	var csilZero AdminReadChatResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "admin-read-chat", EncodeAdminReadChatRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeAdminReadChatResponse(csilResp)
+}
+
+func (c *MagiClient) AdminTurnLog(ctx context.Context, req AdminTurnLogRequest) (AdminTurnLogResponse, error) {
+	var csilZero AdminTurnLogResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "admin-turn-log", EncodeAdminTurnLogRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeAdminTurnLogResponse(csilResp)
+}
+
 func (c *MagiClient) PutRunnerPackage(ctx context.Context, req PutRunnerPackageRequest) (PutRunnerPackageResponse, error) {
 	var csilZero PutRunnerPackageResponse
 	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "put-runner-package", EncodePutRunnerPackageRequest(req))

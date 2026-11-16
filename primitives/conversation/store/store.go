@@ -199,6 +199,12 @@ func (db *DB) ListStreams(ctx context.Context, person string) ([]api.Stream, err
 	return many(rows, err, scanStream)
 }
 
+// ListAllStreams returns the streams of all people, newest first.
+func (db *DB) ListAllStreams(ctx context.Context) ([]api.Stream, error) {
+	rows, err := db.pool.Query(ctx, `SELECT `+streamCols+` FROM streams ORDER BY updated_ms DESC, id`)
+	return many(rows, err, scanStream)
+}
+
 // Utterances
 
 const uttCols = "id, stream, seq, author, author_kind, modality, text, audio, transcript_confidence, attachments, generated_by, visibility, visibility_by, visibility_confidence, created_ms"

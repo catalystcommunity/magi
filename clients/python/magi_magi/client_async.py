@@ -235,6 +235,18 @@ class MagiAsyncClient:
         """admin-get-run-diff"""
         return TaskDiff.from_cbor(await self._transport.call("MagiService", "admin-get-run-diff", req.to_cbor()))
 
+    async def admin_list_chats(self, req: AdminListChatsRequest) -> AdminListChatsResponse:
+        """admin-list-chats"""
+        return AdminListChatsResponse.from_cbor(await self._transport.call("MagiService", "admin-list-chats", req.to_cbor()))
+
+    async def admin_read_chat(self, req: AdminReadChatRequest) -> AdminReadChatResponse:
+        """admin-read-chat"""
+        return AdminReadChatResponse.from_cbor(await self._transport.call("MagiService", "admin-read-chat", req.to_cbor()))
+
+    async def admin_turn_log(self, req: AdminTurnLogRequest) -> AdminTurnLogResponse:
+        """admin-turn-log"""
+        return AdminTurnLogResponse.from_cbor(await self._transport.call("MagiService", "admin-turn-log", req.to_cbor()))
+
     async def put_runner_package(self, req: PutRunnerPackageRequest) -> PutRunnerPackageResponse:
         """put-runner-package"""
         return PutRunnerPackageResponse.from_cbor(await self._transport.call("MagiService", "put-runner-package", req.to_cbor()))

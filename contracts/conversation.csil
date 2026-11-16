@@ -200,7 +200,9 @@ ListPersonasResponse = { personas: [* Persona] }
 ;;; Returns the stream of person and persona, and makes it when it is not
 ;;; there. person defaults to the caller; another person needs act-as.
 OpenStreamRequest = { persona: text, ? person: text }
-ListStreamsRequest = { ? person: text }
+;;; all: the streams of all people, newest first. It needs
+;;; conversation:act-as or conversation:admin. Do not set person with all.
+ListStreamsRequest = { ? person: text, ? all: bool }
 ListStreamsResponse = { streams: [* Stream] }
 
 ;;; author defaults to the caller; another author needs act-as. links are

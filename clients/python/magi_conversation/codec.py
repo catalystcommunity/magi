@@ -985,6 +985,9 @@ OpenStreamRequest.from_cbor = staticmethod(_open_stream_request_from_cbor)
 
 def _encode_list_streams_request_value(v: "ListStreamsRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
+    csil_x = v.all
+    if csil_x is not None:
+        csil_m["all"] = csil_x
     csil_x = v.person
     if csil_x is not None:
         csil_m["person"] = csil_x
@@ -994,6 +997,7 @@ def _decode_list_streams_request_value(tree: Any) -> "ListStreamsRequest":
     tree = _csil_expect_map(tree)
     return ListStreamsRequest(
         person=(None if tree.get("person") is None else _csil_expect_text(tree["person"])),
+        all=(None if tree.get("all") is None else _csil_expect_bool(tree["all"])),
     )
 
 
