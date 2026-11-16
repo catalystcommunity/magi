@@ -107,6 +107,22 @@ reply becomes `apprentice.summary`. The status stays `step_limit` or
 `time_limit`. When that call fails, the harness keeps the summary text that
 says that the task stopped at the limit.
 
+## Thinking cuts
+
+A thinking model can spend the whole output limit on reasoning. The reply then
+has `finish_reason` `length`, no content, and no tool call. The harness answers
+with a note that tells the model not to think about the whole task again, and to
+call one tool now. A cut reply that has content keeps the note about writing
+large files in parts. The transcript records the reply as `thinking_cut`, with
+the step and the size of the reasoning in characters. The `model_response`
+record holds the size, and the first and the last 400 characters of the
+reasoning when it is longer than 800 characters. The reasoning does not go back
+to the model. After a thinking cut, the harness compacts the context when the
+estimate is above 60% of `MAGI_APPRENTICE_CONTEXT_TOKENS`, because a long
+context makes long thinking more likely. Three replies in a row without a tool
+call still end the task as `stalled`. The summary then says that the replies
+were cut while the model was thinking, and how many times.
+
 ## Self-review
 
 When the model calls `finish` for the first time, and the check passed (or
