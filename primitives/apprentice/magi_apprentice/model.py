@@ -46,6 +46,11 @@ class ModelError(Exception):
     pass
 
 
+# Thinking models send their reasoning next to the content. Providers do not
+# agree on the field name, so both are read.
+REASONING_FIELDS = ("reasoning_content", "reasoning")
+
+
 @dataclass
 class ToolCall:
     id: str
@@ -60,6 +65,10 @@ class Reply:
     finish_reason: str = ""
     usage: dict = field(default_factory=dict)
     raw: dict = field(default_factory=dict)
+    # The reasoning text of a thinking model, when the provider sends one. It
+    # is evidence for the transcript only: message() leaves it out, so the
+    # next request does not carry it.
+    reasoning: str = ""
 
     def message(self) -> dict:
         """The assistant message to append to the conversation."""
@@ -148,6 +157,7 @@ def read_answer(resp, deadline: float) -> dict:
     if not first.startswith(b"data:"):
         return _json(first + resp.read())
     content: list[str] = []
+    reasoning: list[str] = []
     calls: dict[int, dict] = {}
     out: dict = {"choices": [{"message": {}, "finish_reason": ""}]}
     line = first
@@ -166,6 +176,9 @@ def read_answer(resp, deadline: float) -> dict:
                 d = ch.get("delta") or {}
                 if d.get("content"):
                     content.append(d["content"])
+                for name in REASONING_FIELDS:
+                    if d.get(name):
+                        reasoning.append(d[name])
                 for tc in d.get("tool_calls") or []:
                     c = calls.setdefault(tc.get("index", len(calls)), {"id": "", "name": "", "arguments": ""})
                     c["id"] = tc.get("id") or c["id"]
@@ -177,6 +190,8 @@ def read_answer(resp, deadline: float) -> dict:
         line = resp.readline()
     msg = out["choices"][0]["message"]
     msg["role"], msg["content"] = "assistant", "".join(content)
+    if reasoning:
+        msg["reasoning_content"] = "".join(reasoning)
     if calls:
         msg["tool_calls"] = [{"id": c["id"], "type": "function", "function": {"name": c["name"], "arguments": c["arguments"]}}
                              for _, c in sorted(calls.items())]
@@ -273,6 +288,14 @@ class ChatModel:
         content = msg.get("content") or ""
         if isinstance(content, list):  # content parts
             content = "".join(p.get("text", "") for p in content if isinstance(p, dict))
+        reasoning = ""
+        for name in REASONING_FIELDS:
+            text = msg.get(name)
+            if isinstance(text, list):  # reasoning parts
+                text = "".join(p.get("text", "") for p in text if isinstance(p, dict))
+            if isinstance(text, str) and text:
+                reasoning = text
+                break
         calls = []
         for c in msg.get("tool_calls") or []:
             fn = c.get("function") or {}
@@ -284,4 +307,4 @@ class ChatModel:
             content, calls = parse_text_tool_calls(content)
         return Reply(content=content, tool_calls=calls,
                      finish_reason=choice.get("finish_reason") or "",
-                     usage=data.get("usage") or {}, raw=data)
+                     usage=data.get("usage") or {}, raw=data, reasoning=reasoning)
