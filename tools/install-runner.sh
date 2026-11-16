@@ -18,9 +18,12 @@
 # It writes a configuration file only when there is none.
 #
 # Toolchains for the sandbox: run tools/install-runner-tools.sh on the
-# target first. The configuration uses them when they are there.
+# target first. The configuration uses them when they are there. A
+# configuration that already exists keeps its PATH. Add
+# $tools/postgres/bin to sandbox.env.PATH in it by hand, for the database
+# tests of tools/test-db.sh.
 set -euo pipefail
-usage() { sed -n 2,22p "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+usage() { sed -n 2,24p "$0" | sed 's/^# \{0,1\}//'; exit 2; }
 host=${1:-}; [[ -n $host && $host != -* ]] || usage; shift
 name="" ssh_target="" upstream="" publish=false token="" service=false
 while (( $# )); do
@@ -75,6 +78,7 @@ if [[ ! -f $cfg ]]; then
   [[ -d $tools/cargo ]] && path=$tools/cargo/bin:$path
   [[ -d $tools/go ]] && path=$tools/go/bin:$path
   [[ -d $tools/csilgen ]] && path=$tools/csilgen/bin:$path
+  [[ -d $tools/postgres ]] && path=$tools/postgres/bin:$path
   [[ -d $tools ]] && ro="\"$tools\""
   cat > "$cfg" <<JSON
 {

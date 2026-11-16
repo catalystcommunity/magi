@@ -8,6 +8,9 @@
 #            against its SHA-256). A contract change needs it for
 #            tools/gen.sh. There is no build for x86_64 macOS. The script
 #            skips csilgen there.
+#   postgres PostgreSQL PG_VERSION (theseus-rs relocatable builds, checked
+#            against their SHA-256) for the database tests of
+#            tools/test-db.sh. The server version of Magi is 18.
 #   cloud-hypervisor  Cloud Hypervisor CH_VERSION (Linux, static, checked
 #            against its SHA-256) for task VMs
 #   virtiofsd  for task VMs, when the system has none: the package of the
@@ -17,13 +20,14 @@
 # Each tool is installed only when it is missing. The runner configuration
 # makes TOOLS read-only in the sandbox and puts its bin directories on PATH.
 # A runner configuration that already exists keeps its PATH. Add
-# $TOOLS/csilgen/bin to sandbox.env.PATH by hand.
+# $TOOLS/csilgen/bin and $TOOLS/postgres/bin to sandbox.env.PATH by hand.
 set -euo pipefail
 GO_VERSION=${GO_VERSION:-1.27.0}
 PY_RELEASE=${PY_RELEASE:-20261026}
 PY_VERSION=${PY_VERSION:-3.13.18}
 CH_VERSION=${CH_VERSION:-v54.0}
 CSILGEN_VERSION=${CSILGEN_VERSION:-0.2.11}
+PG_VERSION=${PG_VERSION:-18.7.0}
 declare -A CH_SHA=(
   [amd64]=4f4f98a3d661a40f3e5272627cc895a1b2e525f2f6bedf5f895f9cd21ba5c65b
   [arm64]=e8a6d9786ea678e739f1a386682846e93742dcb9c7b6e3e0c62e3bda6cff0ef3
@@ -33,6 +37,12 @@ declare -A CSILGEN_SHA=(
   [aarch64-unknown-linux-gnu]=a5b9c4a31b3c6d34c1731b7b3125b11ece8d590b6eeea02501f4e03abdb6ca3e
   [aarch64-apple-darwin]=4eed3ae380f799710d2df93a4a7058974ee3f25cae9e2ada28614a0a39a6fad0
   [generators]=df75c0cb590f256d9ac4f9457524ddc71d92cd14960dd4f585d3f7659de27cde
+)
+declare -A PG_SHA=(
+  [x86_64-unknown-linux-gnu]=53ca01952cb581145e4fb16b6b3b675da345a82879f350707b9f65863a0642f4
+  [aarch64-unknown-linux-gnu]=6fcf45163aa044fe58597885b0e27c4b1614c53ad088d4d0ebbbfdf5df510eaf
+  [aarch64-apple-darwin]=86456c0ed99d2466524eaa074db6580cf7d748b91042e252c83eaca9a9d216e7
+  [x86_64-apple-darwin]=9cd649259d6bf4af60a235e772c83853df215b63f4c1967c2eed7f9376aefb89
 )
 TOOLS=${TOOLS:-$HOME/.local/share/magi-runner-tools}
 mkdir -p "$TOOLS"
@@ -109,6 +119,21 @@ WRAP
   echo "installed $("$TOOLS/csilgen/lib/csilgen" --version)"
 fi
 
+# The database tests need a PostgreSQL server (tools/test-db.sh). The
+# relocatable builds of theseus-rs need no root and no system libraries.
+# postgres --version prints the server version, major.minor only.
+if [[ $("$TOOLS/postgres/bin/postgres" --version 2>/dev/null) != "postgres (PostgreSQL) ${PG_VERSION%.*}"* ]]; then
+  case $os in darwin) triple=$pyarch-apple-darwin ;; linux) triple=$pyarch-unknown-linux-gnu ;; esac
+  base="https://github.com/theseus-rs/postgresql-binaries/releases/download/$PG_VERSION"
+  f="postgresql-$PG_VERSION-$triple.tar.gz"
+  curl -fsSL -o "$tmp/pg.tgz" "$base/$f"
+  [[ $(sha "$tmp/pg.tgz") == "${PG_SHA[$triple]}" ]] || { echo "checksum mismatch for $f" >&2; exit 1; }
+  # The archive has one top directory, postgresql-<version>-<triple>.
+  # --strip-components puts its content in $TOOLS/postgres, dotfiles too.
+  rm -rf "$TOOLS/postgres" && mkdir -p "$TOOLS/postgres" && tar -C "$TOOLS/postgres" --strip-components=1 -xzf "$tmp/pg.tgz"
+  echo "installed $("$TOOLS/postgres/bin/postgres" --version)"
+fi
+
 if [[ $os == linux ]] && [[ $("$TOOLS/vm/cloud-hypervisor" --version 2>/dev/null) != *"${CH_VERSION#v}"* ]]; then
   f=cloud-hypervisor-static; [[ $arch == arm64 ]] && f=$f-aarch64
   curl -fsSL -o "$tmp/ch" "https://github.com/cloud-hypervisor/cloud-hypervisor/releases/download/$CH_VERSION/$f"
@@ -132,4 +157,5 @@ echo "tools in $TOOLS:"
 "$TOOLS/cargo/bin/cargo" --version
 { "$TOOLS/python/bin/python3" --version 2>/dev/null || python3 --version; }
 [[ -x $TOOLS/csilgen/lib/csilgen ]] && "$TOOLS/csilgen/lib/csilgen" --version
+[[ -x $TOOLS/postgres/bin/postgres ]] && "$TOOLS/postgres/bin/postgres" --version
 [[ $os == linux ]] && "$TOOLS/vm/cloud-hypervisor" --version

@@ -74,7 +74,8 @@ Run `tools/gen.sh` after a contract change. It regenerates Go code,
 - Integration tests use a disposable PostgreSQL. On the development host:
   `MAGI_TEST_DATABASE_URL=postgres://magi:magi-test@127.0.0.1:55432/postgres?sslmode=disable`.
   Create and drop your own database inside the test. Skip when the variable
-  is not set.
+  is not set. In a task sandbox, run the module with `tools/test-db.sh`. It
+  starts a throwaway PostgreSQL and sets the variable.
 - Test through the real HTTP transport with a generated client at least once
   per operation. A direct handler test does not find a missing dispatch entry.
 
