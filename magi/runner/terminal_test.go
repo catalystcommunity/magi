@@ -142,3 +142,36 @@ func TestTerminalInSandbox(t *testing.T) {
 		t.Fatalf("missing sandbox: %q %v", b, err)
 	}
 }
+
+// The preflight command runs in the sandbox before a work round. A failure
+// gives the reason; a pass or no command gives "".
+func TestPreflightInSandbox(t *testing.T) {
+	bwrap, err := exec.LookPath("bwrap")
+	if err != nil {
+		t.Skip("bubblewrap is not installed")
+	}
+	state := t.TempDir()
+	self, _ := os.Executable()
+	box := sandbox.Config{Root: filepath.Join(state, "envs"), Envd: self, EnvdArgs: []string{"envd"}, Bwrap: bwrap}
+	r := &Runner{Cfg: Config{Name: "test", StateDir: state}, Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Boxes: &sandbox.Sandboxes{Cfg: box}}
+	if err := r.Boxes.Start("run_p", "0123456789abcdef0123456789abcdef", r.sandboxEnv(), nil); err != nil {
+		t.Fatal(err)
+	}
+	defer r.removeBox("run_p")
+	if _, err := r.Boxes.Wait("run_p", r.Boxes.StartTimeout()); err != nil {
+		t.Fatal(err)
+	}
+	work := r.Boxes.Work("run_p")
+	for _, c := range []struct{ cmd, want string }{
+		{"", ""},
+		{"true", ""},
+		{"echo proxy down; exit 7", "echo proxy down; exit 7: exit status 7: proxy down"},
+	} {
+		r.Cfg.Sandbox.Preflight = c.cmd
+		got, err := r.preflight(context.Background(), "run_p", work)
+		if err != nil || got != c.want {
+			t.Errorf("preflight %q = %q, %v; want %q", c.cmd, got, err, c.want)
+		}
+	}
+}

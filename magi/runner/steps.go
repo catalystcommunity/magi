@@ -157,6 +157,15 @@ git rev-parse HEAD`, repo.DefaultBranch, branch, shellQuote(r.Cfg.Author.Name), 
 // work runs the apprentice on this machine. Its tools use the sandbox
 // through the loopback execution API; its model calls go through Magi.
 func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiapi.RunnerStep) (Result, error) {
+	why, err := r.preflight(ctx, a.Vars["environment"], a.Vars["workdir"])
+	if err != nil {
+		return Result{}, err
+	}
+	if why != "" {
+		r.post(ctx, st, "The work did not start: the environment check failed. "+why+". The work is kept. Decide on the task: resume tries again.")
+		return Result{Outcome: "blocked", Outputs: map[string]string{"apprentice.status": "preflight", "apprentice.blocked": "true",
+			"apprentice.error": why, "apprentice.summary": "The environment check failed before the work started."}}, nil
+	}
 	dir, err := os.MkdirTemp(r.Cfg.StateDir, "apprentice-")
 	if err != nil {
 		return Result{}, err
@@ -296,6 +305,24 @@ func environmentLine(output string) string {
 		}
 	}
 	return ""
+}
+
+// preflight runs the preflight command of the runner configuration in the
+// sandbox. It returns "" when the command passes (or there is none), and the
+// reason when it fails.
+func (r *Runner) preflight(ctx context.Context, env, workdir string) (string, error) {
+	cmd := r.Cfg.Sandbox.Preflight
+	if cmd == "" {
+		return "", nil
+	}
+	res, err := r.exec(ctx, env, workdir, cmd+" 2>&1", 120000)
+	if err != nil {
+		return "", err
+	}
+	if res.ExitCode == 0 && !res.TimedOut {
+		return "", nil
+	}
+	return fmt.Sprintf("%s: %s: %s", cmd, exitText(res), tail(strings.TrimSpace(string(res.Stdout)+string(res.Stderr)), 500)), nil
 }
 
 // roundComment is the comment of a person for the next work round: after a

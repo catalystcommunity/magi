@@ -73,6 +73,12 @@ type Config struct {
 		MaxSteps int    `json:"max_steps"`
 	} `json:"apprentice"`
 	Sandbox struct {
+		// Preflight is a shell command that runs in the sandbox before each
+		// work round, for example an HTTPS request through the egress proxy.
+		// When it fails, the round does not start: the task waits in step
+		// "blocked", and no model call is spent on a broken environment.
+		Preflight string `json:"preflight"`
+
 		ReadOnly []string          `json:"read_only"`
 		Shared   []string          `json:"shared"`
 		Env      map[string]string `json:"env"`
