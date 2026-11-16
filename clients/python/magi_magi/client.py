@@ -231,7 +231,7 @@ class MagiClient:
         """admin-get-run-output"""
         return TaskOutput.from_cbor(self._transport.call("MagiService", "admin-get-run-output", req.to_cbor()))
 
-    def admin_get_run_diff(self, req: AdminGetRunDiffRequest) -> TaskDiff:
+    def admin_get_run_diff(self, req: AdminGetRunRequest) -> TaskDiff:
         """admin-get-run-diff"""
         return TaskDiff.from_cbor(self._transport.call("MagiService", "admin-get-run-diff", req.to_cbor()))
 

@@ -166,7 +166,7 @@ class MagiAsyncClient(private val transport: AsyncTransport) {
     suspend fun adminGetRunOutput(request: AdminGetRunOutputRequest): TaskOutput {
         return decode<TaskOutput>(transport.call("MagiService", "admin-get-run-output", encode(request)))
     }
-    suspend fun adminGetRunDiff(request: AdminGetRunDiffRequest): TaskDiff {
+    suspend fun adminGetRunDiff(request: AdminGetRunRequest): TaskDiff {
         return decode<TaskDiff>(transport.call("MagiService", "admin-get-run-diff", encode(request)))
     }
     suspend fun putRunnerPackage(request: PutRunnerPackageRequest): PutRunnerPackageResponse {

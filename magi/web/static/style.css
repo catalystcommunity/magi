@@ -223,6 +223,14 @@ button.about:hover { color: var(--harbor); }
 .diff .add { color: var(--leaf); }
 .diff .del { color: var(--rose); }
 .diff .hunk { color: var(--blue); }
+/* The run data of the admin view: the name column takes only what it needs,
+   and the value wraps, so a long value does not make the page scroll to the
+   side at phone width. */
+.run-data { border-collapse: collapse; font-size: 0.95rem; width: 100%; }
+.run-data th, .run-data td { border-bottom: 1px solid var(--line); padding: 0.35rem 0.6rem; text-align: left; vertical-align: top; }
+.run-data th { font-weight: 600; overflow-wrap: anywhere; }
+.run-data td { min-width: 0; }
+.run-data pre { margin: 0; max-height: 24rem; overflow-y: auto; }
 
 .search-row { display: flex; gap: 0.5rem; }
 .facts, .words { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }

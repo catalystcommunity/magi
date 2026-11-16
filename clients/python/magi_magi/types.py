@@ -3336,31 +3336,6 @@ class AdminGetRunOutputRequest:
 
 
 @dataclass
-class AdminGetRunDiffRequest:
-    id: str
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for JSON serialization."""
-        result = {}
-        if hasattr(self, 'id') and self.id is not None:
-            result['id'] = self.id
-        return result
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'AdminGetRunDiffRequest':
-        """Create instance from dictionary."""
-        return cls(id=data.get('id'))
-
-    def to_json(self) -> str:
-        """Convert to JSON string."""
-        return json.dumps(self.to_dict())
-
-    @classmethod
-    def from_json(cls, json_str: str) -> 'AdminGetRunDiffRequest':
-        """Create instance from JSON string."""
-        return cls.from_dict(json.loads(json_str))
-
-
-@dataclass
 class PutRunnerPackageRequest:
     version: str
     os: str

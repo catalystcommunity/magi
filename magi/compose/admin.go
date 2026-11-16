@@ -3,6 +3,7 @@ package compose
 import (
 	"context"
 	"slices"
+	"unicode/utf8"
 
 	"github.com/catalystcommunity/magi/lib/rpc"
 	magiapi "github.com/catalystcommunity/magi/magi/api"
@@ -68,6 +69,29 @@ func (m *Service) AdminListRuns(ctx context.Context, req magiapi.AdminListRunsRe
 	return out, nil
 }
 
+// adminVarMax is the most bytes of one run var that the admin view sends.
+// The run data holds large texts (instructions, plan, lessons), and the view
+// has no use for more than a screen of each.
+const adminVarMax = 4096
+
+// adminVars copies the vars of run and cuts each value at adminVarMax bytes.
+// A cut value ends with a mark, so the reader knows that it is not whole.
+func adminVars(r workflowapi.Run) map[string]string {
+	out := make(map[string]string, len(r.Vars))
+	for k, v := range r.Vars {
+		if len(v) > adminVarMax {
+			// Cut on a rune boundary: the codec sends valid UTF-8 only.
+			v = v[:adminVarMax]
+			for len(v) > 0 && !utf8.RuneStart(v[len(v)-1]) {
+				v = v[:len(v)-1]
+			}
+			v += "… (cut at 4 KiB)"
+		}
+		out[k] = v
+	}
+	return out
+}
+
 func (m *Service) AdminGetRun(ctx context.Context, req magiapi.AdminGetRunRequest) (magiapi.AdminRun, error) {
 	if err := m.S.adminCall(ctx, RoleAdminTasks, "admin-get-run", req.Id); err != nil {
 		return magiapi.AdminRun{}, err
@@ -76,12 +100,7 @@ func (m *Service) AdminGetRun(ctx context.Context, req magiapi.AdminGetRunReques
 	if err != nil {
 		return magiapi.AdminRun{}, err
 	}
-	// vars is never nil: the contract has it, and a run can start with no data.
-	vars := run.Vars
-	if vars == nil {
-		vars = map[string]string{}
-	}
-	return magiapi.AdminRun{Summary: adminRunSummary(run), Vars: vars, Steps: taskSteps(run)}, nil
+	return magiapi.AdminRun{Summary: adminRunSummary(run), Vars: adminVars(run), Steps: taskSteps(run)}, nil
 }
 
 func (m *Service) AdminGetRunOutput(ctx context.Context, req magiapi.AdminGetRunOutputRequest) (magiapi.TaskOutput, error) {
@@ -95,7 +114,7 @@ func (m *Service) AdminGetRunOutput(ctx context.Context, req magiapi.AdminGetRun
 	return m.S.taskOutput(ctx, run, req.Name, 1<<20)
 }
 
-func (m *Service) AdminGetRunDiff(ctx context.Context, req magiapi.AdminGetRunDiffRequest) (magiapi.TaskDiff, error) {
+func (m *Service) AdminGetRunDiff(ctx context.Context, req magiapi.AdminGetRunRequest) (magiapi.TaskDiff, error) {
 	if err := m.S.adminCall(ctx, RoleAdminTasks, "admin-get-run-diff", req.Id); err != nil {
 		return magiapi.TaskDiff{}, err
 	}

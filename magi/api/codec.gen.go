@@ -7633,45 +7633,6 @@ func DecodeAdminGetRunOutputRequest(csilData []byte) (AdminGetRunOutputRequest, 
 	return csilDecAdminGetRunOutputRequest(csilRoot)
 }
 
-// csilEncAdminGetRunDiffRequest builds the canonical CBOR value tree for a AdminGetRunDiffRequest.
-func csilEncAdminGetRunDiffRequest(csilV AdminGetRunDiffRequest) cborValue {
-	csilEntries := make(cborMap, 0, 1)
-	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
-	return csilEntries
-}
-
-// csilDecAdminGetRunDiffRequest reconstructs a AdminGetRunDiffRequest from a decoded CBOR value tree.
-func csilDecAdminGetRunDiffRequest(csilRoot cborValue) (AdminGetRunDiffRequest, error) {
-	var csilOut AdminGetRunDiffRequest
-	{
-		csilField, csilErr := cborRequire(csilRoot, "id")
-		if csilErr != nil {
-			return csilOut, csilErr
-		}
-		csilVal, csilErr := (cborAsText)(csilField)
-		if csilErr != nil {
-			return csilOut, csilErr
-		}
-		csilOut.Id = csilVal
-	}
-	return csilOut, nil
-}
-
-// EncodeAdminGetRunDiffRequest encodes a AdminGetRunDiffRequest to canonical CSIL CBOR bytes.
-func EncodeAdminGetRunDiffRequest(csilV AdminGetRunDiffRequest) []byte {
-	return cborEncode(csilEncAdminGetRunDiffRequest(csilV))
-}
-
-// DecodeAdminGetRunDiffRequest decodes canonical CSIL CBOR bytes into a AdminGetRunDiffRequest.
-func DecodeAdminGetRunDiffRequest(csilData []byte) (AdminGetRunDiffRequest, error) {
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		var csilZero AdminGetRunDiffRequest
-		return csilZero, csilErr
-	}
-	return csilDecAdminGetRunDiffRequest(csilRoot)
-}
-
 // csilEncPutRunnerPackageRequest builds the canonical CBOR value tree for a PutRunnerPackageRequest.
 func csilEncPutRunnerPackageRequest(csilV PutRunnerPackageRequest) cborValue {
 	csilEntries := make(cborMap, 0, 4)

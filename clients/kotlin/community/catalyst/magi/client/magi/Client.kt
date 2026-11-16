@@ -176,7 +176,7 @@ class MagiClient(private val transport: Transport) {
     fun adminGetRunOutput(request: AdminGetRunOutputRequest): TaskOutput {
         return decode<TaskOutput>(transport.call("MagiService", "admin-get-run-output", encode(request)))
     }
-    fun adminGetRunDiff(request: AdminGetRunDiffRequest): TaskDiff {
+    fun adminGetRunDiff(request: AdminGetRunRequest): TaskDiff {
         return decode<TaskDiff>(transport.call("MagiService", "admin-get-run-diff", encode(request)))
     }
     fun putRunnerPackage(request: PutRunnerPackageRequest): PutRunnerPackageResponse {

@@ -630,7 +630,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			return EncodeTaskOutput(resp), nil
 		},
 		"admin-get-run-diff": func(ctx context.Context, b []byte) ([]byte, error) {
-			req, err := DecodeAdminGetRunDiffRequest(b)
+			req, err := DecodeAdminGetRunRequest(b)
 			if err != nil {
 				return nil, &DecodeError{Err: err}
 			}

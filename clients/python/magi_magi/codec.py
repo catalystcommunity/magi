@@ -3566,29 +3566,6 @@ def _admin_get_run_output_request_from_cbor(data: bytes) -> "AdminGetRunOutputRe
 AdminGetRunOutputRequest.to_cbor = _admin_get_run_output_request_to_cbor
 AdminGetRunOutputRequest.from_cbor = staticmethod(_admin_get_run_output_request_from_cbor)
 
-def _encode_admin_get_run_diff_request_value(v: "AdminGetRunDiffRequest") -> Dict[Any, Any]:
-    csil_m: Dict[Any, Any] = {}
-    csil_m["id"] = v.id
-    return csil_m
-
-def _decode_admin_get_run_diff_request_value(tree: Any) -> "AdminGetRunDiffRequest":
-    tree = _csil_expect_map(tree)
-    return AdminGetRunDiffRequest(
-        id=_csil_expect_text(tree["id"]),
-    )
-
-
-def _admin_get_run_diff_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_admin_get_run_diff_request_value(self))
-
-
-def _admin_get_run_diff_request_from_cbor(data: bytes) -> "AdminGetRunDiffRequest":
-    return _decode_admin_get_run_diff_request_value(cbor_decode(data))
-
-
-AdminGetRunDiffRequest.to_cbor = _admin_get_run_diff_request_to_cbor
-AdminGetRunDiffRequest.from_cbor = staticmethod(_admin_get_run_diff_request_from_cbor)
-
 def _encode_put_runner_package_request_value(v: "PutRunnerPackageRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["os"] = v.os

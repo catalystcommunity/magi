@@ -59,7 +59,7 @@ type MagiService interface {
 	AdminListRuns(ctx context.Context, req AdminListRunsRequest) (AdminListRunsResponse, error)
 	AdminGetRun(ctx context.Context, req AdminGetRunRequest) (AdminRun, error)
 	AdminGetRunOutput(ctx context.Context, req AdminGetRunOutputRequest) (TaskOutput, error)
-	AdminGetRunDiff(ctx context.Context, req AdminGetRunDiffRequest) (TaskDiff, error)
+	AdminGetRunDiff(ctx context.Context, req AdminGetRunRequest) (TaskDiff, error)
 	PutRunnerPackage(ctx context.Context, req PutRunnerPackageRequest) (PutRunnerPackageResponse, error)
 	SetRunnerRelease(ctx context.Context, req SetRunnerReleaseRequest) (SetRunnerReleaseResponse, error)
 	PutAppRelease(ctx context.Context, req PutAppReleaseRequest) (AppRelease, error)

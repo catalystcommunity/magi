@@ -1,5 +1,5 @@
-// The admin views: what an operator sees. Each admin call checks the role of
-// the caller on the server again; the Admin tab only shows the links.
+// The admin views: what an operator sees. The run views check the role of the
+// caller on the server again; the Admin tab only shows the links.
 import { createSignal } from "solid-js";
 import { For, Show } from "./flow.ts";
 import type { RunnerInfo, AdminRunSummary, AdminRun, TaskOutput, TaskDiff } from "../../../clients/typescript/magi/types.gen.ts";
@@ -14,9 +14,10 @@ export function Admin() {
     (e) => setError(errText(e)));
   return <section class="page">
     <h1>Admin</h1>
-    <p class="lede">The state of this Magi. Each call here checks your operator rights on the server.</p>
-    <h2>Runners</h2>
+    <p class="lede">The state of this Magi. The run views check the role of the caller on the server; the runner list is open to every signed-in person.</p>
+    <h2>Runs</h2>
     <p><a href="#/admin-runs">Runs</a>: the runs of all people, with their steps and outputs.</p>
+    <h2>Runners</h2>
     <Show when={error}><p class="error">Could not read the runners: {error}</p></Show>
     <Show when={() => release()}><p class="quiet">Runner release {() => release()}.</p></Show>
     <Show when={runners} fallback={<Show when={() => !error()}><p class="quiet">Loading.</p></Show>}>
@@ -53,7 +54,7 @@ export function AdminRuns() {
   const [kind, setKind] = createSignal(store.get("magi.runs.kind") ?? "");
   const [state, setState] = createSignal(store.get("magi.runs.state") ?? "");
   const load = () => magi.adminListRuns({ definition: kind() || undefined, status: state() || undefined }).then(
-    (r) => setRuns(r.runs), (e) => setError(errText(e)));
+    (r) => { setError(""); setRuns(r.runs); }, (e) => setError(errText(e)));
   load();
   // The filters stay for the next visit, as the persona does.
   const pick = (what: string, set: (v: string) => void, v: string) => { set(v); store.set("magi.runs." + what, v || null); load(); };
@@ -113,11 +114,11 @@ export function AdminRunView(props: { id: string }) {
       {() => r().summary.error ? <p class="error">{r().summary.error}</p> : ""}
       <Steps steps={() => r().steps} />
       <details><summary>Run data</summary>
-        <div class="table-wrap"><table>
-          <tbody><For each={Object.keys(r().vars).sort()}>{(k: string) =>
-            <tr><th>{k}</th><td><code>{() => r().vars[k]}</code></td></tr>}
+        <table class="run-data">
+          <tbody><For each={() => Object.keys(r().vars).sort()}>{(k: string) =>
+            <tr><th>{k}</th><td><pre>{() => r().vars[k]}</pre></td></tr>}
           </For></tbody>
-        </table></div>
+        </table>
       </details>
       <div class="actions">
         <button onClick={() => output("check.output", "check output")}>Check output</button>

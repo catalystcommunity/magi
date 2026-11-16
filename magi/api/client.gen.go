@@ -493,9 +493,9 @@ func (c *MagiClient) AdminGetRunOutput(ctx context.Context, req AdminGetRunOutpu
 	return DecodeTaskOutput(csilResp)
 }
 
-func (c *MagiClient) AdminGetRunDiff(ctx context.Context, req AdminGetRunDiffRequest) (TaskDiff, error) {
+func (c *MagiClient) AdminGetRunDiff(ctx context.Context, req AdminGetRunRequest) (TaskDiff, error) {
 	var csilZero TaskDiff
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "admin-get-run-diff", EncodeAdminGetRunDiffRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "admin-get-run-diff", EncodeAdminGetRunRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}

@@ -802,11 +802,6 @@ type AdminGetRunOutputRequest struct {
 	Name string `json:"name" yaml:"name"`
 }
 
-// AdminGetRunDiffRequest represents a structured data type
-type AdminGetRunDiffRequest struct {
-	Id string `json:"id" yaml:"id"`
-}
-
 // PutRunnerPackageRequest represents a structured data type
 type PutRunnerPackageRequest struct {
 	Version string `json:"version" yaml:"version"`

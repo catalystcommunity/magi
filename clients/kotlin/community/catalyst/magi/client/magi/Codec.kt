@@ -2858,25 +2858,6 @@ fun adminGetRunOutputRequestFromCborValue(cbor: CborValue): AdminGetRunOutputReq
 /** Decode CSIL CBOR bytes into a AdminGetRunOutputRequest. */
 fun adminGetRunOutputRequestFromCbor(bytes: ByteArray): AdminGetRunOutputRequest = adminGetRunOutputRequestFromCborValue(CsilCbor.decode(bytes))
 
-/** The CBOR value tree for a AdminGetRunDiffRequest (deep, canonical key order). */
-fun AdminGetRunDiffRequest.toCborValue(): CborValue {
-    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
-    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
-    return CborValue.CMap(csilEntries)
-}
-
-/** Encode a AdminGetRunDiffRequest to canonical CSIL CBOR bytes. */
-fun AdminGetRunDiffRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
-
-/** Reconstruct a AdminGetRunDiffRequest from a decoded CBOR value tree. */
-fun adminGetRunDiffRequestFromCborValue(cbor: CborValue): AdminGetRunDiffRequest {
-    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
-    return AdminGetRunDiffRequest(id = id)
-}
-
-/** Decode CSIL CBOR bytes into a AdminGetRunDiffRequest. */
-fun adminGetRunDiffRequestFromCbor(bytes: ByteArray): AdminGetRunDiffRequest = adminGetRunDiffRequestFromCborValue(CsilCbor.decode(bytes))
-
 /** The CBOR value tree for a PutRunnerPackageRequest (deep, canonical key order). */
 fun PutRunnerPackageRequest.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
@@ -4666,7 +4647,6 @@ private fun csilToCborValue(value: Any?): CborValue = when (value) {
     is AdminRun -> value.toCborValue()
     is AdminGetRunRequest -> value.toCborValue()
     is AdminGetRunOutputRequest -> value.toCborValue()
-    is AdminGetRunDiffRequest -> value.toCborValue()
     is PutRunnerPackageRequest -> value.toCborValue()
     is PutRunnerPackageResponse -> value.toCborValue()
     is SetRunnerReleaseRequest -> value.toCborValue()
@@ -4853,7 +4833,6 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     AdminRun::class -> adminRunFromCborValue(cbor)
     AdminGetRunRequest::class -> adminGetRunRequestFromCborValue(cbor)
     AdminGetRunOutputRequest::class -> adminGetRunOutputRequestFromCborValue(cbor)
-    AdminGetRunDiffRequest::class -> adminGetRunDiffRequestFromCborValue(cbor)
     PutRunnerPackageRequest::class -> putRunnerPackageRequestFromCborValue(cbor)
     PutRunnerPackageResponse::class -> putRunnerPackageResponseFromCborValue(cbor)
     SetRunnerReleaseRequest::class -> setRunnerReleaseRequestFromCborValue(cbor)

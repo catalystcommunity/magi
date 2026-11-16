@@ -52,13 +52,24 @@ func (w *adminWorkflow) ListRuns(ctx context.Context, r workflowapi.ListRunsRequ
 }
 
 func (w *adminWorkflow) GetRun(ctx context.Context, r workflowapi.GetRunRequest) (workflowapi.Run, error) {
+	p, err := rpc.Caller(ctx)
+	if err != nil {
+		return workflowapi.Run{}, err
+	}
 	w.record(ctx)
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	for _, run := range w.runs {
-		if run.Id == r.Id {
-			return run, nil
+		if run.Id != r.Id {
+			continue
 		}
+		// The read rule of the workflow service: the owner, a caller that
+		// the run waits for, or a token with an act-as or worker scope.
+		if run.Owner != p.Subject && !p.Has("workflow:admin") && !p.Has("workflow:act-as") &&
+			!p.Has("workflow:decide") && !p.Has("workflow:worker") {
+			return workflowapi.Run{}, rpc.NotFound("run %s not found", r.Id)
+		}
+		return run, nil
 	}
 	return workflowapi.Run{}, rpc.NotFound("no run %s", r.Id)
 }
@@ -122,7 +133,7 @@ func TestAdminRunsDenied(t *testing.T) {
 			return err
 		},
 		func() error {
-			_, err := mc.AdminGetRunDiff(person, magiapi.AdminGetRunDiffRequest{Id: "run_1"})
+			_, err := mc.AdminGetRunDiff(person, magiapi.AdminGetRunRequest{Id: "run_1"})
 			return err
 		},
 	} {
@@ -226,7 +237,7 @@ func TestAdminGetRunOutput(t *testing.T) {
 	run.Vars["check.output"] = putArtifact(t, fa, "text/plain", "all checks passed")
 	w, mc, as := adminRunsEnv(t, fa, []workflowapi.Run{run})
 	admin := as("user:admin@example.local")
-	if _, err := mc.AdminGetRunOutput(admin, magiapi.AdminGetRunOutputRequest{Id: "run_1", Name: "nope"}); rpc.CodeOf(err) != 400 {
+	if _, err := mc.AdminGetRunOutput(admin, magiapi.AdminGetRunOutputRequest{Id: "run_1", Name: "nope"}); rpc.CodeOf(err) != 400 || !strings.Contains(err.Error(), "name") {
 		t.Fatalf("unknown name: %v", err)
 	}
 	if _, err := mc.AdminGetRunOutput(admin, magiapi.AdminGetRunOutputRequest{Id: "run_1", Name: "apprentice.transcript"}); rpc.CodeOf(err) != 404 {
@@ -252,12 +263,71 @@ func TestAdminGetRunDiff(t *testing.T) {
 	run.Vars["patch"] = putArtifact(t, fa, "text/plain", "--- a/a.go\n+++ b/a.go\n")
 	run.Vars["patch.files"] = `[{"path": "a.go", "additions": 2, "deletions": 1}]`
 	_, mc, as := adminRunsEnv(t, fa, []workflowapi.Run{run})
-	d, err := mc.AdminGetRunDiff(as("user:admin@example.local"), magiapi.AdminGetRunDiffRequest{Id: "run_1"})
+	d, err := mc.AdminGetRunDiff(as("user:admin@example.local"), magiapi.AdminGetRunRequest{Id: "run_1"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if d.Task != "run_1" || d.Patch != "--- a/a.go\n+++ b/a.go\n" || len(d.Files) != 1 || d.Files[0].Path != "a.go" ||
 		d.Files[0].Additions != 2 || d.Files[0].Deletions != 1 {
 		t.Fatalf("diff: %+v", d)
+	}
+}
+
+// admin-get-run cuts a large var and marks the cut, so the view stays small.
+func TestAdminGetRunCutsVars(t *testing.T) {
+	run := adminRun()
+	run.Vars["instructions"] = strings.Repeat("x", adminVarMax+100)
+	w, mc, as := adminRunsEnv(t, &fakeArtifacts{body: map[string][]byte{}}, []workflowapi.Run{run})
+	r, err := mc.AdminGetRun(as("user:admin@example.local"), magiapi.AdminGetRunRequest{Id: "run_1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := r.Vars["instructions"]
+	if len(got) != adminVarMax+len("… (cut at 4 KiB)") || !strings.HasSuffix(got, "… (cut at 4 KiB)") {
+		t.Fatalf("a cut var has %d bytes and ends with %q", len(got), got[min(len(got), 40):])
+	}
+	if r.Vars["repo"] != "magi" {
+		t.Fatalf("a small var changed: %q", r.Vars["repo"])
+	}
+	if got := w.calls(); len(got) != 1 || got[0] != "service:magi" {
+		t.Fatalf("the workflow service saw %v, want service:magi", got)
+	}
+}
+
+// get-task-diff reads the change of a task with the token of the caller: the
+// owner gets the patch, a person who does not own the task gets the error of
+// the workflow service, and a task with no checked change has none yet.
+func TestGetTaskDiff(t *testing.T) {
+	run := adminRun()
+	fa := &fakeArtifacts{body: map[string][]byte{}}
+	run.Vars["patch"] = putArtifact(t, fa, "text/plain", "--- a/a.go\n+++ b/a.go\n")
+	run.Vars["patch.files"] = `[{"path": "a.go", "additions": 2, "deletions": 1}]`
+	w, mc, as := adminRunsEnv(t, fa, []workflowapi.Run{run})
+	// The owner reads the patch and the file list.
+	d, err := mc.GetTaskDiff(as("user:a@example.local"), magiapi.GetTaskDiffRequest{Id: "run_1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.Task != "run_1" || d.Patch != "--- a/a.go\n+++ b/a.go\n" || len(d.Files) != 1 || d.Files[0].Path != "a.go" ||
+		d.Files[0].Additions != 2 || d.Files[0].Deletions != 1 {
+		t.Fatalf("diff: %+v", d)
+	}
+	// The read of the run is with the token of the caller, not the service
+	// token: that read is the access check.
+	if got := w.calls(); len(got) != 1 || got[0] != "user:a@example.local" {
+		t.Fatalf("the workflow service saw %v, want user:a@example.local", got)
+	}
+	// A person who does not own the task gets the error of GetRun.
+	_, err = mc.GetTaskDiff(as("user:b@example.local"), magiapi.GetTaskDiffRequest{Id: "run_1"})
+	if rpc.CodeOf(err) != 404 || !strings.Contains(err.Error(), "run_1") {
+		t.Fatalf("a person who does not own the task: %v", err)
+	}
+	// A run with no head_commit has no checked change.
+	noChange := adminRun()
+	delete(noChange.Vars, "head_commit")
+	_, mc, as = adminRunsEnv(t, fa, []workflowapi.Run{noChange})
+	_, err = mc.GetTaskDiff(as("user:a@example.local"), magiapi.GetTaskDiffRequest{Id: "run_1"})
+	if rpc.CodeOf(err) != 409 || !strings.Contains(err.Error(), "no checked change") {
+		t.Fatalf("no checked change: %v", err)
 	}
 }

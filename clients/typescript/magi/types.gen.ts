@@ -925,7 +925,8 @@ export interface AdminListRunsResponse {
 }
 
 /**
- * vars are the run data (instructions, outputs, artifact digests).
+ * vars are the run data (instructions, outputs, artifact digests). Magi
+ * cuts each value at 4096 bytes and adds a mark that says that it is cut.
  */
 export interface AdminRun {
   summary: AdminRunSummary;
@@ -943,10 +944,6 @@ export interface AdminGetRunRequest {
 export interface AdminGetRunOutputRequest {
   id: string;
   name: string;
-}
-
-export interface AdminGetRunDiffRequest {
-  id: string;
 }
 
 /**

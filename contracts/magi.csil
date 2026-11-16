@@ -532,12 +532,12 @@ AdminRunSummary = {
 ;;; empty. Newest first. limit: default 50, at most 500.
 AdminListRunsRequest = { ? definition: text, ? status: text, ? limit: uint }
 AdminListRunsResponse = { runs: [* AdminRunSummary] }
-;;; vars are the run data (instructions, outputs, artifact digests).
+;;; vars are the run data (instructions, outputs, artifact digests). Magi
+;;; cuts each value at 4096 bytes and adds a mark that says that it is cut.
 AdminRun = { summary: AdminRunSummary, vars: { * text => text }, steps: [* TaskStep] }
 AdminGetRunRequest = { id: text }
 ;;; name: "check.output" or "apprentice.transcript" (see get-task-output).
 AdminGetRunOutputRequest = { id: text, name: text }
-AdminGetRunDiffRequest = { id: text }
 
 ;;; Operator calls (scope "magi:operate", or a subject in MAGI_ADMINS).
 ;;; A runner package is a gzip tar file with magi-runner and apprentice/.
@@ -734,7 +734,7 @@ service MagiService {
   admin-list-runs: AdminListRunsRequest -> AdminListRunsResponse,
   admin-get-run: AdminGetRunRequest -> AdminRun,
   admin-get-run-output: AdminGetRunOutputRequest -> TaskOutput,
-  admin-get-run-diff: AdminGetRunDiffRequest -> TaskDiff,
+  admin-get-run-diff: AdminGetRunRequest -> TaskDiff,
   put-runner-package: PutRunnerPackageRequest -> PutRunnerPackageResponse,
   set-runner-release: SetRunnerReleaseRequest -> SetRunnerReleaseResponse,
   put-app-release: PutAppReleaseRequest -> AppRelease,

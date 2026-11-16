@@ -949,11 +949,6 @@ data class AdminGetRunOutputRequest(
     val name: String
 )
 
-/** AdminGetRunDiffRequest record. */
-data class AdminGetRunDiffRequest(
-    val id: String
-)
-
 /** PutRunnerPackageRequest record. */
 data class PutRunnerPackageRequest(
     val version: String,

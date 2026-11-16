@@ -2689,22 +2689,6 @@ export function toAdminGetRunOutputRequestCbor(v) {
 export function fromAdminGetRunOutputRequestCbor(bytes) {
     return fromAdminGetRunOutputRequestCborValue(decode(bytes));
 }
-export function toAdminGetRunDiffRequestCborValue(v) {
-    const csilMap = new Map();
-    csilMap.set("id", v.id);
-    return csilMap;
-}
-export function fromAdminGetRunDiffRequestCborValue(value) {
-    return {
-        id: asString(requireKey(value, "id")),
-    };
-}
-export function toAdminGetRunDiffRequestCbor(v) {
-    return encodeValue(toAdminGetRunDiffRequestCborValue(v));
-}
-export function fromAdminGetRunDiffRequestCbor(bytes) {
-    return fromAdminGetRunDiffRequestCborValue(decode(bytes));
-}
 export function toPutRunnerPackageRequestCborValue(v) {
     const csilMap = new Map();
     csilMap.set("os", v.os);
