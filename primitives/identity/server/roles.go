@@ -29,6 +29,32 @@ const (
 
 var roleRE = regexp.MustCompile(`^[a-z0-9._-]{1,64}$`)
 
+// The input rules of the role operations, as errors that name them.
+var (
+	errBadRole    = rpc.Invalid("role must be 1 to 64 characters of a-z 0-9 . _ -")
+	errBadSubject = rpc.Invalid("subject must be 1 to 128 characters")
+)
+
+// validSubject says that s fits the subject column: 1 to 128 characters.
+func validSubject(s string) bool { return s != "" && len(s) <= 128 }
+
+// checkList keeps the values of in that pass ok, once each, in their order.
+// A value that fails ok gives bad.
+func checkList(in []string, ok func(string) bool, bad *rpc.Error) ([]string, error) {
+	seen := make(map[string]bool, len(in))
+	out := make([]string, 0, len(in))
+	for _, v := range in {
+		if !ok(v) {
+			return nil, bad
+		}
+		if !seen[v] {
+			seen[v] = true
+			out = append(out, v)
+		}
+	}
+	return out, nil
+}
+
 func (s *Service) apiRoles(rows []store.RoleAssignment) api.ListRolesResponse {
 	out := api.ListRolesResponse{Assignments: []api.RoleAssignment{}}
 	for _, r := range rows {
@@ -69,7 +95,7 @@ func (s *Service) ListRoles(ctx context.Context, req api.ListRolesRequest) (api.
 			return api.ListRolesResponse{}, err
 		}
 		if !roleRE.MatchString(role) {
-			return api.ListRolesResponse{}, rpc.Invalid("role must be 1 to 64 characters of a-z 0-9 . _ -")
+			return api.ListRolesResponse{}, errBadRole
 		}
 	}
 	rows, err := s.DB.Roles(ctx, subject, role)
@@ -77,40 +103,6 @@ func (s *Service) ListRoles(ctx context.Context, req api.ListRolesRequest) (api.
 		return api.ListRolesResponse{}, err
 	}
 	return s.apiRoles(rows), nil
-}
-
-// checkSubjects validates the subjects of a set operation. Duplicates count
-// once.
-func checkSubjects(subjects []string) ([]string, error) {
-	seen := make(map[string]bool, len(subjects))
-	out := make([]string, 0, len(subjects))
-	for _, s := range subjects {
-		if s == "" || len(s) > 128 {
-			return nil, rpc.Invalid("subject must be 1 to 128 characters")
-		}
-		if !seen[s] {
-			seen[s] = true
-			out = append(out, s)
-		}
-	}
-	return out, nil
-}
-
-// checkRoles validates the role names of a set operation. Duplicates count
-// once.
-func checkRoles(roles []string) ([]string, error) {
-	seen := make(map[string]bool, len(roles))
-	out := make([]string, 0, len(roles))
-	for _, r := range roles {
-		if !roleRE.MatchString(r) {
-			return nil, rpc.Invalid("role must be 1 to 64 characters of a-z 0-9 . _ -")
-		}
-		if !seen[r] {
-			seen[r] = true
-			out = append(out, r)
-		}
-	}
-	return out, nil
 }
 
 // SetSubjectRoles replaces the roles of one subject: the editor by user.
@@ -122,10 +114,10 @@ func (s *Service) SetSubjectRoles(ctx context.Context, req api.SetSubjectRolesRe
 	if err := requireRoles(p); err != nil {
 		return api.ListRolesResponse{}, err
 	}
-	if req.Subject == "" || len(req.Subject) > 128 {
-		return api.ListRolesResponse{}, rpc.Invalid("subject must be 1 to 128 characters")
+	if !validSubject(req.Subject) {
+		return api.ListRolesResponse{}, errBadSubject
 	}
-	roles, err := checkRoles(req.Roles)
+	roles, err := checkList(req.Roles, roleRE.MatchString, errBadRole)
 	if err != nil {
 		return api.ListRolesResponse{}, err
 	}
@@ -147,9 +139,9 @@ func (s *Service) SetRoleSubjects(ctx context.Context, req api.SetRoleSubjectsRe
 		return api.ListRolesResponse{}, err
 	}
 	if !roleRE.MatchString(req.Role) {
-		return api.ListRolesResponse{}, rpc.Invalid("role must be 1 to 64 characters of a-z 0-9 . _ -")
+		return api.ListRolesResponse{}, errBadRole
 	}
-	subjects, err := checkSubjects(req.Subjects)
+	subjects, err := checkList(req.Subjects, validSubject, errBadSubject)
 	if err != nil {
 		return api.ListRolesResponse{}, err
 	}
@@ -181,7 +173,7 @@ func (s *Service) ListUsers(ctx context.Context, req api.ListUsersRequest) (api.
 	}
 	out := api.ListUsersResponse{Users: []api.KnownUser{}}
 	for _, u := range rows {
-		out.Users = append(out.Users, api.KnownUser{Subject: u.Subject, LastSeenMs: uint64(u.LastSeenMs)})
+		out.Users = append(out.Users, api.KnownUser{Subject: u.Subject, LastSeenMs: uint64(u.LastSeenMs), Name: u.Name})
 	}
 	return out, nil
 }

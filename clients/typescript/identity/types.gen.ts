@@ -270,9 +270,13 @@ export interface ListUsersRequest {
   limit?: number;
 }
 
+/**
+ * The name is the display name of the newest session that has one.
+ */
 export interface KnownUser {
   subject: string;
   lastSeenMs: number;
+  name?: string;
 }
 
 export interface ListUsersResponse {

@@ -309,7 +309,8 @@ data class ListUsersRequest(
 data class KnownUser(
     val subject: String,
     // wire key: last_seen_ms
-    val lastSeenMs: ULong
+    val lastSeenMs: ULong,
+    val name: String? = null
 )
 
 /** ListUsersResponse record. */

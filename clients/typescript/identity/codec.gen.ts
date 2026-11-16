@@ -1096,6 +1096,7 @@ export function fromListUsersRequestCbor(bytes: Uint8Array): ListUsersRequest {
 
 export function toKnownUserCborValue(v: KnownUser): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
+  if (v.name !== undefined) csilMap.set("name", v.name);
   csilMap.set("subject", v.subject);
   csilMap.set("last_seen_ms", v.lastSeenMs);
   return csilMap;
@@ -1105,6 +1106,7 @@ export function fromKnownUserCborValue(value: CborValue): KnownUser {
   return {
     subject: asString(requireKey(value, "subject")),
     lastSeenMs: asNumber(requireKey(value, "last_seen_ms")),
+    name: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "name")),
   };
 }
 

@@ -1049,6 +1049,7 @@ fun listUsersRequestFromCbor(bytes: ByteArray): ListUsersRequest = listUsersRequ
 /** The CBOR value tree for a KnownUser (deep, canonical key order). */
 fun KnownUser.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.name?.let { csilV -> csilEntries.add(CborValue.CText("name") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("subject") to CborValue.CText(this.subject))
     csilEntries.add(CborValue.CText("last_seen_ms") to CborValue.CUint(this.lastSeenMs))
     return CborValue.CMap(csilEntries)
@@ -1061,7 +1062,8 @@ fun KnownUser.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
 fun knownUserFromCborValue(cbor: CborValue): KnownUser {
     val subject = CsilCbor.asText(CsilCbor.require(cbor, "subject"))
     val lastSeenMs = CsilCbor.asULong(CsilCbor.require(cbor, "last_seen_ms"))
-    return KnownUser(subject = subject, lastSeenMs = lastSeenMs)
+    val name = CsilCbor.mapGet(cbor, "name")?.let { csilV -> CsilCbor.asText(csilV) }
+    return KnownUser(subject = subject, lastSeenMs = lastSeenMs, name = name)
 }
 
 /** Decode CSIL CBOR bytes into a KnownUser. */

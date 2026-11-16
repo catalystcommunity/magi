@@ -1258,6 +1258,9 @@ ListUsersRequest.from_cbor = staticmethod(_list_users_request_from_cbor)
 
 def _encode_known_user_value(v: "KnownUser") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
+    csil_x = v.name
+    if csil_x is not None:
+        csil_m["name"] = csil_x
     csil_m["subject"] = v.subject
     csil_m["last_seen_ms"] = v.last_seen_ms
     return csil_m
@@ -1267,6 +1270,7 @@ def _decode_known_user_value(tree: Any) -> "KnownUser":
     return KnownUser(
         subject=_csil_expect_text(tree["subject"]),
         last_seen_ms=_csil_expect_uint(tree["last_seen_ms"]),
+        name=(None if tree.get("name") is None else _csil_expect_text(tree["name"])),
     )
 
 

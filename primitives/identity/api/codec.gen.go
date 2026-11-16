@@ -2379,7 +2379,10 @@ func DecodeListUsersRequest(csilData []byte) (ListUsersRequest, error) {
 
 // csilEncKnownUser builds the canonical CBOR value tree for a KnownUser.
 func csilEncKnownUser(csilV KnownUser) cborValue {
-	csilEntries := make(cborMap, 0, 2)
+	csilEntries := make(cborMap, 0, 3)
+	if csilV.Name != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText((*csilV.Name))})
+	}
 	csilEntries = append(csilEntries, cborEntry{cborText("subject"), cborText(csilV.Subject)})
 	csilEntries = append(csilEntries, cborEntry{cborText("last_seen_ms"), cborUint(csilV.LastSeenMs)})
 	return csilEntries
@@ -2409,6 +2412,13 @@ func csilDecKnownUser(csilRoot cborValue) (KnownUser, error) {
 			return csilOut, csilErr
 		}
 		csilOut.LastSeenMs = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "name"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Name = &csilVal
 	}
 	return csilOut, nil
 }

@@ -981,6 +981,7 @@ class ListUsersRequest:
 class KnownUser:
     subject: str
     last_seen_ms: int
+    name: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -988,12 +989,14 @@ class KnownUser:
             result['subject'] = self.subject
         if hasattr(self, 'last_seen_ms') and self.last_seen_ms is not None:
             result['last_seen_ms'] = self.last_seen_ms
+        if hasattr(self, 'name') and self.name is not None:
+            result['name'] = self.name
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'KnownUser':
         """Create instance from dictionary."""
-        return cls(subject=data.get('subject'), last_seen_ms=data.get('last_seen_ms'))
+        return cls(subject=data.get('subject'), last_seen_ms=data.get('last_seen_ms'), name=data.get('name'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

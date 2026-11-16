@@ -26,7 +26,7 @@ Contract: `contracts/identity.csil`, service `IdentityService`.
 | `list-roles` | `identity:roles`, or own subject | The role assignments: by `subject`, or by `role`. Give exactly one of the two. A caller without the scope can list only its own subject |
 | `set-subject-roles` | `identity:roles` | Replaces the roles of one subject (the editor by user). Result: the new assignments of the subject |
 | `set-role-subjects` | `identity:roles` | Replaces the subjects of one role (the editor by role). Result: the new assignments of the role |
-| `list-users` | `identity:roles` | The subjects that signed in, newest sign-in first, so an editor can pick a person. `limit` default 100, at most 1000 |
+| `list-users` | `identity:roles` | The subjects that signed in, newest sign-in first, so an editor can pick a person. `limit` default 100, at most 1000. `name` is the display name of the newest session of the subject that has one |
 
 The primitive does not know the meaning of a role. Magi defines which role
 names exist and what they permit. A role name is 1 to 64 characters of

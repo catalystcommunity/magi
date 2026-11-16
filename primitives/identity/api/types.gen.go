@@ -222,8 +222,9 @@ type ListUsersRequest struct {
 
 // KnownUser represents a structured data type
 type KnownUser struct {
-	Subject    string `json:"subject" yaml:"subject"`
-	LastSeenMs uint64 `json:"last_seen_ms" yaml:"last_seen_ms"`
+	Subject    string  `json:"subject" yaml:"subject"`
+	LastSeenMs uint64  `json:"last_seen_ms" yaml:"last_seen_ms"`
+	Name       *string `json:"name,omitempty" yaml:"name,omitempty"`
 }
 
 // ListUsersResponse represents a structured data type

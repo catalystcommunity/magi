@@ -152,7 +152,8 @@ SetSubjectRolesRequest = { subject: text, roles: [* text] }
 SetRoleSubjectsRequest = { role: text, subjects: [* text] }
 ;;; The subjects that signed in (identity_sessions), newest first, so an editor can pick a person. limit default 100, at most 1000.
 ListUsersRequest = { ? limit: uint }
-KnownUser = { subject: text, last_seen_ms: uint }
+;;; The name is the display name of the newest session that has one.
+KnownUser = { subject: text, last_seen_ms: uint, ? name: text }
 ListUsersResponse = { users: [* KnownUser] }
 
 service IdentityService {
