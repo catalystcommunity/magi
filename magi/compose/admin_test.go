@@ -13,11 +13,13 @@ import (
 	"github.com/catalystcommunity/magi/lib/authn"
 	"github.com/catalystcommunity/magi/lib/rpc"
 	magiapi "github.com/catalystcommunity/magi/magi/api"
+	modelsapi "github.com/catalystcommunity/magi/primitives/models/api"
 )
 
 // adminEnv serves MagiService over HTTP with the fake services of the admin
 // tests. Later admin views reuse it: pass the fakes in services, keyed by
-// service name, and the Config fields that name them stay empty.
+// service name, and the Config URL field of each named service that is empty
+// gets the address of its test server.
 func adminEnv(t *testing.T, cfg Config, services map[string]map[string]func(context.Context, []byte) ([]byte, error)) (*System, *magiapi.MagiClient, func(subject string, scopes ...string) context.Context) {
 	t.Helper()
 	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
@@ -42,24 +44,29 @@ func adminEnv(t *testing.T, cfg Config, services map[string]map[string]func(cont
 	svcTok := tok("service:magi", authn.KindService,
 		"conversation:act-as", "conversation:admin", "knowledge:act-as", "artifacts:act-as", "workflow:act-as", "workflow:worker",
 		"execution:act-as", "source:act-as", "release:operate", "release:read", "speech:lexicon")
+	// Each service name maps to the Config URL field of that service. The
+	// harness sets a field only when it is empty, so a test can point one
+	// service at its own server.
+	urls := map[string]*string{
+		"ArtifactService":     &cfg.Artifacts,
+		"ConversationService": &cfg.Conversation,
+		"ExecutionService":    &cfg.Execution,
+		"KnowledgeService":    &cfg.Knowledge,
+		"SourceService":       &cfg.Source,
+		"SpeechService":       &cfg.Speech,
+		"WorkflowService":     &cfg.Workflow,
+		"ModelService":        &cfg.Models,
+		"ReleaseService":      &cfg.Release,
+		"EgressService":       &cfg.Egress,
+		"IdentityService":     &cfg.Identity,
+	}
 	for name, ops := range services {
-		switch name {
-		case "ArtifactService":
-			cfg.Artifacts = serve(name, ops)
-		case "ConversationService":
-			cfg.Conversation = serve(name, ops)
-		case "ExecutionService":
-			cfg.Execution = serve(name, ops)
-		case "KnowledgeService":
-			cfg.Knowledge = serve(name, ops)
-		case "SourceService":
-			cfg.Source = serve(name, ops)
-		case "SpeechService":
-			cfg.Speech = serve(name, ops)
-		case "WorkflowService":
-			cfg.Workflow = serve(name, ops)
-		default:
+		field, ok := urls[name]
+		if !ok {
 			t.Fatalf("adminEnv: unknown service %s", name)
+		}
+		if *field == "" {
+			*field = serve(name, ops)
 		}
 	}
 	cfg.ServiceToken = svcTok
@@ -72,6 +79,43 @@ func adminEnv(t *testing.T, cfg Config, services map[string]map[string]func(cont
 		return rpc.WithToken(context.Background(), tok(subject, authn.KindUser, scopes...))
 	}
 	return sys, magiapi.NewMagiClient(rpc.NewClient(h.URL, nil)), as
+}
+
+// The harness serves each fake service on its own server, and it does not
+// replace a URL that the caller set.
+func TestAdminEnv(t *testing.T) {
+	// list_models answers, so the test proves that the harness wires the
+	// fake into the client, not only that it fills a URL field.
+	models := map[string]func(context.Context, []byte) ([]byte, error){
+		"list_models": func(context.Context, []byte) ([]byte, error) {
+			return modelsapi.EncodeListModelsResponse(modelsapi.ListModelsResponse{Models: []modelsapi.Model{{Name: "m1"}}}), nil
+		},
+	}
+	ops := map[string]func(context.Context, []byte) ([]byte, error){}
+	preset := "http://preset.example.local"
+	sys, _, as := adminEnv(t, Config{Conversation: preset}, map[string]map[string]func(context.Context, []byte) ([]byte, error){
+		"ConversationService": ops, "ModelService": models, "ReleaseService": ops,
+		"EgressService": ops, "IdentityService": ops,
+	})
+	if sys.Cfg.Conversation != preset {
+		t.Fatalf("the harness replaced the URL of the conversation service: %s", sys.Cfg.Conversation)
+	}
+	for _, c := range []struct{ name, url string }{
+		{"release", sys.Cfg.Release},
+		{"identity", sys.Cfg.Identity},
+		{"egress", sys.Cfg.Egress},
+	} {
+		if c.url == "" {
+			t.Fatalf("the harness did not serve the %s service", c.name)
+		}
+	}
+	if sys.Release == nil || sys.Identity == nil {
+		t.Fatal("the harness did not turn on the release and identity clients")
+	}
+	r, err := sys.Models.ListModels(as("user:a@example.local"), modelsapi.ListModelsRequest{})
+	if err != nil || len(r.Models) != 1 || r.Models[0].Name != "m1" {
+		t.Fatalf("models: %+v %v", r, err)
+	}
 }
 
 // get-access tells a client if the caller is an operator: a plain person is

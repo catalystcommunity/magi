@@ -9,9 +9,8 @@ export function Admin() {
   const [runners, setRunners] = createSignal<RunnerInfo[] | null>(null);
   const [release, setRelease] = createSignal("");
   const [error, setError] = createSignal("");
-  const load = () => magi.listRunners({}).then((r) => { setRunners(r.runners); setRelease(r.release ?? ""); },
+  magi.listRunners({}).then((r) => { setRunners(r.runners); setRelease(r.release ?? ""); },
     (e) => setError(errText(e)));
-  load();
   return <section class="page">
     <h1>Admin</h1>
     <p class="lede">The state of this Magi. Each call here checks your operator rights on the server.</p>
@@ -21,17 +20,19 @@ export function Admin() {
     <Show when={runners} fallback={<Show when={() => !error()}><p class="quiet">Loading.</p></Show>}>
       <Show when={() => runners()!.length} fallback={<p class="empty">No runner is connected.</p>}>
         <div class="page-body"><div class="table-wrap"><table>
-          <tr><th>Name</th><th>Version</th><th>Platform</th><th>State</th><th>Seen</th><th>Update</th></tr>
-          <For each={() => runners()!}>{(r: RunnerInfo) =>
-            <tr>
-              <td>{r.name}</td>
-              <td>{r.version}</td>
-              <td>{r.os}/{r.arch}</td>
-              <td>{r.busy ? "Busy" : "Idle"}</td>
-              <td>{time(r.seenMs)} on {shortDay(r.seenMs)}</td>
-              <td>{r.updateError ?? ""}</td>
-            </tr>}
-          </For>
+          <thead><tr><th>Name</th><th>Version</th><th>Platform</th><th>State</th><th>Seen</th><th>Update</th></tr></thead>
+          <tbody>
+            <For each={() => runners()!}>{(r: RunnerInfo) =>
+              <tr>
+                <td>{r.name}</td>
+                <td>{r.version}</td>
+                <td>{r.os}/{r.arch}</td>
+                <td>{r.busy ? "Busy" : "Idle"}</td>
+                <td>{time(r.seenMs)} on {shortDay(r.seenMs)}</td>
+                <td>{r.updateError ?? ""}</td>
+              </tr>}
+            </For>
+          </tbody>
         </table></div></div>
       </Show>
     </Show>
