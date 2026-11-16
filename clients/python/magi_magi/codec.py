@@ -3392,6 +3392,180 @@ def _access_from_cbor(data: bytes) -> "Access":
 Access.to_cbor = _access_to_cbor
 Access.from_cbor = staticmethod(_access_from_cbor)
 
+def _encode_admin_run_summary_value(v: "AdminRunSummary") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_x = v.error
+    if csil_x is not None:
+        csil_m["error"] = csil_x
+    csil_m["owner"] = v.owner
+    csil_x = v.title
+    if csil_x is not None:
+        csil_m["title"] = csil_x
+    csil_m["status"] = v.status
+    csil_m["created_ms"] = v.created_ms
+    csil_m["definition"] = v.definition
+    csil_m["updated_ms"] = v.updated_ms
+    csil_m["current_step"] = v.current_step
+    return csil_m
+
+def _decode_admin_run_summary_value(tree: Any) -> "AdminRunSummary":
+    tree = _csil_expect_map(tree)
+    return AdminRunSummary(
+        id=_csil_expect_text(tree["id"]),
+        definition=_csil_expect_text(tree["definition"]),
+        owner=_csil_expect_text(tree["owner"]),
+        status=_csil_expect_text(tree["status"]),
+        current_step=_csil_expect_text(tree["current_step"]),
+        title=(None if tree.get("title") is None else _csil_expect_text(tree["title"])),
+        error=(None if tree.get("error") is None else _csil_expect_text(tree["error"])),
+        created_ms=_csil_expect_uint(tree["created_ms"]),
+        updated_ms=_csil_expect_uint(tree["updated_ms"]),
+    )
+
+
+def _admin_run_summary_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_admin_run_summary_value(self))
+
+
+def _admin_run_summary_from_cbor(data: bytes) -> "AdminRunSummary":
+    return _decode_admin_run_summary_value(cbor_decode(data))
+
+
+AdminRunSummary.to_cbor = _admin_run_summary_to_cbor
+AdminRunSummary.from_cbor = staticmethod(_admin_run_summary_from_cbor)
+
+def _encode_admin_list_runs_request_value(v: "AdminListRunsRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.limit
+    if csil_x is not None:
+        csil_m["limit"] = csil_x
+    csil_x = v.status
+    if csil_x is not None:
+        csil_m["status"] = csil_x
+    csil_x = v.definition
+    if csil_x is not None:
+        csil_m["definition"] = csil_x
+    return csil_m
+
+def _decode_admin_list_runs_request_value(tree: Any) -> "AdminListRunsRequest":
+    tree = _csil_expect_map(tree)
+    return AdminListRunsRequest(
+        definition=(None if tree.get("definition") is None else _csil_expect_text(tree["definition"])),
+        status=(None if tree.get("status") is None else _csil_expect_text(tree["status"])),
+        limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
+    )
+
+
+def _admin_list_runs_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_admin_list_runs_request_value(self))
+
+
+def _admin_list_runs_request_from_cbor(data: bytes) -> "AdminListRunsRequest":
+    return _decode_admin_list_runs_request_value(cbor_decode(data))
+
+
+AdminListRunsRequest.to_cbor = _admin_list_runs_request_to_cbor
+AdminListRunsRequest.from_cbor = staticmethod(_admin_list_runs_request_from_cbor)
+
+def _encode_admin_list_runs_response_value(v: "AdminListRunsResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["runs"] = [_encode_admin_run_summary_value(csil_e) for csil_e in v.runs]
+    return csil_m
+
+def _decode_admin_list_runs_response_value(tree: Any) -> "AdminListRunsResponse":
+    tree = _csil_expect_map(tree)
+    return AdminListRunsResponse(
+        runs=[_decode_admin_run_summary_value(csil_e) for csil_e in _csil_expect_array(tree["runs"])],
+    )
+
+
+def _admin_list_runs_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_admin_list_runs_response_value(self))
+
+
+def _admin_list_runs_response_from_cbor(data: bytes) -> "AdminListRunsResponse":
+    return _decode_admin_list_runs_response_value(cbor_decode(data))
+
+
+AdminListRunsResponse.to_cbor = _admin_list_runs_response_to_cbor
+AdminListRunsResponse.from_cbor = staticmethod(_admin_list_runs_response_from_cbor)
+
+def _encode_admin_run_value(v: "AdminRun") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["vars"] = v.vars
+    csil_m["steps"] = [_encode_task_step_value(csil_e) for csil_e in v.steps]
+    csil_m["summary"] = _encode_admin_run_summary_value(v.summary)
+    return csil_m
+
+def _decode_admin_run_value(tree: Any) -> "AdminRun":
+    tree = _csil_expect_map(tree)
+    return AdminRun(
+        summary=_decode_admin_run_summary_value(tree["summary"]),
+        vars={_csil_expect_text(csil_k): _csil_expect_text(csil_v) for csil_k, csil_v in _csil_expect_map(tree["vars"]).items()},
+        steps=[_decode_task_step_value(csil_e) for csil_e in _csil_expect_array(tree["steps"])],
+    )
+
+
+def _admin_run_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_admin_run_value(self))
+
+
+def _admin_run_from_cbor(data: bytes) -> "AdminRun":
+    return _decode_admin_run_value(cbor_decode(data))
+
+
+AdminRun.to_cbor = _admin_run_to_cbor
+AdminRun.from_cbor = staticmethod(_admin_run_from_cbor)
+
+def _encode_admin_get_run_request_value(v: "AdminGetRunRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    return csil_m
+
+def _decode_admin_get_run_request_value(tree: Any) -> "AdminGetRunRequest":
+    tree = _csil_expect_map(tree)
+    return AdminGetRunRequest(
+        id=_csil_expect_text(tree["id"]),
+    )
+
+
+def _admin_get_run_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_admin_get_run_request_value(self))
+
+
+def _admin_get_run_request_from_cbor(data: bytes) -> "AdminGetRunRequest":
+    return _decode_admin_get_run_request_value(cbor_decode(data))
+
+
+AdminGetRunRequest.to_cbor = _admin_get_run_request_to_cbor
+AdminGetRunRequest.from_cbor = staticmethod(_admin_get_run_request_from_cbor)
+
+def _encode_admin_get_run_output_request_value(v: "AdminGetRunOutputRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["name"] = v.name
+    return csil_m
+
+def _decode_admin_get_run_output_request_value(tree: Any) -> "AdminGetRunOutputRequest":
+    tree = _csil_expect_map(tree)
+    return AdminGetRunOutputRequest(
+        id=_csil_expect_text(tree["id"]),
+        name=_csil_expect_text(tree["name"]),
+    )
+
+
+def _admin_get_run_output_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_admin_get_run_output_request_value(self))
+
+
+def _admin_get_run_output_request_from_cbor(data: bytes) -> "AdminGetRunOutputRequest":
+    return _decode_admin_get_run_output_request_value(cbor_decode(data))
+
+
+AdminGetRunOutputRequest.to_cbor = _admin_get_run_output_request_to_cbor
+AdminGetRunOutputRequest.from_cbor = staticmethod(_admin_get_run_output_request_from_cbor)
+
 def _encode_put_runner_package_request_value(v: "PutRunnerPackageRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["os"] = v.os

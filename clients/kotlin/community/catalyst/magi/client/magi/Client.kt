@@ -167,6 +167,18 @@ class MagiClient(private val transport: Transport) {
     fun getAccess(request: GetAccessRequest): Access {
         return decode<Access>(transport.call("MagiService", "get-access", encode(request)))
     }
+    fun adminListRuns(request: AdminListRunsRequest): AdminListRunsResponse {
+        return decode<AdminListRunsResponse>(transport.call("MagiService", "admin-list-runs", encode(request)))
+    }
+    fun adminGetRun(request: AdminGetRunRequest): AdminRun {
+        return decode<AdminRun>(transport.call("MagiService", "admin-get-run", encode(request)))
+    }
+    fun adminGetRunOutput(request: AdminGetRunOutputRequest): TaskOutput {
+        return decode<TaskOutput>(transport.call("MagiService", "admin-get-run-output", encode(request)))
+    }
+    fun adminGetRunDiff(request: AdminGetRunRequest): TaskDiff {
+        return decode<TaskDiff>(transport.call("MagiService", "admin-get-run-diff", encode(request)))
+    }
     fun putRunnerPackage(request: PutRunnerPackageRequest): PutRunnerPackageResponse {
         return decode<PutRunnerPackageResponse>(transport.call("MagiService", "put-runner-package", encode(request)))
     }

@@ -2,7 +2,7 @@
 // decisions that wait for a person.
 import { createSignal } from "solid-js";
 import { For, Show } from "./flow.ts";
-import type { Task } from "../../../clients/typescript/magi/types.gen.ts";
+import type { Task, TaskStep } from "../../../clients/typescript/magi/types.gen.ts";
 import { magi, go, fail, errText } from "./api.ts";
 
 // The status is the run status, or the result of a finished task.
@@ -10,7 +10,22 @@ const statusName: Record<string, string> = { waiting: "Waits for you", succeeded
   "release-rolled-back": "Rolled back", "release-failed": "Release failed" };
 const statusLabel = (s: string) => statusName[s] ?? s.charAt(0).toUpperCase() + s.slice(1).replace(/-/g, " ");
 const decisionName: Record<string, string> = { approve: "Approve", revise: "Ask for changes", reject: "Reject" };
-const Status = (props: { s: string }) => <span class={"status " + props.s}>{statusLabel(props.s)}</span>;
+export const Status = (props: { s: string }) => <span class={"status " + props.s}>{statusLabel(props.s)}</span>;
+
+// The steps of a task or a run, with the notes of each step.
+export function Steps(props: { steps: () => TaskStep[] }) {
+  return <ol class="steps">
+    <For each={props.steps}>{(s) =>
+      <li class={"step " + s.status}>
+        <span class="step-name">{s.step}</span> <span class="quiet">{s.status}{s.outcome && s.outcome !== s.status ? `, ${s.outcome}` : ""}</span>
+        {/* The last note is the result of the step; the earlier notes are progress. */}
+        {s.notes.length > 2 ? <details><summary>Progress ({s.notes.length - 1} notes)</summary>
+          <For each={s.notes.slice(0, -1)}>{(n: string) => <p class="step-note">{n}</p>}</For></details> : ""}
+        <For each={s.notes.length > 2 ? s.notes.slice(-1) : s.notes}>{(n: string) => <p class="step-note">{n}</p>}</For>
+      </li>}
+    </For>
+  </ol>;
+}
 
 export function Tasks() {
   const [tasks, setTasks] = createSignal<Task[] | null>(null);
@@ -84,17 +99,7 @@ export function TaskView(props: { id: string }) {
       <div class="page-head"><h1>{() => task().title}</h1><Status s={task().status} /></div>
       <p class="quiet">{() => (task().currentStep ? `Step ${task().currentStep}. ` : "") + (task().branch ? `Branch ${task().branch}.` : "No branch yet.")}</p>
       {() => task().error ? <p class="error">{task().error}</p> : ""}
-      <ol class="steps">
-        <For each={() => task().steps}>{(s) =>
-          <li class={"step " + s.status}>
-            <span class="step-name">{s.step}</span> <span class="quiet">{s.status}{s.outcome && s.outcome !== s.status ? `, ${s.outcome}` : ""}</span>
-            {/* The last note is the result of the step; the earlier notes are progress. */}
-            {s.notes.length > 2 ? <details><summary>Progress ({s.notes.length - 1} notes)</summary>
-              <For each={s.notes.slice(0, -1)}>{(n: string) => <p class="step-note">{n}</p>}</For></details> : ""}
-            <For each={s.notes.length > 2 ? s.notes.slice(-1) : s.notes}>{(n: string) => <p class="step-note">{n}</p>}</For>
-          </li>}
-        </For>
-      </ol>
+      <Steps steps={() => task().steps} />
       {() => task().waitingFor ? <div class="decision">
         <p>{task().waitingFor}</p>
         <textarea ref={(el: HTMLTextAreaElement) => (comment = el)} rows="2" placeholder="Comment (necessary to ask for changes)" aria-label="Comment" />

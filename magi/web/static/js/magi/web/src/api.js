@@ -58,7 +58,7 @@ export function signOut() { setToken(null); setMe(null); }
 export const [operator, setOperator] = createSignal(false);
 function parse() {
     const [v, ...rest] = location.hash.replace(/^#\/?/, "").split("/");
-    const views = ["talk", "questions", "network", "tasks", "task", "knowledge", "words", "page", "terminal", "admin"];
+    const views = ["talk", "questions", "network", "tasks", "task", "knowledge", "words", "page", "terminal", "admin", "admin-runs", "admin-run"];
     return { view: views.includes(v) ? v : "talk", arg: decodeURIComponent(rest.join("/")) };
 }
 export const [route, setRoute] = createSignal(parse());
