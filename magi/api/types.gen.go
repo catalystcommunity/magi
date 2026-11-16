@@ -758,6 +758,104 @@ type ListRunnersResponse struct {
 	Release *string      `json:"release,omitempty" yaml:"release,omitempty"`
 }
 
+// GetAccessRequest represents a structured data type
+type GetAccessRequest struct {
+}
+
+// Access represents a structured data type
+type Access struct {
+	Subject  string `json:"subject" yaml:"subject"`
+	Operator bool   `json:"operator" yaml:"operator"`
+}
+
+// AdminRunSummary represents a structured data type
+type AdminRunSummary struct {
+	Id          string  `json:"id" yaml:"id"`
+	Definition  string  `json:"definition" yaml:"definition"`
+	Owner       string  `json:"owner" yaml:"owner"`
+	Status      string  `json:"status" yaml:"status"`
+	CurrentStep string  `json:"current_step" yaml:"current_step"`
+	Title       *string `json:"title,omitempty" yaml:"title,omitempty"`
+	Error       *string `json:"error,omitempty" yaml:"error,omitempty"`
+	CreatedMs   uint64  `json:"created_ms" yaml:"created_ms"`
+	UpdatedMs   uint64  `json:"updated_ms" yaml:"updated_ms"`
+}
+
+// AdminListRunsRequest represents a structured data type
+type AdminListRunsRequest struct {
+	Definition *string `json:"definition,omitempty" yaml:"definition,omitempty"`
+	Status     *string `json:"status,omitempty" yaml:"status,omitempty"`
+	Limit      *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+}
+
+// AdminListRunsResponse represents a structured data type
+type AdminListRunsResponse struct {
+	Runs []AdminRunSummary `json:"runs" yaml:"runs"`
+}
+
+// AdminRun represents a structured data type
+type AdminRun struct {
+	Summary AdminRunSummary   `json:"summary" yaml:"summary"`
+	Vars    map[string]string `json:"vars" yaml:",inline"`
+	Steps   []TaskStep        `json:"steps" yaml:"steps"`
+}
+
+// AdminGetRunRequest represents a structured data type
+type AdminGetRunRequest struct {
+	Id string `json:"id" yaml:"id"`
+}
+
+// AdminGetRunOutputRequest represents a structured data type
+type AdminGetRunOutputRequest struct {
+	Id   string `json:"id" yaml:"id"`
+	Name string `json:"name" yaml:"name"`
+}
+
+// AdminChat represents a structured data type
+type AdminChat struct {
+	Stream    string `json:"stream" yaml:"stream"`
+	Person    string `json:"person" yaml:"person"`
+	Persona   string `json:"persona" yaml:"persona"`
+	LastSeq   uint64 `json:"last_seq" yaml:"last_seq"`
+	CreatedMs uint64 `json:"created_ms" yaml:"created_ms"`
+	UpdatedMs uint64 `json:"updated_ms" yaml:"updated_ms"`
+}
+
+// AdminListChatsRequest represents a structured data type
+type AdminListChatsRequest struct {
+	Person  *string `json:"person,omitempty" yaml:"person,omitempty"`
+	Persona *string `json:"persona,omitempty" yaml:"persona,omitempty"`
+}
+
+// AdminListChatsResponse represents a structured data type
+type AdminListChatsResponse struct {
+	Chats []AdminChat `json:"chats" yaml:"chats"`
+}
+
+// AdminReadChatRequest represents a structured data type
+type AdminReadChatRequest struct {
+	Stream    string  `json:"stream" yaml:"stream"`
+	BeforeSeq *uint64 `json:"before_seq,omitempty" yaml:"before_seq,omitempty"`
+	Limit     *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+}
+
+// AdminReadChatResponse represents a structured data type
+type AdminReadChatResponse struct {
+	Chat     AdminChat `json:"chat" yaml:"chat"`
+	Messages []Message `json:"messages" yaml:"messages"`
+}
+
+// AdminTurnLogRequest represents a structured data type
+type AdminTurnLogRequest struct {
+	Message string `json:"message" yaml:"message"`
+}
+
+// AdminTurnLogResponse represents a structured data type
+type AdminTurnLogResponse struct {
+	Message string  `json:"message" yaml:"message"`
+	Log     *string `json:"log,omitempty" yaml:"log,omitempty"`
+}
+
 // PutRunnerPackageRequest represents a structured data type
 type PutRunnerPackageRequest struct {
 	Version string `json:"version" yaml:"version"`

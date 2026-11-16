@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { AckNoticeRequest, Activity, ActivityRequest, AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, ChangeKnowledgeRequest, ChangeKnowledgeResponse, CheckOverlapRequest, CheckOverlapResponse, ConnectRequest, ConnectResponse, Connection, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideRequest, DecisionAnswer, DecisionQuestion, DecisionRequest, DecisionResponse, DeleteLexiconWordRequest, DeleteLexiconWordResponse, DeliverNoticeRequest, Device, DisconnectRequest, EgressDestinationRequest, EgressDestinationResponse, EgressDetectRequest, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressFlow, EgressFlowHeader, EgressReportRequest, EgressReportResponse, EgressReview, EgressReviewHeader, EgressSecretRule, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, FileChange, FinishTodoRequest, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetPageRequest, GetTaskDiffRequest, GetTaskOutputRequest, GetTaskRequest, HistoryMessage, ImportHistoryRequest, ImportHistoryResponse, ImportedMessage, KnowledgeChange, KnowledgeFact, KnowledgeHistoryRequest, KnowledgeHistoryResponse, KnowledgeItem, KnowledgeRecord, LexiconWord, LinkRequest, ListConnectionsRequest, ListConnectionsResponse, ListDevicesRequest, ListDevicesResponse, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListNoticesRequest, ListNoticesResponse, ListPagesRequest, ListPagesResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListTodosRequest, ListTodosResponse, ListVoicesRequest, ListVoicesResponse, ListenRequest, ListenResponse, MergeKnowledgeRequest, Message, MessageLink, ModelSelector, Notice, NoticeDelivery, Page, PersonaInfo, PutAppReleaseRequest, PutDeviceRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, RememberResponse, RemoveDeviceRequest, ReportDeliveryRequest, ReportDeliveryResponse, ReviewItem, RunnerAck, RunnerAssignment, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerEgressProxy, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerInfo, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, RunnerTerminal, RunnerTerminalsRequest, RunnerTerminalsResponse, RunnerUpdate, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, SpeechPart, StartTaskRequest, StopSpeechRequest, StopSpeechResponse, Task, TaskDiff, TaskOutput, TaskStep, Todo, TraceRequest, TraceResponse, UnlinkRequest, UnmergeKnowledgeRequest, VoiceInfo, WaitNoticesRequest, WaitNoticesResponse, WordTime } from "./types.gen.ts";
+import type { Access, AckNoticeRequest, Activity, ActivityRequest, AdminChat, AdminGetRunOutputRequest, AdminGetRunRequest, AdminListChatsRequest, AdminListChatsResponse, AdminListRunsRequest, AdminListRunsResponse, AdminReadChatRequest, AdminReadChatResponse, AdminRun, AdminRunSummary, AdminTurnLogRequest, AdminTurnLogResponse, AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, ChangeKnowledgeRequest, ChangeKnowledgeResponse, CheckOverlapRequest, CheckOverlapResponse, ConnectRequest, ConnectResponse, Connection, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideRequest, DecisionAnswer, DecisionQuestion, DecisionRequest, DecisionResponse, DeleteLexiconWordRequest, DeleteLexiconWordResponse, DeliverNoticeRequest, Device, DisconnectRequest, EgressDestinationRequest, EgressDestinationResponse, EgressDetectRequest, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressFlow, EgressFlowHeader, EgressReportRequest, EgressReportResponse, EgressReview, EgressReviewHeader, EgressSecretRule, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, FileChange, FinishTodoRequest, GetAccessRequest, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetPageRequest, GetTaskDiffRequest, GetTaskOutputRequest, GetTaskRequest, HistoryMessage, ImportHistoryRequest, ImportHistoryResponse, ImportedMessage, KnowledgeChange, KnowledgeFact, KnowledgeHistoryRequest, KnowledgeHistoryResponse, KnowledgeItem, KnowledgeRecord, LexiconWord, LinkRequest, ListConnectionsRequest, ListConnectionsResponse, ListDevicesRequest, ListDevicesResponse, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListNoticesRequest, ListNoticesResponse, ListPagesRequest, ListPagesResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListTodosRequest, ListTodosResponse, ListVoicesRequest, ListVoicesResponse, ListenRequest, ListenResponse, MergeKnowledgeRequest, Message, MessageLink, ModelSelector, Notice, NoticeDelivery, Page, PersonaInfo, PutAppReleaseRequest, PutDeviceRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, RememberResponse, RemoveDeviceRequest, ReportDeliveryRequest, ReportDeliveryResponse, ReviewItem, RunnerAck, RunnerAssignment, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerEgressProxy, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerInfo, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, RunnerTerminal, RunnerTerminalsRequest, RunnerTerminalsResponse, RunnerUpdate, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, SpeechPart, StartTaskRequest, StopSpeechRequest, StopSpeechResponse, Task, TaskDiff, TaskOutput, TaskStep, Todo, TraceRequest, TraceResponse, UnlinkRequest, UnmergeKnowledgeRequest, VoiceInfo, WaitNoticesRequest, WaitNoticesResponse, WordTime } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -2808,6 +2808,352 @@ export function toListRunnersResponseCbor(v: ListRunnersResponse): Uint8Array {
 
 export function fromListRunnersResponseCbor(bytes: Uint8Array): ListRunnersResponse {
   return fromListRunnersResponseCborValue(decode(bytes));
+}
+
+export function toGetAccessRequestCborValue(v: GetAccessRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  return csilMap;
+}
+
+export function fromGetAccessRequestCborValue(value: CborValue): GetAccessRequest {
+  void value;
+  return {} as GetAccessRequest;
+}
+
+export function toGetAccessRequestCbor(v: GetAccessRequest): Uint8Array {
+  return encodeValue(toGetAccessRequestCborValue(v));
+}
+
+export function fromGetAccessRequestCbor(bytes: Uint8Array): GetAccessRequest {
+  return fromGetAccessRequestCborValue(decode(bytes));
+}
+
+export function toAccessCborValue(v: Access): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("subject", v.subject);
+  csilMap.set("operator", v.operator);
+  return csilMap;
+}
+
+export function fromAccessCborValue(value: CborValue): Access {
+  return {
+    subject: asString(requireKey(value, "subject")),
+    operator: asBool(requireKey(value, "operator")),
+  };
+}
+
+export function toAccessCbor(v: Access): Uint8Array {
+  return encodeValue(toAccessCborValue(v));
+}
+
+export function fromAccessCbor(bytes: Uint8Array): Access {
+  return fromAccessCborValue(decode(bytes));
+}
+
+export function toAdminRunSummaryCborValue(v: AdminRunSummary): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  if (v.error !== undefined) csilMap.set("error", v.error);
+  csilMap.set("owner", v.owner);
+  if (v.title !== undefined) csilMap.set("title", v.title);
+  csilMap.set("status", v.status);
+  csilMap.set("created_ms", v.createdMs);
+  csilMap.set("definition", v.definition);
+  csilMap.set("updated_ms", v.updatedMs);
+  csilMap.set("current_step", v.currentStep);
+  return csilMap;
+}
+
+export function fromAdminRunSummaryCborValue(value: CborValue): AdminRunSummary {
+  return {
+    id: asString(requireKey(value, "id")),
+    definition: asString(requireKey(value, "definition")),
+    owner: asString(requireKey(value, "owner")),
+    status: asString(requireKey(value, "status")),
+    currentStep: asString(requireKey(value, "current_step")),
+    title: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "title")),
+    error: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "error")),
+    createdMs: asNumber(requireKey(value, "created_ms")),
+    updatedMs: asNumber(requireKey(value, "updated_ms")),
+  };
+}
+
+export function toAdminRunSummaryCbor(v: AdminRunSummary): Uint8Array {
+  return encodeValue(toAdminRunSummaryCborValue(v));
+}
+
+export function fromAdminRunSummaryCbor(bytes: Uint8Array): AdminRunSummary {
+  return fromAdminRunSummaryCborValue(decode(bytes));
+}
+
+export function toAdminListRunsRequestCborValue(v: AdminListRunsRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.limit !== undefined) csilMap.set("limit", v.limit);
+  if (v.status !== undefined) csilMap.set("status", v.status);
+  if (v.definition !== undefined) csilMap.set("definition", v.definition);
+  return csilMap;
+}
+
+export function fromAdminListRunsRequestCborValue(value: CborValue): AdminListRunsRequest {
+  return {
+    definition: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "definition")),
+    status: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "status")),
+    limit: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
+  };
+}
+
+export function toAdminListRunsRequestCbor(v: AdminListRunsRequest): Uint8Array {
+  return encodeValue(toAdminListRunsRequestCborValue(v));
+}
+
+export function fromAdminListRunsRequestCbor(bytes: Uint8Array): AdminListRunsRequest {
+  return fromAdminListRunsRequestCborValue(decode(bytes));
+}
+
+export function toAdminListRunsResponseCborValue(v: AdminListRunsResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("runs", v.runs.map((csilE): CborValue => toAdminRunSummaryCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromAdminListRunsResponseCborValue(value: CborValue): AdminListRunsResponse {
+  return {
+    runs: asArray(requireKey(value, "runs")).map((csilE) => fromAdminRunSummaryCborValue(csilE)),
+  };
+}
+
+export function toAdminListRunsResponseCbor(v: AdminListRunsResponse): Uint8Array {
+  return encodeValue(toAdminListRunsResponseCborValue(v));
+}
+
+export function fromAdminListRunsResponseCbor(bytes: Uint8Array): AdminListRunsResponse {
+  return fromAdminListRunsResponseCborValue(decode(bytes));
+}
+
+export function toAdminRunCborValue(v: AdminRun): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("vars", new Map<CborValue, CborValue>(Object.entries(v.vars).map(([csilK, csilV]): [CborValue, CborValue] => [csilK, csilV])));
+  csilMap.set("steps", v.steps.map((csilE): CborValue => toTaskStepCborValue(csilE)));
+  csilMap.set("summary", toAdminRunSummaryCborValue(v.summary));
+  return csilMap;
+}
+
+export function fromAdminRunCborValue(value: CborValue): AdminRun {
+  return {
+    summary: fromAdminRunSummaryCborValue(requireKey(value, "summary")),
+    vars: Object.fromEntries(Array.from(asMap(requireKey(value, "vars")), ([csilK, csilV]): [string, string] => [asString(csilK), asString(csilV)])),
+    steps: asArray(requireKey(value, "steps")).map((csilE) => fromTaskStepCborValue(csilE)),
+  };
+}
+
+export function toAdminRunCbor(v: AdminRun): Uint8Array {
+  return encodeValue(toAdminRunCborValue(v));
+}
+
+export function fromAdminRunCbor(bytes: Uint8Array): AdminRun {
+  return fromAdminRunCborValue(decode(bytes));
+}
+
+export function toAdminGetRunRequestCborValue(v: AdminGetRunRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  return csilMap;
+}
+
+export function fromAdminGetRunRequestCborValue(value: CborValue): AdminGetRunRequest {
+  return {
+    id: asString(requireKey(value, "id")),
+  };
+}
+
+export function toAdminGetRunRequestCbor(v: AdminGetRunRequest): Uint8Array {
+  return encodeValue(toAdminGetRunRequestCborValue(v));
+}
+
+export function fromAdminGetRunRequestCbor(bytes: Uint8Array): AdminGetRunRequest {
+  return fromAdminGetRunRequestCborValue(decode(bytes));
+}
+
+export function toAdminGetRunOutputRequestCborValue(v: AdminGetRunOutputRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  csilMap.set("name", v.name);
+  return csilMap;
+}
+
+export function fromAdminGetRunOutputRequestCborValue(value: CborValue): AdminGetRunOutputRequest {
+  return {
+    id: asString(requireKey(value, "id")),
+    name: asString(requireKey(value, "name")),
+  };
+}
+
+export function toAdminGetRunOutputRequestCbor(v: AdminGetRunOutputRequest): Uint8Array {
+  return encodeValue(toAdminGetRunOutputRequestCborValue(v));
+}
+
+export function fromAdminGetRunOutputRequestCbor(bytes: Uint8Array): AdminGetRunOutputRequest {
+  return fromAdminGetRunOutputRequestCborValue(decode(bytes));
+}
+
+export function toAdminChatCborValue(v: AdminChat): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("person", v.person);
+  csilMap.set("stream", v.stream);
+  csilMap.set("persona", v.persona);
+  csilMap.set("last_seq", v.lastSeq);
+  csilMap.set("created_ms", v.createdMs);
+  csilMap.set("updated_ms", v.updatedMs);
+  return csilMap;
+}
+
+export function fromAdminChatCborValue(value: CborValue): AdminChat {
+  return {
+    stream: asString(requireKey(value, "stream")),
+    person: asString(requireKey(value, "person")),
+    persona: asString(requireKey(value, "persona")),
+    lastSeq: asNumber(requireKey(value, "last_seq")),
+    createdMs: asNumber(requireKey(value, "created_ms")),
+    updatedMs: asNumber(requireKey(value, "updated_ms")),
+  };
+}
+
+export function toAdminChatCbor(v: AdminChat): Uint8Array {
+  return encodeValue(toAdminChatCborValue(v));
+}
+
+export function fromAdminChatCbor(bytes: Uint8Array): AdminChat {
+  return fromAdminChatCborValue(decode(bytes));
+}
+
+export function toAdminListChatsRequestCborValue(v: AdminListChatsRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.person !== undefined) csilMap.set("person", v.person);
+  if (v.persona !== undefined) csilMap.set("persona", v.persona);
+  return csilMap;
+}
+
+export function fromAdminListChatsRequestCborValue(value: CborValue): AdminListChatsRequest {
+  return {
+    person: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "person")),
+    persona: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "persona")),
+  };
+}
+
+export function toAdminListChatsRequestCbor(v: AdminListChatsRequest): Uint8Array {
+  return encodeValue(toAdminListChatsRequestCborValue(v));
+}
+
+export function fromAdminListChatsRequestCbor(bytes: Uint8Array): AdminListChatsRequest {
+  return fromAdminListChatsRequestCborValue(decode(bytes));
+}
+
+export function toAdminListChatsResponseCborValue(v: AdminListChatsResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("chats", v.chats.map((csilE): CborValue => toAdminChatCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromAdminListChatsResponseCborValue(value: CborValue): AdminListChatsResponse {
+  return {
+    chats: asArray(requireKey(value, "chats")).map((csilE) => fromAdminChatCborValue(csilE)),
+  };
+}
+
+export function toAdminListChatsResponseCbor(v: AdminListChatsResponse): Uint8Array {
+  return encodeValue(toAdminListChatsResponseCborValue(v));
+}
+
+export function fromAdminListChatsResponseCbor(bytes: Uint8Array): AdminListChatsResponse {
+  return fromAdminListChatsResponseCborValue(decode(bytes));
+}
+
+export function toAdminReadChatRequestCborValue(v: AdminReadChatRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.limit !== undefined) csilMap.set("limit", v.limit);
+  csilMap.set("stream", v.stream);
+  if (v.beforeSeq !== undefined) csilMap.set("before_seq", v.beforeSeq);
+  return csilMap;
+}
+
+export function fromAdminReadChatRequestCborValue(value: CborValue): AdminReadChatRequest {
+  return {
+    stream: asString(requireKey(value, "stream")),
+    beforeSeq: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "before_seq")),
+    limit: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
+  };
+}
+
+export function toAdminReadChatRequestCbor(v: AdminReadChatRequest): Uint8Array {
+  return encodeValue(toAdminReadChatRequestCborValue(v));
+}
+
+export function fromAdminReadChatRequestCbor(bytes: Uint8Array): AdminReadChatRequest {
+  return fromAdminReadChatRequestCborValue(decode(bytes));
+}
+
+export function toAdminReadChatResponseCborValue(v: AdminReadChatResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("chat", toAdminChatCborValue(v.chat));
+  csilMap.set("messages", v.messages.map((csilE): CborValue => toMessageCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromAdminReadChatResponseCborValue(value: CborValue): AdminReadChatResponse {
+  return {
+    chat: fromAdminChatCborValue(requireKey(value, "chat")),
+    messages: asArray(requireKey(value, "messages")).map((csilE) => fromMessageCborValue(csilE)),
+  };
+}
+
+export function toAdminReadChatResponseCbor(v: AdminReadChatResponse): Uint8Array {
+  return encodeValue(toAdminReadChatResponseCborValue(v));
+}
+
+export function fromAdminReadChatResponseCbor(bytes: Uint8Array): AdminReadChatResponse {
+  return fromAdminReadChatResponseCborValue(decode(bytes));
+}
+
+export function toAdminTurnLogRequestCborValue(v: AdminTurnLogRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("message", v.message);
+  return csilMap;
+}
+
+export function fromAdminTurnLogRequestCborValue(value: CborValue): AdminTurnLogRequest {
+  return {
+    message: asString(requireKey(value, "message")),
+  };
+}
+
+export function toAdminTurnLogRequestCbor(v: AdminTurnLogRequest): Uint8Array {
+  return encodeValue(toAdminTurnLogRequestCborValue(v));
+}
+
+export function fromAdminTurnLogRequestCbor(bytes: Uint8Array): AdminTurnLogRequest {
+  return fromAdminTurnLogRequestCborValue(decode(bytes));
+}
+
+export function toAdminTurnLogResponseCborValue(v: AdminTurnLogResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.log !== undefined) csilMap.set("log", v.log);
+  csilMap.set("message", v.message);
+  return csilMap;
+}
+
+export function fromAdminTurnLogResponseCborValue(value: CborValue): AdminTurnLogResponse {
+  return {
+    message: asString(requireKey(value, "message")),
+    log: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "log")),
+  };
+}
+
+export function toAdminTurnLogResponseCbor(v: AdminTurnLogResponse): Uint8Array {
+  return encodeValue(toAdminTurnLogResponseCborValue(v));
+}
+
+export function fromAdminTurnLogResponseCbor(bytes: Uint8Array): AdminTurnLogResponse {
+  return fromAdminTurnLogResponseCborValue(decode(bytes));
 }
 
 export function toPutRunnerPackageRequestCborValue(v: PutRunnerPackageRequest): CborValue {

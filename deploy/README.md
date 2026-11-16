@@ -43,7 +43,7 @@ Make the issuer key and the service tokens with the identity command:
 ```sh
 identity keygen --issuer magi --out issuer.json --public issuer-public.json
 identity mint --key issuer.json --subject service:magi --ttl 2160h --out token-magi \
-  --scopes conversation:act-as,conversation:admin,knowledge:act-as,knowledge:promote,knowledge:undo,artifacts:act-as,workflow:act-as,workflow:worker,execution:act-as,source:act-as,release:operate,release:read,speech:lexicon
+  --scopes conversation:act-as,conversation:admin,knowledge:act-as,knowledge:promote,knowledge:undo,artifacts:act-as,workflow:act-as,workflow:worker,execution:act-as,source:act-as,release:operate,release:read,speech:lexicon,identity:roles
 identity mint --key issuer.json --subject service:apprentice --ttl 2160h --out token-apprentice \
   --scopes workflow:worker,execution:act-as,artifacts:act-as
 ```
@@ -170,7 +170,9 @@ proxy is its only route out. Read `docs/egress-proxy.md` first.
 `app-keys.json` (from `identity app-keys generate` and `enroll`) and
 `credential-key.txt` (from `identity credential-key`). Set
 `CATALYSTCAL_URL` and `LONGHOUSE_URL` to the public URLs. The service token
-of Magi needs the scopes `identity:act-as` and `identity:present`. With
+of Magi needs the scopes `identity:act-as` and `identity:present`. Magi also
+needs `identity:roles`, because it edits the role assignments of the
+identity primitive. With
 `EGRESS=true`, the calls go through the egress proxy as `svc_magi`: put
 both hosts in the policy destinations with `"environments": ["svc_magi"]`.
 

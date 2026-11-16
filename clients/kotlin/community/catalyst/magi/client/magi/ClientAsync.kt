@@ -154,6 +154,30 @@ class MagiAsyncClient(private val transport: AsyncTransport) {
     suspend fun listRunners(request: ListRunnersRequest): ListRunnersResponse {
         return decode<ListRunnersResponse>(transport.call("MagiService", "list-runners", encode(request)))
     }
+    suspend fun getAccess(request: GetAccessRequest): Access {
+        return decode<Access>(transport.call("MagiService", "get-access", encode(request)))
+    }
+    suspend fun adminListRuns(request: AdminListRunsRequest): AdminListRunsResponse {
+        return decode<AdminListRunsResponse>(transport.call("MagiService", "admin-list-runs", encode(request)))
+    }
+    suspend fun adminGetRun(request: AdminGetRunRequest): AdminRun {
+        return decode<AdminRun>(transport.call("MagiService", "admin-get-run", encode(request)))
+    }
+    suspend fun adminGetRunOutput(request: AdminGetRunOutputRequest): TaskOutput {
+        return decode<TaskOutput>(transport.call("MagiService", "admin-get-run-output", encode(request)))
+    }
+    suspend fun adminGetRunDiff(request: AdminGetRunRequest): TaskDiff {
+        return decode<TaskDiff>(transport.call("MagiService", "admin-get-run-diff", encode(request)))
+    }
+    suspend fun adminListChats(request: AdminListChatsRequest): AdminListChatsResponse {
+        return decode<AdminListChatsResponse>(transport.call("MagiService", "admin-list-chats", encode(request)))
+    }
+    suspend fun adminReadChat(request: AdminReadChatRequest): AdminReadChatResponse {
+        return decode<AdminReadChatResponse>(transport.call("MagiService", "admin-read-chat", encode(request)))
+    }
+    suspend fun adminTurnLog(request: AdminTurnLogRequest): AdminTurnLogResponse {
+        return decode<AdminTurnLogResponse>(transport.call("MagiService", "admin-turn-log", encode(request)))
+    }
     suspend fun putRunnerPackage(request: PutRunnerPackageRequest): PutRunnerPackageResponse {
         return decode<PutRunnerPackageResponse>(transport.call("MagiService", "put-runner-package", encode(request)))
     }

@@ -206,7 +206,8 @@ The launcher itself changes only with `tools/install-runner.sh`.
 Operator calls (`put-runner-package`, `set-runner-release`,
 `put-app-release`, `put-persona`) need the scope `magi:operate`, or a user subject in
 `ADMINS` (`MAGI_ADMINS`). Any signed-in person can read the app release
-and the list of runners.
+and the list of runners. `get-access` tells a client if the caller is an
+operator. Clients use it to show the admin views.
 
 Calls for a person's own records use that person's token. Background work
 uses the `service:magi` token with act-as scopes (see `deploy/README.md`).
@@ -217,6 +218,38 @@ admins) can change the household lexicon (`put-lexicon-word`,
 the scope `speech:lexicon`, and records the editor. Any signed-in person can
 read the lexicon and hear text with it (`list-lexicon`, `speak`). The web
 client shows the lexicon in the Words tab.
+
+## Admin views
+
+Operators see the Admin tab. The run and chat views (the ops in the table)
+check the role of the caller for that view, and Magi logs each call with the
+caller subject. The role of each view is fixed today; a later task reads the
+roles from the database. The runner list (`list-runners`) needs no role:
+any signed-in person can read it.
+
+| Op | Returns | Role |
+| --- | --- | --- |
+| `admin-list-runs` | The runs of all people, newest first | `admin.tasks` |
+| `admin-get-run` | One run: summary, run data, steps | `admin.tasks` |
+| `admin-get-run-output` | One output of a run (check output, transcript) | `admin.tasks` |
+| `admin-get-run-diff` | The patch and the file list of a run | `admin.tasks` |
+| `admin-list-chats` | The chats of all people, newest first | `admin.chats` |
+| `admin-read-chat` | One chat: summary and the newest messages | `admin.chats` |
+| `admin-turn-log` | The turn log (the model calls) of a persona reply | `admin.chats` |
+
+Magi reads the records with its service token (`workflow:act-as`). The runs
+come newest first. The limit is 50 by default and 500 at most. There is no
+filter on the owner: the workflow service does not offer one. Magi cuts each
+value of the run data at 4096 bytes and adds a mark that says that it is cut.
+
+The chat views read the conversation service with the service token of Magi
+(`conversation:act-as`). `admin-list-chats` filters by `person` or `persona`.
+`admin-read-chat` returns the newest messages of one chat. With `before_seq`,
+it returns the messages before that seq (for scrolling back). The limit is 50
+by default and 200 at most. `admin-turn-log` takes the id of the message of a
+person. It returns the interpretation annotation of that message. The
+annotation holds the log of the model calls of the persona reply. Admins read
+private messages too; Magi logs each read.
 
 ## Egress
 
@@ -303,6 +336,14 @@ A Linux runner with `/dev/kvm` can run each environment in a VM. Set
 - SSH: the guest trusts the SSH host key of the proxy
   (`/etc/ssh/ssh_known_hosts`). The proxy ends SSH and runs each command on
   the host with its own key (`primitives/egress/README.md`, "SSH").
+- When the runner restarts, it resumes the VM of each running task. The
+  old virtiofsd of an environment can stay alive for a few seconds, and it
+  holds the pid file next to its socket. Before a launch starts a new
+  virtiofsd, it stops the processes that the pid files of the environment
+  name, and it removes the old socket files. When two parts of the runner
+  resume the same environment at the same time, one launch waits for the
+  other. When virtiofsd still does not start, the launch runs once more
+  after 2 seconds, and the error has the last lines of `envd.log`.
 
 ### Task VMs (macOS)
 

@@ -2698,6 +2698,337 @@ fun listRunnersResponseFromCborValue(cbor: CborValue): ListRunnersResponse {
 /** Decode CSIL CBOR bytes into a ListRunnersResponse. */
 fun listRunnersResponseFromCbor(bytes: ByteArray): ListRunnersResponse = listRunnersResponseFromCborValue(CsilCbor.decode(bytes))
 
+/** The CBOR value tree for a GetAccessRequest (deep, canonical key order). */
+fun GetAccessRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a GetAccessRequest to canonical CSIL CBOR bytes. */
+fun GetAccessRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a GetAccessRequest from a decoded CBOR value tree. */
+fun getAccessRequestFromCborValue(cbor: CborValue): GetAccessRequest {
+    return GetAccessRequest()
+}
+
+/** Decode CSIL CBOR bytes into a GetAccessRequest. */
+fun getAccessRequestFromCbor(bytes: ByteArray): GetAccessRequest = getAccessRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a Access (deep, canonical key order). */
+fun Access.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("subject") to CborValue.CText(this.subject))
+    csilEntries.add(CborValue.CText("operator") to CborValue.CBool(this.operator))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a Access to canonical CSIL CBOR bytes. */
+fun Access.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a Access from a decoded CBOR value tree. */
+fun accessFromCborValue(cbor: CborValue): Access {
+    val subject = CsilCbor.asText(CsilCbor.require(cbor, "subject"))
+    val operator = CsilCbor.asBoolean(CsilCbor.require(cbor, "operator"))
+    return Access(subject = subject, operator = operator)
+}
+
+/** Decode CSIL CBOR bytes into a Access. */
+fun accessFromCbor(bytes: ByteArray): Access = accessFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a AdminRunSummary (deep, canonical key order). */
+fun AdminRunSummary.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    this.error?.let { csilV -> csilEntries.add(CborValue.CText("error") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("owner") to CborValue.CText(this.owner))
+    this.title?.let { csilV -> csilEntries.add(CborValue.CText("title") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("status") to CborValue.CText(this.status))
+    csilEntries.add(CborValue.CText("created_ms") to CborValue.CUint(this.createdMs))
+    csilEntries.add(CborValue.CText("definition") to CborValue.CText(this.definition))
+    csilEntries.add(CborValue.CText("updated_ms") to CborValue.CUint(this.updatedMs))
+    csilEntries.add(CborValue.CText("current_step") to CborValue.CText(this.currentStep))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a AdminRunSummary to canonical CSIL CBOR bytes. */
+fun AdminRunSummary.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a AdminRunSummary from a decoded CBOR value tree. */
+fun adminRunSummaryFromCborValue(cbor: CborValue): AdminRunSummary {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val definition = CsilCbor.asText(CsilCbor.require(cbor, "definition"))
+    val owner = CsilCbor.asText(CsilCbor.require(cbor, "owner"))
+    val status = CsilCbor.asText(CsilCbor.require(cbor, "status"))
+    val currentStep = CsilCbor.asText(CsilCbor.require(cbor, "current_step"))
+    val title = CsilCbor.mapGet(cbor, "title")?.let { csilV -> CsilCbor.asText(csilV) }
+    val error = CsilCbor.mapGet(cbor, "error")?.let { csilV -> CsilCbor.asText(csilV) }
+    val createdMs = CsilCbor.asULong(CsilCbor.require(cbor, "created_ms"))
+    val updatedMs = CsilCbor.asULong(CsilCbor.require(cbor, "updated_ms"))
+    return AdminRunSummary(id = id, definition = definition, owner = owner, status = status, currentStep = currentStep, title = title, error = error, createdMs = createdMs, updatedMs = updatedMs)
+}
+
+/** Decode CSIL CBOR bytes into a AdminRunSummary. */
+fun adminRunSummaryFromCbor(bytes: ByteArray): AdminRunSummary = adminRunSummaryFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a AdminListRunsRequest (deep, canonical key order). */
+fun AdminListRunsRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.limit?.let { csilV -> csilEntries.add(CborValue.CText("limit") to CborValue.CUint(csilV)) }
+    this.status?.let { csilV -> csilEntries.add(CborValue.CText("status") to CborValue.CText(csilV)) }
+    this.definition?.let { csilV -> csilEntries.add(CborValue.CText("definition") to CborValue.CText(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a AdminListRunsRequest to canonical CSIL CBOR bytes. */
+fun AdminListRunsRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a AdminListRunsRequest from a decoded CBOR value tree. */
+fun adminListRunsRequestFromCborValue(cbor: CborValue): AdminListRunsRequest {
+    val definition = CsilCbor.mapGet(cbor, "definition")?.let { csilV -> CsilCbor.asText(csilV) }
+    val status = CsilCbor.mapGet(cbor, "status")?.let { csilV -> CsilCbor.asText(csilV) }
+    val limit = CsilCbor.mapGet(cbor, "limit")?.let { csilV -> CsilCbor.asULong(csilV) }
+    return AdminListRunsRequest(definition = definition, status = status, limit = limit)
+}
+
+/** Decode CSIL CBOR bytes into a AdminListRunsRequest. */
+fun adminListRunsRequestFromCbor(bytes: ByteArray): AdminListRunsRequest = adminListRunsRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a AdminListRunsResponse (deep, canonical key order). */
+fun AdminListRunsResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("runs") to CborValue.CArray((this.runs).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a AdminListRunsResponse to canonical CSIL CBOR bytes. */
+fun AdminListRunsResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a AdminListRunsResponse from a decoded CBOR value tree. */
+fun adminListRunsResponseFromCborValue(cbor: CborValue): AdminListRunsResponse {
+    val runs = CsilCbor.asArray(CsilCbor.require(cbor, "runs")).map { csilE -> adminRunSummaryFromCborValue(csilE) }
+    return AdminListRunsResponse(runs = runs)
+}
+
+/** Decode CSIL CBOR bytes into a AdminListRunsResponse. */
+fun adminListRunsResponseFromCbor(bytes: ByteArray): AdminListRunsResponse = adminListRunsResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a AdminRun (deep, canonical key order). */
+fun AdminRun.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("vars") to CborValue.CMap((this.vars).map { (csilK, csilV) -> CborValue.CText(csilK) to CborValue.CText(csilV) }))
+    csilEntries.add(CborValue.CText("steps") to CborValue.CArray((this.steps).map { csilE -> csilE.toCborValue() }))
+    csilEntries.add(CborValue.CText("summary") to this.summary.toCborValue())
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a AdminRun to canonical CSIL CBOR bytes. */
+fun AdminRun.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a AdminRun from a decoded CBOR value tree. */
+fun adminRunFromCborValue(cbor: CborValue): AdminRun {
+    val summary = adminRunSummaryFromCborValue(CsilCbor.require(cbor, "summary"))
+    val vars = CsilCbor.asMap(CsilCbor.require(cbor, "vars")).associate { (csilK, csilV) -> CsilCbor.asText(csilK) to CsilCbor.asText(csilV) }
+    val steps = CsilCbor.asArray(CsilCbor.require(cbor, "steps")).map { csilE -> taskStepFromCborValue(csilE) }
+    return AdminRun(summary = summary, vars = vars, steps = steps)
+}
+
+/** Decode CSIL CBOR bytes into a AdminRun. */
+fun adminRunFromCbor(bytes: ByteArray): AdminRun = adminRunFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a AdminGetRunRequest (deep, canonical key order). */
+fun AdminGetRunRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a AdminGetRunRequest to canonical CSIL CBOR bytes. */
+fun AdminGetRunRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a AdminGetRunRequest from a decoded CBOR value tree. */
+fun adminGetRunRequestFromCborValue(cbor: CborValue): AdminGetRunRequest {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    return AdminGetRunRequest(id = id)
+}
+
+/** Decode CSIL CBOR bytes into a AdminGetRunRequest. */
+fun adminGetRunRequestFromCbor(bytes: ByteArray): AdminGetRunRequest = adminGetRunRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a AdminGetRunOutputRequest (deep, canonical key order). */
+fun AdminGetRunOutputRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    csilEntries.add(CborValue.CText("name") to CborValue.CText(this.name))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a AdminGetRunOutputRequest to canonical CSIL CBOR bytes. */
+fun AdminGetRunOutputRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a AdminGetRunOutputRequest from a decoded CBOR value tree. */
+fun adminGetRunOutputRequestFromCborValue(cbor: CborValue): AdminGetRunOutputRequest {
+    val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
+    val name = CsilCbor.asText(CsilCbor.require(cbor, "name"))
+    return AdminGetRunOutputRequest(id = id, name = name)
+}
+
+/** Decode CSIL CBOR bytes into a AdminGetRunOutputRequest. */
+fun adminGetRunOutputRequestFromCbor(bytes: ByteArray): AdminGetRunOutputRequest = adminGetRunOutputRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a AdminChat (deep, canonical key order). */
+fun AdminChat.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("person") to CborValue.CText(this.person))
+    csilEntries.add(CborValue.CText("stream") to CborValue.CText(this.stream))
+    csilEntries.add(CborValue.CText("persona") to CborValue.CText(this.persona))
+    csilEntries.add(CborValue.CText("last_seq") to CborValue.CUint(this.lastSeq))
+    csilEntries.add(CborValue.CText("created_ms") to CborValue.CUint(this.createdMs))
+    csilEntries.add(CborValue.CText("updated_ms") to CborValue.CUint(this.updatedMs))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a AdminChat to canonical CSIL CBOR bytes. */
+fun AdminChat.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a AdminChat from a decoded CBOR value tree. */
+fun adminChatFromCborValue(cbor: CborValue): AdminChat {
+    val stream = CsilCbor.asText(CsilCbor.require(cbor, "stream"))
+    val person = CsilCbor.asText(CsilCbor.require(cbor, "person"))
+    val persona = CsilCbor.asText(CsilCbor.require(cbor, "persona"))
+    val lastSeq = CsilCbor.asULong(CsilCbor.require(cbor, "last_seq"))
+    val createdMs = CsilCbor.asULong(CsilCbor.require(cbor, "created_ms"))
+    val updatedMs = CsilCbor.asULong(CsilCbor.require(cbor, "updated_ms"))
+    return AdminChat(stream = stream, person = person, persona = persona, lastSeq = lastSeq, createdMs = createdMs, updatedMs = updatedMs)
+}
+
+/** Decode CSIL CBOR bytes into a AdminChat. */
+fun adminChatFromCbor(bytes: ByteArray): AdminChat = adminChatFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a AdminListChatsRequest (deep, canonical key order). */
+fun AdminListChatsRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.person?.let { csilV -> csilEntries.add(CborValue.CText("person") to CborValue.CText(csilV)) }
+    this.persona?.let { csilV -> csilEntries.add(CborValue.CText("persona") to CborValue.CText(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a AdminListChatsRequest to canonical CSIL CBOR bytes. */
+fun AdminListChatsRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a AdminListChatsRequest from a decoded CBOR value tree. */
+fun adminListChatsRequestFromCborValue(cbor: CborValue): AdminListChatsRequest {
+    val person = CsilCbor.mapGet(cbor, "person")?.let { csilV -> CsilCbor.asText(csilV) }
+    val persona = CsilCbor.mapGet(cbor, "persona")?.let { csilV -> CsilCbor.asText(csilV) }
+    return AdminListChatsRequest(person = person, persona = persona)
+}
+
+/** Decode CSIL CBOR bytes into a AdminListChatsRequest. */
+fun adminListChatsRequestFromCbor(bytes: ByteArray): AdminListChatsRequest = adminListChatsRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a AdminListChatsResponse (deep, canonical key order). */
+fun AdminListChatsResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("chats") to CborValue.CArray((this.chats).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a AdminListChatsResponse to canonical CSIL CBOR bytes. */
+fun AdminListChatsResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a AdminListChatsResponse from a decoded CBOR value tree. */
+fun adminListChatsResponseFromCborValue(cbor: CborValue): AdminListChatsResponse {
+    val chats = CsilCbor.asArray(CsilCbor.require(cbor, "chats")).map { csilE -> adminChatFromCborValue(csilE) }
+    return AdminListChatsResponse(chats = chats)
+}
+
+/** Decode CSIL CBOR bytes into a AdminListChatsResponse. */
+fun adminListChatsResponseFromCbor(bytes: ByteArray): AdminListChatsResponse = adminListChatsResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a AdminReadChatRequest (deep, canonical key order). */
+fun AdminReadChatRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.limit?.let { csilV -> csilEntries.add(CborValue.CText("limit") to CborValue.CUint(csilV)) }
+    csilEntries.add(CborValue.CText("stream") to CborValue.CText(this.stream))
+    this.beforeSeq?.let { csilV -> csilEntries.add(CborValue.CText("before_seq") to CborValue.CUint(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a AdminReadChatRequest to canonical CSIL CBOR bytes. */
+fun AdminReadChatRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a AdminReadChatRequest from a decoded CBOR value tree. */
+fun adminReadChatRequestFromCborValue(cbor: CborValue): AdminReadChatRequest {
+    val stream = CsilCbor.asText(CsilCbor.require(cbor, "stream"))
+    val beforeSeq = CsilCbor.mapGet(cbor, "before_seq")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val limit = CsilCbor.mapGet(cbor, "limit")?.let { csilV -> CsilCbor.asULong(csilV) }
+    return AdminReadChatRequest(stream = stream, beforeSeq = beforeSeq, limit = limit)
+}
+
+/** Decode CSIL CBOR bytes into a AdminReadChatRequest. */
+fun adminReadChatRequestFromCbor(bytes: ByteArray): AdminReadChatRequest = adminReadChatRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a AdminReadChatResponse (deep, canonical key order). */
+fun AdminReadChatResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("chat") to this.chat.toCborValue())
+    csilEntries.add(CborValue.CText("messages") to CborValue.CArray((this.messages).map { csilE -> csilE.toCborValue() }))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a AdminReadChatResponse to canonical CSIL CBOR bytes. */
+fun AdminReadChatResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a AdminReadChatResponse from a decoded CBOR value tree. */
+fun adminReadChatResponseFromCborValue(cbor: CborValue): AdminReadChatResponse {
+    val chat = adminChatFromCborValue(CsilCbor.require(cbor, "chat"))
+    val messages = CsilCbor.asArray(CsilCbor.require(cbor, "messages")).map { csilE -> messageFromCborValue(csilE) }
+    return AdminReadChatResponse(chat = chat, messages = messages)
+}
+
+/** Decode CSIL CBOR bytes into a AdminReadChatResponse. */
+fun adminReadChatResponseFromCbor(bytes: ByteArray): AdminReadChatResponse = adminReadChatResponseFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a AdminTurnLogRequest (deep, canonical key order). */
+fun AdminTurnLogRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("message") to CborValue.CText(this.message))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a AdminTurnLogRequest to canonical CSIL CBOR bytes. */
+fun AdminTurnLogRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a AdminTurnLogRequest from a decoded CBOR value tree. */
+fun adminTurnLogRequestFromCborValue(cbor: CborValue): AdminTurnLogRequest {
+    val message = CsilCbor.asText(CsilCbor.require(cbor, "message"))
+    return AdminTurnLogRequest(message = message)
+}
+
+/** Decode CSIL CBOR bytes into a AdminTurnLogRequest. */
+fun adminTurnLogRequestFromCbor(bytes: ByteArray): AdminTurnLogRequest = adminTurnLogRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a AdminTurnLogResponse (deep, canonical key order). */
+fun AdminTurnLogResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.log?.let { csilV -> csilEntries.add(CborValue.CText("log") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("message") to CborValue.CText(this.message))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a AdminTurnLogResponse to canonical CSIL CBOR bytes. */
+fun AdminTurnLogResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a AdminTurnLogResponse from a decoded CBOR value tree. */
+fun adminTurnLogResponseFromCborValue(cbor: CborValue): AdminTurnLogResponse {
+    val message = CsilCbor.asText(CsilCbor.require(cbor, "message"))
+    val log = CsilCbor.mapGet(cbor, "log")?.let { csilV -> CsilCbor.asText(csilV) }
+    return AdminTurnLogResponse(message = message, log = log)
+}
+
+/** Decode CSIL CBOR bytes into a AdminTurnLogResponse. */
+fun adminTurnLogResponseFromCbor(bytes: ByteArray): AdminTurnLogResponse = adminTurnLogResponseFromCborValue(CsilCbor.decode(bytes))
+
 /** The CBOR value tree for a PutRunnerPackageRequest (deep, canonical key order). */
 fun PutRunnerPackageRequest.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
@@ -4479,6 +4810,21 @@ private fun csilToCborValue(value: Any?): CborValue = when (value) {
     is RunnerInfo -> value.toCborValue()
     is ListRunnersRequest -> value.toCborValue()
     is ListRunnersResponse -> value.toCborValue()
+    is GetAccessRequest -> value.toCborValue()
+    is Access -> value.toCborValue()
+    is AdminRunSummary -> value.toCborValue()
+    is AdminListRunsRequest -> value.toCborValue()
+    is AdminListRunsResponse -> value.toCborValue()
+    is AdminRun -> value.toCborValue()
+    is AdminGetRunRequest -> value.toCborValue()
+    is AdminGetRunOutputRequest -> value.toCborValue()
+    is AdminChat -> value.toCborValue()
+    is AdminListChatsRequest -> value.toCborValue()
+    is AdminListChatsResponse -> value.toCborValue()
+    is AdminReadChatRequest -> value.toCborValue()
+    is AdminReadChatResponse -> value.toCborValue()
+    is AdminTurnLogRequest -> value.toCborValue()
+    is AdminTurnLogResponse -> value.toCborValue()
     is PutRunnerPackageRequest -> value.toCborValue()
     is PutRunnerPackageResponse -> value.toCborValue()
     is SetRunnerReleaseRequest -> value.toCborValue()
@@ -4657,6 +5003,21 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     RunnerInfo::class -> runnerInfoFromCborValue(cbor)
     ListRunnersRequest::class -> listRunnersRequestFromCborValue(cbor)
     ListRunnersResponse::class -> listRunnersResponseFromCborValue(cbor)
+    GetAccessRequest::class -> getAccessRequestFromCborValue(cbor)
+    Access::class -> accessFromCborValue(cbor)
+    AdminRunSummary::class -> adminRunSummaryFromCborValue(cbor)
+    AdminListRunsRequest::class -> adminListRunsRequestFromCborValue(cbor)
+    AdminListRunsResponse::class -> adminListRunsResponseFromCborValue(cbor)
+    AdminRun::class -> adminRunFromCborValue(cbor)
+    AdminGetRunRequest::class -> adminGetRunRequestFromCborValue(cbor)
+    AdminGetRunOutputRequest::class -> adminGetRunOutputRequestFromCborValue(cbor)
+    AdminChat::class -> adminChatFromCborValue(cbor)
+    AdminListChatsRequest::class -> adminListChatsRequestFromCborValue(cbor)
+    AdminListChatsResponse::class -> adminListChatsResponseFromCborValue(cbor)
+    AdminReadChatRequest::class -> adminReadChatRequestFromCborValue(cbor)
+    AdminReadChatResponse::class -> adminReadChatResponseFromCborValue(cbor)
+    AdminTurnLogRequest::class -> adminTurnLogRequestFromCborValue(cbor)
+    AdminTurnLogResponse::class -> adminTurnLogResponseFromCborValue(cbor)
     PutRunnerPackageRequest::class -> putRunnerPackageRequestFromCborValue(cbor)
     PutRunnerPackageResponse::class -> putRunnerPackageResponseFromCborValue(cbor)
     SetRunnerReleaseRequest::class -> setRunnerReleaseRequestFromCborValue(cbor)

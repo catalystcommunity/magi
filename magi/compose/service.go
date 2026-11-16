@@ -145,13 +145,19 @@ func (m *Service) GetTaskDiff(ctx context.Context, req magiapi.GetTaskDiffReques
 	if err != nil {
 		return magiapi.TaskDiff{}, err
 	}
+	return m.S.taskDiff(ctx, run)
+}
+
+// taskDiff reads the change of run: the patch that a runner uploaded, or the
+// diff of its branch against its base.
+func (s *System) taskDiff(ctx context.Context, run workflowapi.Run) (magiapi.TaskDiff, error) {
 	branch, base := run.Vars["branch"], run.Vars["base_commit"]
 	if branch == "" || base == "" || run.Vars["head_commit"] == "" {
 		return magiapi.TaskDiff{}, rpc.Conflict("the task has no checked change yet")
 	}
 	if digest := run.Vars["patch"]; digest != "" {
 		// A runner uploaded the patch and its file list.
-		got, err := m.S.Artifacts.Get(m.S.AsService(ctx), artifactsapi.GetRequest{Digest: digest})
+		got, err := s.Artifacts.Get(s.AsService(ctx), artifactsapi.GetRequest{Digest: digest})
 		if err != nil {
 			return magiapi.TaskDiff{}, err
 		}
@@ -162,7 +168,7 @@ func (m *Service) GetTaskDiff(ctx context.Context, req magiapi.GetTaskDiffReques
 		json.Unmarshal([]byte(run.Vars["patch.files"]), &out.Files)
 		return out, nil
 	}
-	d, err := m.S.Source.Diff(m.S.AsService(ctx), sourceapi.DiffRequest{Repo: run.Vars["repo"], Base: base, Head: branch, MaxBytes: ptr(uint64(1 << 20))})
+	d, err := s.Source.Diff(s.AsService(ctx), sourceapi.DiffRequest{Repo: run.Vars["repo"], Base: base, Head: branch, MaxBytes: ptr(uint64(1 << 20))})
 	if err != nil {
 		return magiapi.TaskDiff{}, err
 	}
@@ -347,16 +353,7 @@ func task(r workflowapi.Run) magiapi.Task {
 		t.WaitingFor = codeChangeDefinition(false).Steps[3].Prompt
 		t.Decisions = codeChangeDefinition(false).Steps[3].Outcomes
 	}
-	for _, st := range r.History {
-		ts := magiapi.TaskStep{Step: st.Step, Status: st.Status, Outcome: st.Outcome, StartedMs: st.StartedMs, EndedMs: st.EndedMs, Notes: []string{}}
-		for _, p := range st.Progress {
-			ts.Notes = append(ts.Notes, p.Note)
-		}
-		if st.Comment != nil {
-			ts.Notes = append(ts.Notes, "Comment: "+*st.Comment)
-		}
-		t.Steps = append(t.Steps, ts)
-	}
+	t.Steps = taskSteps(r)
 	for _, k := range []string{"check.output", "apprentice.transcript"} {
 		if v := r.Vars[k]; v != "" {
 			t.Refs = append(t.Refs, magiapi.Ref{Kind: "artifact", Ref: v, Title: ptr(k)})
@@ -366,6 +363,23 @@ func task(r workflowapi.Run) magiapi.Task {
 		t.Refs = append(t.Refs, magiapi.Ref{Kind: "commit", Ref: c, Title: ptr("merge")})
 	}
 	return t
+}
+
+// taskSteps maps the history of a run to task steps: each progress note and
+// each human comment becomes a note.
+func taskSteps(r workflowapi.Run) []magiapi.TaskStep {
+	steps := []magiapi.TaskStep{}
+	for _, st := range r.History {
+		ts := magiapi.TaskStep{Step: st.Step, Status: st.Status, Outcome: st.Outcome, StartedMs: st.StartedMs, EndedMs: st.EndedMs, Notes: []string{}}
+		for _, p := range st.Progress {
+			ts.Notes = append(ts.Notes, p.Note)
+		}
+		if st.Comment != nil {
+			ts.Notes = append(ts.Notes, "Comment: "+*st.Comment)
+		}
+		steps = append(steps, ts)
+	}
+	return steps
 }
 
 func firstLine(s string, n int) string {

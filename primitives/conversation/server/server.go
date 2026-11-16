@@ -247,6 +247,16 @@ func (s *Service) ListStreams(ctx context.Context, req api.ListStreamsRequest) (
 	if err != nil {
 		return api.ListStreamsResponse{}, err
 	}
+	if deref(req.Person) != "" && deref(req.All) {
+		return api.ListStreamsResponse{}, rpc.Invalid("person and all are exclusive")
+	}
+	if deref(req.All) {
+		if !privileged(p) {
+			return api.ListStreamsResponse{}, rpc.Denied("all streams need %s or %s", ScopeActAs, ScopeAdmin)
+		}
+		list, err := s.DB.ListAllStreams(ctx)
+		return api.ListStreamsResponse{Streams: list}, err
+	}
 	person := deref(req.Person)
 	if person == "" {
 		person = p.Subject

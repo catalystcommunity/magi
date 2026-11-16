@@ -215,6 +215,38 @@ class MagiClient:
         """list-runners"""
         return ListRunnersResponse.from_cbor(self._transport.call("MagiService", "list-runners", req.to_cbor()))
 
+    def get_access(self, req: GetAccessRequest) -> Access:
+        """get-access"""
+        return Access.from_cbor(self._transport.call("MagiService", "get-access", req.to_cbor()))
+
+    def admin_list_runs(self, req: AdminListRunsRequest) -> AdminListRunsResponse:
+        """admin-list-runs"""
+        return AdminListRunsResponse.from_cbor(self._transport.call("MagiService", "admin-list-runs", req.to_cbor()))
+
+    def admin_get_run(self, req: AdminGetRunRequest) -> AdminRun:
+        """admin-get-run"""
+        return AdminRun.from_cbor(self._transport.call("MagiService", "admin-get-run", req.to_cbor()))
+
+    def admin_get_run_output(self, req: AdminGetRunOutputRequest) -> TaskOutput:
+        """admin-get-run-output"""
+        return TaskOutput.from_cbor(self._transport.call("MagiService", "admin-get-run-output", req.to_cbor()))
+
+    def admin_get_run_diff(self, req: AdminGetRunRequest) -> TaskDiff:
+        """admin-get-run-diff"""
+        return TaskDiff.from_cbor(self._transport.call("MagiService", "admin-get-run-diff", req.to_cbor()))
+
+    def admin_list_chats(self, req: AdminListChatsRequest) -> AdminListChatsResponse:
+        """admin-list-chats"""
+        return AdminListChatsResponse.from_cbor(self._transport.call("MagiService", "admin-list-chats", req.to_cbor()))
+
+    def admin_read_chat(self, req: AdminReadChatRequest) -> AdminReadChatResponse:
+        """admin-read-chat"""
+        return AdminReadChatResponse.from_cbor(self._transport.call("MagiService", "admin-read-chat", req.to_cbor()))
+
+    def admin_turn_log(self, req: AdminTurnLogRequest) -> AdminTurnLogResponse:
+        """admin-turn-log"""
+        return AdminTurnLogResponse.from_cbor(self._transport.call("MagiService", "admin-turn-log", req.to_cbor()))
+
     def put_runner_package(self, req: PutRunnerPackageRequest) -> PutRunnerPackageResponse:
         """put-runner-package"""
         return PutRunnerPackageResponse.from_cbor(self._transport.call("MagiService", "put-runner-package", req.to_cbor()))

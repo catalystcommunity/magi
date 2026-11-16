@@ -252,6 +252,17 @@ func (s *System) fleetArtifact(ctx context.Context, digest, kind string) ([]byte
 
 // MagiService operations.
 
+// GetAccess tells a client what the caller can do. The answer is only for
+// the interface: a client shows or hides links with it, and the server
+// checks each call again.
+func (m *Service) GetAccess(ctx context.Context, _ magiapi.GetAccessRequest) (magiapi.Access, error) {
+	p, err := rpc.Caller(ctx)
+	if err != nil {
+		return magiapi.Access{}, err
+	}
+	return magiapi.Access{Subject: p.Subject, Operator: m.S.isOperator(ctx) == nil}, nil
+}
+
 func (m *Service) ListRunners(ctx context.Context, _ magiapi.ListRunnersRequest) (magiapi.ListRunnersResponse, error) {
 	if _, err := rpc.Caller(ctx); err != nil {
 		return magiapi.ListRunnersResponse{}, err

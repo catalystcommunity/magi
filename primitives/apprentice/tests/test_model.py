@@ -25,8 +25,15 @@ class Resp(io.BytesIO):
         return False
 
 
-def http_error(code: int, headers=None) -> urllib.error.HTTPError:
-    return urllib.error.HTTPError("u", code, "err", headers or {}, io.BytesIO(b'{"error":"x"}'))
+def http_error(code: int, headers=None, body: bytes = b'{"error":"x"}') -> urllib.error.HTTPError:
+    return urllib.error.HTTPError("u", code, "err", headers or {}, io.BytesIO(body))
+
+
+def busy(reason: str, retry_after: str | None = None) -> urllib.error.HTTPError:
+    """A 503 from a busy inference host: a JSON body with error.type, and a
+    Retry-After header with the seconds until the host serves again."""
+    body = json.dumps({"error": {"type": reason, "message": "the engine is stopped"}}).encode()
+    return http_error(503, {"Retry-After": retry_after} if retry_after else None, body)
 
 
 class Opener:
@@ -60,10 +67,10 @@ STREAM = sse(
     {"choices": [], "usage": {"prompt_tokens": 9, "completion_tokens": 4}})
 
 
-def model(opener, **kw) -> tuple[ChatModel, list[float]]:
+def model(opener, on_wait=None, **kw) -> tuple[ChatModel, list[float]]:
     slept: list[float] = []
     cfg = ModelConfig(base_url="http://m.example.local/v1", name="m", api_key="sk-test-123456", **kw)
-    return ChatModel(cfg, sleep=slept.append, opener=opener), slept
+    return ChatModel(cfg, sleep=slept.append, opener=opener, on_wait=on_wait), slept
 
 
 class ModelTest(unittest.TestCase):
@@ -101,6 +108,34 @@ class ModelTest(unittest.TestCase):
         self.assertEqual(json.loads(r.tool_calls[0].arguments), {"path": "a.go"})
         self.assertEqual(r.finish_reason, "tool_calls")
         self.assertEqual(r.usage["completion_tokens"], 4)
+
+    def test_reads_the_reasoning_of_a_full_reply(self):
+        # A thinking model sends its reasoning next to the content. Providers
+        # do not agree on the field name, so both are read.
+        data = {"choices": [{"finish_reason": "length", "message": {
+            "role": "assistant", "content": "", "reasoning_content": "I must check the tests first."}}]}
+        m, _ = model(Opener([data]))
+        r = m.complete([], [])
+        self.assertEqual(r.reasoning, "I must check the tests first.")
+        self.assertEqual(r.content, "")
+        data["choices"][0]["message"] = {"role": "assistant", "content": "", "reasoning": "Other field."}
+        m2, _ = model(Opener([data]))
+        self.assertEqual(m2.complete([], []).reasoning, "Other field.")
+        # the reasoning does not go back to the model in the next request
+        self.assertEqual(r.message(), {"role": "assistant", "content": ""})
+
+    def test_reads_the_reasoning_of_a_streamed_answer(self):
+        stream = sse(
+            {"choices": [{"index": 0, "delta": {"role": "assistant", "reasoning_content": "Step one."}}]},
+            {"choices": [{"index": 0, "delta": {"reasoning": " Step two."}}]},
+            {"choices": [{"index": 0, "delta": {"content": ""}, "finish_reason": "length"}]},
+            {"choices": [], "usage": {"prompt_tokens": 9, "completion_tokens": 16384}})
+        m, _ = model(Opener([stream]))
+        r = m.complete([], [])
+        self.assertEqual(r.reasoning, "Step one. Step two.")
+        self.assertEqual(r.content, "")
+        self.assertEqual(r.finish_reason, "length")
+        self.assertEqual(r.message(), {"role": "assistant", "content": ""})
 
     def test_retries_a_provider_that_stops_sending(self):
         # The socket timeout (idle_s) is raised while the answer is read.
@@ -158,6 +193,64 @@ class ModelTest(unittest.TestCase):
     def test_gives_up(self):
         m, slept = model(Opener([http_error(500)] * 3), max_retries=2)
         with self.assertRaisesRegex(ModelError, "3 attempts"):
+            m.complete([], [])
+
+    def test_busy_waits_do_not_use_up_the_retries(self):
+        # A busy host answers 503 for as long as the machine is busy. The waits
+        # count against the busy budget only, so a call that waits more than
+        # max_retries times still gets its answer.
+        op = Opener([busy("host_busy", "60") for _ in range(7)] + [OK])
+        waits: list[tuple[float, str]] = []
+        m, slept = model(op, on_wait=lambda s, r: waits.append((s, r)), max_retries=2, busy_wait_s=600)
+        r = m.complete([], [])
+        self.assertEqual(r.tool_calls[0].id, "x1")
+        self.assertEqual(slept, [60.0] * 7)
+        self.assertEqual(waits, [(60.0, "host_busy")] * 7)
+
+    def test_busy_wait_uses_the_default_when_there_is_no_retry_after(self):
+        op = Opener([busy("host_busy"), OK])
+        m, slept = model(op)
+        m.complete([], [])
+        self.assertEqual(slept, [30.0])
+
+    def test_busy_wait_is_capped_at_120_s(self):
+        op = Opener([busy("host_busy", "600"), OK])
+        m, slept = model(op)
+        m.complete([], [])
+        self.assertEqual(slept, [120.0])
+
+    def test_warming_uses_its_retry_after(self):
+        # While the engine starts, the host answers 503 with type "warming" and
+        # a short Retry-After.
+        op = Opener([busy("warming", "15"), OK])
+        waits: list[tuple[float, str]] = []
+        m, _ = model(op, on_wait=lambda s, r: waits.append((s, r)))
+        m.complete([], [])
+        self.assertEqual(waits, [(15.0, "warming")])
+
+    def test_the_busy_budget_ends_the_waits(self):
+        # The waits stop when they reach busy_wait_s in total. The error keeps
+        # the last message of the host.
+        op = Opener([busy("host_busy", "60") for _ in range(10)])
+        m, _ = model(op, busy_wait_s=150)
+        with self.assertRaisesRegex(ModelError, "busy for 120 s.*the limit is 150 s.*host_busy"):
+            m.complete([], [])
+        self.assertEqual(len(op.requests), 3)  # 60 + 60 + 60 would pass 150
+
+    def test_a_503_without_a_busy_body_is_a_retry(self):
+        # A plain 503 from a provider is a retry as before, not a wait.
+        op = Opener([http_error(503, {"Retry-After": "2"}), OK])
+        m, slept = model(op, max_retries=1)
+        m.complete([], [])
+        self.assertEqual(slept, [2.0])
+
+    def test_bad_response_shows_the_start_of_the_body(self):
+        # A host that answers HTML or text gives no JSON to parse. The error
+        # shows the start of the body, so the evidence says what the host sent.
+        # Control characters do not go in: they make the error unreadable.
+        op = Opener([b"<html>Gateway\x00\n error</html>"] * 3)
+        m, _ = model(op, max_retries=2)
+        with self.assertRaisesRegex(ModelError, "bad response: .*<html>Gateway error</html>"):
             m.complete([], [])
 
     def test_text_tool_call_fallback(self):

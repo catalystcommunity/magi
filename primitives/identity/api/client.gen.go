@@ -177,3 +177,39 @@ func (c *IdentityClient) ForgetCredential(ctx context.Context, req CredentialRef
 	}
 	return DecodeEmptyResponse(csilResp)
 }
+
+func (c *IdentityClient) ListRoles(ctx context.Context, req ListRolesRequest) (ListRolesResponse, error) {
+	var csilZero ListRolesResponse
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "list-roles", EncodeListRolesRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListRolesResponse(csilResp)
+}
+
+func (c *IdentityClient) SetSubjectRoles(ctx context.Context, req SetSubjectRolesRequest) (ListRolesResponse, error) {
+	var csilZero ListRolesResponse
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "set-subject-roles", EncodeSetSubjectRolesRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListRolesResponse(csilResp)
+}
+
+func (c *IdentityClient) SetRoleSubjects(ctx context.Context, req SetRoleSubjectsRequest) (ListRolesResponse, error) {
+	var csilZero ListRolesResponse
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "set-role-subjects", EncodeSetRoleSubjectsRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListRolesResponse(csilResp)
+}
+
+func (c *IdentityClient) ListUsers(ctx context.Context, req ListUsersRequest) (ListUsersResponse, error) {
+	var csilZero ListUsersResponse
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "list-users", EncodeListUsersRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListUsersResponse(csilResp)
+}

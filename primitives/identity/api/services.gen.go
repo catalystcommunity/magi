@@ -24,4 +24,8 @@ type IdentityService interface {
 	GetCredential(ctx context.Context, req CredentialRef) (Credential, error)
 	ListCredentials(ctx context.Context, req ListCredentialsRequest) (ListCredentialsResponse, error)
 	ForgetCredential(ctx context.Context, req CredentialRef) (EmptyResponse, error)
+	ListRoles(ctx context.Context, req ListRolesRequest) (ListRolesResponse, error)
+	SetSubjectRoles(ctx context.Context, req SetSubjectRolesRequest) (ListRolesResponse, error)
+	SetRoleSubjects(ctx context.Context, req SetRoleSubjectsRequest) (ListRolesResponse, error)
+	ListUsers(ctx context.Context, req ListUsersRequest) (ListUsersResponse, error)
 }

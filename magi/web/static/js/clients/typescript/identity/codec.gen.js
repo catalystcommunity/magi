@@ -668,6 +668,22 @@ export function toListGrantsResponseCbor(v) {
 export function fromListGrantsResponseCbor(bytes) {
     return fromListGrantsResponseCborValue(decode(bytes));
 }
+export function toExpiringGrantsRequestCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("within_ms", v.withinMs);
+    return csilMap;
+}
+export function fromExpiringGrantsRequestCborValue(value) {
+    return {
+        withinMs: asNumber(requireKey(value, "within_ms")),
+    };
+}
+export function toExpiringGrantsRequestCbor(v) {
+    return encodeValue(toExpiringGrantsRequestCborValue(v));
+}
+export function fromExpiringGrantsRequestCbor(bytes) {
+    return fromExpiringGrantsRequestCborValue(decode(bytes));
+}
 export function toPresentGrantRequestCborValue(v) {
     const csilMap = new Map();
     csilMap.set("owner", v.owner);

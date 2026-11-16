@@ -23,6 +23,17 @@ Contract: `contracts/identity.csil`, service `IdentityService`.
 | `put-credential` | owner, or `identity:act-as` | Stores an encrypted credential (for example a Longhouse CLI session). `expected_revision` makes a compare-and-set: 0 = must not exist |
 | `get-credential` | `identity:present` | The value and its revision |
 | `list-credentials`, `forget-credential` | owner, or `identity:present`/`identity:act-as` | No values in the list |
+| `list-roles` | `identity:roles`, or own subject | The role assignments: by `subject`, or by `role`. Give exactly one of the two. A caller without the scope can list only its own subject |
+| `set-subject-roles` | `identity:roles` | Replaces the roles of one subject (the editor by user). Result: the new assignments of the subject |
+| `set-role-subjects` | `identity:roles` | Replaces the subjects of one role (the editor by role). Result: the new assignments of the role |
+| `list-users` | `identity:roles` | The subjects that signed in, newest sign-in first, so an editor can pick a person. `limit` default 100, at most 1000. `name` is the display name of the newest session of the subject that has one |
+
+The primitive does not know the meaning of a role. Magi defines which role
+names exist and what they permit. A role name is 1 to 64 characters of
+`a-z 0-9 . _ -`. A set operation replaces the whole list in one
+transaction: rows that stay keep `granted_by` and `granted_ms`, and new
+rows name the caller as `granted_by`. Duplicates in the request count
+once. Table `identity_roles` holds the assignments.
 
 User tokens last 12 hours and have no scopes. The subject is
 `user:<user_id>@<domain>`, in lowercase. `<user_id>` is the LinkKeys user

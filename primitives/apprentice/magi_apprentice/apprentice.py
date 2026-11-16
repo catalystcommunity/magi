@@ -41,6 +41,17 @@ CONTINUE = ("Continue with the task using the tools. When the task is complete, 
             "with a summary.")
 CUT_REPLY = ("Your last reply was cut at the output token limit. Write large files in parts: "
              "write_file with a first part, then edit_file or more write_file calls.")
+THINK_CUT = ("Your last reply was cut at the output limit while you were still thinking, and it "
+             "had no tool call. Do not think about the whole task again. Decide the next small "
+             "step and call one tool now.")
+# A long context makes long thinking more likely, so a thinking cut compacts
+# earlier than the normal threshold.
+THINK_CUT_COMPACT_RATIO = 0.6
+# The transcript keeps the head and the tail of the reasoning, so the record
+# stays small while the evidence stays readable.
+REASONING_HEAD_CHARS = 400
+REASONING_TAIL_CHARS = 400
+REASONING_FULL_CHARS = 800
 BUDGET_NOTE = ("Budget: {calls} of {max_calls} model calls are left (and {seconds} seconds of the "
                "time limit). Finish the work that is necessary, run the check, and call finish "
                "with a summary. Do not start new improvements.")
@@ -95,6 +106,14 @@ class Result:
 Steering = Callable[[], list[str]]
 
 
+def model_wait_recorder(tr: Transcript) -> Callable[[float, str], None]:
+    """The on_wait callback of the model client: record each wait for a busy
+    inference host, so the transcript shows why a model call took long."""
+    def on_wait(seconds: float, reason: str) -> None:
+        tr.record("model_wait", seconds=seconds, reason=reason)
+    return on_wait
+
+
 def add_usage(usage: dict, reply: Reply) -> None:
     """Add the usage of one answer to the totals of a task. A provider can
     leave a field out, so each one counts as 0."""
@@ -103,6 +122,20 @@ def add_usage(usage: dict, reply: Reply) -> None:
     details = reply.usage.get("prompt_tokens_details") or {}
     usage["cached_tokens"] += int(details.get("cached_tokens") or 0)
     usage["cost"] += float(reply.usage.get("cost") or 0.0)
+
+
+def reasoning_fields(reasoning: str) -> dict:
+    """The reasoning of a reply as transcript fields: the size, and the head
+    and the tail when the text is long. The full text goes in only when it is
+    short, so the record stays small."""
+    chars = len(reasoning)
+    if not chars:
+        return {"reasoning_chars": 0}
+    if chars <= REASONING_FULL_CHARS:
+        return {"reasoning_chars": chars, "reasoning_head": reasoning}
+    return {"reasoning_chars": chars,
+            "reasoning_head": reasoning[:REASONING_HEAD_CHARS],
+            "reasoning_tail": reasoning[-REASONING_TAIL_CHARS:]}
 
 
 def build_prompt(task: Task, limits: Limits) -> list[dict]:
@@ -360,6 +393,7 @@ class Apprentice:
         usage = {"prompt_tokens": 0, "completion_tokens": 0, "cached_tokens": 0, "cost": 0.0}
         recent: list[str] = []
         idle = 0
+        thinking_cuts = 0
         check_fails = 0
         sent = 0  # messages already recorded
 
@@ -402,17 +436,37 @@ class Apprentice:
             tr.record("model_response", step=res.steps, duration_ms=int((time.monotonic() - t0) * 1000),
                       content=reply.content, finish_reason=reply.finish_reason,
                       tool_calls=[vars(c) for c in reply.tool_calls], usage=reply.usage,
-                      timings=reply.raw.get("timings"))
+                      timings=reply.raw.get("timings"), **reasoning_fields(reply.reasoning))
             ctx.messages.append(reply.message())
 
             if not reply.tool_calls:
                 idle += 1
+                # A reply that the limit cut during thinking has no content and
+                # no tool call.
+                thinking_cut = reply.finish_reason == "length" and not reply.content.strip()
+                if thinking_cut:
+                    thinking_cuts += 1
+                    tr.record("thinking_cut", step=res.steps, reasoning_chars=len(reply.reasoning))
                 if idle >= 3:
-                    return done("stalled", reply.content.strip() or "The model stopped calling tools.")
-                ctx.messages.append({"role": "user",
-                                     "content": CUT_REPLY if reply.finish_reason == "length" else CONTINUE})
+                    return done("stalled", self._stall_summary(reply, thinking_cuts))
+                if thinking_cut:
+                    # A long context makes the long thinking more likely, so it
+                    # is compacted earlier than the normal threshold.
+                    if ctx.tokens() > lim.context_tokens * THINK_CUT_COMPACT_RATIO:
+                        # The target is the 60% level, so the context really
+                        # shrinks while it is still under the normal threshold.
+                        removed = ctx.compact(int(lim.context_tokens * THINK_CUT_COMPACT_RATIO))
+                        tr.record("compaction", removed_chars=removed, est_tokens=ctx.tokens(),
+                                  reason="thinking cut")
+                        sent = min(sent, len(ctx.messages))
+                    note = THINK_CUT
+                else:
+                    note = CUT_REPLY if reply.finish_reason == "length" else CONTINUE
+                ctx.messages.append({"role": "user", "content": note})
                 continue
-            idle = 0
+            # A tool call ends the streak, so the stall summary counts only the
+            # replies of one streak.
+            idle, thinking_cuts = 0, 0
 
             finished: str | None = None
             for call in reply.tool_calls:
@@ -445,6 +499,14 @@ class Apprentice:
                                      "content": content})
             if finished is not None:
                 return done("finished", finished.strip() or "(no summary)")
+
+    def _stall_summary(self, reply: Reply, thinking_cuts: int) -> str:
+        """The summary of a stalled run. Three replies without a tool call end
+        the task; the summary says when the last ones were thinking cuts, so
+        the operator sees the cause without reading the transcript."""
+        if thinking_cuts:
+            return f"The model's replies were cut while it was thinking ({thinking_cuts} times)"
+        return reply.content.strip() or "The model stopped calling tools."
 
     def _budget_note(self, ctx: Context, steps: int, start: float) -> None:
         """Tell the model once at 80% of each limit, and again when 5 steps are
@@ -486,7 +548,7 @@ class Apprentice:
         add_usage(usage, reply)
         self.transcript.record("model_response", step=steps, content=reply.content,
                                finish_reason=reply.finish_reason, tool_calls=[], usage=reply.usage,
-                               last_call=True)
+                               last_call=True, **reasoning_fields(reply.reasoning))
         return reply.content.strip() or summary
 
     def _complete(self, ctx: Context, msgs: list[dict]) -> Reply:

@@ -527,6 +527,55 @@ RunnerInfo = {
 ListRunnersRequest = { }
 ListRunnersResponse = { runners: [* RunnerInfo], ? release: text }
 
+;;; What the caller can do. operator: the caller can make operator
+;;; calls and read the admin views (scope "magi:operate", or a subject
+;;; in MAGI_ADMINS). Clients use it only to show or hide links. The
+;;; server checks each call again.
+GetAccessRequest = { }
+Access = { subject: text, operator: bool }
+
+;;; Admin calls: the admin views. Magi reads the records of all people with
+;;; its service token, after it checks the role of the caller for that view.
+;;; Magi logs each call with the caller subject.
+AdminRunSummary = {
+  id: text,
+  definition: text,
+  owner: text,
+  status: text,
+  current_step: text,
+  ? title: text,
+  ? error: text,
+  created_ms: uint,
+  updated_ms: uint,
+}
+;;; definition: "code-change", "persona-turn", "todo", or empty (all).
+;;; status: "running", "waiting", "succeeded", "failed", "cancelled", or
+;;; empty. Newest first. limit: default 50, at most 500.
+AdminListRunsRequest = { ? definition: text, ? status: text, ? limit: uint }
+AdminListRunsResponse = { runs: [* AdminRunSummary] }
+;;; vars are the run data (instructions, outputs, artifact digests). Magi
+;;; cuts each value at 4096 bytes and adds a mark that says that it is cut.
+AdminRun = { summary: AdminRunSummary, vars: { * text => text }, steps: [* TaskStep] }
+AdminGetRunRequest = { id: text }
+;;; name: "check.output" or "apprentice.transcript" (see get-task-output).
+AdminGetRunOutputRequest = { id: text, name: text }
+
+;;; last_seq is the seq of the newest message.
+AdminChat = { stream: text, person: text, persona: text, last_seq: uint, created_ms: uint, updated_ms: uint }
+;;; person, persona: only those chats.
+AdminListChatsRequest = { ? person: text, ? persona: text }
+AdminListChatsResponse = { chats: [* AdminChat] }
+;;; Without before_seq, the newest messages. limit: default 50, at most 200.
+AdminReadChatRequest = { stream: text, ? before_seq: uint, ? limit: uint }
+AdminReadChatResponse = { chat: AdminChat, messages: [* Message] }
+;;; The turn log of a persona reply. message is the id of the person's
+;;; message that the persona answered (the target of the reply-to link of
+;;; the persona message); Magi keeps the log there as an annotation of kind
+;;; "interpretation" (magi/compose/persona.go:385). log is empty when there
+;;; is none.
+AdminTurnLogRequest = { message: text }
+AdminTurnLogResponse = { message: text, ? log: text }
+
 ;;; Operator calls (scope "magi:operate", or a subject in MAGI_ADMINS).
 ;;; A runner package is a gzip tar file with magi-runner and apprentice/.
 ;;; set-runner-release tells runners to update to version; each runner
@@ -718,6 +767,14 @@ service MagiService {
   delete-lexicon-word: DeleteLexiconWordRequest -> DeleteLexiconWordResponse,
   speak: SpeakRequest -> SpeakResponse,
   list-runners: ListRunnersRequest -> ListRunnersResponse,
+  get-access: GetAccessRequest -> Access,
+  admin-list-runs: AdminListRunsRequest -> AdminListRunsResponse,
+  admin-get-run: AdminGetRunRequest -> AdminRun,
+  admin-get-run-output: AdminGetRunOutputRequest -> TaskOutput,
+  admin-get-run-diff: AdminGetRunRequest -> TaskDiff,
+  admin-list-chats: AdminListChatsRequest -> AdminListChatsResponse,
+  admin-read-chat: AdminReadChatRequest -> AdminReadChatResponse,
+  admin-turn-log: AdminTurnLogRequest -> AdminTurnLogResponse,
   put-runner-package: PutRunnerPackageRequest -> PutRunnerPackageResponse,
   set-runner-release: SetRunnerReleaseRequest -> SetRunnerReleaseResponse,
   put-app-release: PutAppReleaseRequest -> AppRelease,

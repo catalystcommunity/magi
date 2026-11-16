@@ -809,3 +809,227 @@ class ListCredentialsResponse:
         return cls.from_dict(json.loads(json_str))
 
 
+@dataclass
+class RoleAssignment:
+    subject: str
+    role: str
+    granted_by: str
+    granted_ms: int
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'subject') and self.subject is not None:
+            result['subject'] = self.subject
+        if hasattr(self, 'role') and self.role is not None:
+            result['role'] = self.role
+        if hasattr(self, 'granted_by') and self.granted_by is not None:
+            result['granted_by'] = self.granted_by
+        if hasattr(self, 'granted_ms') and self.granted_ms is not None:
+            result['granted_ms'] = self.granted_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'RoleAssignment':
+        """Create instance from dictionary."""
+        return cls(subject=data.get('subject'), role=data.get('role'), granted_by=data.get('granted_by'), granted_ms=data.get('granted_ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'RoleAssignment':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ListRolesRequest:
+    subject: Optional[str] = None
+    role: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'subject') and self.subject is not None:
+            result['subject'] = self.subject
+        if hasattr(self, 'role') and self.role is not None:
+            result['role'] = self.role
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ListRolesRequest':
+        """Create instance from dictionary."""
+        return cls(subject=data.get('subject'), role=data.get('role'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ListRolesRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ListRolesResponse:
+    assignments: List[RoleAssignment]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'assignments') and self.assignments is not None:
+            result['assignments'] = self.assignments
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ListRolesResponse':
+        """Create instance from dictionary."""
+        return cls(assignments=data.get('assignments'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ListRolesResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class SetSubjectRolesRequest:
+    subject: str
+    roles: List[str]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'subject') and self.subject is not None:
+            result['subject'] = self.subject
+        if hasattr(self, 'roles') and self.roles is not None:
+            result['roles'] = self.roles
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'SetSubjectRolesRequest':
+        """Create instance from dictionary."""
+        return cls(subject=data.get('subject'), roles=data.get('roles'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'SetSubjectRolesRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class SetRoleSubjectsRequest:
+    role: str
+    subjects: List[str]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'role') and self.role is not None:
+            result['role'] = self.role
+        if hasattr(self, 'subjects') and self.subjects is not None:
+            result['subjects'] = self.subjects
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'SetRoleSubjectsRequest':
+        """Create instance from dictionary."""
+        return cls(role=data.get('role'), subjects=data.get('subjects'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'SetRoleSubjectsRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ListUsersRequest:
+    limit: Optional[int] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'limit') and self.limit is not None:
+            result['limit'] = self.limit
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ListUsersRequest':
+        """Create instance from dictionary."""
+        return cls(limit=data.get('limit'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ListUsersRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class KnownUser:
+    subject: str
+    last_seen_ms: int
+    name: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'subject') and self.subject is not None:
+            result['subject'] = self.subject
+        if hasattr(self, 'last_seen_ms') and self.last_seen_ms is not None:
+            result['last_seen_ms'] = self.last_seen_ms
+        if hasattr(self, 'name') and self.name is not None:
+            result['name'] = self.name
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'KnownUser':
+        """Create instance from dictionary."""
+        return cls(subject=data.get('subject'), last_seen_ms=data.get('last_seen_ms'), name=data.get('name'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'KnownUser':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ListUsersResponse:
+    users: List[KnownUser]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'users') and self.users is not None:
+            result['users'] = self.users
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ListUsersResponse':
+        """Create instance from dictionary."""
+        return cls(users=data.get('users'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ListUsersResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+

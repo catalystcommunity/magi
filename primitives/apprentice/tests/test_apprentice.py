@@ -1,16 +1,22 @@
+import io
 import json
 import os
 import unittest
+import urllib.error
 
 from fakes import FakeModel, MemExecution, call, reply
 
-from magi_apprentice.apprentice import SELF_REVIEW, Apprentice, Context, Task
-from magi_apprentice.config import Limits
-from magi_apprentice.model import ModelError
+from magi_apprentice.apprentice import SELF_REVIEW, Apprentice, Context, Task, model_wait_recorder
+from magi_apprentice.config import Limits, ModelConfig
+from magi_apprentice.model import ChatModel, ModelError
 from magi_apprentice.tools import Tools, Workspace
 from magi_apprentice.transcript import Redactor, Transcript
 
 SECRET = "sk-very-secret-987654"
+
+# A good Chat Completions answer for a model client test: one finish call.
+OK_REPLY = {"choices": [{"finish_reason": "tool_calls", "message": {"role": "assistant", "content": "", "tool_calls": [
+    {"id": "x1", "type": "function", "function": {"name": "finish", "arguments": "{\"summary\": \"done\"}"}}]}}]}
 
 
 def apprentice(script, files=None, limits=None, **kw):
@@ -137,6 +143,116 @@ class LoopTest(unittest.TestCase):
         self.assertEqual(r.status, "stalled")
         self.assertIn("call finish", model.requests[1][-1]["content"])
 
+    def test_thinking_cut_gets_its_own_note(self):
+        # A reply that the limit cut during thinking has no content and no tool
+        # call. The advice for a cut with content does not fit this case.
+        a, model, _, tr = apprentice([reply(content="", finish_reason="length", reasoning="plan " * 300),
+                                      reply(call("finish", summary="s"))],
+                                     limits=Limits(self_review=False))
+        r = a.run(Task("t"))
+        self.assertEqual((r.status, r.summary), ("finished", "s"))
+        self.assertIn("cut at the output limit while you were still thinking",
+                      model.requests[1][-1]["content"])
+        self.assertIn("call one tool now", model.requests[1][-1]["content"])
+        self.assertNotIn("Write large files in parts", model.requests[1][-1]["content"])
+        # the reasoning does not go back to the model
+        self.assertNotIn("plan plan", json.dumps(model.requests[1]))
+        cuts = records(tr, "thinking_cut")
+        self.assertEqual((cuts[0]["step"], cuts[0]["reasoning_chars"]), (1, 1500))
+        resp = records(tr, "model_response")[0]
+        self.assertEqual(resp["reasoning_chars"], 1500)
+        # 1500 chars is above the 800 limit, so the record keeps the head and
+        # the tail, not the whole text
+        self.assertEqual(resp["reasoning_head"], "plan " * 80)
+        self.assertEqual(resp["reasoning_tail"], "plan " * 80)
+        self.assertNotIn("plan " * 81, json.dumps(resp))
+
+    def test_a_cut_with_content_keeps_the_old_note(self):
+        a, model, _, tr = apprentice([reply(content="half a file", finish_reason="length"),
+                                      reply(call("finish", summary="s"))],
+                                     limits=Limits(self_review=False))
+        a.run(Task("t"))
+        self.assertIn("Write large files in parts", model.requests[1][-1]["content"])
+        self.assertNotIn("still thinking", model.requests[1][-1]["content"])
+        self.assertEqual(records(tr, "thinking_cut"), [])
+
+    def test_the_transcript_keeps_the_head_and_the_tail_of_long_reasoning(self):
+        a, _, _, tr = apprentice([reply(content="", finish_reason="length", reasoning="r" * 2000),
+                                  reply(call("finish", summary="s"))],
+                                 limits=Limits(self_review=False))
+        a.run(Task("t"))
+        resp = records(tr, "model_response")[0]
+        self.assertEqual(resp["reasoning_chars"], 2000)
+        self.assertEqual(resp["reasoning_head"], "r" * 400)
+        self.assertEqual(resp["reasoning_tail"], "r" * 400)
+        # the record stays small: it holds the head and the tail, not the whole
+        # reasoning (2000 chars alone would make it longer than 2000)
+        self.assertLess(len(json.dumps(resp)), 1500)
+        self.assertNotIn("r" * 401, json.dumps(resp))
+
+    def test_a_thinking_cut_compacts_a_long_context(self):
+        # A long context makes the long thinking more likely, so a thinking cut
+        # compacts at 60% of the threshold, not at 100%.
+        big = "z" * 20000
+        a, model, _, tr = apprentice([reply(call("bash", command="x")),
+                                      reply(content="", finish_reason="length", reasoning="r" * 100),
+                                      reply(call("finish", summary="s"))],
+                                     limits=Limits(context_tokens=3000, tool_output_chars=8000,
+                                                   self_review=False))
+
+        class Exec(MemExecution):
+            def exec(self, req):
+                r = super().exec(req)
+                r.stdout = big.encode()
+                return r
+        a.tools.ws.client = Exec()
+        a.run(Task("t"))
+        compactions = records(tr, "compaction")
+        self.assertEqual(compactions[-1]["reason"], "thinking cut")
+        self.assertLess(compactions[-1]["est_tokens"], 3000)
+        self.assertGreater(compactions[-1]["removed_chars"], 0)
+        # the next request is smaller than the one before the cut
+        self.assertLess(sum(len(json.dumps(m)) for m in model.requests[2]),
+                        sum(len(json.dumps(m)) for m in model.requests[1]))
+
+    def test_no_compaction_after_a_thinking_cut_below_60_percent(self):
+        a, _, _, tr = apprentice([reply(content="", finish_reason="length", reasoning="r"),
+                                  reply(call("finish", summary="s"))],
+                                 limits=Limits(self_review=False))
+        a.run(Task("t"))
+        self.assertEqual(records(tr, "compaction"), [])
+
+    def test_the_stall_summary_names_the_thinking_cuts(self):
+        a, _, _, tr = apprentice([reply(content="", finish_reason="length", reasoning="r")] * 3)
+        r = a.run(Task("t"))
+        self.assertEqual((r.status, r.summary), ("stalled", "The model's replies were cut while it was thinking (3 times)"))
+        self.assertEqual(len(records(tr, "thinking_cut")), 3)
+        # a stall without thinking cuts keeps the old summary
+        a, _, _, _ = apprentice([reply(content="thinking")] * 3)
+        self.assertEqual(a.run(Task("t")).summary, "thinking")
+
+    def test_the_count_of_thinking_cuts_is_the_state_of_one_run(self):
+        # The same object runs a second time: the count starts at 0 again, so
+        # the second summary does not name the cuts of the first run.
+        a, _, _, tr = apprentice([reply(content="", finish_reason="length", reasoning="r")] * 3
+                                 + [reply(content="thinking")] * 3)
+        self.assertEqual(a.run(Task("t")).summary,
+                         "The model's replies were cut while it was thinking (3 times)")
+        self.assertEqual(a.run(Task("t")).summary, "thinking")
+        self.assertEqual(len(records(tr, "thinking_cut")), 3)
+
+    def test_a_tool_call_resets_the_count_of_thinking_cuts(self):
+        # The stall summary counts the replies of one streak, so a run that
+        # recovered between cuts does not say that it stalled on thinking.
+        script = ([reply(content="", finish_reason="length", reasoning="r"),
+                   reply(call("bash", command="true"))] * 2
+                  + [reply(content="thinking")] * 3)
+        a, _, _, tr = apprentice(script)
+        r = a.run(Task("t"))
+        self.assertEqual(r.status, "stalled")
+        self.assertEqual(r.summary, "thinking")
+        self.assertEqual(len(records(tr, "thinking_cut")), 2)
+
     def test_step_limit(self):
         a, _, _, _ = apprentice([reply(call("bash", command="true"))] * 10, limits=Limits(max_steps=3))
         r = a.run(Task("t"))
@@ -177,6 +293,31 @@ class LoopTest(unittest.TestCase):
         r = Apprentice(Broken(), Tools(Workspace(MemExecution(), "e", "/w", lim)), lim, Transcript(Redactor())).run(Task("t"))
         self.assertEqual(r.status, "error")
         self.assertIn("401", r.error)
+
+    def test_a_wait_for_a_busy_host_is_in_the_transcript(self):
+        # The model client tells the loop about each wait, so the transcript
+        # shows why a model call took long.
+        class BusyOnce:
+            """Answers one busy 503, then a good answer."""
+            def __init__(self):
+                self.busy = True
+
+            def __call__(self, req, timeout):
+                if self.busy:
+                    self.busy = False
+                    body = json.dumps({"error": {"type": "host_busy", "message": "stopped"}}).encode()
+                    raise urllib.error.HTTPError("u", 503, "err", {"Retry-After": "60"}, io.BytesIO(body))
+                return io.BytesIO(json.dumps(OK_REPLY).encode())
+
+        lim = Limits(self_review=False)
+        tr = Transcript(Redactor())
+        cfg = ModelConfig(base_url="http://m.example.local/v1", name="m", busy_wait_s=600)
+        model = ChatModel(cfg, sleep=lambda s: None, opener=BusyOnce(), on_wait=model_wait_recorder(tr))
+        r = Apprentice(model, Tools(Workspace(MemExecution(), "e", "/w", lim)), lim, tr).run(Task("t"))
+        self.assertEqual(r.status, "finished")
+        waits = records(tr, "model_wait")
+        self.assertEqual(len(waits), 1)
+        self.assertEqual((waits[0]["seconds"], waits[0]["reason"]), (60.0, "host_busy"))
 
     def test_usage_sums_cost_and_cached_tokens(self):
         # The provider gives the cost in dollars and the cached prompt tokens

@@ -908,6 +908,128 @@ export interface ListRunnersResponse {
 }
 
 /**
+ * What the caller can do. operator: the caller can make operator
+ * calls and read the admin views (scope "magi:operate", or a subject
+ * in MAGI_ADMINS). Clients use it only to show or hide links. The
+ * server checks each call again.
+ */
+export interface GetAccessRequest {
+}
+
+export interface Access {
+  subject: string;
+  operator: boolean;
+}
+
+/**
+ * Admin calls: the admin views. Magi reads the records of all people with
+ * its service token, after it checks the role of the caller for that view.
+ * Magi logs each call with the caller subject.
+ */
+export interface AdminRunSummary {
+  id: string;
+  definition: string;
+  owner: string;
+  status: string;
+  currentStep: string;
+  title?: string;
+  error?: string;
+  createdMs: number;
+  updatedMs: number;
+}
+
+/**
+ * definition: "code-change", "persona-turn", "todo", or empty (all).
+ * status: "running", "waiting", "succeeded", "failed", "cancelled", or
+ * empty. Newest first. limit: default 50, at most 500.
+ */
+export interface AdminListRunsRequest {
+  definition?: string;
+  status?: string;
+  limit?: number;
+}
+
+export interface AdminListRunsResponse {
+  runs: AdminRunSummary[];
+}
+
+/**
+ * vars are the run data (instructions, outputs, artifact digests). Magi
+ * cuts each value at 4096 bytes and adds a mark that says that it is cut.
+ */
+export interface AdminRun {
+  summary: AdminRunSummary;
+  vars: Record<string, string>;
+  steps: TaskStep[];
+}
+
+export interface AdminGetRunRequest {
+  id: string;
+}
+
+/**
+ * name: "check.output" or "apprentice.transcript" (see get-task-output).
+ */
+export interface AdminGetRunOutputRequest {
+  id: string;
+  name: string;
+}
+
+/**
+ * last_seq is the seq of the newest message.
+ */
+export interface AdminChat {
+  stream: string;
+  person: string;
+  persona: string;
+  lastSeq: number;
+  createdMs: number;
+  updatedMs: number;
+}
+
+/**
+ * person, persona: only those chats.
+ */
+export interface AdminListChatsRequest {
+  person?: string;
+  persona?: string;
+}
+
+export interface AdminListChatsResponse {
+  chats: AdminChat[];
+}
+
+/**
+ * Without before_seq, the newest messages. limit: default 50, at most 200.
+ */
+export interface AdminReadChatRequest {
+  stream: string;
+  beforeSeq?: number;
+  limit?: number;
+}
+
+export interface AdminReadChatResponse {
+  chat: AdminChat;
+  messages: Message[];
+}
+
+/**
+ * The turn log of a persona reply. message is the id of the person's
+ * message that the persona answered (the target of the reply-to link of
+ * the persona message); Magi keeps the log there as an annotation of kind
+ * "interpretation" (magi/compose/persona.go:385). log is empty when there
+ * is none.
+ */
+export interface AdminTurnLogRequest {
+  message: string;
+}
+
+export interface AdminTurnLogResponse {
+  message: string;
+  log?: string;
+}
+
+/**
  * Operator calls (scope "magi:operate", or a subject in MAGI_ADMINS).
  * A runner package is a gzip tar file with magi-runner and apprentice/.
  * set-runner-release tells runners to update to version; each runner

@@ -585,6 +585,94 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			}
 			return EncodeListRunnersResponse(resp), nil
 		},
+		"get-access": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeGetAccessRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.GetAccess(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeAccess(resp), nil
+		},
+		"admin-list-runs": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeAdminListRunsRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.AdminListRuns(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeAdminListRunsResponse(resp), nil
+		},
+		"admin-get-run": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeAdminGetRunRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.AdminGetRun(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeAdminRun(resp), nil
+		},
+		"admin-get-run-output": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeAdminGetRunOutputRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.AdminGetRunOutput(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeTaskOutput(resp), nil
+		},
+		"admin-get-run-diff": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeAdminGetRunRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.AdminGetRunDiff(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeTaskDiff(resp), nil
+		},
+		"admin-list-chats": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeAdminListChatsRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.AdminListChats(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeAdminListChatsResponse(resp), nil
+		},
+		"admin-read-chat": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeAdminReadChatRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.AdminReadChat(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeAdminReadChatResponse(resp), nil
+		},
+		"admin-turn-log": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeAdminTurnLogRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.AdminTurnLog(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeAdminTurnLogResponse(resp), nil
+		},
 		"put-runner-package": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodePutRunnerPackageRequest(b)
 			if err != nil {

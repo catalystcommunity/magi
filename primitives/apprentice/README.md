@@ -107,6 +107,22 @@ reply becomes `apprentice.summary`. The status stays `step_limit` or
 `time_limit`. When that call fails, the harness keeps the summary text that
 says that the task stopped at the limit.
 
+## Thinking cuts
+
+A thinking model can spend the whole output limit on reasoning. The reply then
+has `finish_reason` `length`, no content, and no tool call. The harness answers
+with a note that tells the model not to think about the whole task again, and to
+call one tool now. A cut reply that has content keeps the note about writing
+large files in parts. The transcript records the reply as `thinking_cut`, with
+the step and the size of the reasoning in characters. The `model_response`
+record holds the size, and the first and the last 400 characters of the
+reasoning when it is longer than 800 characters. The reasoning does not go back
+to the model. After a thinking cut, the harness compacts the context when the
+estimate is above 60% of `MAGI_APPRENTICE_CONTEXT_TOKENS`, because a long
+context makes long thinking more likely. Three replies in a row without a tool
+call still end the task as `stalled`. The summary then says that the replies
+were cut while the model was thinking, and how many times.
+
 ## Self-review
 
 When the model calls `finish` for the first time, and the check passed (or
@@ -203,6 +219,7 @@ dollars.
 | `MAGI_MODEL_IDLE_TIMEOUT` | `90` | The most time between two chunks of a streamed answer. A provider that stops sending is retried after this time |
 | `MAGI_MODEL_STREAM` | `true` | Stream the answers; `false` waits for the full answer (then the idle limit is the call limit) |
 | `MAGI_MODEL_MAX_RETRIES` | `5` | Retries on 429, 5xx, connection errors, and idle or call timeouts |
+| `MAGI_MODEL_BUSY_WAIT_S` | `1800` | The most time that one model call waits for a busy inference host. A host that stops its engine while the machine is busy answers 503 with `error.type` `host_busy` or `warming`. The apprentice waits the `Retry-After` seconds. It waits 30 s when the header is missing, and 120 s at most. These waits do not count as retries. The transcript records each wait as `model_wait` |
 | `MAGI_MODEL_MAX_TOKENS` | `4096` | Output tokens for each reply |
 | `MAGI_MODEL_TEMPERATURE` | `0.2` | Sampling temperature |
 | `MAGI_WORKFLOW_URL` | none | WorkflowService base URL (worker mode) |

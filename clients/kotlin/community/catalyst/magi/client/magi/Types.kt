@@ -905,6 +905,110 @@ data class ListRunnersResponse(
     val release: String? = null
 )
 
+/** GetAccessRequest record. */
+class GetAccessRequest
+
+/** Access record. */
+data class Access(
+    val subject: String,
+    val operator: Boolean
+)
+
+/** AdminRunSummary record. */
+data class AdminRunSummary(
+    val id: String,
+    val definition: String,
+    val owner: String,
+    val status: String,
+    // wire key: current_step
+    val currentStep: String,
+    val title: String? = null,
+    val error: String? = null,
+    // wire key: created_ms
+    val createdMs: ULong,
+    // wire key: updated_ms
+    val updatedMs: ULong
+)
+
+/** AdminListRunsRequest record. */
+data class AdminListRunsRequest(
+    val definition: String? = null,
+    val status: String? = null,
+    val limit: ULong? = null
+)
+
+/** AdminListRunsResponse record. */
+data class AdminListRunsResponse(
+    val runs: List<AdminRunSummary>
+)
+
+/** AdminRun record. */
+data class AdminRun(
+    val summary: AdminRunSummary,
+    val vars: Map<String, String>,
+    val steps: List<TaskStep>
+)
+
+/** AdminGetRunRequest record. */
+data class AdminGetRunRequest(
+    val id: String
+)
+
+/** AdminGetRunOutputRequest record. */
+data class AdminGetRunOutputRequest(
+    val id: String,
+    val name: String
+)
+
+/** AdminChat record. */
+data class AdminChat(
+    val stream: String,
+    val person: String,
+    val persona: String,
+    // wire key: last_seq
+    val lastSeq: ULong,
+    // wire key: created_ms
+    val createdMs: ULong,
+    // wire key: updated_ms
+    val updatedMs: ULong
+)
+
+/** AdminListChatsRequest record. */
+data class AdminListChatsRequest(
+    val person: String? = null,
+    val persona: String? = null
+)
+
+/** AdminListChatsResponse record. */
+data class AdminListChatsResponse(
+    val chats: List<AdminChat>
+)
+
+/** AdminReadChatRequest record. */
+data class AdminReadChatRequest(
+    val stream: String,
+    // wire key: before_seq
+    val beforeSeq: ULong? = null,
+    val limit: ULong? = null
+)
+
+/** AdminReadChatResponse record. */
+data class AdminReadChatResponse(
+    val chat: AdminChat,
+    val messages: List<Message>
+)
+
+/** AdminTurnLogRequest record. */
+data class AdminTurnLogRequest(
+    val message: String
+)
+
+/** AdminTurnLogResponse record. */
+data class AdminTurnLogResponse(
+    val message: String,
+    val log: String? = null
+)
+
 /** PutRunnerPackageRequest record. */
 data class PutRunnerPackageRequest(
     val version: String,

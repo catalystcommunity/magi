@@ -2245,7 +2245,10 @@ func DecodeOpenStreamRequest(csilData []byte) (OpenStreamRequest, error) {
 
 // csilEncListStreamsRequest builds the canonical CBOR value tree for a ListStreamsRequest.
 func csilEncListStreamsRequest(csilV ListStreamsRequest) cborValue {
-	csilEntries := make(cborMap, 0, 1)
+	csilEntries := make(cborMap, 0, 2)
+	if csilV.All != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("all"), cborBool((*csilV.All))})
+	}
 	if csilV.Person != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("person"), cborText((*csilV.Person))})
 	}
@@ -2261,6 +2264,13 @@ func csilDecListStreamsRequest(csilRoot cborValue) (ListStreamsRequest, error) {
 			return csilOut, csilErr
 		}
 		csilOut.Person = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "all"); csilOk {
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.All = &csilVal
 	}
 	return csilOut, nil
 }
