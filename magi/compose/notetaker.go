@@ -203,30 +203,43 @@ func (s *System) applyNotes(ctx context.Context, a workflowapi.Assignment, as co
 			before = append([]conversationapi.Utterance{hist[i]}, before...)
 		}
 	}
+	// The items are the model's words about the newest message and the
+	// records. Their origin is the message (the person's, or not) and the records.
+	ctx = withAuditOrigin(ctx, auditOrigin{By: "note-taker"})
+	prov := s.newProvenance()
+	prov.addOwn(notes)
+	prov.addUtterances(before, a.Owner)
+	prov.addUtterances([]conversationapi.Utterance{utt}, a.Owner)
 	// The gate (notegate.go) and the note taker run at the same time, so
 	// that the gate adds no time. A "no" of the gate stops the note taker.
 	start := time.Now()
-	nctx, stop := context.WithCancel(ctx)
-	defer stop()
-	type notesResult struct {
-		items  []noteItem
-		served string
-		err    error
-	}
-	ch := make(chan notesResult, 1)
-	go func() {
-		items, served, err := s.takeNotes(nctx, utt.Text, notes, before)
-		ch <- notesResult{items, served, err}
-	}()
-	if g, ok := s.noteGate(ctx, a.Vars["owner_name"], notes, utt.Text); ok || g.Error != "" {
-		log.Gate = &g
-		if g.Skip {
-			stop()
-			return nil
+	var items []noteItem
+	var served string
+	// Over the model limit of the owner, neither the gate nor the note taker runs.
+	err := s.allowModel(a.Owner)
+	if err == nil {
+		nctx, stop := context.WithCancel(ctx)
+		defer stop()
+		type notesResult struct {
+			items  []noteItem
+			served string
+			err    error
 		}
+		ch := make(chan notesResult, 1)
+		go func() {
+			items, served, err := s.takeNotes(nctx, utt.Text, notes, before)
+			ch <- notesResult{items, served, err}
+		}()
+		if g, ok := s.noteGate(ctx, a.Vars["owner_name"], notes, utt.Text); ok || g.Error != "" {
+			log.Gate = &g
+			if g.Skip {
+				stop()
+				return nil
+			}
+		}
+		r := <-ch
+		items, served, err = r.items, r.served, r.err
 	}
-	r := <-ch
-	items, served, err := r.items, r.served, r.err
 	call := modelCall{Served: served, Ms: time.Since(start).Milliseconds()}
 	if err != nil {
 		call.Error = err.Error()
@@ -250,7 +263,7 @@ func (s *System) applyNotes(ctx context.Context, a workflowapi.Assignment, as co
 				"result": fmt.Sprintf("Not changed: the record %s does not name %q.", it.Id, it.named())})
 			continue
 		}
-		out, ref := s.personaTool(ctx, a, as, utt, tool, args)
+		out, ref := s.personaTool(ctx, a, as, utt, prov, tool, args)
 		log.Calls = append(log.Calls, map[string]any{"tool": tool, "args": args, "result": out, "by": "note-taker"})
 		// "We moved; the new place is on Zuni Street": a small model gives
 		// remember, and the notes have the old place. With words of a
@@ -264,7 +277,7 @@ func (s *System) applyNotes(ctx context.Context, a workflowapi.Assignment, as co
 				v = it.Object
 			}
 			uargs := map[string]string{"id": m[1], "operation": "update", "value": v, "reason": reason}
-			out, ref = s.personaTool(ctx, a, as, utt, "change_knowledge", uargs)
+			out, ref = s.personaTool(ctx, a, as, utt, prov, "change_knowledge", uargs)
 			log.Calls = append(log.Calls, map[string]any{"tool": "change_knowledge", "args": uargs, "result": out, "by": "note-taker", "from": "remember"})
 		}
 		if ref != nil {

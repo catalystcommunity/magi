@@ -91,7 +91,7 @@ func (p *Pool) Handler(name func(r *http.Request) (string, error)) http.Handler 
 		}
 		agent, err := name(r)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
+			http.Error(w, "a valid token is required", http.StatusUnauthorized)
 			return
 		}
 		hj, ok := w.(http.Hijacker)

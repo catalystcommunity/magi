@@ -266,6 +266,8 @@ untrusted page aloud lets its author speak with the voice of Magi.
 5. **Memory provenance.** Keep records from untrusted sources separate.
    They are facts with evidence, never instructions. Only the person can
    promote them. *Why:* other layers do not cover permanent injection.
+   *Status:* done in task 2.4 (`trust` field, quoted section in `recall`,
+   person-only promote; see `docs/knowledge.md`, "Trust").
 6. **Apprentice.** VM with no credentials. Network only through a package
    proxy. The check command comes from Magi configuration, not from the
    repository. Show the reviewer the diff and the source of the

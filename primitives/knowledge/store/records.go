@@ -23,11 +23,11 @@ const claimSearch = `concat_ws(' ',
 	c.value)`
 
 const entityCols = `e.id, e.kind, e.label, e.aliases, e.summary, e.properties, e.ext_system, e.ext_locator, e.ext_context,
-	e.owners, e.readers, e.confidence, e.merged_into, e.created_ms, e.updated_ms`
+	e.owners, e.readers, e.confidence, e.merged_into, e.created_ms, e.updated_ms, e.trust`
 const claimCols = `c.id, c.subject, c.relation, c.object, c.value, c.valid_from_ms, c.valid_to_ms, c.status, c.replaced_by,
 	c.confidence, c.authored_by, c.derived_from, c.stale,
 	(c.authored_by IS NOT NULL OR EXISTS (SELECT 1 FROM evidence v WHERE v.subject = c.id AND NOT v.retracted AND v.stance = 'supports')),
-	c.owners, c.readers, c.created_ms, c.updated_ms`
+	c.owners, c.readers, c.created_ms, c.updated_ms, c.trust`
 const episodeCols = `p.id, p.kind, p.title, p.summary, p.started_ms, p.ended_ms, p.participants, p.entities, p.refs, p.procedure,
 	p.outcome, p.owners, p.readers, p.created_ms, p.updated_ms`
 const procedureCols = `r.id, r.name, r.goal, r.inputs, r.steps, r.definition, r.revision, r.status, r.entities, r.owners, r.readers,
@@ -40,7 +40,7 @@ func scanEntity(r pgx.Row) (api.Entity, error) {
 	var e api.Entity
 	var sys, loc, xctx *string
 	err := r.Scan(&e.Id, &e.Kind, &e.Label, &e.Aliases, &e.Summary, &e.Properties, &sys, &loc, &xctx,
-		&e.Owners, &e.Readers, &e.Confidence, &e.MergedInto, &e.CreatedMs, &e.UpdatedMs)
+		&e.Owners, &e.Readers, &e.Confidence, &e.MergedInto, &e.CreatedMs, &e.UpdatedMs, &e.Trust)
 	if sys != nil && loc != nil {
 		e.External = &api.ExternalRef{System: *sys, Locator: *loc, Context: xctx}
 	}
@@ -53,7 +53,7 @@ func scanEntity(r pgx.Row) (api.Entity, error) {
 func scanClaim(r pgx.Row) (api.Claim, error) {
 	var c api.Claim
 	err := r.Scan(&c.Id, &c.Subject, &c.Relation, &c.Object, &c.Value, &c.ValidFromMs, &c.ValidToMs, &c.Status, &c.ReplacedBy,
-		&c.Confidence, &c.AuthoredBy, &c.DerivedFrom, &c.Stale, &c.Supported, &c.Owners, &c.Readers, &c.CreatedMs, &c.UpdatedMs)
+		&c.Confidence, &c.AuthoredBy, &c.DerivedFrom, &c.Stale, &c.Supported, &c.Owners, &c.Readers, &c.CreatedMs, &c.UpdatedMs, &c.Trust)
 	return c, notFound(err)
 }
 
@@ -171,6 +171,7 @@ type EntityInput struct {
 	Readers     []string
 	Confidence  *float64
 	Utterance   *string
+	Trust       string // a Trust value; empty is own
 }
 
 // PutEntity returns the entity with the same owners and external reference,
@@ -179,20 +180,29 @@ type EntityInput struct {
 // matching entity of kind "thing" takes the new kind.
 func (s *Store) PutEntity(ctx context.Context, w Who, in EntityInput) (api.Entity, error) {
 	in.Owners, in.Readers = Set(in.Owners), Set(in.Readers)
+	if in.Trust == "" {
+		in.Trust = TrustOwn
+	}
 	var out api.Entity
 	err := pgx.BeginFunc(ctx, s.DB, func(tx pgx.Tx) error {
-		var id string
+		var id, existing string
 		var err error
 		if x := in.External; x != nil {
-			err = tx.QueryRow(ctx, `SELECT id FROM entities WHERE owners = $1 AND ext_system = $2 AND ext_locator = $3 AND status = 'current' LIMIT 1 FOR UPDATE`,
-				in.Owners, x.System, x.Locator).Scan(&id)
+			err = tx.QueryRow(ctx, `SELECT id, trust FROM entities WHERE owners = $1 AND ext_system = $2 AND ext_locator = $3 AND status = 'current' LIMIT 1 FOR UPDATE`,
+				in.Owners, x.System, x.Locator).Scan(&id, &existing)
 		}
 		if id == "" {
-			err = tx.QueryRow(ctx, `SELECT id FROM entities WHERE owners = $1 AND (kind = $2 OR kind = 'thing' OR $2 = 'thing') AND status = 'current'
+			err = tx.QueryRow(ctx, `SELECT id, trust FROM entities WHERE owners = $1 AND (kind = $2 OR kind = 'thing' OR $2 = 'thing') AND status = 'current'
 				AND (lower(label) = lower($3) OR lower($3) = ANY(SELECT lower(a) FROM unnest(aliases) a))
-				ORDER BY (kind = $2) DESC, created_ms LIMIT 1 FOR UPDATE`, in.Owners, in.Kind, in.Label).Scan(&id)
+				ORDER BY (kind = $2) DESC, created_ms LIMIT 1 FOR UPDATE`, in.Owners, in.Kind, in.Label).Scan(&id, &existing)
 		}
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		if id != "" && keepsTrusted(existing, in.Trust) {
+			// A less trusted write names a more trusted entity: it
+			// changes nothing of it (no summary, alias, or property).
+			out, err = s.Entity(ctx, tx, Who{All: true}, id)
 			return err
 		}
 		now := s.now()
@@ -205,6 +215,10 @@ func (s *Store) PutEntity(ctx context.Context, w Who, in EntityInput) (api.Entit
 			sys, loc, xctx = &in.External.System, &in.External.Locator, in.External.Context
 		}
 		if id != "" {
+			prev, err := s.entitySnapshot(ctx, tx, id)
+			if err != nil {
+				return err
+			}
 			_, err = tx.Exec(ctx, `UPDATE entities SET
 				kind = CASE WHEN kind = 'thing' THEN $2 ELSE kind END,
 				aliases = ARRAY(SELECT DISTINCT a FROM unnest(aliases || $3::text[]) a WHERE lower(a) <> lower(label)),
@@ -213,15 +227,21 @@ func (s *Store) PutEntity(ctx context.Context, w Who, in EntityInput) (api.Entit
 				ext_system = coalesce(ext_system, $6), ext_locator = coalesce(ext_locator, $7), ext_context = coalesce(ext_context, $8),
 				readers = ARRAY(SELECT DISTINCT r FROM unnest(readers || $9::text[]) r ORDER BY r),
 				updated_ms = $10 WHERE id = $1`, id, in.Kind, nonNil(in.Aliases), in.Summary, props, sys, loc, xctx, in.Readers, now)
+			if err == nil {
+				err = s.logEdit(ctx, tx, "entity", id, w, in.Owners, prev, nil)
+			}
+			if err != nil {
+				return err
+			}
 		} else {
 			id = NewID("ent_")
 			conf := 1.0
 			if in.Confidence != nil {
 				conf = *in.Confidence
 			}
-			_, err = tx.Exec(ctx, `INSERT INTO entities (id, kind, label, aliases, summary, properties, ext_system, ext_locator, ext_context, owners, readers, confidence, created_ms, updated_ms)
-				VALUES ($1, $2, $3, $4, coalesce($5, ''), coalesce($6::jsonb, '{}'), $7, $8, $9, $10, $11, $12, $13, $13)`,
-				id, in.Kind, in.Label, Set(in.Aliases), in.Summary, props, sys, loc, xctx, in.Owners, in.Readers, conf, now)
+			_, err = tx.Exec(ctx, `INSERT INTO entities (id, kind, label, aliases, summary, properties, ext_system, ext_locator, ext_context, owners, readers, confidence, created_ms, updated_ms, trust)
+				VALUES ($1, $2, $3, $4, coalesce($5, ''), coalesce($6::jsonb, '{}'), $7, $8, $9, $10, $11, $12, $13, $13, $14)`,
+				id, in.Kind, in.Label, Set(in.Aliases), in.Summary, props, sys, loc, xctx, in.Owners, in.Readers, conf, now, in.Trust)
 			if err == nil {
 				_, _, err = s.change(ctx, tx, id, "create", w, in.Owners, nil, in.Utterance, nil, map[string]any{"kind": in.Kind, "label": in.Label})
 			}
@@ -292,6 +312,7 @@ type ClaimInput struct {
 	Evidence           []api.Ref
 	Owners, Readers    []string
 	Utterance          *string
+	Trust              string // a Trust value; empty is own
 }
 
 // Assert returns the current claim with the same owners, subject, relation,
@@ -299,12 +320,21 @@ type ClaimInput struct {
 // makes one.
 func (s *Store) Assert(ctx context.Context, w Who, in ClaimInput) (api.Claim, error) {
 	in.Owners, in.Readers = Set(in.Owners), Set(in.Readers)
+	if in.Trust == "" {
+		in.Trust = TrustOwn
+	}
 	var id string
 	err := pgx.BeginFunc(ctx, s.DB, func(tx pgx.Tx) error {
-		err := tx.QueryRow(ctx, `SELECT id FROM claims WHERE owners = $1 AND subject = $2 AND relation = $3 AND status = 'current'
-			AND (object = $4 OR lower(value) = lower($5)) LIMIT 1 FOR UPDATE`, in.Owners, in.Subject, in.Relation, in.Object, in.Value).Scan(&id)
+		var existing string
+		err := tx.QueryRow(ctx, `SELECT id, trust FROM claims WHERE owners = $1 AND subject = $2 AND relation = $3 AND status = 'current'
+			AND (object = $4 OR lower(value) = lower($5)) LIMIT 1 FOR UPDATE`, in.Owners, in.Subject, in.Relation, in.Object, in.Value).Scan(&id, &existing)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return err
+		}
+		if id != "" && keepsTrusted(existing, in.Trust) {
+			// The same fact from a less trusted source adds nothing to a
+			// more trusted claim: no evidence, so it does not count as support.
+			return nil
 		}
 		if id == "" {
 			id = NewID("clm_")
@@ -313,9 +343,9 @@ func (s *Store) Assert(ctx context.Context, w Who, in ClaimInput) (api.Claim, er
 				conf = *in.Confidence
 			}
 			now := s.now()
-			if _, err := tx.Exec(ctx, `INSERT INTO claims (id, subject, relation, object, value, valid_from_ms, valid_to_ms, confidence, authored_by, derived_from, owners, readers, created_ms, updated_ms)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13)`,
-				id, in.Subject, in.Relation, in.Object, in.Value, in.ValidFrom, in.ValidTo, conf, in.AuthoredBy, Set(in.DerivedFrom), in.Owners, in.Readers, now); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO claims (id, subject, relation, object, value, valid_from_ms, valid_to_ms, confidence, authored_by, derived_from, owners, readers, created_ms, updated_ms, trust)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13, $14)`,
+				id, in.Subject, in.Relation, in.Object, in.Value, in.ValidFrom, in.ValidTo, conf, in.AuthoredBy, Set(in.DerivedFrom), in.Owners, in.Readers, now, in.Trust); err != nil {
 				return err
 			}
 			after := map[string]any{"subject": in.Subject, "relation": in.Relation, "object": in.Object, "value": in.Value}
@@ -334,6 +364,11 @@ func (s *Store) Assert(ctx context.Context, w Who, in ClaimInput) (api.Claim, er
 			if err := s.addEvidence(ctx, tx, id, in.Owners, r, "supports", nil); err != nil {
 				return err
 			}
+		}
+		if existing != "" && len(refs) > 0 {
+			// The same fact again: no new claim, but the support is a change.
+			_, _, err := s.change(ctx, tx, id, "assert", w, in.Owners, nil, in.Utterance, nil, map[string]any{"evidence": refs})
+			return err
 		}
 		return nil
 	})
@@ -357,8 +392,25 @@ func (s *Store) LinkEvidence(ctx context.Context, w Who, subject string, r api.R
 	if err != nil || gone || !w.owns(owners) {
 		return api.Evidence{}, ErrNotFound
 	}
-	if err := s.addEvidence(ctx, s.DB, subject, owners, r, stance, note); err != nil {
-		return api.Evidence{}, err
+	err = pgx.BeginFunc(ctx, s.DB, func(tx pgx.Tx) error {
+		var oldStance string
+		var oldNote *string
+		var oldGone bool
+		var before any
+		if err := tx.QueryRow(ctx, `SELECT stance, note, retracted FROM evidence WHERE subject = $1 AND ref_kind = $2 AND ref = $3`, subject, r.Kind, r.Ref).
+			Scan(&oldStance, &oldNote, &oldGone); err == nil {
+			before = map[string]any{"stance": oldStance, "note": oldNote, "retracted": oldGone}
+		} else if !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		if err := s.addEvidence(ctx, tx, subject, owners, r, stance, note); err != nil {
+			return err
+		}
+		_, _, err := s.change(ctx, tx, subject, "assert", w, owners, nil, nil, before, map[string]any{"evidence": []api.Ref{r}, "stance": stance, "note": note})
+		return err
+	})
+	if err != nil {
+		return api.Evidence{}, notFound(err)
 	}
 	return scanEvidence(s.DB.QueryRow(ctx, `SELECT `+evidenceCols+` FROM evidence v WHERE subject = $1 AND ref_kind = $2 AND ref = $3`, subject, r.Kind, r.Ref))
 }
@@ -388,6 +440,10 @@ func (s *Store) RecordEpisode(ctx context.Context, w Who, in EpisodeInput) (api.
 	id := in.ID
 	err := pgx.BeginFunc(ctx, s.DB, func(tx pgx.Tx) error {
 		if id != "" {
+			prev, eowners, err := s.episodeSnapshot(ctx, tx, w, id)
+			if err != nil {
+				return err
+			}
 			args := []any{id, in.Title, in.Summary, in.Ended, in.Outcome, in.Procedure, nonNil(in.Participants), nonNil(in.Entities), rb, now}
 			tag, err := tx.Exec(ctx, `UPDATE episodes p SET title = coalesce(nullif($2::text, ''), title), summary = coalesce($3::text, summary),
 				ended_ms = coalesce($4, ended_ms), outcome = coalesce($5, outcome), procedure = coalesce($6, procedure),
@@ -398,7 +454,10 @@ func (s *Store) RecordEpisode(ctx context.Context, w Who, in EpisodeInput) (api.
 			if err == nil && tag.RowsAffected() == 0 {
 				return ErrNotFound
 			}
-			return err
+			if err != nil {
+				return err
+			}
+			return s.logEdit(ctx, tx, "episode", id, w, eowners, prev, nil)
 		}
 		id = NewID("epi_")
 		started := now
@@ -469,19 +528,40 @@ func (s *Store) PutProcedure(ctx context.Context, w Who, in ProcedureInput) (api
 func (s *Store) PutGroup(ctx context.Context, w Who, id, label string, members, owners []string) (api.Group, error) {
 	var g api.Group
 	err := pgx.BeginFunc(ctx, s.DB, func(tx pgx.Tx) error {
-		var cur []string
-		err := tx.QueryRow(ctx, `SELECT owners FROM groups WHERE id = $1 FOR UPDATE`, id).Scan(&cur)
+		var cur, curMembers []string
+		var curLabel string
+		err := tx.QueryRow(ctx, `SELECT owners, members, label FROM groups WHERE id = $1 FOR UPDATE`, id).Scan(&cur, &curMembers, &curLabel)
+		existed := true
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
+			existed = false
 		case err != nil:
 			return err
 		case !w.All && !slices.Contains(cur, w.Subject):
 			return ErrNotFound
 		}
-		return tx.QueryRow(ctx, `INSERT INTO groups (id, label, members, owners, updated_ms) VALUES ($1, $2, $3, $4, $5)
+		if err := tx.QueryRow(ctx, `INSERT INTO groups (id, label, members, owners, updated_ms) VALUES ($1, $2, $3, $4, $5)
 			ON CONFLICT (id) DO UPDATE SET label = $2, members = $3, owners = $4, updated_ms = $5
 			RETURNING id, label, members, owners, updated_ms`, id, label, Set(members), Set(owners), s.now()).
-			Scan(&g.Id, &g.Label, &g.Members, &g.Owners, &g.UpdatedMs)
+			Scan(&g.Id, &g.Label, &g.Members, &g.Owners, &g.UpdatedMs); err != nil {
+			return err
+		}
+		// Who is in a group decides who can read records: it is a change
+		// of visibility. It is recorded and cannot be undone: change the
+		// group again.
+		var before any
+		if existed {
+			before = map[string]any{"label": curLabel, "members": curMembers, "owners": cur}
+		}
+		op := "create"
+		if existed {
+			if curLabel == g.Label && slices.Equal(curMembers, g.Members) && slices.Equal(cur, g.Owners) {
+				return nil
+			}
+			op = "visibility"
+		}
+		_, _, err = s.change(ctx, tx, id, op, w, g.Owners, nil, nil, before, map[string]any{"label": g.Label, "members": g.Members, "owners": g.Owners})
+		return err
 	})
 	return g, notFound(err)
 }

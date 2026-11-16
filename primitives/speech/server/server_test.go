@@ -259,7 +259,7 @@ func TestEngineDown(t *testing.T) {
 	c := harness(t, svc)
 	ctx := context.Background()
 	_, err := c.Synthesize(ctx, api.SynthesizeRequest{Text: "hello"})
-	if rpc.CodeOf(err) != 503 || !strings.Contains(err.Error(), "unreachable") {
+	if rpc.CodeOf(err) != 503 || strings.Contains(err.Error(), url) || !strings.Contains(err.Error(), "ref ") {
 		t.Fatalf("synthesize with engine down: %v", err)
 	}
 	if _, err := c.ListVoices(ctx, api.ListVoicesRequest{}); rpc.CodeOf(err) != 503 {

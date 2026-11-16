@@ -81,6 +81,9 @@ func testDB(t *testing.T, setup ...string) *store.Store {
 type env struct {
 	st                      *store.Store
 	alice, bob, carol, magi *api.KnowledgeClient
+	// admin is an admin user; undoer is a service that acts for people and
+	// holds knowledge:undo.
+	admin, undoer *api.KnowledgeClient
 }
 
 const (
@@ -105,10 +108,12 @@ func newEnv(t *testing.T, setup ...string) env {
 		return api.NewKnowledgeClient(rpc.NewClient(ts.URL, rpc.StaticToken(tok)))
 	}
 	return env{st: st,
-		alice: client(authn.Principal{Subject: alice, Kind: authn.KindUser}),
-		bob:   client(authn.Principal{Subject: bob, Kind: authn.KindUser}),
-		carol: client(authn.Principal{Subject: carol, Kind: authn.KindUser}),
-		magi:  client(authn.Principal{Subject: "service:magi", Kind: authn.KindService, Scopes: []string{ScopeActAs}}),
+		alice:  client(authn.Principal{Subject: alice, Kind: authn.KindUser}),
+		bob:    client(authn.Principal{Subject: bob, Kind: authn.KindUser}),
+		carol:  client(authn.Principal{Subject: carol, Kind: authn.KindUser}),
+		magi:   client(authn.Principal{Subject: "service:magi", Kind: authn.KindService, Scopes: []string{ScopeActAs}}),
+		admin:  client(authn.Principal{Subject: "user:root@example.local", Kind: authn.KindUser, Scopes: []string{ScopeAdmin}}),
+		undoer: client(authn.Principal{Subject: "service:magi", Kind: authn.KindService, Scopes: []string{ScopeActAs, ScopeUndo}}),
 	}
 }
 

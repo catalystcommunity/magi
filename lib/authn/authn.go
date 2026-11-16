@@ -35,13 +35,15 @@ const (
 type Principal struct {
 	Subject string `json:"sub"`
 	// Name is a display name for a user. It is not an identifier.
-	Name     string   `json:"name,omitempty"`
-	Kind     string   `json:"kind"`
-	Scopes   []string `json:"scopes,omitempty"`
-	Issuer   string   `json:"iss"`
-	KeyID    string   `json:"kid"`
-	IssuedAt int64    `json:"iat"`
-	Expires  int64    `json:"exp"`
+	Name   string   `json:"name,omitempty"`
+	Kind   string   `json:"kind"`
+	Scopes []string `json:"scopes,omitempty"`
+	Issuer string   `json:"iss"`
+	KeyID  string   `json:"kid"`
+	// ID names one token ("jti"). A deny list can refuse it alone.
+	ID       string `json:"jti,omitempty"`
+	IssuedAt int64  `json:"iat"`
+	Expires  int64  `json:"exp"`
 	// Token is the raw token. It is not part of the signed payload.
 	Token string `json:"-"`
 }
@@ -78,6 +80,11 @@ func (i *Issuer) Issue(p Principal, ttl time.Duration) (string, error) {
 		now = i.Now
 	}
 	t := now()
+	id := make([]byte, 12)
+	if _, err := rand.Read(id); err != nil {
+		return "", err
+	}
+	p.ID = base64.RawURLEncoding.EncodeToString(id)
 	p.Issuer, p.KeyID, p.IssuedAt, p.Expires = i.Name, i.KeyID, t.Unix(), t.Add(ttl).Unix()
 	body, err := json.Marshal(p)
 	if err != nil {
@@ -93,9 +100,12 @@ type Verifier struct {
 	Issuer string
 	Keys   map[string]ed25519.PublicKey
 	Now    func() time.Time
+	// Deny, when set, refuses tokens that it names (revocation). See
+	// DenyList. LoadVerifier sets it when MAGI_DENY_LIST is set.
+	Deny *DenyList
 }
 
-// Verify returns the principal of a valid, unexpired token.
+// Verify returns the principal of a valid, unexpired, unrevoked token.
 func (v *Verifier) Verify(token string) (Principal, error) {
 	var p Principal
 	if !strings.HasPrefix(token, prefix) || len(token) > 8192 {
@@ -129,6 +139,9 @@ func (v *Verifier) Verify(token string) (Principal, error) {
 	}
 	if now().Unix() >= p.Expires {
 		return Principal{}, ErrExpired
+	}
+	if v.Deny != nil && v.Deny.Denied(p) {
+		return Principal{}, ErrRevoked
 	}
 	p.Token = token
 	return p, nil
@@ -195,7 +208,9 @@ func LoadIssuer(path string) (*Issuer, error) {
 	return &Issuer{Name: k.Issuer, KeyID: k.KeyID, Key: ed25519.PrivateKey(priv)}, nil
 }
 
-// LoadVerifier reads one or more key files. Only public keys are used.
+// LoadVerifier reads one or more key files. Only public keys are used. When
+// MAGI_DENY_LIST names a file, the verifier also refuses the tokens in it
+// (see DenyList); the file is read again while the service runs.
 func LoadVerifier(paths ...string) (*Verifier, error) {
 	v := &Verifier{Keys: map[string]ed25519.PublicKey{}}
 	for _, path := range paths {
@@ -212,6 +227,13 @@ func LoadVerifier(paths ...string) (*Verifier, error) {
 		}
 		v.Issuer = k.Issuer
 		v.Keys[k.KeyID] = ed25519.PublicKey(pub)
+	}
+	if path := os.Getenv(DenyListEnv); path != "" {
+		d, err := LoadDenyList(path)
+		if err != nil {
+			return nil, err
+		}
+		v.Deny = d
 	}
 	return v, nil
 }

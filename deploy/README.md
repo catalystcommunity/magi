@@ -43,10 +43,15 @@ Make the issuer key and the service tokens with the identity command:
 ```sh
 identity keygen --issuer magi --out issuer.json --public issuer-public.json
 identity mint --key issuer.json --subject service:magi --ttl 2160h --out token-magi \
-  --scopes conversation:act-as,conversation:admin,knowledge:act-as,artifacts:act-as,workflow:act-as,workflow:worker,execution:act-as,source:act-as,release:operate,release:read,speech:lexicon,identity:roles
+  --scopes conversation:act-as,conversation:admin,knowledge:act-as,knowledge:promote,knowledge:undo,artifacts:act-as,workflow:act-as,workflow:worker,execution:act-as,source:act-as,release:operate,release:read,speech:lexicon,identity:roles
 identity mint --key issuer.json --subject service:apprentice --ttl 2160h --out token-apprentice \
   --scopes workflow:worker,execution:act-as,artifacts:act-as
 ```
+
+`mint` refuses a ttl over 365 days, and over 90 days for a token with scope
+`magi:operate`. To revoke a token before it expires, set `MAGI_DENY_LIST`
+on each service to a mounted deny list file and use `identity revoke`; see
+"Token lifecycle" in `primitives/identity/README.md`.
 
 Create these Secrets in namespace `magi`:
 
@@ -85,6 +90,7 @@ ALLOWED_DOMAINS=example.local
 ENV_IMAGE=localhost:30500/magi/dev-env:TAG
 RUNNER=                       # optional: default runner for code changes
 PUBLISHER=                    # optional: runner that pushes merged changes upstream
+PUBLISH_RUNNERS=              # runners approved to publish or build releases (required to publish; docs/runner-trust.md)
 ADMINS=                       # optional: user subjects for operator calls, comma-separated
 LEXICON_EDITORS=              # optional: user subjects that can change the household lexicon; empty: ADMINS
 EGRESS=                       # optional: true adds the egress proxy (see "Egress proxy")
@@ -94,6 +100,9 @@ MODEL_EGRESS=                 # optional, with EGRESS: true sends the model call
 DETECTOR_URL=                 # optional: the prompt injection detector engine (speech engine host, port 8094; Secret magi-speech-engine)
 DETECTOR_MODE=                # optional: flag (default; pass now, tell the person later) or review (block a finding for an admin)
 DETECTOR_THRESHOLD=           # optional: 0.98
+BACKUP_DESTINATION_PATH=      # optional: s3://bucket/path turns on PostgreSQL backups (docs/operations/backup-restore.md)
+BACKUP_ENDPOINT_URL=          # optional: S3-compatible endpoint
+BACKUP_RETENTION=             # optional: default 30d
 ```
 
 A database that `postgres.yaml` adds later is not made in an existing

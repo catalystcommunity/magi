@@ -32,6 +32,7 @@ type Entity struct {
 	MergedInto *string           `json:"merged_into,omitempty" yaml:"merged_into,omitempty"`
 	CreatedMs  uint64            `json:"created_ms" yaml:"created_ms"`
 	UpdatedMs  uint64            `json:"updated_ms" yaml:"updated_ms"`
+	Trust      *string           `json:"trust,omitempty" yaml:"trust,omitempty"`
 }
 
 // Claim represents a structured data type
@@ -54,6 +55,7 @@ type Claim struct {
 	Readers     []string `json:"readers" yaml:"readers"`
 	CreatedMs   uint64   `json:"created_ms" yaml:"created_ms"`
 	UpdatedMs   uint64   `json:"updated_ms" yaml:"updated_ms"`
+	Trust       *string  `json:"trust,omitempty" yaml:"trust,omitempty"`
 }
 
 // Episode represents a structured data type
@@ -114,6 +116,11 @@ type Change struct {
 	After     *string `json:"after,omitempty" yaml:"after,omitempty"`
 	Utterance *string `json:"utterance,omitempty" yaml:"utterance,omitempty"`
 	AtMs      uint64  `json:"at_ms" yaml:"at_ms"`
+	Via       *string `json:"via,omitempty" yaml:"via,omitempty"`
+	Trust     *string `json:"trust,omitempty" yaml:"trust,omitempty"`
+	Origin    *string `json:"origin,omitempty" yaml:"origin,omitempty"`
+	Undoes    *string `json:"undoes,omitempty" yaml:"undoes,omitempty"`
+	UndoneBy  *string `json:"undone_by,omitempty" yaml:"undone_by,omitempty"`
 }
 
 // Dispute represents a structured data type
@@ -152,6 +159,8 @@ type PutEntityRequest struct {
 	Confidence *float64          `json:"confidence,omitempty" yaml:"confidence,omitempty"`
 	ActFor     *string           `json:"act_for,omitempty" yaml:"act_for,omitempty"`
 	Utterance  *string           `json:"utterance,omitempty" yaml:"utterance,omitempty"`
+	Trust      *string           `json:"trust,omitempty" yaml:"trust,omitempty"`
+	Origin     *string           `json:"origin,omitempty" yaml:"origin,omitempty"`
 }
 
 // SelfRequest represents a structured data type
@@ -176,6 +185,8 @@ type AssertRequest struct {
 	Readers     []string `json:"readers,omitempty" yaml:"readers,omitempty"`
 	ActFor      *string  `json:"act_for,omitempty" yaml:"act_for,omitempty"`
 	Utterance   *string  `json:"utterance,omitempty" yaml:"utterance,omitempty"`
+	Trust       *string  `json:"trust,omitempty" yaml:"trust,omitempty"`
+	Origin      *string  `json:"origin,omitempty" yaml:"origin,omitempty"`
 }
 
 // ChangeRequest represents a structured data type
@@ -188,6 +199,7 @@ type ChangeRequest struct {
 	Reason    *string           `json:"reason,omitempty" yaml:"reason,omitempty"`
 	ActFor    *string           `json:"act_for,omitempty" yaml:"act_for,omitempty"`
 	Utterance *string           `json:"utterance,omitempty" yaml:"utterance,omitempty"`
+	Origin    *string           `json:"origin,omitempty" yaml:"origin,omitempty"`
 }
 
 // ChangeResponse represents a structured data type
@@ -206,6 +218,7 @@ type MergeRequest struct {
 	Reason    *string `json:"reason,omitempty" yaml:"reason,omitempty"`
 	ActFor    *string `json:"act_for,omitempty" yaml:"act_for,omitempty"`
 	Utterance *string `json:"utterance,omitempty" yaml:"utterance,omitempty"`
+	Origin    *string `json:"origin,omitempty" yaml:"origin,omitempty"`
 }
 
 // UnmergeRequest represents a structured data type
@@ -372,8 +385,10 @@ type TimelineResponse struct {
 
 // HistoryRequest represents a structured data type
 type HistoryRequest struct {
-	Id     string  `json:"id" yaml:"id"`
-	ActFor *string `json:"act_for,omitempty" yaml:"act_for,omitempty"`
+	Id      string  `json:"id" yaml:"id"`
+	ActFor  *string `json:"act_for,omitempty" yaml:"act_for,omitempty"`
+	SinceMs *uint64 `json:"since_ms,omitempty" yaml:"since_ms,omitempty"`
+	Limit   *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
 }
 
 // HistoryResponse represents a structured data type

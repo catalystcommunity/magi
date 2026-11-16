@@ -84,7 +84,10 @@ var usage = `usage: magi [--server URL] <command> [args]
                              (-erase: keep no copy in the history)
   merge KEEP MERGE [-m REASON]   two entities are the same thing: move the
                              facts of MERGE to KEEP (unmerge CHANGE reverts it)
-  history ID                 the changes of a record
+  history [ID] [-days N] [-n N]   the changes of a record; without ID, the audit
+                             log of your memory (who, when, what, trust, why)
+  undo CHANGE [-m REASON]    undo a change from history (not an undo; refused
+                             when later changes depend on it or it would raise trust)
   audio DIGEST -o FILE       save the audio of a message
   voices                     list voices
   words                      list the household lexicon (how Magi says and
@@ -732,22 +735,41 @@ func (c *cli) run(cmd string, args []string) error {
 			printKnowledge([]magiapi.KnowledgeItem{*r.Item}, nil)
 		}
 	case "history":
-		if len(args) < 1 {
-			return errors.New("history ID")
+		// history ID: the changes of a record. history: the audit log of
+		// your memory, newest first.
+		id := ""
+		if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+			id, args = args[0], args[1:]
 		}
-		r, err := c.magi.KnowledgeHistory(c.ctx, magiapi.KnowledgeHistoryRequest{Id: args[0]})
+		days, n := fs.Int("days", 0, "only the last N days (the audit log)"), fs.Int("n", 0, "at most N changes (the audit log)")
+		fs.Parse(args)
+		req := magiapi.KnowledgeHistoryRequest{Id: id}
+		if *days > 0 {
+			req.SinceMs = ptr(uint64(time.Now().AddDate(0, 0, -*days).UnixMilli()))
+		}
+		if *n > 0 {
+			req.Limit = ptr(uint64(*n))
+		}
+		r, err := c.magi.KnowledgeHistory(c.ctx, req)
 		if err != nil {
 			return err
 		}
 		for _, h := range r.Changes {
-			fmt.Printf("%s  %-8s %s  %s", time.UnixMilli(int64(h.AtMs)).Format("2006-01-02 15:04"), h.Operation, h.Actor, deref(h.Reason))
-			if h.Before != nil {
-				fmt.Printf("\n      before %s", *h.Before)
-			}
-			if h.After != nil {
-				fmt.Printf("\n      after  %s", *h.After)
-			}
-			fmt.Println()
+			printChange(h, id == "")
+		}
+	case "undo":
+		if len(args) < 1 {
+			return errors.New("undo CHANGE [-m REASON]   (CHANGE is an id from history)")
+		}
+		reason := fs.String("m", "", "")
+		fs.Parse(args[1:])
+		r, err := c.magi.ChangeKnowledge(c.ctx, magiapi.ChangeKnowledgeRequest{Id: args[0], Operation: "undo", Reason: optional(*reason)})
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%s %s %s\n", r.Change.Id, r.Change.Operation, r.Change.Record)
+		if r.Item != nil {
+			printKnowledge([]magiapi.KnowledgeItem{*r.Item}, nil)
 		}
 	case "audio":
 		out := fs.String("o", "", "output file")
@@ -1316,4 +1338,37 @@ func gatewayTimeout(err error) bool {
 		}
 	}
 	return false
+}
+
+// printChange shows one row of the audit log. record names the record, for
+// the log of all records.
+func printChange(h magiapi.KnowledgeChange, record bool) {
+	who := h.Actor
+	if h.Via != nil {
+		who += " via " + *h.Via
+	}
+	rec := ""
+	if record {
+		rec = " " + h.Record
+	}
+	fmt.Printf("%s  %s  %-10s%s  %s  %s", h.Id, time.UnixMilli(int64(h.AtMs)).Format("2006-01-02 15:04"), h.Operation, rec, who, deref(h.Reason))
+	if h.Trust != nil {
+		fmt.Printf("  [trust %s]", *h.Trust)
+	}
+	if h.UndoneBy != nil {
+		fmt.Printf("  [undone by %s]", *h.UndoneBy)
+	}
+	if h.Undoes != nil {
+		fmt.Printf("  [undoes %s]", *h.Undoes)
+	}
+	if h.Origin != nil {
+		fmt.Printf("\n      origin %s", *h.Origin)
+	}
+	if h.Before != nil {
+		fmt.Printf("\n      before %s", *h.Before)
+	}
+	if h.After != nil {
+		fmt.Printf("\n      after  %s", *h.After)
+	}
+	fmt.Println()
 }

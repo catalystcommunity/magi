@@ -26,8 +26,8 @@ type ChangeInput struct {
 
 // fields that a fix can set, by record type. "property." is a prefix.
 var fixable = map[string][]string{
-	"entity":    {"label", "kind", "summary", "aliases", "property."},
-	"claim":     {"relation", "object", "value", "valid_from_ms", "valid_to_ms", "confidence"},
+	"entity":    {"label", "kind", "summary", "aliases", "property.", "trust"},
+	"claim":     {"relation", "object", "value", "valid_from_ms", "valid_to_ms", "confidence", "trust"},
 	"episode":   {"title", "summary", "outcome", "ended_ms"},
 	"procedure": {"goal", "steps", "status"},
 	"evidence":  {"stance", "note"},
@@ -76,8 +76,10 @@ func (s *Store) Change(ctx context.Context, w Who, in ChangeInput) (api.ChangeRe
 			id, err = s.update(ctx, tx, w, owners, in)
 		case "retract":
 			id, err = s.retract(ctx, tx, w, t, owners, in)
+		case "promote":
+			id, err = s.promote(ctx, tx, w, t, owners, in)
 		default:
-			return invalid("operation must be fix, update, or retract")
+			return invalid("operation must be fix, update, retract, or promote")
 		}
 		if err != nil {
 			return err
@@ -144,6 +146,11 @@ func (s *Store) fix(ctx context.Context, tx pgx.Tx, w Who, t string, owners []st
 		before[k], after[k] = old, v
 		var val any = v
 		switch k {
+		case "trust":
+			// A fix only lowers trust; raising it is promote, by the person.
+			if NormalizeTrustValue(v) == "" || TrustRank(v) >= TrustRank(TrustOf(old)) {
+				return "", invalid("a fix can only set a lower trust (untrusted); the person promotes with promote")
+			}
 		case "aliases":
 			val = Set(strings.Split(v, ","))
 		case "valid_from_ms", "valid_to_ms", "ended_ms":
@@ -290,6 +297,11 @@ func (s *Store) update(ctx context.Context, tx pgx.Tx, w Who, owners []string, i
 				return "", invalid("confidence must be from 0 to 1")
 			}
 			n.Confidence = f
+		case "trust":
+			// The replacement keeps the trust of the claim, or is less trusted.
+			if TrustRank(v) < TrustRank(TrustOf(c.Trust)) {
+				n.Trust = &v
+			}
 		}
 	}
 	if n.Object != nil && *n.Object == c.Subject {
@@ -299,9 +311,9 @@ func (s *Store) update(ctx context.Context, tx pgx.Tx, w Who, owners []string, i
 		return "", invalid("the update does not change the claim; use fix to change only the time or the confidence")
 	}
 	now := s.now()
-	if _, err := tx.Exec(ctx, `INSERT INTO claims (id, subject, relation, object, value, valid_from_ms, valid_to_ms, confidence, authored_by, owners, readers, created_ms, updated_ms)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12)`,
-		n.Id, n.Subject, n.Relation, n.Object, n.Value, n.ValidFromMs, n.ValidToMs, n.Confidence, c.AuthoredBy, c.Owners, c.Readers, now); err != nil {
+	if _, err := tx.Exec(ctx, `INSERT INTO claims (id, subject, relation, object, value, valid_from_ms, valid_to_ms, confidence, authored_by, owners, readers, created_ms, updated_ms, trust)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12, $13)`,
+		n.Id, n.Subject, n.Relation, n.Object, n.Value, n.ValidFromMs, n.ValidToMs, n.Confidence, c.AuthoredBy, c.Owners, c.Readers, now, TrustOf(n.Trust)); err != nil {
 		return "", err
 	}
 	if _, err := tx.Exec(ctx, `UPDATE claims SET status = 'ended', valid_to_ms = $2, replaced_by = $3, updated_ms = $4 WHERE id = $1`, c.Id, at, n.Id, now); err != nil {
@@ -322,7 +334,7 @@ func (s *Store) update(ctx context.Context, tx pgx.Tx, w Who, owners []string, i
 		return "", err
 	}
 	id, _, err := s.change(ctx, tx, c.Id, "update", w, owners, in.Reason, in.Utterance,
-		map[string]any{"relation": c.Relation, "object": c.Object, "value": c.Value},
+		map[string]any{"relation": c.Relation, "object": c.Object, "value": c.Value, "valid_to_ms": c.ValidToMs},
 		map[string]any{"replaced_by": n.Id, "valid_to_ms": at, "relation": n.Relation, "object": n.Object, "value": n.Value})
 	return id, err
 }
@@ -358,6 +370,16 @@ func (s *Store) retract(ctx context.Context, tx pgx.Tx, w Who, t string, owners 
 		}
 	}
 	after := map[string]any{"records": ids, "erased": in.Erase}
+	// The status of each record before, so that undo can restore it (a
+	// claim can be "ended" and an entity "merged" when it is retracted).
+	var before any
+	if !in.Erase {
+		prior, err := s.statuses(ctx, tx, ids)
+		if err != nil {
+			return "", err
+		}
+		before = map[string]any{"status": prior}
+	}
 	if in.Erase {
 		for _, q := range []struct {
 			sql string
@@ -407,15 +429,16 @@ func (s *Store) retract(ctx context.Context, tx pgx.Tx, w Who, t string, owners 
 			}
 		}
 	}
-	id, _, err := s.change(ctx, tx, in.ID, "retract", w, owners, in.Reason, in.Utterance, nil, after)
+	id, _, err := s.change(ctx, tx, in.ID, "retract", w, owners, in.Reason, in.Utterance, before, after)
 	return id, err
 }
 
-const changeCols = `h.id, h.record, h.operation, h.actor, h.reason, h.before, h.after, h.utterance, h.at_ms`
+const changeCols = `h.id, h.record, h.operation, h.actor, h.reason, h.before, h.after, h.utterance, h.at_ms,
+	h.via, h.trust, h.origin, h.undoes, (SELECT u.id FROM changes u WHERE u.undoes = h.id ORDER BY u.seq LIMIT 1)`
 
 func scanChange(r pgx.Row) (api.Change, error) {
 	var c api.Change
-	err := r.Scan(&c.Id, &c.Record, &c.Operation, &c.Actor, &c.Reason, &c.Before, &c.After, &c.Utterance, &c.AtMs)
+	err := r.Scan(&c.Id, &c.Record, &c.Operation, &c.Actor, &c.Reason, &c.Before, &c.After, &c.Utterance, &c.AtMs, &c.Via, &c.Trust, &c.Origin, &c.Undoes, &c.UndoneBy)
 	return c, notFound(err)
 }
 
@@ -452,13 +475,13 @@ func (s *Store) Merge(ctx context.Context, w Who, keep, merge string, reason, ut
 			return invalid("keep and merge are the same entity")
 		}
 		var ko, mo []string
-		var klabel, mlabel, ksum, msum string
+		var klabel, mlabel, ksum, msum, ktrust, mtrust string
 		var kal, mal []string
 		var kprops, mprops map[string]string
-		if err := tx.QueryRow(ctx, `SELECT owners, label, aliases, summary, properties FROM entities WHERE id = $1 AND status = 'current' FOR UPDATE`, keep).Scan(&ko, &klabel, &kal, &ksum, &kprops); err != nil {
+		if err := tx.QueryRow(ctx, `SELECT owners, label, aliases, summary, properties, trust FROM entities WHERE id = $1 AND status = 'current' FOR UPDATE`, keep).Scan(&ko, &klabel, &kal, &ksum, &kprops, &ktrust); err != nil {
 			return notFound(err)
 		}
-		if err := tx.QueryRow(ctx, `SELECT owners, label, aliases, summary, properties FROM entities WHERE id = $1 AND status = 'current' FOR UPDATE`, merge).Scan(&mo, &mlabel, &mal, &msum, &mprops); err != nil {
+		if err := tx.QueryRow(ctx, `SELECT owners, label, aliases, summary, properties, trust FROM entities WHERE id = $1 AND status = 'current' FOR UPDATE`, merge).Scan(&mo, &mlabel, &mal, &msum, &mprops, &mtrust); err != nil {
 			return notFound(err)
 		}
 		if !w.owns(ko) || !w.owns(mo) {
@@ -466,6 +489,10 @@ func (s *Store) Merge(ctx context.Context, w Who, keep, merge string, reason, ut
 		}
 		if !slices.Equal(ko, mo) {
 			return invalid("the two entities have different owners")
+		}
+		if keepsTrusted(ktrust, mtrust) {
+			// Its name, summary, and properties would enter a more trusted entity.
+			return invalid("the entity to merge is %s and the one to keep is %s; promote the first (only the person can) or keep it apart", mtrust, ktrust)
 		}
 		m := merged{Keep: keep, Merge: merge}
 		var err error
@@ -523,25 +550,39 @@ func (s *Store) Merge(ctx context.Context, w Who, keep, merge string, reason, ut
 func (s *Store) Unmerge(ctx context.Context, w Who, change string) (api.Change, error) {
 	var out api.Change
 	err := pgx.BeginFunc(ctx, s.DB, func(tx pgx.Tx) error {
+		id, err := s.unmerge(ctx, tx, w, change, nil)
+		if err != nil {
+			return err
+		}
+		out, err = scanChange(tx.QueryRow(ctx, `SELECT `+changeCols+` FROM changes h WHERE id = $1`, id))
+		return err
+	})
+	return out, notFound(err)
+}
+
+// unmerge reverts the merge of change id and returns the id of the change
+// that records it (it has undoes set, so the merge counts as undone).
+func (s *Store) unmerge(ctx context.Context, tx pgx.Tx, w Who, change string, reason *string) (string, error) {
+	{
 		var op string
 		var after *string
 		var owners []string
 		if err := tx.QueryRow(ctx, `SELECT operation, after, owners FROM changes WHERE id = $1 FOR UPDATE`, change).Scan(&op, &after, &owners); err != nil {
-			return notFound(err)
+			return "", notFound(err)
 		}
 		if op != "merge" || after == nil || !w.owns(owners) {
-			return ErrNotFound
+			return "", ErrNotFound
 		}
 		var m merged
 		if err := json.Unmarshal([]byte(*after), &m); err != nil {
-			return err
+			return "", err
 		}
 		var status string
 		if err := tx.QueryRow(ctx, `SELECT status FROM entities WHERE id = $1 FOR UPDATE`, m.Merge).Scan(&status); err != nil {
-			return notFound(err)
+			return "", notFound(err)
 		}
 		if status != "merged" {
-			return invalid("the entity is not merged")
+			return "", invalid("the entity is not merged")
 		}
 		for _, q := range []struct {
 			sql string
@@ -554,29 +595,24 @@ func (s *Store) Unmerge(ctx context.Context, w Who, change string) (api.Change, 
 			{`UPDATE evidence SET subject = $2 WHERE id = ANY($1) AND subject = $3`, m.Evidence},
 		} {
 			if _, err := tx.Exec(ctx, q.sql, nonNil(q.ids), m.Merge, m.Keep); err != nil {
-				return err
+				return "", err
 			}
 		}
 		now := s.now()
 		if _, err := tx.Exec(ctx, `UPDATE entities SET aliases = ARRAY(SELECT a FROM unnest(aliases) a WHERE NOT a = ANY($2)),
 			summary = CASE WHEN $3 THEN '' ELSE summary END, properties = properties - $4::text[], updated_ms = $5 WHERE id = $1`,
 			m.Keep, nonNil(m.Aliases), m.Summary, nonNil(m.Properties), now); err != nil {
-			return err
+			return "", err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE entities SET status = 'current', merged_into = NULL, updated_ms = $2 WHERE id = $1`, m.Merge, now); err != nil {
-			return err
+			return "", err
 		}
 		for _, e := range []string{m.Keep, m.Merge} {
 			if err := s.refreshEntity(ctx, tx, e); err != nil {
-				return err
+				return "", err
 			}
 		}
-		id, _, err := s.change(ctx, tx, m.Merge, "unmerge", w, owners, nil, nil, nil, map[string]any{"merge_change": change})
-		if err != nil {
-			return err
-		}
-		out, err = scanChange(tx.QueryRow(ctx, `SELECT `+changeCols+` FROM changes h WHERE id = $1`, id))
-		return err
-	})
-	return out, notFound(err)
+		id, _, err := s.changeUndoing(ctx, tx, m.Merge, "unmerge", w, owners, reason, nil, nil, map[string]any{"merge_change": change}, change)
+		return id, err
+	}
 }

@@ -73,6 +73,14 @@ type Config struct {
 		MaxSteps int    `json:"max_steps"`
 	} `json:"apprentice"`
 	Sandbox struct {
+		// AllowHostNetwork lets a sandbox use the network of the runner
+		// machine when there is no egress proxy route for it (Magi has no
+		// proxy for runners, or the sandbox kind, such as sandbox-exec,
+		// cannot isolate the network). The default is false: the step
+		// fails and nothing starts. Set it only for a runner that you
+		// trust with direct network access.
+		AllowHostNetwork bool `json:"allow_host_network"`
+
 		ReadOnly []string          `json:"read_only"`
 		Shared   []string          `json:"shared"`
 		Env      map[string]string `json:"env"`

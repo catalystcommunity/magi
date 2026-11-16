@@ -3,7 +3,9 @@ package runner
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
@@ -33,30 +35,56 @@ func (r *Runner) accessFile(id string) string {
 	return filepath.Join(r.Boxes.Dir(id), "egress-access.json")
 }
 
+// ErrNoEgressRoute is returned when a sandbox would have no way out except
+// the network of the runner machine. The runner fails closed: it does not
+// start the sandbox, unless the runner configuration sets
+// sandbox.allow_host_network (an explicit, per-runner decision).
+var ErrNoEgressRoute = errors.New("no egress proxy route for the sandbox")
+
 // egressProxy asks Magi how the sandbox of the step reaches the egress
-// proxy. nil means that the sandbox uses the host network: Magi has no
-// egress proxy for runners, or this sandbox kind cannot isolate the
-// network.
+// proxy. A nil proxy with a nil error means that the sandbox uses the host
+// network, and that happens only when the runner configuration allows it
+// (Requirement 6.3: no route around the proxy). Otherwise a missing proxy
+// is an error and the step fails.
 func (r *Runner) egressProxy(ctx context.Context, st magiapi.RunnerStep) (*magiapi.RunnerEgressProxy, error) {
 	res, err := r.Magi.EgressAccess(ctx, st)
-	if rpc.CodeOf(err) == 404 {
-		r.Log.Warn("Magi has no egress-access operation (an older release); the sandbox uses the host network")
+	return egressRoute(res, err, r.Boxes.CanProxy(), r.Cfg.Sandbox.AllowHostNetwork, r.Log)
+}
+
+// egressRoute decides the route from the answer of Magi. It is separate
+// from egressProxy so that each case can be tested.
+func egressRoute(res magiapi.RunnerEgressAccessResponse, err error, canProxy, allowHost bool, log *slog.Logger) (*magiapi.RunnerEgressProxy, error) {
+	hostNet := func(why string) (*magiapi.RunnerEgressProxy, error) {
+		if !allowHost {
+			return nil, fmt.Errorf("%w: %s (set sandbox.allow_host_network in the runner configuration to use the network of the runner machine)", ErrNoEgressRoute, why)
+		}
+		log.Warn("sandbox.allow_host_network is set: the sandbox uses the host network, with no egress proxy", "reason", why)
 		return nil, nil
+	}
+	if rpc.CodeOf(err) == 404 {
+		return hostNet("Magi has no egress-access operation (an older release)")
 	}
 	if err != nil {
 		return nil, fmt.Errorf("egress access: %w", err)
 	}
 	if res.Proxy == nil {
-		return nil, nil
+		return hostNet("Magi has no egress proxy for runners")
 	}
-	if !r.Boxes.CanProxy() {
-		r.Log.Warn("this sandbox kind shares the host network; the egress proxy is not used")
-		return nil, nil
+	if !canProxy {
+		return hostNet("this sandbox kind shares the host network and cannot use the egress proxy")
 	}
 	return res.Proxy, nil
 }
 
 // startBox starts the sandbox of env, with the egress proxy when p is set.
+//
+// What the sandbox holds (Requirement 4.2): no real secret. It holds the
+// proxy credential (it only lets a command use the egress proxy, which
+// applies the rules) and nothing else. The placeholder variables of the
+// rules (GH_TOKEN) are NOT in the environment: a script of the repository or
+// the apprentice would otherwise make requests that the proxy fills with the
+// real token. They are kept in the access file and only the step that needs
+// one (pr-merge) sets it for its own script.
 func (r *Runner) startBox(env, token string, p *magiapi.RunnerEgressProxy) error {
 	if p == nil {
 		return r.Boxes.Start(env, token, r.sandboxEnv(), nil)
@@ -65,7 +93,7 @@ func (r *Runner) startBox(env, token string, p *magiapi.RunnerEgressProxy) error
 	if p.SshKnownHosts != nil {
 		sp.SSHKnownHosts = []byte(*p.SshKnownHosts + "\n")
 	}
-	if err := r.Boxes.Start(env, token, r.proxyEnv(p.Environment, p.Credential, p.Env), sp); err != nil {
+	if err := r.Boxes.Start(env, token, r.proxyEnv(p.Environment, p.Credential, nil), sp); err != nil {
 		return err
 	}
 	b, _ := json.Marshal(egressAccess{Environment: p.Environment, Credential: p.Credential, Env: p.Env})
@@ -104,7 +132,7 @@ func (r *Runner) resumeBox(id string) error {
 	if err := r.serveProxy(id); err != nil {
 		return err
 	}
-	return r.Boxes.Resume(id, r.proxyEnv(a.Environment, a.Credential, a.Env))
+	return r.Boxes.Resume(id, r.proxyEnv(a.Environment, a.Credential, nil))
 }
 
 // serveProxy serves the proxy socket of an environment until removeBox.

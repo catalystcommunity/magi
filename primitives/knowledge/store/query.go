@@ -299,7 +299,16 @@ func (s *Store) Timeline(ctx context.Context, w Who, entity string, from, to uin
 // History gives the changes of a record. The caller must own it.
 func (s *Store) History(ctx context.Context, w Who, id string) ([]api.Change, error) {
 	args := []any{id}
-	return collect(ctx, s.DB, scanChange, `SELECT `+changeCols+` FROM changes h WHERE h.record = $1 AND `+access(w, "h", true, &args)+` ORDER BY h.at_ms, h.id`, args...)
+	return collect(ctx, s.DB, scanChange, `SELECT `+changeCols+` FROM changes h WHERE h.record = $1 AND `+access(w, "h", true, &args)+
+		` ORDER BY h.at_ms, h.seq NULLS FIRST, h.id`, args...)
+}
+
+// Audit gives the audit log of w: the changes of all the records that w
+// owns, newest first, from since (a time in ms) on, at most limit.
+func (s *Store) Audit(ctx context.Context, w Who, since uint64, limit int) ([]api.Change, error) {
+	args := []any{since}
+	return collect(ctx, s.DB, scanChange, `SELECT `+changeCols+` FROM changes h WHERE h.at_ms >= $1 AND `+access(w, "h", true, &args)+
+		fmt.Sprintf(` ORDER BY h.at_ms DESC, h.seq DESC NULLS LAST, h.id DESC LIMIT %d`, limit), args...)
 }
 
 // Get gives one visible record of any type.

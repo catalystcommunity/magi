@@ -1,6 +1,7 @@
 package linkkeys
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -44,7 +45,7 @@ func LoadRuntime(path string) (Runtime, error) {
 		return r, errors.New("linkkeys runtime: api_key is required")
 	}
 	for _, f := range r.Fingerprints {
-		if len(f) != 64 {
+		if _, err := hex.DecodeString(f); err != nil || len(f) != 64 {
 			return r, errors.New("linkkeys runtime: a fingerprint is not 64 hex characters")
 		}
 	}

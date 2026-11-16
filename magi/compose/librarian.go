@@ -116,7 +116,11 @@ func (s *System) Librarian(ctx context.Context) {
 		for _, u := range res.Utterances {
 			start := time.Now()
 			served, err := s.classify(sctx, u)
-			if err != nil {
+			if isLimit(err) {
+				// Over the limit of this person: skip the utterance, so it
+				// does not hold back the utterances of other people.
+				s.Log.Warn("librarian skipped an utterance over the model limit", "utterance", u.Id, "err", err)
+			} else if err != nil {
 				// The claim ends after its lease and the utterance is tried
 				// again; a busy local model gets time to become free.
 				s.Log.Warn("librarian", "utterance", u.Id, "err", err)
@@ -182,6 +186,9 @@ func (s *System) classify(ctx context.Context, u conversationapi.Utterance) (str
 	msgs := librarianMessages(librarianInput{persona: persona.Name, sharing: persona.Sharing, person: st.Person,
 		prev: recent, older: older, existing: existing.String(), examples: s.examplesText(ctx, as), msg: u}, time.Now())
 	var m model.Message
+	if err := s.allowModel(st.Person); err != nil {
+		return "", err
+	}
 	if sc, ok := s.LibrarianModel.(model.SchemaChatter); ok {
 		ids := make([]string, 0, len(known))
 		for id := range known {
@@ -200,13 +207,16 @@ func (s *System) classify(ctx context.Context, u conversationapi.Utterance) (str
 		return m.Served, fmt.Errorf("librarian answer is not JSON: %w", err)
 	}
 
+	// The model's confidence is not a control: the cap depends on the action
+	// and on the author of the message (taint.go).
+	own := ownText(u, st)
 	for _, l := range ans.Links {
 		t, ok := known[l.To]
 		if !ok || exists[l.Kind+" "+l.To] || l.Confidence <= 0 || !slices.Contains(linkKinds, strings.ToLower(strings.TrimSpace(l.Kind))) {
 			continue
 		}
 		nl := conversationapi.NewLink{Target: conversationapi.Ref{Kind: "utterance", Ref: t.Id}, Kind: strings.ToLower(strings.TrimSpace(l.Kind)),
-			Confidence: ptr(min(l.Confidence, 1)), Note: optional(l.Why)}
+			Confidence: ptr(capLink(l.Kind, min(l.Confidence, 1), own)), Note: optional(l.Why)}
 		if part := strings.TrimSpace(l.Part); part != "" && part != strings.TrimSpace(u.Text) {
 			if i := strings.Index(u.Text, part); i >= 0 {
 				nl.Span = &conversationapi.Span{Start: uint64(len([]rune(u.Text[:i]))), End: uint64(len([]rune(u.Text[:i+len(part)])))}
@@ -225,7 +235,7 @@ func (s *System) classify(ctx context.Context, u conversationapi.Utterance) (str
 		!(persona.Sharing == "private" && ans.Visibility == "private") && u.VisibilityBy == "" {
 		q := fmt.Sprintf("Can the household read this message? I think %s: %s", ans.Visibility, ans.VisibilityWhy)
 		if _, err := s.Conversation.SetVisibility(ctx, conversationapi.SetVisibilityRequest{Utterance: u.Id, Visibility: ans.Visibility,
-			Confidence: ptr(min(ans.VisibilityConfidence, 1)), Question: &q, Note: optional(ans.VisibilityWhy)}); err != nil {
+			Confidence: ptr(capVisibility(ans.Visibility, persona.Sharing, min(ans.VisibilityConfidence, 1), own)), Question: &q, Note: optional(ans.VisibilityWhy)}); err != nil {
 			s.Log.Warn("librarian visibility", "utterance", u.Id, "err", err)
 		}
 	}

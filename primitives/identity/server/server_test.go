@@ -506,3 +506,38 @@ func TestMachineRenewal(t *testing.T) {
 		t.Fatalf("service refresh err = %v", err)
 	}
 }
+
+// stop-machine applies to a runner: subject the same way as to an inference
+// host: no current token renews, and a token minted later does. Its scope
+// stays the one it was minted with.
+func TestRunnerStopMachine(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	tok := e.keys.Token(t, "runner:laptop", "magi:runner")
+	nt, err := e.client(tok).Refresh(ctx, api.RefreshRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	who, err := e.client(nt.Token).WhoAmI(ctx, api.WhoAmIRequest{})
+	if err != nil || who.Subject != "runner:laptop" || len(who.Scopes) != 1 || who.Scopes[0] != "magi:runner" {
+		t.Fatalf("renewed = %+v, %v", who, err)
+	}
+	if left := time.Until(time.UnixMilli(int64(nt.ExpiresMs))); left > server.MachineTokenTTL+time.Minute {
+		t.Fatalf("renewed ttl %v is over the machine limit", left)
+	}
+	e.offset.Store(2000)
+	if err := e.svc.DB.StopMachine(ctx, "runner:laptop", e.svc.Now().UnixMilli()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.client(nt.Token).Refresh(ctx, api.RefreshRequest{}); rpc.CodeOf(err) != 403 {
+		t.Fatalf("stopped runner renewal err = %v", err)
+	}
+	// Another runner is not affected.
+	if _, err := e.client(e.keys.Token(t, "runner:other", "magi:runner")).Refresh(ctx, api.RefreshRequest{}); err != nil {
+		t.Fatalf("other runner: %v", err)
+	}
+	// A fleet token is not a machine: it cannot renew at all.
+	if _, err := e.client(e.keys.Token(t, "service:fleet-ops", "magi:operate")).Refresh(ctx, api.RefreshRequest{}); rpc.CodeOf(err) != 403 {
+		t.Fatalf("fleet token refresh err = %v", err)
+	}
+}

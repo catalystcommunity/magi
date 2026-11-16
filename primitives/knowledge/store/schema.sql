@@ -1,6 +1,8 @@
 -- The knowledge store (docs/knowledge.md). owners and readers are sorted
 -- lists of subjects and groups. status is "current", "ended" (claims),
 -- "merged" (entities), or "retracted". search_text is kept by the store.
+-- trust says where an entity or a claim came from (person, named, own,
+-- untrusted); see the end of this file and docs/knowledge.md, "Trust".
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 CREATE TABLE IF NOT EXISTS entities (
@@ -156,3 +158,43 @@ CREATE TABLE IF NOT EXISTS groups (
   updated_ms bigint NOT NULL
 );
 CREATE INDEX IF NOT EXISTS groups_members ON groups USING gin (members);
+
+-- Trust (risk-remediation 2.4, requirement 8). Where a record came from:
+--   person     the person said it or promoted it
+--   named      a configured source
+--   own        Magi wrote it from the person's own inputs
+--   untrusted  text of others, the web, or a task (stored apart: partial
+--              indexes below, labeled and quoted when shown, never an
+--              instruction; only the person promotes it)
+-- Records that exist before this column get 'own': Magi wrote them for the
+-- person, with no record of a source. ADD COLUMN IF NOT EXISTS makes this
+-- safe to run at each start, and it keeps existing rows (a constant default
+-- does not rewrite the table).
+ALTER TABLE entities ADD COLUMN IF NOT EXISTS trust text NOT NULL DEFAULT 'own' CHECK (trust IN ('person', 'named', 'own', 'untrusted'));
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS trust text NOT NULL DEFAULT 'own' CHECK (trust IN ('person', 'named', 'own', 'untrusted'));
+CREATE INDEX IF NOT EXISTS entities_untrusted ON entities USING gin (owners) WHERE trust = 'untrusted';
+CREATE INDEX IF NOT EXISTS claims_untrusted ON claims USING gin (owners) WHERE trust = 'untrusted';
+
+-- Audit log and undo (risk-remediation 3.3, requirement 9). The changes
+-- table above is the audit log: one row for each change of a record. These
+-- columns say more of who and how, and tie an undo to the change it undid.
+-- All are nullable and additive: old rows keep NULL (no caller recorded, no
+-- trust label), ADD COLUMN IF NOT EXISTS does not rewrite the table, and the
+-- statements are safe to run at each start.
+--   via      the subject of the caller when it is not the actor
+--            (service:magi, which acts for the person in actor)
+--   trust    the trust of the entity or claim after the change
+--   origin   JSON from the caller: for Magi the persona, tool, turn, run,
+--            and whether the person confirmed it
+--   undoes   the id of the change that this change undid
+--   seq      the order of changes (the same millisecond is not an order);
+--            rows from before this column have none and sort first
+ALTER TABLE changes ADD COLUMN IF NOT EXISTS via text;
+ALTER TABLE changes ADD COLUMN IF NOT EXISTS trust text;
+ALTER TABLE changes ADD COLUMN IF NOT EXISTS origin text;
+ALTER TABLE changes ADD COLUMN IF NOT EXISTS undoes text;
+ALTER TABLE changes ADD COLUMN IF NOT EXISTS seq bigint;
+CREATE SEQUENCE IF NOT EXISTS changes_seq;
+ALTER TABLE changes ALTER COLUMN seq SET DEFAULT nextval('changes_seq');
+CREATE INDEX IF NOT EXISTS changes_undoes ON changes (undoes) WHERE undoes IS NOT NULL;
+CREATE INDEX IF NOT EXISTS changes_owners ON changes USING gin (owners);

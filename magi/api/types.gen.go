@@ -547,6 +547,7 @@ type KnowledgeFact struct {
 	Stale       bool    `json:"stale" yaml:"stale"`
 	Mine        bool    `json:"mine" yaml:"mine"`
 	Disputed    bool    `json:"disputed" yaml:"disputed"`
+	Trust       *string `json:"trust,omitempty" yaml:"trust,omitempty"`
 }
 
 // KnowledgeItem represents a structured data type
@@ -561,6 +562,7 @@ type KnowledgeItem struct {
 	Locator    *string           `json:"locator,omitempty" yaml:"locator,omitempty"`
 	Facts      []KnowledgeFact   `json:"facts" yaml:"facts"`
 	Mine       bool              `json:"mine" yaml:"mine"`
+	Trust      *string           `json:"trust,omitempty" yaml:"trust,omitempty"`
 }
 
 // KnowledgeRecord represents a structured data type
@@ -626,6 +628,11 @@ type KnowledgeChange struct {
 	Before    *string `json:"before,omitempty" yaml:"before,omitempty"`
 	After     *string `json:"after,omitempty" yaml:"after,omitempty"`
 	AtMs      uint64  `json:"at_ms" yaml:"at_ms"`
+	Via       *string `json:"via,omitempty" yaml:"via,omitempty"`
+	Trust     *string `json:"trust,omitempty" yaml:"trust,omitempty"`
+	Origin    *string `json:"origin,omitempty" yaml:"origin,omitempty"`
+	Undoes    *string `json:"undoes,omitempty" yaml:"undoes,omitempty"`
+	UndoneBy  *string `json:"undone_by,omitempty" yaml:"undone_by,omitempty"`
 }
 
 // ChangeKnowledgeResponse represents a structured data type
@@ -648,7 +655,9 @@ type UnmergeKnowledgeRequest struct {
 
 // KnowledgeHistoryRequest represents a structured data type
 type KnowledgeHistoryRequest struct {
-	Id string `json:"id" yaml:"id"`
+	Id      string  `json:"id" yaml:"id"`
+	SinceMs *uint64 `json:"since_ms,omitempty" yaml:"since_ms,omitempty"`
+	Limit   *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
 }
 
 // KnowledgeHistoryResponse represents a structured data type

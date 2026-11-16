@@ -50,6 +50,11 @@ type Who struct {
 	Subject    string
 	Principals []string
 	All        bool
+	// Via is the subject of the caller when it acts for Subject, and Origin
+	// is JSON text that the caller gives for the audit log. Both go into
+	// the changes that the call makes.
+	Via    string
+	Origin *string
 }
 
 type querier interface {
@@ -211,18 +216,33 @@ func jsonText(v any) *string {
 
 func sortedKeys(m map[string]string) []string { return slices.Sorted(maps.Keys(m)) }
 
-// change writes one row of the history.
+// change writes one row of the history (the audit log).
 func (s *Store) change(ctx context.Context, tx querier, record, op string, w Who, owners []string, reason, utterance *string, before, after any) (string, uint64, error) {
+	return s.changeUndoing(ctx, tx, record, op, w, owners, reason, utterance, before, after, "")
+}
+
+// changeUndoing writes one row of the history. undoes is the id of the
+// change that this one undoes. The trust label is the trust that the record
+// has now, so call it after the record is changed.
+func (s *Store) changeUndoing(ctx context.Context, tx querier, record, op string, w Who, owners []string, reason, utterance *string, before, after any, undoes string) (string, uint64, error) {
 	id, at := NewID("chg_"), s.now()
-	var b, a *string
+	var b, a, via, und *string
 	if before != nil {
 		b = jsonText(before)
 	}
 	if after != nil {
 		a = jsonText(after)
 	}
-	_, err := tx.Exec(ctx, `INSERT INTO changes (id, record, operation, actor, reason, before, after, utterance, owners, at_ms)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`, id, record, op, w.Subject, reason, b, a, utterance, owners, at)
+	if w.Via != "" && w.Via != w.Subject {
+		via = &w.Via
+	}
+	if undoes != "" {
+		und = &undoes
+	}
+	_, err := tx.Exec(ctx, `INSERT INTO changes (id, record, operation, actor, reason, before, after, utterance, owners, at_ms, via, origin, undoes, trust)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
+		  COALESCE((SELECT trust FROM entities WHERE id = $2), (SELECT trust FROM claims WHERE id = $2)))`,
+		id, record, op, w.Subject, reason, b, a, utterance, owners, at, via, w.Origin, und)
 	return id, at, err
 }
 

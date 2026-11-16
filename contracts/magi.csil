@@ -397,6 +397,8 @@ KnowledgeFact = {
   stale: bool,
   mine: bool,
   disputed: bool,
+  ;;; person, named, own, or untrusted (docs/knowledge.md, "Trust"). Absent: shown as unverified.
+  ? trust: text,
 }
 
 KnowledgeItem = {
@@ -410,6 +412,7 @@ KnowledgeItem = {
   ? locator: text,
   facts: [* KnowledgeFact],
   mine: bool,
+  ? trust: text,
 }
 
 ;;; An episode (a thing that occurred) or a procedure (how to do a thing).
@@ -442,8 +445,19 @@ RememberResponse = { recorded: bool, ? note: text, item: KnowledgeItem }
 ;;; only), or "retract" (it was never true, or forget it). field and value
 ;;; give the new value: for a fact, field "value" (default) or "object" (a
 ;;; name) or "relation"; for an entity, "label" (default), "summary", or
-;;; "kind".
+;;; "kind". "promote" moves an untrusted record to trusted (docs/knowledge.md,
+;;; "Trust"); only a person's token can do it, and field and value are not used.
+;;; "undo" restores the state before a change: id is the id of the change (from
+;;; knowledge-history), not of a record. Only a person's token can do it.
+;;; It is refused when later changes depend on it, when it was undone, when the
+;;; content was erased, and when it would raise trust. The undo is itself a
+;;; change in the audit log.
 ChangeKnowledgeRequest = { id: text, operation: text, ? field: text, ? value: text, ? reason: text, ? erase: bool }
+;;; One row of the audit log. actor is the person whose memory it is; via is
+;;; who made the call when that is another subject (service:magi); origin is
+;;; JSON with what Magi knows of the write (persona, tool, turn, run, and
+;;; confirmed: the person confirmed it); trust is the trust label of the record
+;;; after the change; undoes and undone_by link a change to its undo.
 KnowledgeChange = {
   id: text,
   record: text,
@@ -453,6 +467,11 @@ KnowledgeChange = {
   ? before: text,
   ? after: text,
   at_ms: uint,
+  ? via: text,
+  ? trust: text,
+  ? origin: text,
+  ? undoes: text,
+  ? undone_by: text,
 }
 ChangeKnowledgeResponse = { change: KnowledgeChange, ? item: KnowledgeItem }
 ;;; Merges entity merge into entity keep: the same thing under two names.
@@ -460,7 +479,9 @@ ChangeKnowledgeResponse = { change: KnowledgeChange, ? item: KnowledgeItem }
 ;;; reverts a merge by the id of its change.
 MergeKnowledgeRequest = { keep: text, merge: text, ? reason: text }
 UnmergeKnowledgeRequest = { change: text }
-KnowledgeHistoryRequest = { id: text }
+;;; The changes of a record; with an empty id, the audit log of the caller (all
+;;; changes of their memory, newest first; since_ms and limit narrow it).
+KnowledgeHistoryRequest = { id: text, ? since_ms: uint, ? limit: uint }
 KnowledgeHistoryResponse = { changes: [* KnowledgeChange] }
 
 VoiceInfo = { id: text, name: text, language: text }

@@ -60,7 +60,7 @@ specific to models.
 
 ## Changes
 
-Each change has one of three operations.
+Each change has one of three operations (and `undo`, below).
 
 | Operation | Use it when | Effect | Readers see |
 | --- | --- | --- | --- |
@@ -93,7 +93,130 @@ How the persona selects the operation:
 The history (`history`) keeps each change: the operation, the person, the
 time, the reason, the old value, and the utterance of the request. A normal
 query does not read the history. The history answers "why did you think
-that?".
+that?". It is also the audit log (next section).
+
+## Audit and undo
+
+Every change of memory and knowledge writes one row of the `changes` table
+(risk remediation 3.3, requirement 9.3). The table already existed (the
+history); the service only added columns, so there is one log, not two.
+
+| Field | Says |
+| --- | --- |
+| `actor` | The subject that the call acts as: the person, also when Magi writes for them. |
+| `via` | The caller, when it is another subject (`service:magi`). Absent when the person called. |
+| `origin` | JSON from the caller. Magi gives `persona`, `tool`, `turn` (the utterance), `run`, `by` (`api` for the API call of the person, `note-taker`), and `confirmed` (the person confirmed this exact action). |
+| `trust` | The trust label of the entity or claim after the change. |
+| `operation`, `record`, `at_ms`, `reason`, `utterance` | What, to which record, when, and why. |
+| `before`, `after` | JSON of the changed fields: enough to undo the change. |
+| `undoes`, `undone_by` | The link between an undo and the change that it undid. |
+
+Rows are written for `create` (including the claim that an `update` makes),
+`fix`, `update`, `retract`, `promote`, `merge`, `unmerge`, `edit` (an entity or
+an episode changed in place, with the old values), `visibility` (the readers
+of an entity, or the members of a group), `assert` (the same fact again, or
+new evidence), `dispute`, and `undo`. A `retract` with `erase` keeps no
+content, but its row stays.
+
+- **Read it.** `history` with a record id gives the changes of that record.
+  `history` with an empty id gives your audit log: the changes of all the
+  records that you own, newest first (`since_ms`, `limit`). In the CLI:
+  `magi history ID` and `magi history [-days N] [-n N]`. Owners read it;
+  `knowledge:admin` reads all.
+- **Undo.** `change` with operation `undo` and the id of a change restores
+  the state before that change, and writes a row of its own (`operation`
+  `undo`, `undoes` set; for a merge, the `unmerge` row). In the CLI:
+  `magi undo CHANGE [-m REASON]`. What it restores: `create` (the record is
+  retracted), `fix` (the old values, and an object entity that the fix
+  retracted), `update` (the old claim is current again with its old end, the
+  new claim is retracted), `retract` (each record with the status that it had,
+  also an ended claim), `promote` (back to the old trust), `merge`
+  (`unmerge`), `edit` and `visibility` (the old fields and readers).
+- **Who.** The person for their own records (a `user` token that does not act
+  for another subject), an admin (`knowledge:admin` on a `user` token), or a
+  service that holds `knowledge:undo` by name (`*`, `knowledge:*`, and
+  `knowledge:admin` do not give it). Magi holds the scope and calls undo only
+  in the API call of the person (`change-knowledge` with `undo`, which refuses
+  a caller that is not a `user`). A persona and a model have no undo: the tool
+  `change_knowledge` does not take it, and `changeRecord` refuses it without the
+  mark of the person.
+- **Guards.** Undo is refused when:
+  - a later change of the same record has not been undone (the answer names it:
+    undo the later changes first, newest first);
+  - records depend on the change: claims that name a created entity, claims
+    derived from a created claim, episodes that used a created procedure;
+  - the change was undone already, or is an undo or an unmerge (make the
+    change again);
+  - the change was a `retract` with `erase`, or is of a kind that has no
+    undo: `assert`, `dispute`, and the changes of groups (change the group
+    again);
+  - it would raise trust. A `fix` that lowered a record to `untrusted` stays
+    lowered; only `promote`, by the person, raises it. Undo of a `promote`
+    lowers it again. After each undo, a check compares the trust of the record
+    before and after.
+  A record that the undo brings back must have its entities: a claim does not
+  come back under an entity that is retracted.
+- **Not covered.** Evidence rows that a retract of a claim leaves in place are
+  not changed by undo. The audit rows of an erased record keep no before and
+  after. Rows from before this migration have no `via`, `trust`, or `origin`;
+  they sort first, and an old `update` row has no old end time, so undo gives
+  the claim no end time.
+- **Existing data.** The migration only adds nullable columns, a sequence
+  for the order of rows, and two indexes (`store/schema.sql`), with
+  `IF NOT EXISTS`, so it is safe to run at each start. Old rows are not
+  rewritten.
+- **Deploy.** Mint the token of the Magi service with `knowledge:undo` (and
+  `knowledge:promote`) next to `knowledge:act-as`
+  (`deploy/README.md`). Without it, undo through Magi fails with a
+  permission error.
+
+## Trust
+
+Each entity and claim has a `trust` value that says where it came from
+(requirement 8 of the risk remediation, task 2.4).
+
+| trust | Meaning |
+|---|---|
+| `person` | The person said it, or promoted it. |
+| `named` | A configured source. |
+| `own` | Magi wrote it from the person's own inputs. This is the default. |
+| `untrusted` | Text of others, of the web, or of a task. |
+
+- **Existing data.** The column is added with `ADD COLUMN IF NOT EXISTS ...
+  DEFAULT 'own'` at start-up (`store/schema.sql`). Records that exist before
+  the migration read as `own`: Magi wrote them for the person and there is no
+  record of a source. Nothing is rewritten, and the migration is safe to run
+  again. A record that an older service returns with no `trust` is shown by
+  Magi as unverified (fail closed).
+- **Where untrusted records come from.** A tool call in a turn that read
+  untrusted text is held for confirmation (`magi/compose/confirm.go`). When
+  the person confirms, the write is stored as `untrusted`: they allowed Magi to
+  keep the text, they did not vouch for it. The note taker goes through the
+  same path. The librarian writes no memory.
+- **Stored apart.** `untrusted` records have a partial index and the
+  `trust` column. A write with a lower trust never changes a record with a
+  higher trust: an untrusted write that names an existing entity changes none
+  of its fields, the same fact from an untrusted source adds no evidence to
+  a trusted claim, and an untrusted entity cannot merge into a trusted one.
+  An update keeps the trust of the claim, or lowers it.
+- **Shown quoted.** `recall` lists untrusted records in a separate section,
+  each line marked `(untrusted, unverified)` and quoted. The prompt of a turn
+  (`knowledgeContext`) leaves them out. The persona rules say that they are
+  never instructions.
+- **Promote.** `change` with operation `promote` moves an `untrusted` entity
+  or claim to `person`. The service allows it only for the person as
+  themself (a `user` token that does not act for another subject) or for a
+  service that has the scope `knowledge:promote` by name (`*`,
+  `knowledge:*`, and `knowledge:admin` do not give it). Magi holds that scope
+  and calls promote in two places: the API call of the person
+  (`change-knowledge`, which refuses a caller that is not a user), and the
+  confirmation of a pending action that shows the stored record
+  (the message `confirm <code>` of the person). A model that calls
+  `change_knowledge` with `promote` only makes a pending action. A `fix` can
+  lower trust (to `untrusted`), never raise it.
+- **Deploy.** Mint the token of the Magi service with `knowledge:promote`
+  next to `knowledge:act-as`. Without it, promote through Magi fails with
+  "only the person can promote".
 
 ## Access
 
@@ -124,7 +247,7 @@ The persona and programs use typed operations, not a query language:
 | `about` | One entity: its claims in the two directions, its recent episodes, the procedures about it, and open disputes. |
 | `neighbors` | The entities that are at most `depth` claims from an entity (a recursive query in PostgreSQL). |
 | `timeline` | Episodes, claims, and changes in a period. |
-| `history` | The changes of one record. Owners only. |
+| `history` | The changes of one record, or with no id the audit log of the caller. Owners only. |
 
 Claims are current by default. `at_ms` gives the claims that were true at a
 time. `include_ended` also gives ended claims.

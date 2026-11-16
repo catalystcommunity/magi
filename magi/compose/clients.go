@@ -53,6 +53,13 @@ type Config struct {
 	// Publisher names the runner that pushes merged changes upstream. ""
 	// uses a connected runner that publishes the repository.
 	Publisher string
+	// PublishRunners are the runners that an operator approved for publish
+	// steps (MAGI_PUBLISH_RUNNERS, comma separated names). Magi sends
+	// publish steps only to these runners and accepts publish results only
+	// from them. Empty means no runner publishes. A runner cannot approve
+	// itself: its own "publish" setting only limits it further. See
+	// publishgate.go and docs/runner-trust.md.
+	PublishRunners []string
 	// Admins are user subjects that can make operator calls.
 	Admins []string
 	// LexiconEditors are user subjects that can change the household
@@ -95,6 +102,8 @@ type Config struct {
 	// MAGI_EGRESS_SSH_PUB for the SSH host key of the proxy); nil
 	// lets them use the network of the runner machine.
 	EgressProxy *EgressProxy
+	// Limits are the per-user rate limits and quotas (limits.go, MAGI_LIMIT_*).
+	Limits Limits
 }
 
 func env(name, def string) string {
@@ -138,6 +147,10 @@ func ConfigFromEnv() (Config, error) {
 			c.NoteGate = f
 		}
 	}
+	var err error
+	if c.Limits, err = limitsFromEnv(); err != nil {
+		return c, err
+	}
 	c.PersonaWorkers = 4
 	if n, err := strconv.Atoi(os.Getenv("MAGI_PERSONA_WORKERS")); err == nil && n > 0 {
 		c.PersonaWorkers = n
@@ -150,6 +163,9 @@ func ConfigFromEnv() (Config, error) {
 		c.TimeZone = loc
 	}
 	c.Admins = list(os.Getenv("MAGI_ADMINS"))
+	if c.PublishRunners, err = publishRunnersFromEnv(os.Getenv("MAGI_PUBLISH_RUNNERS")); err != nil {
+		return c, err
+	}
 	c.LexiconEditors = list(os.Getenv("MAGI_LEXICON_EDITORS"))
 	c.Release = os.Getenv("MAGI_RELEASE_URL")
 	c.Models = os.Getenv("MAGI_MODELS_URL")
@@ -268,6 +284,13 @@ type System struct {
 	// Terminals holds the terminal sessions that wait for a runner
 	// (terminal.go).
 	Terminals *Terminals
+	// confirms holds the actions that wait for the person (confirm.go).
+	confirms confirmStore
+	// limits counts model calls and tasks per user (limits.go).
+	limits *limiter
+	// runnerOwner is the owner of the run that each runner claimed last
+	// (runnerowner.go), for the runner model proxy.
+	runnerOwner runnerOwners
 }
 
 // New creates clients. Each call uses the token in its context (see
@@ -305,6 +328,7 @@ func New(cfg Config, m model.Chatter, log *slog.Logger) *System {
 	}
 	sys.egressReviews = &egressReviews{reported: map[string]time.Time{}}
 	sys.Terminals = NewTerminals()
+	sys.limits = newLimiter(log)
 	return sys
 }
 

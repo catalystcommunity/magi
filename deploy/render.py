@@ -214,7 +214,22 @@ def base(v):
     out = []
     for f in [here / "base/postgres.yaml", here / "registry/registry.yaml"]:
         lines = []
+        skip = False
         for line in f.read_text().splitlines():
+            # "# backup:begin" ... "# backup:end" stays only with BACKUP_DESTINATION_PATH.
+            if line.strip().startswith("# backup:begin"):
+                skip = not v.get("BACKUP_DESTINATION_PATH")
+                continue
+            if line.strip().startswith("# backup:end"):
+                skip = False
+                continue
+            if skip:
+                continue
+            line = (line.replace("${BACKUP_DESTINATION_PATH}", v.get("BACKUP_DESTINATION_PATH", ""))
+                        .replace("${BACKUP_ENDPOINT_URL}", v.get("BACKUP_ENDPOINT_URL", ""))
+                        .replace("${BACKUP_RETENTION}", v.get("BACKUP_RETENTION") or "30d"))
+            if "endpointURL: " in line and line.rstrip().endswith("endpointURL:"):
+                continue
             if "${STORAGE_CLASS}" in line and not v.get("STORAGE_CLASS"):
                 continue
             lines.append(line.replace("${STORAGE_CLASS}", v.get("STORAGE_CLASS", "")).replace("${NAMESPACE}", v["NAMESPACE"]))
@@ -391,6 +406,9 @@ def render(img, v):
         # lexicon; empty means ADMINS.
         {"name": "MAGI_RUNNER", "value": v.get("RUNNER", "")},
         {"name": "MAGI_PUBLISHER", "value": v.get("PUBLISHER", "")},
+        # PUBLISH_RUNNERS: runners that an operator approves for publish
+        # steps and release builds (docs/runner-trust.md). Empty: none.
+        {"name": "MAGI_PUBLISH_RUNNERS", "value": v.get("PUBLISH_RUNNERS", "")},
         {"name": "MAGI_ADMINS", "value": v.get("ADMINS", "")},
         {"name": "MAGI_LEXICON_EDITORS", "value": v.get("LEXICON_EDITORS", "")},
         # TIME_ZONE: the time zone of the household (IANA name), for the

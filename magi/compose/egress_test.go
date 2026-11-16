@@ -33,7 +33,7 @@ import (
 const egressRulesJSON = `{
   "secrets": [
     {"placeholder": "magi-secret-gh-a", "secret": "gh-a", "hosts": ["api.example.local"], "path": "^/repos/", "place": "header:authorization", "owners": ["user:a@example.local"]},
-    {"placeholder": "magi-secret-pypi", "secret": "pypi", "hosts": ["*.pypi.example.local"], "place": "header:authorization"}
+    {"placeholder": "magi-secret-pypi", "secret": "pypi", "hosts": ["files.pypi.example.local"], "place": "header:authorization"}
   ],
   "rules": [
     {"hosts": ["api.example.local"], "methods": ["GET"], "verdict": "pass", "reason": "reads are fine"},
@@ -88,6 +88,11 @@ func TestEgressRules(t *testing.T) {
 		`{"rules": [{"hosts": ["a"], "verdict": "pass", "path": "("}]}`,
 		`{"secrets": [{"placeholder": "gh", "secret": "gh", "hosts": ["a"], "place": "any"}]}`,
 		`{"unknown": 1}`,
+		// Exact destinations only: no wildcard in a pass rule or a secret rule.
+		`{"rules": [{"hosts": ["*"], "verdict": "pass"}]}`,
+		`{"rules": [{"hosts": ["api.example.local", "*.example.local"], "verdict": "pass"}]}`,
+		`{"secrets": [{"placeholder": "magi-secret-x", "secret": "x", "hosts": ["*.example.local"], "place": "header:authorization"}]}`,
+		`{"secrets": [{"placeholder": "magi-secret-x", "secret": "x", "hosts": ["*"], "place": "header:authorization"}]}`,
 	} {
 		if _, err := LoadEgressRules(rulesFile(t, bad)); err == nil {
 			t.Errorf("%s: no error", bad)

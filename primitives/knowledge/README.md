@@ -37,7 +37,7 @@ Contract: `contracts/knowledge.csil`, service `KnowledgeService`.
 | `about` | One entity, its claims in the two directions, the entities that they name, its episodes and procedures, the evidence, and the open disputes. |
 | `neighbors` | The entities at most `depth` (maximum 3) claims from an entity. |
 | `timeline` | Episodes, claims, and changes in a period. |
-| `history` | The changes of one record. Owners only. |
+| `history` | The changes of one record, oldest first. With an empty id: the audit log of the caller, newest first (`since_ms`, `limit`). Owners only. |
 | `get` | One record of any type. |
 
 ### Changes
@@ -47,6 +47,7 @@ Contract: `contracts/knowledge.csil`, service `KnowledgeService`.
 | `fix` | all | Changes the fields in `set` in place. The history keeps the old values. When a fix changes the object of a claim, the old object entity is retracted too if nothing else uses it (same owners, no external reference, no summary, no other claim, episode, procedure, or merged entity). The change names it in `after.removed`. |
 | `update` | claims | Ends the claim (`valid_to_ms`, status `ended`, `replaced_by`) and makes the claim that replaces it. |
 | `retract` | all | Removes the record from all queries. An entity takes its claims with it. With `erase`, the rows are deleted and the history keeps no content. |
+| `undo` | a change id | Restores the state before that change and writes an `undo` row (`docs/knowledge.md`, "Audit and undo"). Only the person, an admin, or a service with `knowledge:undo`. Refused when later changes depend on it, when it would raise trust, or when the content was erased. |
 
 A change of a claim marks the claims that have it in `derived_from` as
 `stale`. A claim with no supporting evidence and no `authored_by` has

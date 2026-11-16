@@ -51,6 +51,12 @@ func (s *System) release(ctx context.Context, a workflowapi.Assignment, note fun
 	}
 	var body []byte
 	if a.Vars["runner"] != "" {
+		if a.Vars["build.binary"] != "" && !s.publishApproved(a.Vars["runner"]) {
+			// Defense in depth: PutArtifact and Complete already refuse this build.
+			_ = s.refusePublish(a.Vars["runner"], "release build")
+			s.report(ctx, a, "normal", "Release refused", "The runner that built this change is not approved to publish, so I did not release its build.")
+			return Result{Outcome: "fail"}, nil
+		}
 		// The runner built magi-server from the merged change and uploaded it.
 		d := a.Vars["build.binary"]
 		if d == "" {

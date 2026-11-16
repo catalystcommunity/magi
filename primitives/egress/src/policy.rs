@@ -162,6 +162,27 @@ impl Policy {
                 anyhow::bail!("ssh host {:?}: an exact host, host_keys, and secret are necessary", s.host);
             }
         }
+        // A secret goes only to exact hosts. A wildcard would give it to
+        // every name that matches.
+        for s in &self.secrets {
+            if let Some(h) = s.hosts.iter().find(|h| h.contains('*')) {
+                anyhow::bail!("secret {:?}: host {h:?}: exact host names are necessary, not a wildcard", s.id);
+            }
+        }
+        // Layer 4 destinations are not inspected: exact hosts only.
+        for d in &self.passthrough {
+            if d.host.contains('*') {
+                anyhow::bail!("passthrough {:?}: an exact host is necessary, not a wildcard", d.host);
+            }
+        }
+        // A destination for all hosts ("*") must be limited to named
+        // environments (for example svc_search, which reads pages that a
+        // person chose). Magi checks those addresses itself.
+        for d in &self.destinations {
+            if d.host == "*" && (d.environments.is_empty() || d.environments.iter().any(|e| e == "*")) {
+                anyhow::bail!("destination \"*\" needs environments: it would let every environment reach every host");
+            }
+        }
         if self.plugins.iter().map(|g| &g.name).collect::<std::collections::HashSet<_>>().len() != self.plugins.len() {
             anyhow::bail!("plugin names must be unique");
         }
@@ -280,5 +301,29 @@ mod tests {
         assert_eq!(p.depth_for("files.example.local"), 3);
         assert_eq!(p.depth_for("api.example.local"), 2);
         assert!(serde_json::from_str::<Policy>(r#"{"destination":[]}"#).is_err());
+    }
+
+    fn check(json: &str) -> anyhow::Result<()> {
+        serde_json::from_str::<Policy>(json).unwrap().validate()
+    }
+
+    #[test]
+    fn exact_destinations_are_enforced() {
+        // Allowed: exact hosts, a suffix destination, "*" limited to environments.
+        assert!(check(r#"{"destinations":[{"host":"api.example.local"},{"host":"*.example.local"},{"host":"*","environments":["svc_search"]}],
+                "secrets":[{"id":"gh","hosts":["api.example.local"]}],"passthrough":[{"host":"git.example.local","ports":[22]}]}"#)
+        .is_ok());
+        // "*" for all environments.
+        assert!(check(r#"{"destinations":[{"host":"*"}]}"#).is_err());
+        // A secret for a wildcard host, in any form.
+        assert!(check(r#"{"secrets":[{"id":"gh","hosts":["*"]}]}"#).is_err());
+        assert!(check(r#"{"secrets":[{"id":"gh","hosts":["api.example.local","*.example.local"]}]}"#).is_err());
+        // A wildcard layer 4 destination.
+        assert!(check(r#"{"passthrough":[{"host":"*.example.local"}]}"#).is_err());
+        // The matcher itself does not widen: a name that only ends with the
+        // host, or that holds it as a prefix label, does not match.
+        assert!(!host_match("api.example.local", "evilapi.example.local"));
+        assert!(!host_match("api.example.local", "api.example.local.evil.test"));
+        assert!(!host_match("*.example.local", "example.local.evil.test"));
     }
 }

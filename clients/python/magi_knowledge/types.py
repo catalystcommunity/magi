@@ -83,6 +83,7 @@ class Entity:
     updated_ms: int
     external: Optional[ExternalRef] = None
     merged_into: Optional[str] = None
+    trust: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -112,12 +113,14 @@ class Entity:
             result['created_ms'] = self.created_ms
         if hasattr(self, 'updated_ms') and self.updated_ms is not None:
             result['updated_ms'] = self.updated_ms
+        if hasattr(self, 'trust') and self.trust is not None:
+            result['trust'] = self.trust
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Entity':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), kind=data.get('kind'), label=data.get('label'), aliases=data.get('aliases'), summary=data.get('summary'), properties=data.get('properties'), external=data.get('external'), owners=data.get('owners'), readers=data.get('readers'), confidence=data.get('confidence'), merged_into=data.get('merged_into'), created_ms=data.get('created_ms'), updated_ms=data.get('updated_ms'))
+        return cls(id=data.get('id'), kind=data.get('kind'), label=data.get('label'), aliases=data.get('aliases'), summary=data.get('summary'), properties=data.get('properties'), external=data.get('external'), owners=data.get('owners'), readers=data.get('readers'), confidence=data.get('confidence'), merged_into=data.get('merged_into'), created_ms=data.get('created_ms'), updated_ms=data.get('updated_ms'), trust=data.get('trust'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -149,6 +152,7 @@ class Claim:
     valid_to_ms: Optional[int] = None
     replaced_by: Optional[str] = None
     authored_by: Optional[str] = None
+    trust: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -188,12 +192,14 @@ class Claim:
             result['created_ms'] = self.created_ms
         if hasattr(self, 'updated_ms') and self.updated_ms is not None:
             result['updated_ms'] = self.updated_ms
+        if hasattr(self, 'trust') and self.trust is not None:
+            result['trust'] = self.trust
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Claim':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), subject=data.get('subject'), relation=data.get('relation'), object=data.get('object'), value=data.get('value'), valid_from_ms=data.get('valid_from_ms'), valid_to_ms=data.get('valid_to_ms'), status=data.get('status'), replaced_by=data.get('replaced_by'), confidence=data.get('confidence'), authored_by=data.get('authored_by'), derived_from=data.get('derived_from'), stale=data.get('stale'), supported=data.get('supported'), owners=data.get('owners'), readers=data.get('readers'), created_ms=data.get('created_ms'), updated_ms=data.get('updated_ms'))
+        return cls(id=data.get('id'), subject=data.get('subject'), relation=data.get('relation'), object=data.get('object'), value=data.get('value'), valid_from_ms=data.get('valid_from_ms'), valid_to_ms=data.get('valid_to_ms'), status=data.get('status'), replaced_by=data.get('replaced_by'), confidence=data.get('confidence'), authored_by=data.get('authored_by'), derived_from=data.get('derived_from'), stale=data.get('stale'), supported=data.get('supported'), owners=data.get('owners'), readers=data.get('readers'), created_ms=data.get('created_ms'), updated_ms=data.get('updated_ms'), trust=data.get('trust'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -387,6 +393,11 @@ class Change:
     before: Optional[str] = None
     after: Optional[str] = None
     utterance: Optional[str] = None
+    via: Optional[str] = None
+    trust: Optional[str] = None
+    origin: Optional[str] = None
+    undoes: Optional[str] = None
+    undone_by: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -408,12 +419,22 @@ class Change:
             result['utterance'] = self.utterance
         if hasattr(self, 'at_ms') and self.at_ms is not None:
             result['at_ms'] = self.at_ms
+        if hasattr(self, 'via') and self.via is not None:
+            result['via'] = self.via
+        if hasattr(self, 'trust') and self.trust is not None:
+            result['trust'] = self.trust
+        if hasattr(self, 'origin') and self.origin is not None:
+            result['origin'] = self.origin
+        if hasattr(self, 'undoes') and self.undoes is not None:
+            result['undoes'] = self.undoes
+        if hasattr(self, 'undone_by') and self.undone_by is not None:
+            result['undone_by'] = self.undone_by
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Change':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), record=data.get('record'), operation=data.get('operation'), actor=data.get('actor'), reason=data.get('reason'), before=data.get('before'), after=data.get('after'), utterance=data.get('utterance'), at_ms=data.get('at_ms'))
+        return cls(id=data.get('id'), record=data.get('record'), operation=data.get('operation'), actor=data.get('actor'), reason=data.get('reason'), before=data.get('before'), after=data.get('after'), utterance=data.get('utterance'), at_ms=data.get('at_ms'), via=data.get('via'), trust=data.get('trust'), origin=data.get('origin'), undoes=data.get('undoes'), undone_by=data.get('undone_by'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -527,6 +548,8 @@ class PutEntityRequest:
     confidence: Optional[float] = None
     act_for: Optional[str] = None
     utterance: Optional[str] = None
+    trust: Optional[str] = None
+    origin: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -552,12 +575,16 @@ class PutEntityRequest:
             result['act_for'] = self.act_for
         if hasattr(self, 'utterance') and self.utterance is not None:
             result['utterance'] = self.utterance
+        if hasattr(self, 'trust') and self.trust is not None:
+            result['trust'] = self.trust
+        if hasattr(self, 'origin') and self.origin is not None:
+            result['origin'] = self.origin
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'PutEntityRequest':
         """Create instance from dictionary."""
-        return cls(kind=data.get('kind'), label=data.get('label'), aliases=data.get('aliases'), summary=data.get('summary'), properties=data.get('properties'), external=data.get('external'), owners=data.get('owners'), readers=data.get('readers'), confidence=data.get('confidence'), act_for=data.get('act_for'), utterance=data.get('utterance'))
+        return cls(kind=data.get('kind'), label=data.get('label'), aliases=data.get('aliases'), summary=data.get('summary'), properties=data.get('properties'), external=data.get('external'), owners=data.get('owners'), readers=data.get('readers'), confidence=data.get('confidence'), act_for=data.get('act_for'), utterance=data.get('utterance'), trust=data.get('trust'), origin=data.get('origin'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -613,6 +640,8 @@ class AssertRequest:
     readers: Optional[List[str]] = None
     act_for: Optional[str] = None
     utterance: Optional[str] = None
+    trust: Optional[str] = None
+    origin: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -644,12 +673,16 @@ class AssertRequest:
             result['act_for'] = self.act_for
         if hasattr(self, 'utterance') and self.utterance is not None:
             result['utterance'] = self.utterance
+        if hasattr(self, 'trust') and self.trust is not None:
+            result['trust'] = self.trust
+        if hasattr(self, 'origin') and self.origin is not None:
+            result['origin'] = self.origin
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'AssertRequest':
         """Create instance from dictionary."""
-        return cls(subject=data.get('subject'), relation=data.get('relation'), object=data.get('object'), value=data.get('value'), valid_from_ms=data.get('valid_from_ms'), valid_to_ms=data.get('valid_to_ms'), confidence=data.get('confidence'), authored_by=data.get('authored_by'), derived_from=data.get('derived_from'), evidence=data.get('evidence'), owners=data.get('owners'), readers=data.get('readers'), act_for=data.get('act_for'), utterance=data.get('utterance'))
+        return cls(subject=data.get('subject'), relation=data.get('relation'), object=data.get('object'), value=data.get('value'), valid_from_ms=data.get('valid_from_ms'), valid_to_ms=data.get('valid_to_ms'), confidence=data.get('confidence'), authored_by=data.get('authored_by'), derived_from=data.get('derived_from'), evidence=data.get('evidence'), owners=data.get('owners'), readers=data.get('readers'), act_for=data.get('act_for'), utterance=data.get('utterance'), trust=data.get('trust'), origin=data.get('origin'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -671,6 +704,7 @@ class ChangeRequest:
     reason: Optional[str] = None
     act_for: Optional[str] = None
     utterance: Optional[str] = None
+    origin: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -690,12 +724,14 @@ class ChangeRequest:
             result['act_for'] = self.act_for
         if hasattr(self, 'utterance') and self.utterance is not None:
             result['utterance'] = self.utterance
+        if hasattr(self, 'origin') and self.origin is not None:
+            result['origin'] = self.origin
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ChangeRequest':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), operation=data.get('operation'), set=data.get('set'), at_ms=data.get('at_ms'), erase=data.get('erase'), reason=data.get('reason'), act_for=data.get('act_for'), utterance=data.get('utterance'))
+        return cls(id=data.get('id'), operation=data.get('operation'), set=data.get('set'), at_ms=data.get('at_ms'), erase=data.get('erase'), reason=data.get('reason'), act_for=data.get('act_for'), utterance=data.get('utterance'), origin=data.get('origin'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -751,6 +787,7 @@ class MergeRequest:
     reason: Optional[str] = None
     act_for: Optional[str] = None
     utterance: Optional[str] = None
+    origin: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -764,12 +801,14 @@ class MergeRequest:
             result['act_for'] = self.act_for
         if hasattr(self, 'utterance') and self.utterance is not None:
             result['utterance'] = self.utterance
+        if hasattr(self, 'origin') and self.origin is not None:
+            result['origin'] = self.origin
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'MergeRequest':
         """Create instance from dictionary."""
-        return cls(keep=data.get('keep'), merge=data.get('merge'), reason=data.get('reason'), act_for=data.get('act_for'), utterance=data.get('utterance'))
+        return cls(keep=data.get('keep'), merge=data.get('merge'), reason=data.get('reason'), act_for=data.get('act_for'), utterance=data.get('utterance'), origin=data.get('origin'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -1451,6 +1490,8 @@ class TimelineResponse:
 class HistoryRequest:
     id: str
     act_for: Optional[str] = None
+    since_ms: Optional[int] = None
+    limit: Optional[int] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -1458,12 +1499,16 @@ class HistoryRequest:
             result['id'] = self.id
         if hasattr(self, 'act_for') and self.act_for is not None:
             result['act_for'] = self.act_for
+        if hasattr(self, 'since_ms') and self.since_ms is not None:
+            result['since_ms'] = self.since_ms
+        if hasattr(self, 'limit') and self.limit is not None:
+            result['limit'] = self.limit
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'HistoryRequest':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), act_for=data.get('act_for'))
+        return cls(id=data.get('id'), act_for=data.get('act_for'), since_ms=data.get('since_ms'), limit=data.get('limit'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

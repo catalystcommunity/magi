@@ -54,7 +54,7 @@ func TestModelProxy(t *testing.T) {
 	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
 	iss := &authn.Issuer{Name: "test", KeyID: "k1", Key: priv}
 	ver := &authn.Verifier{Issuer: "test", Keys: map[string]ed25519.PublicKey{"k1": pub}}
-	proxy := httptest.NewServer(ModelProxy(ver, &model.Client{BaseURL: provider.URL, Model: "coder-model", APIKey: "provider-key"}, nil, slog.New(slog.NewTextHandler(io.Discard, nil))))
+	proxy := httptest.NewServer(ModelProxy(ver, &model.Client{BaseURL: provider.URL, Model: "coder-model", APIKey: "provider-key"}, nil, slog.New(slog.NewTextHandler(io.Discard, nil)), nil))
 	defer proxy.Close()
 	call := func(tok string) int {
 		req, _ := http.NewRequest("POST", proxy.URL, strings.NewReader(`{"model":"anything","messages":[]}`))
@@ -79,6 +79,32 @@ func TestModelProxy(t *testing.T) {
 	}
 }
 
+// A provider 5xx body (account, host, key detail) does not reach the runner.
+func TestModelProxyHidesProviderServerError(t *testing.T) {
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(500)
+		io.WriteString(w, `{"error":"org-secret account over quota at 10.9.8.7"}`)
+	}))
+	defer provider.Close()
+	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
+	iss := &authn.Issuer{Name: "test", KeyID: "k1", Key: priv}
+	ver := &authn.Verifier{Issuer: "test", Keys: map[string]ed25519.PublicKey{"k1": pub}}
+	proxy := httptest.NewServer(ModelProxy(ver, &model.Client{BaseURL: provider.URL, Model: "m"}, nil, slog.New(slog.NewTextHandler(io.Discard, nil)), nil))
+	defer proxy.Close()
+	runner, _ := iss.Issue(authn.Principal{Subject: "runner:ht0", Kind: authn.KindService, Scopes: []string{ScopeRunner}}, time.Hour)
+	req, _ := http.NewRequest("POST", proxy.URL, strings.NewReader(`{"messages":[]}`))
+	req.Header.Set("Authorization", "Bearer "+runner)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 502 || strings.Contains(string(b), "secret") || strings.Contains(string(b), "10.9.8.7") {
+		t.Fatalf("%d %s", resp.StatusCode, b)
+	}
+}
+
 // TestModelProxyStreams: the runner gets each chunk of a streamed answer
 // when the provider sends it, not at the end. Else the idle limit of the
 // apprentice cannot tell a slow answer from a provider that stopped.
@@ -96,7 +122,7 @@ func TestModelProxyStreams(t *testing.T) {
 	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
 	iss := &authn.Issuer{Name: "test", KeyID: "k1", Key: priv}
 	ver := &authn.Verifier{Issuer: "test", Keys: map[string]ed25519.PublicKey{"k1": pub}}
-	proxy := httptest.NewServer(ModelProxy(ver, &model.Client{BaseURL: provider.URL, Model: "m"}, nil, slog.New(slog.NewTextHandler(io.Discard, nil))))
+	proxy := httptest.NewServer(ModelProxy(ver, &model.Client{BaseURL: provider.URL, Model: "m"}, nil, slog.New(slog.NewTextHandler(io.Discard, nil)), nil))
 	defer proxy.Close()
 	runner, _ := iss.Issue(authn.Principal{Subject: "runner:ht0", Kind: authn.KindService, Scopes: []string{ScopeRunner}}, time.Hour)
 	req, _ := http.NewRequest("POST", proxy.URL, strings.NewReader(`{"stream":true,"messages":[]}`))
@@ -227,7 +253,7 @@ func proxyTest(t *testing.T, def *modelsapi.Selector, chain ...string) (string, 
 	router := &ModelRouter{Catalog: modelsapi.NewModelClient(rpc.NewClient(h.URL, rpc.StaticToken(tok))), Token: tok,
 		Keys: map[string]string{"inference": "inference-key"}, Log: slog.New(slog.NewTextHandler(io.Discard, nil))}
 	proxy := httptest.NewServer(ModelProxy(ver, &model.Client{BaseURL: fixed.URL, Model: "fixed-model", APIKey: "provider-key"},
-		router, slog.New(slog.NewTextHandler(io.Discard, nil))))
+		router, slog.New(slog.NewTextHandler(io.Discard, nil)), nil))
 	t.Cleanup(proxy.Close)
 	runner, _ := iss.Issue(authn.Principal{Subject: "runner:ht0", Kind: authn.KindService, Scopes: []string{ScopeRunner}}, time.Hour)
 	return proxy.URL, runner, cat
@@ -347,7 +373,7 @@ func TestModelProxyRouterTransport(t *testing.T) {
 	router := &ModelRouter{Catalog: modelsapi.NewModelClient(rpc.NewClient(h.URL, rpc.StaticToken(tok))), Token: tok,
 		Keys: map[string]string{"inference": "inference-key"}, Transport: hosts, Log: slog.New(slog.NewTextHandler(io.Discard, nil))}
 	proxy := httptest.NewServer(ModelProxy(ver, &model.Client{BaseURL: "http://fixed.invalid", Model: "fixed-model", APIKey: "provider-key"},
-		router, slog.New(slog.NewTextHandler(io.Discard, nil))))
+		router, slog.New(slog.NewTextHandler(io.Discard, nil)), nil))
 	t.Cleanup(proxy.Close)
 	runner, _ := iss.Issue(authn.Principal{Subject: "runner:ht0", Kind: authn.KindService, Scopes: []string{ScopeRunner}}, time.Hour)
 	code, body := callProxy(t, proxy.URL, runner, `{"model":"coder","messages":[]}`)
@@ -397,7 +423,7 @@ func TestModelProxyStreamsCatalog(t *testing.T) {
 	router := &ModelRouter{Catalog: modelsapi.NewModelClient(rpc.NewClient(h.URL, rpc.StaticToken(tok))), Token: tok,
 		Keys: map[string]string{"inference": "inference-key"}, Log: slog.New(slog.NewTextHandler(io.Discard, nil))}
 	proxy := httptest.NewServer(ModelProxy(ver, &model.Client{BaseURL: "http://fixed.invalid", Model: "fixed-model", APIKey: "provider-key"},
-		router, slog.New(slog.NewTextHandler(io.Discard, nil))))
+		router, slog.New(slog.NewTextHandler(io.Discard, nil)), nil))
 	t.Cleanup(proxy.Close)
 	runner, _ := iss.Issue(authn.Principal{Subject: "runner:ht0", Kind: authn.KindService, Scopes: []string{ScopeRunner}}, time.Hour)
 	req, _ := http.NewRequest("POST", proxy.URL, strings.NewReader(`{"model":"coder","stream":true,"messages":[]}`))

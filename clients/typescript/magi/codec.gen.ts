@@ -2084,6 +2084,7 @@ export function toKnowledgeFactCborValue(v: KnowledgeFact): CborValue {
   csilMap.set("mine", v.mine);
   if (v.other !== undefined) csilMap.set("other", v.other);
   csilMap.set("stale", v.stale);
+  if (v.trust !== undefined) csilMap.set("trust", v.trust);
   if (v.value !== undefined) csilMap.set("value", v.value);
   csilMap.set("status", v.status);
   csilMap.set("disputed", v.disputed);
@@ -2111,6 +2112,7 @@ export function fromKnowledgeFactCborValue(value: CborValue): KnowledgeFact {
     stale: asBool(requireKey(value, "stale")),
     mine: asBool(requireKey(value, "mine")),
     disputed: asBool(requireKey(value, "disputed")),
+    trust: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "trust")),
   };
 }
 
@@ -2129,6 +2131,7 @@ export function toKnowledgeItemCborValue(v: KnowledgeItem): CborValue {
   csilMap.set("mine", v.mine);
   csilMap.set("facts", v.facts.map((csilE): CborValue => toKnowledgeFactCborValue(csilE)));
   csilMap.set("label", v.label);
+  if (v.trust !== undefined) csilMap.set("trust", v.trust);
   if (v.system !== undefined) csilMap.set("system", v.system);
   csilMap.set("aliases", v.aliases);
   if (v.locator !== undefined) csilMap.set("locator", v.locator);
@@ -2149,6 +2152,7 @@ export function fromKnowledgeItemCborValue(value: CborValue): KnowledgeItem {
     locator: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "locator")),
     facts: asArray(requireKey(value, "facts")).map((csilE) => fromKnowledgeFactCborValue(csilE)),
     mine: asBool(requireKey(value, "mine")),
+    trust: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "trust")),
   };
 }
 
@@ -2329,13 +2333,18 @@ export function fromChangeKnowledgeRequestCbor(bytes: Uint8Array): ChangeKnowled
 export function toKnowledgeChangeCborValue(v: KnowledgeChange): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("id", v.id);
+  if (v.via !== undefined) csilMap.set("via", v.via);
   csilMap.set("actor", v.actor);
   if (v.after !== undefined) csilMap.set("after", v.after);
   csilMap.set("at_ms", v.atMs);
+  if (v.trust !== undefined) csilMap.set("trust", v.trust);
   if (v.before !== undefined) csilMap.set("before", v.before);
+  if (v.origin !== undefined) csilMap.set("origin", v.origin);
   if (v.reason !== undefined) csilMap.set("reason", v.reason);
   csilMap.set("record", v.record);
+  if (v.undoes !== undefined) csilMap.set("undoes", v.undoes);
   csilMap.set("operation", v.operation);
+  if (v.undoneBy !== undefined) csilMap.set("undone_by", v.undoneBy);
   return csilMap;
 }
 
@@ -2349,6 +2358,11 @@ export function fromKnowledgeChangeCborValue(value: CborValue): KnowledgeChange 
     before: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "before")),
     after: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "after")),
     atMs: asNumber(requireKey(value, "at_ms")),
+    via: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "via")),
+    trust: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "trust")),
+    origin: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "origin")),
+    undoes: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "undoes")),
+    undoneBy: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "undone_by")),
   };
 }
 
@@ -2429,12 +2443,16 @@ export function fromUnmergeKnowledgeRequestCbor(bytes: Uint8Array): UnmergeKnowl
 export function toKnowledgeHistoryRequestCborValue(v: KnowledgeHistoryRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("id", v.id);
+  if (v.limit !== undefined) csilMap.set("limit", v.limit);
+  if (v.sinceMs !== undefined) csilMap.set("since_ms", v.sinceMs);
   return csilMap;
 }
 
 export function fromKnowledgeHistoryRequestCborValue(value: CborValue): KnowledgeHistoryRequest {
   return {
     id: asString(requireKey(value, "id")),
+    sinceMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "since_ms")),
+    limit: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
   };
 }
 

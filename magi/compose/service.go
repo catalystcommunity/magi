@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/catalystcommunity/magi/lib/authn"
 	"github.com/catalystcommunity/magi/lib/rpc"
 	magiapi "github.com/catalystcommunity/magi/magi/api"
 	artifactsapi "github.com/catalystcommunity/magi/primitives/artifacts/api"
@@ -90,6 +91,9 @@ func (s *System) startCodeChange(ctx context.Context, owner string, from origin,
 	}
 	runner, publisher, err := s.chooseRunners(runner, repo)
 	if err != nil {
+		return workflowapi.Run{}, err
+	}
+	if err := s.allowTask(owner); err != nil {
 		return workflowapi.Run{}, err
 	}
 	// A task does not stop for the lessons: an error of the knowledge service
@@ -232,7 +236,7 @@ func (m *Service) Remember(ctx context.Context, req magiapi.RememberRequest) (ma
 	if err != nil {
 		return magiapi.RememberResponse{}, err
 	}
-	sctx := m.S.AsService(ctx)
+	sctx := withAuditOrigin(m.S.AsService(ctx), auditOrigin{By: "api"})
 	f := fact{subject: req.Subject, subjectKind: deref(req.SubjectKind), relation: req.Relation, object: deref(req.Object), objectKind: deref(req.ObjectKind),
 		value: deref(req.Value), summary: deref(req.Summary), also: req.Also != nil && *req.Also}
 	c, note, err := m.S.remember(sctx, caller.Subject, caller.Name, f, true, nil)
@@ -261,7 +265,15 @@ func (m *Service) ChangeKnowledge(ctx context.Context, req magiapi.ChangeKnowled
 	if err != nil {
 		return magiapi.ChangeKnowledgeResponse{}, err
 	}
-	sctx := m.S.AsService(ctx)
+	sctx := withAuditOrigin(m.S.AsService(ctx), auditOrigin{By: "api"})
+	if req.Operation == "promote" || req.Operation == "undo" {
+		// Only the person, with their own token: not a service, and not a
+		// call that a persona made for them.
+		if caller.Kind != authn.KindUser {
+			return magiapi.ChangeKnowledgeResponse{}, rpc.Denied("only the person can %s a record", map[string]string{"promote": "promote", "undo": "undo a change of"}[req.Operation])
+		}
+		sctx = withPersonConfirmed(sctx)
+	}
 	r, err := m.S.changeRecord(sctx, caller.Subject, caller.Name, req.Id, req.Operation, deref(req.Field), deref(req.Value), deref(req.Reason),
 		req.Erase != nil && *req.Erase, nil)
 	if err != nil {
@@ -278,8 +290,8 @@ func (m *Service) MergeKnowledge(ctx context.Context, req magiapi.MergeKnowledge
 	if err != nil {
 		return magiapi.ChangeKnowledgeResponse{}, err
 	}
-	sctx := m.S.AsService(ctx)
-	c, err := m.S.Knowledge.Merge(sctx, knowledgeapi.MergeRequest{Keep: req.Keep, Merge: req.Merge, Reason: req.Reason, ActFor: &caller.Subject})
+	sctx := withAuditOrigin(m.S.AsService(ctx), auditOrigin{By: "api"})
+	c, err := m.S.Knowledge.Merge(sctx, knowledgeapi.MergeRequest{Keep: req.Keep, Merge: req.Merge, Reason: req.Reason, ActFor: &caller.Subject, Origin: originText(sctx)})
 	if err != nil {
 		return magiapi.ChangeKnowledgeResponse{}, err
 	}
@@ -304,7 +316,7 @@ func (m *Service) KnowledgeHistory(ctx context.Context, req magiapi.KnowledgeHis
 	if err != nil {
 		return magiapi.KnowledgeHistoryResponse{}, err
 	}
-	h, err := m.S.Knowledge.History(m.S.AsService(ctx), knowledgeapi.HistoryRequest{Id: req.Id, ActFor: &caller.Subject})
+	h, err := m.S.Knowledge.History(m.S.AsService(ctx), knowledgeapi.HistoryRequest{Id: req.Id, ActFor: &caller.Subject, SinceMs: req.SinceMs, Limit: req.Limit})
 	if err != nil {
 		return magiapi.KnowledgeHistoryResponse{}, err
 	}

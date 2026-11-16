@@ -2001,6 +2001,7 @@ fun KnowledgeFact.toCborValue(): CborValue {
     csilEntries.add(CborValue.CText("mine") to CborValue.CBool(this.mine))
     this.other?.let { csilV -> csilEntries.add(CborValue.CText("other") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("stale") to CborValue.CBool(this.stale))
+    this.trust?.let { csilV -> csilEntries.add(CborValue.CText("trust") to CborValue.CText(csilV)) }
     this.value?.let { csilV -> csilEntries.add(CborValue.CText("value") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("status") to CborValue.CText(this.status))
     csilEntries.add(CborValue.CText("disputed") to CborValue.CBool(this.disputed))
@@ -2031,7 +2032,8 @@ fun knowledgeFactFromCborValue(cbor: CborValue): KnowledgeFact {
     val stale = CsilCbor.asBoolean(CsilCbor.require(cbor, "stale"))
     val mine = CsilCbor.asBoolean(CsilCbor.require(cbor, "mine"))
     val disputed = CsilCbor.asBoolean(CsilCbor.require(cbor, "disputed"))
-    return KnowledgeFact(id = id, relation = relation, direction = direction, other = other, otherId = otherId, value = value, status = status, validFromMs = validFromMs, validToMs = validToMs, supported = supported, stale = stale, mine = mine, disputed = disputed)
+    val trust = CsilCbor.mapGet(cbor, "trust")?.let { csilV -> CsilCbor.asText(csilV) }
+    return KnowledgeFact(id = id, relation = relation, direction = direction, other = other, otherId = otherId, value = value, status = status, validFromMs = validFromMs, validToMs = validToMs, supported = supported, stale = stale, mine = mine, disputed = disputed, trust = trust)
 }
 
 /** Decode CSIL CBOR bytes into a KnowledgeFact. */
@@ -2045,6 +2047,7 @@ fun KnowledgeItem.toCborValue(): CborValue {
     csilEntries.add(CborValue.CText("mine") to CborValue.CBool(this.mine))
     csilEntries.add(CborValue.CText("facts") to CborValue.CArray((this.facts).map { csilE -> csilE.toCborValue() }))
     csilEntries.add(CborValue.CText("label") to CborValue.CText(this.label))
+    this.trust?.let { csilV -> csilEntries.add(CborValue.CText("trust") to CborValue.CText(csilV)) }
     this.system?.let { csilV -> csilEntries.add(CborValue.CText("system") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("aliases") to CborValue.CArray((this.aliases).map { csilE -> CborValue.CText(csilE) }))
     this.locator?.let { csilV -> csilEntries.add(CborValue.CText("locator") to CborValue.CText(csilV)) }
@@ -2068,7 +2071,8 @@ fun knowledgeItemFromCborValue(cbor: CborValue): KnowledgeItem {
     val locator = CsilCbor.mapGet(cbor, "locator")?.let { csilV -> CsilCbor.asText(csilV) }
     val facts = CsilCbor.asArray(CsilCbor.require(cbor, "facts")).map { csilE -> knowledgeFactFromCborValue(csilE) }
     val mine = CsilCbor.asBoolean(CsilCbor.require(cbor, "mine"))
-    return KnowledgeItem(id = id, kind = kind, label = label, aliases = aliases, summary = summary, properties = properties, system = system, locator = locator, facts = facts, mine = mine)
+    val trust = CsilCbor.mapGet(cbor, "trust")?.let { csilV -> CsilCbor.asText(csilV) }
+    return KnowledgeItem(id = id, kind = kind, label = label, aliases = aliases, summary = summary, properties = properties, system = system, locator = locator, facts = facts, mine = mine, trust = trust)
 }
 
 /** Decode CSIL CBOR bytes into a KnowledgeItem. */
@@ -2238,13 +2242,18 @@ fun changeKnowledgeRequestFromCbor(bytes: ByteArray): ChangeKnowledgeRequest = c
 fun KnowledgeChange.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
     csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    this.via?.let { csilV -> csilEntries.add(CborValue.CText("via") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("actor") to CborValue.CText(this.actor))
     this.after?.let { csilV -> csilEntries.add(CborValue.CText("after") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("at_ms") to CborValue.CUint(this.atMs))
+    this.trust?.let { csilV -> csilEntries.add(CborValue.CText("trust") to CborValue.CText(csilV)) }
     this.before?.let { csilV -> csilEntries.add(CborValue.CText("before") to CborValue.CText(csilV)) }
+    this.origin?.let { csilV -> csilEntries.add(CborValue.CText("origin") to CborValue.CText(csilV)) }
     this.reason?.let { csilV -> csilEntries.add(CborValue.CText("reason") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("record") to CborValue.CText(this.record))
+    this.undoes?.let { csilV -> csilEntries.add(CborValue.CText("undoes") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("operation") to CborValue.CText(this.operation))
+    this.undoneBy?.let { csilV -> csilEntries.add(CborValue.CText("undone_by") to CborValue.CText(csilV)) }
     return CborValue.CMap(csilEntries)
 }
 
@@ -2261,7 +2270,12 @@ fun knowledgeChangeFromCborValue(cbor: CborValue): KnowledgeChange {
     val before = CsilCbor.mapGet(cbor, "before")?.let { csilV -> CsilCbor.asText(csilV) }
     val after = CsilCbor.mapGet(cbor, "after")?.let { csilV -> CsilCbor.asText(csilV) }
     val atMs = CsilCbor.asULong(CsilCbor.require(cbor, "at_ms"))
-    return KnowledgeChange(id = id, record = record, operation = operation, actor = actor, reason = reason, before = before, after = after, atMs = atMs)
+    val via = CsilCbor.mapGet(cbor, "via")?.let { csilV -> CsilCbor.asText(csilV) }
+    val trust = CsilCbor.mapGet(cbor, "trust")?.let { csilV -> CsilCbor.asText(csilV) }
+    val origin = CsilCbor.mapGet(cbor, "origin")?.let { csilV -> CsilCbor.asText(csilV) }
+    val undoes = CsilCbor.mapGet(cbor, "undoes")?.let { csilV -> CsilCbor.asText(csilV) }
+    val undoneBy = CsilCbor.mapGet(cbor, "undone_by")?.let { csilV -> CsilCbor.asText(csilV) }
+    return KnowledgeChange(id = id, record = record, operation = operation, actor = actor, reason = reason, before = before, after = after, atMs = atMs, via = via, trust = trust, origin = origin, undoes = undoes, undoneBy = undoneBy)
 }
 
 /** Decode CSIL CBOR bytes into a KnowledgeChange. */
@@ -2334,6 +2348,8 @@ fun unmergeKnowledgeRequestFromCbor(bytes: ByteArray): UnmergeKnowledgeRequest =
 fun KnowledgeHistoryRequest.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
     csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
+    this.limit?.let { csilV -> csilEntries.add(CborValue.CText("limit") to CborValue.CUint(csilV)) }
+    this.sinceMs?.let { csilV -> csilEntries.add(CborValue.CText("since_ms") to CborValue.CUint(csilV)) }
     return CborValue.CMap(csilEntries)
 }
 
@@ -2343,7 +2359,9 @@ fun KnowledgeHistoryRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborVal
 /** Reconstruct a KnowledgeHistoryRequest from a decoded CBOR value tree. */
 fun knowledgeHistoryRequestFromCborValue(cbor: CborValue): KnowledgeHistoryRequest {
     val id = CsilCbor.asText(CsilCbor.require(cbor, "id"))
-    return KnowledgeHistoryRequest(id = id)
+    val sinceMs = CsilCbor.mapGet(cbor, "since_ms")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val limit = CsilCbor.mapGet(cbor, "limit")?.let { csilV -> CsilCbor.asULong(csilV) }
+    return KnowledgeHistoryRequest(id = id, sinceMs = sinceMs, limit = limit)
 }
 
 /** Decode CSIL CBOR bytes into a KnowledgeHistoryRequest. */

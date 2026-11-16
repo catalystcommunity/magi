@@ -211,7 +211,7 @@ func RunnerTerminal(ver *authn.Verifier, t *Terminals) http.Handler {
 		}
 		s, err := t.claim(name, r.URL.Query().Get("session"))
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "no such terminal session", http.StatusNotFound)
 			return
 		}
 		hj, ok := w.(http.Hijacker)

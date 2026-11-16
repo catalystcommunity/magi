@@ -200,17 +200,20 @@ func (s *System) findInterruption(ctx context.Context, person string, u conversa
 		return nil
 	}
 	sentences := sentenceSpans(reply.Text)
-	in := classify(reply.Text, *d, sentences, s.answeredSentence(ctx, reply.Text, sentences, d, u.Text))
+	in := classify(reply.Text, *d, sentences, s.answeredSentence(ctx, person, reply.Text, sentences, d, u.Text))
 	in.reply = *reply
 	return &in
 }
 
 // answeredSentence asks the background model which sentence of the reply
 // the new message answers. It returns -1 for none, or when it cannot say.
-func (s *System) answeredSentence(ctx context.Context, reply string, sentences []span, d *delivery, text string) int {
+func (s *System) answeredSentence(ctx context.Context, person, reply string, sentences []span, d *delivery, text string) int {
 	ctx = backgroundModel(ctx, "interrupt")
 	sc, ok := s.LibrarianModel.(model.SchemaChatter)
 	if !ok || len(sentences) == 0 {
+		return -1
+	}
+	if s.allowModel(person) != nil {
 		return -1
 	}
 	rs := []rune(reply)

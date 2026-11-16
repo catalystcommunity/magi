@@ -69,6 +69,8 @@ func prepareVars(t *testing.T, up string, vars map[string]string) (*Runner, map[
 	state := t.TempDir()
 	box.Root, box.Envd, box.EnvdArgs = filepath.Join(state, "envs"), self, []string{"envd"}
 	cfg := Config{Server: ts.URL, Name: "test", StateDir: state, Repos: map[string]Repo{"r": {Upstream: "file://" + up, DefaultBranch: "main", Publish: true}}}
+	// The test Magi has no egress proxy; without this the sandbox does not start.
+	cfg.Sandbox.AllowHostNetwork = true
 	cfg.Author.Name, cfg.Author.Email = "Magi's runner", "magi@test.example"
 	r := &Runner{Cfg: cfg, Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Magi:   magiapi.NewRunnerClient(rpc.NewClient(ts.URL, rpc.StaticToken(tok))),
