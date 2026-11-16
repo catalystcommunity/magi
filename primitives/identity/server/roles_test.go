@@ -201,8 +201,10 @@ func TestListUsers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Each subject counts once, and the three subjects come newest first.
-	// The rows of earlier runs do not change this.
+	// Each subject counts once, and the three subjects come newest first:
+	// other, then Alice, then Carol. Alice's nameless session at now - 1 s
+	// is newer than Carol's session, so Alice comes before Carol. The rows
+	// of earlier runs do not change this.
 	pos := map[string]int{}
 	for i, u := range r.Users {
 		if _, ok := pos[u.Subject]; ok {
@@ -215,7 +217,7 @@ func TestListUsers(t *testing.T) {
 			t.Fatalf("%s is not in the list: %+v", p.subject, r.Users)
 		}
 	}
-	if !(pos[people[0].subject] < pos[people[1].subject] && pos[people[1].subject] < pos[people[2].subject]) {
+	if !(pos[roleOther] < pos[rolePerson] && pos[rolePerson] < pos[carol]) {
 		t.Fatalf("the subjects are not newest first: %+v", r.Users)
 	}
 	for _, p := range people {
