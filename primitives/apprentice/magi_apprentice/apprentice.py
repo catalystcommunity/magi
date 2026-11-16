@@ -95,6 +95,14 @@ class Result:
 Steering = Callable[[], list[str]]
 
 
+def model_wait_recorder(tr: Transcript) -> Callable[[float, str], None]:
+    """The on_wait callback of the model client: record each wait for a busy
+    inference host, so the transcript shows why a model call took long."""
+    def on_wait(seconds: float, reason: str) -> None:
+        tr.record("model_wait", seconds=seconds, reason=reason)
+    return on_wait
+
+
 def add_usage(usage: dict, reply: Reply) -> None:
     """Add the usage of one answer to the totals of a task. A provider can
     leave a field out, so each one counts as 0."""

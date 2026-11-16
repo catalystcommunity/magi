@@ -203,6 +203,7 @@ dollars.
 | `MAGI_MODEL_IDLE_TIMEOUT` | `90` | The most time between two chunks of a streamed answer. A provider that stops sending is retried after this time |
 | `MAGI_MODEL_STREAM` | `true` | Stream the answers; `false` waits for the full answer (then the idle limit is the call limit) |
 | `MAGI_MODEL_MAX_RETRIES` | `5` | Retries on 429, 5xx, connection errors, and idle or call timeouts |
+| `MAGI_MODEL_BUSY_WAIT_S` | `1800` | The most time that one model call waits for a busy inference host. A host that stops its engine while the machine is busy answers 503 with `error.type` `host_busy` or `warming`. The apprentice waits the `Retry-After` seconds. It waits 30 s when the header is missing, and 120 s at most. These waits do not count as retries. The transcript records each wait as `model_wait` |
 | `MAGI_MODEL_MAX_TOKENS` | `4096` | Output tokens for each reply |
 | `MAGI_MODEL_TEMPERATURE` | `0.2` | Sampling temperature |
 | `MAGI_WORKFLOW_URL` | none | WorkflowService base URL (worker mode) |
