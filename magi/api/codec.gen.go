@@ -7175,6 +7175,84 @@ func DecodeListRunnersResponse(csilData []byte) (ListRunnersResponse, error) {
 	return csilDecListRunnersResponse(csilRoot)
 }
 
+// csilEncGetAccessRequest builds the canonical CBOR value tree for a GetAccessRequest.
+func csilEncGetAccessRequest(csilV GetAccessRequest) cborValue {
+	csilEntries := make(cborMap, 0, 0)
+	return csilEntries
+}
+
+// csilDecGetAccessRequest reconstructs a GetAccessRequest from a decoded CBOR value tree.
+func csilDecGetAccessRequest(csilRoot cborValue) (GetAccessRequest, error) {
+	var csilOut GetAccessRequest
+	return csilOut, nil
+}
+
+// EncodeGetAccessRequest encodes a GetAccessRequest to canonical CSIL CBOR bytes.
+func EncodeGetAccessRequest(csilV GetAccessRequest) []byte {
+	return cborEncode(csilEncGetAccessRequest(csilV))
+}
+
+// DecodeGetAccessRequest decodes canonical CSIL CBOR bytes into a GetAccessRequest.
+func DecodeGetAccessRequest(csilData []byte) (GetAccessRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero GetAccessRequest
+		return csilZero, csilErr
+	}
+	return csilDecGetAccessRequest(csilRoot)
+}
+
+// csilEncAccess builds the canonical CBOR value tree for a Access.
+func csilEncAccess(csilV Access) cborValue {
+	csilEntries := make(cborMap, 0, 2)
+	csilEntries = append(csilEntries, cborEntry{cborText("subject"), cborText(csilV.Subject)})
+	csilEntries = append(csilEntries, cborEntry{cborText("operator"), cborBool(csilV.Operator)})
+	return csilEntries
+}
+
+// csilDecAccess reconstructs a Access from a decoded CBOR value tree.
+func csilDecAccess(csilRoot cborValue) (Access, error) {
+	var csilOut Access
+	{
+		csilField, csilErr := cborRequire(csilRoot, "subject")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Subject = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "operator")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Operator = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeAccess encodes a Access to canonical CSIL CBOR bytes.
+func EncodeAccess(csilV Access) []byte {
+	return cborEncode(csilEncAccess(csilV))
+}
+
+// DecodeAccess decodes canonical CSIL CBOR bytes into a Access.
+func DecodeAccess(csilData []byte) (Access, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero Access
+		return csilZero, csilErr
+	}
+	return csilDecAccess(csilRoot)
+}
+
 // csilEncPutRunnerPackageRequest builds the canonical CBOR value tree for a PutRunnerPackageRequest.
 func csilEncPutRunnerPackageRequest(csilV PutRunnerPackageRequest) cborValue {
 	csilEntries := make(cborMap, 0, 4)

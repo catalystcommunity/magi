@@ -506,6 +506,13 @@ RunnerInfo = {
 ListRunnersRequest = { }
 ListRunnersResponse = { runners: [* RunnerInfo], ? release: text }
 
+;;; What the caller can do. operator: the caller can make operator
+;;; calls and read the admin views (scope "magi:operate", or a subject
+;;; in MAGI_ADMINS). Clients use it only to show or hide links. The
+;;; server checks each call again.
+GetAccessRequest = { }
+Access = { subject: text, operator: bool }
+
 ;;; Operator calls (scope "magi:operate", or a subject in MAGI_ADMINS).
 ;;; A runner package is a gzip tar file with magi-runner and apprentice/.
 ;;; set-runner-release tells runners to update to version; each runner
@@ -697,6 +704,7 @@ service MagiService {
   delete-lexicon-word: DeleteLexiconWordRequest -> DeleteLexiconWordResponse,
   speak: SpeakRequest -> SpeakResponse,
   list-runners: ListRunnersRequest -> ListRunnersResponse,
+  get-access: GetAccessRequest -> Access,
   put-runner-package: PutRunnerPackageRequest -> PutRunnerPackageResponse,
   set-runner-release: SetRunnerReleaseRequest -> SetRunnerReleaseResponse,
   put-app-release: PutAppReleaseRequest -> AppRelease,

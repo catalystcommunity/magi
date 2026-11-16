@@ -215,6 +215,10 @@ class MagiAsyncClient:
         """list-runners"""
         return ListRunnersResponse.from_cbor(await self._transport.call("MagiService", "list-runners", req.to_cbor()))
 
+    async def get_access(self, req: GetAccessRequest) -> Access:
+        """get-access"""
+        return Access.from_cbor(await self._transport.call("MagiService", "get-access", req.to_cbor()))
+
     async def put_runner_package(self, req: PutRunnerPackageRequest) -> PutRunnerPackageResponse:
         """put-runner-package"""
         return PutRunnerPackageResponse.from_cbor(await self._transport.call("MagiService", "put-runner-package", req.to_cbor()))

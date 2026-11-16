@@ -749,6 +749,16 @@ type ListRunnersResponse struct {
 	Release *string      `json:"release,omitempty" yaml:"release,omitempty"`
 }
 
+// GetAccessRequest represents a structured data type
+type GetAccessRequest struct {
+}
+
+// Access represents a structured data type
+type Access struct {
+	Subject  string `json:"subject" yaml:"subject"`
+	Operator bool   `json:"operator" yaml:"operator"`
+}
+
 // PutRunnerPackageRequest represents a structured data type
 type PutRunnerPackageRequest struct {
 	Version string `json:"version" yaml:"version"`

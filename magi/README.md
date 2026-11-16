@@ -196,7 +196,8 @@ The launcher itself changes only with `tools/install-runner.sh`.
 Operator calls (`put-runner-package`, `set-runner-release`,
 `put-app-release`, `put-persona`) need the scope `magi:operate`, or a user subject in
 `ADMINS` (`MAGI_ADMINS`). Any signed-in person can read the app release
-and the list of runners.
+and the list of runners. `get-access` tells a client if the caller is an
+operator. Clients use it to show the admin views.
 
 Calls for a person's own records use that person's token. Background work
 uses the `service:magi` token with act-as scopes (see `deploy/README.md`).
@@ -207,6 +208,10 @@ admins) can change the household lexicon (`put-lexicon-word`,
 the scope `speech:lexicon`, and records the editor. Any signed-in person can
 read the lexicon and hear text with it (`list-lexicon`, `speak`). The web
 client shows the lexicon in the Words tab.
+
+## Admin views
+
+Operators see the Admin tab. Each admin call checks isOperator on the server.
 
 ## Egress
 

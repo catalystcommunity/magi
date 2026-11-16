@@ -879,6 +879,20 @@ export interface ListRunnersResponse {
 }
 
 /**
+ * What the caller can do. operator: the caller can make operator
+ * calls and read the admin views (scope "magi:operate", or a subject
+ * in MAGI_ADMINS). Clients use it only to show or hide links. The
+ * server checks each call again.
+ */
+export interface GetAccessRequest {
+}
+
+export interface Access {
+  subject: string;
+  operator: boolean;
+}
+
+/**
  * Operator calls (scope "magi:operate", or a subject in MAGI_ADMINS).
  * A runner package is a gzip tar file with magi-runner and apprentice/.
  * set-runner-release tells runners to update to version; each runner

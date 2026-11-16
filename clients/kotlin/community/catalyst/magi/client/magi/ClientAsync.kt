@@ -154,6 +154,9 @@ class MagiAsyncClient(private val transport: AsyncTransport) {
     suspend fun listRunners(request: ListRunnersRequest): ListRunnersResponse {
         return decode<ListRunnersResponse>(transport.call("MagiService", "list-runners", encode(request)))
     }
+    suspend fun getAccess(request: GetAccessRequest): Access {
+        return decode<Access>(transport.call("MagiService", "get-access", encode(request)))
+    }
     suspend fun putRunnerPackage(request: PutRunnerPackageRequest): PutRunnerPackageResponse {
         return decode<PutRunnerPackageResponse>(transport.call("MagiService", "put-runner-package", encode(request)))
     }
