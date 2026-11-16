@@ -6,7 +6,7 @@ from dataclasses import dataclass, replace
 from typing import Any, Callable
 
 from ._clients import artifacts as art
-from .apprentice import Apprentice, Result, Steering, Task
+from .apprentice import Apprentice, Result, Steering, Task, model_wait_recorder
 from .config import Limits, ModelConfig
 from .model import ChatModel, Model
 from .tools import Tools, Workspace
@@ -56,7 +56,8 @@ def run_task(task: Task, *, execution: Any, environment: str, model_cfg: ModelCo
     tr.record("config", model=model_cfg.name, base_url=model_cfg.base_url,
               max_tokens=model_cfg.max_tokens, temperature=model_cfg.temperature,
               environment=environment)
-    apprentice = Apprentice(model or ChatModel(model_cfg), Tools(Workspace(execution, environment, task.workdir, limits)),
+    apprentice = Apprentice(model or ChatModel(model_cfg, on_wait=model_wait_recorder(tr)),
+                  Tools(Workspace(execution, environment, task.workdir, limits)),
                   limits, tr, steering=steering, should_stop=should_stop, on_progress=on_progress)
     try:
         result = apprentice.run(task)

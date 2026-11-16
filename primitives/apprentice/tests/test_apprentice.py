@@ -1,16 +1,22 @@
+import io
 import json
 import os
 import unittest
+import urllib.error
 
 from fakes import FakeModel, MemExecution, call, reply
 
-from magi_apprentice.apprentice import SELF_REVIEW, Apprentice, Context, Task
-from magi_apprentice.config import Limits
-from magi_apprentice.model import ModelError
+from magi_apprentice.apprentice import SELF_REVIEW, Apprentice, Context, Task, model_wait_recorder
+from magi_apprentice.config import Limits, ModelConfig
+from magi_apprentice.model import ChatModel, ModelError
 from magi_apprentice.tools import Tools, Workspace
 from magi_apprentice.transcript import Redactor, Transcript
 
 SECRET = "sk-very-secret-987654"
+
+# A good Chat Completions answer for a model client test: one finish call.
+OK_REPLY = {"choices": [{"finish_reason": "tool_calls", "message": {"role": "assistant", "content": "", "tool_calls": [
+    {"id": "x1", "type": "function", "function": {"name": "finish", "arguments": "{\"summary\": \"done\"}"}}]}}]}
 
 
 def apprentice(script, files=None, limits=None, **kw):
@@ -177,6 +183,31 @@ class LoopTest(unittest.TestCase):
         r = Apprentice(Broken(), Tools(Workspace(MemExecution(), "e", "/w", lim)), lim, Transcript(Redactor())).run(Task("t"))
         self.assertEqual(r.status, "error")
         self.assertIn("401", r.error)
+
+    def test_a_wait_for_a_busy_host_is_in_the_transcript(self):
+        # The model client tells the loop about each wait, so the transcript
+        # shows why a model call took long.
+        class BusyOnce:
+            """Answers one busy 503, then a good answer."""
+            def __init__(self):
+                self.busy = True
+
+            def __call__(self, req, timeout):
+                if self.busy:
+                    self.busy = False
+                    body = json.dumps({"error": {"type": "host_busy", "message": "stopped"}}).encode()
+                    raise urllib.error.HTTPError("u", 503, "err", {"Retry-After": "60"}, io.BytesIO(body))
+                return io.BytesIO(json.dumps(OK_REPLY).encode())
+
+        lim = Limits(self_review=False)
+        tr = Transcript(Redactor())
+        cfg = ModelConfig(base_url="http://m.example.local/v1", name="m", busy_wait_s=600)
+        model = ChatModel(cfg, sleep=lambda s: None, opener=BusyOnce(), on_wait=model_wait_recorder(tr))
+        r = Apprentice(model, Tools(Workspace(MemExecution(), "e", "/w", lim)), lim, tr).run(Task("t"))
+        self.assertEqual(r.status, "finished")
+        waits = records(tr, "model_wait")
+        self.assertEqual(len(waits), 1)
+        self.assertEqual((waits[0]["seconds"], waits[0]["reason"]), (60.0, "host_busy"))
 
     def test_usage_sums_cost_and_cached_tokens(self):
         # The provider gives the cost in dollars and the cached prompt tokens

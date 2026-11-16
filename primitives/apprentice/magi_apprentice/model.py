@@ -21,6 +21,26 @@ from .config import ModelConfig
 # 520-524: Cloudflare in front of a provider (524: the origin sent nothing for 100 s).
 RETRY_STATUS = {408, 409, 425, 429, 500, 502, 503, 504, 520, 521, 522, 523, 524}
 
+# A local inference host stops its engine while the machine is busy (the owner
+# uses the GPU, or a compiler runs) and answers 503 with one of these error
+# types. That answer is a wait, not a failure: the host serves again when its
+# engine is back.
+BUSY_TYPES = {"host_busy", "warming"}
+BUSY_WAIT_DEFAULT_S = 30.0
+BUSY_WAIT_MAX_S = 120.0
+
+
+def busy_reason(code: int, body: str) -> str | None:
+    """The busy error type of a 503 answer, or None when the answer does not
+    say that the host is busy."""
+    if code != 503:
+        return None
+    try:
+        etype = json.loads(body)["error"]["type"]
+    except (ValueError, KeyError, TypeError):
+        return None
+    return etype if etype in BUSY_TYPES else None
+
 
 class ModelError(Exception):
     pass
@@ -107,6 +127,17 @@ def set_read_timeout(resp, seconds: float) -> None:
         pass  # not a socket response (tests)
 
 
+def _json(body: bytes) -> Any:
+    """Parse one JSON body. A body that does not parse shows its start in the
+    error, so the evidence says what the host sent. Only printable characters
+    go in: a host can answer with HTML or binary."""
+    try:
+        return json.loads(body)
+    except ValueError as e:
+        head = "".join(c for c in body.decode("utf-8", "replace")[:200] if c.isprintable())
+        raise ValueError(f"{e}: {head}") from None
+
+
 def read_answer(resp, deadline: float) -> dict:
     """The answer as one Chat Completions object. A streamed answer
     ("data: ..." lines) is joined; a plain JSON answer (a provider that does
@@ -115,7 +146,7 @@ def read_answer(resp, deadline: float) -> dict:
     while first and not first.strip():
         first = resp.readline()
     if not first.startswith(b"data:"):
-        return json.loads(first + resp.read())
+        return _json(first + resp.read())
     content: list[str] = []
     calls: dict[int, dict] = {}
     out: dict = {"choices": [{"message": {}, "finish_reason": ""}]}
@@ -128,7 +159,7 @@ def read_answer(resp, deadline: float) -> dict:
             data = line[5:].strip()
             if data == b"[DONE]":
                 break
-            ev = json.loads(data)
+            ev = _json(data)
             if ev.get("usage"):
                 out["usage"] = ev["usage"]
             for ch in ev.get("choices") or []:
@@ -156,10 +187,12 @@ class ChatModel:
     """Chat Completions client using urllib only."""
 
     def __init__(self, cfg: ModelConfig, sleep: Callable[[float], None] = time.sleep,
-                 opener: Callable[..., Any] = urllib.request.urlopen):
+                 opener: Callable[..., Any] = urllib.request.urlopen,
+                 on_wait: Callable[[float, str], None] | None = None):
         self.cfg = cfg
         self._sleep = sleep
         self._open = opener
+        self.on_wait = on_wait
 
     def complete(self, messages: list[dict], tools: list[dict]) -> Reply:
         body: dict[str, Any] = {"model": self.cfg.name, "messages": messages,
@@ -179,7 +212,9 @@ class ChatModel:
     def _post(self, payload: bytes) -> dict:
         url = self.cfg.base_url.rstrip("/") + "/chat/completions"
         last = ""
-        for attempt in range(self.cfg.max_retries + 1):
+        attempt = 0
+        waited = 0.0  # seconds spent waiting for a busy host in this call
+        while True:
             req = urllib.request.Request(url, data=payload, method="POST",
                                          headers={"Content-Type": "application/json",
                                                   # Some providers block the default urllib agent.
@@ -200,6 +235,21 @@ class ChatModel:
                 if e.code not in RETRY_STATUS:
                     raise ModelError(last) from None
                 ra = e.headers.get("Retry-After") if e.headers else None
+                reason = busy_reason(e.code, detail)
+                if reason:
+                    # A busy host is a wait, not a failure. The wait does not
+                    # use up the retries; the busy budget is its only limit.
+                    # Retry-After 0 would loop for ever, so it waits the default.
+                    wait = (min(BUSY_WAIT_MAX_S, float(ra))
+                            if ra and ra.isdigit() and float(ra) > 0 else BUSY_WAIT_DEFAULT_S)
+                    if waited + wait > self.cfg.busy_wait_s:
+                        raise ModelError(f"the inference host was busy for {int(waited)} s "
+                                         f"(the limit is {int(self.cfg.busy_wait_s)} s): {last}") from None
+                    waited += wait
+                    if self.on_wait:
+                        self.on_wait(wait, reason)
+                    self._sleep(wait)
+                    continue
                 if ra and ra.isdigit():
                     delay = min(60.0, float(ra))
             except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError) as e:
@@ -208,9 +258,10 @@ class ChatModel:
                 last = f"bad response: {e}"
             except CallTimeout as e:
                 last = str(e)
-            if attempt < self.cfg.max_retries:
-                self._sleep(delay)
-        raise ModelError(f"model request failed after {self.cfg.max_retries + 1} attempts: {last}")
+            if attempt >= self.cfg.max_retries:
+                raise ModelError(f"model request failed after {self.cfg.max_retries + 1} attempts: {last}")
+            attempt += 1
+            self._sleep(delay)
 
     @staticmethod
     def _parse(data: dict) -> Reply:
