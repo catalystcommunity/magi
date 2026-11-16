@@ -76,6 +76,77 @@ func trustBundles() []string {
 // sockets, the console log, and the files of the guest view.
 func (s *Sandboxes) vmDir(id string) string { return filepath.Join(s.Dir(id), "vm") }
 
+// vmStaleTimeout is how long a process of an earlier launch has to stop
+// after SIGTERM before it gets SIGKILL.
+const vmStaleTimeout = 5 * time.Second
+
+// vmPidFiles are the pid files of an environment: the pid file of the
+// sandbox (the process group of the VM) and the pid file that virtiofsd
+// writes next to its socket.
+func (s *Sandboxes) vmPidFiles(id string) []string {
+	return []string{filepath.Join(s.Dir(id), "pid"), filepath.Join(s.vmDir(id), "fs.sock.pid")}
+}
+
+// stopVMProcesses stops the processes that an earlier launch of the
+// environment left, for example after the runner restarted. A virtiofsd
+// that is still alive holds fs.sock.pid, and a new virtiofsd then exits
+// with "Error creating pid file". Each pid must name this environment
+// (its cwd or its command line names the environment directory), so that
+// a process of an other environment, or a pid that the host gave to a new
+// process, is never stopped.
+func (s *Sandboxes) stopVMProcesses(id string) {
+	d := s.Dir(id)
+	for _, f := range s.vmPidFiles(id) {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
+		if err != nil || pid <= 1 || !procNames(pid, d) {
+			continue
+		}
+		// The pid file of the sandbox names the process group: virtiofsd
+		// and the hypervisor are in it.
+		syscall.Kill(-pid, syscall.SIGTERM)
+		syscall.Kill(pid, syscall.SIGTERM)
+		for i := 0; i < 100 && syscall.Kill(pid, 0) == nil; i++ {
+			time.Sleep(vmStaleTimeout / 100)
+		}
+		syscall.Kill(-pid, syscall.SIGKILL)
+		syscall.Kill(pid, syscall.SIGKILL)
+		os.Remove(f)
+	}
+}
+
+// procNames reports whether the process pid belongs to the environment
+// directory d: its working directory or its command line names d.
+func procNames(pid int, d string) bool {
+	if cwd, err := os.Readlink(fmt.Sprintf("/proc/%d/cwd", pid)); err == nil && cwd == d {
+		return true
+	}
+	b, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
+	if err != nil {
+		return false
+	}
+	return strings.Contains(strings.ReplaceAll(string(b), "\x00", " "), d)
+}
+
+// removeVMSockets removes the socket files that an earlier launch left.
+// A virtiofsd that still runs holds fs.sock, and a hypervisor that still
+// runs holds vsock.sock.
+func (s *Sandboxes) removeVMSockets(id string) {
+	vd := s.vmDir(id)
+	entries, err := os.ReadDir(vd)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if e.Name() == "fs.sock" || e.Name() == "vsock.sock" || strings.HasPrefix(e.Name(), "vsock.sock_") {
+			os.Remove(filepath.Join(vd, e.Name()))
+		}
+	}
+}
+
 // prepareVM writes the files of the guest: the envd configuration, the
 // resolv.conf, and the CA bundle with the proxy CA.
 func (s *Sandboxes) prepareVM(id string, env map[string]string) error {
@@ -84,6 +155,8 @@ func (s *Sandboxes) prepareVM(id string, env map[string]string) error {
 	if err := os.Mkdir(vd, 0o700); err != nil && !os.IsExist(err) {
 		return err
 	}
+	s.stopVMProcesses(id)
+	s.removeVMSockets(id)
 	for _, f := range []string{"fs.sock", "vsock.sock"} {
 		os.Remove(filepath.Join(vd, f))
 	}
@@ -174,7 +247,10 @@ func (s *Sandboxes) hypervisorArgs() []string {
 }
 
 // launchVM starts virtiofsd and the VM of an environment. Both are in one
-// process group, the group of virtiofsd.
+// process group, the group of virtiofsd. When virtiofsd does not start,
+// the launch runs once more after 2 s: an earlier virtiofsd of the same
+// environment can still hold the pid file for a few seconds after a
+// runner restart.
 func (s *Sandboxes) launchVM(id string, env map[string]string) (*exec.Cmd, error) {
 	if s.macVM() {
 		return s.launchMacVM(id, env)
@@ -182,6 +258,15 @@ func (s *Sandboxes) launchVM(id string, env map[string]string) (*exec.Cmd, error
 	if runtime.GOOS != "linux" {
 		return nil, fmt.Errorf("task VMs with Cloud Hypervisor need Linux")
 	}
+	ch, err := s.launchVMOnce(id, env)
+	if err == nil || !strings.Contains(err.Error(), "virtiofsd did not start") {
+		return ch, err
+	}
+	time.Sleep(2 * time.Second)
+	return s.launchVMOnce(id, env)
+}
+
+func (s *Sandboxes) launchVMOnce(id string, env map[string]string) (*exec.Cmd, error) {
 	if err := s.prepareVM(id, env); err != nil {
 		return nil, err
 	}
@@ -201,7 +286,7 @@ func (s *Sandboxes) launchVM(id string, env map[string]string) (*exec.Cmd, error
 	for i := 0; !exists(filepath.Join(vd, "fs.sock")); i++ {
 		if i == 200 {
 			syscall.Kill(-fsd.Process.Pid, syscall.SIGKILL)
-			return nil, fmt.Errorf("virtiofsd did not start; see %s", filepath.Join(s.Dir(id), "envd.log"))
+			return nil, fmt.Errorf("virtiofsd did not start; %s", s.logTail(id))
 		}
 		time.Sleep(25 * time.Millisecond)
 	}
@@ -262,6 +347,20 @@ func (s *Sandboxes) dialVM(ctx context.Context, id string, port int) (net.Conn, 
 	}
 	c.SetDeadline(time.Time{})
 	return c, nil
+}
+
+// logTail returns the last lines of envd.log of an environment, so that
+// an error names the cause, not only the file.
+func (s *Sandboxes) logTail(id string) string {
+	b, err := os.ReadFile(filepath.Join(s.Dir(id), "envd.log"))
+	if err != nil {
+		return fmt.Sprintf("no envd.log: %v", err)
+	}
+	lines := strings.Split(strings.TrimRight(string(b), "\n"), "\n")
+	if len(lines) > 20 {
+		lines = lines[len(lines)-20:]
+	}
+	return "envd.log:\n" + strings.Join(lines, "\n")
 }
 
 // consoleTail returns the last lines of the guest console.
