@@ -19,17 +19,19 @@ for tool in initdb pg_ctl; do
   command -v "$tool" >/dev/null || { echo "tools/test-db.sh needs $tool on PATH. Install the runner tools (tools/install-runner-tools.sh) or add \$TOOLS/postgres/bin to PATH." >&2; exit 1; }
 done
 
-# PostgreSQL refuses to run as root, and the task VM runs the apprentice and
-# the check as root. Run initdb, pg_ctl and postgres then as an unprivileged
-# uid, with the data and socket directory owned by that uid. COMMAND itself
-# keeps the uid of the caller.
+# PostgreSQL refuses to run as root, and a task VM runs the apprentice and
+# the check as root. Run initdb, pg_ctl and postgres then in a user
+# namespace, where they have uid 65534. The mounts of a task VM (virtiofs)
+# translate the uid of the caller only, so a plain setuid would give the
+# server no write access to its data directory. COMMAND itself keeps the
+# uid of the caller.
 caller_uid=$(id -u)
 if [[ $caller_uid == 0 ]]; then
-  command -v setpriv >/dev/null || { echo "tools/test-db.sh runs as root and needs setpriv, to run PostgreSQL as an unprivileged user." >&2; exit 1; }
+  command -v unshare >/dev/null || { echo "tools/test-db.sh runs as root and needs unshare, to run PostgreSQL as an unprivileged user." >&2; exit 1; }
 fi
 as_server() {
   if [[ $caller_uid == 0 ]]; then
-    setpriv --reuid 65534 --regid 65534 --clear-groups "$@"
+    unshare --map-user=65534 --map-group=65534 "$@"
   else
     "$@"
   fi
@@ -37,11 +39,6 @@ as_server() {
 
 tmp=$(mktemp -d)
 mkdir "$tmp/data"
-if [[ $caller_uid == 0 ]]; then
-  # chown needs CAP_CHOWN; a sandbox without it gets world-writable
-  # directories instead, which uid 65534 can write to.
-  chown 65534:65534 "$tmp" "$tmp/data" 2>/dev/null || chmod 777 "$tmp" "$tmp/data"
-fi
 # The server must stop and the directory must go on every exit, also when a
 # test kills this script. pg_ctl stops the server only when it started. The
 # signal traps exit with the status of the signal, so cleanup runs one time.
