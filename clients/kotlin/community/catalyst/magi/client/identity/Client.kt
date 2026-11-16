@@ -71,5 +71,17 @@ class IdentityClient(private val transport: Transport) {
     fun forgetCredential(request: CredentialRef): EmptyResponse {
         return decode<EmptyResponse>(transport.call("IdentityService", "forget-credential", encode(request)))
     }
+    fun listRoles(request: ListRolesRequest): ListRolesResponse {
+        return decode<ListRolesResponse>(transport.call("IdentityService", "list-roles", encode(request)))
+    }
+    fun setSubjectRoles(request: SetSubjectRolesRequest): ListRolesResponse {
+        return decode<ListRolesResponse>(transport.call("IdentityService", "set-subject-roles", encode(request)))
+    }
+    fun setRoleSubjects(request: SetRoleSubjectsRequest): ListRolesResponse {
+        return decode<ListRolesResponse>(transport.call("IdentityService", "set-role-subjects", encode(request)))
+    }
+    fun listUsers(request: ListUsersRequest): ListUsersResponse {
+        return decode<ListUsersResponse>(transport.call("IdentityService", "list-users", encode(request)))
+    }
 }
 

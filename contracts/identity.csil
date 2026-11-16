@@ -140,6 +140,22 @@ Credential = {
 ListCredentialsRequest = { ? owner: text }
 ListCredentialsResponse = { credentials: [* Credential] }
 
+;;; The primitive does not know the meaning of a role: Magi defines which
+;;; role names exist and what they permit. It only keeps the assignments.
+RoleAssignment = { subject: text, role: text, granted_by: text, granted_ms: uint }
+;;; One of subject or role is set: the roles of a subject, or the subjects of a role.
+ListRolesRequest = { ? subject: text, ? role: text }
+ListRolesResponse = { assignments: [* RoleAssignment] }
+;;; Replaces the roles of one subject (the editor by user).
+SetSubjectRolesRequest = { subject: text, roles: [* text] }
+;;; Replaces the subjects of one role (the editor by role).
+SetRoleSubjectsRequest = { role: text, subjects: [* text] }
+;;; The subjects that signed in (identity_sessions), newest first, so an editor can pick a person. limit default 100, at most 1000.
+ListUsersRequest = { ? limit: uint }
+;;; The name is the display name of the newest session that has one.
+KnownUser = { subject: text, last_seen_ms: uint, ? name: text }
+ListUsersResponse = { users: [* KnownUser] }
+
 service IdentityService {
   begin-login: BeginLoginRequest -> BeginLoginResponse,
   poll-login: PollLoginRequest -> PollLoginResponse,
@@ -156,4 +172,8 @@ service IdentityService {
   get-credential: CredentialRef -> Credential,
   list-credentials: ListCredentialsRequest -> ListCredentialsResponse,
   forget-credential: CredentialRef -> EmptyResponse,
+  list-roles: ListRolesRequest -> ListRolesResponse,
+  set-subject-roles: SetSubjectRolesRequest -> ListRolesResponse,
+  set-role-subjects: SetRoleSubjectsRequest -> ListRolesResponse,
+  list-users: ListUsersRequest -> ListUsersResponse,
 }

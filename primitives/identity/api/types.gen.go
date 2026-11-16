@@ -183,3 +183,51 @@ type ListCredentialsRequest struct {
 type ListCredentialsResponse struct {
 	Credentials []Credential `json:"credentials" yaml:"credentials"`
 }
+
+// RoleAssignment represents a structured data type
+type RoleAssignment struct {
+	Subject   string `json:"subject" yaml:"subject"`
+	Role      string `json:"role" yaml:"role"`
+	GrantedBy string `json:"granted_by" yaml:"granted_by"`
+	GrantedMs uint64 `json:"granted_ms" yaml:"granted_ms"`
+}
+
+// ListRolesRequest represents a structured data type
+type ListRolesRequest struct {
+	Subject *string `json:"subject,omitempty" yaml:"subject,omitempty"`
+	Role    *string `json:"role,omitempty" yaml:"role,omitempty"`
+}
+
+// ListRolesResponse represents a structured data type
+type ListRolesResponse struct {
+	Assignments []RoleAssignment `json:"assignments" yaml:"assignments"`
+}
+
+// SetSubjectRolesRequest represents a structured data type
+type SetSubjectRolesRequest struct {
+	Subject string   `json:"subject" yaml:"subject"`
+	Roles   []string `json:"roles" yaml:"roles"`
+}
+
+// SetRoleSubjectsRequest represents a structured data type
+type SetRoleSubjectsRequest struct {
+	Role     string   `json:"role" yaml:"role"`
+	Subjects []string `json:"subjects" yaml:"subjects"`
+}
+
+// ListUsersRequest represents a structured data type
+type ListUsersRequest struct {
+	Limit *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+}
+
+// KnownUser represents a structured data type
+type KnownUser struct {
+	Subject    string  `json:"subject" yaml:"subject"`
+	LastSeenMs uint64  `json:"last_seen_ms" yaml:"last_seen_ms"`
+	Name       *string `json:"name,omitempty" yaml:"name,omitempty"`
+}
+
+// ListUsersResponse represents a structured data type
+type ListUsersResponse struct {
+	Users []KnownUser `json:"users" yaml:"users"`
+}

@@ -172,6 +172,50 @@ func IdentityServiceOps(impl IdentityService) map[string]func(context.Context, [
 			}
 			return EncodeEmptyResponse(resp), nil
 		},
+		"list-roles": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListRolesRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListRoles(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListRolesResponse(resp), nil
+		},
+		"set-subject-roles": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeSetSubjectRolesRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.SetSubjectRoles(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListRolesResponse(resp), nil
+		},
+		"set-role-subjects": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeSetRoleSubjectsRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.SetRoleSubjects(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListRolesResponse(resp), nil
+		},
+		"list-users": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListUsersRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListUsers(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListUsersResponse(resp), nil
+		},
 	}
 }
 
