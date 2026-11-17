@@ -217,6 +217,11 @@ def lens_review(model: Model, task: str, patch: str, lessons: str = "", context:
             out.append(Sample("invalid", text=f"{lens}: model error: {e}"))
             continue
         s = parse_sample(reply.content, need_requirements=lens == "requirements")
+        # A defect of the requirements lens is a difference from the task's
+        # words. The model often finds it, calls it minor, and approves
+        # (evals/review case 27): such a difference is not met.
+        if lens == "requirements" and s.verdict == "approve" and s.defects:
+            s.verdict = "revise"
         s.text = f"[{lens}]\n" + s.text
         for d in s.defects:
             if isinstance(d, dict):

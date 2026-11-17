@@ -108,6 +108,15 @@ class LensTest(unittest.TestCase):
         self.assertEqual([s.verdict for s in lens_review(m, "do x", "diff").samples],
                          ["revise"] + ["approve"] * 4)
 
+    def test_a_requirements_defect_is_revise_even_when_minor(self):
+        req = '[{"text": "use AdminGetRunRequest", "met": true, "evidence": "a.csil:3"}]'
+        minor = '[{"file": "a.csil", "line": 3, "severity": "minor", "problem": "a copy of the type"}]'
+        ans = '```json\n{"requirements": %s, "defects": %s, "verdict": "approve"}\n```'
+        m = FakeModel([reply(content=ans % (req, minor))] + [reply(content=ans % ("[]", minor))] * 4)
+        rv = lens_review(m, "do x", "diff")
+        self.assertEqual([s.verdict for s in rv.samples], ["revise"] + ["approve"] * 4)
+        self.assertEqual(rv.verdict, "revise")
+
     def test_context_goes_in_the_prompt(self):
         user = review_prompt("do x", "diff", context="func endNote() {}")[1]["content"]
         self.assertIn("## Functions that the change calls (not changed)", user)

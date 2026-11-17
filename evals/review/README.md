@@ -41,3 +41,36 @@ with each answer, and `summary.json`.
   changes. This costs a work round, not a defect.
 - `invalid_samples`: answers with no valid JSON verdict. They count as
   `revise`.
+
+## Results: lens review with context, 12 cases, 1 sample (2026-11-17)
+
+| Host | TA | FA | TR | FR | Invalid | Time per case |
+| --- | --- | --- | --- | --- | --- | --- |
+| Qwen3.6-35B-A3B, RTX 4080, experts partly on CPU | 4 | 3 | 3 | 2 | 2 | 1,025 s |
+| Qwen3.6-35B-A3B with MTP, RTX 3090, all on GPU | 4 | 3 | 3 | 2 | 0 | 163 s |
+
+The counts are the same, but the verdict is different on 7 of 12 cases.
+Thus one sample is mostly noise. Case 23 is caught both times, with the
+defect that the person named. The 3 false approvals stop auto-approval.
+
+### 3 samples (15 lens calls for each case), RTX 3090
+
+| Rule | TA | FA | TR | FR |
+| --- | --- | --- | --- | --- |
+| Approve only when all 15 calls approve | 3 | 2 | 4 | 3 |
+| Also: a defect of the requirements lens is revise | 3 | 1 | 5 | 3 |
+| Requirements defect, or 2 revise votes of 15 (not in the code) | 6 | 1 | 5 | 0 |
+
+Time per case: 478 s. In case 27, the requirements lens found the
+difference from the task ("the task specifies AdminGetRunRequest, the code
+defines AdminGetRunDiffRequest"), called it minor, and approved.
+review.py now makes such a sample revise. Case 24 stays a false approval:
+the person knew that later views need four more services, and the diff
+does not show this.
+
+The 3 false revisions come from one revise vote (or one invalid answer)
+in 15 calls. The rule of 2 votes removes them and keeps each true
+revision. It was found on these 12 cases, so the code keeps "all approve"
+until the other 26 cases confirm it. Auto-approval needs 0 false
+approvals. Thus the lens reviewer is a hint for the person now, not a
+gate.
