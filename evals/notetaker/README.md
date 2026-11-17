@@ -380,3 +380,26 @@ the data3 test. Thus lora-v3 stays.
    (48 of 66). lora-v5 shows that training can fix `third-person`, but
    then other categories become worse. A small decision model for "who is
    this fact about" can be a better tool than more training.
+
+## Small models (2026-11-17)
+
+Can a small model do the work of the note taker? Gemma 4 has no 4B size.
+Its sizes are E2B, E4B, 12B, 26B-A4B, and 31B. The test used two other
+small models with good vendor tool-call scores, zero-shot on data5 test
+(997 cases), on an RTX 3090.
+
+| Model | data5 test | Median call |
+| --- | --- | --- |
+| base Gemma 4 12B | 898 (90%) | |
+| Qwen3.5-4B Q4_K_M | 497 (50%) | 0.8 s |
+| LFM3-1.7B Q8_0 | 53 (5%): 940 answers are not JSON | 41.6 s |
+
+Qwen3.5-4B fails the fact categories: `birthday` 3 of 44, `event` 3 of
+43, `other-update` 0 of 44. LFM3 writes reasoning text until the token
+limit, and the answer stays empty.
+
+Zero-shot, a small model is not near 90% of the quality of Gemma 12B.
+Distillation (Gemma 12B labels, a LoRA on a small model) is possible. It
+is not necessary now: Gemma 12B with the MTP drafter decodes at about 140
+tok/s on a 3090 and 115 tok/s on a 4080. A 4B model decodes at 175 tok/s.
+Thus a small model gives free VRAM, not much speed.

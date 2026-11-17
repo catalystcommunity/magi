@@ -6,6 +6,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable
 
+from . import diffgate
 from .config import Limits
 from .guards import Guards
 from .supervisor import Supervisor
@@ -70,6 +71,8 @@ SELF_REVIEW = ("Review your change before you finish, as a strict reviewer of th
                "first.")
 # A review that the model cannot act on is wasted work, so it needs calls left.
 SELF_REVIEW_MIN_CALLS = 5
+# The most finishes that the diff rules reject in one run.
+DIFF_GATE_REJECTS = 2
 # Compaction can leave a finish call with a stub summary. The model then sends
 # that stub as the summary of its next finish call, so the gate sends it back.
 STUB_SUMMARY = ("finish rejected: this summary is a compaction stub, not the report of the task. "
@@ -391,6 +394,7 @@ class Apprentice:
         self._noted_steps = False
         self._noted_time = False
         self._reviewed = False
+        self._gate_rejects = 0
         tr.record("task", instructions=task.instructions, workdir=task.workdir,
                   check_command=task.check_command, limits=vars(lim))
         add_start_context(task, self.tools, tr)  # before the first model call
@@ -635,6 +639,14 @@ class Apprentice:
         Returns (tool result text, ok, accept finish)."""
         if summary.lstrip().startswith("[compacted"):
             return STUB_SUMMARY, True, False
+        # The diff rules come first: they are cheap, and a fix changes what
+        # the check sees. They do not use up a check retry, and after
+        # DIFF_GATE_REJECTS the finish goes on, so a rule cannot hold a run.
+        if self._gate_rejects < DIFF_GATE_REJECTS and (found := diffgate.check(self.tools, task.instructions)):
+            self._gate_rejects += 1
+            self.transcript.record("diff_gate", problems=found)
+            return ("finish rejected: the change breaks a rule of the harness.\n- " + "\n- ".join(found)
+                    + "\nFix this, then call finish again."), True, False
         if not task.check_command:
             return "finished", True, True
         r = self.tools.ws.sh(task.check_command, timeout_s=self.limits.bash_timeout_max_s)

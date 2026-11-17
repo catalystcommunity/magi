@@ -3,6 +3,7 @@ against the verdicts of a person.
 
   python3 evals/review/run.py --url URL --token-file F --model NAME --cases CASES.jsonl
       --label L [--samples 3] [--only id1,id2] [--out evals/review/results]
+      [--agent | --lens] [--context] [--repo PATH --worktrees DIR]
 
 URL is an OpenAI-compatible base URL (for example the runner model route of
 Magi, https://magi.example.local/runner/v1, with a runner token). Each line of
@@ -14,10 +15,20 @@ CASES.jsonl is one decision of a person:
 The script writes one result file for each case and summary.json. The
 number that matters most is false approvals: cases that the person sent
 back and the reviewer approved. Auto-approval needs 0 of them.
+
+With --agent, the tool-using reviewer (review_agent.py) reviews each case.
+With --lens, each case gets one call for each review lens (review.py
+LENSES). With --context, the review gets the whole changed functions and the
+functions that they call (review_context.py). These modes need a checkout:
+a case needs "base", the commit that its patch applies to.
+The script adds a git worktree of PATH at the base under DIR, applies the
+patch, and removes the worktree after the case.
 """
 import argparse
 import json
 import os
+import shutil
+import subprocess
 import sys
 import time
 
@@ -25,7 +36,41 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, os.path.join(ROOT, "primitives", "apprentice"))
 from magi_apprentice.config import ModelConfig  # noqa: E402
 from magi_apprentice.model import ChatModel  # noqa: E402
-from magi_apprentice.review import review  # noqa: E402
+from magi_apprentice.config import Limits  # noqa: E402
+from magi_apprentice.local import LocalExecution  # noqa: E402
+from magi_apprentice.review import Review, combine, lens_review, review  # noqa: E402
+from magi_apprentice.review_context import review_context  # noqa: E402
+from magi_apprentice.review_agent import agent_review  # noqa: E402
+from magi_apprentice.tools import Tools, Workspace  # noqa: E402
+
+
+def checkout(repo: str, worktrees: str, case: dict) -> str:
+    wt = os.path.join(worktrees, case["id"])
+    if os.path.exists(wt):
+        subprocess.run(["git", "-C", repo, "worktree", "remove", "--force", wt], capture_output=True)
+        shutil.rmtree(wt, ignore_errors=True)
+    subprocess.run(["git", "-C", repo, "worktree", "add", "-q", "--detach", wt, case["base"]], check=True)
+    subprocess.run(["git", "-C", wt, "apply", "--whitespace=nowarn", "-"], input=case["patch"].encode(), check=True)
+    return wt
+
+
+def checkout_case(model, a, case: dict, lessons: str, log) -> Review:
+    wt = checkout(a.repo, a.worktrees, case)
+    try:
+        tools = Tools(Workspace(LocalExecution(), "local", wt, Limits()))
+        if a.agent:
+            return combine([agent_review(model, tools, case["task"], case["patch"], lessons,
+                                         max_steps=a.max_steps, log=log) for _ in range(a.samples)])
+        patch, context = case["patch"], ""
+        if a.context:
+            fdiff, context = review_context(tools)
+            patch = fdiff or patch
+        if a.lens:
+            return combine([s for _ in range(a.samples)
+                            for s in lens_review(model, case["task"], patch, lessons, context).samples])
+        return review(model, case["task"], patch, lessons, samples=a.samples, context=context)
+    finally:
+        subprocess.run(["git", "-C", a.repo, "worktree", "remove", "--force", wt], capture_output=True)
 
 
 def main() -> int:
@@ -40,6 +85,13 @@ def main() -> int:
     ap.add_argument("--max-tokens", type=int, default=12000)
     ap.add_argument("--only", default="")
     ap.add_argument("--out", default=os.path.join(ROOT, "evals", "review", "results"))
+    ap.add_argument("--agent", action="store_true", help="use the tool-using reviewer")
+    ap.add_argument("--repo", default=ROOT)
+    ap.add_argument("--worktrees", default="")
+    ap.add_argument("--max-steps", type=int, default=25)
+    ap.add_argument("--lens", action="store_true", help="one call for each review lens")
+    ap.add_argument("--context", action="store_true",
+                    help="whole changed functions and the functions that they call")
     a = ap.parse_args()
 
     with open(a.token_file) as f:
@@ -51,6 +103,8 @@ def main() -> int:
     only = {x for x in a.only.split(",") if x}
     out = os.path.join(a.out, a.label)
     os.makedirs(out, exist_ok=True)
+    if not a.worktrees:
+        a.worktrees = os.path.join(out, "worktrees")
 
     rows = []
     with open(a.cases) as f:
@@ -59,7 +113,10 @@ def main() -> int:
         if only and c["id"] not in only:
             continue
         t0 = time.monotonic()
-        rv = review(model, c["task"], c["patch"], lessons, samples=a.samples)
+        if a.agent or a.lens or a.context:
+            rv = checkout_case(model, a, c, lessons, lambda line: print(line, flush=True))
+        else:
+            rv = review(model, c["task"], c["patch"], lessons, samples=a.samples)
         row = {"id": c["id"], "label": c["label"], "verdict": rv.verdict,
                "samples": [s.verdict for s in rv.samples], "seconds": round(time.monotonic() - t0, 1),
                "defects": rv.defects, "comment": c.get("comment", "")}

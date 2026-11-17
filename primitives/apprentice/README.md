@@ -142,6 +142,21 @@ the model does not change its approach. The transcript records each rule as
 The end of a run by a rule makes one more model call without tools, for the
 summary, as at a limit.
 
+## Diff rules
+
+When the model calls `finish`, the harness checks the diff of the work
+directory with fixed rules (`diffgate.py`) before the check command. Each
+rule comes from a correction that a reviewer made more than once.
+
+| Rule | Instruction to the model |
+| --- | --- |
+| A file lost its executable bit (`git diff --summary` shows `100755 => 100644`) | run `chmod 755` on the file |
+| The change deletes a test file, and the task does not say to remove tests | restore the file, or tell why it must go |
+
+A rejection by these rules does not use up a check retry. After 2
+rejections in one run, the harness accepts the finish, so that a rule
+cannot hold a run. The transcript records each rejection as `diff_gate`.
+
 ## Model errors
 
 A model error has a kind. A 402, or a 429 whose error type says that the money
@@ -178,6 +193,25 @@ The review does not happen in these cases:
 
 In the last two cases, the first `finish` call ends the task. The transcript
 records the review as skipped near a limit.
+
+## Reviewers
+
+Two reviewers give a verdict on a finished change: `approve` or `revise`.
+They are not in the work loop yet. `evals/review` measures them against the
+decisions of a person.
+
+- `review.py` reads the task, the review lessons, and the diff. Generated
+  files are named, but their diff is not shown. The model gives its verdict
+  in a JSON block.
+- `review_agent.py` gets the same text, and read-only tools on a checkout
+  of the change: `read_file`, `list_files`, `search`, and `git` with `show`,
+  `log`, `diff`, `blame`, `grep`, and `ls-files`. It cannot edit, build, or
+  run tests. It gives its verdict with the tool `verdict`.
+
+The same rules apply to both. A blocker or an unmet requirement makes the
+verdict `revise`. An answer with no valid verdict is `invalid`, and it
+cannot approve. With more than one sample, the change is approved only
+when every sample approves.
 
 ## Worker mode
 

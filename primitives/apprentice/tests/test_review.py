@@ -3,7 +3,7 @@ import unittest
 from fakes import FakeModel, reply
 
 from magi_apprentice.model import ModelError
-from magi_apprentice.review import combine, drop_generated, parse_sample, review, review_prompt
+from magi_apprentice.review import LENSES, combine, drop_generated, lens_review, parse_sample, review, review_prompt
 
 
 def answer(verdict: str, defects: str = "[]", met: str = "true") -> str:
@@ -20,7 +20,7 @@ class ParseTest(unittest.TestCase):
         self.assertEqual(parse_sample("```json\n{broken\n```").verdict, "invalid")
 
     def test_a_bare_json_answer_counts(self):
-        bare = '{"requirements": [], "defects": [], "verdict": "approve"}'
+        bare = '{"requirements": [{"text": "x", "met": true}], "defects": [], "verdict": "approve"}'
         self.assertEqual(parse_sample(" " + bare + "\n").verdict, "approve")
         self.assertEqual(parse_sample("I think " + bare).verdict, "invalid")
 
@@ -34,6 +34,10 @@ class ParseTest(unittest.TestCase):
         self.assertEqual(parse_sample(answer("approve", blocker)).verdict, "revise")
         self.assertEqual(parse_sample(answer("approve", minor)).verdict, "approve")
         self.assertEqual(parse_sample(answer("approve", met="false")).verdict, "revise")
+        unchecked = '```json\n{"requirements": [{"text": "x"}], "defects": [], "verdict": "approve"}\n```'
+        self.assertEqual(parse_sample(unchecked).verdict, "revise")
+        none = '```json\n{"requirements": [], "defects": [], "verdict": "approve"}\n```'
+        self.assertEqual(parse_sample(none).verdict, "revise")
         self.assertEqual(parse_sample(answer("approve", blocker)).defects[0]["problem"], "nil map")
 
 
@@ -81,6 +85,33 @@ class PromptTest(unittest.TestCase):
         self.assertIn("[generated files changed, diff not shown: magi/api/types.gen.go, "
                       "clients/python/magi_magi/types.py]", out)
         self.assertEqual(drop_generated("diff --git a/a.go b/a.go\n+x\n"), "diff --git a/a.go b/a.go\n+x\n")
+
+
+
+class LensTest(unittest.TestCase):
+    def test_each_lens_asks_its_own_question_and_one_blocker_is_revise(self):
+        blocker = '[{"file": "a.go", "line": 3, "severity": "blocker", "problem": "said twice"}]'
+        no_reqs = '```json\n{"requirements": [], "defects": [], "verdict": "approve"}\n```'
+        script = [reply(content=answer("approve"))] + [reply(content=no_reqs)] * 3 + \
+            [reply(content=answer("approve", blocker))]
+        m = FakeModel(script)
+        rv = lens_review(m, "do x", "diff")
+        self.assertEqual(len(m.requests), len(LENSES))
+        self.assertIn("Your question: " + LENSES["text"], m.requests[1][0]["content"])
+        self.assertEqual([s.verdict for s in rv.samples], ["approve"] * 4 + ["revise"])
+        self.assertEqual(rv.verdict, "revise")
+        self.assertEqual((rv.defects[0]["lens"], rv.defects[0]["problem"]), ("scope", "said twice"))
+
+    def test_only_the_requirements_lens_must_list_requirements(self):
+        no_reqs = '```json\n{"requirements": [], "defects": [], "verdict": "approve"}\n```'
+        m = FakeModel([reply(content=no_reqs)] * len(LENSES))
+        self.assertEqual([s.verdict for s in lens_review(m, "do x", "diff").samples],
+                         ["revise"] + ["approve"] * 4)
+
+    def test_context_goes_in_the_prompt(self):
+        user = review_prompt("do x", "diff", context="func endNote() {}")[1]["content"]
+        self.assertIn("## Functions that the change calls (not changed)", user)
+        self.assertIn("func endNote() {}", user)
 
 
 if __name__ == "__main__":
