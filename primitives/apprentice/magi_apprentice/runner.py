@@ -9,6 +9,7 @@ from ._clients import artifacts as art
 from .apprentice import Apprentice, Result, Steering, Task, model_wait_recorder
 from .config import Limits, ModelConfig
 from .model import ChatModel, Model
+from .supervisor import Supervisor
 from .tools import Tools, Workspace
 from .transcript import Transcript, default_redactor
 
@@ -50,15 +51,21 @@ def run_task(task: Task, *, execution: Any, environment: str, model_cfg: ModelCo
              should_stop: Callable[[], str | None] | None = None,
              on_progress: Callable[[str], None] | None = None,
              transcript_path: str | None = None,
-             extra_secrets: tuple[str | None, ...] = ()) -> Outcome:
+             extra_secrets: tuple[str | None, ...] = (),
+             supervisor_model: str | None = None) -> Outcome:
     redactor = default_redactor(model_cfg.api_key, *extra_secrets)
     tr = Transcript(redactor, transcript_path)
     tr.record("config", model=model_cfg.name, base_url=model_cfg.base_url,
               max_tokens=model_cfg.max_tokens, temperature=model_cfg.temperature,
-              environment=environment)
+              environment=environment, supervisor_model=supervisor_model)
+    # The supervisor uses the route and the key of the worker, with its own
+    # model name: another engine, so that its calls keep the worker's cache.
+    supervisor = (Supervisor(ChatModel(replace(model_cfg, name=supervisor_model, max_tokens=4096, temperature=0.2)),
+                             limits.max_steps) if supervisor_model else None)
     apprentice = Apprentice(model or ChatModel(model_cfg, on_wait=model_wait_recorder(tr)),
                   Tools(Workspace(execution, environment, task.workdir, limits)),
-                  limits, tr, steering=steering, should_stop=should_stop, on_progress=on_progress)
+                  limits, tr, steering=steering, should_stop=should_stop, on_progress=on_progress,
+                  supervisor=supervisor)
     try:
         result = apprentice.run(task)
     except Exception as e:  # keep the evidence of a crashed task

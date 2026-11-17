@@ -1,0 +1,87 @@
+import unittest
+
+from fakes import FakeModel, reply
+
+from magi_apprentice.model import ModelError
+from magi_apprentice.review import combine, drop_generated, parse_sample, review, review_prompt
+
+
+def answer(verdict: str, defects: str = "[]", met: str = "true") -> str:
+    return ("The change looks at x.\n```json\n{\"requirements\": [{\"text\": \"x\", \"met\": " + met
+            + ", \"evidence\": \"a.go:3\"}], \"defects\": " + defects + ", \"verdict\": \"" + verdict + "\"}\n```")
+
+
+class ParseTest(unittest.TestCase):
+    def test_verdicts(self):
+        self.assertEqual(parse_sample(answer("approve")).verdict, "approve")
+        self.assertEqual(parse_sample(answer("revise")).verdict, "revise")
+        self.assertEqual(parse_sample("no json here").verdict, "invalid")
+        self.assertEqual(parse_sample("```json\n{\"verdict\": \"maybe\"}\n```").verdict, "invalid")
+        self.assertEqual(parse_sample("```json\n{broken\n```").verdict, "invalid")
+
+    def test_a_bare_json_answer_counts(self):
+        bare = '{"requirements": [], "defects": [], "verdict": "approve"}'
+        self.assertEqual(parse_sample(" " + bare + "\n").verdict, "approve")
+        self.assertEqual(parse_sample("I think " + bare).verdict, "invalid")
+
+    def test_the_last_block_counts(self):
+        text = answer("revise") + "\nOn second thought:\n" + answer("approve")
+        self.assertEqual(parse_sample(text).verdict, "approve")
+
+    def test_an_approve_with_a_blocker_or_an_unmet_requirement_is_revise(self):
+        blocker = '[{"file": "a.go", "line": 3, "severity": "blocker", "problem": "nil map"}]'
+        minor = '[{"file": "a.go", "line": 3, "severity": "minor", "problem": "name"}]'
+        self.assertEqual(parse_sample(answer("approve", blocker)).verdict, "revise")
+        self.assertEqual(parse_sample(answer("approve", minor)).verdict, "approve")
+        self.assertEqual(parse_sample(answer("approve", met="false")).verdict, "revise")
+        self.assertEqual(parse_sample(answer("approve", blocker)).defects[0]["problem"], "nil map")
+
+
+class CombineTest(unittest.TestCase):
+    def test_approve_only_when_all_samples_approve(self):
+        a, r, i = parse_sample(answer("approve")), parse_sample(answer("revise")), parse_sample("x")
+        self.assertEqual([combine(s).verdict for s in ([a, a, a], [a, a, r], [a, i], [])],
+                         ["approve", "revise", "revise", "revise"])
+
+    def test_review_asks_samples_times_and_a_model_error_cannot_approve(self):
+        m = FakeModel([reply(content=answer("approve"))] * 3)
+        rv = review(m, "do x", "diff", samples=3)
+        self.assertEqual((rv.verdict, len(m.requests)), ("approve", 3))
+
+        class Half:
+            calls = 0
+
+            def complete(self, messages, tools):
+                Half.calls += 1
+                if Half.calls == 2:
+                    raise ModelError("HTTP 524", kind="unavailable")
+                return reply(content=answer("approve"))
+        rv = review(Half(), "do x", "diff", samples=3)
+        self.assertEqual([s.verdict for s in rv.samples], ["approve", "invalid", "approve"])
+        self.assertEqual(rv.verdict, "revise")
+
+
+class PromptTest(unittest.TestCase):
+    def test_a_long_patch_is_cut_and_the_cut_is_said(self):
+        msgs = review_prompt("do x", "a" * 300, lessons="- rl-0001 one", max_patch_chars=100)
+        user = msgs[1]["content"]
+        self.assertIn("[... 200 characters of the diff are not shown", user)
+        self.assertIn("## Review lessons of this repository\n\n- rl-0001 one", user)
+        self.assertIn("a" * 50 + "\n\n[...", user)
+
+
+    def test_generated_files_are_named_but_not_shown(self):
+        patch = ("diff --git a/magi/compose/admin.go b/magi/compose/admin.go\n+real code\n"
+                 "diff --git a/magi/api/types.gen.go b/magi/api/types.gen.go\n+generated\n"
+                 "diff --git a/clients/python/magi_magi/types.py b/clients/python/magi_magi/types.py\n+gen py\n")
+        out = drop_generated(patch)
+        self.assertIn("+real code", out)
+        self.assertNotIn("+generated", out)
+        self.assertNotIn("+gen py", out)
+        self.assertIn("[generated files changed, diff not shown: magi/api/types.gen.go, "
+                      "clients/python/magi_magi/types.py]", out)
+        self.assertEqual(drop_generated("diff --git a/a.go b/a.go\n+x\n"), "diff --git a/a.go b/a.go\n+x\n")
+
+
+if __name__ == "__main__":
+    unittest.main()

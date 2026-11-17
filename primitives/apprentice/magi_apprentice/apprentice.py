@@ -8,6 +8,7 @@ from typing import Callable
 
 from .config import Limits
 from .guards import Guards
+from .supervisor import Supervisor
 from .model import Model, ModelError, Reply
 from .tools import TOOL_SPECS, Tools, as_text, format_exec, truncate
 from .transcript import Transcript
@@ -96,7 +97,8 @@ class Task:
 @dataclass
 class Result:
     # finished, stalled, step_limit, time_limit, stopped, loop, no_progress,
-    # blocked_provider (no money or quota left), model_unavailable, error
+    # blocked_provider (no money or quota left), model_unavailable,
+    # supervisor_stop, escalated (the supervisor ended the run), error
     status: str
     summary: str
     steps: int = 0
@@ -370,6 +372,7 @@ class Apprentice:
                  steering: Steering | None = None,
                  should_stop: Callable[[], str | None] | None = None,
                  on_progress: Callable[[str], None] | None = None,
+                 supervisor: Supervisor | None = None,
                  clock: Callable[[], float] = time.monotonic):
         self.model = model
         self.tools = tools
@@ -378,6 +381,7 @@ class Apprentice:
         self.steering = steering
         self.should_stop = should_stop
         self.on_progress = on_progress
+        self.supervisor = supervisor
         self.clock = clock
 
     def run(self, task: Task) -> Result:
@@ -395,6 +399,7 @@ class Apprentice:
         res = Result(status="error", summary="")
         usage = {"prompt_tokens": 0, "completion_tokens": 0, "cached_tokens": 0, "cost": 0.0}
         recent: list[str] = []
+        seen: list[str] = []  # each tool call with the start of its result, for the supervisor
         idle = 0
         thinking_cuts = 0
         check_fails = 0
@@ -407,6 +412,19 @@ class Apprentice:
                       tool_calls=res.tool_calls, check_passed=res.check_passed, usage=usage)
             return res
 
+        def supervise(why: str) -> Result | None:
+            """Ask the supervisor about the trigger why. Returns the result
+            when the supervisor ends the run."""
+            d = self.supervisor.ask(res.steps, task.instructions, why, seen, self._diff_stat())
+            tr.record("supervisor", step=res.steps, trigger=why, verdict=d.verdict, category=d.category,
+                      message=d.message)
+            if d.verdict == "steer":
+                ctx.messages.append({"role": "user", "content": f"Supervisor note: {d.message}"})
+            elif d.verdict in ("stop", "escalate"):
+                status = "supervisor_stop" if d.verdict == "stop" else "escalated"
+                return done(status, self._last_call(ctx, res.steps, f"The supervisor ended the run: {d.message}", usage))
+            return None
+
         while True:
             if res.steps >= lim.max_steps:
                 summary = f"Stopped after {res.steps} model calls (step limit)."
@@ -417,11 +435,16 @@ class Apprentice:
             if self.should_stop and (why := self.should_stop()):
                 return done("stopped", f"Stopped: {why}")
             self._budget_note(ctx, res.steps, start)
+            trigger = None
             if (g := guards.step()) is not None:
                 tr.record("guard", rule=g.reason, note=g.note, stop=g.stop)
                 if g.stop:
                     return done(g.stop, self._last_call(ctx, res.steps, f"Stopped: {g.reason}.", usage))
                 ctx.messages.append({"role": "user", "content": g.note})
+                trigger = f"guard: {g.reason}"
+            if self.supervisor and (why := self.supervisor.due(res.steps, trigger)):
+                if (ended := supervise(why)) is not None:
+                    return ended
             for note in (self.steering() if self.steering else []) or []:
                 ctx.messages.append({"role": "user", "content": f"Operator steering note: {note}"})
                 tr.record("steering", note=note)
@@ -515,6 +538,7 @@ class Apprentice:
                             notes.append(g.note)
                         stop = stop or g
                     recent.append(_describe(call.name, call.arguments, ok))
+                    seen.append(recent[-1] + " -> " + " ".join(content.split())[:200])
                     if self.on_progress and res.tool_calls % lim.progress_every == 0:
                         self.on_progress(f"step {res.steps}, {res.tool_calls} tool calls: "
                                          + "; ".join(recent[-lim.progress_every:]))
@@ -526,6 +550,17 @@ class Apprentice:
                 return done(stop.stop, self._last_call(ctx, res.steps, f"Stopped: {stop.reason}.", usage))
             for note in notes:
                 ctx.messages.append({"role": "user", "content": note})
+            if notes and self.supervisor and (why := self.supervisor.due(res.steps, f"guard: {stop.reason}")):
+                if (ended := supervise(why)) is not None:
+                    return ended
+
+    def _diff_stat(self) -> str:
+        """The files that the run changed so far, for the supervisor."""
+        try:
+            r = self.tools.ws.sh("git add -A -N . 2>/dev/null; git diff --stat HEAD 2>&1 | tail -n 30", timeout_s=60)
+        except Exception as e:  # the supervisor can decide without it
+            return f"(git diff failed: {e})"
+        return as_text(r.stdout)
 
     def _stall_summary(self, reply: Reply, thinking_cuts: int) -> str:
         """The summary of a stalled run. Three replies without a tool call end

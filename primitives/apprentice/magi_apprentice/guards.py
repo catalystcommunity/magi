@@ -74,7 +74,8 @@ VOLATILE = re.compile(r"/tmp/\S+|0x[0-9a-f]+|\b[0-9a-f]{12,}\b|\d+(\.\d+)*", re.
 # asks a person (later the supervisor): the endpoint or the money is gone, or
 # the run went wrong. The work stays in the environment. A guard stop does not
 # go to the check, because a check failure would start another work round.
-BLOCKED_STATUSES = {"blocked_provider", "model_unavailable", "loop", "no_progress", "stalled"}
+BLOCKED_STATUSES = {"blocked_provider", "model_unavailable", "loop", "no_progress", "stalled",
+                    "supervisor_stop", "escalated"}
 
 
 def outcome_of(status: str) -> str:

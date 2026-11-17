@@ -156,10 +156,12 @@ class GuardsInTheLoopTest(unittest.TestCase):
 class OutcomeTest(unittest.TestCase):
     def test_each_status_has_its_outcome(self):
         got = {s: outcome_of(s) for s in ("finished", "step_limit", "time_limit", "error", "stopped", "loop",
-                                         "no_progress", "stalled", "blocked_provider", "model_unavailable")}
+                                         "no_progress", "stalled", "blocked_provider", "model_unavailable",
+                                         "supervisor_stop", "escalated")}
         self.assertEqual(got, {"finished": "done", "step_limit": "done", "time_limit": "done", "error": "fail",
                                "stopped": "retry", "loop": "blocked", "no_progress": "blocked",
-                               "stalled": "blocked", "blocked_provider": "blocked", "model_unavailable": "blocked"})
+                               "stalled": "blocked", "blocked_provider": "blocked", "model_unavailable": "blocked",
+                               "supervisor_stop": "blocked", "escalated": "blocked"})
 
     def test_the_comment_of_the_next_round(self):
         v = {"review.comment": "fix the test", "blocked.comment": "use the cache"}

@@ -71,6 +71,9 @@ type Config struct {
 		// clients. Default: apprentice/ next to the magi-runner binary.
 		Path     string `json:"path"`
 		MaxSteps int    `json:"max_steps"`
+		// SupervisorModel is the catalog model of the supervisor of each
+		// work round (primitives/apprentice supervisor.py). Empty: none.
+		SupervisorModel string `json:"supervisor_model"`
 	} `json:"apprentice"`
 	Sandbox struct {
 		// Preflight is a shell command that runs in the sandbox before each

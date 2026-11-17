@@ -71,6 +71,12 @@ func workStepVars(t *testing.T, result string, vars map[string]string) (map[stri
 // workStepResult runs the work step and gives the whole result.
 func workStepResult(t *testing.T, result string, vars map[string]string) (Result, []string, string) {
 	t.Helper()
+	return workStepConfig(t, result, vars, Config{})
+}
+
+// workStepConfig also takes the runner configuration (StateDir is set here).
+func workStepConfig(t *testing.T, result string, vars map[string]string, cfg Config) (Result, []string, string) {
+	t.Helper()
 	python, path := fakeApprentice(t, result)
 	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
 	iss := &authn.Issuer{Name: "test", KeyID: "k1", Key: priv}
@@ -80,8 +86,8 @@ func workStepResult(t *testing.T, result string, vars map[string]string) (Result
 	ts := httptest.NewServer(rpc.Mux(srv, nil))
 	defer ts.Close()
 	tok, _ := iss.Issue(authn.Principal{Subject: "runner:test", Kind: authn.KindService, Scopes: []string{"magi:runner"}}, time.Hour)
-	state := t.TempDir()
-	r := &Runner{Cfg: Config{StateDir: state}, Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	cfg.StateDir = t.TempDir()
+	r := &Runner{Cfg: cfg, Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Magi: magiapi.NewRunnerClient(rpc.NewClient(ts.URL, rpc.StaticToken(tok)))}
 	r.Cfg.Apprentice.Python, r.Cfg.Apprentice.Path = python, path
 	if vars == nil {
@@ -200,5 +206,19 @@ func TestEnvironmentLine(t *testing.T) {
 		if got := environmentLine(c.output); got != c.want {
 			t.Errorf("environmentLine(%q) = %q, want %q", c.output, got, c.want)
 		}
+	}
+}
+
+// A runner with a supervisor model passes it to each work round.
+func TestWorkStepPassesSupervisorModel(t *testing.T) {
+	var cfg Config
+	cfg.Apprentice.SupervisorModel = "gemma-4-12b-vr1"
+	_, _, args := workStepConfig(t, `{"status": "finished", "outcome": "done", "summary": "ok", "steps": 1, "tool_calls": 1}`, nil, cfg)
+	if !strings.Contains(args, "--supervisor-model\ngemma-4-12b-vr1") {
+		t.Errorf("arguments = %q", args)
+	}
+	_, _, args = workStepResult(t, `{"status": "finished", "outcome": "done", "summary": "ok", "steps": 1, "tool_calls": 1}`, nil)
+	if strings.Contains(args, "--supervisor-model") {
+		t.Errorf("arguments without a supervisor = %q", args)
 	}
 }

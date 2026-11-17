@@ -114,7 +114,7 @@ prepare -> work -> check --> review --> merge (and build) -> release -> publish 
   only through envd, inside the sandbox.
 - `sandbox.preflight` in the runner configuration is an optional shell
   command that runs in the sandbox before each work round, for example
-  `curl -sS -o /dev/null --max-time 20 https://proxy.golang.org/`. When it
+  `curl -fsS -o /dev/null --max-time 20 https://proxy.golang.org/`. When it
   fails, the round does not start, and the task waits in step `blocked`
   with the output in `apprentice.error`.
 - The apprentice runs from the runner release (not from a checkout that a

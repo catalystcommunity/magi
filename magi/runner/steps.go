@@ -187,6 +187,9 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 	if r.Cfg.Apprentice.MaxSteps > 0 {
 		args = append(args, "--max-steps", strconv.Itoa(r.Cfg.Apprentice.MaxSteps))
 	}
+	if r.Cfg.Apprentice.SupervisorModel != "" {
+		args = append(args, "--supervisor-model", r.Cfg.Apprentice.SupervisorModel)
+	}
 	cmd := exec.CommandContext(ctx, r.Cfg.Apprentice.Python, args...)
 	cmd.Env = []string{
 		"PATH=" + os.Getenv("PATH"), "HOME=" + dir, "PYTHONPATH=" + r.Cfg.Apprentice.Path,
