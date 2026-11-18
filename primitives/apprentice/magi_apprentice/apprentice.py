@@ -403,6 +403,7 @@ class Apprentice:
         self._noted_time = False
         self._reviewed = False
         self._gate_rejects = 0
+        self._copies_noted = False
         tr.record("task", instructions=task.instructions, workdir=task.workdir,
                   check_command=task.check_command, limits=vars(lim))
         add_start_context(task, self.tools, tr)  # before the first model call
@@ -650,7 +651,11 @@ class Apprentice:
         # The diff rules come first: they are cheap, and a fix changes what
         # the check sees. They do not use up a check retry, and after
         # DIFF_GATE_REJECTS the finish goes on, so a rule cannot hold a run.
-        if self._gate_rejects < DIFF_GATE_REJECTS and (found := diffgate.check(self.tools, task.instructions)):
+        found = diffgate.check(self.tools, task.instructions) if self._gate_rejects < DIFF_GATE_REJECTS else []
+        if self._copies_noted:
+            found = [p for p in found if not p.startswith(diffgate.COPIES)]
+        if found:
+            self._copies_noted = self._copies_noted or any(p.startswith(diffgate.COPIES) for p in found)
             self._gate_rejects += 1
             self.transcript.record("diff_gate", problems=found)
             return ("finish rejected: the change breaks a rule of the harness.\n- " + "\n- ".join(found)

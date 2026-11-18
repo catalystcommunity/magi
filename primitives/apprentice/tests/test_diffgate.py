@@ -7,14 +7,27 @@ from fakes import FakeModel, call, reply
 
 from magi_apprentice.apprentice import Apprentice, Task
 from magi_apprentice.config import Limits
-from magi_apprentice.diffgate import problems
+from magi_apprentice.diffgate import duplicated_blocks, problems
 from magi_apprentice.local import LocalExecution
 from magi_apprentice.tools import Tools, Workspace
 from magi_apprentice.transcript import Redactor, Transcript
 
 
-def gate_out(summary="", name_status=""):
-    return f"--- summary ---\n{summary}\n--- name-status ---\n{name_status}\n"
+def gate_out(summary="", name_status="", diff=""):
+    return f"--- summary ---\n{summary}\n--- name-status ---\n{name_status}\n--- diff ---\n{diff}"
+
+
+NOTE = ['        note(f"Budget: {left} of {total} calls are left.")',
+        '        tr.record("budget_note", content=text)',
+        '        ctx.messages.append({"role": "user", "content": text})',
+        '        self.noted = self.noted + 1']
+
+
+def added(path, *blocks):
+    lines = [f"diff --git a/{path} b/{path}", f"--- a/{path}", f"+++ b/{path}", "@@ -1,0 +1,20 @@"]
+    for b in blocks:
+        lines += ["+" + x for x in b] + ["+    other_line_between_the_blocks()"]
+    return "\n".join(lines) + "\n"
 
 
 class ProblemsTest(unittest.TestCase):
@@ -31,6 +44,25 @@ class ProblemsTest(unittest.TestCase):
         self.assertIn("a_test.go, tests/test_x.py.", found[0])
         self.assertNotIn("old.md", found[0])
         self.assertEqual(problems(out, "Remove the old parser tests."), [])
+
+    def test_a_copied_block_of_code(self):
+        found = problems(gate_out(diff=added("pkg/apprentice.py", NOTE, NOTE, NOTE)), "x")
+        self.assertEqual(found, ["The change adds the same block of code in two or more places: pkg/apprentice.py "
+                                 '(it starts with: note(f"Budget: {left} of {total} calls are left.")). Put the '
+                                 "shared code in one helper or constant, or say in the summary why the copies "
+                                 "must stay."])
+
+    def test_copies_that_the_rule_does_not_count(self):
+        go_err = ["p, err := rpc.Caller(ctx)", "if err != nil {", "return Resp{}, err", "}",
+                  "if err := requireRoles(p); err != nil {", "return Resp{}, err", "}"]
+        for diff in (added("pkg/a.py", NOTE),                      # one block
+                     added("pkg/a_test.go", NOTE, NOTE),            # a test file
+                     added("tests/test_a.py", NOTE, NOTE),
+                     added("docs/a.md", NOTE, NOTE),                # not code
+                     added("magi/api/a.gen.go", NOTE, NOTE),        # generated
+                     added("pkg/a.go", go_err, go_err),             # error boilerplate
+                     added("pkg/a.py", NOTE) + added("pkg/b.py", NOTE)):  # two files
+            self.assertEqual(duplicated_blocks(diff), [], diff)
 
     def test_a_clean_change_has_no_problem(self):
         self.assertEqual(problems(gate_out(" create mode 100644 b.go\n", "A\tb.go\n"), "x"), [])
@@ -67,6 +99,26 @@ class GateInRunTest(unittest.TestCase):
             self.assertIn("finish rejected: the change breaks a rule of the harness.", rejected)
             self.assertIn("These files were executable and are not now: run.sh.", rejected)
             self.assertEqual(os.stat(path).st_mode & 0o777, 0o755)
+
+    def test_a_finish_with_a_copied_block_is_rejected_in_a_real_repository(self):
+        with tempfile.TemporaryDirectory() as d:
+            git(d, "init", "-q")
+            with open(os.path.join(d, "a.py"), "w") as f:
+                f.write("x = 1\n")
+            git(d, "add", "a.py")
+            git(d, "commit", "-qm", "first")
+            block = "\n".join(x.strip() for x in NOTE)
+            with open(os.path.join(d, "b.py"), "w") as f:  # a new file: untracked
+                f.write(f"def one():\n{block}\n\ndef two():\n{block}\n")
+            lim = Limits(self_review=False)
+            model = FakeModel([reply(call("finish", summary="added b")),
+                               reply(call("finish", summary="added b; the copies are two different notes"))])
+            tr = Transcript(Redactor())
+            r = Apprentice(model, Tools(Workspace(LocalExecution(), "local", d, lim)), lim, tr).run(
+                Task("Add b.py.", workdir=d))
+            self.assertEqual(r.summary, "added b; the copies are two different notes")
+            rejected = [m for m in model.requests[1] if m["role"] == "tool"][-1]["content"]
+            self.assertIn("The change adds the same block of code in two or more places: b.py", rejected)
 
 
 if __name__ == "__main__":

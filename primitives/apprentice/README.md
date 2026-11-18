@@ -152,6 +152,10 @@ rule comes from a correction that a reviewer made more than once.
 | --- | --- |
 | A file lost its executable bit (`git diff --summary` shows `100755 => 100644`) | run `chmod 755` on the file |
 | The change deletes a test file, and the task does not say to remove tests | restore the file, or tell why it must go |
+| The change adds the same block of 4 code lines in two places of one file (tests, generated files, and error boilerplate are not counted) | put the code in one helper or constant, or tell why the copies must stay |
+
+The copy rule is a hint. The harness gives it one time in a run. On the
+last 300 commits of main, it found 5 commits of approved code.
 
 A rejection by these rules does not use up a check retry. After 2
 rejections in one run, the harness accepts the finish, so that a rule
