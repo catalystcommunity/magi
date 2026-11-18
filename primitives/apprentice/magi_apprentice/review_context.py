@@ -9,7 +9,11 @@ harness collects the context instead, with fixed rules, in a few git calls:
 - the definitions of the functions that the added lines call, when they are
   defined in the repository and not shown in the diff already. A defect is
   often in how a changed line uses an unchanged function, for example a
-  message that the called function extends with the same sentence again.
+  message that the called function extends with the same sentence again;
+- the contract text of each RPC request type that the added lines use: the
+  ";;;" comment and the fields in contracts/*.csil. The behavior of an
+  operation is there, not in the generated client (evals/coding pr6: an
+  import looked entities up by an id that put-entity never makes).
 """
 from __future__ import annotations
 
@@ -28,6 +32,11 @@ MAX_DEFINITIONS = 15
 MAX_DEFINITION_LINES = 80
 MAX_CONTEXT_CHARS = 30_000
 MAX_FUNCTION_DIFF_CHARS = 90_000
+# A generated request type in Go (knowledgeapi.PutEntityRequest) or Python
+# (T.PutEntityRequest).
+REQUEST_TYPE = re.compile(r"\b([A-Za-z]\w*)\.([A-Z]\w*Request)\b")
+MAX_CONTRACTS = 8
+MAX_CONTRACT_LINES = 40
 
 
 def _git(tools: Tools, args: str) -> str:
@@ -45,6 +54,51 @@ def called_names(patch: str) -> list[str]:
             if name not in KEYWORDS and len(name) > 2:
                 seen.setdefault(name, None)
     return list(seen)
+
+
+def request_types(patch: str) -> list[tuple[str, str]]:
+    """(contract, type) of each RPC request type that the added lines use, in
+    the order of first use. A Go import name "knowledgeapi" gives the
+    contract "knowledge"; another qualifier gives "" (any contract)."""
+    seen: dict[tuple[str, str], None] = {}
+    for line in patch.splitlines():
+        if line.startswith("+") and not line.startswith("+++"):
+            for qual, name in REQUEST_TYPE.findall(line[1:]):
+                contract = qual[:-3] if qual.endswith("api") and len(qual) > 3 else ""
+                seen.setdefault((contract, name), None)
+    return list(seen)[:MAX_CONTRACTS]
+
+
+def contract_block(text: str, name: str) -> str:
+    """The ";;;" comment above "name = {" in a CSIL file, and the type up to
+    its closing brace. Empty when the file does not define name."""
+    lines = text.splitlines()
+    for i, ln in enumerate(lines):
+        if re.match(rf"^{re.escape(name)}\s*=", ln):
+            start = i
+            while start > 0 and lines[start - 1].startswith(";;;"):
+                start -= 1
+            end = i
+            while end < len(lines) - 1 and "}" not in lines[end] and end - i < MAX_CONTRACT_LINES:
+                end += 1
+            return "\n".join(lines[start:end + 1])
+    return ""
+
+
+def _contracts(tools: Tools, patch: str) -> list[str]:
+    types = request_types(patch)
+    if not types:
+        return []
+    pat = shlex.quote("^(" + "|".join(sorted({n for _, n in types})) + r")\s*=")
+    files = sorted({h for h in _git(tools, f"grep -l -E {pat} -- 'contracts/*.csil'").splitlines() if h})
+    texts = {path: _git(tools, f"show HEAD:{shlex.quote(path)}") for path in files}
+    out = []
+    for contract, name in types:
+        own = f"contracts/{contract}.csil"
+        for path in ([own] if own in texts else files):
+            if block := contract_block(texts[path], name):
+                out.append(f"// {path} ({name})\n{block}")
+    return out
 
 
 def _definition(tools: Tools, path: str, line: int) -> str:
@@ -102,4 +156,8 @@ def review_context(tools: Tools, base: str = "HEAD") -> tuple[str, str]:
             if body and size + len(body) <= MAX_CONTEXT_CHARS:
                 parts.append(f"// {path}:{line}\n{body}")
                 size += len(body)
+    for block in _contracts(tools, diff):
+        if size + len(block) <= MAX_CONTEXT_CHARS:
+            parts.append(block)
+            size += len(block)
     return diff, "\n\n".join(parts)
