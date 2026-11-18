@@ -223,7 +223,9 @@ goes into the output `review.model_verdict`. A person still decides.
 
 - The harness collects the context (`review_context.py`).
 - Each lens of `review.py` gets one call: requirements, text, logic,
-  tests, scope. The prompt says that the checks passed.
+  tests, scope. The prompt does not say that the checks passed: with that
+  text, the reviewer trusted the change and approved 7 of 16 changes that
+  a person sent back (evals/review).
 - The harness makes a blocker minor when the checks disprove it: a compile
   error or an undefined name, or a file mode that the patch does not change.
 - A failed review is a summary that says so. The check step goes on.

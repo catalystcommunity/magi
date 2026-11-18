@@ -97,3 +97,26 @@ then writes a fake tool call instead of the verdict.
 
 Next: look at the 14 false revisions. One false revision costs a work
 round, so they decide how useful the gate is.
+
+### The passing checks: in the prompt, or in the harness only (38 cases, 3 samples)
+
+A review step comes after the check step, so the checks passed on each
+case. Two ways to use this were tested:
+
+| Way | TA | FA | TR | FR |
+| --- | --- | --- | --- | --- |
+| No checks (from the table above) | 8 | 1 | 15 | 14 |
+| The prompt says that the checks passed, and the harness drops compile and mode claims | 13 | 7 | 9 | 9 |
+| The harness drops compile and mode claims, and the prompt does not say it (rescore of the earlier answers) | 10 | 2 | 14 | 12 |
+
+The text in the prompt made the model trust the change. It found fewer
+defects of all kinds, not only fewer compile claims: 7 changes that the
+person sent back got 15 approvals of 15. Thus the prompt does not say that
+the checks passed. The harness uses the checks: review.py verify makes a
+compile claim minor when the checks passed, and a file-mode claim minor when
+the diff changes no mode.
+
+The 2 false approvals of the harness-only way are case 24 (also missed
+without checks) and case 28. In case 28 the reviewer was right before only
+because of a false compile claim. The real defect is a database test that
+skips in the checks and has a wrong expected order.

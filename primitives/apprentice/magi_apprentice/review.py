@@ -80,14 +80,8 @@ class Review:
         return [d for s in self.samples for d in s.defects]
 
 
-CHECKS_PASSED = ("The checks of the repository passed on this change: every module and every test file "
-                 "compiles, and the tests ran. Do not report a compile error or an undefined name: the "
-                 "checks show that there is none. A test that needs a database or another service can "
-                 "skip in the checks, so such a test can still fail: check its expected values.")
-
-
 def review_prompt(task: str, patch: str, lessons: str = "", max_patch_chars: int = 120_000,
-                  context: str = "", checked: bool = False) -> list[dict]:
+                  context: str = "") -> list[dict]:
     """The messages of one review call. A patch over max_patch_chars is cut in
     the middle, and the cut is said, so that the reviewer does not approve
     what it did not see. Generated files are left out first."""
@@ -100,8 +94,6 @@ def review_prompt(task: str, patch: str, lessons: str = "", max_patch_chars: int
     if lessons.strip():
         user += f"## Review lessons of this repository\n\n{lessons.strip()}\n\n"
     user += f"## Diff\n\n```diff\n{patch}\n```\n"
-    if checked:
-        user += f"\n## Checks\n\n{CHECKS_PASSED}\n"
     if context.strip():
         user += ("\n## Functions that the change calls (not changed)\n\n"
                  "Check how each changed line uses them. For a text that a person reads, work out the "
@@ -156,6 +148,9 @@ BUILD_CLAIM = re.compile(r"\b(compile|compilation|compiler|undefined|not defined
 MODE_CLAIM = re.compile(r"\b(file mode|executable bit|chmod|644|755)\b", re.I)
 
 
+# The harness, not the prompt, uses the passing checks. A prompt that said
+# "the checks passed" made the reviewer trust the change: on 38 cases of
+# evals/review the false approvals went from 2 to 7.
 def disproved(defect, patch: str, checked: bool) -> bool:
     if not isinstance(defect, dict) or defect.get("severity") != "blocker":
         return False
@@ -192,7 +187,7 @@ def review(model: Model, task: str, patch: str, lessons: str = "", samples: int 
     """Ask the model samples times. A failed model call is a sample that
     cannot approve. context holds the unchanged functions that the change
     calls (review_context.py)."""
-    msgs = review_prompt(task, patch, lessons, context=context, checked=checked)
+    msgs = review_prompt(task, patch, lessons, context=context)
     out = []
     for _ in range(samples):
         try:
@@ -244,9 +239,8 @@ LENSES = {
 }
 
 
-def lens_prompt(lens: str, task: str, patch: str, lessons: str = "", context: str = "",
-                checked: bool = False) -> list[dict]:
-    msgs = review_prompt(task, patch, lessons, context=context, checked=checked)
+def lens_prompt(lens: str, task: str, patch: str, lessons: str = "", context: str = "") -> list[dict]:
+    msgs = review_prompt(task, patch, lessons, context=context)
     msgs[0] = {"role": "system", "content": "You review one question about a code change for the owner "
                "of this repository. The change merges without a person when all reviewers approve.\n\n"
                f"Your question: {LENSES[lens]}\n\n{LENS_FORMAT}"}
@@ -263,7 +257,7 @@ def lens_review(model: Model, task: str, patch: str, lessons: str = "", context:
         # ask once more (evals/review: 10 of 390 answers, most of them approve).
         for _ in range(2):
             try:
-                reply = model.complete(lens_prompt(lens, task, patch, lessons, context, checked), [])
+                reply = model.complete(lens_prompt(lens, task, patch, lessons, context), [])
             except ModelError as e:
                 s = Sample("invalid", text=f"model error: {e}")
                 continue

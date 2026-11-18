@@ -156,12 +156,12 @@ class LensTest(unittest.TestCase):
         moved = "diff --git a/a.sh b/a.sh\nold mode 100755\nnew mode 100644\n"
         self.assertEqual(verify(parse_sample(ans), moved, False).verdict, "revise")
 
-    def test_checks_go_in_the_prompt_and_a_disproved_requirements_defect_approves(self):
+    def test_checks_stay_out_of_the_prompt_and_a_disproved_requirements_defect_approves(self):
         ok = ('```json\n{"requirements": [{"text": "x", "met": true}], "defects": [{"file": "a.go", '
               '"line": 1, "severity": "blocker", "problem": "undefined: w"}], "verdict": "revise"}\n```')
         m = FakeModel([reply(content=ok)] * len(LENSES))
         rv = lens_review(m, "do x", "diff", checked=True)
-        self.assertIn("## Checks", m.requests[0][1]["content"])
+        self.assertNotIn("checks", m.requests[0][1]["content"].lower())
         self.assertEqual(rv.verdict, "approve")
 
     def test_context_goes_in_the_prompt(self):

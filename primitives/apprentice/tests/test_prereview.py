@@ -46,7 +46,6 @@ class PreReviewTest(unittest.TestCase):
             self.assertEqual(len(m.requests), len(LENSES))
             user = m.requests[0][1]["content"]
             self.assertIn("+\treturn 2", user)
-            self.assertIn("## Checks", user)
             self.assertEqual(out["verdict"], "revise")
             self.assertEqual(out["blockers"], [{"lens": "scope", "file": "a.go", "line": 4,
                                                 "problem": "A returns 2; the task says 3."}])

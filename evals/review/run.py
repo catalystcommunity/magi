@@ -19,9 +19,9 @@ back and the reviewer approved. Auto-approval needs 0 of them.
 With --agent, the tool-using reviewer (review_agent.py) reviews each case.
 With --lens, each case gets one call for each review lens (review.py
 LENSES). With --context, the review gets the whole changed functions and the
-functions that they call (review_context.py). With --checked, the review knows that the checks passed (true for each case
-of a review step), and the harness drops the blockers that the checks
-disprove (review.py verify). These modes need a checkout:
+functions that they call (review_context.py). With --checked, the harness drops the blockers that the passing
+checks disprove (review.py verify): the checks pass on each case of a
+review step. The prompt does not say that the checks passed. These modes need a checkout:
 a case needs "base", the commit that its patch applies to.
 The script adds a git worktree of PATH at the base under DIR, applies the
 patch, and removes the worktree after the case.
