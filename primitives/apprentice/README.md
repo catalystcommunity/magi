@@ -261,7 +261,15 @@ instead of the checklist of `SELF_REVIEW`. The apprentice gets the
 blockers of two review samples, and then the checklist. It fixes a real
 blocker, and it says in the finish summary why a false one is false. An
 approval, a failed review, or a revise with no blockers gets the checklist
-only: an approval of one review is not reliable. The runner passes the flag
+only: an approval of one review is not reliable.
+
+Before a review round (the test gate, the work review, or the checklist),
+the harness keeps the change that passed the check as a git tree object
+(`git write-tree`). When the run then ends without a passing check (a loop,
+a limit, a failed check), the harness restores that change and finishes
+with its summary and a note. Thus a review round cannot lose a change that
+passed the check. In evals/coding pr6, 10 review blockers made the
+apprentice break its edits, and the run stopped in a loop with no change. The runner passes the flag
 when `apprentice.work_review` is true and `apprentice.review_model` is set.
 
 ## Worker mode

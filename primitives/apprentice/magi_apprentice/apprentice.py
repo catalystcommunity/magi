@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Callable
@@ -69,6 +70,10 @@ SELF_REVIEW = ("Review your change before you finish, as a strict reviewer of th
                "not the implementation; (6) names and comments are clear, and comments tell why. "
                "Then call finish again with the summary. If you change files, run the check again "
                "first.")
+# The work directory as a git tree object; the index is as before after it.
+SNAPSHOT_SCRIPT = "git add -A 2>/dev/null && t=$(git write-tree) && git reset -q && echo \"$t\""
+# The work directory as in the tree: files that came later are removed.
+RESTORE_SCRIPT = "git read-tree {tree} && git checkout-index -a -f && git clean -fdq && git reset -q"
 MODEL_REVIEW = ("finish rejected: a reviewer model looked at your change and found possible "
                 "blockers. The reviewer is often wrong. For each item, read the code that it names. "
                 "Fix a real blocker. For a false one, change nothing and say in the finish summary "
@@ -405,6 +410,7 @@ class Apprentice:
         self._gate_rejects = 0
         self._copies_noted = False
         self._tests_tested = False
+        self._snapshot: tuple[str, str] | None = None  # (tree, summary) of the change that passed the check
         tr.record("task", instructions=task.instructions, workdir=task.workdir,
                   check_command=task.check_command, limits=vars(lim))
         add_start_context(task, self.tools, tr)  # before the first model call
@@ -421,6 +427,8 @@ class Apprentice:
         sent = 0  # messages already recorded
 
         def done(status: str, summary: str, error: str | None = None) -> Result:
+            if self._snapshot and (status != "finished" or res.check_passed is False):
+                status, summary, error = self._restore_snapshot(status, summary, error)
             res.status, res.summary, res.error, res.usage = status, summary, error, usage
             tr.record("result", status=status, summary=summary, error=error, steps=res.steps,
                       tool_calls=res.tool_calls, check_passed=res.check_passed, usage=usage)
@@ -536,6 +544,7 @@ class Apprentice:
                         content, ok, accept = self._finish_gate(task, r.content, check_fails, res)
                         if accept and (review := self._test_gate(res, start) or self._self_review(task, res, start)):
                             content, accept = review, False
+                            self._take_snapshot(r.content)
                         if accept:
                             finished = r.content
                         elif not ok:
@@ -674,6 +683,39 @@ class Apprentice:
             return "check failed; finished without a passing check", False, True
         return (f"finish rejected: the check command failed.\n{out}\n"
                 "Fix the problem, then call finish again."), False, False
+
+    def _take_snapshot(self, summary: str) -> None:
+        """Keep the change that passed the check, before a review round. A
+        review round can make the change worse: in evals/coding pr6 the
+        apprentice got 10 blockers, broke its edits, and the run stopped in a
+        loop with no change. The snapshot is a git tree object, so it holds
+        the new files too, and the index is reset after it."""
+        if self._snapshot is not None:
+            return
+        try:
+            r = self.tools.ws.sh(SNAPSHOT_SCRIPT, timeout_s=60)
+        except Exception:  # best effort: the review round works without it
+            return
+        tree = as_text(r.stdout).strip().splitlines()[-1:] if r.exit_code == 0 else []
+        if tree and re.fullmatch(r"[0-9a-f]{40,64}", tree[0]):
+            self._snapshot = (tree[0], summary)
+            self.transcript.record("snapshot", tree=tree[0])
+
+    def _restore_snapshot(self, status: str, summary: str, error: str | None) -> tuple[str, str, str | None]:
+        """The run ended without a passing finish after a review round: put
+        the change that passed the check back, and finish with its summary."""
+        tree, before = self._snapshot
+        try:
+            ok = self.tools.ws.sh(RESTORE_SCRIPT.format(tree=tree), timeout_s=120).exit_code == 0
+        except Exception:
+            ok = False
+        self.transcript.record("snapshot_restored", tree=tree, status=status, ok=ok)
+        if not ok:
+            return status, summary, error
+        self._snapshot = None
+        return "finished", (f"{before}\n\nThe review round after the check did not end with a passing "
+                            f"check ({status}: {summary}). The harness restored the change that passed "
+                            "the check."), None
 
     def _near_limit(self, res: Result, start: float) -> bool:
         lim = self.limits
