@@ -709,12 +709,13 @@ class Apprentice:
             else:
                 self.transcript.record("model_review", verdict=rv.get("verdict"), blockers=rv.get("blockers"),
                                        seconds=rv.get("seconds"))
-                if rv.get("verdict") == "approve":
-                    return None
+                # An approval of one review is not reliable (evals/coding pr2: the
+                # review approved a change that missed "one exec", which the
+                # review of another run found), so the checklist still follows.
                 items = [f"- [{b.get('lens')}] {b.get('file') or ''}:{b.get('line') or ''} {b.get('problem')}"
                          for b in rv.get("blockers") or []]
                 if items:
-                    return MODEL_REVIEW.format(items="\n".join(items))
+                    return MODEL_REVIEW.format(items="\n".join(items)) + "\n\n" + SELF_REVIEW
         diff = workdir_diff(self.tools)
         self.transcript.record("self_review", diff_chars=len(diff))
         return f"finish rejected: review your change first.\n{diff or '(no diff)'}\n\n{SELF_REVIEW}"

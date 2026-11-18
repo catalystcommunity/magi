@@ -552,13 +552,15 @@ class SelfReviewTest(unittest.TestCase):
         self.assertIn("a reviewer model looked at your change", result)
         self.assertIn("- [requirements] a.go:4 A returns 2; the task says 3.", result)
         self.assertIn("say in the finish summary why it is false", result)
-        self.assertNotIn(SELF_REVIEW, result)
+        self.assertTrue(result.endswith(SELF_REVIEW))
         self.assertEqual(records(tr, "model_review")[0]["verdict"], "revise")
         self.assertEqual(self.reviewed(tr), [])
 
-    def test_model_review_approval_accepts_the_first_finish(self):
+    def test_model_review_approval_still_gets_the_checklist(self):
         r, model, tr, _ = self.run_with_reviewer("approve")
-        self.assertEqual((r.status, r.summary, len(model.requests)), ("finished", "a", 1))
+        self.assertEqual((r.status, r.summary), ("finished", "b"))
+        self.assertIn(SELF_REVIEW, model.requests[1][-1]["content"])
+        self.assertEqual(len(self.reviewed(tr)), 1)
 
     def test_a_failed_model_review_falls_back_to_the_checklist(self):
         r, model, tr, _ = self.run_with_reviewer("revise", error=OSError("engine down"))

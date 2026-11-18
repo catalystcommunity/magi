@@ -14,8 +14,8 @@ class RunTaskModelReviewTest(unittest.TestCase):
     def run_task(self, review_model):
         calls = []
 
-        def fake_pre_review(model, tools, task, base, lessons=""):
-            calls.append((model.cfg.name, model.cfg.max_tokens, task, base, lessons))
+        def fake_pre_review(model, tools, task, base, lessons="", samples=1):
+            calls.append((model.cfg.name, model.cfg.max_tokens, task, base, lessons, samples))
             return {"verdict": "revise", "seconds": 1.0,
                     "blockers": [{"lens": "tests", "file": "a_test.go", "line": 9, "problem": "No test of B."}]}
         model = FakeModel([reply(call("finish", summary="a")), reply(call("finish", summary="b"))])
@@ -31,7 +31,7 @@ class RunTaskModelReviewTest(unittest.TestCase):
         self.assertEqual(out.result.summary, "b")
         self.assertEqual(calls, [("qwen-review", 12000,
                                   "Return 3\n\nmake A return 3\n\nThe review comment of the earlier round "
-                                  "(each item must be done):\nAdd a test.", "HEAD", "- a lesson")])
+                                  "(each item must be done):\nAdd a test.", "HEAD", "- a lesson", 2)])
         self.assertIn("- [tests] a_test.go:9 No test of B.", model.requests[1][-1]["content"])
 
     def test_no_review_model_keeps_the_checklist(self):

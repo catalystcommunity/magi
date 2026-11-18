@@ -46,6 +46,9 @@ def apply_model_override(cfg: ModelConfig, limits: Limits, value: str | None) ->
     return cfg, limits
 
 
+WORK_REVIEW_SAMPLES = 2
+
+
 def task_text(t: Task) -> str:
     """The task as the reviewer sees it: the title, the instructions, and the
     comment of the earlier round, as the check step of the runner gives it."""
@@ -80,7 +83,8 @@ def run_task(task: Task, *, execution: Any, environment: str, model_cfg: ModelCo
                                temperature=0.6))
 
         def reviewer(tools: Tools, t: Task) -> dict:
-            return pre_review(rm, tools, task_text(t), "HEAD", t.lessons or "")
+            # Two samples: the blockers of one review differ from run to run.
+            return pre_review(rm, tools, task_text(t), "HEAD", t.lessons or "", samples=WORK_REVIEW_SAMPLES)
     apprentice = Apprentice(model or ChatModel(model_cfg, on_wait=model_wait_recorder(tr)),
                   Tools(Workspace(execution, environment, task.workdir, limits)),
                   limits, tr, steering=steering, should_stop=should_stop, on_progress=on_progress,
