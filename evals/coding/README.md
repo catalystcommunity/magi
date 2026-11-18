@@ -75,6 +75,35 @@ words, and tests that copy the code. It does not find:
 The defects that the review finds are real, so the next run gives them to
 the apprentice before it finishes (`apprentice.work_review`).
 
+## Results: the same model with the review in the work round (2026-11-18)
+
+Runner 5060b66: at the first finish that passes the check, the apprentice
+gets the copy rule of the diff gate, the test gate (`testgate.py`), and the
+lens review (2 samples, with the contract context), then the checklist.
+
+| Case | Check | Steps | Minutes | Grade | Defects (before) | What the round did |
+| --- | --- | --- | --- | --- | --- | --- |
+| pr2 | pass (1) | 89 | 28 | revise | 4 (7) | review: 6 real blockers, all fixed (one was a replaced SYSTEM_PROMPT) |
+| pr3 | pass (1) | 65 | 29 | revise (small) | 3 (6) | copy rule: one helper; test gate: 2 tests of "nothing happens", kept |
+| pr4 | pass (1) | 117 | 32 | revise | 3 (5) | review: new files missing from the diff, fixed |
+| pr5 | pass (1) | 85 | 34 | revise (small) | 3 (5) | copy rule: one helper; test gate: Go tests that copied the logic, fixed; 1 false blocker, rebutted |
+| pr6 | - (loop) | 141 | 30 | fail: no change | - (7) | review: 10 blockers, most real; the apprentice broke its edits and the run stopped in a loop |
+| pr7 | pass (1) | 81 | 31 | approve, small comment | 2 minor (4) | test gate: a test that could not fail, fixed; review: a missing test, added; 1 false blocker, rebutted |
+
+The defects go from 34 to 15 on the cases with a change, and the first
+change that a person can approve comes out (pr7). Each case takes 6 to 11
+minutes more. The apprentice rebutted each false blocker with a reason and
+changed no correct code for it.
+
+pr6 lost the change that passed the check at step 97. The harness now
+keeps that change before a review round and restores it when the run ends
+without a passing check (895ab40).
+
+Defects that no check finds yet, in all runs of a case: the task's words of
+place and count ("one line", "after N steps"), new code outside the crash
+guard, no test through the entry point (run_task, Runner.work), and a
+return value that the calling loop counts as a failed check (pr4).
+
 ## Run
 
 `run.py` runs the cases through the code-change workflow of Magi, one case
