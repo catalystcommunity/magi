@@ -120,3 +120,8 @@ The 2 false approvals of the harness-only way are case 24 (also missed
 without checks) and case 28. In case 28 the reviewer was right before only
 because of a false compile claim. The real defect is a database test that
 skips in the checks and has a wrong expected order.
+
+Case 00 is a question of the label, not of the reviewer. The task says
+"Change nothing else", and the change also edits a test file. The person
+approved the test fix. By the words of the task, the reviewer is right to
+say revise.

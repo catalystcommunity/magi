@@ -42,6 +42,39 @@ comments: the eval measures how good the first attempt is.
 
 Also record the model calls, the time, and the cost of each case.
 
+## Results: Qwen3.6-35B-A3B on an RTX 3090 with MTP, model review on (2026-11-18)
+
+The candidate is `qwen3.6-35b-a3b-vr1` (MTP n3, about 200 tokens/s), with
+temperature 0.6. The runner ran the lens review of `prereview.py` after the
+checks, as a hint in the review request.
+
+| Case | Check | Steps | Minutes | Minutes on an RTX 4080 | Grade | My defects | Found by the model review | False blockers |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| pr2 | pass (1) | 86 | 23 | 39 | revise | 7 | 3 | 0 |
+| pr3 | pass (1) | 29 | 20 | 59 | revise | 6 | 2 | 1 |
+| pr4 | pass (1) | 64 | 25 | 60 | revise | 5 | 1 | 0 |
+| pr5 | pass (1) | 49 | 24 | 35 | revise | 5 | 1 | 0 |
+| pr6 | pass (1) | 115 | 31 | stopped at 150 | revise | 7 | 1 | 0 |
+| pr7 | pass (1) | 36 | 20 | stopped at 150 | revise (small) | 4 | 0 | 0 |
+
+All 6 cases finish, 2 to 5 times faster than on the 4080. The person still
+sends each change back. The model review finds 8 of 34 defects, and 1 of
+its 9 distinct blockers is false. It finds differences from the task's
+words, and tests that copy the code. It does not find:
+
+- a block of code that is copied in one file (pr3, pr4, pr5). The diff
+  gate of the apprentice now finds it (`diffgate.py`);
+- a call that the contract of an operation does not allow (pr6: a lookup
+  by an id that put-entity never makes). The review context now has the
+  contract text of each request type that the change uses;
+- a test that passes without the change (pr7), and a test that skips
+  without a database (pr6);
+- logic in the calling loop: a rejection that uses up a check retry (pr4),
+  an import that runs every 5 s for the life of the server (pr6).
+
+The defects that the review finds are real, so the next run gives them to
+the apprentice before it finishes (`apprentice.work_review`).
+
 ## Run
 
 `run.py` runs the cases through the code-change workflow of Magi, one case
