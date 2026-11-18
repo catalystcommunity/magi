@@ -69,6 +69,10 @@ SELF_REVIEW = ("Review your change before you finish, as a strict reviewer of th
                "not the implementation; (6) names and comments are clear, and comments tell why. "
                "Then call finish again with the summary. If you change files, run the check again "
                "first.")
+MODEL_REVIEW = ("finish rejected: a reviewer model looked at your change and found possible "
+                "blockers. The reviewer is often wrong. For each item, read the code that it names. "
+                "Fix a real blocker. For a false one, change nothing and say in the finish summary "
+                "why it is false. Then run the check again and call finish.\n{items}")
 # A review that the model cannot act on is wasted work, so it needs calls left.
 SELF_REVIEW_MIN_CALLS = 5
 # The most finishes that the diff rules reject in one run.
@@ -376,7 +380,8 @@ class Apprentice:
                  should_stop: Callable[[], str | None] | None = None,
                  on_progress: Callable[[str], None] | None = None,
                  supervisor: Supervisor | None = None,
-                 clock: Callable[[], float] = time.monotonic):
+                 clock: Callable[[], float] = time.monotonic,
+                 reviewer: Callable[[Tools, Task], dict] | None = None):
         self.model = model
         self.tools = tools
         self.limits = limits
@@ -386,6 +391,9 @@ class Apprentice:
         self.on_progress = on_progress
         self.supervisor = supervisor
         self.clock = clock
+        # The lens reviewer (prereview.py) instead of the checklist of
+        # SELF_REVIEW: a list of specific findings that the model can check.
+        self.reviewer = reviewer
 
     def run(self, task: Task) -> Result:
         lim, tr = self.limits, self.transcript
@@ -674,6 +682,20 @@ class Apprentice:
                 or self.clock() - start >= lim.max_seconds * 0.8):
             self.transcript.record("self_review", skipped="near a limit", diff_chars=0)
             return None
+        if self.reviewer is not None:
+            try:
+                rv = self.reviewer(self.tools, task)
+            except Exception as e:  # the checklist review works without the model review
+                self.transcript.record("model_review", error=f"{type(e).__name__}: {e}")
+            else:
+                self.transcript.record("model_review", verdict=rv.get("verdict"), blockers=rv.get("blockers"),
+                                       seconds=rv.get("seconds"))
+                if rv.get("verdict") == "approve":
+                    return None
+                items = [f"- [{b.get('lens')}] {b.get('file') or ''}:{b.get('line') or ''} {b.get('problem')}"
+                         for b in rv.get("blockers") or []]
+                if items:
+                    return MODEL_REVIEW.format(items="\n".join(items))
         diff = workdir_diff(self.tools)
         self.transcript.record("self_review", diff_chars=len(diff))
         return f"finish rejected: review your change first.\n{diff or '(no diff)'}\n\n{SELF_REVIEW}"

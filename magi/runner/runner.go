@@ -78,6 +78,10 @@ type Config struct {
 		// checks pass (primitives/apprentice prereview.py). Its result is a
 		// hint in the review request; a person still decides. Empty: none.
 		ReviewModel string `json:"review_model"`
+		// WorkReview also gives the review model to each work round: the
+		// apprentice reviews its first finish with it and fixes or rebuts
+		// the blockers before the checks of the runner.
+		WorkReview bool `json:"work_review"`
 	} `json:"apprentice"`
 	Sandbox struct {
 		// Preflight is a shell command that runs in the sandbox before each

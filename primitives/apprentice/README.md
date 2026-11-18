@@ -230,6 +230,14 @@ goes into the output `review.model_verdict`. A person still decides.
   error or an undefined name, or a file mode that the patch does not change.
 - A failed review is a summary that says so. The check step goes on.
 
+The same review can run in the work round. `python -m magi_apprentice run
+--review-model NAME` reviews the first finish that passes the check gate,
+instead of the checklist of `SELF_REVIEW`. The apprentice gets the
+blockers. It fixes a real blocker, and it says in the finish summary why a
+false one is false. An approval accepts the finish. A failed review, or a
+revise with no blockers, gets the checklist. The runner passes the flag
+when `apprentice.work_review` is true and `apprentice.review_model` is set.
+
 ## Worker mode
 
 ```sh

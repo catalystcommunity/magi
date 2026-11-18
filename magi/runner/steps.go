@@ -191,6 +191,9 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 	if r.Cfg.Apprentice.SupervisorModel != "" {
 		args = append(args, "--supervisor-model", r.Cfg.Apprentice.SupervisorModel)
 	}
+	if r.Cfg.Apprentice.WorkReview && r.Cfg.Apprentice.ReviewModel != "" {
+		args = append(args, "--review-model", r.Cfg.Apprentice.ReviewModel)
+	}
 	cmd := exec.CommandContext(ctx, r.Cfg.Apprentice.Python, args...)
 	cmd.Env = append(r.apprenticeEnv(dir),
 		// The coding model behind /runner/v1 is a large provider model

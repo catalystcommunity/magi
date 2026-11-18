@@ -528,6 +528,47 @@ class SelfReviewTest(unittest.TestCase):
         self.assertIn("review your change first", model.requests[2][-1]["content"])
         self.assertEqual(len(self.reviewed(tr)), 1)
 
+    def run_with_reviewer(self, verdict, blockers=None, error=None):
+        seen = []
+
+        def reviewer(tools, task):
+            seen.append(task.instructions)
+            if error:
+                raise error
+            return {"verdict": verdict, "blockers": blockers or [], "seconds": 1.0}
+        model = FakeModel([reply(call("finish", summary="a")), reply(call("finish", summary="b"))])
+        lim = Limits()
+        tr = Transcript(Redactor())
+        r = Apprentice(model, Tools(Workspace(diff_exec(), "env", "/w", lim)), lim, tr,
+                       reviewer=reviewer).run(Task("make A return 3"))
+        return r, model, tr, seen
+
+    def test_model_review_blockers_replace_the_checklist(self):
+        b = [{"lens": "requirements", "file": "a.go", "line": 4, "problem": "A returns 2; the task says 3."}]
+        r, model, tr, seen = self.run_with_reviewer("revise", b)
+        self.assertEqual((r.status, r.summary), ("finished", "b"))
+        self.assertEqual(seen, ["make A return 3"])
+        result = model.requests[1][-1]["content"]
+        self.assertIn("a reviewer model looked at your change", result)
+        self.assertIn("- [requirements] a.go:4 A returns 2; the task says 3.", result)
+        self.assertIn("say in the finish summary why it is false", result)
+        self.assertNotIn(SELF_REVIEW, result)
+        self.assertEqual(records(tr, "model_review")[0]["verdict"], "revise")
+        self.assertEqual(self.reviewed(tr), [])
+
+    def test_model_review_approval_accepts_the_first_finish(self):
+        r, model, tr, _ = self.run_with_reviewer("approve")
+        self.assertEqual((r.status, r.summary, len(model.requests)), ("finished", "a", 1))
+
+    def test_a_failed_model_review_falls_back_to_the_checklist(self):
+        r, model, tr, _ = self.run_with_reviewer("revise", error=OSError("engine down"))
+        self.assertIn(SELF_REVIEW, model.requests[1][-1]["content"])
+        self.assertEqual(records(tr, "model_review")[0]["error"], "OSError: engine down")
+
+    def test_a_revise_with_no_blockers_falls_back_to_the_checklist(self):
+        r, model, tr, _ = self.run_with_reviewer("revise", [])
+        self.assertIn(SELF_REVIEW, model.requests[1][-1]["content"])
+
     def test_self_review_off_ends_at_the_first_finish(self):
         e = diff_exec()
         model = FakeModel([reply(call("finish", summary="done"))])

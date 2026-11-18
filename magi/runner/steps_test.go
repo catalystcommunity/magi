@@ -223,6 +223,22 @@ func TestWorkStepPassesSupervisorModel(t *testing.T) {
 	}
 }
 
+// WorkReview gives the review model to each work round; the review model
+// alone keeps it for the check step.
+func TestWorkStepPassesReviewModel(t *testing.T) {
+	var cfg Config
+	cfg.Apprentice.ReviewModel = "qwen-review"
+	_, _, args := workStepConfig(t, `{"status": "finished", "outcome": "done", "summary": "ok", "steps": 1, "tool_calls": 1}`, nil, cfg)
+	if strings.Contains(args, "--review-model") {
+		t.Errorf("arguments without work_review = %q", args)
+	}
+	cfg.Apprentice.WorkReview = true
+	_, _, args = workStepConfig(t, `{"status": "finished", "outcome": "done", "summary": "ok", "steps": 1, "tool_calls": 1}`, nil, cfg)
+	if !strings.Contains(args, "--review-model\nqwen-review") {
+		t.Errorf("arguments = %q", args)
+	}
+}
+
 // The model review gets the task with the earlier review comment, the base
 // of the change, and the review model; its summary is the hint.
 func TestModelReview(t *testing.T) {

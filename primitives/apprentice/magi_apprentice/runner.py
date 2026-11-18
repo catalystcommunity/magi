@@ -9,6 +9,7 @@ from ._clients import artifacts as art
 from .apprentice import Apprentice, Result, Steering, Task, model_wait_recorder
 from .config import Limits, ModelConfig
 from .model import ChatModel, Model
+from .prereview import pre_review
 from .supervisor import Supervisor
 from .tools import Tools, Workspace
 from .transcript import Transcript, default_redactor
@@ -45,6 +46,15 @@ def apply_model_override(cfg: ModelConfig, limits: Limits, value: str | None) ->
     return cfg, limits
 
 
+def task_text(t: Task) -> str:
+    """The task as the reviewer sees it: the title, the instructions, and the
+    comment of the earlier round, as the check step of the runner gives it."""
+    text = "\n\n".join(x for x in (t.title, t.instructions) if x)
+    if t.review_comment:
+        text += "\n\nThe review comment of the earlier round (each item must be done):\n" + t.review_comment
+    return text
+
+
 def run_task(task: Task, *, execution: Any, environment: str, model_cfg: ModelConfig,
              limits: Limits, artifacts: Any | None = None, labels: dict[str, str] | None = None,
              model: Model | None = None, steering: Steering | None = None,
@@ -52,20 +62,29 @@ def run_task(task: Task, *, execution: Any, environment: str, model_cfg: ModelCo
              on_progress: Callable[[str], None] | None = None,
              transcript_path: str | None = None,
              extra_secrets: tuple[str | None, ...] = (),
-             supervisor_model: str | None = None) -> Outcome:
+             supervisor_model: str | None = None,
+             review_model: str | None = None) -> Outcome:
     redactor = default_redactor(model_cfg.api_key, *extra_secrets)
     tr = Transcript(redactor, transcript_path)
     tr.record("config", model=model_cfg.name, base_url=model_cfg.base_url,
               max_tokens=model_cfg.max_tokens, temperature=model_cfg.temperature,
-              environment=environment, supervisor_model=supervisor_model)
+              environment=environment, supervisor_model=supervisor_model, review_model=review_model)
     # The supervisor uses the route and the key of the worker, with its own
     # model name: another engine, so that its calls keep the worker's cache.
     supervisor = (Supervisor(ChatModel(replace(model_cfg, name=supervisor_model, max_tokens=4096, temperature=0.2)),
                              limits.max_steps) if supervisor_model else None)
+    reviewer = None
+    if review_model:
+        # The lens answers are long: each lens writes out what it checked.
+        rm = ChatModel(replace(model_cfg, name=review_model, max_tokens=max(model_cfg.max_tokens, 12000),
+                               temperature=0.6))
+
+        def reviewer(tools: Tools, t: Task) -> dict:
+            return pre_review(rm, tools, task_text(t), "HEAD", t.lessons or "")
     apprentice = Apprentice(model or ChatModel(model_cfg, on_wait=model_wait_recorder(tr)),
                   Tools(Workspace(execution, environment, task.workdir, limits)),
                   limits, tr, steering=steering, should_stop=should_stop, on_progress=on_progress,
-                  supervisor=supervisor)
+                  supervisor=supervisor, reviewer=reviewer)
     try:
         result = apprentice.run(task)
     except Exception as e:  # keep the evidence of a crashed task

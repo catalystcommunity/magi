@@ -78,7 +78,8 @@ def cmd_run(args: argparse.Namespace) -> int:
                    artifacts=artifacts, labels={"run": "cli", "step": "cli"},
                    on_progress=lambda n: logging.info("progress: %s", n),
                    transcript_path=args.transcript, extra_secrets=(token_source(sc.token_file)(),),
-                   supervisor_model=args.supervisor_model or None)
+                   supervisor_model=args.supervisor_model or None,
+                   review_model=args.review_model or None)
     r = out.result
     print(json.dumps({"status": r.status, "outcome": outcome_of(r.status), "summary": r.summary, "steps": r.steps,
                       "tool_calls": r.tool_calls, "check_passed": r.check_passed, "error": r.error,
@@ -137,6 +138,8 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--model", help="model name or JSON override")
     r.add_argument("--max-steps", type=int)
     r.add_argument("--supervisor-model", help="model name of the supervisor (default: no supervisor)")
+    r.add_argument("--review-model", help="model name of the lens review at the first finish "
+                                          "(default: the checklist self-review)")
     r.add_argument("--transcript", help="also write the JSONL transcript to this file")
     r.add_argument("--no-upload", action="store_true", help="do not upload the transcript")
     v = sub.add_parser("review", help="the model review of a change whose checks passed")
