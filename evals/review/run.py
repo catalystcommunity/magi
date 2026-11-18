@@ -3,7 +3,7 @@ against the verdicts of a person.
 
   python3 evals/review/run.py --url URL --token-file F --model NAME --cases CASES.jsonl
       --label L [--samples 3] [--only id1,id2] [--out evals/review/results]
-      [--agent | --lens] [--context] [--repo PATH --worktrees DIR]
+      [--agent | --lens] [--context] [--checked] [--repo PATH --worktrees DIR]
 
 URL is an OpenAI-compatible base URL (for example the runner model route of
 Magi, https://magi.example.local/runner/v1, with a runner token). Each line of
@@ -19,7 +19,9 @@ back and the reviewer approved. Auto-approval needs 0 of them.
 With --agent, the tool-using reviewer (review_agent.py) reviews each case.
 With --lens, each case gets one call for each review lens (review.py
 LENSES). With --context, the review gets the whole changed functions and the
-functions that they call (review_context.py). These modes need a checkout:
+functions that they call (review_context.py). With --checked, the review knows that the checks passed (true for each case
+of a review step), and the harness drops the blockers that the checks
+disprove (review.py verify). These modes need a checkout:
 a case needs "base", the commit that its patch applies to.
 The script adds a git worktree of PATH at the base under DIR, applies the
 patch, and removes the worktree after the case.
@@ -67,8 +69,10 @@ def checkout_case(model, a, case: dict, lessons: str, log) -> Review:
             patch = fdiff or patch
         if a.lens:
             return combine([s for _ in range(a.samples)
-                            for s in lens_review(model, case["task"], patch, lessons, context).samples])
-        return review(model, case["task"], patch, lessons, samples=a.samples, context=context)
+                            for s in lens_review(model, case["task"], patch, lessons, context,
+                                                 checked=a.checked).samples])
+        return review(model, case["task"], patch, lessons, samples=a.samples, context=context,
+                      checked=a.checked)
     finally:
         subprocess.run(["git", "-C", a.repo, "worktree", "remove", "--force", wt], capture_output=True)
 
@@ -90,6 +94,8 @@ def main() -> int:
     ap.add_argument("--worktrees", default="")
     ap.add_argument("--max-steps", type=int, default=25)
     ap.add_argument("--lens", action="store_true", help="one call for each review lens")
+    ap.add_argument("--checked", action="store_true",
+                    help="the checks passed on each case (a review step comes after the check step)")
     ap.add_argument("--context", action="store_true",
                     help="whole changed functions and the functions that they call")
     a = ap.parse_args()
@@ -116,7 +122,7 @@ def main() -> int:
         if a.agent or a.lens or a.context:
             rv = checkout_case(model, a, c, lessons, lambda line: print(line, flush=True))
         else:
-            rv = review(model, c["task"], c["patch"], lessons, samples=a.samples)
+            rv = review(model, c["task"], c["patch"], lessons, samples=a.samples, checked=a.checked)
         row = {"id": c["id"], "label": c["label"], "verdict": rv.verdict,
                "samples": [s.verdict for s in rv.samples], "seconds": round(time.monotonic() - t0, 1),
                "defects": rv.defects, "comment": c.get("comment", "")}

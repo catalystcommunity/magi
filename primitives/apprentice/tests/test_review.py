@@ -3,7 +3,8 @@ import unittest
 from fakes import FakeModel, reply
 
 from magi_apprentice.model import ModelError
-from magi_apprentice.review import LENSES, combine, drop_generated, lens_review, parse_sample, review, review_prompt
+from magi_apprentice.review import (LENSES, combine, drop_generated, lens_review, parse_sample, review,
+                                    review_prompt, verify)
 
 
 def answer(verdict: str, defects: str = "[]", met: str = "true") -> str:
@@ -130,6 +131,38 @@ class LensTest(unittest.TestCase):
     def test_a_raw_newline_in_a_string_is_read(self):
         s = parse_sample('{"requirements": [{"text": "a\nb", "met": true}], "defects": [], "verdict": "approve"}')
         self.assertEqual(s.verdict, "approve")
+
+    def test_a_passing_check_disproves_a_compile_error(self):
+        ans = ('{"requirements": [{"text": "x", "met": true}], "defects": [{"file": "a.go", "line": 3, '
+               '"severity": "blocker", "problem": "Calls undefined function optional; a compile error."}], '
+               '"verdict": "revise"}')
+        s = verify(parse_sample(ans), "diff", checked=True)
+        self.assertEqual((s.verdict, s.defects[0]["severity"], s.defects[0]["disproved"]),
+                         ("approve", "minor", True))
+        # Without a passing check, the claim stays.
+        self.assertEqual(verify(parse_sample(ans), "diff", checked=False).verdict, "revise")
+
+    def test_a_disproved_blocker_keeps_the_other_blockers(self):
+        ans = ('{"requirements": [{"text": "x", "met": true}], "defects": ['
+               '{"file": "a.go", "line": 3, "severity": "blocker", "problem": "This test will fail."}, '
+               '{"file": "a.go", "line": 9, "severity": "blocker", "problem": "The notice says it twice."}], '
+               '"verdict": "revise"}')
+        self.assertEqual(verify(parse_sample(ans), "diff", checked=True).verdict, "revise")
+
+    def test_a_mode_claim_needs_a_mode_change_in_the_patch(self):
+        ans = ('{"requirements": [{"text": "x", "met": true}], "defects": [{"file": "a.sh", "line": null, '
+               '"severity": "blocker", "problem": "File mode is 644 instead of 755."}], "verdict": "revise"}')
+        self.assertEqual(verify(parse_sample(ans), "diff --git a/a.sh b/a.sh\n+x\n", False).verdict, "approve")
+        moved = "diff --git a/a.sh b/a.sh\nold mode 100755\nnew mode 100644\n"
+        self.assertEqual(verify(parse_sample(ans), moved, False).verdict, "revise")
+
+    def test_checks_go_in_the_prompt_and_a_disproved_requirements_defect_approves(self):
+        ok = ('```json\n{"requirements": [{"text": "x", "met": true}], "defects": [{"file": "a.go", '
+              '"line": 1, "severity": "blocker", "problem": "undefined: w"}], "verdict": "revise"}\n```')
+        m = FakeModel([reply(content=ok)] * len(LENSES))
+        rv = lens_review(m, "do x", "diff", checked=True)
+        self.assertIn("## Checks", m.requests[0][1]["content"])
+        self.assertEqual(rv.verdict, "approve")
 
     def test_context_goes_in_the_prompt(self):
         user = review_prompt("do x", "diff", context="func endNote() {}")[1]["content"]
