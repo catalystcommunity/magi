@@ -74,6 +74,10 @@ type Config struct {
 		// SupervisorModel is the catalog model of the supervisor of each
 		// work round (primitives/apprentice supervisor.py). Empty: none.
 		SupervisorModel string `json:"supervisor_model"`
+		// ReviewModel is the catalog model of the review that runs after the
+		// checks pass (primitives/apprentice prereview.py). Its result is a
+		// hint in the review request; a person still decides. Empty: none.
+		ReviewModel string `json:"review_model"`
 	} `json:"apprentice"`
 	Sandbox struct {
 		// Preflight is a shell command that runs in the sandbox before each

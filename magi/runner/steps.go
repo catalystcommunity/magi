@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	magiapi "github.com/catalystcommunity/magi/magi/api"
 	"github.com/catalystcommunity/magi/magi/compose"
@@ -191,11 +192,7 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 		args = append(args, "--supervisor-model", r.Cfg.Apprentice.SupervisorModel)
 	}
 	cmd := exec.CommandContext(ctx, r.Cfg.Apprentice.Python, args...)
-	cmd.Env = []string{
-		"PATH=" + os.Getenv("PATH"), "HOME=" + dir, "PYTHONPATH=" + r.Cfg.Apprentice.Path,
-		"MAGI_EXECUTION_URL=" + r.execURL, "MAGI_TOKEN_FILE=" + r.execTokenFile,
-		"MAGI_MODEL_BASE_URL=" + strings.TrimRight(r.Cfg.Server, "/") + "/runner/v1",
-		"MAGI_MODEL_API_KEY_FILE=" + r.Cfg.TokenFile, "MAGI_MODEL_NAME=coder",
+	cmd.Env = append(r.apprenticeEnv(dir),
 		// The coding model behind /runner/v1 is a large provider model
 		// (glm-5.3). The apprentice defaults fit a small local model: at
 		// 24000 tokens it removed what it had read and read the same files
@@ -206,7 +203,7 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 		// GLM makes about one tool call for each model call: a change of
 		// five files with tests used all of 60 steps (2026-11-14).
 		"MAGI_APPRENTICE_MAX_STEPS=150",
-	}
+	)
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return Result{}, err
@@ -301,6 +298,68 @@ var environmentPatterns = regexp.MustCompile(`(?i)connection reset by peer|conne
 	`no space left on device|virtiofsd did not start|read-only file system`)
 
 // environmentLine is the first line of output with an environment error, or "".
+// apprenticeEnv is the environment of a magi_apprentice command: the
+// execution service and the model route of this runner, nothing else of
+// the runner's own environment.
+func (r *Runner) apprenticeEnv(home string) []string {
+	return []string{
+		"PATH=" + os.Getenv("PATH"), "HOME=" + home, "PYTHONPATH=" + r.Cfg.Apprentice.Path,
+		"MAGI_EXECUTION_URL=" + r.execURL, "MAGI_TOKEN_FILE=" + r.execTokenFile,
+		"MAGI_MODEL_BASE_URL=" + strings.TrimRight(r.Cfg.Server, "/") + "/runner/v1",
+		"MAGI_MODEL_API_KEY_FILE=" + r.Cfg.TokenFile, "MAGI_MODEL_NAME=coder",
+	}
+}
+
+// modelReviewTimeout: one sample of each lens takes about 3 minutes on a
+// local model on one GPU (evals/review, 2026-11-17).
+const modelReviewTimeout = 20 * time.Minute
+
+// modelReview runs the review of a model on a change whose checks passed
+// (primitives/apprentice prereview.py). The result is a hint in the review
+// request of a person, so a failed review gives a text that says so and
+// the review of the person goes on.
+func (r *Runner) modelReview(ctx context.Context, a magiapi.RunnerAssignment) (verdict, summary string) {
+	fail := func(why string) (string, string) { return "", "The model review failed: " + why }
+	dir, err := os.MkdirTemp(r.Cfg.StateDir, "review-")
+	if err != nil {
+		return fail(err.Error())
+	}
+	defer os.RemoveAll(dir)
+	// The reviewer checks each item of an earlier review comment too.
+	task := strings.TrimSpace(a.Vars["title"] + "\n\n" + a.Vars["instructions"])
+	if c := roundComment(a.Vars); c != "" {
+		task += "\n\nThe review comment of the earlier round (each item must be done):\n" + c
+	}
+	instr := filepath.Join(dir, "instructions")
+	if err := os.WriteFile(instr, []byte(task), 0o600); err != nil {
+		return fail(err.Error())
+	}
+	args := []string{"-m", "magi_apprentice", "review", "--environment", a.Vars["environment"], "--workdir", a.Vars["workdir"],
+		"--base", a.Vars["base_commit"], "--instructions", "@" + instr, "--model", r.Cfg.Apprentice.ReviewModel}
+	if l := a.Vars["lessons"]; l != "" {
+		args = append(args, "--lessons", l)
+	}
+	ctx, cancel := context.WithTimeout(ctx, modelReviewTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, r.Cfg.Apprentice.Python, args...)
+	cmd.Env = r.apprenticeEnv(dir)
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	stdout, runErr := cmd.Output()
+	var res struct {
+		Verdict string `json:"verdict"`
+		Summary string `json:"summary"`
+	}
+	if err := json.Unmarshal(stdout, &res); err != nil || res.Summary == "" {
+		why := tail(stderr.String(), 300)
+		if runErr != nil {
+			why = runErr.Error() + ": " + why
+		}
+		return fail(why)
+	}
+	return res.Verdict, res.Summary
+}
+
 func environmentLine(output string) string {
 	for _, line := range strings.Split(output, "\n") {
 		if environmentPatterns.MatchString(line) {
@@ -423,6 +482,12 @@ git rev-parse HEAD`, a.Vars["base_commit"], branch, shellQuote(w)), 120000)
 	out["head_commit"] = lastLine(string(res.Stdout))
 	out["patch"], out["patch.files"] = patch.Digest, string(files)
 	out["check_output"], out["check.attempts"] = "", "0"
+	hint := ""
+	if r.Cfg.Apprentice.ReviewModel != "" {
+		r.note(ctx, st, "Checks passed. The model review started.")
+		verdict, sum := r.modelReview(ctx, a)
+		out["review.model_verdict"], hint = verdict, "\n\n"+sum
+	}
 	r.note(ctx, st, "Checks passed. Waiting for review.")
 	review := fmt.Sprintf("The checks passed. The change on %s is ready for your review: approve, revise with a comment, or reject.", branch)
 	if base := a.Vars["base"]; base != "" {
@@ -431,7 +496,7 @@ git rev-parse HEAD`, a.Vars["base_commit"], branch, shellQuote(w)), 120000)
 		review = fmt.Sprintf("The checks passed. This is an eval run (base %s): it ends at review and never merges. Reject it after the grade. The change on %s is ready for your review.", base, branch)
 		r.note(ctx, st, "Eval run (base "+base+"): it ends at review; approve is refused.")
 	}
-	r.report(ctx, st, "normal", "Ready for review", review)
+	r.report(ctx, st, "normal", "Ready for review", review+hint)
 	return Result{Outcome: "pass", Outputs: out}, nil
 }
 

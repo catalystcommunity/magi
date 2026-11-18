@@ -222,3 +222,42 @@ func TestWorkStepPassesSupervisorModel(t *testing.T) {
 		t.Errorf("arguments without a supervisor = %q", args)
 	}
 }
+
+// The model review gets the task with the earlier review comment, the base
+// of the change, and the review model; its summary is the hint.
+func TestModelReview(t *testing.T) {
+	// The fake echoes the task file as the summary.
+	python, path := fakeApprentice(t, `{"verdict": "revise", "summary": open([a for a in sys.argv if a.startswith('@')][0][1:]).read()}`)
+	r := &Runner{Log: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	r.Cfg.StateDir = t.TempDir()
+	r.Cfg.Apprentice.Python, r.Cfg.Apprentice.Path, r.Cfg.Apprentice.ReviewModel = python, path, "qwen-review"
+	a := magiapi.RunnerAssignment{Run: "run_r", Step: "check", Vars: map[string]string{"environment": "e", "workdir": "/work/repo",
+		"title": "Fix the notice", "instructions": "Say it once.", "base_commit": "abc123", "review.comment": "1. Add a test."}}
+	verdict, sum := r.modelReview(context.Background(), a)
+	want := "Fix the notice\n\nSay it once.\n\nThe review comment of the earlier round (each item must be done):\n1. Add a test."
+	if verdict != "revise" || sum != want {
+		t.Errorf("modelReview = %q, %q", verdict, sum)
+	}
+	b, err := os.ReadFile(filepath.Join(path, "magi_apprentice", "args.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, w := range []string{"review\n", "--base\nabc123", "--model\nqwen-review", "--environment\ne"} {
+		if !strings.Contains(string(b), w) {
+			t.Errorf("arguments %q do not have %q", b, w)
+		}
+	}
+}
+
+// A review that gives no result is a hint that says so, not an error of the
+// check step.
+func TestModelReviewFailure(t *testing.T) {
+	python, path := fakeApprentice(t, `"not a result"`)
+	r := &Runner{Log: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	r.Cfg.StateDir = t.TempDir()
+	r.Cfg.Apprentice.Python, r.Cfg.Apprentice.Path, r.Cfg.Apprentice.ReviewModel = python, path, "qwen-review"
+	verdict, sum := r.modelReview(context.Background(), magiapi.RunnerAssignment{Vars: map[string]string{}})
+	if verdict != "" || !strings.HasPrefix(sum, "The model review failed: ") {
+		t.Errorf("modelReview = %q, %q", verdict, sum)
+	}
+}

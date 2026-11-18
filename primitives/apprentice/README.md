@@ -197,8 +197,7 @@ records the review as skipped near a limit.
 ## Reviewers
 
 Two reviewers give a verdict on a finished change: `approve` or `revise`.
-They are not in the work loop yet. `evals/review` measures them against the
-decisions of a person.
+`evals/review` measures them against the decisions of a person.
 
 - `review.py` reads the task, the review lessons, and the diff. Generated
   files are named, but their diff is not shown. The model gives its verdict
@@ -212,6 +211,22 @@ The same rules apply to both. A blocker or an unmet requirement makes the
 verdict `revise`. An answer with no valid verdict is `invalid`, and it
 cannot approve. With more than one sample, the change is approved only
 when every sample approves.
+
+### Model review before the review of a person
+
+`python -m magi_apprentice review --base COMMIT --instructions @FILE
+--environment ENV --model NAME` reviews the change from COMMIT to the work
+directory (`prereview.py`). The runner runs it in the check step, after
+the checks pass, when `apprentice.review_model` is set in its
+configuration. The summary goes into the review request, and the verdict
+goes into the output `review.model_verdict`. A person still decides.
+
+- The harness collects the context (`review_context.py`).
+- Each lens of `review.py` gets one call: requirements, text, logic,
+  tests, scope. The prompt says that the checks passed.
+- The harness makes a blocker minor when the checks disprove it: a compile
+  error or an undefined name, or a file mode that the patch does not change.
+- A failed review is a summary that says so. The check step goes on.
 
 ## Worker mode
 

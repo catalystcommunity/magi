@@ -1,4 +1,4 @@
-"""Command line: `python -m magi_apprentice worker` or `python -m magi_apprentice run`."""
+"""Command line: `python -m magi_apprentice worker`, `run`, or `review`."""
 from __future__ import annotations
 
 import argparse
@@ -8,13 +8,17 @@ import os
 import signal
 import sys
 import time
+from dataclasses import replace
 
 from ._clients import artifacts as art, execution as ex, token_source, transport, workflow as wf
 from .apprentice import Task
 from .config import Limits, ModelConfig, ServiceConfig
 from .guards import outcome_of
 from .local import LocalExecution
+from .model import ChatModel, ModelError
+from .prereview import pre_review, summary
 from .runner import apply_model_override, run_task
+from .tools import Tools, Workspace
 from .worker import DEFAULT_CHECK, Worker
 
 
@@ -84,6 +88,34 @@ def cmd_run(args: argparse.Namespace) -> int:
     return 0 if r.status == "finished" and r.check_passed is not False else 1
 
 
+def cmd_review(args: argparse.Namespace) -> int:
+    """The model review of a change whose checks passed. Prints one JSON
+    object; a failed review is a result with an error, not a failed command,
+    because the review of a person goes on without it."""
+    sc = ServiceConfig.from_env()
+    model_cfg, limits = apply_model_override(ModelConfig.from_env(), Limits.from_env(), args.model)
+    # The lens answers are long: each lens writes out what it checked.
+    model_cfg = replace(model_cfg, max_tokens=max(model_cfg.max_tokens, 12000), temperature=0.6)
+    task = args.instructions
+    if task.startswith("@"):
+        with open(task[1:]) as f:
+            task = f.read()
+    if args.local:
+        execution, env_id, workdir = LocalExecution(), "local", args.workdir or args.local
+    else:
+        execution = ex.ExecutionClient(transport(_need(sc.execution_url, "MAGI_EXECUTION_URL"), sc.token_file,
+                                                 timeout=limits.bash_timeout_max_s + 120))
+        env_id, workdir = _need(args.environment or "", "--environment"), args.workdir or "/work/repo"
+    tools = Tools(Workspace(execution, env_id, workdir, limits))
+    try:
+        out = pre_review(ChatModel(model_cfg), tools, task, args.base, args.lessons or "", samples=args.samples)
+    except (ModelError, OSError) as e:
+        out = {"verdict": "revise", "blockers": [], "error": str(e)}
+    out["summary"] = summary(out)
+    print(json.dumps(out, indent=2))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, stream=sys.stderr,
                         format='{"time":"%(asctime)s","level":"%(levelname)s","msg":%(message)r}')
@@ -107,8 +139,17 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--supervisor-model", help="model name of the supervisor (default: no supervisor)")
     r.add_argument("--transcript", help="also write the JSONL transcript to this file")
     r.add_argument("--no-upload", action="store_true", help="do not upload the transcript")
+    v = sub.add_parser("review", help="the model review of a change whose checks passed")
+    v.add_argument("--instructions", required=True, help="task text, or @file")
+    v.add_argument("--base", required=True, help="the commit that the change starts from")
+    v.add_argument("--environment", help="execution environment id")
+    v.add_argument("--local", metavar="DIR", help="run tools on this host in DIR (no isolation)")
+    v.add_argument("--workdir")
+    v.add_argument("--lessons", help="review lessons of this repository")
+    v.add_argument("--model", help="model name or JSON override")
+    v.add_argument("--samples", type=int, default=1, help="each lens is asked this many times")
     args = p.parse_args(argv)
-    return cmd_worker(args) if args.cmd == "worker" else cmd_run(args)
+    return {"worker": cmd_worker, "run": cmd_run, "review": cmd_review}[args.cmd](args)
 
 
 if __name__ == "__main__":
