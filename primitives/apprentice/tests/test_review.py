@@ -117,6 +117,20 @@ class LensTest(unittest.TestCase):
         self.assertEqual([s.verdict for s in rv.samples], ["revise"] + ["approve"] * 4)
         self.assertEqual(rv.verdict, "revise")
 
+    def test_a_broken_lens_answer_is_asked_once_more(self):
+        ok = '```json\n{"requirements": [{"text": "x", "met": true, "evidence": "a:1"}], "defects": [], ' \
+             '"verdict": "approve"}\n```'
+        broken = '```json\n{"requirements": [], "defects": [] "verdict": "approve"}\n```'
+        # Lens 2 breaks twice and stays invalid; lens 3 breaks once.
+        m = FakeModel([reply(content=ok)] + [reply(content=broken)] * 3 + [reply(content=ok)] * 3)
+        rv = lens_review(m, "do x", "diff")
+        self.assertEqual(len(m.requests), len(LENSES) + 2)
+        self.assertEqual([s.verdict for s in rv.samples], ["approve", "invalid"] + ["approve"] * 3)
+
+    def test_a_raw_newline_in_a_string_is_read(self):
+        s = parse_sample('{"requirements": [{"text": "a\nb", "met": true}], "defects": [], "verdict": "approve"}')
+        self.assertEqual(s.verdict, "approve")
+
     def test_context_goes_in_the_prompt(self):
         user = review_prompt("do x", "diff", context="func endNote() {}")[1]["content"]
         self.assertIn("## Functions that the change calls (not changed)", user)

@@ -74,3 +74,26 @@ revision. It was found on these 12 cases, so the code keeps "all approve"
 until the other 26 cases confirm it. Auto-approval needs 0 false
 approvals. Thus the lens reviewer is a hint for the person now, not a
 gate.
+
+### Check on the other 26 cases, 3 samples, RTX 3090
+
+| Rule | TA | FA | TR | FR |
+| --- | --- | --- | --- | --- |
+| All approve, and a requirements defect is revise (the code) | 5 | 0 | 10 | 11 |
+| Requirements defect, or 2 revise votes of 15 | 10 | 2 | 8 | 6 |
+
+Median time per case: 411 s. The rule of 2 votes approves 2 changes that
+the person sent back (cases 28 and 32). Thus the code keeps "all approve".
+
+All 38 cases with the rule of the code: TA 8, FA 1, TR 15, FR 14. The
+reviewer approves 8 of the 22 changes that the person approved, and it
+misses 1 of the 16 changes that the person sent back (case 24).
+
+10 of the 390 answers had broken JSON, and most of them were approvals.
+review.py now reads a raw newline in a string, and asks a lens once more
+when its answer is broken. The reasoning-budget message of the server
+must not ask for a tool call: a review call has no tools, and the model
+then writes a fake tool call instead of the verdict.
+
+Next: look at the 14 false revisions. One false revision costs a work
+round, so they decide how useful the gate is.

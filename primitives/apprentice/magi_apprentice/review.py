@@ -116,7 +116,9 @@ def parse_sample(text: str, need_requirements: bool = True) -> Sample:
         else:
             return Sample("invalid", text=text)
     try:
-        data = json.loads(blocks[-1])
+        # strict=False: a raw newline in a string is a common slip of a
+        # model, and the meaning stays clear.
+        data = json.loads(blocks[-1], strict=False)
     except ValueError:
         return Sample("invalid", text=text)
     if not isinstance(data, dict):
@@ -211,12 +213,17 @@ def lens_review(model: Model, task: str, patch: str, lessons: str = "", context:
     the requirements lens must list requirements."""
     out = []
     for lens in lenses:
-        try:
-            reply = model.complete(lens_prompt(lens, task, patch, lessons, context), [])
-        except ModelError as e:
-            out.append(Sample("invalid", text=f"{lens}: model error: {e}"))
-            continue
-        s = parse_sample(reply.content, need_requirements=lens == "requirements")
+        # An answer with broken JSON is a slip of the format, not a verdict:
+        # ask once more (evals/review: 10 of 390 answers, most of them approve).
+        for _ in range(2):
+            try:
+                reply = model.complete(lens_prompt(lens, task, patch, lessons, context), [])
+            except ModelError as e:
+                s = Sample("invalid", text=f"model error: {e}")
+                continue
+            s = parse_sample(reply.content, need_requirements=lens == "requirements")
+            if s.verdict != "invalid":
+                break
         # A defect of the requirements lens is a difference from the task's
         # words. The model often finds it, calls it minor, and approves
         # (evals/review case 27): such a difference is not met.
