@@ -82,6 +82,7 @@ class Limits:
     progress_every: int = 5           # progress note every N tool calls
     check_retries: int = 3            # finish attempts rejected by a failed check
     self_review: bool = True          # one review request before the first accepted finish
+    test_gate: bool = True            # new tests run once on the code without the change (testgate.py)
 
     @classmethod
     def from_env(cls) -> "Limits":
@@ -96,6 +97,7 @@ class Limits:
             progress_every=_int("MAGI_APPRENTICE_PROGRESS_EVERY", d.progress_every),
             check_retries=_int("MAGI_APPRENTICE_CHECK_RETRIES", d.check_retries),
             self_review=_env("MAGI_APPRENTICE_SELF_REVIEW", "true") != "false",
+            test_gate=_env("MAGI_APPRENTICE_TEST_GATE", "true") != "false",
         )
 
 

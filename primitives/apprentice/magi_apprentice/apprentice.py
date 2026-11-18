@@ -6,7 +6,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable
 
-from . import diffgate
+from . import diffgate, testgate
 from .config import Limits
 from .guards import Guards
 from .supervisor import Supervisor
@@ -404,6 +404,7 @@ class Apprentice:
         self._reviewed = False
         self._gate_rejects = 0
         self._copies_noted = False
+        self._tests_tested = False
         tr.record("task", instructions=task.instructions, workdir=task.workdir,
                   check_command=task.check_command, limits=vars(lim))
         add_start_context(task, self.tools, tr)  # before the first model call
@@ -533,7 +534,7 @@ class Apprentice:
                     content, ok = r.content, r.ok
                     if r.finished:
                         content, ok, accept = self._finish_gate(task, r.content, check_fails, res)
-                        if accept and (review := self._self_review(task, res, start)):
+                        if accept and (review := self._test_gate(res, start) or self._self_review(task, res, start)):
                             content, accept = review, False
                         if accept:
                             finished = r.content
@@ -674,6 +675,20 @@ class Apprentice:
         return (f"finish rejected: the check command failed.\n{out}\n"
                 "Fix the problem, then call finish again."), False, False
 
+    def _near_limit(self, res: Result, start: float) -> bool:
+        lim = self.limits
+        return lim.max_steps - res.steps < SELF_REVIEW_MIN_CALLS or self.clock() - start >= lim.max_seconds * 0.8
+
+    def _test_gate(self, res: Result, start: float) -> str | None:
+        """The first finish that passes the check: the new tests that pass
+        without the change, as a request to fix them (once in a run)."""
+        if self._tests_tested or not self.limits.test_gate or self._near_limit(res, start):
+            return None
+        self._tests_tested = True
+        found = testgate.check(self.tools)
+        self.transcript.record("test_gate", passing_without_change=found)
+        return testgate.note(found) if found else None
+
     def _self_review(self, task: Task, res: Result, start: float) -> str | None:
         """The first finish that passes the check gate gets one review request
         with the diff, instead of the end of the task. Returns None when this
@@ -683,8 +698,7 @@ class Apprentice:
             return None
         self._reviewed = True
         # A review near a limit has no value: the model cannot act on it.
-        if (lim.max_steps - res.steps < SELF_REVIEW_MIN_CALLS
-                or self.clock() - start >= lim.max_seconds * 0.8):
+        if self._near_limit(res, start):
             self.transcript.record("self_review", skipped="near a limit", diff_chars=0)
             return None
         if self.reviewer is not None:

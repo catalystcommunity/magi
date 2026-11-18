@@ -161,6 +161,27 @@ A rejection by these rules does not use up a check retry. After 2
 rejections in one run, the harness accepts the finish, so that a rule
 cannot hold a run. The transcript records each rejection as `diff_gate`.
 
+## Test of the new tests
+
+After the first finish that passes the check, the harness runs the new
+tests of the change on the code without the change (`testgate.py`). It
+makes a git worktree of HEAD, copies the changed test files into it, runs
+only the new test functions (Go `TestX`, Python `test_x`), and removes the
+worktree. The work directory does not change. A new test that passes there
+does not test the change. The harness sends the names to the model one
+time in a run. The model fixes each test, or says in the summary why the
+test can stay. A test that fails or does not compile without the change is
+good.
+
+The transcript records the result as `test_gate`. Set
+`MAGI_APPRENTICE_TEST_GATE` to `false` to turn it off.
+
+On the coding eval, the gate finds the tests that copy the logic of the
+code (pr5, two runs) and a test whose input never reaches the change (pr7).
+On the 38 cases of evals/review, it also finds a test in 2 of the 22
+changes that a person approved: tests that check that something does not
+happen.
+
 ## Model errors
 
 A model error has a kind. A 402, or a 429 whose error type says that the money
@@ -332,6 +353,7 @@ dollars.
 | `MAGI_APPRENTICE_PROGRESS_EVERY` | `5` | Tool calls between progress notes |
 | `MAGI_APPRENTICE_CHECK_RETRIES` | `3` | Failed checks before `finish` is accepted |
 | `MAGI_APPRENTICE_SELF_REVIEW` | `true` | One review request before the first accepted `finish`; `false` turns it off |
+| `MAGI_APPRENTICE_TEST_GATE` | `true` | The new tests run once on the code without the change; `false` turns it off |
 
 For llama.cpp, start `llama-server` with `--jinja`. For a hosted provider,
 change only the base URL, the model name, and the key file.
