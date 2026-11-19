@@ -158,3 +158,24 @@ form of the task, or gives a reason in the summary.
 On the 38 cases, the rule finds case 27. It also gives a hint on case 31
 (approved): the change adds a field that the task does not ask for. A
 field that another step of the task adds is not a hit (case 28).
+
+### The requirements lens in steps (38 cases, 3 samples)
+
+The requirements lens was written again in the form of steps: copy each
+sentence of behavior, name, type, count, place, order, or condition; give
+the code line for each one, or "missing"; compare them; each requirement
+that is not met is a blocker. The run used only the new requirements lens
+(`--lenses requirements`). Its answers then replaced the requirements
+answers of the earlier run, with the other lenses as they were.
+
+| Requirements lens | TA | FA | TR | FR | False approvals |
+| --- | --- | --- | --- | --- | --- |
+| Earlier prompt | 10 | 2 | 14 | 12 | 24, 28 |
+| In steps | 11 | 4 | 12 | 11 | 24, 27, 28, 37 |
+
+The lens in steps approved case 27 in each sample and added two false
+approvals, so the prompt did not change. A rule in the harness finds case
+27 (the section above). Rules in prompts did not help the reviewer in two
+tries: a mechanical defect goes in a harness rule, and the spec step of the
+apprentice (`primitives/apprentice/README.md`) puts the sentences of the
+task in front of the worker before the work.
