@@ -179,3 +179,21 @@ approvals, so the prompt did not change. A rule in the harness finds case
 tries: a mechanical defect goes in a harness rule, and the spec step of the
 apprentice (`primitives/apprentice/README.md`) puts the sentences of the
 task in front of the worker before the work.
+
+### A reward model: SWE-RM (38 cases, RTX 3090)
+
+SWE-RM (arXiv 2512.21919, Q4_K_M) gives P(YES) that a patch resolves the
+task. The prompt is its training template, with the task as the only turn
+of the interaction log. The score is the YES and NO log-probabilities at
+the token after `<judgement>`. Two inputs: the task and the patch, and the
+task with the acceptance checks of the spec step and the patch.
+
+| Input | AUC | Approvals kept with no false approval |
+| --- | --- | --- |
+| Task and patch | 0.463 | 1 of 22 |
+| Task, acceptance checks, and patch | 0.460 | 0 of 22 |
+
+An AUC of 0.5 is chance. P(YES) is below 0.1 for almost all cases, the
+approved ones too. The model learned on Python tasks with an agent
+trajectory, and these cases are Go and Python changes of this repository
+with no trajectory. Do not use it as a gate. Each case took 0.3 to 30 s.
