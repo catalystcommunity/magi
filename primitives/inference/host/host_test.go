@@ -30,7 +30,15 @@ func TestMain(m *testing.M) {
 			fmt.Fprintf(w, `{"model":"local","echo":%q,"auth":%q}`, b, r.Header.Get("Authorization"))
 		})
 		fakeDecideEngine()
-		http.ListenAndServe("127.0.0.1:"+port, nil)
+		// A restart uses the port of the engine that the host just stopped,
+		// and on a loaded machine that process can still hold it.
+		for i := 0; i < 100; i++ {
+			if l, err := net.Listen("tcp", "127.0.0.1:"+port); err == nil {
+				http.Serve(l, nil)
+				break
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
 		os.Exit(0)
 	}
 	os.Exit(m.Run())
@@ -125,6 +133,12 @@ func (e *env) chat(t *testing.T, tok string) (int, string, string) {
 	}
 	defer resp.Body.Close()
 	b, _ := io.ReadAll(resp.Body)
+	// The handler releases the request (inFlight) after it writes the
+	// answer, so on a loaded machine the client can read the answer first.
+	// A check in that time sees a request in flight and keeps the engine.
+	for i := 0; i < 200 && e.inFlight() > 0; i++ {
+		time.Sleep(10 * time.Millisecond)
+	}
 	var out struct {
 		Error struct{ Type string } `json:"error"`
 	}
@@ -136,6 +150,12 @@ func (e *env) state() string {
 	e.h.mu.Lock()
 	defer e.h.mu.Unlock()
 	return e.h.statusLocked().State
+}
+
+func (e *env) inFlight() int {
+	e.h.mu.Lock()
+	defer e.h.mu.Unlock()
+	return e.h.inFlight
 }
 
 func waitState(t *testing.T, e *env, want string) {
