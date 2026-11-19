@@ -44,8 +44,10 @@ the diff larger and harder to review.
 Area: primitives/apprentice, magi/runner
 Source: run_yhW2tjw7Ap8YNproHNE0 (review 2026-11-14)
 
-git diff does not show untracked files. Run git add --intent-to-add --all
-first, or the review does not see the new files.
+git diff does not show untracked files. In the same command as git diff, run
+git add --intent-to-add --all before it and git reset -q after it. The reset
+is necessary: entries that stay in the index break git stash. Do not add an
+exec for this when the task asks for one exec.
 
 ## rl-0005: A test of an error fails for the reason that it names
 

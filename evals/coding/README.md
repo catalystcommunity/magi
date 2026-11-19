@@ -178,6 +178,20 @@ the diff touches together with the `changed` files of the case),
 case at the end. Keep the results in the repository, as the other evals
 do.
 
+Then run the database tests of the changed Go modules:
+
+```sh
+PATH=$TOOLS/postgres/bin:$PATH python3 -I evals/coding/dbcheck.py evals/coding/results/<label>
+```
+
+The `tools/check.sh` of an old base can skip the database tests.
+`dbcheck.py` applies `diff.patch` of each case to a worktree at the base.
+It finds the Go modules of the changed files and runs their tests with
+`tools/test-db.sh` of the current repository. It writes `db.json` (the
+outcome and the failed modules) and `db.output.txt` next to the diff. On
+pass 3 it finds the failed import tests of pr6. A failed module is a
+defect of the change.
+
 Grade each run, then close it:
 
 ```sh
