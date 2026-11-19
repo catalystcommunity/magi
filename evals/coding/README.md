@@ -104,6 +104,39 @@ place and count ("one line", "after N steps"), new code outside the crash
 guard, no test through the entry point (run_task, Runner.work), and a
 return value that the calling loop counts as a failed check (pr4).
 
+## Results: pass 3, with the snapshot before a review round (2026-11-19)
+
+Runner 895ab40: the same harness as pass 2, and the change that passed the
+check is kept before a review round.
+
+| Case | Check | Steps | Minutes | Grade | Defects (pass 2) | What the round did |
+| --- | --- | --- | --- | --- | --- | --- |
+| pr2 | pass (1) | 74 | 44 | revise | 5 (4) | review: 8 real blockers, all fixed |
+| pr3 | pass (1) | 46 | 54 | revise | 4 (3) | review: 1 false blocker |
+| pr4 | pass (1) | 61 | 44 | revise | 5 (3) | review: 2 blockers from review lessons; the fix of one made a defect |
+| pr5 | pass (1) | 63 | 60 | revise | 3 (3) | review: a copied-logic test (real, not fixed) and 1 false blocker |
+| pr6 | pass (2) | 150 | over 60 | revise | 6 (no change) | a second work round fixed 2 failed tests |
+| pr7 | pass (2) | 47 | 56 | revise (small) | 2 (2) | review: approve |
+
+pr6 now ends with a change. On the other 5 cases, the defects go from 15 to
+19. One sample of each case has a large spread, so this is no real change.
+
+Findings:
+
+- The defects that stay are sentences of the task that the change does
+  differently: "through the same Tools object", "one exec", "if that call
+  fails, keep the current summary text", "when there is no cost, leave the
+  outputs out", "does not count as a failed check".
+- A review lesson can make a defect. In pr4 the work review asked for
+  `git add --intent-to-add` before the diff (rl-0004). The fix added a
+  second exec, against "one exec" of the task, and left entries in the
+  index.
+- The eval runs each case at its base commit, with the `tools/check.sh` of
+  that commit. Those versions do not run the database tests. In pr6 the
+  three import tests skip in the check, and they fail on a database (a
+  database name with capitals and no quotes). The check of the current
+  main runs the database tests, so a run on main finds this.
+
 ## Run
 
 `run.py` runs the cases through the code-change workflow of Magi, one case
