@@ -3,7 +3,7 @@ against the verdicts of a person.
 
   python3 evals/review/run.py --url URL --token-file F --model NAME --cases CASES.jsonl
       --label L [--samples 3] [--only id1,id2] [--out evals/review/results]
-      [--agent | --lens] [--context] [--checked] [--repo PATH --worktrees DIR]
+      [--agent | --lens [--lenses requirements,tests]] [--context] [--checked] [--repo PATH --worktrees DIR]
 
 URL is an OpenAI-compatible base URL (for example the runner model route of
 Magi, https://magi.example.local/runner/v1, with a runner token). Each line of
@@ -18,7 +18,9 @@ back and the reviewer approved. Auto-approval needs 0 of them.
 
 With --agent, the tool-using reviewer (review_agent.py) reviews each case.
 With --lens, each case gets one call for each review lens (review.py
-LENSES). With --context, the review gets the whole changed functions and the
+LENSES); --lenses runs only the named lenses, so a new prompt of one lens
+can be measured, and its answers put in the place of that lens in an earlier
+result. With --context, the review gets the whole changed functions and the
 functions that they call (review_context.py). With --checked, the harness drops the blockers that the passing
 checks disprove (review.py verify): the checks pass on each case of a
 review step. The prompt does not say that the checks passed. These modes need a checkout:
@@ -40,7 +42,7 @@ from magi_apprentice.config import ModelConfig  # noqa: E402
 from magi_apprentice.model import ChatModel  # noqa: E402
 from magi_apprentice.config import Limits  # noqa: E402
 from magi_apprentice.local import LocalExecution  # noqa: E402
-from magi_apprentice.review import Review, combine, lens_review, review  # noqa: E402
+from magi_apprentice.review import LENSES, Review, combine, lens_review, review  # noqa: E402
 from magi_apprentice.review_context import review_context  # noqa: E402
 from magi_apprentice.review_agent import agent_review  # noqa: E402
 from magi_apprentice.tools import Tools, Workspace  # noqa: E402
@@ -70,11 +72,19 @@ def checkout_case(model, a, case: dict, lessons: str, log) -> Review:
         if a.lens:
             return combine([s for _ in range(a.samples)
                             for s in lens_review(model, case["task"], patch, lessons, context,
-                                                 checked=a.checked).samples])
+                                                 lenses=lenses(a), checked=a.checked).samples])
         return review(model, case["task"], patch, lessons, samples=a.samples, context=context,
                       checked=a.checked)
     finally:
         subprocess.run(["git", "-C", a.repo, "worktree", "remove", "--force", wt], capture_output=True)
+
+
+def lenses(a) -> tuple[str, ...]:
+    names = tuple(x for x in a.lenses.split(",") if x) or tuple(LENSES)
+    unknown = [x for x in names if x not in LENSES]
+    if unknown:
+        raise SystemExit("unknown lens: " + ", ".join(unknown))
+    return names
 
 
 def main() -> int:
@@ -94,11 +104,13 @@ def main() -> int:
     ap.add_argument("--worktrees", default="")
     ap.add_argument("--max-steps", type=int, default=25)
     ap.add_argument("--lens", action="store_true", help="one call for each review lens")
+    ap.add_argument("--lenses", default="", help="with --lens: only these lenses (comma-separated)")
     ap.add_argument("--checked", action="store_true",
                     help="the checks passed on each case (a review step comes after the check step)")
     ap.add_argument("--context", action="store_true",
                     help="whole changed functions and the functions that they call")
     a = ap.parse_args()
+    lenses(a)  # an unknown name stops before the first model call
 
     with open(a.token_file) as f:
         token = f.read().strip()
