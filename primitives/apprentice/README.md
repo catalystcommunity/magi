@@ -51,6 +51,26 @@ The system prompt says that the project instructions are the rules of the
 repository owner, and that the agent must follow them, unless the task
 instructions say otherwise.
 
+## Spec step
+
+When a review model is set (`--review-model`), the harness makes one call to
+that model before the work starts. The model reads only the task
+instructions. It writes one acceptance check for each sentence that asks for
+a behavior: the quote, a result that a test can compare, and the entry point
+where a test sees the result. The harness adds the checks at the end of the
+instructions, under "Acceptance checks:". The worker, the diff rules, the
+self-review, and the work review then read them as a part of the task.
+
+The prompt is in `magi_apprentice/spec.py`. The call uses temperature 0.3
+and at most 12000 output tokens. The transcript gets a `spec_step` record
+with the model, the length of the checks, and the time. A failed call gives
+no checks, and the task continues without them. A task that already has a
+line "Acceptance checks:" keeps its own checks. Set
+`MAGI_APPRENTICE_SPEC_STEP` to `false` to turn the step off.
+
+Why: in the coding eval (`evals/coding`, pass 4), the checks cut the task
+sentences that the change did differently from 9 to 3 on six cases.
+
 ## Tools
 
 | Tool | Function |
@@ -363,6 +383,7 @@ dollars.
 | `MAGI_APPRENTICE_CHECK_RETRIES` | `3` | Failed checks before `finish` is accepted |
 | `MAGI_APPRENTICE_SELF_REVIEW` | `true` | One review request before the first accepted `finish`; `false` turns it off |
 | `MAGI_APPRENTICE_TEST_GATE` | `true` | The new tests run once on the code without the change; `false` turns it off |
+| `MAGI_APPRENTICE_SPEC_STEP` | `true` | With a review model: acceptance checks from the instructions before the work; `false` turns it off |
 
 For llama.cpp, start `llama-server` with `--jinja`. For a hosted provider,
 change only the base URL, the model name, and the key file.

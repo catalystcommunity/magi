@@ -1,7 +1,10 @@
 """Spec step: write acceptance checks for each case with a model.
 
-The model reads the prompt of spec-step.md and the instructions of one
-case, and writes the checks. run.py --checks-dir adds them to the task.
+The model reads the prompt of the spec step of the apprentice
+(primitives/apprentice/magi_apprentice/spec.py) and the instructions of
+one case, and writes the checks. run.py --checks-dir adds them to the
+task. The apprentice runs the same step itself when a review model is
+set; a task with "Acceptance checks:" keeps its own checks.
 
 usage: python3 spec_step.py --url https://magi.example.local/runner/v1 \\
          --token-file runner.token --model NAME --out checks/NAME
@@ -9,8 +12,13 @@ usage: python3 spec_step.py --url https://magi.example.local/runner/v1 \\
 import argparse
 import json
 import os
+import sys
 import time
 import urllib.request
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                                "primitives", "apprentice"))
+from magi_apprentice.spec import PROMPT  # noqa: E402
 
 
 def main(argv=None):
@@ -22,8 +30,7 @@ def main(argv=None):
     ap.add_argument("--out", required=True)
     ap.add_argument("--temperature", type=float, default=0.3)
     args = ap.parse_args(argv)
-    with open(os.path.join(here, "spec-step.md")) as f:
-        system = f.read()
+    system = PROMPT
     with open(args.token_file) as f:
         token = f.read().strip()
     os.makedirs(args.out, exist_ok=True)

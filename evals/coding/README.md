@@ -137,6 +137,48 @@ Findings:
   database name with capitals and no quotes). The check of the current
   main runs the database tests, so a run on main finds this.
 
+## Results: pass 4, the spec step adds acceptance checks (2026-11-19)
+
+The harness of pass 3, and `--checks-dir checks/spec1`: the checks that
+the spec step wrote from the instructions only (Qwen3.6-35B-A3B, about
+22 s for each case). Label `qwen3.6-35b-a3b-vr1-spec1`.
+
+| Case | Check | Steps | Minutes | Grade | Defects (pass 3) | Task sentences missed (pass 3) | dbcheck |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| pr2 | pass (1) | 67 | 44 | revise | 3 (5) | 1 (2) | no Go module |
+| pr3 | pass (1) | 54 | 40 | revise (small) | 3 (4) | 0 (1) | no Go module |
+| pr4 | fail (1), see below | 79 | 46 | revise | 2 (5) | 0 (1) | no diff |
+| pr5 | pass (1) | 70 | 41 | revise | 3 (3) | 0 (1) | pass |
+| pr6 | pass (2) | 184 | 47 | revise | 4 (6) | 2 (3) | pass (pass 3: fail) |
+| pr7 | pass (1) | 33 | 24 | approve (small) | 1 (2) | 0 (1) | no Go module |
+
+The defects go from 25 to 16. The missed task sentences go from 9 to 3:
+"through the same Tools object", "if that call fails, keep the current
+summary text", "when there is no cost, leave the outputs out", and "does
+not count as a failed check" are now correct. One sample of each case has
+a large spread, but the drop is in the class of defect that the checks
+name.
+
+Findings:
+
+- A check with a low seam makes the agent test at that seam, and can make
+  it change the code. For pr5 the check named "the work step parsing and
+  output generation function". The agent made that function, and the
+  refactor made a regression: when the apprentice writes no JSON line, the
+  work step writes into a nil map. For pr2 the check named build_prompt,
+  and the tests do not go through the run. The prompt now names only the
+  entry point of the flow, and no invented function. The apprentice runs
+  the spec step itself now (see `primitives/apprentice/README.md`).
+- pr4: the apprentice check passed two times. The check step of the
+  workflow failed in `primitives/inference` (the test race that 2ba1809
+  fixes, at a base before the fix), so the run kept no diff. The grade
+  uses the last `git diff` of the transcript. Its one defect came again
+  from rl-0004: the work review asked for `git add --intent-to-add`, and
+  the fix left entries in the index. rl-0004 now names the reset.
+- The retry of pr6 ("the knowledge service can start later") is the
+  missed sentence that stays: the import ignores the errors of the
+  service, so the retry loop never runs again.
+
 ## Run
 
 `run.py` runs the cases through the code-change workflow of Magi, one case
@@ -156,11 +198,15 @@ time limit of one case (the default is 240).
 
 `--checks-dir DIR` adds the acceptance checks of `DIR/<id>.md` at the end
 of the instructions, under "Acceptance checks:". A spec step makes these
-checks before the eval (`spec_step.py`, prompt `spec-step.md`, output in
+checks before the eval (`spec_step.py`, with the prompt of
+`primitives/apprentice/magi_apprentice/spec.py`, output in
 `checks/<name>/`): a model reads only the instructions, and writes
 one check for each sentence that asks for a behavior (the quote, the
 result that a test can compare, and the highest seam). Use a new
 `--label` for such a run.
+A runner with the spec step of the apprentice makes its own checks for
+each run (with a review model). With `--checks-dir`, the run keeps the
+fixed checks of the directory, so that two runs get the same checks.
 
 The script starts each case with kind `code-change`, repo `magi`, the
 title of the case, the instructions of `cases/<id>.md`, the base of the

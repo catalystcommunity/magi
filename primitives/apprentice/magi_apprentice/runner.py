@@ -10,6 +10,7 @@ from .apprentice import Apprentice, Result, Steering, Task, model_wait_recorder
 from .config import Limits, ModelConfig
 from .model import ChatModel, Model
 from .prereview import pre_review
+from .spec import acceptance_checks, has_checks, with_checks
 from .supervisor import Supervisor
 from .tools import Tools, Workspace
 from .transcript import Transcript, default_redactor
@@ -85,6 +86,14 @@ def run_task(task: Task, *, execution: Any, environment: str, model_cfg: ModelCo
         def reviewer(tools: Tools, t: Task) -> dict:
             # Two samples: the blockers of one review differ from run to run.
             return pre_review(rm, tools, task_text(t), "HEAD", t.lessons or "", samples=WORK_REVIEW_SAMPLES)
+        # The spec step uses the review model: it checks the task, as the
+        # review checks the change. Checks that the task has already stay.
+        if limits.spec_step and not has_checks(task.instructions):
+            checks, rec = acceptance_checks(
+                ChatModel(replace(model_cfg, name=review_model, max_tokens=12000, temperature=0.3)),
+                task.instructions)
+            task.instructions = with_checks(task.instructions, checks)
+            tr.record("spec_step", model=review_model, **rec)
     apprentice = Apprentice(model or ChatModel(model_cfg, on_wait=model_wait_recorder(tr)),
                   Tools(Workspace(execution, environment, task.workdir, limits)),
                   limits, tr, steering=steering, should_stop=should_stop, on_progress=on_progress,
