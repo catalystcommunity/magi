@@ -94,6 +94,18 @@ class TestAtEnd(unittest.TestCase):
             self.assertTrue(R.at_end(task(status, [])), status)
 
 
+class TestWithChecks(unittest.TestCase):
+    def test_checks_go_at_the_end_without_their_own_heading(self):
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, "pr2.md"), "w") as f:
+                f.write("Acceptance checks\n\n1. \"Do X.\" Result: Y. Seam: run.\n")
+            self.assertEqual(R.with_checks("Task text.\n", d, "pr2"),
+                             "Task text.\n\nAcceptance checks:\n\n1. \"Do X.\" Result: Y. Seam: run.\n")
+            # A case with no file, and no directory, keep the instructions.
+            self.assertEqual(R.with_checks("Task text.\n", d, "pr3"), "Task text.\n")
+            self.assertEqual(R.with_checks("Task text.\n", "", "pr2"), "Task text.\n")
+
+
 class TestCall401(unittest.TestCase):
     def test_401_raises_token_expired(self):
         class C:
@@ -203,11 +215,34 @@ class TestMain(unittest.TestCase):
         self.out = os.path.join(self.dir.name, "results")
         self.addCleanup(self.dir.cleanup)
 
-    def run_main(self, client, cases="pr2", minutes="1"):
+    def run_main(self, client, cases="pr2", minutes="1", extra=()):
         argv = ["--url", "http://example.local", "--token-file", "/dev/null", "--model",
                 '{"name": "m1", "context_tokens": 60000}', "--label", "cand", "--cases", cases,
-                "--max-minutes", minutes, "--out", self.out]
+                "--max-minutes", minutes, "--out", self.out, *extra]
         R.main(argv, client, sleep=lambda s: None)
+
+    def test_checks_dir_adds_the_checks_to_the_started_task(self):
+        checks = os.path.join(self.dir.name, "checks")
+        os.mkdir(checks)
+        with open(os.path.join(checks, "pr2.md"), "w") as f:
+            f.write("1. \"Read AGENTS.md.\" Result: the heading. Seam: run_task.\n")
+
+        class C:
+            started = []
+
+            def start_task(self, req):
+                self.started.append(req)
+                return task("running", [], "prepare")
+
+            def get_task(self, req):
+                raise RpcError(500, "down")  # five in a row stop the case
+
+        c = C()
+        with self.assertRaises(SystemExit):  # no case ended
+            self.run_main(c, extra=["--checks-dir", checks])
+        self.assertTrue(c.started[0].instructions.endswith(
+            "\n\nAcceptance checks:\n\n1. \"Read AGENTS.md.\" Result: the heading. Seam: run_task.\n"))
+        self.assertIn("Project instructions", c.started[0].instructions)
 
     def test_one_case_writes_result_and_diff(self):
         class C:

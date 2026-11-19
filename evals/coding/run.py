@@ -195,6 +195,24 @@ def summary_line(r):
         r["id"], r["status"], check, r["apprentice"]["steps"], cost, r["minutes"])
 
 
+def with_checks(instructions: str, checks_dir: str, case_id: str) -> str:
+    """The instructions with the acceptance checks of the case at the end.
+    The checks come from a spec step that ran before the eval (a model
+    that read only the instructions), so the eval measures whether checks
+    in the task text help the first attempt."""
+    if not checks_dir:
+        return instructions
+    path = os.path.join(checks_dir, case_id + ".md")
+    if not os.path.exists(path):
+        return instructions
+    with open(path) as f:
+        checks = f.read().strip()
+    first, _, rest = checks.partition("\n")
+    if first.strip().strip("#*: ").lower() == "acceptance checks":
+        checks = rest.strip()
+    return instructions.rstrip() + "\n\nAcceptance checks:\n\n" + checks + "\n"
+
+
 def main(argv=None, client=None, sleep=time.sleep):
     here = os.path.dirname(os.path.abspath(__file__))
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -206,6 +224,8 @@ def main(argv=None, client=None, sleep=time.sleep):
     ap.add_argument("--cases", default="", help="comma-separated case ids; the default is all cases")
     ap.add_argument("--max-minutes", type=float, default=240)
     ap.add_argument("--out", default=os.path.join(here, "results"))
+    ap.add_argument("--checks-dir", default="",
+                    help="a directory with <id>.md files of acceptance checks, added at the end of the instructions")
     args = ap.parse_args(argv)
     model = json.loads(args.model)
     if not isinstance(model, dict) or not model.get("name"):
@@ -219,6 +239,7 @@ def main(argv=None, client=None, sleep=time.sleep):
         log("%s: starting (%s)" % (case["id"], case["title"]))
         with open(os.path.join(here, "cases", case["id"] + ".md")) as f:
             instructions = f.read()
+        instructions = with_checks(instructions, args.checks_dir, case["id"])
         started = time.monotonic()
         task = call(client, "start_task", T.StartTaskRequest(
             kind="code-change", instructions=instructions, title=case["title"], repo="magi",

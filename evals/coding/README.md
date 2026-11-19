@@ -154,6 +154,14 @@ python3 evals/coding/run.py --url URL --token-file F \
 `--cases pr2,pr5` runs a part of the cases, and `--max-minutes` sets the
 time limit of one case (the default is 240).
 
+`--checks-dir DIR` adds the acceptance checks of `DIR/<id>.md` at the end
+of the instructions, under "Acceptance checks:". A spec step makes these
+checks before the eval (`spec_step.py`, prompt `spec-step.md`, output in
+`checks/<name>/`): a model reads only the instructions, and writes
+one check for each sentence that asks for a behavior (the quote, the
+result that a test can compare, and the highest seam). Use a new
+`--label` for such a run.
+
 The script starts each case with kind `code-change`, repo `magi`, the
 title of the case, the instructions of `cases/<id>.md`, the base of the
 case, and the model. It polls the task every 60 s until the task waits for
