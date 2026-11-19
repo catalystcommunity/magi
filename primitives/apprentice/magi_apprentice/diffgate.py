@@ -10,6 +10,12 @@ once, and that a fixed rule finds every time:
   one helper or constant (evals/coding pr3 and pr5: a note text copied
   three times). On the last 300 commits of main, the rule found 5 commits
   of approved code, so the model can keep copies when it says why.
+- The task gives a contract line (an operation or a type), and the change
+  adds the same name with a different form (review case 27: the task says
+  admin-get-run-diff: AdminGetRunRequest -> TaskDiff, and the change made
+  a copy AdminGetRunDiffRequest of the request type). The reviewer model
+  approved that change in 15 of 15 calls. A later task step can change a
+  given line, so the model can keep its form when it says why.
 """
 from __future__ import annotations
 
@@ -42,6 +48,14 @@ BOILERPLATE = re.compile(r"^(if err != nil \{|return .*\berr\)?|return( nil)?|\}
 # The copy rule is a hint: the gate gives it once in a run, and a finish
 # that keeps the copies with a reason goes on.
 COPIES = "The change adds the same block of code in two or more places: "
+# A contract line that the task gives: an operation "name: In -> Out", or a
+# type "Name = <form>" on its own line.
+CONTRACT = "The change has a contract line in a different form from the task: "
+CONTRACT_FILE = re.compile(r"\.csil$")
+OP = re.compile(r"(?<![\w-])([a-z][a-z0-9-]*)\s*:\s*([A-Z]\w*)\s*->\s*([A-Z]\w*)")
+TYPE = re.compile(r"^\s*([A-Z]\w*)\s*=\s*(\S.*?)\s*$", re.M)
+# The hints: the gate gives each one once in a run.
+HINTS = (COPIES, CONTRACT)
 DUP_LINES = 4      # a copied block has at least this many lines
 DUP_MIN_CHARS = 12  # shorter lines (a brace, "return x") are not counted
 
@@ -79,6 +93,49 @@ def duplicated_blocks(diff: str) -> list[tuple[str, str]]:
     return found
 
 
+def _contract_lines(text: str) -> dict[str, tuple[str, str]]:
+    """Name -> (form without spaces, line as written) of the operations and
+    types in a text. A type only counts when its braces close on the line."""
+    found = {}
+    for m in OP.finditer(text):
+        found[m.group(1)] = (f"{m.group(2)}->{m.group(3)}", m.group(0).strip())
+    for m in TYPE.finditer(text):
+        form = re.sub(r"\s+", "", m.group(2)).rstrip(",")
+        if form.count("{") == form.count("}") and form.count("[") == form.count("]"):
+            found[m.group(1)] = (form, m.group(0).strip())
+    return found
+
+
+def changed_contract_lines(diff: str, task_text: str) -> list[tuple[str, str]]:
+    """(task line, changed line) for each added contract line whose name the
+    task gives in another form."""
+    want = _contract_lines(task_text or "")
+    if not want:
+        return []
+    added, cur = [], False
+    for line in diff.splitlines():
+        if line.startswith("+++ "):
+            cur = bool(CONTRACT_FILE.search(line))
+        elif cur and line.startswith("+"):
+            added.append(line[1:].split(";", 1)[0])
+    flat = re.sub(r"\s+", "", task_text)
+    found = []
+    for name, (form, line) in _contract_lines("\n".join(added)).items():
+        if name in want and want[name][0] != form and not _asked(want[name][0], form, flat):
+            found.append((want[name][1], line))
+    return found
+
+
+def _asked(given: str, form: str, flat_task: str) -> bool:
+    """The change only adds fields that the task spells out in another
+    step ("Add ? name: text to KnownUser")."""
+    if not (given.endswith("}") and form.endswith("}")):
+        return False
+    old = set(given.strip("{}").split(","))
+    new = [f for f in form.strip("{}").split(",") if f not in old]
+    return old <= set(form.strip("{}").split(",")) and all(f and f in flat_task for f in new)
+
+
 def problems(out: str, task_text: str) -> list[str]:
     """The rule breaks in the output of GATE_SCRIPT, as instructions."""
     summary, name_status, diff = _sections(out)
@@ -96,6 +153,10 @@ def problems(out: str, task_text: str) -> list[str]:
     if dups:
         found.append(COPIES + "; ".join(f"{p} (it starts with: {first[:80]})" for p, first in dups[:5])
                      + ". Put the shared code in one helper or constant, or say in the summary why the copies must stay.")
+    changed = changed_contract_lines(diff, task_text)
+    if changed:
+        found.append(CONTRACT + "; ".join(f"the task says `{t[:120]}`, the change has `{c[:120]}`" for t, c in changed[:5])
+                     + ". Use the form of the task, or say in the summary why it must be different.")
     return found
 
 

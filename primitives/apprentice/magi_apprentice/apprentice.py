@@ -408,7 +408,7 @@ class Apprentice:
         self._noted_time = False
         self._reviewed = False
         self._gate_rejects = 0
-        self._copies_noted = False
+        self._hints_noted: set[str] = set()
         self._tests_tested = False
         self._snapshot: tuple[str, str] | None = None  # (tree, summary) of the change that passed the check
         tr.record("task", instructions=task.instructions, workdir=task.workdir,
@@ -662,10 +662,9 @@ class Apprentice:
         # the check sees. They do not use up a check retry, and after
         # DIFF_GATE_REJECTS the finish goes on, so a rule cannot hold a run.
         found = diffgate.check(self.tools, task.instructions) if self._gate_rejects < DIFF_GATE_REJECTS else []
-        if self._copies_noted:
-            found = [p for p in found if not p.startswith(diffgate.COPIES)]
+        found = [p for p in found if not p.startswith(tuple(self._hints_noted))]
         if found:
-            self._copies_noted = self._copies_noted or any(p.startswith(diffgate.COPIES) for p in found)
+            self._hints_noted |= {h for h in diffgate.HINTS if any(p.startswith(h) for p in found)}
             self._gate_rejects += 1
             self.transcript.record("diff_gate", problems=found)
             return ("finish rejected: the change breaks a rule of the harness.\n- " + "\n- ".join(found)

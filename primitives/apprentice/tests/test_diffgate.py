@@ -64,6 +64,27 @@ class ProblemsTest(unittest.TestCase):
                      added("pkg/a.py", NOTE) + added("pkg/b.py", NOTE)):  # two files
             self.assertEqual(duplicated_blocks(diff), [], diff)
 
+    def test_a_contract_line_in_another_form_than_the_task(self):
+        task = ("Add the diff view.\n   AdminGetRunRequest = { id: text }\n"
+                "   Ops: admin-get-run: AdminGetRunRequest -> AdminRun, admin-get-run-diff: AdminGetRunRequest -> TaskDiff\n")
+        diff = "\n".join(["+++ b/contracts/magi.csil", "@@ -1,0 +1,3 @@",
+                          "+AdminGetRunRequest = { id: text }",
+                          "+AdminGetRunDiffRequest = { id: text }",
+                          "+  admin-get-run: AdminGetRunRequest -> AdminRun,",
+                          "+  admin-get-run-diff: AdminGetRunDiffRequest -> TaskDiff, ;; the diff"]) + "\n"
+        found = problems(gate_out(diff=diff), task)
+        self.assertEqual(len(found), 1)
+        self.assertIn("the task says `admin-get-run-diff: AdminGetRunRequest -> TaskDiff`, "
+                      "the change has `admin-get-run-diff: AdminGetRunDiffRequest -> TaskDiff`", found[0])
+        # The same lines in a Go file are not the contract.
+        self.assertEqual(problems(gate_out(diff=diff.replace("contracts/magi.csil", "magi/x.go")), task), [])
+
+    def test_a_contract_field_that_another_step_of_the_task_adds(self):
+        diff = "+++ b/contracts/magi.csil\n+KnownUser = { subject: text, last_seen_ms: uint, ? name: text }\n"
+        task = "   KnownUser = { subject: text, last_seen_ms: uint }\n"
+        self.assertEqual(len(problems(gate_out(diff=diff), task)), 1)
+        self.assertEqual(problems(gate_out(diff=diff), task + "5. Add ? name: text to KnownUser.\n"), [])
+
     def test_a_clean_change_has_no_problem(self):
         self.assertEqual(problems(gate_out(" create mode 100644 b.go\n", "A\tb.go\n"), "x"), [])
 

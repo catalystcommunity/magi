@@ -144,3 +144,17 @@ Case 00 is a question of the label, not of the reviewer. The task says
 "Change nothing else", and the change also edits a test file. The person
 approved the test fix. By the words of the task, the reviewer is right to
 say revise.
+
+### A rule in the harness for case 27
+
+Case 27 is a mechanical defect: the task gives the contract line
+`admin-get-run-diff: AdminGetRunRequest -> TaskDiff`, and the change adds
+the line with a copy of the request type. A rule finds this each time, so
+the diff gate of the apprentice (`diffgate.py`) has it now. When the task
+gives a contract operation or type, and the change adds the same name in
+a different form, the gate gives a hint once. The model then uses the
+form of the task, or gives a reason in the summary.
+
+On the 38 cases, the rule finds case 27. It also gives a hint on case 31
+(approved): the change adds a field that the task does not ask for. A
+field that another step of the task adds is not a hit (case 28).
