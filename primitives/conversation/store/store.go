@@ -377,19 +377,21 @@ WHERE id = $1 RETURNING `+uttCols, id, visibility, readers, by, conf))
 }
 
 // ClaimUnclassified claims up to limit utterances that are not classified
-// and not claimed, until now+lease. SKIP LOCKED lets replicas claim at the
-// same time without waiting for each other.
+// and not claimed, until now+lease, oldest first. Utterances of one
+// millisecond are in the order of their stream (seq), not of their random
+// ids. SKIP LOCKED lets replicas claim at the same time without waiting for
+// each other.
 func (db *DB) ClaimUnclassified(ctx context.Context, limit int, now time.Time, lease time.Duration) ([]api.Utterance, error) {
 	var out []api.Utterance
 	err := db.tx(ctx, All, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `UPDATE utterances SET claimed_until = $2 WHERE id IN (
-  SELECT id FROM utterances WHERE NOT classified AND claimed_until < $1 ORDER BY created_ms, id LIMIT $3 FOR UPDATE SKIP LOCKED)
+  SELECT id FROM utterances WHERE NOT classified AND claimed_until < $1 ORDER BY created_ms, stream, seq LIMIT $3 FOR UPDATE SKIP LOCKED)
 RETURNING `+uttCols, now.UnixMilli(), now.Add(lease).UnixMilli(), limit)
 		out, err = many(rows, err, scanUtt)
 		return err
 	})
 	slices.SortFunc(out, func(a, b api.Utterance) int {
-		return cmp.Or(cmp.Compare(a.CreatedMs, b.CreatedMs), cmp.Compare(a.Id, b.Id))
+		return cmp.Or(cmp.Compare(a.CreatedMs, b.CreatedMs), cmp.Compare(a.Stream, b.Stream), cmp.Compare(a.Seq, b.Seq))
 	})
 	return out, err
 }
