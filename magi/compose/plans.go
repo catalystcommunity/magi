@@ -366,10 +366,16 @@ func (s *System) moveDependents(ctx context.Context, owner, old, nu string) {
 // the ones that ended in the last 7 days, oldest first.
 func (s *System) todos(ctx context.Context, owner string, ended bool) ([]workflowapi.Run, error) {
 	var out []workflowapi.Run
-	statuses := []string{"waiting", "running"}
+	// One query for each status, so a run can change status between two
+	// queries. The order follows the life of a run (running, then waiting,
+	// then the end), so a run that moves on is in a later query; the second
+	// "running" query finds a run that waited and runs again. A run that is
+	// in two answers is listed one time.
+	statuses := []string{"running", "waiting", "running"}
 	if ended {
 		statuses = append(statuses, "succeeded", "cancelled", "failed")
 	}
+	seen := map[string]bool{}
 	week := nowMs() - uint64((7 * 24 * time.Hour).Milliseconds())
 	for _, st := range statuses {
 		res, err := s.Workflow.ListRuns(ctx, workflowapi.ListRunsRequest{Definition: ptr(Todo), Status: ptr(st), Limit: ptr(uint64(500))})
@@ -377,13 +383,14 @@ func (s *System) todos(ctx context.Context, owner string, ended bool) ([]workflo
 			return nil, err
 		}
 		for _, r := range res.Runs {
-			if r.Owner != owner || finished(r.Status) && r.UpdatedMs < week {
+			if seen[r.Id] || r.Owner != owner || finished(r.Status) && r.UpdatedMs < week {
 				continue
 			}
 			// A replaced to-do is not an ended one.
 			if r.Status == "cancelled" && strings.Contains(deref(r.Error), ": replaced by ") {
 				continue
 			}
+			seen[r.Id] = true
 			out = append(out, r)
 		}
 	}
