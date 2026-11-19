@@ -121,6 +121,25 @@ without checks) and case 28. In case 28 the reviewer was right before only
 because of a false compile claim. The real defect is a database test that
 skips in the checks and has a wrong expected order.
 
+### More rules in the lens prompts (38 cases, 3 samples)
+
+The coding eval found defects that the reviewer did not find. Three rules
+were added to the lens prompts: words of count, place, and order in the
+requirements lens; return values that callers use, and code outside the
+error guard, in the logic lens; a test through the entry point in the
+tests lens. The harness drops compile and mode claims in both rows.
+
+| Prompts | TA | FA | TR | FR | False approvals |
+| --- | --- | --- | --- | --- | --- |
+| Earlier prompts (from the table above) | 10 | 2 | 14 | 12 | 24, 28 |
+| With the three rules | 12 | 3 | 13 | 10 | 27, 28, 32 |
+
+The rules found case 24, but cases 27 and 32 got 15 approvals of 15. Case
+27 copies a request type that the task names, which is the defect that the
+requirements rule is for. A false approval costs more than a false
+revision, so the prompts did not change. Each case took about 13 minutes on
+the RTX 3090.
+
 Case 00 is a question of the label, not of the reviewer. The task says
 "Change nothing else", and the change also edits a test file. The person
 approved the test fix. By the words of the task, the reviewer is right to
