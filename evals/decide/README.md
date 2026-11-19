@@ -151,6 +151,24 @@ lab-nas serves the adapter as the model `gemma-4-e4b-decide`
 model for chat. `results/gemma-4-e4b-decide-v1*` has the scores, the
 temperatures, and the log-probabilities of test.
 
+## LiquidAI d1-2B (2026-11-19, data5 test, calibrated on dev)
+
+d1 is a 2B model that answers a set of questions about one state in
+one call (`/v1/systemone`). The eval sent the same questions as
+`eval_notes.py` (Q8_0, llama-server on the CPU, 16 threads).
+
+| Question | d1-2B | E4B | E4B + LoRA v1 |
+| --- | --- | --- | --- |
+| `record` | 83.5% | 84.2% | 98.8% |
+| `asks` | 98.8% | 98.5% | 98.9% |
+| `task` | 96.3% | 90.5% | 100.0% |
+| `about` | 67.6% | 82.2% | 99.8% |
+| `kind` | 69.0% | 62.1% | 97.9% |
+| `count` | 21.7% | 23.8% | 67.5% |
+
+d1-2B is near the base E4B, and far below E4B with the LoRA. On the
+CPU, each question took a median of 6.3 s. Keep E4B with the LoRA.
+
 ## Next
 
 1. A `count` question in the training data, or remove `count`.
