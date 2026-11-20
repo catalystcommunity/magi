@@ -32,3 +32,11 @@ must lose authority that was taken away while it waited.
 - A test revokes a grant while a task runs, and the next step of the
   task is refused.
 - A test continues work with no dispatch, and the work does not run.
+
+## Progress
+
+- The variables that a run starts with are now fixed: the workflow
+  service refuses a step output that changes one. A dispatch that is a
+  start variable of a run cannot be changed by a runner.
+- Not done: the dispatch record, its restore when work continues, and
+  the two tests.

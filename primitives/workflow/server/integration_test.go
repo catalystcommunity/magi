@@ -201,6 +201,25 @@ func TestTaskHumanTask(t *testing.T) {
 			watched <- r
 		}()
 		time.Sleep(200 * time.Millisecond)
+		// A step cannot change a variable that the run started with (for
+		// whom and where the run works), and cannot write the variables of
+		// the workflow service. The step stays claimed.
+		for _, bad := range []map[string]string{{"repo": "other"}, {"artifact": "art_1", "repo": "other"}, {StartKeysVar: ""}, {"workflow.x": "1"}} {
+			_, err = w.Complete(ctx, api.CompleteRequest{Run: a.Run, Step: a.Step, Claim: a.Claim, Outcome: "ok", Outputs: bad})
+			code(t, err, 400)
+		}
+		if got := must[api.Run](t)(alice.GetRun(ctx, api.GetRunRequest{Id: a.Run})); got.Vars["repo"] != "magi" || got.Vars["artifact"] != "" ||
+			got.CurrentStep != "build" || got.Vars[StartKeysVar] != "repo" {
+			t.Fatalf("after refused outputs: %+v", got)
+		}
+		_, err = alice.Start(ctx, api.StartRequest{Definition: "change", Vars: map[string]string{"workflow.x": "1"}})
+		code(t, err, 400)
+		if k := protectedOutput(map[string]string{StartKeysVar: "repo\nreminded", "repo": "magi", "reminded": "1"}, map[string]string{"reminded": "1", "new": "x"}); k != "" {
+			t.Fatalf("an output with the same value was refused: %s", k)
+		}
+		if k := protectedOutput(map[string]string{"repo": "magi"}, map[string]string{"repo": "other"}); k != "" {
+			t.Fatalf("a run from before the start keys is protected: %s", k)
+		}
 		r := must[api.Run](t)(w.Complete(ctx, api.CompleteRequest{Run: a.Run, Step: a.Step, Claim: a.Claim, Outcome: "ok", Outputs: map[string]string{"artifact": "art_1"}}))
 		if r.Status != RunWaiting || r.CurrentStep != "review" || r.History[1].Status != StepWaiting {
 			t.Fatalf("after build: %+v", r)

@@ -101,6 +101,14 @@ The largest risks are:
 
 ### M1. A runner can overwrite any run variable, and thus get secrets of another persona
 
+- Status on 2026-11-19: corrected in part. The workflow service refuses a
+  step output that changes a variable that the run started with
+  (`persona`, `runner`, `repo`, `stream`, `utterance`, and the others of
+  the start request), and each variable with a name that starts with
+  `workflow.`. Still open: a step can change a variable that an earlier
+  step wrote (`environment`, `patch`). The correction is a list of
+  permitted output keys for each step.
+
 - Severity: Medium
 - Files: magi/compose/runner.go:112-120 (Complete),
   primitives/workflow/server/server.go:408 (`maps.Copy(r.Vars, req.Outputs)`),

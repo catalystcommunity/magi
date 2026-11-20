@@ -28,7 +28,10 @@ Step rules:
 - When a lease expires, the step is offered again with the next attempt. After
   `max_attempts` the run fails.
 - A claim token is good for one attempt only. A stale token gets error 409.
-- Task outputs merge into `vars`.
+- Task outputs merge into `vars`. An output cannot change a variable that
+  the run started with: those say for whom and where the run works, and a
+  worker on a less trusted machine completes steps. `workflow.start` has
+  their names. Names that start with `workflow.` are for the service.
 - A human step can name `deciders`: subjects, or run variables as
   `${name}`. The run lists them in `waiting_for` while it waits. A decider
   can read the run and decide the step; after the step, the decider cannot

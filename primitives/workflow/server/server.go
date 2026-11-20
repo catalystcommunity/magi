@@ -20,6 +20,29 @@ import (
 	"github.com/catalystcommunity/magi/primitives/workflow/store"
 )
 
+// reservedPrefix starts the names of variables that only the workflow
+// service writes.
+const reservedPrefix = "workflow."
+
+// StartKeysVar is the variable that has the names of the variables that
+// the run started with, one on each line.
+const StartKeysVar = reservedPrefix + "start"
+
+// protectedOutput returns a key of outputs that a step must not write: a
+// variable that the run started with, or a variable of the workflow
+// service. It returns "" when all keys are permitted. An output with the
+// value that the variable has changes nothing and is permitted. A run from
+// before StartKeysVar has no protected start variables.
+func protectedOutput(vars, outputs map[string]string) string {
+	start := strings.Split(vars[StartKeysVar], "\n")
+	for _, k := range slices.Sorted(maps.Keys(outputs)) {
+		if strings.HasPrefix(k, reservedPrefix) || slices.Contains(start, k) && vars[k] != outputs[k] {
+			return k
+		}
+	}
+	return ""
+}
+
 // Scopes.
 const (
 	ScopeAdmin  = "workflow:admin"
@@ -158,6 +181,15 @@ func (s *Service) Start(ctx context.Context, req api.StartRequest) (api.Run, err
 	t := now()
 	vars := map[string]string{}
 	maps.Copy(vars, req.Vars)
+	// The variables that a run starts with tell for whom and where it
+	// works. A step must not change them (protectedOutput).
+	keys := slices.Sorted(maps.Keys(vars))
+	for _, k := range keys {
+		if strings.HasPrefix(k, reservedPrefix) {
+			return api.Run{}, rpc.Invalid("variable %q: names that start with %q are for the workflow service", k, reservedPrefix)
+		}
+	}
+	vars[StartKeysVar] = strings.Join(keys, "\n")
 	run := api.Run{Id: newID("run_"), Definition: def.Name, Revision: def.Revision, Owner: owner,
 		Vars: vars, History: []api.StepState{}, CreatedMs: t, UpdatedMs: t}
 	var tasks []store.Task
@@ -402,6 +434,9 @@ func (s *Service) Complete(ctx context.Context, req api.CompleteRequest) (api.Ru
 		status := StepDone
 		if req.Outcome == "fail" || req.Outcome == "retry" {
 			status = StepFailed
+		}
+		if k := protectedOutput(r.Vars, req.Outputs); k != "" {
+			return rpc.Invalid("output %q would change a variable that the run started with", k)
 		}
 		ts := now()
 		endStep(&r.History[t.Index], status, req.Outcome, ts)
