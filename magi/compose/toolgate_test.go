@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"net/http"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -153,10 +154,12 @@ func TestGateLimitsTheResult(t *testing.T) {
 	if len(body) != maxToolResult-1 || !utf8.ValidString(body) {
 		t.Fatalf("cut at %d bytes, valid=%v", len(body), utf8.ValidString(body))
 	}
-	// A tool that needs no person runs in a turn with no person, and its
-	// result goes through the limit and the record.
-	res := (&System{}).toolGate(context.Background(), gateTurn("", "read_page"), "read_page", map[string]string{"url": "https://example.local/"})
-	if res.Refused || res.Call["tool"] != "read_page" || res.Call["result"] != res.Out {
+	// A tool that needs no person runs in a turn with no person. Its own
+	// rule refuses here, in the same form as the gate, and the call is
+	// recorded.
+	res := (&System{Search: &Searcher{Web: http.DefaultClient}}).toolGate(context.Background(), gateTurn("", "read_page"), "read_page", map[string]string{"url": "https://example.local/"})
+	assertRefusal(t, res, "read_page reads only")
+	if res.Call["tool"] != "read_page" || res.Call["result"] != res.Out {
 		t.Fatalf("read_page: %+v", res)
 	}
 }

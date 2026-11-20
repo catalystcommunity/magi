@@ -213,6 +213,8 @@ func gateArgs(raw string) (map[string]string, bool) {
 func (s *System) toolGate(ctx context.Context, t *toolTurn, name string, args map[string]string) toolResult {
 	start := time.Now()
 	out, ref, refused := s.gated(ctx, t, name, args)
+	// A handler refuses with the same form as the gate.
+	refused = refused || strings.HasPrefix(out, refusalMark)
 	out = limitResult(out)
 	call := map[string]any{"tool": name, "args": args, "result": out, "ms": time.Since(start).Milliseconds()}
 	if refused {

@@ -129,7 +129,7 @@ func TestWebSearch(t *testing.T) {
 		t.Fatalf("pages %v", ts.pages)
 	}
 	// read_page reads only result pages and pages that the person sent.
-	if out, _ := s.webTool(context.Background(), "x", ts, "read_page", map[string]string{"url": "https://other.example.org/"}); !strings.HasPrefix(out, "error: read_page reads only") {
+	if out, _ := s.webTool(context.Background(), "x", ts, "read_page", map[string]string{"url": "https://other.example.org/"}); !strings.HasPrefix(out, refusalMark) || !strings.Contains(out, "Rule: read_page reads only") {
 		t.Fatalf("read other: %q", out)
 	}
 

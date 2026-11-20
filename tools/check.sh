@@ -13,6 +13,9 @@ step "architecture rules"
 python3 tools/arch-check.py || fail "architecture rules (tools/arch-check.py)"
 python3 tools/arch_check_test.py -q || fail "tools/arch_check_test.py"
 
+step "python: evals/turn"
+python3 evals/turn/test_verdict.py -q || fail "evals/turn/test_verdict.py"
+
 step "gofmt"
 unformatted=$(gofmt -l lib primitives magi tools 2>/dev/null | grep -v '\.gen\.go$' || true)
 [[ -z $unformatted ]] || fail "gofmt needed: $unformatted"

@@ -56,7 +56,10 @@ type SearchResult struct {
 }
 
 const (
-	maxResults  = 8
+	maxResults = 8
+	// maxSearches and maxReads limit the web tools of one turn.
+	maxSearches = 6
+	maxReads    = 4
 	maxSnippet  = 400
 	maxPageText = 8000
 	maxPage     = 2 << 20
@@ -468,8 +471,8 @@ func (s *System) webTool(ctx context.Context, question string, ts *turnState, na
 			return "error: web search is not set up in this installation", true
 		}
 		ts.searched++
-		if ts.searched > 6 {
-			return "error: too many searches in one turn; answer with what you found", true
+		if ts.searched > maxSearches {
+			return refusal("the search did not run.", fmt.Sprintf("A turn can make %d searches.", maxSearches), "Answer with what you found, and say what you could not find."), true
 		}
 		bg := backgroundModel(ctx, "search-judge")
 		v, err := judgeSearch(bg, s.LibrarianModel, question, args["query"], args["why"])
@@ -504,11 +507,11 @@ func (s *System) webTool(ctx context.Context, question string, ts *turnState, na
 		}
 		u := strings.TrimSpace(args["url"])
 		if !ts.pages[u] && !slices.Contains(urlRe.FindAllString(question, -1), u) {
-			return "error: read_page reads only pages from web_search results of this turn, or a page that the person sent", true
+			return refusal("the page was not read.", "read_page reads only an address that web_search gave in this turn, or that the person sent.", "Call web_search first and read one of its results, or ask the person for the address."), true
 		}
 		ts.reads++
-		if ts.reads > 4 {
-			return "error: too many pages in one turn; answer with what you found", true
+		if ts.reads > maxReads {
+			return refusal("the page was not read.", fmt.Sprintf("A turn can read %d pages.", maxReads), "Answer with what you found, and say what you could not read."), true
 		}
 		text, err := s.Search.Read(ctx, u)
 		if err != nil {

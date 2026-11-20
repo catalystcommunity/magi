@@ -16,3 +16,4 @@ node_modules/
 magi/magi
 magi/magi-host-setup
 core.[0-9]*
+evals/turn/results/
