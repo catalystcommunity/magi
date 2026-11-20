@@ -17,9 +17,10 @@ import (
 	"time"
 
 	"github.com/catalystcommunity/magi/lib/authn"
+	"github.com/catalystcommunity/magi/lib/authn/renew"
 	"github.com/catalystcommunity/magi/lib/revconn"
 	"github.com/catalystcommunity/magi/lib/rpc"
-	"github.com/catalystcommunity/magi/primitives/identity/renew"
+	identityapi "github.com/catalystcommunity/magi/primitives/identity/api"
 	api "github.com/catalystcommunity/magi/primitives/inference/api"
 	"github.com/catalystcommunity/magi/primitives/inference/host"
 )
@@ -45,7 +46,7 @@ type connect struct {
 	TokenFile string `json:"token_file"` // token: subject inference:<name>, scope inference:host
 	Idle      int    `json:"idle"`       // idle connections; default 2
 	// NoRenew: do not renew the token. By default the host replaces
-	// token_file with a renewed token (primitives/identity/renew), so the
+	// token_file with a renewed token (lib/authn/renew), so the
 	// service account needs write access to its directory.
 	NoRenew bool `json:"no_renew"`
 }
@@ -133,7 +134,7 @@ func run(ctx context.Context, path string, log *slog.Logger) error {
 			if err != nil {
 				return err
 			}
-			r := &renew.Renewer{File: cfg.Connect.TokenFile, URL: u.Scheme + "://" + u.Host, Log: log}
+			r := &renew.Renewer{File: cfg.Connect.TokenFile, Refresh: refreshAt(u.Scheme + "://" + u.Host), Log: log}
 			go r.Run(ctx)
 		}
 	}
@@ -150,4 +151,16 @@ func run(ctx context.Context, path string, log *slog.Logger) error {
 		return nil
 	}
 	return err
+}
+
+// refreshAt returns the refresh call of the Magi at origin for the token
+// renewer. A cmd/ package can use the generated client of other primitives.
+func refreshAt(origin string) func(context.Context, string) (renew.Token, error) {
+	return func(ctx context.Context, current string) (renew.Token, error) {
+		res, err := identityapi.NewIdentityClient(rpc.NewClient(origin, rpc.StaticToken(current))).Refresh(ctx, identityapi.RefreshRequest{})
+		if err != nil {
+			return renew.Token{}, err
+		}
+		return renew.Token{Token: res.Token, Subject: res.Subject, Expires: time.UnixMilli(int64(res.ExpiresMs))}, nil
+	}
 }

@@ -13,7 +13,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/catalystcommunity/magi/primitives/identity/renew"
 	"log/slog"
 	"net"
 	"os"
@@ -23,9 +22,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/catalystcommunity/magi/lib/authn/renew"
 	"github.com/catalystcommunity/magi/lib/rpc"
 	magiapi "github.com/catalystcommunity/magi/magi/api"
 	"github.com/catalystcommunity/magi/primitives/execution/sandbox"
+	identityapi "github.com/catalystcommunity/magi/primitives/identity/api"
 	sourceserver "github.com/catalystcommunity/magi/primitives/source/server"
 )
 
@@ -56,7 +57,7 @@ type Config struct {
 	TokenFile string `json:"token_file"`
 	// NoRenew: do not renew the token. By default the runner replaces
 	// token_file with a renewed token before it expires
-	// (primitives/identity/renew).
+	// (lib/authn/renew).
 	NoRenew  bool            `json:"no_renew"`
 	StateDir string          `json:"state_dir"`
 	Repos    map[string]Repo `json:"repos"`
@@ -228,7 +229,7 @@ func (r *Runner) Run(ctx context.Context) error {
 	ctx, stopAll := context.WithCancel(ctx)
 	defer stopAll()
 	if !r.Cfg.NoRenew {
-		go (&renew.Renewer{File: r.Cfg.TokenFile, URL: r.Cfg.Server, Log: r.Log}).Run(ctx)
+		go (&renew.Renewer{File: r.Cfg.TokenFile, Refresh: refreshAt(r.Cfg.Server), Log: r.Log}).Run(ctx)
 	}
 	restart := make(chan struct{})
 	go r.helloLoop(ctx, func() { close(restart) })
@@ -399,4 +400,16 @@ func nonNil(v []string) []string {
 func dirExists(p string) bool {
 	st, err := os.Stat(p)
 	return err == nil && st.IsDir()
+}
+
+// refreshAt returns the refresh call of the Magi at origin for the token
+// renewer.
+func refreshAt(origin string) func(context.Context, string) (renew.Token, error) {
+	return func(ctx context.Context, current string) (renew.Token, error) {
+		res, err := identityapi.NewIdentityClient(rpc.NewClient(origin, rpc.StaticToken(current))).Refresh(ctx, identityapi.RefreshRequest{})
+		if err != nil {
+			return renew.Token{}, err
+		}
+		return renew.Token{Token: res.Token, Subject: res.Subject, Expires: time.UnixMilli(int64(res.ExpiresMs))}, nil
+	}
 }

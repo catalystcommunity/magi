@@ -1,6 +1,7 @@
 // Package renew keeps the token file of a machine (inference:<name> or
-// runner:<name>) valid. It calls IdentityService/refresh with the current
-// token and replaces the file before the token expires.
+// runner:<name>) valid. It gets a new token for the current token and
+// replaces the file before the token expires. The caller supplies Refresh,
+// which calls IdentityService/refresh: lib/ does not import a primitive.
 package renew
 
 import (
@@ -10,15 +11,18 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/catalystcommunity/magi/lib/rpc"
-	api "github.com/catalystcommunity/magi/primitives/identity/api"
 )
+
+// Token is the result of a refresh.
+type Token struct {
+	Token   string
+	Subject string
+	Expires time.Time
+}
 
 // MaxLife: a token that lasts longer than this renews at once, so a minted
 // long token becomes a short renewed one. It matches server.MachineTokenTTL
@@ -29,10 +33,10 @@ const MaxLife = 31 * 24 * time.Hour
 // current token has passed.
 type Renewer struct {
 	File string // token file; written as a new file, then renamed
-	URL  string // Magi origin, such as https://magi.example.local
-	HTTP *http.Client
-	Log  *slog.Logger
-	Now  func() time.Time
+	// Refresh gets a new token for the current one.
+	Refresh func(ctx context.Context, current string) (Token, error)
+	Log     *slog.Logger
+	Now     func() time.Time
 }
 
 // times reads the issue and expiry times of a token without a signature
@@ -90,15 +94,17 @@ func (r *Renewer) Renew(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	c := rpc.NewClient(r.URL, rpc.StaticToken(strings.TrimSpace(string(b))))
-	if r.HTTP != nil {
-		c.HTTP = r.HTTP
+	if r.Refresh == nil {
+		return errors.New("renew: no Refresh function")
 	}
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
-	res, err := api.NewIdentityClient(c).Refresh(ctx, api.RefreshRequest{})
+	res, err := r.Refresh(ctx, strings.TrimSpace(string(b)))
 	if err != nil {
 		return fmt.Errorf("refresh: %w", err)
+	}
+	if !strings.HasPrefix(res.Token, "magi1.") {
+		return errors.New("refresh: the result is not a Magi token")
 	}
 	tmp := filepath.Join(filepath.Dir(r.File), "."+filepath.Base(r.File)+".new")
 	if err := os.WriteFile(tmp, []byte(res.Token+"\n"), 0o600); err != nil {
@@ -108,7 +114,7 @@ func (r *Renewer) Renew(ctx context.Context) error {
 		os.Remove(tmp)
 		return err
 	}
-	r.log().Info("token renewed", "subject", res.Subject, "expires", time.UnixMilli(int64(res.ExpiresMs)).UTC().Format(time.RFC3339))
+	r.log().Info("token renewed", "subject", res.Subject, "expires", res.Expires.UTC().Format(time.RFC3339))
 	return nil
 }
 

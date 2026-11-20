@@ -28,8 +28,10 @@ Run `tools/gen.sh` after a contract change. It regenerates Go code,
 
 ## Rules
 
-- A primitive imports only its own packages, `lib/rpc`, `lib/authn`, and
-  third-party libraries. It never imports another primitive or `magi/`.
+- A primitive imports only its own packages, `lib/`, and third-party
+  libraries. It never imports another primitive or `magi/`. One exception:
+  a `cmd/` package of a primitive can import the generated `api` client of
+  a different primitive, because a program can call other services.
 - Only `magi/` composes primitives. It uses their generated `api` clients.
 - Contract changes are allowed when a primitive needs them. Keep fields
   snake_case. Do not use CSIL unions or bare timestamps; use `uint` Unix

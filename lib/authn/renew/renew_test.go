@@ -3,8 +3,6 @@ package renew
 import (
 	"context"
 	"crypto/ed25519"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,7 +11,6 @@ import (
 	"time"
 
 	"github.com/catalystcommunity/magi/lib/authn"
-	api "github.com/catalystcommunity/magi/primitives/identity/api"
 )
 
 func issue(t *testing.T, iss *authn.Issuer, at time.Time, ttl time.Duration) string {
@@ -33,18 +30,13 @@ func TestRenew(t *testing.T) {
 	now := time.Now()
 	var calls atomic.Int32
 	var got atomic.Value
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/rpc/IdentityService/refresh" {
-			http.NotFound(w, r)
-			return
-		}
+	refresh := func(_ context.Context, current string) (Token, error) {
 		calls.Add(1)
-		got.Store(r.Header.Get("Authorization"))
-		w.Write(api.EncodeTokenResponse(api.TokenResponse{Token: issue(t, iss, now, 30*24*time.Hour), Subject: "inference:box", ExpiresMs: uint64(now.Add(30 * 24 * time.Hour).UnixMilli())}))
-	}))
-	defer srv.Close()
+		got.Store(current)
+		return Token{Token: issue(t, iss, now, 30*24*time.Hour), Subject: "inference:box", Expires: now.Add(30 * 24 * time.Hour)}, nil
+	}
 	file := filepath.Join(t.TempDir(), "host-token")
-	r := &Renewer{File: file, URL: srv.URL, Now: func() time.Time { return now }}
+	r := &Renewer{File: file, Refresh: refresh, Now: func() time.Time { return now }}
 
 	// A fresh 30-day token is due at 20 days.
 	os.WriteFile(file, []byte(issue(t, iss, now, 30*24*time.Hour)+"\n"), 0o600)
@@ -69,7 +61,7 @@ func TestRenew(t *testing.T) {
 	if calls.Load() != 1 {
 		t.Fatalf("calls %d", calls.Load())
 	}
-	if got.Load() != "Bearer "+old {
+	if got.Load() != old {
 		t.Fatal("refresh did not use the current token")
 	}
 	b, _ := os.ReadFile(file)
@@ -78,5 +70,22 @@ func TestRenew(t *testing.T) {
 	}
 	if fi, _ := os.Stat(file); fi.Mode().Perm() != 0o600 {
 		t.Fatalf("mode %v", fi.Mode())
+	}
+}
+
+// A result that is not a token does not replace the file.
+func TestRenewKeepsFileOnBadResult(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "host-token")
+	os.WriteFile(file, []byte("magi1.old.sig\n"), 0o600)
+	for _, r := range []*Renewer{
+		{File: file},
+		{File: file, Refresh: func(context.Context, string) (Token, error) { return Token{Token: "<html>"}, nil }},
+	} {
+		if err := r.Renew(context.Background()); err == nil {
+			t.Fatal("no error")
+		}
+		if b, _ := os.ReadFile(file); string(b) != "magi1.old.sig\n" {
+			t.Fatalf("file changed: %q", b)
+		}
 	}
 }

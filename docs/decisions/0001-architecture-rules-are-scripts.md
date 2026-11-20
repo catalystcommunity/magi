@@ -30,8 +30,10 @@ also applies to changes that Magi makes to itself.
 
 ## Open
 
-`primitives/inference` imports `primitives/identity/renew` to renew the
-token of an inference host. The line is in the baseline. The correction
-needs a decision: a shared library package that gets the refresh call
-from its caller, or a rule that permits the generated client of a
-different primitive.
+The baseline has 12 lines for a private name in the eval data. The
+correction of those lines needs a new version of the eval set.
+
+Decided on 2026-11-20: the token renewer is `lib/authn/renew`. It gets the
+refresh call from its caller. A `cmd/` package of a primitive can import
+the generated `api` client of a different primitive, and no other package
+of it. The import break is gone from the baseline.

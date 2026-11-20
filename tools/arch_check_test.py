@@ -52,6 +52,13 @@ class ArchCheck(unittest.TestCase):
                                         ("imports", "primitives/a/y.go")])
         self.assertEqual(self.run_check().returncode, 1)
 
+    def test_cmd_can_import_the_client_of_other_primitive_only(self):
+        self.put("primitives/a/cmd/a/main.go", f'import "{MOD}primitives/b/api"\n')
+        self.put("primitives/a/cmd/a/bad.go", f'import "{MOD}primitives/b/server"\n')
+        self.put("primitives/a/cmd/a/worse.go", f'import "{MOD}primitives/b/api/internal"\n')
+        self.assertEqual(self.rules(), [("imports", "primitives/a/cmd/a/bad.go"),
+                                        ("imports", "primitives/a/cmd/a/worse.go")])
+
     def test_private_name_is_found_by_hash_only(self):
         self.put(ac.PRIVATE, ac.sha("secret-host") + "\n")
         self.put("docs/a.md", "Connect to Secret-Host.example.local now.\n")

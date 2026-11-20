@@ -33,8 +33,9 @@ that skips for a missing database is not a pass of that test. Run it with
   `clients/python/magi_*/`, `clients/typescript/*/*.gen.ts`. Change the
   contract in `contracts/<name>.csil` and run `tools/gen.sh`.
 - A primitive imports only its own packages, `lib/`, and third-party
-  libraries. Only `magi/` composes primitives. `tools/arch-check.py`
-  enforces this rule and the next three.
+  libraries. A `cmd/` package can also import the generated `api` client
+  of a different primitive. Only `magi/` composes primitives.
+  `tools/arch-check.py` enforces this rule and the next three.
 - Do not put private values in the repository: host names, addresses,
   accounts, keys, tokens. Use `example.local` in examples and tests.
 - Do not name anything "opal". There is no backwards compatibility: change

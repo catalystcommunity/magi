@@ -121,7 +121,9 @@ decision record.
 7. A turn yields to new input (0010).
 8. A stable prompt prefix in a session (0011), and the stall check with
    a configurable interval (0012).
-9. Empty the baseline of the architecture check (0001).
+9. Empty the baseline of the architecture check (0001). The import break
+   is gone. The private name in the eval data stays until that set gets a
+   new version.
 
 Later:
 

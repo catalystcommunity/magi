@@ -1,6 +1,5 @@
 # Known breaks of the architecture rules (tools/arch-check.py).
 # This file only gets smaller. Do not add a line; correct the break.
-imports	primitives/inference/cmd/magi-inference/main.go	primitives/identity/renew
 private	evals/canary/decoys.json	c2293882add6
 private	evals/world/results/20261109-world-v2-gemma-glm.review.md	c2293882add6
 private	evals/world/results/20261109T164904Z-world-v2-gemma.json	c2293882add6

@@ -5,8 +5,10 @@ The rules are those of CLAUDE.md and docs/conventions.md. A rule that is
 only prose is broken without notice; a rule here fails the check.
 
 Rules:
-  imports   A primitive imports only its own module and lib/. lib/ imports
-            neither a primitive nor magi/. Only magi/ composes primitives.
+  imports   A primitive imports only its own module and lib/. Its cmd/
+            packages can also import the generated api client of other
+            primitives. lib/ imports neither a primitive nor magi/. Only
+            magi/ composes primitives.
   private   No private name (host, account, domain) in a file. The names
             are in tools/arch-private.sha256 as SHA-256 values, so that
             the list does not name them.
@@ -40,6 +42,7 @@ JS_SUFFIX = (".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx")
 MAX_BYTES = 4 << 20
 
 IMPORT_RE = re.compile(r'"(' + re.escape(MODULE) + r'[^"]+)"')
+API_RE = re.compile(re.escape(MODULE) + r"primitives/[^/]+/api$")
 LABEL_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 OPAL_RE = re.compile(r"(?<![A-Za-z])[Oo][Pp][Aa][Ll](?![a-z])")
 
@@ -82,6 +85,9 @@ def check_imports(path, text):
     if not path.endswith(".go"):
         return
     parts = path.split("/")
+    # A cmd/ package is a program, not the library of the primitive: it can
+    # call other services through their generated clients.
+    client_ok = parts[0] == "primitives" and len(parts) > 3 and parts[2] == "cmd"
     if parts[0] == "primitives" and len(parts) > 2:
         own = MODULE + "primitives/" + parts[1]
         allowed = (own + "/", MODULE + "lib/")
@@ -92,7 +98,7 @@ def check_imports(path, text):
         return
     for n, line in enumerate(text.splitlines(), 1):
         for imp in IMPORT_RE.findall(line):
-            if imp == own or imp.startswith(allowed):
+            if imp == own or imp.startswith(allowed) or (client_ok and API_RE.match(imp)):
                 continue
             yield imp[len(MODULE):], n
 
@@ -159,7 +165,7 @@ def find(root):
 
 
 HELP = {
-    "imports": "a primitive imports only its own module and lib/; move the composition to magi/",
+    "imports": "a primitive imports only its own module and lib/ (cmd/ also the api client of other primitives); move the composition to magi/",
     "private": "a private name is in this file; use example.local or a role name",
     "opal": 'nothing has the name "opal"',
     "node": "no Node.js project and no JavaScript out of the web app",
