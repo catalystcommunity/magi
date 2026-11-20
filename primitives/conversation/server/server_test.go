@@ -2,9 +2,11 @@ package server_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -716,6 +718,34 @@ func TestPostWithKeyWritesOneTime(t *testing.T) {
 	long := strings.Repeat("k", 201)
 	if _, err := w.alice.Post(ctx, api.PostRequest{Stream: st.Id, Text: "x", Key: &long}); rpc.CodeOf(err) != 400 {
 		t.Fatalf("a key of 201 bytes: %v", err)
+	}
+}
+
+// The store does not start as a role that skips row-level security: the
+// records of one person would be readable for all, with no error.
+func TestStoreRefusesARoleThatSkipsRLS(t *testing.T) {
+	base := os.Getenv("MAGI_TEST_DATABASE_URL")
+	if base == "" {
+		t.Skip("MAGI_TEST_DATABASE_URL is not set")
+	}
+	ctx := context.Background()
+	admin, err := pgx.Connect(ctx, base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer admin.Close(ctx)
+	var super bool
+	if err := admin.QueryRow(ctx, `SELECT rolsuper FROM pg_roles WHERE rolname = current_user`).Scan(&super); err != nil {
+		t.Fatal(err)
+	}
+	if !super {
+		t.Skip("the test database role is not a superuser")
+	}
+	if db, err := store.Open(ctx, base); !errors.Is(err, store.ErrRoleSkipsRLS) {
+		if db != nil {
+			db.Close()
+		}
+		t.Fatalf("Open as a superuser: %v, want ErrRoleSkipsRLS", err)
 	}
 }
 

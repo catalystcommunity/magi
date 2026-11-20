@@ -35,7 +35,7 @@ func turnSystem(t *testing.T) *System {
 	t.Helper()
 	s, _ := planSystem(t)
 	ctx, stop := context.WithCancel(context.Background())
-	db, err := conversationstore.Open(ctx, testDatabase(t, "compose_conv"))
+	db, err := conversationstore.Open(ctx, testDatabaseAsRole(t, "compose_conv"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,6 +66,42 @@ func turnSystem(t *testing.T) *System {
 		}
 	}
 	return s
+}
+
+// The services of the turn eval keep people apart, as an installation
+// does: a person does not get the messages of a different person as
+// related context. A test database role that skips row-level security
+// would give them (and it did: a case got the dentist of a different case).
+func TestTurnSystemKeepsPeopleApart(t *testing.T) {
+	s := turnSystem(t)
+	ctx := s.AsService(context.Background())
+	a, b := "user:apart-a@example.local", "user:apart-b@example.local"
+	stA, err := s.Conversation.OpenStream(ctx, conversationapi.OpenStreamRequest{Persona: Assistant, Person: &a})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Conversation.Post(ctx, conversationapi.PostRequest{Stream: stA.Id, Text: "Remember that my dentist is Dr. Chen at Maple Street Dental.", Author: &a, AuthorKind: ptr("human")}); err != nil {
+		t.Fatal(err)
+	}
+	stB, err := s.Conversation.OpenStream(ctx, conversationapi.OpenStreamRequest{Persona: Assistant, Person: &b})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ub, err := s.Conversation.Post(ctx, conversationapi.PostRequest{Stream: stB.Id, Text: "Who is my dentist?", Author: &b, AuthorKind: ptr("human")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rel := s.relatedContext(ctx, conversationLens{person: b, persona: Assistant}, ub, nil, time.Now()); strings.Contains(rel, "Chen") {
+		t.Fatalf("person b got a message of person a: %s", rel)
+	}
+	// Person a finds the own message.
+	ua, err := s.Conversation.Post(ctx, conversationapi.PostRequest{Stream: stA.Id, Text: "Who is my dentist?", Author: &a, AuthorKind: ptr("human")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rel := s.relatedContext(ctx, conversationLens{person: a, persona: Assistant}, ua, nil, time.Now()); !strings.Contains(rel, "Chen") {
+		t.Fatalf("person a did not get the own message: %q", rel)
+	}
 }
 
 // evalCase is one case of a turn eval set.

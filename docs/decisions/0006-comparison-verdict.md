@@ -28,7 +28,11 @@ judge it. The goal is that a person does not need to.
 
 ## Done when
 
-- The command exists and gives a verdict for the persona turn and for
-  the coding harness.
-- The code-change workflow runs it for a change that touches a prompt or
-  the harness, and shows the verdict with the diff.
+- The command exists and gives a verdict for the persona turn. Done:
+  `evals/turn/verdict.py` (`evals/turn/README.md`).
+- The command gives a verdict for the coding harness. Not done: the
+  coding eval (`evals/coding`) runs through an installation and a
+  runner, and a person reads the grades.
+- The code-change workflow runs the verdict for a change that touches a
+  prompt or the persona turn, and shows the verdict with the diff. Not
+  done.

@@ -46,6 +46,9 @@ type Access struct {
 // All reads all records.
 var All = Access{Principals: []string{"*"}}
 
+// ErrRoleSkipsRLS: the database role is a superuser or has BYPASSRLS.
+var ErrRoleSkipsRLS = errors.New("the database role skips row-level security; use a role with NOSUPERUSER and NOBYPASSRLS")
+
 type DB struct{ pool *pgxpool.Pool }
 
 // Open connects to url and applies the schema.
@@ -55,6 +58,18 @@ func Open(ctx context.Context, url string) (*DB, error) {
 		return nil, err
 	}
 	db := &DB{pool: pool}
+	// Row-level security keeps the records of one person from another. A
+	// superuser and a role with BYPASSRLS skip it, without an error. Do
+	// not start as such a role.
+	var skips bool
+	if err := pool.QueryRow(ctx, `SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname = current_user`).Scan(&skips); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("read the database role: %w", err)
+	}
+	if skips {
+		pool.Close()
+		return nil, ErrRoleSkipsRLS
+	}
 	err = pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
 		// The lock keeps replicas that start together from racing on DDL.
 		if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock(7311002)"); err != nil {

@@ -110,7 +110,10 @@ decision record.
 1. Each tool call of a persona goes through `toolGate` (0003). Done.
 2. A turn that starts again does not repeat its effects (0004). Done.
 3. Refusals explain themselves; the persona prompts get shorter (0005).
-4. A comparison verdict for each prompt or harness change (0006).
+   The refusals are done. The prompts are next, with the verdict.
+4. A comparison verdict for each prompt or harness change (0006). Done
+   for the persona turn (`evals/turn`). Not done: the coding harness, and
+   the run of the verdict in the code-change workflow.
 5. A dispatch for work that continues later (0007), and one principal
    for each turn (0008).
 6. Events start persona turns, with the loop limit (0009).

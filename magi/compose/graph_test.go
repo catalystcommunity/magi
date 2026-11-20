@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"net/http/httptest"
@@ -45,6 +46,45 @@ func testDatabase(t *testing.T, prefix string) string {
 		admin.Close(ctx)
 	})
 	u, _ := url.Parse(base)
+	u.Path = "/" + name
+	return u.String()
+}
+
+// testDatabaseAsRole is testDatabase with a new role that owns the database
+// and is not a superuser, as in an installation. A superuser skips
+// row-level security, so a store that depends on it (conversation) needs
+// such a role.
+func testDatabaseAsRole(t *testing.T, prefix string) string {
+	t.Helper()
+	base := os.Getenv("MAGI_TEST_DATABASE_URL")
+	if base == "" {
+		t.Skip("MAGI_TEST_DATABASE_URL is not set")
+	}
+	ctx := context.Background()
+	admin, err := pgx.Connect(ctx, base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := fmt.Sprintf("%s_%d", prefix, time.Now().UnixNano())
+	pw := make([]byte, 12)
+	rand.Read(pw)
+	password := hex.EncodeToString(pw)
+	for _, q := range []string{
+		"CREATE ROLE " + name + " LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD '" + password + "'",
+		"CREATE DATABASE " + name + " OWNER " + name,
+	} {
+		if _, err := admin.Exec(ctx, q); err != nil {
+			admin.Close(ctx)
+			t.Fatal(err)
+		}
+	}
+	t.Cleanup(func() {
+		admin.Exec(ctx, "DROP DATABASE IF EXISTS "+name+" WITH (FORCE)")
+		admin.Exec(ctx, "DROP ROLE IF EXISTS "+name)
+		admin.Close(ctx)
+	})
+	u, _ := url.Parse(base)
+	u.User = url.UserPassword(name, password)
 	u.Path = "/" + name
 	return u.String()
 }

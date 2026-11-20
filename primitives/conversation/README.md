@@ -45,7 +45,8 @@ Contract: `contracts/conversation.csil`. Service: `ConversationService`.
   filters utterances, links, reviews, and examples by the readers that
   each transaction sets. A bug in a query cannot read records of other
   people. The service role must not be a superuser and must not have
-  `BYPASSRLS`; the tests run as such a role.
+  `BYPASSRLS`; the tests run as such a role. The service does not start
+  as a role that skips row-level security.
 - Only the person of a stream (or an act-as caller) posts in it, and only
   they or a classifier change its links and visibility. A member of the
   audience can read the shared utterances of the stream.
