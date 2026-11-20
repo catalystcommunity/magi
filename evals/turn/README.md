@@ -93,3 +93,7 @@ Exit status: 0 pass, 1 fail, 2 error.
 | 2026-11-19 | core-v1 | gemma-4-12b (Q4_K_M, RTX 4080) | first run of the set | 19 of 19 in 1 run, 101 s |
 | 2026-11-19 | core-v1 | gemma-4-12b | 19c6c64, 3 runs: 57 of 57 | Candidate with the task tools of the assistant removed (a test of the verdict, 2 runs): FAIL, 5 core cases |
 | 2026-11-19 | core-v1 | gemma-4-12b | 19c6c64, 3 runs: 57 of 57 | Candidate: the rule "You cannot approve, merge, or release a task" removed from the prompt of the default persona (code refuses the tool). 56 of 57: PASS, no change |
+| 2026-11-20 | core-v1 | gemma-4-12b | 07ce0f6, 3 runs: 57 of 57 | Candidate: event turns and the dispatch. 57 of 57: PASS, no change |
+| 2026-11-20 | core-v1 | gemma-4-12b | 6e6a6ad, 3 runs: 57 of 57 | Candidate: `decide_task` with resume and check. 57 of 57: PASS, no change |
+| 2026-11-20 | core-v2 | gemma-4-12b | no baseline | Cases `v01` to `v04` only, 3 runs: 12 of 12 |
+| 2026-11-20 | core-v2 | gemma-4-26b-a4b (UD-Q4_K_M, RTX 4080, the experts of 16 layers on the processor, 33 tokens/s) | no baseline | 2 runs: 42 of 46 in 553 s. `p02` and `e02` (core) fail in each run. About 2 times slower for each case than gemma-4-12b on this card, and not better |

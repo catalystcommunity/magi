@@ -131,3 +131,19 @@ date.
 An eval writes its results to the catalog with `score` (scores and
 calibrations). The selection uses them through `rank_by`. A new model or
 adapter gets a score only after an eval.
+
+## Candidates measured on 2026-11-20
+
+These numbers are from one machine with an RTX 4080 (16 GB, about 12 GB
+free). The public benchmark numbers of the candidates are not our
+results: SWE-bench depends on the harness around the model.
+
+| Model | File | On a 16 GB card | Result |
+| --- | --- | --- | --- |
+| Gemma 4 26B A4B | UD-Q4_K_M, 16.9 GB | Runs with the experts of 16 layers on the processor: 33 tokens/s, 1028 prompt tokens/s | Turn eval `core-v2`: 42 of 46, against 57 of 57 (`core-v1`) and 12 of 12 (event cases) for gemma-4-12b. Slower and not better for persona turns |
+| Devstral Small 2 24B | Q4_K_M, 14.3 GB | Does not fit. With 28 layers on the card: 4 tokens/s | Not usable on 16 GB. Not measured for quality |
+| Qwen3.6-27B | Q4_K_M, 16.8 GB | Does not fit (a dense model) | Not measured |
+
+A dense model of 24B to 27B needs a card with 24 GB. The coding eval of
+Devstral Small 2 and Qwen3.6-27B is open until they run on such a card.
+
