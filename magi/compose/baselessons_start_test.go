@@ -71,7 +71,7 @@ func TestStartCodeChangeSetsLessons(t *testing.T) {
 	s, wf := startSystem(t,
 		lessonEntity("rl-0001", "Keep the state of one run in the run method", "primitives/apprentice", "Set the flags at the start of the run method."),
 		lessonEntity("rl-0002", "No helper for one expression", "all code", "Write the expression where the code uses it."))
-	if _, err := s.startCodeChange(context.Background(), "user:a@example.local", origin{}, "Fix the worker",
+	if _, err := s.startCodeChange(context.Background(), "user:a@example.local", origin{dispatch: testDispatch("user:a@example.local", "")}, "Fix the worker",
 		"Change primitives/apprentice so that the worker keeps its state in one place.", "magi", "", "", ""); err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +89,7 @@ func TestStartCodeChangeSetsLessons(t *testing.T) {
 // Without a lesson that relates to the task, the var stays out.
 func TestStartCodeChangeWithoutLessons(t *testing.T) {
 	s, wf := startSystem(t, lessonEntity("rl-0001", "A diff for review shows new files", "primitives/speech", "Run git add first."))
-	if _, err := s.startCodeChange(context.Background(), "user:a@example.local", origin{}, "A title",
+	if _, err := s.startCodeChange(context.Background(), "user:a@example.local", origin{dispatch: testDispatch("user:a@example.local", "")}, "A title",
 		"An unrelated task.", "magi", "", "", ""); err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +104,7 @@ func TestStartCodeChangeCutsLongLessons(t *testing.T) {
 	s, wf := startSystem(t,
 		lessonEntity("rl-0001", strings.Repeat("a", 3000), "all code", strings.Repeat("b", 3000)),
 		lessonEntity("rl-0002", strings.Repeat("c", 3000), "all code", strings.Repeat("d", 3000)))
-	if _, err := s.startCodeChange(context.Background(), "user:a@example.local", origin{}, "A title",
+	if _, err := s.startCodeChange(context.Background(), "user:a@example.local", origin{dispatch: testDispatch("user:a@example.local", "")}, "A title",
 		"An unrelated task.", "magi", "", "", ""); err != nil {
 		t.Fatal(err)
 	}

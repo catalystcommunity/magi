@@ -101,7 +101,7 @@ func waitFor(t *testing.T, what string, f func() bool) {
 func TestTodoLifecycle(t *testing.T) {
 	s, notices := planSystem(t)
 	ctx := s.AsService(context.Background())
-	a := workflowapi.Assignment{Owner: graphOwner, Vars: map[string]string{"person_name": "Kim"}}
+	a := workflowapi.Assignment{Owner: graphOwner, Vars: map[string]string{"person_name": "Kim", dispatchVar: testDispatch(graphOwner, Assistant)}}
 	as := conversationLens{persona: Assistant}
 	ts := &turnState{}
 	tool := func(id, name string, args map[string]string) string {

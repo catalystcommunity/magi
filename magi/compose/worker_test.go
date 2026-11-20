@@ -40,7 +40,7 @@ func TestWorkerStopsWhenTheClaimIsLost(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		sys.run(sys.AsService(context.Background()), workflowapi.Assignment{Run: "run_1", Step: "reply", Claim: "c1"},
+		sys.run(sys.AsService(context.Background()), workflowapi.Assignment{Run: "run_1", Step: "reply", Claim: "c1", Owner: turnOwner, Vars: map[string]string{dispatchVar: testDispatch(turnOwner, Assistant)}},
 			func(ctx context.Context, _ workflowapi.Assignment, _ func(string)) (Result, error) {
 				select {
 				case <-ctx.Done():

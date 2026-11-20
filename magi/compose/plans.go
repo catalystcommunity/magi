@@ -212,7 +212,11 @@ func (s *System) planTool(ctx context.Context, a workflowapi.Assignment, as conv
 		if title == "" {
 			return "error: give a title", true
 		}
-		vars := map[string]string{"title": clip(title, 200), "who": a.Owner, "persona": as.persona, "stream": utt.Stream, "utterance": utt.Id}
+		d, err := s.childDispatch(a, utt.Stream, utt.Id)
+		if err != nil {
+			return "error: " + err.Error(), true
+		}
+		vars := map[string]string{"title": clip(title, 200), "who": a.Owner, "persona": as.persona, "stream": utt.Stream, "utterance": utt.Id, dispatchVar: d}
 		if name == "set_reminder" {
 			vars["kind"] = "reminder"
 			args = map[string]string{"remind": args["at"]}
@@ -302,6 +306,12 @@ func (s *System) planTool(ctx context.Context, a workflowapi.Assignment, as conv
 			}
 		}
 		vars["utterance"], vars["replaces"] = utt.Id, run.Id
+		// The change is work of this turn: it gets the dispatch of this turn.
+		d, err := s.childDispatch(a, utt.Stream, utt.Id)
+		if err != nil {
+			return "error: " + err.Error(), true
+		}
+		vars[dispatchVar] = d
 		// A reminder has no due time: "push the reminder back an hour"
 		// with due is the time of the reminder (plans eval p14).
 		if vars["kind"] == "reminder" && strings.TrimSpace(args["due"]) != "" && strings.TrimSpace(args["remind"]) == "" {

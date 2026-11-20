@@ -173,7 +173,7 @@ func turnEnv(t *testing.T, text string, m model.Chatter) (*System, *turnWorld, w
 	})
 	sys.Model = m
 	a := workflowapi.Assignment{Run: "run_turn", Step: "reply", Attempt: 1, Owner: turnOwner,
-		Vars: map[string]string{"stream": "str_1", "utterance": "utt_1", "persona": Assistant}}
+		Vars: map[string]string{"stream": "str_1", "utterance": "utt_1", "persona": Assistant, dispatchVar: testDispatch(turnOwner, Assistant)}}
 	return sys, w, a
 }
 
@@ -414,6 +414,7 @@ func TestTurnWithNoPersonGetsNoPersonTools(t *testing.T) {
 	}
 	sys, w, a := turnEnv(t, "Put milk on my list.", m)
 	a.Owner = "device:kitchen"
+	a.Vars[dispatchVar] = testDispatch("device:kitchen", Assistant)
 	w.utts[0].Author = "device:kitchen"
 	if _, err := run(sys, context.Background(), a); err != nil {
 		t.Fatal(err)

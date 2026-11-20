@@ -66,7 +66,9 @@ func (m *Service) StartTask(ctx context.Context, req magiapi.StartTaskRequest) (
 			return magiapi.Task{}, rpc.Invalid("base must be a commit of the default branch (7 to 40 hex characters)")
 		}
 	}
-	run, err := m.S.startCodeChange(m.S.AsService(ctx), caller.Subject, origin{}, title, req.Instructions, deref(req.Repo), deref(req.Runner), model, base)
+	// A person starts this task directly: no persona, and so no tools.
+	from := origin{dispatch: m.S.newDispatch(caller.Subject, "", "", "").encode()}
+	run, err := m.S.startCodeChange(m.S.AsService(ctx), caller.Subject, from, title, req.Instructions, deref(req.Repo), deref(req.Runner), model, base)
 	if err != nil {
 		return magiapi.Task{}, err
 	}
@@ -76,7 +78,9 @@ func (m *Service) StartTask(ctx context.Context, req magiapi.StartTaskRequest) (
 // origin is the message that asked for a task, if any.
 // origin is where a run reports. key, when set, makes the start safe to
 // repeat: a second start with the key returns the first run.
-type origin struct{ stream, utterance, persona, key string }
+// dispatch is the authority of the run (dispatch.go); a run does not start
+// without it.
+type origin struct{ stream, utterance, persona, key, dispatch string }
 
 // startCodeChange starts a code-change run owned by owner. ctx must carry
 // the service token. The run reports to the stream of from. model is the
@@ -86,6 +90,9 @@ type origin struct{ stream, utterance, persona, key string }
 func (s *System) startCodeChange(ctx context.Context, owner string, from origin, title, instructions, repo, runner, model, base string) (workflowapi.Run, error) {
 	if strings.TrimSpace(instructions) == "" {
 		return workflowapi.Run{}, rpc.Invalid("instructions are required")
+	}
+	if from.dispatch == "" {
+		return workflowapi.Run{}, errNoDispatch
 	}
 	if repo == "" {
 		repo = s.Cfg.Repo
@@ -101,7 +108,7 @@ func (s *System) startCodeChange(ctx context.Context, owner string, from origin,
 		lessons = lessons[:6000]
 	}
 	vars := map[string]string{"title": title, "instructions": instructions, "repo": repo, "check_command": s.Cfg.CheckCommand,
-		"runner": runner, "publisher": publisher, "stream": from.stream, "utterance": from.utterance, "persona": from.persona}
+		"runner": runner, "publisher": publisher, "stream": from.stream, "utterance": from.utterance, "persona": from.persona, dispatchVar: from.dispatch}
 	if model != "" {
 		vars["model"] = model
 	}

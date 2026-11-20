@@ -93,6 +93,10 @@ func (r *Runners) Claim(ctx context.Context, req magiapi.RunnerClaimRequest) (ma
 		return magiapi.RunnerClaimResponse{}, err
 	}
 	a := res.Assignment
+	// A runner gets a step only of work whose dispatch permits it now.
+	if !r.S.permitted(r.S.AsService(ctx), *a) {
+		return magiapi.RunnerClaimResponse{}, nil
+	}
 	return magiapi.RunnerClaimResponse{Assignment: &magiapi.RunnerAssignment{
 		Run: a.Run, Step: a.Step, Attempt: a.Attempt, Claim: a.Claim, Owner: a.Owner, Vars: a.Vars,
 	}}, nil
@@ -492,7 +496,7 @@ func (r *Runners) EgressAccess(ctx context.Context, req magiapi.RunnerStep) (mag
 		out.SshKnownHosts = ptr("* " + p.SSHPub)
 	}
 	if run, err := r.S.Workflow.GetRun(sctx, workflowapi.GetRunRequest{Id: req.Run}); err == nil {
-		if env := r.S.taskEnv(run.Owner, run.Vars["persona"], map[string]string{}); len(env) > 0 {
+		if env := r.S.taskEnv(run.Owner, run.Vars, map[string]string{}); len(env) > 0 {
 			out.Env = env
 		}
 	}

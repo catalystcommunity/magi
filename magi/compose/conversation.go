@@ -96,7 +96,8 @@ func (m *Service) Say(ctx context.Context, req magiapi.SayRequest) (magiapi.SayR
 	if err != nil {
 		return magiapi.SayResponse{}, err
 	}
-	vars := map[string]string{"stream": st.Id, "utterance": u.Id, "persona": persona}
+	vars := map[string]string{"stream": st.Id, "utterance": u.Id, "persona": persona,
+		dispatchVar: s.newDispatch(caller.Subject, persona, st.Id, u.Id).encode()}
 	if caller.Name != "" {
 		vars["owner_name"] = caller.Name
 	}

@@ -270,14 +270,42 @@ func (e *Egress) SecretRules(ctx context.Context, req magiapi.EgressSecretRulesR
 	if err := egressCaller(ctx); err != nil {
 		return magiapi.EgressSecretRulesResponse{}, err
 	}
+	return magiapi.EgressSecretRulesResponse{Rules: e.secretRules(ctx, req.Flow)}, nil
+}
+
+// secretRules gives the secret rules of a flow. The flow of a task gets
+// only the secrets of the dispatch of the task that the policy still
+// gives: a task that started before a rule existed does not get the rule.
+func (e *Egress) secretRules(ctx context.Context, f magiapi.EgressFlow) []magiapi.EgressSecretRule {
 	var p *string
 	persona := func() string {
 		if p == nil {
-			p = ptr(e.flowPersona(ctx, req.Flow))
+			p = ptr(e.flowPersona(ctx, f))
 		}
 		return *p
 	}
-	return magiapi.EgressSecretRulesResponse{Rules: e.rules().secretRules(req.Flow, persona)}, nil
+	rules := e.rules().secretRules(f, persona)
+	if run, ok := e.flowRun(ctx, f); ok {
+		au, err := e.S.restore(run.Owner, run.Vars)
+		rules = slices.DeleteFunc(rules, func(r magiapi.EgressSecretRule) bool {
+			return err != nil || run.Owner != f.Owner || !au.has(r.Placeholder)
+		})
+	}
+	return rules
+}
+
+// flowRun gives the task of the environment of the flow.
+func (e *Egress) flowRun(ctx context.Context, f magiapi.EgressFlow) (workflowapi.Run, bool) {
+	env, err := e.environment(ctx, magiapi.EgressEnvironmentRequest{Environment: f.Environment})
+	if err != nil || env.Task == nil {
+		return workflowapi.Run{}, false
+	}
+	run, err := e.S.Workflow.GetRun(e.S.AsService(ctx), workflowapi.GetRunRequest{Id: *env.Task})
+	if err != nil {
+		// The task cannot be read: its flow gets no secret.
+		return workflowapi.Run{}, true
+	}
+	return run, true
 }
 
 // flowPersona gives the persona that started the task of the environment

@@ -202,7 +202,7 @@ func runEvalCase(t *testing.T, s *System, c evalCase, run int) evalResult {
 		t.Fatalf("case %s: open stream: %v", c.Id, err)
 	}
 	a := workflowapi.Assignment{Run: "run_eval", Step: "reply", Attempt: 1, Owner: person,
-		Vars: map[string]string{"stream": st.Id, "persona": c.Persona, "owner_name": "Kim"}}
+		Vars: map[string]string{"stream": st.Id, "persona": c.Persona, "owner_name": "Kim", dispatchVar: testDispatch(person, c.Persona)}}
 	as := conversationLens{person: person, persona: c.Persona}
 	for _, g := range c.Given {
 		gate := &toolTurn{a: a, as: as, utt: conversationapi.Utterance{Stream: st.Id}, ts: &turnState{pages: map[string]bool{}}, tools: profiles[c.Persona].tools}

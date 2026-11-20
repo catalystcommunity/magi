@@ -154,7 +154,7 @@ func (s *System) prepare(ctx context.Context, a workflowapi.Assignment, note fun
 			Image: s.Cfg.EnvImage, CpuMillis: ptr(uint64(2000)), MemoryMb: ptr(uint64(4096)), DiskMb: ptr(uint64(8192)),
 			Network: ptr(s.Cfg.EnvNetwork), TtlSeconds: ptr(uint64(4 * 3600)), Workdir: ptr("/work"),
 			Labels: map[string]string{"magi.run": a.Run},
-			Env:    s.taskEnv(a.Owner, a.Vars["persona"], map[string]string{"GOFLAGS": "-mod=mod"}),
+			Env:    s.taskEnv(a.Owner, a.Vars, map[string]string{"GOFLAGS": "-mod=mod"}),
 		},
 	})
 	if err != nil {
@@ -491,10 +491,16 @@ func (s *System) rollout(ctx context.Context, a workflowapi.Assignment, note fun
 }
 
 // taskEnv adds the placeholder variables of the egress secret rules that
-// apply to a task of owner that persona started.
-func (s *System) taskEnv(owner, persona string, env map[string]string) map[string]string {
-	for k, v := range s.EgressRules.TaskEnv(owner, personaOr(ptr(persona))) {
-		env[k] = v
+// the dispatch of the task of owner has. Work with no dispatch gets none.
+func (s *System) taskEnv(owner string, vars, env map[string]string) map[string]string {
+	au, err := s.restore(owner, vars)
+	if err != nil || s.EgressRules == nil {
+		return env
+	}
+	for _, r := range s.EgressRules.Secrets {
+		if r.Env != "" && au.has(r.Placeholder) {
+			env[r.Env] = r.Placeholder
+		}
 	}
 	return env
 }

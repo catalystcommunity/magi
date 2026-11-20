@@ -289,7 +289,10 @@ func TestEgressTransport(t *testing.T) {
 	}
 
 	sr, err := ask.SecretRules(proxyCtx, magiapi.EgressSecretRulesRequest{Plugin: "placeholders", Flow: flowOf("user:b@example.local", "GET", "https://x/")})
-	if err != nil || len(sr.Rules) != 1 || sr.Rules[0].Placeholder != "magi-secret-pypi" {
+	// env_1 is the environment of a task that cannot be read, and the
+	// flow names a different owner: no secret (dispatch_test.go has the
+	// flow of a task with a dispatch).
+	if err != nil || len(sr.Rules) != 0 {
 		t.Fatalf("secret rules: %+v %v", sr, err)
 	}
 

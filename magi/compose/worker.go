@@ -50,6 +50,11 @@ func (s *System) Work(ctx context.Context, queue string, h Handler) {
 
 func (s *System) run(ctx context.Context, a workflowapi.Assignment, h Handler) {
 	log := s.Log.With("run", a.Run, "step", a.Step, "attempt", a.Attempt)
+	// Work that continues runs with its dispatch, or not at all
+	// (docs/decisions/0007).
+	if !s.permitted(ctx, a) {
+		return
+	}
 	hctx, stop := context.WithCancel(ctx)
 	defer stop()
 	var lost atomic.Bool

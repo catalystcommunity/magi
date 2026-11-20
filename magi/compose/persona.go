@@ -153,6 +153,11 @@ func (s *System) personaTurnOnce(ctx context.Context, a workflowapi.Assignment, 
 	if _, err := turnPrincipal(a, utt); err != nil {
 		return Result{}, err
 	}
+	// The turn has the tools of its dispatch that the persona still has.
+	au, err := s.restore(a.Owner, a.Vars)
+	if err != nil {
+		return Result{}, err
+	}
 	ph.ms["queue"] = max(0, ph.at.UnixMilli()-int64(utt.CreatedMs))
 	// What an earlier start of this turn did. A turn that posted its reply
 	// is complete: only the report to the workflow was lost.
@@ -167,6 +172,7 @@ func (s *System) personaTurnOnce(ctx context.Context, a workflowapi.Assignment, 
 		return Result{}, fmt.Errorf("history: %w", err)
 	}
 	prof := profileFor(persona)
+	prof.tools = au.Tools
 	name := prof.name
 	if p, err := s.Conversation.GetPersona(ctx, conversationapi.GetPersonaRequest{Id: persona}); err == nil {
 		name = p.Name
@@ -529,7 +535,11 @@ func (s *System) personaTool(ctx context.Context, a workflowapi.Assignment, as c
 		// The key makes the start safe when Magi stops between the start
 		// and the record of the effect: the next start of the turn gets
 		// the same run.
-		from := origin{stream: utt.Stream, utterance: utt.Id, persona: as.persona, key: "turn/" + utt.Id + "/" + effectKey(name, args)}
+		d, err := s.childDispatch(a, utt.Stream, utt.Id)
+		if err != nil {
+			return "error: " + err.Error(), nil
+		}
+		from := origin{stream: utt.Stream, utterance: utt.Id, persona: as.persona, key: "turn/" + utt.Id + "/" + effectKey(name, args), dispatch: d}
 		run, err := s.startCodeChange(ctx, a.Owner, from, args["title"], args["instructions"], args["repo"], args["runner"], "", "")
 		if err != nil {
 			return "error: " + err.Error(), nil
