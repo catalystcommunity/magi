@@ -227,7 +227,10 @@ Magi posts the event as a `system` utterance and starts a `persona-event`
 run: a gate, then the turn. The event text has the id and the title of the
 task, and not the text of the report: the persona reads the result with a
 tool. The turn acts with the dispatch of the task. It cannot approve,
-reject, or merge a task: only a message of the person can.
+reject, or merge a task: only a message of the person can. It can send a
+task back to the apprentice (`revise`, or `resume` for a blocked task).
+Its reply goes to the devices of the person as a notice that is shown and
+not said.
 
 The gate is the loop limit:
 

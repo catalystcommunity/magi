@@ -587,7 +587,20 @@ func (s *Sandboxes) Remove(id string) error {
 	} else {
 		s.killStale(id)
 	}
-	return os.RemoveAll(s.Dir(id))
+	return removeTree(s.Dir(id))
+}
+
+// removeTree removes dir and all in it. A task can leave a directory with
+// no write permission (a copied certificate store has one); os.RemoveAll
+// cannot empty it, so each directory gets the permission first.
+func removeTree(dir string) error {
+	filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
+		if err == nil && d.IsDir() {
+			os.Chmod(p, 0o700)
+		}
+		return nil
+	})
+	return os.RemoveAll(dir)
 }
 
 // List returns the environment ids on disk.

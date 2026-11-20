@@ -163,7 +163,7 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 		return Result{}, err
 	}
 	if why != "" {
-		r.post(ctx, st, "The work did not start: the environment check failed. "+why+". The work is kept. Decide on the task: resume tries again.")
+		r.report(ctx, st, "normal", "Task blocked", "The work did not start: the environment check failed. "+why+". The work is kept. Decide on the task: resume tries again.")
 		return Result{Outcome: "blocked", Outputs: map[string]string{"apprentice.status": "preflight", "apprentice.blocked": "true",
 			"apprentice.error": why, "apprentice.summary": "The environment check failed before the work started."}}, nil
 	}
@@ -287,6 +287,8 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 		if out.Error != "" {
 			outputs["apprentice.error"] = tail(out.Error, 2000)
 		}
+		// Without this report, a blocked task waits and nobody knows.
+		r.report(ctx, st, "normal", "Task blocked", fmt.Sprintf("The apprentice stopped (%s) after %d steps. The work stays in the environment. Resume it, run the checks on it, or reject it.", out.Status, out.Steps))
 		return Result{Outcome: "blocked", Outputs: outputs}, nil
 	case "retry":
 		return Result{Outcome: "retry", Outputs: outputs}, nil
@@ -420,7 +422,7 @@ func (r *Runner) check(ctx context.Context, a magiapi.RunnerAssignment, st magia
 		// cannot fix it, and it must not count toward give-up. A person
 		// decides: run the check again, resume, or reject.
 		line := environmentLine(output)
-		r.post(ctx, st, "The checks failed because of the environment, not the change: "+line+
+		r.report(ctx, st, "normal", "Task blocked", "The checks failed because of the environment, not the change: "+line+
 			". The work is kept. Decide on the task: check runs the checks again.")
 		return Result{Outcome: "blocked", Outputs: map[string]string{"check.output": art.Digest, "check.blocked": line,
 			"check_output": tail(output, 6000), "apprentice.blocked": "true"}}, nil

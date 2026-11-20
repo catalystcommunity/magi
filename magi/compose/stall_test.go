@@ -23,7 +23,7 @@ func (f *eventWorkflow) Cancel(_ context.Context, r workflowapi.CancelRequest) (
 // with an apprentice that wrote the status lines.
 func working(sys *System, wf *eventWorkflow, id string, at time.Time, lines ...string) *workflowapi.Run {
 	a := taskStep(sys, id, 0)
-	st := workflowapi.StepState{Step: "work", Attempt: 1, Status: "running", StartedMs: uint64(at.Add(-time.Hour).UnixMilli()), Progress: []workflowapi.Progress{}}
+	st := workflowapi.StepState{Step: "work", Attempt: 1, Status: "claimed", StartedMs: uint64(at.Add(-time.Hour).UnixMilli()), Progress: []workflowapi.Progress{}}
 	for i, l := range lines {
 		st.Progress = append(st.Progress, workflowapi.Progress{AtMs: uint64(at.Add(time.Duration(i) * time.Second).UnixMilli()), Note: l})
 	}

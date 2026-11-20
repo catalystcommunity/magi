@@ -76,6 +76,7 @@ func (s *System) eventLimits() eventLimits {
 var eventTitles = map[string]string{
 	"Ready for review": "is ready for review",
 	"Task stopped":     "stopped",
+	"Task blocked":     "is blocked: the apprentice stopped before the work was complete",
 	"Merge failed":     "could not be merged",
 	"Release failed":   "failed in the release",
 	"Push failed":      "could not be pushed",
@@ -155,7 +156,7 @@ func (s *System) wake(ctx context.Context, a workflowapi.Assignment, report stri
 	}
 	d.Cause = u.Id
 	vars := map[string]string{"stream": stream, "utterance": u.Id, "persona": au.Persona, dispatchVar: d.encode(),
-		"event.source": a.Run, "event.report": report}
+		"event.source": a.Run, "event.report": report, "event.title": a.Vars["title"]}
 	if n := a.Vars["owner_name"]; n != "" {
 		vars["owner_name"] = n
 	}

@@ -467,9 +467,24 @@ func (s *System) personaTurnOnce(ctx context.Context, a workflowapi.Assignment, 
 	if speak {
 		post.Modality = ptr("voice")
 	}
+	if isEvent {
+		// Nobody waits for this reply: it goes to the devices of the
+		// person as a notice. It is shown, not said: the report of the
+		// task was said already.
+		post.Modality = ptr("notice")
+	}
 	posted, err := s.Conversation.Post(ctx, post)
 	if err != nil {
 		return Result{}, fmt.Errorf("post reply: %w", err)
+	}
+	if isEvent {
+		title := "Follow-up"
+		if t := a.Vars["event.title"]; t != "" {
+			title += ": " + clip(t, 100)
+		}
+		if _, err := s.Conversation.Notify(ctx, conversationapi.NotifyRequest{Utterance: posted.Id, Title: title, Urgency: ptr("low")}); err != nil {
+			s.Log.Warn("notice of the reply to an event", "run", a.Run, "err", err)
+		}
 	}
 	// An earlier start of the turn posted the reply: the person has it,
 	// and the speech of it started then.

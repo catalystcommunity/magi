@@ -22,7 +22,7 @@ A case has:
 - `steps`: one message of the person each, with the checks of its turn.
   A step with `event` in place of `say` starts the turn from an event:
   the harness makes a task that this persona started (`task`: a `title`,
-  and `state` `review` or `stopped`), does its steps as a runner does,
+  and `state` `review`, `stopped`, or `blocked`), does its steps as a runner does,
   and sends the report that `event` names.
 
 The checks read the turn log and the reply:
@@ -44,7 +44,7 @@ No model judges a result. A check that needs a judge is not in this set.
 | Set | Cases | Contents |
 | --- | --- | --- |
 | `core-v1.json` | 19 | Turns from a message of the person |
-| `core-v2.json` | 22 | `core-v1`, and 3 turns from an event (`v01` to `v03`, not core until they pass each run of two baselines) |
+| `core-v2.json` | 23 | `core-v1`, and 4 turns from an event (`v01` to `v04`, not core until they pass each run of two baselines) |
 
 The default set of the verdict is the newest.
 

@@ -143,10 +143,10 @@ func toolDefs() map[string]model.Tool {
 		{Name: "task_diff", Description: "The change of a task: changed files with sizes, and the start of the patch.", Parameters: obj(map[string]any{
 			"task": str("Task id, from list_tasks."),
 		}, "task")},
-		{Name: "decide_task", Description: "Decide a task that waits for a person. At the review step: approve (merge and release), revise (back to the apprentice with a comment), or reject. At the pr-wait step (an open pull request on GitHub): merge (Magi merges the pull request on GitHub). approve, reject, and merge need confirm true after the person agrees.", Parameters: obj(map[string]any{
+		{Name: "decide_task", Description: "Decide a task that waits for a person. At the review step: approve (merge and release), revise (back to the apprentice with a comment), or reject. At the blocked step (the apprentice stopped): resume (another work round, with a comment that says what to do differently), check (run the checks on the work as it is), or reject. At the pr-wait step (an open pull request on GitHub): merge (Magi merges the pull request on GitHub). approve, reject, and merge need confirm true after the person agrees.", Parameters: obj(map[string]any{
 			"task":    str("Task id."),
-			"outcome": map[string]any{"type": "string", "enum": []string{"approve", "revise", "reject", "merge"}},
-			"comment": str("For revise: what the apprentice must change. Optional otherwise."),
+			"outcome": map[string]any{"type": "string", "enum": []string{"approve", "revise", "reject", "merge", "resume", "check"}},
+			"comment": str("For revise and resume: what the apprentice must change or do differently. Optional otherwise."),
 			"confirm": map[string]any{"type": "boolean", "description": "True only when the person agreed in a new message after you asked."},
 		}, "task", "outcome")},
 		{Name: "list_runners", Description: "List the runner machines that do tasks, and whether they are busy.", Parameters: obj(map[string]any{})},
@@ -277,17 +277,19 @@ func (s *System) extraTool(ctx context.Context, a workflowapi.Assignment, as con
 		if run.Status != "waiting" {
 			return fmt.Sprintf("error: the task is not waiting for a decision (status %s, step %s)", run.Status, run.CurrentStep), nil, true
 		}
-		if (outcome == "merge") != (run.CurrentStep == "pr-wait") {
-			return fmt.Sprintf("error: at step %s the outcome %s is not possible (merge is for an open pull request, step pr-wait; approve, revise, and reject are for review)", run.CurrentStep, outcome), nil, true
+		possible := map[string][]string{"review": {"approve", "revise", "reject"}, "blocked": {"resume", "check", "reject"}, "pr-wait": {"merge"}}
+		if !slices.Contains(possible[run.CurrentStep], outcome) {
+			return fmt.Sprintf("error: at step %s the outcome %s is not possible (review: approve, revise, reject; blocked: resume, check, reject; pr-wait, an open pull request: merge)", run.CurrentStep, outcome), nil, true
 		}
 		if outcome == "approve" && run.Vars["base"] != "" {
 			return refusal(fmt.Sprintf("task %s was not approved.", run.Id), fmt.Sprintf("An eval run (base %s) ends at review and is never merged.", run.Vars["base"]), "Reject the task after the grade, with outcome reject."), nil, true
 		}
 		switch outcome {
-		case "revise":
+		case "revise", "resume":
 			if strings.TrimSpace(args["comment"]) == "" {
-				return "error: revise needs a comment for the apprentice", nil, true
+				return "error: " + outcome + " needs a comment for the apprentice", nil, true
 			}
+		case "check":
 		case "approve", "reject", "merge":
 			if utt.AuthorKind != "human" {
 				return refusal(fmt.Sprintf("the decision %s for task %s was not made.", outcome, run.Id), "Only a message of the person can approve, reject, or merge a task. This turn started from an event.", "Tell the person what you found and what you recommend. They decide."), nil, true
@@ -303,7 +305,7 @@ func (s *System) extraTool(ctx context.Context, a workflowapi.Assignment, as con
 				return "confirmation needed: no earlier request for this decision in the conversation. Tell the person what you will do and ask them to agree. Then call again with confirm true.", nil, true
 			}
 		default:
-			return "error: outcome must be approve, revise, reject, or merge", nil, true
+			return "error: outcome must be approve, revise, reject, merge, resume, or check", nil, true
 		}
 		comment := strings.TrimSpace(args["comment"])
 		note := "decided by " + displayName(a) + " through " + as.persona
@@ -416,6 +418,10 @@ func describeTask(run workflowapi.Run) string {
 		for _, n := range notes {
 			fmt.Fprintf(&b, "  - %s\n", clip(n, 300))
 		}
+	}
+	if run.Vars["apprentice.blocked"] == "true" {
+		fmt.Fprintf(&b, "The apprentice stopped (%s): %s %s\n", run.Vars["apprentice.status"], clip(run.Vars["apprentice.summary"], 500),
+			clip(firstNonEmpty(run.Vars["apprentice.error"], run.Vars["check.blocked"]), 300))
 	}
 	if out := run.Vars["check.summary"]; out != "" {
 		fmt.Fprintf(&b, "Checks: %s\n", clip(out, 500))

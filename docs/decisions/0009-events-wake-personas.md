@@ -58,15 +58,31 @@ next step. A persona that can continue its own work needs the event.
   notice. Done (`TestEventLoopStopsAtTheChainLimit`,
   `TestEventsAboveTheRateWait`).
 
+## Progress after the first version
+
+- A task that is blocked (the apprentice stopped, or the environment
+  broke the checks) now sends a report, and the report starts a turn.
+  Before, a blocked task waited and nobody knew.
+- A persona can decide a blocked task: `resume` with a comment, or
+  `check`. An event turn can do that. It cannot reject.
+- The reply of an event turn goes to the devices of the person as a
+  notice that is shown and not said.
+- A real task in the development installation showed that the stall
+  check read the wrong step status. The check is corrected.
+
+## Not an event for a persona
+
+A reminder that is due and a to-do that is ready are messages for the
+person. Code sends them as notices. They start no persona turn: there is
+no work that the persona can do for them.
+
 ## Open
 
-- A reminder that is due and a plan step that is ready send a notice
-  only. They do not start a turn yet.
-- The reply of an event turn is a message in the conversation. It is not
-  a notice on the devices of the person; the report of the task is.
 - The report of a task is in the conversation as a notice of the
   persona, so an event turn reads it as history. It can have text that a
-  task made. The turn cannot decide a task, but it can start one.
-- Eval: `evals/turn/core-v2.json`, cases `v01` to `v03`. On the local
-  model the persona reads the task and tells the person in 11 of 12 runs.
-  In each run of `v03` the model tried to approve, and code refused.
+  task made. The turn cannot approve, reject, or merge, but it can start
+  or resume a task.
+- Eval: `evals/turn/core-v2.json`, cases `v01` to `v04`. On the local
+  model the persona reads the task and tells the person in 12 of 12
+  runs. It asks the person before it resumes a blocked task. In `v03`
+  the model tried to approve in 2 of 3 runs, and code refused.

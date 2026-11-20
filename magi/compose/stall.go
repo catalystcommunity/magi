@@ -67,7 +67,7 @@ func stalled(run workflowapi.Run, lim stallLimits, seen, now time.Time) string {
 		return ""
 	}
 	st := run.History[len(run.History)-1]
-	if st.Step != stallStep || st.Status != "running" {
+	if st.Step != stallStep || st.Status != "claimed" {
 		// The step waits for a worker: no apprentice runs.
 		return ""
 	}
@@ -124,7 +124,7 @@ func (s *System) checkStalls(ctx context.Context, now time.Time) []string {
 	}
 	working := map[string]bool{}
 	for _, run := range res.Runs {
-		if run.CurrentStep != stallStep || len(run.History) == 0 || run.History[len(run.History)-1].Status != "running" {
+		if run.CurrentStep != stallStep || len(run.History) == 0 || run.History[len(run.History)-1].Status != "claimed" {
 			continue
 		}
 		// One time for each attempt of the step.

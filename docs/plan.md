@@ -117,7 +117,7 @@ decision record.
 5. A dispatch for work that continues later (0007), and one principal
    for each turn (0008). Done.
 6. Events start persona turns, with the loop limit (0009). Done for the
-   reports of a task. Not done: reminders and plan steps.
+   reports of a task. Reminders and to-dos stay notices for the person.
 7. A turn yields to new input (0010).
 8. A stable prompt prefix in a session (0011). The stall check with a
    configurable interval (0012) is done.

@@ -310,3 +310,40 @@ func TestEventTurn(t *testing.T) {
 		t.Fatalf("replies %v", r)
 	}
 }
+
+func (f *eventWorkflow) Decide(_ context.Context, r workflowapi.DecideRequest) (workflowapi.Run, error) {
+	f.w.mu.Lock()
+	defer f.w.mu.Unlock()
+	run := f.byID[r.Run]
+	run.Status, run.Vars["test.decided"] = "running", r.Outcome+": "+deref(r.Comment)
+	return *run, nil
+}
+
+// An event turn can resume a blocked task with a comment. It cannot
+// reject it, and a resume needs the comment.
+func TestEventTurnResumesABlockedTask(t *testing.T) {
+	sys, _, wf := eventEnv(t, nil)
+	ctx := sys.AsService(context.Background())
+	a := taskStep(sys, "run_e1", 0)
+	if _, err := wf.Start(ctx, workflowapi.StartRequest{Definition: CodeChange, Owner: ptr(turnOwner), Vars: a.Vars}); err != nil {
+		t.Fatal(err)
+	}
+	run := wf.byID["run_e1"]
+	run.Status, run.CurrentStep = "waiting", "blocked"
+	event := conversationapi.Utterance{Id: "utt_ev", Stream: "str_1", Author: "magi", AuthorKind: "system"}
+	gate := &toolTurn{a: a, as: conversationLens{person: turnOwner, persona: Engineering}, utt: event, ts: &turnState{pages: map[string]bool{}}, tools: profiles[Engineering].tools}
+	call := func(args map[string]string) toolResult { return sys.toolGate(ctx, gate, "decide_task", args) }
+	if out := call(map[string]string{"task": "run_e1", "outcome": "approve", "confirm": "true"}); !strings.Contains(out.Out, "not possible") {
+		t.Fatalf("approve at blocked: %s", out.Out)
+	}
+	if out := call(map[string]string{"task": "run_e1", "outcome": "reject", "confirm": "true"}); !out.Refused {
+		t.Fatalf("reject from an event turn: %s", out.Out)
+	}
+	if out := call(map[string]string{"task": "run_e1", "outcome": "resume"}); !strings.Contains(out.Out, "needs a comment") {
+		t.Fatalf("resume with no comment: %s", out.Out)
+	}
+	out := call(map[string]string{"task": "run_e1", "outcome": "resume", "comment": "Declare the asJSON flag before you use it."})
+	if !toolDone(out.Out) || !strings.HasPrefix(run.Vars["test.decided"], "resume: Declare the asJSON flag") {
+		t.Fatalf("resume: %s (%q)", out.Out, run.Vars["test.decided"])
+	}
+}

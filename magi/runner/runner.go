@@ -353,7 +353,9 @@ func (r *Runner) collect(ctx context.Context) {
 			switch {
 			case rpc.CodeOf(err) == 404, err == nil && (st.Status == "succeeded" || st.Status == "failed" || st.Status == "cancelled"):
 				r.Log.Info("removing environment of an ended run", "run", id)
-				r.removeBox(id)
+				if err := r.removeBox(id); err != nil {
+					r.Log.Warn("remove environment", "run", id, "err", err)
+				}
 			case err == nil && !r.Boxes.Alive(id):
 				// The runner restarted while the run waits (for example
 				// for review): start envd again on the kept work.

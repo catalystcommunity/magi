@@ -134,8 +134,9 @@ type evalGiven struct {
 }
 
 // evalTask is the task of an event step. State is "review" (the checks
-// passed and the task waits for a decision) or "stopped" (the checks
-// failed and the task gave up).
+// passed and the task waits for a decision), "stopped" (the checks
+// failed and the task gave up), or "blocked" (a guard stopped the
+// apprentice in a loop, and the task waits for a decision).
 type evalTask struct {
 	Title string `json:"title"`
 	State string `json:"state"`
@@ -201,8 +202,8 @@ func loadEvalCases(t *testing.T, path string) []evalCase {
 		}
 		seen[c.Id] = true
 		for _, st := range c.Steps {
-			if (st.Say == "") == (st.Event == "") || st.Event != "" && (eventTitles[st.Event] == "" || st.Task.Title == "" || st.Task.State != "review" && st.Task.State != "stopped") {
-				t.Fatalf("%s: case %s: a step has say, or an event (a report that starts a turn) with a task (title, and state review or stopped)", path, c.Id)
+			if (st.Say == "") == (st.Event == "") || st.Event != "" && (eventTitles[st.Event] == "" || st.Task.Title == "" || !slices.Contains([]string{"review", "stopped", "blocked"}, st.Task.State)) {
+				t.Fatalf("%s: case %s: a step has say, or an event (a report that starts a turn) with a task (title, and state review, stopped, or blocked)", path, c.Id)
 			}
 			for _, re := range slices.Concat(st.ReplyAll, st.ReplyAny, st.ReplyNone) {
 				if _, err := regexp.Compile("(?i)" + re); err != nil {
@@ -323,9 +324,18 @@ func (s *System) evalEvent(ctx context.Context, a workflowapi.Assignment, stream
 	}
 	steps := []func() error{
 		func() error { return do("prepare", "done", map[string]string{"branch": "task/" + run.Id}) },
-		func() error { return do("work", "done", map[string]string{"apprentice.summary": "I made the change."}) },
 	}
-	if step.Task.State == "review" {
+	if step.Task.State == "blocked" {
+		steps = append(steps, func() error {
+			return do("work", "blocked", map[string]string{"apprentice.status": "loop", "apprentice.blocked": "true",
+				"apprentice.summary": "The same command ran 6 times with the same result: go test ./cmd/status fails with 'undefined: asJSON'."})
+		})
+	} else {
+		steps = append(steps, func() error { return do("work", "done", map[string]string{"apprentice.summary": "I made the change."}) })
+	}
+	switch step.Task.State {
+	case "blocked":
+	case "review":
 		patch, err := s.Artifacts.Put(ctx, artifactsapi.PutRequest{MediaType: "text/x-diff", Body: []byte(evalPatch)})
 		if err != nil {
 			return none, a, err
@@ -335,7 +345,7 @@ func (s *System) evalEvent(ctx context.Context, a workflowapi.Assignment, stream
 				"base_commit": "1111111", "head_commit": "2222222", "patch": patch.Digest,
 				"patch.files": `[{"path":"cmd/status/main.go","additions":3,"deletions":1}]`})
 		})
-	} else {
+	default:
 		steps = append(steps,
 			func() error {
 				return do("check", "give-up", map[string]string{"check.summary": "go test ./...: FAIL TestStatusJSON. The checks failed 3 times.",
