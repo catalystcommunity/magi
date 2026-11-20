@@ -19,7 +19,7 @@ obeys the record), `replaced` (a later record replaces it).
 | [0005](0005-refusals-explain-themselves.md) | A refusal explains itself; the prompt does not list the rules | accepted |
 | [0006](0006-comparison-verdict.md) | A prompt or harness change needs a comparison verdict | accepted |
 | [0007](0007-dispatch.md) | Work that continues later keeps its authority in a dispatch | accepted |
-| [0008](0008-one-principal.md) | A turn acts for one principal | accepted |
+| [0008](0008-one-principal.md) | A turn acts for one principal | done |
 | [0009](0009-events-wake-personas.md) | Events start persona turns | accepted |
 | [0010](0010-yield-to-new-input.md) | A turn yields to new input | accepted |
 | [0011](0011-stable-prompt-prefix.md) | The prompt prefix is stable in a session | accepted |

@@ -150,6 +150,9 @@ func (s *System) personaTurnOnce(ctx context.Context, a workflowapi.Assignment, 
 	if err != nil {
 		return Result{}, fmt.Errorf("utterance: %w", err)
 	}
+	if _, err := turnPrincipal(a, utt); err != nil {
+		return Result{}, err
+	}
 	ph.ms["queue"] = max(0, ph.at.UnixMilli()-int64(utt.CreatedMs))
 	// What an earlier start of this turn did. A turn that posted its reply
 	// is complete: only the report to the workflow was lost.

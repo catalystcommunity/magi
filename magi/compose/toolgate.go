@@ -171,6 +171,28 @@ func (s *System) keepEffect(ctx context.Context, t *toolTurn, e effect) {
 	}
 }
 
+// principal is the one identity that a turn acts for
+// (docs/decisions/0008). Code selects it from verified facts: the owner of
+// the run, which the workflow service set from the token of the request,
+// and the author of the message. Text never changes it.
+type principal struct{ subject string }
+
+// person is true when the turn acts for a person. A turn of a device with
+// no identity, or of a service, has no person: it gets only the tools
+// that need none.
+func (p principal) person() bool { return strings.HasPrefix(p.subject, "user:") }
+
+// turnPrincipal gives the principal of the turn of a message. The message
+// of a person starts a turn only for that person: a run whose owner is
+// not the author of the message does not act. There is no fallback
+// identity.
+func turnPrincipal(a workflowapi.Assignment, utt conversationapi.Utterance) (principal, error) {
+	if utt.AuthorKind == "human" && utt.Author != a.Owner {
+		return principal{}, fmt.Errorf("the turn is for %s and the message is of %s: one turn acts for one principal", a.Owner, utt.Author)
+	}
+	return principal{subject: a.Owner}, nil
+}
+
 // toolTurn is the part of a persona turn that the gate needs.
 type toolTurn struct {
 	a   workflowapi.Assignment
@@ -252,7 +274,7 @@ func (s *System) gated(ctx context.Context, t *toolTurn, name string, args map[s
 			"The arguments of a tool call are one JSON object.",
 			"Call "+name+" again with a JSON object that has the arguments of its description."), nil, true
 	}
-	if rule.person && !strings.HasPrefix(t.a.Owner, "user:") {
+	if rule.person && !(principal{subject: t.a.Owner}).person() {
 		return refusal(fmt.Sprintf("the tool %q did not run.", name),
 			"This tool acts for a person, and this turn has no verified person.",
 			"Tell the person that they must sign in for this. "+strings.Join(t.publicTools(), ", ")+" need no person."), nil, true

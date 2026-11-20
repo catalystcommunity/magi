@@ -115,7 +115,8 @@ decision record.
    for the persona turn (`evals/turn`). Not done: the coding harness, and
    the run of the verdict in the code-change workflow.
 5. A dispatch for work that continues later (0007), and one principal
-   for each turn (0008).
+   for each turn (0008). The principal is done. For the dispatch, the
+   start variables of a run are fixed now; the record is not done.
 6. Events start persona turns, with the loop limit (0009).
 7. A turn yields to new input (0010).
 8. A stable prompt prefix in a session (0011), and the stall check with

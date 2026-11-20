@@ -384,3 +384,50 @@ func TestEffectKey(t *testing.T) {
 		}
 	}
 }
+
+// A turn acts for one principal: the author of the message. A run with a
+// different owner does not act for that owner with the words of the
+// author: no model call, no tool call (docs/decisions/0008).
+func TestTurnForADifferentOwnerDoesNotAct(t *testing.T) {
+	m := &scriptModel{reply: func(int, []model.Message) (model.Message, error) {
+		return toolCall("add_todo", addMilk), nil
+	}}
+	sys, w, a := turnEnv(t, "Put milk on my list.", m)
+	a.Owner = "user:b@example.local"
+	if _, err := run(sys, context.Background(), a); err == nil || !strings.Contains(err.Error(), "one principal") {
+		t.Fatalf("err = %v", err)
+	}
+	if m.calls != 0 || w.todoStarts() != 0 || len(w.replies()) != 0 {
+		t.Fatalf("the turn acted: %d model calls, %d to-dos, replies %q", m.calls, w.todoStarts(), w.replies())
+	}
+}
+
+// A turn with no person (a device with no identity) runs, and code
+// refuses each tool that acts for a person.
+func TestTurnWithNoPersonGetsNoPersonTools(t *testing.T) {
+	m := &scriptModel{}
+	m.reply = func(n int, _ []model.Message) (model.Message, error) {
+		if n == 1 {
+			return toolCall("add_todo", addMilk), nil
+		}
+		return model.Message{Role: "assistant", Content: "Sign in first, please."}, nil
+	}
+	sys, w, a := turnEnv(t, "Put milk on my list.", m)
+	a.Owner = "device:kitchen"
+	w.utts[0].Author = "device:kitchen"
+	if _, err := run(sys, context.Background(), a); err != nil {
+		t.Fatal(err)
+	}
+	if w.todoStarts() != 0 {
+		t.Fatal("a turn with no person made a to-do")
+	}
+	refused := false
+	for _, msg := range m.seen[1] {
+		if msg.Role == "tool" && strings.Contains(msg.Content, "no verified person") {
+			refused = true
+		}
+	}
+	if got := w.replies(); !refused || len(got) != 1 {
+		t.Fatalf("refused=%v replies=%q", refused, got)
+	}
+}

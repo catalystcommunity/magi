@@ -1,6 +1,6 @@
 # 0008 A turn acts for one principal
 
-Status: accepted
+Status: done
 
 ## Decision
 
@@ -29,8 +29,19 @@ with the grant of the other.
 ## Done when
 
 - The persona turn has one principal value, and `toolGate` reads only
-  that value.
-- A test puts messages of two people in one turn range, and the turn
-  acts for one of them only.
-- A test runs a turn from a device with no identity, and a tool that
-  needs a person is refused.
+  that value. Done: `turnPrincipal` and `principal` in
+  `magi/compose/toolgate.go`.
+- A run whose owner is not the author of the message does not act. Done,
+  with a test.
+- A test runs a turn with no person, and a tool that needs a person is
+  refused. Done.
+
+## Open
+
+- A device has no identity record yet. When devices get one (none, one,
+  or a list), the selection from the list must be a verified fact of the
+  request, and `turnPrincipal` reads it.
+- A persona that more than one person shares has one stream for each
+  person today, so each turn has one author. A shared stream needs the
+  same rule: the turn acts for the author of the message that started
+  it.
