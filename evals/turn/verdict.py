@@ -34,7 +34,9 @@ def run_eval(tree, args, out, log):
     env = dict(os.environ, MAGI_TURN_EVAL_URL=args.url, MAGI_TURN_EVAL_MODEL=args.model,
                MAGI_TURN_EVAL_CASES=str(Path(args.set).resolve()), MAGI_TURN_EVAL_OUT=str(out),
                MAGI_TURN_EVAL_RUNS=str(args.runs), MAGI_TURN_EVAL_ONLY=args.only or "")
-    test = "cd magi && GOWORK=off go test -count=1 -timeout 0 ./compose/ -run '^TestTurnEval$' -v"
+    # The path is absolute: tools/test-db.sh runs its command from its own
+    # repository, which is the candidate.
+    test = f"cd '{Path(tree).resolve()}/magi' && GOWORK=off go test -count=1 -timeout 0 ./compose/ -run '^TestTurnEval$' -v"
     cmd = ["sh", "-c", test] if os.environ.get("MAGI_TEST_DATABASE_URL") else [str(ROOT / "tools/test-db.sh"), "--", "sh", "-c", test]
     p = subprocess.run(cmd, cwd=tree, env=env, capture_output=True, text=True)
     Path(log).write_text(p.stdout + p.stderr)

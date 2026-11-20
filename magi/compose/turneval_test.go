@@ -170,8 +170,11 @@ func runEvalCase(t *testing.T, s *System, c evalCase, run int) evalResult {
 	as := conversationLens{person: person, persona: c.Persona}
 	for _, g := range c.Given {
 		gate := &toolTurn{a: a, as: as, utt: conversationapi.Utterance{Stream: st.Id}, ts: &turnState{pages: map[string]bool{}}, tools: profiles[c.Persona].tools}
+		// A candidate can break what a case needs: that is a failed case,
+		// not an eval that stops.
 		if out := s.toolGate(ctx, gate, g.Tool, g.Args); !toolDone(out.Out) {
-			t.Fatalf("case %s: given %s %v: %s", c.Id, g.Tool, g.Args, out.Out)
+			res.Fails = append(res.Fails, fmt.Sprintf("given %s: %s", g.Tool, strings.SplitN(out.Out, "\n", 2)[0]))
+			return res
 		}
 	}
 	start := time.Now()
