@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	artifactsapi "github.com/catalystcommunity/magi/primitives/artifacts/api"
@@ -79,6 +80,16 @@ type Config struct {
 	// PersonaWorkers is the number of persona turns that one replica runs
 	// at the same time (MAGI_PERSONA_WORKERS, default 4).
 	PersonaWorkers int
+	// Events are the numbers of the loop limit of event turns
+	// (events.go): MAGI_EVENT_WINDOW (a duration, default 10m),
+	// MAGI_EVENT_RATE (default 6), MAGI_EVENT_CHAIN (default 4).
+	// MAGI_EVENTS=off starts no turn from an event.
+	Events struct {
+		eventLimits
+		Off bool
+	}
+	// Stall are the settings of the stall check (stall.go).
+	Stall stallLimits
 	// CheckCommand runs in the repository after the apprentice works.
 	CheckCommand string
 	// Release is the release controller endpoint; empty turns releases off.
@@ -137,6 +148,25 @@ func ConfigFromEnv() (Config, error) {
 		if f, err := strconv.ParseFloat(g, 64); err == nil && f >= 0 && f < 1 {
 			c.NoteGate = f
 		}
+	}
+	c.Events.Off = os.Getenv("MAGI_EVENTS") == "off"
+	if d, err := time.ParseDuration(os.Getenv("MAGI_STALL_EVERY")); err == nil && d > 0 {
+		c.Stall.Every = d
+	}
+	if d, err := time.ParseDuration(os.Getenv("MAGI_STALL_AFTER")); err == nil && d > 0 {
+		c.Stall.After = d
+	}
+	if n, err := strconv.Atoi(os.Getenv("MAGI_STALL_REPEAT")); err == nil && n > 1 {
+		c.Stall.Repeat = n
+	}
+	if d, err := time.ParseDuration(os.Getenv("MAGI_EVENT_WINDOW")); err == nil && d > 0 {
+		c.Events.Window = d
+	}
+	if n, err := strconv.Atoi(os.Getenv("MAGI_EVENT_RATE")); err == nil && n > 0 {
+		c.Events.Rate = n
+	}
+	if n, err := strconv.Atoi(os.Getenv("MAGI_EVENT_CHAIN")); err == nil && n > 0 {
+		c.Events.Chain = n
 	}
 	c.PersonaWorkers = 4
 	if n, err := strconv.Atoi(os.Getenv("MAGI_PERSONA_WORKERS")); err == nil && n > 0 {
@@ -268,6 +298,9 @@ type System struct {
 	// Terminals holds the terminal sessions that wait for a runner
 	// (terminal.go).
 	Terminals *Terminals
+	// stallSeen is when the stall check first saw each step with a worker.
+	stallMu   sync.Mutex
+	stallSeen map[string]time.Time
 }
 
 // New creates clients. Each call uses the token in its context (see

@@ -289,6 +289,9 @@ func (s *System) extraTool(ctx context.Context, a workflowapi.Assignment, as con
 				return "error: revise needs a comment for the apprentice", nil, true
 			}
 		case "approve", "reject", "merge":
+			if utt.AuthorKind != "human" {
+				return refusal(fmt.Sprintf("the decision %s for task %s was not made.", outcome, run.Id), "Only a message of the person can approve, reject, or merge a task. This turn started from an event.", "Tell the person what you found and what you recommend. They decide."), nil, true
+			}
 			if args["confirm"] != "true" {
 				return fmt.Sprintf("confirmation needed: tell the person that you will %s task %s %q (branch %s), and ask them to agree. Then call again with confirm true.",
 					outcome, run.Id, run.Vars["title"], run.Vars["branch"]), nil, true

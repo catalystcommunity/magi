@@ -204,6 +204,52 @@ links to one release in `releases/`.
 
 The launcher itself changes only with `tools/install-runner.sh`.
 
+## Dispatch and event turns
+
+Work that continues after the turn or the request that started it (a
+persona turn, a task, a to-do, a reminder) has a dispatch: the run
+variable `dispatch` (`compose/dispatch.go`, `docs/decisions/0007-dispatch.md`).
+It records the person for whom the work acts, the persona, the tools of
+the persona, and the egress secret rules that applied at the start.
+
+- Each step that a worker of Magi or a runner claims is checked. A run
+  with no dispatch, with the dispatch of a different person, or with a
+  grant that the egress rules do not give now is cancelled. The owner gets
+  one notice.
+- A turn has the tools of its dispatch that the persona still has. A task
+  gets the secrets of its dispatch that the rules still give. A rule that
+  was added later does not apply to work that started before.
+- Work that a turn starts gets a dispatch from the dispatch of the turn.
+
+A report of a task that is not `low` starts a turn of the persona that
+started the task (`compose/events.go`, `docs/decisions/0009-events-wake-personas.md`).
+Magi posts the event as a `system` utterance and starts a `persona-event`
+run: a gate, then the turn. The event text has the id and the title of the
+task, and not the text of the report: the persona reads the result with a
+tool. The turn acts with the dispatch of the task. It cannot approve,
+reject, or merge a task: only a message of the person can.
+
+The gate is the loop limit:
+
+- Chain: no more than `MAGI_EVENT_CHAIN` event turns (default 4) follow
+  each other with no message of the person. The count includes the events
+  of one task and the tasks that an event turn started. The next event
+  starts no turn, and the person gets one notice.
+- Rate: no more than `MAGI_EVENT_RATE` event turns (default 6) of one
+  persona in one stream start in `MAGI_EVENT_WINDOW` (default `10m`).
+  More events wait and start when the window has room. They do not wait
+  for a person. The person gets one notice in a window.
+
+`MAGI_EVENTS=off` starts no turn from an event.
+
+The stall check (`compose/stall.go`, `docs/decisions/0012`) looks at each
+task whose apprentice works, each `MAGI_STALL_EVERY` (default `1m`). It
+cancels a task whose apprentice wrote no status line for
+`MAGI_STALL_AFTER` (default `20m`), or whose last `MAGI_STALL_REPEAT`
+status lines (default 6) have the same actions. The person gets the
+reason as a notice, and the persona gets the event. Make the numbers
+smaller where model capacity is small.
+
 ## Authorization
 
 Operator calls (`put-runner-package`, `set-runner-release`,
@@ -693,7 +739,8 @@ for the proxy, in place of `MAGI_MODEL_API_KEY_FILE`), `MAGI_SEARCH_URL`
 (SearXNG for web search; see Web search), `MAGI_TIME_ZONE` (the IANA time
 zone of the household, for the time in the persona prompt and the times of
 to-dos; default UTC), `MAGI_PERSONA_WORKERS` (persona turns at the same
-time; default 4).
+time; default 4), `MAGI_EVENTS`, `MAGI_EVENT_CHAIN`, `MAGI_EVENT_RATE`, and
+`MAGI_EVENT_WINDOW` (see Dispatch and event turns).
 
 ## Model check
 

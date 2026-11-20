@@ -20,10 +20,10 @@ obeys the record), `replaced` (a later record replaces it).
 | [0006](0006-comparison-verdict.md) | A prompt or harness change needs a comparison verdict | accepted |
 | [0007](0007-dispatch.md) | Work that continues later keeps its authority in a dispatch | done |
 | [0008](0008-one-principal.md) | A turn acts for one principal | done |
-| [0009](0009-events-wake-personas.md) | Events start persona turns | accepted |
+| [0009](0009-events-wake-personas.md) | Events start persona turns | done for tasks |
 | [0010](0010-yield-to-new-input.md) | A turn yields to new input | accepted |
 | [0011](0011-stable-prompt-prefix.md) | The prompt prefix is stable in a session | accepted |
-| [0012](0012-stall-check.md) | A task that makes no progress is found and stopped | accepted |
+| [0012](0012-stall-check.md) | A task that makes no progress is found and stopped | done |
 | [0013](0013-not-done.md) | Things that Magi does not do | accepted |
 
 ## Who decides

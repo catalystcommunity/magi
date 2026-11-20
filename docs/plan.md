@@ -116,10 +116,11 @@ decision record.
    the run of the verdict in the code-change workflow.
 5. A dispatch for work that continues later (0007), and one principal
    for each turn (0008). Done.
-6. Events start persona turns, with the loop limit (0009).
+6. Events start persona turns, with the loop limit (0009). Done for the
+   reports of a task. Not done: reminders and plan steps.
 7. A turn yields to new input (0010).
-8. A stable prompt prefix in a session (0011), and the stall check with
-   a configurable interval (0012).
+8. A stable prompt prefix in a session (0011). The stall check with a
+   configurable interval (0012) is done.
 9. Empty the baseline of the architecture check (0001). The import break
    is gone. The private name in the eval data stays until that set gets a
    new version.

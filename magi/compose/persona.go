@@ -173,6 +173,8 @@ func (s *System) personaTurnOnce(ctx context.Context, a workflowapi.Assignment, 
 	}
 	prof := profileFor(persona)
 	prof.tools = au.Tools
+	// An event started the turn: the newest message is not of the person.
+	isEvent := utt.AuthorKind == "system"
 	name := prof.name
 	if p, err := s.Conversation.GetPersona(ctx, conversationapi.GetPersonaRequest{Id: persona}); err == nil {
 		name = p.Name
@@ -180,6 +182,9 @@ func (s *System) personaTurnOnce(ctx context.Context, a workflowapi.Assignment, 
 	now := time.Now()
 	fc := newFence()
 	msgs := []model.Message{{Role: "system", Content: fmt.Sprintf(prof.prompt, name, displayName(a), promptTime(now.In(s.zone()))) + "\n\n" + fc.rule()}}
+	if isEvent {
+		msgs[0].Content += eventRules
+	}
 	// An answer before a change of the records can be wrong now. A small
 	// model copies its own earlier answer to the same question. An answer
 	// that used a changed record is replaced with a note of the change.
@@ -201,13 +206,18 @@ func (s *System) personaTurnOnce(ctx context.Context, a workflowapi.Assignment, 
 	}
 	// The person stopped the spoken reply before: record how and where, and
 	// give the persona the reply as the person got it.
-	inter := s.findInterruption(ctx, a.Owner, utt, hist.Utterances)
+	var inter *interruption
+	if !isEvent {
+		inter = s.findInterruption(ctx, a.Owner, utt, hist.Utterances)
+	}
 	if inter != nil {
 		s.recordInterruption(ctx, utt, inter)
 	}
 	for _, u := range hist.Utterances {
 		role, content := "user", u.Text
-		if u.AuthorKind != "human" {
+		if u.AuthorKind == "system" {
+			content = eventMark + u.Text
+		} else if u.AuthorKind != "human" {
 			// The check note is for the person. In the history, a small model
 			// takes it as a complaint and apologizes in each later reply.
 			role, content = "assistant", checkNote.ReplaceAllString(content, "")
@@ -266,7 +276,7 @@ func (s *System) personaTurnOnce(ctx context.Context, a workflowapi.Assignment, 
 	// facts do not depend on a tool call of the persona model. It reads the
 	// records before its changes; the persona gets them after the changes.
 	var done []string
-	if s.Cfg.NoteTaker && slices.Contains(prof.tools, "remember") {
+	if s.Cfg.NoteTaker && !isEvent && slices.Contains(prof.tools, "remember") {
 		if done = s.applyNotes(ctx, a, as, utt, kc, hist.Utterances, effects, &log, &refs); len(done) > 0 && kc != "" {
 			kc = s.knowledgeContext(ctx, a.Owner, utt.Text)
 		}
@@ -567,7 +577,14 @@ func (s *System) personaTool(ctx context.Context, a workflowapi.Assignment, as c
 			if r.Owner != a.Owner {
 				continue
 			}
-			fmt.Fprintf(&b, "- %s %q: %s at step %s %s\n", r.Id, r.Vars["title"], r.Status, r.CurrentStep, r.Vars["task.result"])
+			// The status of a task that ended is its result: a run that
+			// gave up also "succeeded" as a run.
+			t := task(r)
+			fmt.Fprintf(&b, "- %s %q: %s", r.Id, r.Vars["title"], t.Status)
+			if !finished(r.Status) {
+				fmt.Fprintf(&b, " at step %s", r.CurrentStep)
+			}
+			b.WriteString("\n")
 		}
 		if b.Len() == 0 {
 			return "No tasks.", nil

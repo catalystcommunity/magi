@@ -88,7 +88,7 @@ func codeChangeDefinition(runners bool) workflowapi.Definition {
 // InstallDefinitions writes the workflow definitions that Magi uses.
 func (s *System) InstallDefinitions(ctx context.Context) error {
 	ctx = s.AsService(ctx)
-	for _, d := range []workflowapi.Definition{codeChangeDefinition(s.Cfg.Runner != ""), personaTurnDefinition(), todoDefinition()} {
+	for _, d := range []workflowapi.Definition{codeChangeDefinition(s.Cfg.Runner != ""), personaTurnDefinition(), personaEventDefinition(), todoDefinition()} {
 		if _, err := s.Workflow.PutDefinition(ctx, d); err != nil {
 			return fmt.Errorf("put definition %s: %w", d.Name, err)
 		}
@@ -115,6 +115,8 @@ func (s *System) RunWorkers(ctx context.Context) {
 	for range max(1, s.Cfg.PersonaWorkers) {
 		go s.Work(ctx, "magi.persona", s.personaTurn)
 	}
+	go s.Work(ctx, "magi.event.gate", s.eventGate)
+	go s.StallCheck(ctx)
 	go s.Work(ctx, "magi.todo.gate", s.todoGate)
 	go s.Work(ctx, "magi.todo.remind", s.todoRemind)
 	go s.Work(ctx, "magi.todo.overdue", s.todoOverdue)
@@ -427,6 +429,11 @@ func (s *System) post(ctx context.Context, a workflowapi.Assignment, text string
 // fails, it is a plain message.
 func (s *System) report(ctx context.Context, a workflowapi.Assignment, urgency, title, text string) {
 	run := conversationapi.Ref{Kind: "workflow-run", Ref: a.Run, Title: optional(a.Vars["title"])}
+	if urgency != "low" {
+		// After the notice is sent, the persona that started the work
+		// looks at the result (events.go).
+		defer s.wake(ctx, a, title)
+	}
 	if t := a.Vars["title"]; t != "" {
 		title += ": " + t
 	}

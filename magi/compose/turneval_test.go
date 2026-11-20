@@ -18,6 +18,7 @@ import (
 	"github.com/catalystcommunity/magi/lib/authn"
 	"github.com/catalystcommunity/magi/lib/rpc"
 	"github.com/catalystcommunity/magi/magi/model"
+	artifactsapi "github.com/catalystcommunity/magi/primitives/artifacts/api"
 	conversationapi "github.com/catalystcommunity/magi/primitives/conversation/api"
 	conversationserver "github.com/catalystcommunity/magi/primitives/conversation/server"
 	conversationstore "github.com/catalystcommunity/magi/primitives/conversation/store"
@@ -55,11 +56,21 @@ func turnSystem(t *testing.T) *System {
 	s.Cfg.ServiceToken = tok
 	s.Conversation = conversationapi.NewConversationClient(rpc.NewClient(hs.URL, nil))
 	sctx := s.AsService(context.Background())
-	// A code change can start. No runner does the work.
+	// A code change can start. No runner does the work: the steps of a
+	// task are in the queues of its runner, and an event step of a case
+	// does them (evalEvent).
 	s.Cfg.Repo = "magi"
-	if _, err := s.Workflow.PutDefinition(sctx, codeChangeDefinition(false)); err != nil {
-		t.Fatal(err)
+	for _, d := range []workflowapi.Definition{codeChangeDefinition(true), personaEventDefinition()} {
+		if _, err := s.Workflow.PutDefinition(sctx, d); err != nil {
+			t.Fatal(err)
+		}
 	}
+	// The patch of a task is an artifact.
+	ars := &rpc.Server{Verifier: testVerifier}
+	ars.Register("ArtifactService", artifactsapi.ArtifactServiceOps(&fakeArtifacts{body: map[string][]byte{}}))
+	ah := httptest.NewServer(rpc.Mux(ars, nil))
+	t.Cleanup(ah.Close)
+	s.Artifacts = artifactsapi.NewArtifactClient(rpc.NewClient(ah.URL, nil))
 	for id, p := range profiles {
 		if _, err := s.Conversation.PutPersona(sctx, conversationapi.PutPersonaRequest{Id: id, Name: p.name, Sharing: "private"}); err != nil {
 			t.Fatal(err)
@@ -122,9 +133,23 @@ type evalGiven struct {
 	Args map[string]string `json:"args"`
 }
 
-// evalStep is one message of the person and the checks of its turn.
+// evalTask is the task of an event step. State is "review" (the checks
+// passed and the task waits for a decision) or "stopped" (the checks
+// failed and the task gave up).
+type evalTask struct {
+	Title string `json:"title"`
+	State string `json:"state"`
+}
+
+// evalStep is one message of the person, or one event, and the checks of
+// its turn.
 type evalStep struct {
 	Say string `json:"say"`
+	// Event is the report of a task that starts the turn in place of a
+	// message of the person: the harness makes Task, a task that this
+	// persona started, and sends the report.
+	Event string   `json:"event"`
+	Task  evalTask `json:"task"`
 	// ToolsAll: each tool has a call that did its work. ToolsAny: one of
 	// them has. ToolsCalled: each tool has a call that code did not
 	// refuse (its work can fail). ToolsNone: no call, also no refused one.
@@ -176,6 +201,9 @@ func loadEvalCases(t *testing.T, path string) []evalCase {
 		}
 		seen[c.Id] = true
 		for _, st := range c.Steps {
+			if (st.Say == "") == (st.Event == "") || st.Event != "" && (eventTitles[st.Event] == "" || st.Task.Title == "" || st.Task.State != "review" && st.Task.State != "stopped") {
+				t.Fatalf("%s: case %s: a step has say, or an event (a report that starts a turn) with a task (title, and state review or stopped)", path, c.Id)
+			}
 			for _, re := range slices.Concat(st.ReplyAll, st.ReplyAny, st.ReplyNone) {
 				if _, err := regexp.Compile("(?i)" + re); err != nil {
 					t.Fatalf("%s: case %s: %v", path, c.Id, err)
@@ -215,12 +243,22 @@ func runEvalCase(t *testing.T, s *System, c evalCase, run int) evalResult {
 	}
 	start := time.Now()
 	for i, step := range c.Steps {
-		u, err := s.Conversation.Post(ctx, conversationapi.PostRequest{Stream: st.Id, Text: step.Say, Author: &person, AuthorKind: ptr("human")})
-		if err != nil {
-			t.Fatalf("case %s: post: %v", c.Id, err)
+		var u conversationapi.Utterance
+		turn := a
+		if step.Event != "" {
+			u, turn, err = s.evalEvent(ctx, a, st.Id, step)
+			if err != nil {
+				res.Fails = append(res.Fails, fmt.Sprintf("step %d: the event: %v", i+1, err))
+				break
+			}
+		} else {
+			u, err = s.Conversation.Post(ctx, conversationapi.PostRequest{Stream: st.Id, Text: step.Say, Author: &person, AuthorKind: ptr("human")})
+			if err != nil {
+				t.Fatalf("case %s: post: %v", c.Id, err)
+			}
+			a.Vars["utterance"] = u.Id
 		}
-		a.Vars["utterance"] = u.Id
-		if _, err := s.personaTurn(ctx, a, nil); err != nil {
+		if _, err := s.personaTurn(ctx, turn, nil); err != nil {
 			res.Fails = append(res.Fails, fmt.Sprintf("step %d: the turn failed: %v", i+1, err))
 			break
 		}
@@ -241,6 +279,96 @@ func runEvalCase(t *testing.T, s *System, c evalCase, run int) evalResult {
 	res.Ms = time.Since(start).Milliseconds()
 	res.Pass = len(res.Fails) == 0 && len(res.ModelErrors) == 0
 	return res
+}
+
+// evalPatch is the change of a task that is ready for review.
+const evalPatch = `--- a/cmd/status/main.go
++++ b/cmd/status/main.go
+@@ -10,4 +10,6 @@ func main() {
+-	fmt.Println(status())
++	if *asJSON {
++		json.NewEncoder(os.Stdout).Encode(status())
++		return
++	}
++	fmt.Println(status())
+`
+
+// evalEvent makes the task of an event step, does its steps as a runner
+// does, and sends the report. It gives the event message and the
+// assignment of the event turn, after the gate.
+func (s *System) evalEvent(ctx context.Context, a workflowapi.Assignment, stream string, step evalStep) (conversationapi.Utterance, workflowapi.Assignment, error) {
+	var none conversationapi.Utterance
+	d, err := s.childDispatch(a, stream, "")
+	if err != nil {
+		return none, a, err
+	}
+	// The queues of this task have its own runner name: no other case
+	// has steps in them.
+	runner := fmt.Sprintf("eval%d", time.Now().UnixNano())
+	run, err := s.Workflow.Start(ctx, workflowapi.StartRequest{Definition: CodeChange, Owner: &a.Owner, Vars: map[string]string{
+		"title": step.Task.Title, "instructions": step.Task.Title, "repo": "magi", "runner": runner, "publisher": runner,
+		"stream": stream, "persona": a.Vars["persona"], "owner_name": a.Vars["owner_name"], dispatchVar: d}})
+	if err != nil {
+		return none, a, err
+	}
+	var last workflowapi.Assignment
+	do := func(id, outcome string, outputs map[string]string) error {
+		res, err := s.Workflow.Claim(ctx, workflowapi.ClaimRequest{Queue: "runner." + runner + "." + id, Worker: "eval", WaitMs: ptr(uint64(5000)), LeaseMs: ptr(uint64(60000))})
+		if err != nil || res.Assignment == nil {
+			return fmt.Errorf("claim %s: %v", id, err)
+		}
+		last = *res.Assignment
+		_, err = s.Workflow.Complete(ctx, workflowapi.CompleteRequest{Run: last.Run, Step: last.Step, Claim: last.Claim, Outcome: outcome, Outputs: outputs})
+		return err
+	}
+	steps := []func() error{
+		func() error { return do("prepare", "done", map[string]string{"branch": "task/" + run.Id}) },
+		func() error { return do("work", "done", map[string]string{"apprentice.summary": "I made the change."}) },
+	}
+	if step.Task.State == "review" {
+		patch, err := s.Artifacts.Put(ctx, artifactsapi.PutRequest{MediaType: "text/x-diff", Body: []byte(evalPatch)})
+		if err != nil {
+			return none, a, err
+		}
+		steps = append(steps, func() error {
+			return do("check", "pass", map[string]string{"check.summary": "All checks passed.", "check.attempts": "1",
+				"base_commit": "1111111", "head_commit": "2222222", "patch": patch.Digest,
+				"patch.files": `[{"path":"cmd/status/main.go","additions":3,"deletions":1}]`})
+		})
+	} else {
+		steps = append(steps,
+			func() error {
+				return do("check", "give-up", map[string]string{"check.summary": "go test ./...: FAIL TestStatusJSON. The checks failed 3 times.",
+					"check.attempts": "3", "task.result": "gave-up"})
+			},
+			func() error { return do("cleanup", "done", map[string]string{"task.result": "gave-up"}) })
+	}
+	for _, f := range steps {
+		if err := f(); err != nil {
+			return none, a, err
+		}
+	}
+	run, err = s.Workflow.GetRun(ctx, workflowapi.GetRunRequest{Id: run.Id})
+	if err != nil {
+		return none, a, err
+	}
+	s.report(ctx, workflowapi.Assignment{Run: run.Id, Step: last.Step, Claim: last.Claim, Owner: run.Owner, Vars: run.Vars}, "normal", step.Event, "See the task.")
+	evs, err := s.eventRuns(ctx, a.Owner)
+	if err != nil {
+		return none, a, err
+	}
+	for _, ev := range evs {
+		if ev.Vars["event.source"] != run.Id {
+			continue
+		}
+		turn := workflowapi.Assignment{Run: ev.Id, Step: "reply", Attempt: 1, Owner: ev.Owner, Vars: ev.Vars}
+		if res, err := s.eventGate(ctx, turn, nil); err != nil || res.Outcome != "go" {
+			return none, a, fmt.Errorf("the gate: %q %v", res.Outcome, err)
+		}
+		u, err := s.Conversation.GetUtterance(ctx, conversationapi.GetUtteranceRequest{Id: ev.Vars["utterance"], Person: &a.Owner, Persona: ptr(a.Vars["persona"])})
+		return u, turn, err
+	}
+	return none, a, fmt.Errorf("the report %q started no event turn", step.Event)
 }
 
 // readTurn gives the turn log of an utterance and the text of its reply.
@@ -415,6 +543,33 @@ func TestTurnEvalHarness(t *testing.T) {
 	if !found {
 		t.Fatal("the given to-do is not in the turn")
 	}
+	// An event step: a task of the engineering persona is ready for
+	// review, the report starts a turn, and the turn reads the task.
+	m2 := &scriptModel{}
+	m2.reply = func(n int, msgs []model.Message) (model.Message, error) {
+		if n == 1 {
+			id := regexp.MustCompile(`run_[A-Za-z0-9_-]+`).FindString(msgs[len(msgs)-1].Content)
+			return toolCall("task_status", `{"task":"`+id+`"}`), nil
+		}
+		return model.Message{Role: "assistant", Content: "The change is ready for your review."}, nil
+	}
+	s.Model = m2
+	ev := evalCase{Id: "h02", Persona: Engineering, Steps: []evalStep{
+		{Event: "Ready for review", Task: evalTask{Title: "Add a flag", State: "review"}, ToolsAll: []string{"task_status"}, ReplyAll: []string{"review"}},
+	}}
+	if res := runEvalCase(t, s, ev, 1); !res.Pass {
+		t.Fatalf("event case = %+v", res)
+	}
+	status := ""
+	for _, msg := range m2.seen[1] {
+		if msg.Role == "tool" {
+			status = msg.Content
+		}
+	}
+	if !strings.Contains(status, "step review") || !strings.Contains(status, "All checks passed") {
+		t.Fatalf("the event turn did not read the task: %q", status)
+	}
+	s.Model = m
 	// The same turns with other checks fail, each with its reason.
 	bad := evalStep{ToolsAll: []string{"remember"}, ToolsNone: []string{"add_todo"}, ReplyAll: []string{"eggs"}, ReplyNone: []string{"milk"}, Refused: []string{"add_todo"}, MaxCalls: 0}
 	fails := checkEvalStep(bad, []map[string]any{{"tool": "add_todo", "result": "To-do added."}}, "Buy milk is on your list.")

@@ -95,6 +95,9 @@ type noticeReq struct {
 	device         string // optional: a device id
 	refs           []conversationapi.Ref
 	voice          string
+	// key, when set, makes the notice safe to send again: a second send
+	// with the key posts nothing new.
+	key string
 }
 
 // sendNotice posts the text as a notice utterance of the persona and
@@ -113,7 +116,7 @@ func (s *System) sendNotice(ctx context.Context, r noticeReq) (conversationapi.N
 		r.stream = st.Id
 	}
 	post := conversationapi.PostRequest{Stream: r.stream, Text: r.text, Author: ptr(r.persona), AuthorKind: ptr("persona"),
-		Modality: ptr("notice"), Attachments: r.refs}
+		Modality: ptr("notice"), Attachments: r.refs, Key: optional(r.key)}
 	for _, ref := range r.refs {
 		kind := "refers-to"
 		if ref.Kind == "workflow-run" {
@@ -129,7 +132,8 @@ func (s *System) sendNotice(ctx context.Context, r noticeReq) (conversationapi.N
 	if err != nil {
 		return n, fmt.Errorf("notify: %w", err)
 	}
-	if r.urgency != "low" {
+	// An installation with no speech service sends the notice as text.
+	if r.urgency != "low" && s.Speech != nil {
 		go func() {
 			bg, cancel := context.WithTimeout(context.WithoutCancel(sctx), 2*time.Minute)
 			defer cancel()
