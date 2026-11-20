@@ -232,6 +232,10 @@ PostRequest = {
   ? visibility: text,
   ;;; The time of an imported utterance (history), not after now. Needs act-as.
   ? created_ms: uint,
+  ;;; A second post with the same key in the same stream writes nothing and
+  ;;; returns the utterance of the first post. A caller that can run two
+  ;;; times (a step that starts again) gives a key.
+  ? key: text,
 }
 
 ;;; Returns utterances of a stream with seq greater than after_seq, oldest

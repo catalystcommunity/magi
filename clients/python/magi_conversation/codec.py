@@ -1082,6 +1082,9 @@ NewLink.from_cbor = staticmethod(_new_link_from_cbor)
 
 def _encode_post_request_value(v: "PostRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
+    csil_x = v.key
+    if csil_x is not None:
+        csil_m["key"] = csil_x
     csil_m["text"] = v.text
     csil_x = v.audio
     if csil_x is not None:
@@ -1131,6 +1134,7 @@ def _decode_post_request_value(tree: Any) -> "PostRequest":
         links=(None if tree.get("links") is None else [_decode_new_link_value(csil_e) for csil_e in _csil_expect_array(tree["links"])]),
         visibility=(None if tree.get("visibility") is None else _csil_expect_text(tree["visibility"])),
         created_ms=(None if tree.get("created_ms") is None else _csil_expect_uint(tree["created_ms"])),
+        key=(None if tree.get("key") is None else _csil_expect_text(tree["key"])),
     )
 
 

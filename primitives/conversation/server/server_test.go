@@ -671,6 +671,54 @@ func TestConcurrentPostsGetDistinctSeq(t *testing.T) {
 	}
 }
 
+// Posts with one key, at the same time, make one utterance; each caller
+// gets it. A key belongs to its stream. A post with no key is not changed.
+func TestPostWithKeyWritesOneTime(t *testing.T) {
+	w := newWorld(t)
+	ctx := context.Background()
+	st := w.stream(w.alice, magi)
+	key := "reply:utt_1"
+	const n = 12
+	ids := make(chan string, n)
+	var wg sync.WaitGroup
+	for i := range n {
+		wg.Go(func() {
+			u, err := w.alice.Post(ctx, api.PostRequest{Stream: st.Id, Text: fmt.Sprint("try ", i), Key: &key})
+			if err != nil {
+				t.Error(err)
+			}
+			ids <- u.Id + " " + u.Text
+		})
+	}
+	wg.Wait()
+	close(ids)
+	seen := map[string]bool{}
+	for id := range ids {
+		seen[id] = true
+	}
+	if len(seen) != 1 {
+		t.Fatalf("callers got %d different utterances: %v", len(seen), seen)
+	}
+	other := "reply:utt_2"
+	must[api.Utterance](t)(w.alice.Post(ctx, api.PostRequest{Stream: st.Id, Text: "second", Key: &other}))
+	must[api.Utterance](t)(w.alice.Post(ctx, api.PostRequest{Stream: st.Id, Text: "no key"}))
+	must[api.Utterance](t)(w.alice.Post(ctx, api.PostRequest{Stream: st.Id, Text: "no key"}))
+	l := must[api.ListUtterancesResponse](t)(w.alice.ListUtterances(ctx, api.ListUtterancesRequest{Stream: st.Id}))
+	if len(l.Utterances) != 4 || l.LastSeq != 4 {
+		t.Fatalf("list = %d utterances, last_seq %d; want 4 and 4 (a repeated post takes no seq)", len(l.Utterances), l.LastSeq)
+	}
+	// The same key in a different stream is a different post.
+	st2 := w.stream(w.bob, magi)
+	u2 := must[api.Utterance](t)(w.bob.Post(ctx, api.PostRequest{Stream: st2.Id, Text: "bob", Key: &key}))
+	if u2.Text != "bob" || u2.Stream != st2.Id {
+		t.Fatalf("a key crossed streams: %+v", u2)
+	}
+	long := strings.Repeat("k", 201)
+	if _, err := w.alice.Post(ctx, api.PostRequest{Stream: st.Id, Text: "x", Key: &long}); rpc.CodeOf(err) != 400 {
+		t.Fatalf("a key of 201 bytes: %v", err)
+	}
+}
+
 // longPoll starts a waiting list-utterances call and returns its result channel.
 func longPoll(c *api.ConversationClient, stream string, after, waitMs uint64) <-chan api.ListUtterancesResponse {
 	out := make(chan api.ListUtterancesResponse, 1)

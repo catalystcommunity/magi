@@ -177,6 +177,21 @@ func (s *System) setWholeAudio(ctx context.Context, owner, utterance string, wav
 	return err
 }
 
+// speechStarted is true when the speech of an utterance has a part or is
+// complete: an earlier start of the turn made it.
+func (s *System) speechStarted(ctx context.Context, utterance string) bool {
+	res, err := s.Conversation.ListAnnotations(ctx, conversationapi.ListAnnotationsRequest{Utterance: utterance})
+	if err != nil {
+		return false
+	}
+	for _, a := range res.Annotations {
+		if a.Kind == annSpeechPart || a.Kind == annSpeechDone {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *System) speechStopped(ctx context.Context, utterance string) bool {
 	res, err := s.Conversation.ListAnnotations(ctx, conversationapi.ListAnnotationsRequest{Utterance: utterance})
 	if err != nil {

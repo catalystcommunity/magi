@@ -2432,7 +2432,10 @@ func DecodeNewLink(csilData []byte) (NewLink, error) {
 
 // csilEncPostRequest builds the canonical CBOR value tree for a PostRequest.
 func csilEncPostRequest(csilV PostRequest) cborValue {
-	csilEntries := make(cborMap, 0, 12)
+	csilEntries := make(cborMap, 0, 13)
+	if csilV.Key != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("key"), cborText((*csilV.Key))})
+	}
 	csilEntries = append(csilEntries, cborEntry{cborText("text"), cborText(csilV.Text)})
 	if csilV.Audio != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("audio"), cborText((*csilV.Audio))})
@@ -2562,6 +2565,13 @@ func csilDecPostRequest(csilRoot cborValue) (PostRequest, error) {
 			return csilOut, csilErr
 		}
 		csilOut.CreatedMs = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "key"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Key = &csilVal
 	}
 	return csilOut, nil
 }

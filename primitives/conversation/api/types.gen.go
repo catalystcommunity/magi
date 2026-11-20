@@ -219,6 +219,7 @@ type PostRequest struct {
 	Links                []NewLink `json:"links,omitempty" yaml:"links,omitempty"`
 	Visibility           *string   `json:"visibility,omitempty" yaml:"visibility,omitempty"`
 	CreatedMs            *uint64   `json:"created_ms,omitempty" yaml:"created_ms,omitempty"`
+	Key                  *string   `json:"key,omitempty" yaml:"key,omitempty"`
 }
 
 // ListUtterancesRequest represents a structured data type

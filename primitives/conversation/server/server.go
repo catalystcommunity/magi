@@ -409,7 +409,11 @@ func (s *Service) Post(ctx context.Context, req api.PostRequest) (api.Utterance,
 		}
 		links = append(links, l)
 	}
-	u, err = s.DB.Post(ctx, u, readers(st, u.Visibility), classified, links)
+	key := deref(req.Key)
+	if len(key) > 200 {
+		return api.Utterance{}, rpc.Invalid("key is larger than 200 bytes")
+	}
+	u, err = s.DB.Post(ctx, u, readers(st, u.Visibility), classified, links, key)
 	if err != nil {
 		return u, notFound(err, "stream %s", st.Id)
 	}

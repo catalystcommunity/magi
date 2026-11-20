@@ -74,7 +74,9 @@ func (m *Service) StartTask(ctx context.Context, req magiapi.StartTaskRequest) (
 }
 
 // origin is the message that asked for a task, if any.
-type origin struct{ stream, utterance, persona string }
+// origin is where a run reports. key, when set, makes the start safe to
+// repeat: a second start with the key returns the first run.
+type origin struct{ stream, utterance, persona, key string }
 
 // startCodeChange starts a code-change run owned by owner. ctx must carry
 // the service token. The run reports to the stream of from. model is the
@@ -109,7 +111,7 @@ func (s *System) startCodeChange(ctx context.Context, owner string, from origin,
 	if lessons != "" {
 		vars["lessons"] = lessons
 	}
-	return s.Workflow.Start(ctx, workflowapi.StartRequest{Definition: CodeChange, Vars: vars, Owner: ptr(owner)})
+	return s.Workflow.Start(ctx, workflowapi.StartRequest{Definition: CodeChange, Vars: vars, Owner: ptr(owner), Key: optional(from.key)})
 }
 
 func (m *Service) GetTask(ctx context.Context, req magiapi.GetTaskRequest) (magiapi.Task, error) {

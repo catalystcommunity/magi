@@ -15,7 +15,7 @@ obeys the record), `replaced` (a later record replaces it).
 | [0001](0001-architecture-rules-are-scripts.md) | Architecture rules are scripts that fail the check | done |
 | [0002](0002-decision-records.md) | Decisions are records in this directory | done |
 | [0003](0003-tool-gate.md) | Each tool call of a persona goes through `toolGate` | done |
-| [0004](0004-turn-recovery.md) | A turn that starts again does not repeat its effects | accepted |
+| [0004](0004-turn-recovery.md) | A turn that starts again does not repeat its effects | done |
 | [0005](0005-refusals-explain-themselves.md) | A refusal explains itself; the prompt does not list the rules | accepted |
 | [0006](0006-comparison-verdict.md) | A prompt or harness change needs a comparison verdict | accepted |
 | [0007](0007-dispatch.md) | Work that continues later keeps its authority in a dispatch | accepted |

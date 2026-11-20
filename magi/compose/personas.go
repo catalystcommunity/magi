@@ -178,6 +178,9 @@ type turnState struct {
 	searched, reads int
 	// lastTodo is the to-do that add_todo made last in this turn.
 	lastTodo string
+	// effects are the actions of this turn that changed something, by
+	// effectKey (toolgate.go).
+	effects map[string]effect
 }
 
 // extraTool runs the tools of personas.go. ok is false for other tools.

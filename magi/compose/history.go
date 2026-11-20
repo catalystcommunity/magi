@@ -118,7 +118,7 @@ func (m *Service) ImportHistory(ctx context.Context, req magiapi.ImportHistoryRe
 				var refs []conversationapi.Ref
 				// No "conversation before": imported messages stand alone, and
 				// a small model repeats the facts of earlier messages.
-				item.Notes = append(item.Notes, s.applyNotes(hctx, a, as, u, kc, nil, &log, &refs)...)
+				item.Notes = append(item.Notes, s.applyNotes(hctx, a, as, u, kc, nil, s.effectsOf(hctx, u.Id), &log, &refs)...)
 				if log.Notes == nil || log.Notes.Error == "" {
 					break
 				}

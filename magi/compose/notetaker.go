@@ -196,7 +196,7 @@ func noteInput(text, notes string, before []conversationapi.Utterance, when time
 // items. It adds each call to the turn log (by "note-taker") and returns a
 // line for each item that succeeded.
 func (s *System) applyNotes(ctx context.Context, a workflowapi.Assignment, as conversationLens, utt conversationapi.Utterance,
-	notes string, hist []conversationapi.Utterance, log *turnLog, refs *[]conversationapi.Ref) []string {
+	notes string, hist []conversationapi.Utterance, effects map[string]effect, log *turnLog, refs *[]conversationapi.Ref) []string {
 	var before []conversationapi.Utterance
 	for i := len(hist) - 1; i >= 0 && len(before) < 2; i-- {
 		if hist[i].Id != utt.Id {
@@ -241,7 +241,7 @@ func (s *System) applyNotes(ctx context.Context, a workflowapi.Assignment, as co
 	log.Calls = append(log.Calls, glog...)
 	var done []string
 	// The note taker writes only knowledge, whatever the model gave.
-	gate := &toolTurn{a: a, as: as, utt: utt, ts: &turnState{}, tools: []string{"remember", "change_knowledge"}, by: "note-taker"}
+	gate := &toolTurn{a: a, as: as, utt: utt, ts: &turnState{effects: effects}, tools: []string{"remember", "change_knowledge"}, by: "note-taker"}
 	for _, it := range items {
 		tool, args := it.toolCall(reason)
 		if tool == "" {

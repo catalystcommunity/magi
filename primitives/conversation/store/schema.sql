@@ -65,6 +65,9 @@ CREATE INDEX IF NOT EXISTS utterances_readers ON utterances USING gin (readers);
 CREATE INDEX IF NOT EXISTS utterances_search ON utterances USING gin (search);
 ALTER TABLE utterances ADD COLUMN IF NOT EXISTS claimed_until bigint NOT NULL DEFAULT 0;
 CREATE INDEX IF NOT EXISTS utterances_unclassified ON utterances (created_ms) WHERE NOT classified;
+-- The key of a post that can run two times (PostRequest.key).
+ALTER TABLE utterances ADD COLUMN IF NOT EXISTS post_key text;
+CREATE UNIQUE INDEX IF NOT EXISTS utterances_post_key ON utterances (stream, post_key) WHERE post_key IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS links (
   id          text   PRIMARY KEY,

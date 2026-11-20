@@ -3,9 +3,12 @@ package compose
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
+	"sync/atomic"
 	"time"
 
+	"github.com/catalystcommunity/magi/lib/rpc"
 	workflowapi "github.com/catalystcommunity/magi/primitives/workflow/api"
 )
 
@@ -19,6 +22,10 @@ type Result struct {
 type Handler func(ctx context.Context, a workflowapi.Assignment, note func(string)) (Result, error)
 
 const lease = 2 * time.Minute
+
+// heartbeatEvery is the time between two heartbeats of a step (a test
+// makes it short).
+var heartbeatEvery = lease / 3
 
 // Work claims steps from queue until ctx ends.
 func (s *System) Work(ctx context.Context, queue string, h Handler) {
@@ -45,8 +52,9 @@ func (s *System) run(ctx context.Context, a workflowapi.Assignment, h Handler) {
 	log := s.Log.With("run", a.Run, "step", a.Step, "attempt", a.Attempt)
 	hctx, stop := context.WithCancel(ctx)
 	defer stop()
+	var lost atomic.Bool
 	go func() {
-		t := time.NewTicker(lease / 3)
+		t := time.NewTicker(heartbeatEvery)
 		defer t.Stop()
 		for {
 			select {
@@ -55,6 +63,13 @@ func (s *System) run(ctx context.Context, a workflowapi.Assignment, h Handler) {
 			case <-t.C:
 				if _, err := s.Workflow.Heartbeat(ctx, workflowapi.HeartbeatRequest{Run: a.Run, Step: a.Step, Claim: a.Claim, LeaseMs: ptr(uint64(lease.Milliseconds()))}); err != nil {
 					log.Warn("heartbeat failed", "err", err)
+					// The claim is not current: a different worker has the
+					// step now. Stop, so that two workers do not do the work.
+					if rpc.CodeOf(err) == http.StatusConflict {
+						lost.Store(true)
+						stop()
+						return
+					}
 				}
 			}
 		}
@@ -66,6 +81,10 @@ func (s *System) run(ctx context.Context, a workflowapi.Assignment, h Handler) {
 	}
 	log.Info("step started")
 	res, err := h(hctx, a, note)
+	if lost.Load() {
+		log.Warn("the claim was lost; the step stopped and reports nothing")
+		return
+	}
 	if ctx.Err() != nil {
 		// Shutting down: do not report a failure. The lease expires and
 		// another worker, possibly the next version of Magi, resumes the step.

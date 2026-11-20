@@ -293,6 +293,12 @@ export interface PostRequest {
    * The time of an imported utterance (history), not after now. Needs act-as.
    */
   createdMs?: number;
+  /**
+   * A second post with the same key in the same stream writes nothing and
+   * returns the utterance of the first post. A caller that can run two
+   * times (a step that starts again) gives a key.
+   */
+  key?: string;
 }
 
 /**

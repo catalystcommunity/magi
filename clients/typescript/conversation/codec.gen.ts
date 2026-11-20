@@ -956,6 +956,7 @@ export function fromNewLinkCbor(bytes: Uint8Array): NewLink {
 
 export function toPostRequestCborValue(v: PostRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
+  if (v.key !== undefined) csilMap.set("key", v.key);
   csilMap.set("text", v.text);
   if (v.audio !== undefined) csilMap.set("audio", v.audio);
   if (v.links !== undefined) csilMap.set("links", v.links.map((csilE): CborValue => toNewLinkCborValue(csilE)));
@@ -985,6 +986,7 @@ export function fromPostRequestCborValue(value: CborValue): PostRequest {
     links: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => fromNewLinkCborValue(csilE)))(mapGet(value, "links")),
     visibility: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "visibility")),
     createdMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "created_ms")),
+    key: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "key")),
   };
 }
 

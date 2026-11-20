@@ -2,9 +2,12 @@ package compose
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -62,6 +65,110 @@ func refusal(what, rule, next string) string {
 // work.
 func toolFailed(out string) bool {
 	return strings.HasPrefix(out, "error") || strings.HasPrefix(out, "Not recorded") || strings.HasPrefix(out, refusalMark)
+}
+
+// toolDone is true for a result that says that the tool did its work. A
+// request for a confirmation is not a failure, and it is not the work.
+func toolDone(out string) bool {
+	return !toolFailed(out) && !strings.HasPrefix(out, "confirmation needed")
+}
+
+// annEffect is the annotation kind of an effect of a turn. The body is an
+// effect.
+const annEffect = "effect"
+
+// effect is one action of a turn that changed something
+// (docs/decisions/0004). The turn keeps its effects on its utterance. A
+// turn that starts again, or a model that gives the same call two times,
+// gets the result of the first time, and the action does not run again.
+type effect struct {
+	Key    string               `json:"key"`
+	Tool   string               `json:"tool"`
+	Args   map[string]string    `json:"args"`
+	Result string               `json:"result"`
+	Ref    *conversationapi.Ref `json:"ref,omitempty"`
+	By     string               `json:"by,omitempty"`
+}
+
+// effectKey names an effect: the tool and its arguments. The same call
+// has the same key in each start of the turn.
+func effectKey(tool string, args map[string]string) string {
+	keys := make([]string, 0, len(args))
+	for k := range args {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	h := sha256.New()
+	h.Write([]byte(tool))
+	for _, k := range keys {
+		fmt.Fprintf(h, "\x00%s\x00%s", k, args[k])
+	}
+	return hex.EncodeToString(h.Sum(nil))[:24]
+}
+
+// repeatMark starts the result of an effect that did not run again.
+const repeatMark = "This action is complete in this turn. It did not run again. Its result: "
+
+// annReplied marks an utterance whose turn posted its reply. The body is
+// the id of the reply.
+const annReplied = "replied"
+
+// loadEffects reads what an earlier start of the turn did: its effects,
+// and if it posted the reply.
+func (s *System) loadEffects(ctx context.Context, utterance string) (effects map[string]effect, replied bool) {
+	effects = map[string]effect{}
+	if s.Conversation == nil {
+		return effects, false
+	}
+	res, err := s.Conversation.ListAnnotations(ctx, conversationapi.ListAnnotationsRequest{Utterance: utterance})
+	if err != nil {
+		s.Log.Warn("read the effects of the turn", "utterance", utterance, "err", err)
+		return effects, false
+	}
+	for _, a := range res.Annotations {
+		var e effect
+		switch {
+		case a.Kind == annReplied:
+			replied = true
+		case a.Kind == annEffect && json.Unmarshal([]byte(a.Body), &e) == nil && e.Key != "":
+			effects[e.Key] = e
+		}
+	}
+	return effects, replied
+}
+
+// effectsOf reads only the effects.
+func (s *System) effectsOf(ctx context.Context, utterance string) map[string]effect {
+	effects, _ := s.loadEffects(ctx, utterance)
+	return effects
+}
+
+// sortedEffects gives the effects in a stable order.
+func sortedEffects(m map[string]effect) []effect {
+	out := make([]effect, 0, len(m))
+	for _, e := range m {
+		out = append(out, e)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Tool+out[i].Key < out[j].Tool+out[j].Key })
+	return out
+}
+
+// keepEffect stores an effect on the utterance of the turn.
+func (s *System) keepEffect(ctx context.Context, t *toolTurn, e effect) {
+	if t.ts.effects == nil {
+		t.ts.effects = map[string]effect{}
+	}
+	t.ts.effects[e.Key] = e
+	if s.Conversation == nil || t.utt.Id == "" {
+		return
+	}
+	body, err := json.Marshal(e)
+	if err != nil {
+		return
+	}
+	if _, err := s.Conversation.Annotate(ctx, conversationapi.AnnotateRequest{Utterance: t.utt.Id, Kind: annEffect, Body: string(body)}); err != nil {
+		s.Log.Warn("keep the effect of the turn", "utterance", t.utt.Id, "tool", e.Tool, "err", err)
+	}
 }
 
 // toolTurn is the part of a persona turn that the gate needs.
@@ -147,6 +254,18 @@ func (s *System) gated(ctx context.Context, t *toolTurn, name string, args map[s
 		return refusal(fmt.Sprintf("the tool %q did not run.", name),
 			"This tool acts for a person, and this turn has no verified person.",
 			"Tell the person that they must sign in for this. "+strings.Join(t.publicTools(), ", ")+" need no person."), nil, true
+	}
+	key := ""
+	if rule.effect {
+		key = effectKey(name, args)
+		if e, ok := t.ts.effects[key]; ok {
+			return repeatMark + e.Result, e.Ref, false
+		}
+		defer func() {
+			if !refused && toolDone(out) {
+				s.keepEffect(ctx, t, effect{Key: key, Tool: name, Args: args, Result: out, Ref: ref, By: t.by})
+			}
+		}()
 	}
 	var ok bool
 	if out, ok = s.webTool(ctx, t.utt.Text, t.ts, name, args); ok {

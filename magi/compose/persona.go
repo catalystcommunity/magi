@@ -107,7 +107,33 @@ type modelCall struct {
 // model uses some of it to think.
 const personaTokens = 4096
 
+// personaAttempts is the number of times that a turn can start.
+const personaAttempts = 2
+
+// replyKey is the key of the reply to an utterance: a turn posts one reply,
+// also when it starts again (docs/decisions/0004).
+func replyKey(utterance string) string { return "reply:" + utterance }
+
+// personaTurn runs the turn. When the last start fails, the person gets a
+// message, not silence.
 func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note func(string)) (Result, error) {
+	res, err := s.personaTurnOnce(ctx, a, note)
+	if err != nil && ctx.Err() == nil && a.Attempt >= personaAttempts {
+		s.Log.Error("persona turn failed for the last time", "run", a.Run, "err", err)
+		uttID := a.Vars["utterance"]
+		if _, perr := s.Conversation.Post(ctx, conversationapi.PostRequest{
+			Stream: a.Vars["stream"], Text: "I could not complete this request. I tried two times. Please ask again.",
+			Author: ptr(personaOr(optional(a.Vars["persona"]))), AuthorKind: ptr("persona"), Modality: ptr("text"),
+			Links: []conversationapi.NewLink{{Target: conversationapi.Ref{Kind: "utterance", Ref: uttID}, Kind: "reply-to"}},
+			Key:   ptr(replyKey(uttID)),
+		}); perr != nil {
+			s.Log.Error("post the failure of the turn", "run", a.Run, "err", perr)
+		}
+	}
+	return res, err
+}
+
+func (s *System) personaTurnOnce(ctx context.Context, a workflowapi.Assignment, note func(string)) (Result, error) {
 	streamID, uttID := a.Vars["stream"], a.Vars["utterance"]
 	persona := personaOr(optional(a.Vars["persona"]))
 	// The model calls of the turn: the default of this persona, then of all
@@ -126,6 +152,13 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 		return Result{}, fmt.Errorf("utterance: %w", err)
 	}
 	ph.ms["queue"] = max(0, ph.at.UnixMilli()-int64(utt.CreatedMs))
+	// What an earlier start of this turn did. A turn that posted its reply
+	// is complete: only the report to the workflow was lost.
+	effects, replied := s.loadEffects(ctx, uttID)
+	if replied {
+		s.Log.Info("persona turn: the reply is there from an earlier start", "run", a.Run)
+		return Result{Outcome: "done", Outputs: map[string]string{"reply.earlier_start": "true"}}, nil
+	}
 	hist, err := s.Conversation.ListUtterances(ctx, conversationapi.ListUtterancesRequest{Stream: streamID, BeforeSeq: ptr(utt.Seq + 1),
 		Limit: ptr(uint64(30)), Person: as.p(), Persona: as.v()})
 	if err != nil {
@@ -209,12 +242,24 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 	ph.mark("context")
 	log := turnLog{}
 	var refs []conversationapi.Ref
+	// The actions that an earlier start of this turn completed. They count
+	// as calls of this turn, and the model learns of them.
+	var earlier []string
+	for _, e := range sortedEffects(effects) {
+		log.Calls = append(log.Calls, map[string]any{"tool": e.Tool, "args": e.Args, "result": e.Result, "by": e.By, "earlier_start": true})
+		if e.Ref != nil {
+			refs = append(refs, *e.Ref)
+		}
+		if e.By == "" {
+			earlier = append(earlier, fmt.Sprintf("%s %v: %s", e.Tool, e.Args, e.Result))
+		}
+	}
 	// The note taker records what the newest message tells, so that the
 	// facts do not depend on a tool call of the persona model. It reads the
 	// records before its changes; the persona gets them after the changes.
 	var done []string
 	if s.Cfg.NoteTaker && slices.Contains(prof.tools, "remember") {
-		if done = s.applyNotes(ctx, a, as, utt, kc, hist.Utterances, &log, &refs); len(done) > 0 && kc != "" {
+		if done = s.applyNotes(ctx, a, as, utt, kc, hist.Utterances, effects, &log, &refs); len(done) > 0 && kc != "" {
 			kc = s.knowledgeContext(ctx, a.Owner, utt.Text)
 		}
 	}
@@ -244,12 +289,13 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 		}
 	}
 	ph.mark("todos")
+	done = append(earlier, done...)
 	if len(done) > 0 {
 		last := msgs[len(msgs)-1]
 		msgs = append(msgs[:len(msgs)-1], model.Message{Role: "user", Content: "Magi already did this for the newest message. Do not do it again. You can tell the person what was recorded or changed:\n- " + neutralize(strings.Join(done, "\n- "))}, last)
 	}
 	var reply string
-	tools, ts := prof.toolList(), &turnState{hist: hist.Utterances, pages: map[string]bool{}}
+	tools, ts := prof.toolList(), &turnState{hist: hist.Utterances, pages: map[string]bool{}, effects: effects}
 	if s.Search == nil {
 		// Without a search service the persona has no web tools.
 		tools = slices.DeleteFunc(tools, func(t model.Tool) bool { return t.Name == "web_search" || t.Name == "read_page" })
@@ -397,6 +443,7 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 	post := conversationapi.PostRequest{
 		Stream: streamID, Text: reply, Author: ptr(persona), AuthorKind: ptr("persona"),
 		Attachments: refs, Links: links, Modality: ptr("text"), GeneratedBy: optional(served),
+		Key: ptr(replyKey(uttID)),
 	}
 	speak := a.Vars["speak"] == "true"
 	if speak {
@@ -405,6 +452,14 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 	posted, err := s.Conversation.Post(ctx, post)
 	if err != nil {
 		return Result{}, fmt.Errorf("post reply: %w", err)
+	}
+	// An earlier start of the turn posted the reply: the person has it,
+	// and the speech of it started then.
+	if _, err := s.Conversation.Annotate(ctx, conversationapi.AnnotateRequest{Utterance: uttID, Kind: annReplied, Body: posted.Id}); err != nil {
+		s.Log.Warn("annotate the reply", "err", err)
+	}
+	if speak && s.speechStarted(ctx, posted.Id) {
+		speak = false
 	}
 	// The text is in the stream now; the audio follows in parts.
 	if speak {
@@ -469,7 +524,11 @@ func (s *System) personaTool(ctx context.Context, a workflowapi.Assignment, as c
 		// Only the note taker gives this (an "event" item).
 		return s.recordEvent(ctx, a.Owner, displayName(a), args["subject"], args["title"], &utt.Id), nil
 	case "start_code_change":
-		run, err := s.startCodeChange(ctx, a.Owner, origin{stream: utt.Stream, utterance: utt.Id, persona: as.persona}, args["title"], args["instructions"], args["repo"], args["runner"], "", "")
+		// The key makes the start safe when Magi stops between the start
+		// and the record of the effect: the next start of the turn gets
+		// the same run.
+		from := origin{stream: utt.Stream, utterance: utt.Id, persona: as.persona, key: "turn/" + utt.Id + "/" + effectKey(name, args)}
+		run, err := s.startCodeChange(ctx, a.Owner, from, args["title"], args["instructions"], args["repo"], args["runner"], "", "")
 		if err != nil {
 			return "error: " + err.Error(), nil
 		}

@@ -226,8 +226,25 @@ func scanUtt(r pgx.Row) (api.Utterance, error) {
 // Post assigns the next seq of the stream to u, stores it with readers,
 // and stores links from it. The stream row lock serializes posts. Other
 // replicas learn of the post through NOTIFY on Channel.
-func (db *DB) Post(ctx context.Context, u api.Utterance, readers []string, classified bool, links []api.Link) (api.Utterance, error) {
+//
+// With a key, a second post with that key in the stream writes nothing and
+// returns the first utterance. The lock on the stream row puts two posts
+// with one key in order.
+func (db *DB) Post(ctx context.Context, u api.Utterance, readers []string, classified bool, links []api.Link, key string) (api.Utterance, error) {
 	err := db.tx(ctx, All, func(tx pgx.Tx) error {
+		if key != "" {
+			if _, err := tx.Exec(ctx, `SELECT 1 FROM streams WHERE id = $1 FOR UPDATE`, u.Stream); err != nil {
+				return err
+			}
+			first, err := scanUtt(tx.QueryRow(ctx, `SELECT `+uttCols+` FROM utterances WHERE stream = $1 AND post_key = $2`, u.Stream, key))
+			if err == nil {
+				u = first
+				return nil
+			}
+			if !errors.Is(err, pgx.ErrNoRows) {
+				return err
+			}
+		}
 		var seq int64
 		err := tx.QueryRow(ctx, `UPDATE streams SET last_seq = last_seq + 1, updated_ms = GREATEST(updated_ms, $2)
 WHERE id = $1 RETURNING last_seq`, u.Stream, int64(u.CreatedMs)).Scan(&seq)
@@ -240,6 +257,11 @@ WHERE id = $1 RETURNING last_seq`, u.Stream, int64(u.CreatedMs)).Scan(&seq)
 		u.Seq = uint64(seq)
 		if err := insertUtt(ctx, tx, u, readers, classified); err != nil {
 			return err
+		}
+		if key != "" {
+			if _, err := tx.Exec(ctx, `UPDATE utterances SET post_key = $2 WHERE id = $1`, u.Id, key); err != nil {
+				return err
+			}
 		}
 		for _, l := range links {
 			if err := insertLink(ctx, tx, l); err != nil {
