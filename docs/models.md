@@ -13,7 +13,7 @@ Each model has:
 | --- | --- |
 | `name` | `gemma-4-12b-notetaker` |
 | `description` | "Tuned for the note taker. Other tasks: not measured." |
-| `endpoint` | `base_url` (`http://ht0-studiodt.revconn/v1` for an inference host that connects out), `model`, `key_ref` |
+| `endpoint` | `base_url` (`http://<host name>.revconn/v1` for an inference host that connects out), `model`, `key_ref` |
 | `tags` | `local`, `hosted`, `small`, `chat`, `tools`, `schema`, `vision`, `decide`, `notetaker` |
 | `attributes` | `base: gemma-4-12b`, `gpu: rx7600`, `context: 32768` |
 | `cost` | micro-dollars for each million input and output tokens; 0 is free. `as_of_ms` and `source`: when and where the operator read the price |

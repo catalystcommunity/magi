@@ -256,6 +256,11 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 	}
 	searchable := s.Search != nil && slices.Contains(prof.tools, "web_search")
 	corrected, pushed := false, false
+	gateTools := make([]string, 0, len(tools))
+	for _, t := range tools {
+		gateTools = append(gateTools, t.Name)
+	}
+	gate := &toolTurn{a: a, as: as, utt: utt, ts: ts, tools: gateTools}
 	say := func(text string) {
 		if note != nil {
 			note(text)
@@ -289,11 +294,12 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 			break
 		}
 		// A provider refuses a history that holds tool arguments that are
-		// not JSON, so keep "{}" in the history and tell the model.
-		bad := map[int]bool{}
+		// not JSON, so keep "{}" in the history; the gate tells the model.
+		parsed := make([]map[string]string, len(m.ToolCalls))
 		for i, tc := range m.ToolCalls {
-			if !json.Valid([]byte(tc.Function.Arguments)) {
-				m.ToolCalls[i].Function.Arguments, bad[i] = "{}", true
+			var ok bool
+			if parsed[i], ok = gateArgs(tc.Function.Arguments); !ok {
+				m.ToolCalls[i].Function.Arguments = "{}"
 			}
 		}
 		msgs = append(msgs, m)
@@ -324,34 +330,21 @@ func (s *System) personaTurn(ctx context.Context, a workflowapi.Assignment, note
 			break
 		}
 		for i, tc := range m.ToolCalls {
-			if bad[i] {
-				msgs = append(msgs, model.Message{Role: "tool", ToolCallID: tc.ID, Name: tc.Function.Name,
-					Content: "error: the arguments were not valid JSON. Call the tool again with a JSON object."})
-				continue
+			if parsed[i] != nil {
+				say(activityOf(tc.Function.Name, parsed[i]))
 			}
-			args := toolArgs(tc.Function.Arguments)
-			say(activityOf(tc.Function.Name, args))
-			var out string
-			var ref *conversationapi.Ref
-			ok := !slices.Contains(prof.tools, tc.Function.Name)
-			if ok {
-				out = "error: unknown tool " + tc.Function.Name
-			} else if out, ok = s.webTool(ctx, utt.Text, ts, tc.Function.Name, args); !ok {
-				out, ref, ok = s.extraTool(ctx, a, as, utt, ts, tc.Function.Name, args)
+			res := s.toolGate(ctx, gate, tc.Function.Name, parsed[i])
+			if res.Ref != nil {
+				refs = append(refs, *res.Ref)
 			}
-			if !ok {
-				out, ref = s.personaTool(ctx, a, as, utt, tc.Function.Name, args)
+			if tc.Function.Name == "recall" && !res.Refused {
+				refs = append(refs, recordRefs(res.Out)...)
 			}
-			if ref != nil {
-				refs = append(refs, *ref)
-			}
-			if tc.Function.Name == "recall" {
-				refs = append(refs, recordRefs(out)...)
-			}
-			log.Calls = append(log.Calls, map[string]any{"tool": tc.Function.Name, "args": args, "result": out})
+			log.Calls = append(log.Calls, res.Call)
 			// The result can hold text of other people (events, comments, pages,
-			// task output): it goes in the fence of the turn.
-			msgs = append(msgs, model.Message{Role: "tool", ToolCallID: tc.ID, Name: tc.Function.Name, Content: fc.wrap("", out)})
+			// task output), and a refusal repeats a name that the model gave:
+			// all of it goes in the fence of the turn.
+			msgs = append(msgs, model.Message{Role: "tool", ToolCallID: tc.ID, Name: tc.Function.Name, Content: fc.wrap("", res.Out)})
 		}
 	}
 	// A small model can copy the mark of its earlier answers.
@@ -510,7 +503,7 @@ func (s *System) personaTool(ctx context.Context, a workflowapi.Assignment, as c
 		}
 		return b.String(), nil
 	}
-	return "error: unknown tool " + name, nil
+	return refusal(fmt.Sprintf("the tool %q did not run.", name), "Magi has no tool with this name.", "Use one of the tools of this turn."), nil
 }
 
 // toolArgs reads tool arguments. Values that are not strings are kept as

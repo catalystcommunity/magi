@@ -32,8 +32,9 @@ that skips for a missing database is not a pass of that test. Run it with
 - Do not edit generated files: `*.gen.go`, `primitives/*/api/`,
   `clients/python/magi_*/`, `clients/typescript/*/*.gen.ts`. Change the
   contract in `contracts/<name>.csil` and run `tools/gen.sh`.
-- A primitive imports only its own packages, `lib/rpc`, `lib/authn`, and
-  third-party libraries. Only `magi/` composes primitives.
+- A primitive imports only its own packages, `lib/`, and third-party
+  libraries. Only `magi/` composes primitives. `tools/arch-check.py`
+  enforces this rule and the next three.
 - Do not put private values in the repository: host names, addresses,
   accounts, keys, tokens. Use `example.local` in examples and tests.
 - Do not name anything "opal". There is no backwards compatibility: change
@@ -43,6 +44,8 @@ that skips for a missing database is not a pass of that test. Run it with
   HTTP transport with a generated client at least once.
 - Write documentation in ASD-STE100 Simplified Technical English: short
   sentences, active voice, one instruction in each sentence.
+- Read `docs/decisions/README.md`: the decisions in force and who
+  decides what (code, the model, a person).
 - Read `magi/compose/baseknowledge/review-lessons.md`: lessons from earlier
   code reviews.
 - Comments tell why, not what. Keep the style of the code around you.

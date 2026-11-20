@@ -8,6 +8,11 @@ status=0
 step() { echo "== $*"; }
 fail() { echo "FAIL: $*"; status=1; }
 
+# The architecture rules (docs/decisions/0001). Fast, so it runs first.
+step "architecture rules"
+python3 tools/arch-check.py || fail "architecture rules (tools/arch-check.py)"
+python3 tools/arch_check_test.py -q || fail "tools/arch_check_test.py"
+
 step "gofmt"
 unformatted=$(gofmt -l lib primitives magi tools 2>/dev/null | grep -v '\.gen\.go$' || true)
 [[ -z $unformatted ]] || fail "gofmt needed: $unformatted"

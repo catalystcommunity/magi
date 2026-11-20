@@ -77,7 +77,7 @@ Each slice must work through the API before the next one starts.
 | 7. Android client | Builds and passes its unit tests; not yet tried on a phone |
 | 8. Conversation graph (no chats), librarian, review queue | Works on 2026-10-30; 150 imported utterances classified by the local model |
 | 9. Personas with plans: to-dos, reminders, and plans in order (`docs/plans.md`); the executive assistant (Beatrice) and the engineering manager (Archimedes) | Works on 2026-11-08 through the API and the CLI; `evals/plans` |
-| 10. Code changes as pull requests: the release in squizzlezig, then a pull request on GitHub, then the rollout after the merge | Built on 2026-11-08 and on in ht0-studiodt; not yet tried with a real change |
+| 10. Code changes as pull requests: the release in the development installation, then a pull request on GitHub, then the rollout after the merge | Built on 2026-11-08 and on in the publishing runner; not yet tried with a real change |
 
 `tools/demo-check.sh` repeats slices 1, 2, 3, and 6 against an installation.
 
@@ -85,31 +85,54 @@ Each slice must work through the API before the next one starts.
 
 Code changes run on runners: programs on machines that the person owns.
 A runner connects to Magi and claims its steps; the cluster never connects
-to it. The cluster connects out only to APIs (model providers, the
-inference host, speech engines). See `magi/README.md`.
+to it. The cluster connects out only to APIs (the inference host and the
+speech engines). See `magi/README.md`.
 
-- Runners now: ht0-studiodt (linux/amd64, publishes to GitHub),
-  raspberrypi (linux/arm64), and ht0-macbookm5 (darwin/arm64, Seatbelt
-  sandbox). A task can name a runner; the publishing runner pushes.
+- Runners now: one linux/amd64 runner that publishes to GitHub, one
+  linux/arm64 runner, and one darwin/arm64 runner (Seatbelt sandbox). A
+  task can name a runner; the publishing runner pushes.
 - Magi updates runners (runner releases) and the Android app (app
   releases). A runner tests a new release and goes back to the old one if
   it fails.
 
+## Decisions
+
+`docs/decisions/` has the decision records and the table of who decides
+(code, the model, or a person). Read it before you change the persona
+turn, the tools, the evals, or the authority of continued work.
+
 ## Next Actions
 
-- Try the first change by Archimedes end to end: a code change, the review,
-  the release in squizzlezig, the pull request, the merge on GitHub, and
-  the rollout. Pull requests are on for the magi repository of
-  ht0-studiodt (`pull_requests` in its runner configuration).
-- Production: the todandlorna.com LinkKeys domain for todandlorna.com and
-  catalystsquad.com users; a production installation that a merged pull
-  request deploys, and a step that watches that deploy.
-- Calendars: an adapter for CalDAV (Nextcloud) and Google, so that the
-  executive assistant reads and makes events.
+The goal of this stage: Magi changes itself, and a person does not need
+to correct the change. The work is in this order. Each item names its
+decision record.
+
+1. Each tool call of a persona goes through `toolGate` (0003). Done.
+2. A turn that starts again does not repeat its effects (0004).
+3. Refusals explain themselves; the persona prompts get shorter (0005).
+4. A comparison verdict for each prompt or harness change (0006).
+5. A dispatch for work that continues later (0007), and one principal
+   for each turn (0008).
+6. Events start persona turns, with the loop limit (0009).
+7. A turn yields to new input (0010).
+8. A stable prompt prefix in a session (0011), and the stall check with
+   a configurable interval (0012).
+9. Empty the baseline of the architecture check (0001).
+
+Later:
+
+- Try the first change by Archimedes end to end: a code change, the
+  review, the release in the development installation, the pull request,
+  the merge on GitHub, and the rollout.
+- Production: a LinkKeys domain for the production users; a production
+  installation that a merged pull request deploys, and a step that
+  watches that deploy.
+- Calendars: an adapter for CalDAV and Google, so that the executive
+  assistant reads and makes events.
 - Latency: measure the phases of the turn log with four persona workers;
   then stream the reply into speech (docs/speech-interaction.md).
-- Knowledge: investigations (episodes and procedures from workflow runs), a
-  human step addressed to named people, groups for shared personas, and
+- Knowledge: investigations (episodes and procedures from workflow runs),
+  a human step addressed to named people, groups for shared personas, and
   read-only runners.
-- Production: an admin-only way to make runner tokens at install, or fleet
-  tokens.
+- Production: an admin-only way to make runner tokens at install, or
+  fleet tokens.

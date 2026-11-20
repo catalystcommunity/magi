@@ -240,6 +240,8 @@ func (s *System) applyNotes(ctx context.Context, a workflowapi.Assignment, as co
 	items, glog := guardNotes(items, notes, utt.Text, time.UnixMilli(int64(utt.CreatedMs)), a.Vars["owner_name"], strings.TrimPrefix(as.person, "user:"))
 	log.Calls = append(log.Calls, glog...)
 	var done []string
+	// The note taker writes only knowledge, whatever the model gave.
+	gate := &toolTurn{a: a, as: as, utt: utt, ts: &turnState{}, tools: []string{"remember", "change_knowledge"}, by: "note-taker"}
 	for _, it := range items {
 		tool, args := it.toolCall(reason)
 		if tool == "" {
@@ -250,8 +252,9 @@ func (s *System) applyNotes(ctx context.Context, a workflowapi.Assignment, as co
 				"result": fmt.Sprintf("Not changed: the record %s does not name %q.", it.Id, it.named())})
 			continue
 		}
-		out, ref := s.personaTool(ctx, a, as, utt, tool, args)
-		log.Calls = append(log.Calls, map[string]any{"tool": tool, "args": args, "result": out, "by": "note-taker"})
+		res := s.toolGate(ctx, gate, tool, args)
+		out, ref := res.Out, res.Ref
+		log.Calls = append(log.Calls, res.Call)
 		// "We moved; the new place is on Zuni Street": a small model gives
 		// remember, and the notes have the old place. With words of a
 		// change, it is an update of that fact.
@@ -264,13 +267,15 @@ func (s *System) applyNotes(ctx context.Context, a workflowapi.Assignment, as co
 				v = it.Object
 			}
 			uargs := map[string]string{"id": m[1], "operation": "update", "value": v, "reason": reason}
-			out, ref = s.personaTool(ctx, a, as, utt, "change_knowledge", uargs)
-			log.Calls = append(log.Calls, map[string]any{"tool": "change_knowledge", "args": uargs, "result": out, "by": "note-taker", "from": "remember"})
+			res = s.toolGate(ctx, gate, "change_knowledge", uargs)
+			out, ref = res.Out, res.Ref
+			res.Call["from"] = "remember"
+			log.Calls = append(log.Calls, res.Call)
 		}
 		if ref != nil {
 			*refs = append(*refs, *ref)
 		}
-		if !strings.HasPrefix(out, "error") && !strings.HasPrefix(out, "Not recorded") {
+		if !toolFailed(out) {
 			done = append(done, out+recordOf(notes, it.Id))
 		}
 	}

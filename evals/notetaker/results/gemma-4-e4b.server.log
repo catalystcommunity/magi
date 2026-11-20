@@ -1,7 +1,7 @@
 0.00.017.209 I srv  llama_server: initializing ...
 0.00.017.222 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
 0.00.017.568 W srv  server_setup: security: no API key is set and CORS allows all origins (see https://github.com/ggml-org/llama.cpp/pull/25655)
-0.00.020.058 I srv    load_model: loading model '/home/todhansmann/models/gemma-4-E4B-it-Q4_K_M.gguf'
+0.00.020.058 I srv    load_model: loading model '/home/user/models/gemma-4-E4B-it-Q4_K_M.gguf'
 0.00.645.751 W load: control-looking token:    212 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
 0.00.645.789 W load: control-looking token:     50 '<|tool_response>' was not control-type; this is probably a bug in the model. its type will be overridden
 0.00.645.802 W load: control-looking token:      1 '<eos>' was not control-type; this is probably a bug in the model. its type will be overridden

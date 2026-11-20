@@ -523,7 +523,7 @@ func falseClaim(reply string, calls []map[string]any, tools []string) string {
 		done := false
 		for _, call := range calls {
 			res, _ := call["result"].(string)
-			ok := !strings.HasPrefix(res, "error") && !strings.HasPrefix(res, "Not recorded")
+			ok := !toolFailed(res)
 			if ok && (sameAction(call["tool"], c.tool) || planWrite(call["tool"]) && (c.tool == "change_knowledge" || c.tool == "remember") && aboutTodos.MatchString(reply)) {
 				done = true
 			}

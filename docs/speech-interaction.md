@@ -544,7 +544,7 @@ Done in the speech primitive (`primitives/speech/server/spoken.go`) and Magi:
 - Lexicon editors (per installation, `LEXICON_EDITORS`) change the words in
   the web Words tab or with `magi word`. All people can read the words and
   hear text with them.
-- Live check on squizzlezig: "README" with the entry is heard back as
+- Live check on the development installation: "README" with the entry is heard back as
   "readme"; an IPA entry reaches Kokoro as phonemes.
 
 Not done: homographs, learning from the person (9.3), STT hotwords (9.4),
