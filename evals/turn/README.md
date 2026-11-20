@@ -78,3 +78,5 @@ Exit status: 0 pass, 1 fail, 2 error.
 | Date | Set | Model | Baseline | Result |
 | --- | --- | --- | --- | --- |
 | 2026-11-19 | core-v1 | gemma-4-12b (Q4_K_M, RTX 4080) | first run of the set | 19 of 19 in 1 run, 101 s |
+| 2026-11-19 | core-v1 | gemma-4-12b | 19c6c64, 3 runs: 57 of 57 | Candidate with the task tools of the assistant removed (a test of the verdict, 2 runs): FAIL, 5 core cases |
+| 2026-11-19 | core-v1 | gemma-4-12b | 19c6c64, 3 runs: 57 of 57 | Candidate: the rule "You cannot approve, merge, or release a task" removed from the prompt of the default persona (code refuses the tool). 56 of 57: PASS, no change |
