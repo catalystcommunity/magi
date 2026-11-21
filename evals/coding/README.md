@@ -281,6 +281,53 @@ outcome and the failed modules) and `db.output.txt` next to the diff. On
 pass 3 it finds the failed import tests of pr6. A failed module is a
 defect of the change.
 
+Then run the probes:
+
+```sh
+python3 -I evals/coding/probe.py evals/coding/results/<label>
+```
+
+A probe is one test of one sentence of the task. It uses only code that
+exists at the base of the case, so it does not depend on the names that
+the candidate chose. `probes/<id>.py` and `probes/<id>_test.go` hold the
+probes of a case; the first line of each file names the directory where
+the file runs. `probe.py` applies `diff.patch` to a worktree at the base,
+copies the probe files in, and runs each probe. It writes `probe.json`
+next to the diff:
+
+- `passed` and `failed`: the probes, each failed probe with its sentence;
+- `removed_tests`: the tests of the base that the change removed;
+- `other_files`: the files that the change touches and the approved
+  change does not.
+
+A failed probe is a defect of the change, and no person has to find it.
+A probe set does not find each defect: style, copied code, and a test
+that does not test the change stay with the review. `--approved` runs the
+probes on the approved change of each case. Each probe must pass there;
+run it when you add a probe. When a grade finds a defect of behavior that
+no probe finds, add a probe for it.
+
+The cases pr2, pr3, pr4, pr5 and pr7 have probes. The case pr6 has none: its
+import has no fixed signature. On the results of 2026-11-21:
+
+| Change | Probes | Failed probes |
+| --- | --- | --- |
+| Qwen3.6-35B-A3B pr2 | 8 of 10 | the entries are not one line; a long file is cut at `tool_output_chars`, not at 20000 |
+| Qwen3.6-35B-A3B pr3 | 11 of 13 | an error text at the time limit; the last call is not counted in the usage |
+| Qwen3.6-35B-A3B pr5 | 11 of 13 | output that is not JSON; the status error |
+| Qwen3.6-35B-A3B pr7 | 10 of 10 | |
+| Qwen3.6-27B pr3 | 11 of 13 | the stop text; the last call is not counted or recorded |
+| Qwen3.6-27B pr5 | 13 of 13 | |
+| Qwen3.6-27B pr7 | 9 of 10 | the stub uses up a check retry |
+| Devstral Small 2 pr5 | 12 of 13 | null for `prompt_tokens_details` |
+| Devstral Small 2 pr7 | 8 of 10 | the reset is before the diff, so the diff shows no new file |
+
+Each failed probe is a defect that the grade of a person found, except
+two. The grade of pr3 for Qwen3.6-35B-A3B did not see that the usage
+leaves out the last call. The grade of pr2 did not see that the change
+reads the instructions file with the `read_file` tool of the model, which
+cuts the text at `tool_output_chars`.
+
 Grade each run, then close it:
 
 ```sh

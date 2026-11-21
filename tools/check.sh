@@ -16,6 +16,11 @@ python3 tools/arch_check_test.py -q || fail "tools/arch_check_test.py"
 step "python: evals/turn"
 python3 evals/turn/test_verdict.py -q || fail "evals/turn/test_verdict.py"
 
+step "python: evals/coding"
+for t in test_run test_dbcheck test_probe; do
+  python3 evals/coding/$t.py -q >/dev/null 2>&1 || fail "evals/coding/$t.py"
+done
+
 step "gofmt"
 unformatted=$(gofmt -l lib primitives magi tools 2>/dev/null | grep -v '\.gen\.go$' || true)
 [[ -z $unformatted ]] || fail "gofmt needed: $unformatted"
