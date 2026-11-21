@@ -144,6 +144,22 @@ results: SWE-bench depends on the harness around the model.
 | Devstral Small 2 24B | Q4_K_M, 14.3 GB | Does not fit. With 28 layers on the card: 4 tokens/s | Not usable on 16 GB. Not measured for quality |
 | Qwen3.6-27B | Q4_K_M, 16.8 GB | Does not fit (a dense model) | Not measured |
 
-A dense model of 24B to 27B needs a card with 24 GB. The coding eval of
-Devstral Small 2 and Qwen3.6-27B is open until they run on such a card.
+A dense model of 24B to 27B needs a card with 24 GB.
+
+On an RTX 3090 (24 GB), each model fits with 64k context and a KV cache of
+8 bits:
+
+| Model | Memory | Tokens/s | Prompt tokens/s | Turn eval `core-v2`, 3 runs | Coding eval, 3 cases |
+| --- | --- | --- | --- | --- | --- |
+| Qwen3.6-35B-A3B with MTP (in use) | | about 200 | | | 7 defects, 105 minutes |
+| Qwen3.6-27B | 18.5 GB | 41 | 1417 | 68 of 69 | 7 defects, 212 minutes |
+| Gemma 4 26B A4B | 18.2 GB | 107 | 4137 | 62 of 69 | No change reached the review |
+| Devstral Small 2 24B | 19.0 GB | 47 | 1718 | 33 of 69 with its own chat template | 2 of 3 cases: 11 defects, one reject |
+
+Decision: Qwen3.6-35B-A3B stays the coding model and the review model.
+Qwen3.6-27B has the same quality at 2 times the time, so it is the
+second choice. Gemma 4 26B A4B and Devstral Small 2 are not usable for code
+changes in this harness. For persona turns, gemma-4-12b stays: 69 of 69
+on the same set. The details are in `evals/coding/README.md` and
+`evals/turn/README.md`.
 

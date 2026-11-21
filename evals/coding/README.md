@@ -179,6 +179,49 @@ Findings:
   missed sentence that stays: the import ignores the errors of the
   service, so the retry loop never runs again.
 
+## Results: three candidates on an RTX 3090 (2026-11-21)
+
+The harness of runner 0a931e9, with `--checks-dir checks/spec1`, on the
+cases pr3, pr5 and pr7. The review model of the runner is the candidate.
+Each model has 64k context and a KV cache of 8 bits. The baseline is
+pass 4 of Qwen3.6-35B-A3B (about 200 tokens/s with MTP).
+
+| Model | Tokens/s | Case | Check | Steps | Minutes | Grade | Defects | Baseline |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Qwen3.6-27B Q4_K_M | 41 | pr3 | pass (1) | 46 | 78 | revise | 3 | revise (small), 3, 40 min |
+| | | pr5 | pass (1) | 78 | 65 | revise (small) | 2 | revise, 3, 41 min |
+| | | pr7 | pass (1) | 78 | 69 | revise (small) | 2 | approve (small), 1, 24 min |
+| Devstral Small 2 24B Q4_K_M | 47 | pr3 | no change | 72 | 48 | blocked: its new tests fail | - | |
+| | | pr5 | pass (2) | 230 | 64 | revise | 4 | |
+| | | pr7 | pass (1) | 96 | 37 | reject | 7 | |
+| Gemma 4 26B A4B UD-Q4_K_M | 107 | pr3 | fail | 108 | 94 | time limit, then the check did not return in 30 minutes | - | |
+| | | pr5 | no change | 81 | 21 | blocked: failed edits | - | |
+| | | pr7 | no change | 35 | 24 | blocked: failed edits | - | |
+
+Findings:
+
+- Qwen3.6-27B makes changes of the same quality as Qwen3.6-35B-A3B: 7
+  defects in 3 cases for each model. On pr5 it makes the same refactor of
+  the work step and keeps the behavior, where the baseline made a
+  regression. On pr7 it misses "does not count as a failed check". It
+  needs 212 minutes for the 3 cases, against 105: the model is 5 times
+  slower, and the review and the check add fixed time.
+- Devstral Small 2 writes tests that do not test the change: a Go test
+  that parses JSON into its own struct (pr5), a test that mocks the
+  rejection that it tests (pr7). It deletes code that the task did not
+  name (pr7). Its chat template refuses two messages of the same role in
+  sequence, which the apprentice and the persona turns send. These runs
+  use a template without that rule.
+- Gemma 4 26B A4B cannot make edits in this harness. `edit_file` fails
+  again and again, because `old_string` is not the text of the file. One
+  reply had the tool call as text, which the server did not parse. With
+  no limit on its thinking, its replies were cut 6 times in one run; a
+  reasoning budget of 4096 tokens removes that.
+- A slow model showed a defect of the stall check: the check, the review
+  and a long tool call wrote no status line, so the stall check stopped
+  three good runs of Qwen3.6-27B. Each of these phases writes a status
+  line now, and the stall limit is 30 minutes.
+
 ## Run
 
 `run.py` runs the cases through the code-change workflow of Magi, one case
