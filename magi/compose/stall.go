@@ -23,7 +23,7 @@ type stallLimits struct {
 	// Every is the time between two looks (MAGI_STALL_EVERY, default 1m).
 	Every time.Duration
 	// After: a task with no status line for this time is stopped
-	// (MAGI_STALL_AFTER, default 20m). The run variable stall_ms of a
+	// (MAGI_STALL_AFTER, default 30m). The run variable stall_ms of a
 	// task replaces it for that task.
 	After time.Duration
 	// Repeat: a task whose last Repeat status lines have the same
@@ -38,7 +38,7 @@ func (s *System) stallLimits() stallLimits {
 		l.Every = time.Minute
 	}
 	if l.After <= 0 {
-		l.After = 20 * time.Minute
+		l.After = 30 * time.Minute
 	}
 	if l.Repeat <= 0 {
 		l.Repeat = 6

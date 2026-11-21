@@ -291,6 +291,28 @@ class LoopTest(unittest.TestCase):
         self.assertEqual(len(notes), 1)
         self.assertIn("bash echo 1; bash echo 2", notes[0])
 
+    def test_a_quiet_run_writes_working_lines(self):
+        # The check and the review write no step line. The stall check of
+        # Magi stops a task with no status line, so these phases write one.
+        notes = []
+        t = iter(range(0, 100000, 200))
+        a, _, _, _ = apprentice([reply(call("bash", command="echo 1")), reply(call("finish", summary="s"))],
+                                limits=Limits(progress_every=50, self_review=False, alive_every_s=180),
+                                on_progress=notes.append, clock=lambda: next(t))
+        r = a.run(Task("t", check_command="true"))
+        self.assertEqual(r.status, "finished")
+        self.assertIn("working: the check command", notes)
+        self.assertTrue(any(n.startswith("working: a model call") or n.startswith("working: the tool") for n in notes), notes)
+        self.assertFalse(any(n.startswith("step ") for n in notes))
+
+    def test_a_run_with_step_lines_writes_no_working_line(self):
+        notes = []
+        a, _, _, _ = apprentice([reply(call("bash", command="echo 1"), call("bash", command="echo 2")),
+                                 reply(call("finish", summary="s"))],
+                                limits=Limits(progress_every=2, self_review=False), on_progress=notes.append)
+        a.run(Task("t"))
+        self.assertEqual([n for n in notes if n.startswith("working")], [])
+
     def test_model_error_is_reported(self):
         class Broken:
             def complete(self, m, t):

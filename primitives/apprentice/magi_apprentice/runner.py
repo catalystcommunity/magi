@@ -59,6 +59,23 @@ def task_text(t: Task) -> str:
     return text
 
 
+class _Noting:
+    """A model whose calls write a status line when the run was quiet: one
+    review is many model calls, and no step of the apprentice."""
+
+    def __init__(self, model: Model):
+        self.model = model
+        self.alive: Callable[[str], None] | None = None
+
+    def complete(self, messages: list[dict], tools: list[dict]) -> Any:
+        if self.alive:
+            self.alive("a model call of the review")
+        return self.model.complete(messages, tools)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self.model, name)
+
+
 def run_task(task: Task, *, execution: Any, environment: str, model_cfg: ModelConfig,
              limits: Limits, artifacts: Any | None = None, labels: dict[str, str] | None = None,
              model: Model | None = None, steering: Steering | None = None,
@@ -80,8 +97,8 @@ def run_task(task: Task, *, execution: Any, environment: str, model_cfg: ModelCo
     reviewer = None
     if review_model:
         # The lens answers are long: each lens writes out what it checked.
-        rm = ChatModel(replace(model_cfg, name=review_model, max_tokens=max(model_cfg.max_tokens, 12000),
-                               temperature=0.6))
+        rm = _Noting(ChatModel(replace(model_cfg, name=review_model, max_tokens=max(model_cfg.max_tokens, 12000),
+                                       temperature=0.6)))
 
         def reviewer(tools: Tools, t: Task) -> dict:
             # Two samples: the blockers of one review differ from run to run.
@@ -89,6 +106,8 @@ def run_task(task: Task, *, execution: Any, environment: str, model_cfg: ModelCo
         # The spec step uses the review model: it checks the task, as the
         # review checks the change. Checks that the task has already stay.
         if limits.spec_step and not has_checks(task.instructions):
+            if on_progress:
+                on_progress("working: the spec step")
             checks, rec = acceptance_checks(
                 ChatModel(replace(model_cfg, name=review_model, max_tokens=12000, temperature=0.3)),
                 task.instructions)
@@ -98,6 +117,8 @@ def run_task(task: Task, *, execution: Any, environment: str, model_cfg: ModelCo
                   Tools(Workspace(execution, environment, task.workdir, limits)),
                   limits, tr, steering=steering, should_stop=should_stop, on_progress=on_progress,
                   supervisor=supervisor, reviewer=reviewer)
+    if review_model:
+        rm.alive = apprentice.alive
     try:
         result = apprentice.run(task)
     except Exception as e:  # keep the evidence of a crashed task

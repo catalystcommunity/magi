@@ -80,6 +80,7 @@ class Limits:
     bash_timeout_s: int = 300         # default bash timeout
     bash_timeout_max_s: int = 1200
     progress_every: int = 5           # progress note every N tool calls
+    alive_every_s: int = 180          # a "working" note when no note was written for this time
     check_retries: int = 3            # finish attempts rejected by a failed check
     self_review: bool = True          # one review request before the first accepted finish
     test_gate: bool = True            # new tests run once on the code without the change (testgate.py)
@@ -96,6 +97,7 @@ class Limits:
             tool_output_chars=_int("MAGI_APPRENTICE_TOOL_OUTPUT_CHARS", d.tool_output_chars),
             bash_timeout_s=_int("MAGI_APPRENTICE_BASH_TIMEOUT", d.bash_timeout_s),
             progress_every=_int("MAGI_APPRENTICE_PROGRESS_EVERY", d.progress_every),
+            alive_every_s=_int("MAGI_APPRENTICE_ALIVE_EVERY", d.alive_every_s),
             check_retries=_int("MAGI_APPRENTICE_CHECK_RETRIES", d.check_retries),
             self_review=_env("MAGI_APPRENTICE_SELF_REVIEW", "true") != "false",
             test_gate=_env("MAGI_APPRENTICE_TEST_GATE", "true") != "false",

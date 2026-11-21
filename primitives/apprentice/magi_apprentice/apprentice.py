@@ -394,11 +394,25 @@ class Apprentice:
         self.steering = steering
         self.should_stop = should_stop
         self.on_progress = on_progress
+        self._last_note = clock() if on_progress else 0.0
         self.supervisor = supervisor
         self.clock = clock
         # The lens reviewer (prereview.py) instead of the checklist of
         # SELF_REVIEW: a list of specific findings that the model can check.
         self.reviewer = reviewer
+
+    def _note(self, note: str) -> None:
+        if self.on_progress:
+            self._last_note = self.clock()
+            self.on_progress(note)
+
+    def alive(self, what: str, now: bool = False) -> None:
+        """Writes a status line when there was none for alive_every_s (or
+        now). The check, the test gate, and the review write no step line,
+        and the stall check of Magi stops a task with no line for too long.
+        One operation that hangs still writes nothing: that is the stall."""
+        if self.on_progress and (now or self.clock() - self._last_note >= self.limits.alive_every_s):
+            self._note(f"working: {what}")
 
     def run(self, task: Task) -> Result:
         lim, tr = self.limits, self.transcript
@@ -481,6 +495,7 @@ class Apprentice:
                       total_messages=len(msgs), new_messages=msgs[sent:])
             t0 = time.monotonic()
             try:
+                self.alive("a model call")
                 reply = self._complete(ctx, msgs)
             except ModelError as e:
                 tr.record("model_error", step=res.steps, error=str(e), error_kind=e.kind)
@@ -538,6 +553,7 @@ class Apprentice:
                 else:
                     tr.record("tool_call", id=call.id, name=call.name, arguments=call.arguments)
                     t1 = time.monotonic()
+                    self.alive(f"the tool {call.name}")
                     r = self.tools.call(call.name, call.arguments)
                     content, ok = r.content, r.ok
                     if r.finished:
@@ -563,8 +579,8 @@ class Apprentice:
                     recent.append(_describe(call.name, call.arguments, ok))
                     seen.append(recent[-1] + " -> " + " ".join(content.split())[:200])
                     if self.on_progress and res.tool_calls % lim.progress_every == 0:
-                        self.on_progress(f"step {res.steps}, {res.tool_calls} tool calls: "
-                                         + "; ".join(recent[-lim.progress_every:]))
+                        self._note(f"step {res.steps}, {res.tool_calls} tool calls: "
+                                   + "; ".join(recent[-lim.progress_every:]))
                 ctx.messages.append({"role": "tool", "tool_call_id": call.id, "_name": call.name,
                                      "content": content})
             if finished is not None:
@@ -671,6 +687,7 @@ class Apprentice:
                     + "\nFix this, then call finish again."), True, False
         if not task.check_command:
             return "finished", True, True
+        self.alive("the check command", now=True)
         r = self.tools.ws.sh(task.check_command, timeout_s=self.limits.bash_timeout_max_s)
         out = format_exec(r, self.limits.tool_output_chars)
         passed = r.exit_code == 0 and not getattr(r, "timed_out", False)
@@ -726,6 +743,7 @@ class Apprentice:
         if self._tests_tested or not self.limits.test_gate or self._near_limit(res, start):
             return None
         self._tests_tested = True
+        self.alive("the test gate")
         found = testgate.check(self.tools)
         self.transcript.record("test_gate", passing_without_change=found)
         return testgate.note(found) if found else None
@@ -743,6 +761,7 @@ class Apprentice:
             self.transcript.record("self_review", skipped="near a limit", diff_chars=0)
             return None
         if self.reviewer is not None:
+            self.alive("the review of the change", now=True)
             try:
                 rv = self.reviewer(self.tools, task)
             except Exception as e:  # the checklist review works without the model review

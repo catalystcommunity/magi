@@ -300,7 +300,12 @@ python -m magi_apprentice worker [--queue apprentice] [--max-tasks N]
 
 The worker claims a step from the queue, sends heartbeats on a background
 thread, and sends progress notes: at the start, after each
-`MAGI_APPRENTICE_PROGRESS_EVERY` tool calls, and at the end.
+`MAGI_APPRENTICE_PROGRESS_EVERY` tool calls, and at the end. The check
+command and the review of the change write a note that starts with
+"working:" when they start. A model call or a tool call also writes one
+when there was no note for `MAGI_APPRENTICE_ALIVE_EVERY` seconds. The
+stall check of Magi stops a task that writes no note for too long, so the
+longest time with no note is this time plus one operation.
 
 Assignment vars:
 
@@ -380,6 +385,7 @@ dollars.
 | `MAGI_APPRENTICE_TOOL_OUTPUT_CHARS` | `8000` | Tool result size in the context |
 | `MAGI_APPRENTICE_BASH_TIMEOUT` | `300` | Default bash timeout in seconds (maximum 1200) |
 | `MAGI_APPRENTICE_PROGRESS_EVERY` | `5` | Tool calls between progress notes |
+| `MAGI_APPRENTICE_ALIVE_EVERY` | `180` | Seconds with no progress note before an operation writes a "working:" note |
 | `MAGI_APPRENTICE_CHECK_RETRIES` | `3` | Failed checks before `finish` is accepted |
 | `MAGI_APPRENTICE_SELF_REVIEW` | `true` | One review request before the first accepted `finish`; `false` turns it off |
 | `MAGI_APPRENTICE_TEST_GATE` | `true` | The new tests run once on the code without the change; `false` turns it off |

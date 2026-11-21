@@ -248,7 +248,7 @@ The gate is the loop limit:
 The stall check (`compose/stall.go`, `docs/decisions/0012`) looks at each
 task whose apprentice works, each `MAGI_STALL_EVERY` (default `1m`). It
 cancels a task whose apprentice wrote no status line for
-`MAGI_STALL_AFTER` (default `20m`), or whose last `MAGI_STALL_REPEAT`
+`MAGI_STALL_AFTER` (default `30m`), or whose last `MAGI_STALL_REPEAT`
 status lines (default 6) have the same actions. The person gets the
 reason as a notice, and the persona gets the event. Make the numbers
 smaller where model capacity is small.

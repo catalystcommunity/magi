@@ -28,9 +28,15 @@ Done (`magi/compose/stall.go`). Each minute (`MAGI_STALL_EVERY`) Magi
 looks at each task whose apprentice works. It stops a task when:
 
 - the apprentice wrote no status line for `MAGI_STALL_AFTER` (default
-  `20m`); the run variable `stall_ms` of a task replaces the time; or
+  `30m`); the run variable `stall_ms` of a task replaces the time; or
 - the last `MAGI_STALL_REPEAT` status lines (default 6) have the same
   actions; the run variable `stall_repeat` replaces the number.
+
+The default time is longer than one operation of the apprentice (a check
+command can run for 20 minutes). The apprentice writes a "working:" line
+when the check or the review starts, and when an operation starts after 3
+minutes with no line. Before that, the check stopped three tasks of a
+slow model (41 tokens/s) while their review ran.
 
 The time of a quiet task starts when the check first sees the step with
 a worker, because a step can wait in the queue of a runner. The run is
