@@ -68,10 +68,15 @@ func TestProposedLessonNeedsApproval(t *testing.T) {
 		l.Text != "Do not remove the space at the start of command output." {
 		t.Fatalf("propose: %+v %v", l, err)
 	}
-	// The same title gives the same proposal.
-	again, err := mc.ProposeLesson(op, proposal)
-	if err != nil || again.Id != l.Id {
+	// The same title gives the same proposal, with the new fields.
+	changed := proposal
+	changed.Area, changed.Text = "topic", "Do not remove the space at the start of command output."
+	again, err := mc.ProposeLesson(op, changed)
+	if err != nil || again.Id != l.Id || again.Area != "topic" || again.Status != "proposed" {
 		t.Fatalf("second proposal: %+v %v", again, err)
+	}
+	if again, err = mc.ProposeLesson(op, proposal); err != nil || again.Area != "all code" {
+		t.Fatalf("third proposal: %+v %v", again, err)
 	}
 	if got := s.lessonsFor(context.Background(), "magi", "A task", "Print the output of a command."); strings.Contains(got, l.Id) {
 		t.Fatalf("a proposed lesson is in the lessons of a code change:\n%s", got)
@@ -103,6 +108,13 @@ func TestRejectedLessonStaysOut(t *testing.T) {
 	}
 	if d, err := mc.DecideLesson(as(lessonAdmin), magiapi.DecideLessonRequest{Id: l.Id, Decision: "reject"}); err != nil || d.Status != "rejected" {
 		t.Fatalf("reject: %+v %v", d, err)
+	}
+	// A new proposal of a decided lesson does not change it.
+	changed := proposal
+	changed.Text = "A new text."
+	if again, err := mc.ProposeLesson(as("service:reviewer", ScopeOperate), changed); err != nil || again.Status != "rejected" ||
+		again.Text != "Do not remove the space at the start of command output." {
+		t.Fatalf("proposal of a rejected lesson: %+v %v", again, err)
 	}
 	if got := s.lessonsFor(context.Background(), "magi", "A task", "Print the output of a command."); got != "" {
 		t.Fatalf("lessons = %q", got)

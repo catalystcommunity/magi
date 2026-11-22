@@ -91,7 +91,7 @@ func lessonFields(title, area, text string) error {
 	case strings.TrimSpace(title) == "" || len(title) > 120 || strings.Contains(title, "\n"):
 		return rpc.Invalid("a lesson title is one line of 1 to 120 characters")
 	case strings.TrimSpace(area) == "" || strings.Contains(area, "\n"):
-		return rpc.Invalid("a lesson area is \"all code\" or a path")
+		return rpc.Invalid("a lesson area is \"all code\", \"topic\", or a path")
 	case strings.TrimSpace(text) == "" || len(text) > 600:
 		return rpc.Invalid("a lesson text has 1 to 600 characters")
 	}
@@ -121,6 +121,30 @@ func (m *Service) ProposeLesson(ctx context.Context, req magiapi.ProposeLessonRe
 		// put-entity gives an entity with the same kind and label: a lesson of
 		// the repository has this title.
 		return magiapi.Lesson{}, rpc.Invalid("the repository has a lesson with this title: %s", e.Properties["lesson_id"])
+	}
+	// put-entity gives an existing proposal as it is. A proposal that has no
+	// decision takes the new fields; a decided one stays as the person
+	// decided it.
+	set := map[string]string{}
+	if e.Properties["status"] == lessonProposed {
+		if e.Summary != text {
+			set["summary"] = text
+		}
+		for k, v := range map[string]string{"area": strings.TrimSpace(req.Area), "source": strings.TrimSpace(req.Source)} {
+			if e.Properties[k] != v {
+				set["property."+k] = v
+			}
+		}
+	}
+	if len(set) > 0 {
+		res, err := m.S.Knowledge.Change(m.S.AsService(ctx), knowledgeapi.ChangeRequest{Id: e.Id, Operation: "fix", Set: set,
+			Reason: optional("proposed again")})
+		if err != nil {
+			return magiapi.Lesson{}, err
+		}
+		if res.Entity != nil {
+			e = *res.Entity
+		}
 	}
 	return apiLesson(e), nil
 }

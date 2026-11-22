@@ -1291,10 +1291,12 @@ export interface Lesson {
 }
 
 /**
- * Operator call. area is "all code" or a path. source tells where the
- * lesson comes from (a run id, a repository and a commit). The response
- * is the lesson with status "proposed". A proposal with the title of an
- * existing proposal gives that proposal.
+ * Operator call. area is "all code" (each code change), "topic" (only a
+ * code change whose task shares the subject of the title), or a path.
+ * source tells where the lesson comes from (a run id, a repository and a
+ * commit). A proposal with the title of an existing proposal gives that
+ * proposal: one with no decision takes the new area, source, and text, and
+ * a decided one stays as it is.
  */
 export interface ProposeLessonRequest {
   title: string;

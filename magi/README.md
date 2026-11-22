@@ -195,7 +195,7 @@ Set the command in the configuration of the runner:
 
 ```json
 "checker": {
-  "command": ["codex", "exec", "-s", "workspace-write", "--ephemeral", "--ignore-user-config",
+  "command": ["codex", "exec", "-s", "workspace-write", "--skip-git-repo-check", "--ephemeral", "--ignore-user-config",
               "--ignore-rules", "--color", "never", "--output-schema", "{schema}", "-o", "{out}", "-"],
   "timeout_minutes": 20
 }

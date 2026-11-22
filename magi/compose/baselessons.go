@@ -33,17 +33,35 @@ func (s *System) lessonsFor(ctx context.Context, repo, title, instructions strin
 		score    int
 	}
 	var out []scored
+	stems := topicStems(text)
 	for _, e := range entities {
-		score := 0
+		score, topic := 0, false
 		for _, area := range list(e.Properties["area"]) {
 			switch {
 			case area == "all code":
 				score += 3
+			case area == lessonTopic:
+				topic = true
 			case repo == s.Cfg.Repo && strings.Contains(text, strings.ToLower(area)):
 				score += 5
 			}
 		}
-		score += min(3, lessonWords(e.Label, text))
+		if topic {
+			// A topic lesson is for a task about its subject only: one shared
+			// word is chance.
+			n := 0
+			for stem := range topicStems(strings.ToLower(e.Label)) {
+				if stems[stem] {
+					n++
+				}
+			}
+			if n < 2 {
+				continue
+			}
+			score += 2 + min(3, n)
+		} else {
+			score += min(3, lessonWords(e.Label, text))
+		}
 		if score == 0 {
 			continue
 		}
@@ -79,4 +97,28 @@ func lessonWords(title, text string) int {
 		}
 	}
 	return n
+}
+
+// lessonTopic is the area of a lesson about one subject (a migration, a
+// permission check, a queue). The corpus has many of these, and a code
+// change gets one only when its task is about that subject.
+const lessonTopic = "topic"
+
+// genericStems are stems of words that most tasks and most lessons have, so
+// they do not show a shared subject.
+var genericStems = map[string]bool{"check": true, "tests": true, "every": true, "other": true, "first": true, "value": true,
+	"error": true, "befor": true, "after": true, "chang": true, "shoul": true, "which": true, "their": true, "there": true,
+	"where": true, "while": true, "using": true, "whole": true, "exact": true, "files": true, "needs": true, "match": true,
+	"witho": true, "requi": true, "reque": true, "curre": true, "exist": true, "separ": true, "diffe": true}
+
+// topicStems are the stems of the words of 5 or more letters of a lower-case
+// text: the first 5 letters, so "migrate" and "migration" are the same.
+func topicStems(text string) map[string]bool {
+	out := map[string]bool{}
+	for _, w := range strings.FieldsFunc(text, func(r rune) bool { return r < 'a' || r > 'z' }) {
+		if len(w) >= 5 && !genericStems[w[:5]] {
+			out[w[:5]] = true
+		}
+	}
+	return out
 }

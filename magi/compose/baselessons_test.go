@@ -122,3 +122,21 @@ func TestLessonsForError(t *testing.T) {
 		t.Fatalf("no log line: %q", buf.String())
 	}
 }
+
+// A topic lesson goes to a task that shares two or more subject words with
+// its title, and not to a task that shares one word or only generic words.
+func TestLessonsForTopic(t *testing.T) {
+	s := lessonsSystem(t,
+		lessonEntity("lp-0001", "Backfill old rows before you require a new field in a migration", lessonTopic, "Text."),
+		lessonEntity("lp-0002", "Select cryptographic keys by their declared purpose", lessonTopic, "Text."))
+	got := s.lessonsFor(context.Background(), "magi", "Add a required column",
+		"Write the migration that adds the column and backfills the rows that exist.")
+	if got != "- lp-0001 Backfill old rows before you require a new field in a migration: Text." {
+		t.Fatalf("lessons = %q", got)
+	}
+	// One shared subject word ("keys"), and generic words ("check", "their").
+	if got := s.lessonsFor(context.Background(), "magi", "Sort the output",
+		"Sort the keys of the map. Check their order in the tests."); got != "" {
+		t.Fatalf("lessons = %q", got)
+	}
+}

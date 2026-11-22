@@ -256,6 +256,16 @@ rejected lessons. A proposal is an entity of kind `lesson` with the
 external system `magi-lesson-proposal` and the property `status`
 (`proposed`, `approved`, or `rejected`). Its id is `lp-` and 8 hex digits
 of the title, so a second proposal with the same title gives the first one.
+A proposal with no decision takes the area, the source, and the text of
+the second proposal. A decided proposal stays as it is.
+
+The area of a proposal can be `topic`: a lesson about one subject (a
+migration, a permission check, a queue). A code change gets a topic lesson
+only when its title and instructions share two or more subject words with
+the title of the lesson. Magi compares the first 5 letters of each word of
+5 or more letters, and ignores words that most tasks have (`check`,
+`tests`, `error`). A topic lesson gets 2 points and 1 point for each shared
+word, up to 3.
 
 - An operator call makes a proposal: `magi lesson propose -title T -area A
   -source S -text TEXT` (`propose-lesson`).
