@@ -559,7 +559,8 @@ The rules file (`MAGI_EGRESS_RULES`) has no secret values:
 `auto` is optional. It lets Magi permit a destination that the policy of
 the proxy does not list: the public software sources that Magi knows
 (`sources`), the hosts of the installation (`hosts`), and a host that the
-review model knows with high confidence (`model`).
+decision model knows (`model`; `limit` is the least probability, default
+0.95).
 
 The environment has only the placeholder (for example
 `Authorization: Bearer magi-secret-gh`). The proxy puts the value in, only

@@ -14,7 +14,6 @@ import (
 	"github.com/catalystcommunity/magi/lib/authn"
 	"github.com/catalystcommunity/magi/lib/rpc"
 	magiapi "github.com/catalystcommunity/magi/magi/api"
-	"github.com/catalystcommunity/magi/magi/model"
 	artifactsapi "github.com/catalystcommunity/magi/primitives/artifacts/api"
 	executionapi "github.com/catalystcommunity/magi/primitives/execution/api"
 	workflowapi "github.com/catalystcommunity/magi/primitives/workflow/api"
@@ -60,27 +59,18 @@ func TestAutoHost(t *testing.T) {
 	}
 }
 
-// autoModel answers for a host and counts the calls.
-type autoModel struct {
-	args  string
+// hostModel is a decision model: the probability of "yes" for each host.
+type hostModel struct {
+	yes   float64
 	err   error
 	calls int
 	got   string
 }
 
-func (f *autoModel) Chat(_ context.Context, msgs []model.Message, _ []model.Tool, _ int) (model.Message, error) {
+func (f *hostModel) decide(_ context.Context, state string) (float64, string, error) {
 	f.calls++
-	f.got = msgs[len(msgs)-1].Content
-	if f.err != nil {
-		return model.Message{}, f.err
-	}
-	m := model.Message{Served: "local"}
-	if f.args != "" {
-		c := model.ToolCall{}
-		c.Function.Name, c.Function.Arguments = "verdict", f.args
-		m.ToolCalls = []model.ToolCall{c}
-	}
-	return m, nil
+	f.got = state
+	return f.yes, "local", f.err
 }
 
 type autoWorkflow struct{ workflowapi.WorkflowService }
@@ -114,7 +104,7 @@ func TestEgressAutoDestination(t *testing.T) {
 		t.Cleanup(h.Close)
 		return h.URL
 	}
-	rules, err := LoadEgressRules(rulesFile(t, `{"default": "review", "auto": {"sources": true, "hosts": ["*.mirror.example.org"], "model": true}}`))
+	rules, err := LoadEgressRules(rulesFile(t, `{"default": "review", "auto": {"sources": true, "hosts": ["*.mirror.example.org"], "model": true, "limit": 0.9}}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,8 +113,8 @@ func TestEgressAutoDestination(t *testing.T) {
 		Workflow:    serve("WorkflowService", workflowapi.WorkflowServiceOps(autoWorkflow{})),
 		Artifacts:   serve("ArtifactService", artifactsapi.ArtifactServiceOps(&fakeArtifacts{body: map[string][]byte{}})),
 		EgressRules: rules, ServiceToken: svcTok, Admins: []string{"user:admin@example.local"}}, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	fm := &autoModel{}
-	sys.ReviewModel = fm
+	fm := &hostModel{}
+	sys.hostDecide = fm.decide
 	srv := &rpc.Server{Verifier: ver, Log: sys.Log}
 	srv.Register("MagiService", magiapi.MagiServiceOps(&Service{S: sys}))
 	srv.Register("EgressAskService", magiapi.EgressAskServiceOps(&Egress{S: sys}))
@@ -148,7 +138,7 @@ func TestEgressAutoDestination(t *testing.T) {
 		t.Fatalf("the lists must permit with no model call (%d calls)", fm.calls)
 	}
 	// A private name and an address never get an automatic decision.
-	fm.args = `{"what":"a package index","official_host":"yaml.example.org","verdict":"allow","confidence":"high"}`
+	fm.yes = 1
 	if allowed("env_1", "10.0.0.7:443") || allowed("env_1", "db.prod.internal:443") || allowed("env_1", "pypi.org:22") || fm.calls != 0 {
 		t.Fatalf("a private destination was permitted or went to the model (%d calls)", fm.calls)
 	}
@@ -156,46 +146,34 @@ func TestEgressAutoDestination(t *testing.T) {
 	if allowed("env_none", "yaml.example.org:443") || fm.calls != 0 {
 		t.Fatalf("no task: %d calls", fm.calls)
 	}
-
-	// The model: only "allow" with high confidence permits.
-	fm.args = `{"what":"a package index","official_host":"yaml.example.org","verdict":"allow","confidence":"medium"}`
-	if allowed("env_1", "yaml.example.org:443") || fm.calls != 1 {
-		t.Fatalf("medium confidence permitted (%d calls)", fm.calls)
+	// A name that looks like a known name does not go to the model.
+	for _, d := range []string{"pypl.org:443", "pypi.org.cdn.example.org:443", "registry-npmjs.org:443", "gooogle.com:443", "crates-io.com:443"} {
+		if allowed("env_1", d) || fm.calls != 0 {
+			t.Fatalf("%s: permitted, or the model was asked (%d calls)", d, fm.calls)
+		}
 	}
-	if !strings.Contains(fm.got, "Host: yaml.example.org") || !strings.Contains(fm.got, "Task: Add a parser") {
-		t.Fatalf("the model did not get the host and the task: %s", fm.got)
+
+	// The model: only a probability of the limit or more permits.
+	fm.yes = 0.89
+	if allowed("env_1", "yaml.example.org:443") || fm.calls != 1 {
+		t.Fatalf("a probability below the limit permitted (%d calls)", fm.calls)
+	}
+	if !strings.Contains(fm.got, "Host: yaml.example.org\n") || !strings.Contains(fm.got, "Task: Add a parser") || strings.Contains(fm.got, "Use the yaml package") {
+		t.Fatalf("the model must get the host and the title of the task only: %s", fm.got)
 	}
 	// The same task does not ask again for the same host.
-	fm.args = `{"what":"a package index","official_host":"yaml.example.org","verdict":"allow","confidence":"high"}`
+	fm.yes = 1
 	if allowed("env_1", "yaml.example.org:443") || fm.calls != 1 {
 		t.Fatalf("asked the model again (%d calls)", fm.calls)
 	}
-	for _, args := range []string{`{"what":"unknown","verdict":"ask","confidence":"high"}`, ``, `not json`} {
-		fm.args = args
-		if allowed("env_1", "a"+strings.Repeat("b", fm.calls)+".example.org:443") {
-			t.Fatalf("permitted for the answer %q", args)
-		}
-	}
-	// The model names a different official host: the host is not that site.
-	fm.args = `{"what":"the yaml project","official_host":"yaml.example.org","verdict":"allow","confidence":"high"}`
-	if allowed("env_1", "yarnl.example.org:443") {
-		t.Fatal("permitted a host that is not the official host")
-	}
-	// A name that looks like a known name does not go to the model.
-	n := fm.calls
-	for _, d := range []string{"pypl.org:443", "pypi.org.cdn.example.org:443", "registry-npmjs.org:443", "gooogle.com:443", "crates-io.com:443"} {
-		if allowed("env_1", d) || fm.calls != n {
-			t.Fatalf("%s: permitted, or the model was asked (%d calls)", d, fm.calls-n)
-		}
-	}
-	fm.args, fm.err = "", io.ErrUnexpectedEOF
+	fm.err = io.ErrUnexpectedEOF
 	if allowed("env_1", "err.example.org:443") {
 		t.Fatal("permitted when the model failed")
 	}
-	fm.err, fm.args = nil, `{"what":"the documentation of the yaml project","official_host":"example.org","verdict":"allow","confidence":"high"}`
+	fm.err, fm.yes = nil, 0.9
 	calls := fm.calls
 	if !allowed("env_1", "docs.example.org:443") || fm.calls != calls+1 {
-		t.Fatal("high confidence did not permit")
+		t.Fatal("the probability of the limit did not permit")
 	}
 	// The decision is a rule: the next ask needs no model.
 	if !allowed("env_1", "docs.example.org:443") || fm.calls != calls+1 {
@@ -216,7 +194,7 @@ func TestEgressAutoDestination(t *testing.T) {
 			docs = v
 		}
 	}
-	if !strings.Contains(deref(docs.Note), "the model local knows the host with high confidence: the documentation of the yaml project") ||
+	if !strings.Contains(deref(docs.Note), "the decision model local gives 0.900 that the host is a known public source (limit 0.90)") ||
 		docs.Owner != "user:a@example.local" {
 		t.Fatalf("the review of the model decision: %+v", docs)
 	}

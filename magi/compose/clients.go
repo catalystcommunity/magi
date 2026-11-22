@@ -277,7 +277,10 @@ type System struct {
 	// egressReviews caches decided egress reviews (egressreview.go).
 	egressReviews *egressReviews
 	// egressAsked keeps the hosts that the model did not permit (egressauto.go).
-	egressAsked  egressAutoAsked
+	egressAsked egressAutoAsked
+	// hostDecide replaces the decision model of the automatic destination
+	// decision in a test: the probability of "yes" and the model name.
+	hostDecide   func(ctx context.Context, state string) (float64, string, error)
 	Artifacts    *artifactsapi.ArtifactClient
 	Conversation *conversationapi.ConversationClient
 	Execution    *executionapi.ExecutionClient

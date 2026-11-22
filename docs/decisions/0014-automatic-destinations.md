@@ -10,9 +10,10 @@ decides a new host itself when the answer is not in doubt:
 
 1. Code permits a host in the list of public software sources, and a host
    in the list of the installation.
-2. The review model permits a host only when it answers that it knows the
-   host as a public source of software, documentation, or reference data,
-   with high confidence.
+2. The decision model permits a host only when it gives a high
+   probability that the host is a known public source of software,
+   documentation, or reference data. A name that looks like a known name
+   does not go to the model: code sends it to an admin.
 3. Code refuses the automatic decision for an address, a private or
    reserved name, a punycode name, and a port that is not 80 or 443. The
    model cannot change this.
@@ -70,6 +71,23 @@ What the measurement showed:
   whole answer limit to think. Such a host goes to a person after about
   16 seconds.
 
-Not done: the development installation did not yet run code changes with
+A decision model replaced the chat model (2026-11-22). It gives a
+probability for one yes or no question
+(`evals/egress/decide_destinations.py`). With a small model (4B
+parameters) and no training, for the same hosts:
+
+| | Known hosts permitted | Hosts that need a person permitted | Time for one host |
+| --- | --- | --- | --- |
+| Chat model with the checks in code | 5 to 9 of 18 | 0 of 46 | 2 to 16 seconds |
+| Decision model alone, limit 0.95 | 18 of 18 | 6 of 46, all names that look like known names | 0.2 seconds |
+| Decision model with the checks in code, limit 0.95 | 18 of 18 | 0 of 46 | 0.2 seconds |
+
+The last line comes from the probabilities of the model and the code
+checks together, not from a run of the service. The look-alike check was
+made with this host list, so the list is not an independent test of it.
+
+Not done: a larger host list that the checks were not made with, training
+of the decision model on it, and calibration of the question in the
+catalog. The development installation did not yet run code changes with
 this setting for a period, and two runs are a small sample for the hosts
 that need a person.

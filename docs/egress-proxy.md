@@ -160,18 +160,22 @@ about a destination that has no decision, Magi permits it in these cases:
 | --- | --- |
 | `"sources": true` | A host in the list of public software sources of Magi (`sourceHosts` in `magi/compose/egressauto.go`): package indexes, toolchains, operating system packages, source and release files, container images |
 | `"hosts": [...]` | A host that matches a pattern of the installation (`name` or `*.name`) |
-| `"model": true` | A host that the review model knows as a public source of software, documentation, or reference data, with high confidence |
+| `"model": true` | A host that the decision model (task `decide` of the model catalog) knows as a public source of software, documentation, or reference data: the probability of "yes" is `limit` or more (default 0.95) |
 
 - Magi never permits these automatically: an address, a name with one
   label, a private or reserved name (`.local`, `.internal`, `.svc`,
   `.test`, ...), a name in the punycode form, and a port that is not 80
   or 443. They go to an admin.
-- The model gets the host name and the title and instructions of the
-  task. It gets no data from the environment. It must answer with a tool
-  call: `allow` with the confidence `high` permits; each other answer, an
-  error, and no answer in 25 seconds do not. Then the review stays open
-  for an admin, and Magi does not ask the model again for the same task
-  and host for 30 minutes.
+- A name that looks like a known name also goes to an admin, before the
+  model: a domain that is one or two letters from a known domain
+  (`pypl.org`), or a host with the name of a known domain in it
+  (`registry-npmjs.org`). A model reads such a name as the known name.
+- The decision model gets the host name and the title of the task. It
+  gets no other data from the environment. It gives a probability, not
+  text. A probability below the limit, an error, and no answer in 10
+  seconds do not permit. Then the review stays open for an admin, and
+  Magi does not ask the model again for the same task and host for 30
+  minutes.
 - The model decides only for the environment of a task.
 - An automatic decision is a decided review with the decider `magi:auto`
   and the reason in the note. An admin sees it in the decided reviews and

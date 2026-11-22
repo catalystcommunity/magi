@@ -20,3 +20,14 @@ python3 -I evals/egress/auto_destinations.py --url https://magi.example.local \
   development installation. Dismiss the reviews after the run.
 - Magi does not ask the model again for the same run and host for 30
   minutes. Use a different run for a second measurement.
+
+`decide_destinations.py` asks a decision model the question of the
+automatic decision for each host and prints the probability of "yes". It
+writes no decision, so it is safe on each installation.
+
+```sh
+python3 -I evals/egress/decide_destinations.py --url https://magi.example.local --token-file TOKEN --out probs.json
+```
+
+The question text is also in `magi/compose/egressauto.go`
+(`hostQuestion`). Change them together.
