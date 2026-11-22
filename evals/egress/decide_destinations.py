@@ -37,12 +37,13 @@ def main():
     hosts = json.load(open(a.hosts))
     rows = []
     for want in ("allow", "either", "ask"):
-        for host in hosts[want]:
+        for entry in hosts[want]:
+            host, category = (entry["host"], entry.get("category", "")) if isinstance(entry, dict) else (entry, "")
             state = f"A task environment wants to connect to a host that the network policy does not list.\nHost: {host}\nPort: 443\nTask: {a.work}"
             r = magi.decision(T.DecisionRequest(state=state, task=a.task,
                                                 questions=[T.DecisionQuestion(id="egress-known-source", type="noul", question=QUESTION)]))
             yes = r.answers[0].probs[0]
-            rows.append({"host": host, "want": want, "yes": yes, "model": r.model, "ms": r.ms, "calibrated": r.answers[0].calibrated})
+            rows.append({"host": host, "category": category, "want": want, "yes": yes, "model": r.model, "ms": r.ms, "calibrated": r.answers[0].calibrated})
             print(f"{want:6} {yes:6.3f} {r.ms:5d}ms  {host}", flush=True)
     if a.out:
         json.dump(rows, open(a.out, "w"), indent=1)

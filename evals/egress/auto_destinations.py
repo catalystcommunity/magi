@@ -41,14 +41,15 @@ def main():
     rows, bad = [], 0
     for want in ("allow", "either", "ask"):
         n = 0
-        for host in hosts[want]:
+        for entry in hosts[want]:
+            host, category = (entry["host"], entry.get("category", "")) if isinstance(entry, dict) else (entry, "")
             start = time.time()
             try:
                 got = ask.destination(T.EgressDestinationRequest(environment=a.environment, destination=host + ":443")).allowed
             except RpcError as e:
                 print(f"{host}: {e}", file=sys.stderr)
                 got = None
-            rows.append({"host": host, "want": want, "allowed": got, "seconds": round(time.time() - start, 1)})
+            rows.append({"host": host, "category": category, "want": want, "allowed": got, "seconds": round(time.time() - start, 1)})
             n += got is True
             if want == "ask" and got:
                 bad += 1
