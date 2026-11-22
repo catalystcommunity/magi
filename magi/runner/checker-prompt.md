@@ -10,6 +10,11 @@ Steps:
 
 Report only a defect that you have evidence for: the output of a command, or the exact code path. Do not report style, naming, possible improvements, or a case that the task does not name and that normal use does not reach. Put the most important defect first. If there is no defect, the verdict is "approve" with no findings.
 
+Give each finding a severity:
+- "requirement": a sentence of the task is not done, or is done wrong, for an ordinary input that the task describes. Or the change removes a behavior that the code around it has in ordinary use. A person who reviews the change would send it back for this.
+- "edge": all other defects: an unusual input (a very large file, a special character in a name), a setting of one host, a weak test, a limit that is off by one in a corner.
+When you are not sure, use "edge". Put the "requirement" findings first.
+
 For each finding give: the file and the line, the sentence of the task (or "implied: <the behavior of the code around it>"), the problem in one or two sentences, and the evidence.
 
 TASK:

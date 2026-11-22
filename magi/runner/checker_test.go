@@ -52,7 +52,9 @@ func checkWithChecker(t *testing.T, result string, rounds string) (Result, strin
 	return res, seen, fake
 }
 
-const checkerRevise = `{"verdict": "revise", "findings": [{"file": "greeting.txt", "line": 1, "sentence": "Write the greeting.",
+const checkerRevise = `{"verdict": "revise", "findings": [
+ {"severity": "edge", "file": "greeting.txt", "line": 1, "sentence": "Write the greeting.", "problem": "A name of 5000 letters is cut.", "evidence": "a test"},
+ {"severity": "requirement", "file": "greeting.txt", "line": 1, "sentence": "Write the greeting.",
  "problem": "The greeting has no name.", "evidence": "cat greeting.txt"}]}`
 
 // The first findings of the checker go back to the apprentice as the output
@@ -62,8 +64,9 @@ func TestCheckerFindingsGoToTheApprenticeOnce(t *testing.T) {
 	if res.Outcome != "fail-checks" || res.Outputs["checker.rounds"] != "1" || res.Outputs["check.attempts"] != "0" {
 		t.Fatalf("result = %+v", res)
 	}
+	// Only the finding about a requirement goes to the apprentice.
 	if o := res.Outputs["check_output"]; !strings.Contains(o, "1. greeting.txt:1: The greeting has no name.") ||
-		!strings.Contains(o, "Task: Write the greeting.") || !strings.Contains(o, "Evidence: cat greeting.txt") {
+		!strings.Contains(o, "Task: Write the greeting.") || !strings.Contains(o, "Evidence: cat greeting.txt") || strings.Contains(o, "5000") {
 		t.Fatalf("check_output = %q", o)
 	}
 	read := func(suffix string) string {
@@ -94,7 +97,8 @@ func TestCheckerFindingsAreAHintAfterOneRound(t *testing.T) {
 	if res.Outcome != "pass" || res.Outputs["checker.verdict"] != "revise" || res.Outputs["check_output"] != "" {
 		t.Fatalf("result = %+v", res)
 	}
-	if !hasNote(fake.posts, "The checker still finds these defects after one round of corrections:\n1. greeting.txt:1: The greeting has no name.") {
+	if !hasNote(fake.posts, "The checker still finds these defects after one round of corrections:\n1. greeting.txt:1: The greeting has no name.") ||
+		!hasNote(fake.posts, "The checker also names these smaller defects (unusual inputs, weak tests):\n1. greeting.txt:1: A name of 5000 letters is cut.") {
 		t.Fatalf("reports = %q", fake.posts)
 	}
 }
@@ -102,8 +106,14 @@ func TestCheckerFindingsAreAHintAfterOneRound(t *testing.T) {
 // An approval and a failed checker both let the task go to the review.
 func TestCheckerApprovalAndFailure(t *testing.T) {
 	res, _, fake := checkWithChecker(t, `{"verdict": "approve", "findings": []}`, "")
-	if res.Outcome != "pass" || res.Outputs["checker.verdict"] != "approve" || !hasNote(fake.posts, "The checker found no defect.") {
+	if res.Outcome != "pass" || res.Outputs["checker.verdict"] != "approve" || !hasNote(fake.posts, "The checker found no defect in the requirements of the task.") {
 		t.Fatalf("approve: %+v %q", res, fake.posts)
+	}
+	// A finding that is not about a requirement does not start a work round.
+	res, _, fake = checkWithChecker(t, `{"verdict": "revise", "findings": [{"severity": "edge", "file": "greeting.txt", "line": 1,
+ "sentence": "Write the greeting.", "problem": "A name of 5000 letters is cut.", "evidence": "a test"}]}`, "")
+	if res.Outcome != "pass" || res.Outputs["checker.verdict"] != "approve" || !hasNote(fake.posts, "1. greeting.txt:1: A name of 5000 letters is cut.") {
+		t.Fatalf("edge only: %+v %q", res, fake.posts)
 	}
 	res, _, fake = checkWithChecker(t, `not json`, "")
 	if res.Outcome != "pass" || res.Outputs["checker.verdict"] != "" || !hasNote(fake.posts, "The checker failed: the result of the checker is not JSON") {

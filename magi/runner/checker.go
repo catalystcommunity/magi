@@ -22,10 +22,11 @@ import (
 // keep, or send the credentials of the command.
 //
 // The checker gets a copy of the tree with the change, outside the sandbox
-// of the task, so it cannot change the work. Its findings go to the
-// apprentice one time, as the output of a failed check. After that round the
-// findings are a hint in the review request: a checker that always finds
-// something must not keep the task from the review of a person.
+// of the task, so it cannot change the work. Its findings about a
+// requirement of the task go to the apprentice one time, as the output of a
+// failed check. After that round, and for each other finding, the findings
+// are a hint in the review request: a checker that always finds something
+// must not keep the task from the review of a person.
 
 //go:embed checker-prompt.md
 var checkerPrompt string
@@ -34,8 +35,9 @@ var checkerPrompt string
 const checkerSchema = `{"type":"object","additionalProperties":false,"required":["verdict","findings"],
 "properties":{"verdict":{"type":"string","enum":["approve","revise"]},
 "findings":{"type":"array","items":{"type":"object","additionalProperties":false,
-"required":["file","line","sentence","problem","evidence"],
-"properties":{"file":{"type":"string"},"line":{"type":"integer"},"sentence":{"type":"string"},
+"required":["severity","file","line","sentence","problem","evidence"],
+"properties":{"severity":{"type":"string","enum":["requirement","edge"]},
+"file":{"type":"string"},"line":{"type":"integer"},"sentence":{"type":"string"},
 "problem":{"type":"string"},"evidence":{"type":"string"}}}}}}`
 
 // checkerMaxFindings: the apprentice gets the first findings. A longer list
@@ -43,6 +45,7 @@ const checkerSchema = `{"type":"object","additionalProperties":false,"required":
 const checkerMaxFindings = 8
 
 type checkerFinding struct {
+	Severity string `json:"severity"`
 	File     string `json:"file"`
 	Line     int    `json:"line"`
 	Sentence string `json:"sentence"`
@@ -55,11 +58,19 @@ type checkerResult struct {
 	Findings []checkerFinding `json:"findings"`
 }
 
-// text is the findings as a numbered list.
-func (c checkerResult) text() string {
+// text is the findings of one severity as a numbered list, "" for none.
+// The checker finds something in each change, also in a change that a
+// person approved: an unusual input, a weak test. Only a finding with the
+// severity "requirement" is a reason for a work round.
+func (c checkerResult) text(severity string) string {
 	var b strings.Builder
-	for i, f := range c.Findings[:min(checkerMaxFindings, len(c.Findings))] {
-		fmt.Fprintf(&b, "%d. %s:%d: %s\n   Task: %s\n   Evidence: %s\n", i+1, f.File, f.Line, f.Problem, f.Sentence, f.Evidence)
+	n := 0
+	for _, f := range c.Findings {
+		if (f.Severity == "requirement") != (severity == "requirement") || n == checkerMaxFindings {
+			continue
+		}
+		n++
+		fmt.Fprintf(&b, "%d. %s:%d: %s\n   Task: %s\n   Evidence: %s\n", n, f.File, f.Line, f.Problem, f.Sentence, f.Evidence)
 	}
 	return b.String()
 }

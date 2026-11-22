@@ -208,11 +208,16 @@ Set the command in the configuration of the runner:
 - The task and the instructions for the checker come on standard input
   (`runner/checker-prompt.md`).
 - The result has a verdict (`approve` or `revise`) and findings. Each
-  finding has a file, a line, the sentence of the task, the problem, and
-  the evidence.
-- The first findings go back to the apprentice as the output of a failed
-  check, one time. This does not count as a failed check.
-- After that round, the findings are a hint in the review request. A
+  finding has a severity, a file, a line, the sentence of the task, the
+  problem, and the evidence. The severity is `requirement` (a sentence of
+  the task is not done for an ordinary input) or `edge` (an unusual input,
+  a weak test, a setting of one host).
+- The first `requirement` findings go back to the apprentice as the output
+  of a failed check, one time. This does not count as a failed check.
+- After that round, the findings are a hint in the review request. The
+  `edge` findings are always only a hint: on fixed changes that a person
+  approved (2026-11-22), a coding agent as checker named 4 to 6 findings
+  for each change, and 0 or 1 of them had the severity `requirement`. A
   failure of the checker is also a hint. The checker does not stop a task.
 
 The checker runs code of the change on the runner host, in the sandbox of
