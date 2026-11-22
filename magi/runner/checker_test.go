@@ -3,7 +3,9 @@ package runner
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -36,7 +38,10 @@ func checkWithChecker(t *testing.T, result string, rounds string) (Result, strin
 		t.Fatal(err)
 	}
 	var seen string
+	needView(t)
 	r.Cfg.Checker.Command, seen = fakeChecker(t, result)
+	// The fake writes what it got next to its script.
+	r.Cfg.Checker.Writable = []string{filepath.Dir(seen)}
 	vars := map[string]string{"repo": "r", "title": "Say hello", "instructions": "Write the greeting.", "base": base[:7], "check_command": "true"}
 	for k, v := range out {
 		vars[k] = v
@@ -118,5 +123,101 @@ func TestCheckerApprovalAndFailure(t *testing.T) {
 	res, _, fake = checkWithChecker(t, `not json`, "")
 	if res.Outcome != "pass" || res.Outputs["checker.verdict"] != "" || !hasNote(fake.posts, "The checker failed: the result of the checker is not JSON") {
 		t.Fatalf("failure: %+v %q", res, fake.posts)
+	}
+}
+
+// needView skips a test on a Linux host where bubblewrap cannot make a
+// view (not installed, or no user namespaces).
+func needView(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS != "linux" {
+		return
+	}
+	if err := exec.Command("bwrap", "--unshare-all", "--ro-bind", "/", "/", "true").Run(); err != nil {
+		t.Skipf("bubblewrap cannot make a view on this host: %v", err)
+	}
+}
+
+// The checker command does not see the home directory of the user or the
+// variables of the runner. It sees its work directory and the paths of the
+// configuration.
+func TestCheckerViewHidesTheHome(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the view is for Linux")
+	}
+	needView(t)
+	home, state, tools := t.TempDir(), t.TempDir(), t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("MAGI_TEST_RUNNER_SECRET", "runner-secret")
+	for path, body := range map[string]string{
+		filepath.Join(home, ".ssh", "id"):          "private key",
+		filepath.Join(home, ".agent", "login"):     "sign-in",
+		filepath.Join(home, "bin", "real-checker"): "#!/bin/sh\n. \"$1\"\n",
+		filepath.Join(tools, "version"):            "tool 1",
+	} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// The command is a link in a directory that the view does not have.
+	link := filepath.Join(home, "link-checker")
+	if err := os.Symlink(filepath.Join(home, "bin", "real-checker"), link); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(state, "checker-1")
+	if err := os.MkdirAll(filepath.Join(dir, "tree"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	script := filepath.Join(dir, "probe.sh")
+	probe := `{
+echo "home: $(ls -A "$HOME" | tr '\n' ' ')"
+cat "$HOME/.ssh/id" 2>/dev/null && echo "READ THE KEY"
+echo "login: $(cat "$HOME/.agent/login")"
+echo "tool: $(cat ` + tools + `/version)"
+echo "secret: [$MAGI_TEST_RUNNER_SECRET] flag: [$CHECKER_FLAG] home: [$HOME]"
+touch ` + tools + `/new 2>/dev/null && echo "WROTE THE TOOLS"
+touch "$HOME/.agent/refreshed" && echo "wrote the sign-in directory"
+touch /usr/magi-test 2>/dev/null && echo "WROTE /usr"
+} > ` + dir + `/out 2>&1
+exit 0
+`
+	if err := os.WriteFile(script, []byte(probe), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	r := &Runner{}
+	r.Cfg.Checker.Writable = []string{filepath.Join(home, ".agent")}
+	r.Cfg.Checker.ReadOnly = []string{tools}
+	r.Cfg.Checker.Env = map[string]string{"CHECKER_FLAG": "on"}
+	argv, env, err := r.checkerCommand(dir, []string{link, script})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(argv[0], argv[1:]...)
+	cmd.Dir, cmd.Env = filepath.Join(dir, "tree"), env
+	if b, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("%v: %s", err, b)
+	}
+	b, _ := os.ReadFile(filepath.Join(dir, "out"))
+	got := string(b)
+	for _, want := range []string{"login: sign-in", "tool: tool 1", "secret: [] flag: [on] home: [" + home + "]", "wrote the sign-in directory"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("no %q in:\n%s", want, got)
+		}
+	}
+	for _, bad := range []string{"READ THE KEY", "private key", "WROTE", ".ssh", "link-checker"} {
+		if strings.Contains(got, bad) {
+			t.Errorf("%q in:\n%s", bad, got)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(home, ".agent", "refreshed")); err != nil {
+		t.Errorf("the writable path did not keep the file: %v", err)
+	}
+	// A relative path of the configuration is an error.
+	r.Cfg.Checker.ReadOnly = []string{"tools"}
+	if _, _, err := r.checkerCommand(dir, []string{link}); err == nil {
+		t.Error("a relative path was accepted")
 	}
 }

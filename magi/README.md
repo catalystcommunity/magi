@@ -197,7 +197,10 @@ Set the command in the configuration of the runner:
 "checker": {
   "command": ["codex", "exec", "-s", "workspace-write", "--skip-git-repo-check", "--ephemeral", "--ignore-user-config",
               "--ignore-rules", "--color", "never", "--output-schema", "{schema}", "-o", "{out}", "-"],
-  "timeout_minutes": 20
+  "timeout_minutes": 20,
+  "writable": ["~/.codex"],
+  "read_only": ["~/.cache/gomod"],
+  "env": {"GOMODCACHE": "~/.cache/gomod", "GOPROXY": "off"}
 }
 ```
 
@@ -220,8 +223,28 @@ Set the command in the configuration of the runner:
   for each change, and 0 or 1 of them had the severity `requirement`. A
   failure of the checker is also a hint. The checker does not stop a task.
 
-The checker runs code of the change on the runner host, in the sandbox of
-the coding agent. Use a coding agent that has a sandbox with no network.
+The checker runs code of the change on the runner host. On Linux, the
+runner starts the command in a view of the host (bubblewrap):
+
+- The view has the system programs (`/usr`), the files of `/etc` for names
+  and certificates, and the directory of the check.
+- The home directory of the user is empty in the view. The command does
+  not see keys, repositories, or other sign-ins.
+- `writable` are the paths that the command can change: the directory
+  where the coding agent keeps its sign-in. `read_only` are more paths
+  that it can read: toolchains and a module cache, so that it can run the
+  tests of the change.
+- The command gets `HOME`, `PATH`, `USER`, `LANG`, `TERM`, and the
+  variables of `env`. It does not get the variables of the runner.
+- The view keeps the network: the coding agent calls its service. So use a
+  coding agent that has a sandbox with no network for the commands that
+  it runs.
+- A Linux host with no bubblewrap does not run the checker. macOS has no
+  view yet: there the command runs with the small environment only.
+
+The code of the change can read the paths of `writable`, which have the
+sign-in of the coding agent. It has no network in the sandbox of the
+coding agent, and the result of the checker has a fixed form.
 
 ### Runner updates
 

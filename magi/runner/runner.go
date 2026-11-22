@@ -94,9 +94,18 @@ type Config struct {
 	// of the tree, "{diff}" the diff file, "{schema}" the JSON Schema of the
 	// result, and "{out}" the file where the command writes the result. The
 	// task comes on standard input. Empty: no checker.
+	//
+	// The command runs in a view of the host with an empty home directory
+	// (checkerview.go). Writable are paths that the command can change (the
+	// directory with its sign-in). ReadOnly are paths that it can read
+	// (toolchains, a module cache). Env are its variables; the variables of
+	// the runner do not go to it.
 	Checker struct {
-		Command        []string `json:"command"`
-		TimeoutMinutes int      `json:"timeout_minutes"`
+		Command        []string          `json:"command"`
+		TimeoutMinutes int               `json:"timeout_minutes"`
+		Writable       []string          `json:"writable"`
+		ReadOnly       []string          `json:"read_only"`
+		Env            map[string]string `json:"env"`
 	} `json:"checker"`
 	Sandbox struct {
 		// Preflight is a shell command that runs in the sandbox before each
@@ -155,6 +164,16 @@ func LoadConfig(path string) (Config, error) {
 	fix(&c.Sandbox.VM.Template)
 	fix(&c.Sandbox.VM.Hypervisor)
 	fix(&c.Sandbox.VM.Virtiofsd)
+	for i := range c.Checker.Writable {
+		fix(&c.Checker.Writable[i])
+	}
+	for i := range c.Checker.ReadOnly {
+		fix(&c.Checker.ReadOnly[i])
+	}
+	for k, v := range c.Checker.Env {
+		// A path list can have more than one home path.
+		c.Checker.Env[k] = strings.ReplaceAll(":"+v, ":~/", ":"+home+"/")[1:]
+	}
 	for k, v := range c.Sandbox.Env {
 		fix(&v)
 		c.Sandbox.Env[k] = v

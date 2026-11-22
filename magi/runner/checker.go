@@ -22,7 +22,8 @@ import (
 // keep, or send the credentials of the command.
 //
 // The checker gets a copy of the tree with the change, outside the sandbox
-// of the task, so it cannot change the work. Its findings about a
+// of the task, so it cannot change the work. It runs in a view of the host
+// that has no home directory of the user (checkerview.go). Its findings about a
 // requirement of the task go to the apprentice one time, as the output of a
 // failed check. After that round, and for each other finding, the findings
 // are a hint in the review request: a checker that always finds something
@@ -116,8 +117,12 @@ func (r *Runner) runChecker(ctx context.Context, a magiapi.RunnerAssignment, tre
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+	argv, env, err := r.checkerCommand(dir, argv)
+	if err != nil {
+		return res, err
+	}
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
-	cmd.Dir = work
+	cmd.Dir, cmd.Env = work, env
 	cmd.Stdin = strings.NewReader(strings.ReplaceAll(checkerPrompt, "{diff}", filepath.Join(dir, "CHANGE.diff")) + "\n" + task + "\n")
 	if b, err := cmd.CombinedOutput(); err != nil {
 		return res, fmt.Errorf("%s: %v: %s", argv[0], err, tail(string(b), 300))
