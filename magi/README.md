@@ -195,7 +195,7 @@ Set the command in the configuration of the runner:
 
 ```json
 "checker": {
-  "command": ["codex", "exec", "-s", "workspace-write", "--skip-git-repo-check", "--ephemeral", "--ignore-user-config",
+  "command": ["codex", "exec", "-m", "MODEL", "-c", "model_reasoning_effort=\"high\"", "-s", "workspace-write", "--skip-git-repo-check", "--ephemeral", "--ignore-user-config",
               "--ignore-rules", "--color", "never", "--output-schema", "{schema}", "-o", "{out}", "-"],
   "timeout_minutes": 20,
   "writable": ["~/.codex"],
@@ -204,6 +204,8 @@ Set the command in the configuration of the runner:
 }
 ```
 
+- `--ignore-user-config` keeps the settings of the person out of the
+  check, so name the model and the reasoning effort in the command.
 - The command runs in a copy of the tree of the change, outside the
   sandbox of the task. `{dir}` is that directory, `{diff}` is the file with
   the diff, `{schema}` is the JSON Schema of the result, and `{out}` is the
