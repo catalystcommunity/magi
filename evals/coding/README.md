@@ -334,6 +334,31 @@ Grade each run, then close it:
 magi decide RUN reject
 ```
 
+### The verdict for a harness change
+
+One run of a case says little. The same model with the same settings got
+8 of 10 probes of pr2 in one run and 2 of 10 in the next run. Thus a
+change of the harness gets a verdict from two or more runs of each version
+(decision record 0006).
+
+1. Run the cases two or more times with the version before the change.
+   Give each run its own label. Run `probe.py` on each result directory.
+2. Release the change to the runner. Run the same cases with new labels.
+   Run `probe.py` on each result directory.
+3. Get the verdict:
+
+```sh
+python3 -I evals/coding/verdict.py --baseline base-1,base-2 --candidate cand-1,cand-2
+```
+
+The score of a run is the sum of the parts of the probes that pass, one
+part for each case. The verdict is `pass` when the mean of the candidate
+is above the mean of the baseline by more than the spread of the baseline
+runs. It is `fail` when the mean is below by more than the spread, or
+when a probe passes in each baseline run and fails in each candidate run.
+A smaller difference is `no change`. One baseline run gives `no verdict`.
+The exit status is 0, 1, 2, or 3 in that sequence.
+
 ### One case by hand
 
 The candidate runs in the code-change workflow of Magi (a sandbox on a

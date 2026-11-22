@@ -30,9 +30,10 @@ judge it. The goal is that a person does not need to.
 
 - The command exists and gives a verdict for the persona turn. Done:
   `evals/turn/verdict.py` (`evals/turn/README.md`).
-- The command gives a verdict for the coding harness. Not done: the
-  coding eval (`evals/coding`) runs through an installation and a
-  runner, and a person reads the grades.
+- The command gives a verdict for the coding harness. Partly done:
+  `evals/coding/verdict.py` gives the verdict from the probe results of
+  baseline runs and candidate runs (`evals/coding/README.md`). A person
+  still starts the runs of each version through an installation.
 - The code-change workflow runs the verdict for a change that touches a
   prompt or the persona turn, and shows the verdict with the diff. Not
   done.

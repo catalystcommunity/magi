@@ -17,7 +17,7 @@ step "python: evals/turn"
 python3 evals/turn/test_verdict.py -q || fail "evals/turn/test_verdict.py"
 
 step "python: evals/coding"
-for t in test_run test_dbcheck test_probe; do
+for t in test_run test_dbcheck test_probe test_verdict; do
   python3 evals/coding/$t.py -q >/dev/null 2>&1 || fail "evals/coding/$t.py"
 done
 

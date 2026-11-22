@@ -285,18 +285,38 @@ only: an approval of one review is not reliable.
 
 With `--tester` (or `MAGI_APPRENTICE_TESTER=true`) and a review model, the
 tester runs before the work review (`tester.py`). The tester is a second
-run of the worker model with an empty context. It gets the task and the
-work directory with the change. It writes one test file from the words of
-the task, runs it, and reports the tests that fail because the code does
-not do what the task says. It has 40 model calls and 20 minutes. The
-harness then puts the work directory back as it was before the tester, so
-the tester cannot change the work. Each finding goes to the apprentice
-before the blockers of the review, with the sentence of the task and the
-source of the test. The harness drops a finding whose test is not in the
-test file. The transcript has the records of the tester with the prefix
-`tester_`, and one record `tester` with the findings. The tester is off by
-default. The runner passes the flag when `apprentice.tester` is true and
-the work review is on.
+run of the worker model with an empty context. It gets the sentences of
+the task with a number each (S1, S2, ...), and the work directory with the
+change. It writes one test file (`test_tester_probe.py` or
+`tester_probe_test.go`) and runs it. It has 40 model calls and 20 minutes.
+The harness does these parts itself:
+
+- The finish of the tester goes back when a sentence has no test and no
+  line that says why it has none, or when a Python test file of the
+  tester has a fake, a stub, or a mock of its own.
+- The harness runs the test file. The report of the tester is not used.
+- A finding is a test that stops with an exception in a file of the
+  change (a Go panic, or a Python traceback through such a file that does
+  not end in a test file and is not an `AssertionError`). The tests that
+  fail in a different way stay in the transcript only.
+- The harness puts the work directory back as it was before the tester,
+  so the tester cannot change the work.
+
+Each finding goes to the apprentice before the blockers of the review,
+with the sentence of the task, the failure, and the source of the test.
+The transcript has the records of the tester with the prefix `tester_`,
+and one record `tester` with the failed tests and the findings. The tester
+is off by default. The runner passes the flag when `apprentice.tester` is
+true and the work review is on.
+
+Why only an exception is a finding: on fixed changes with known defects
+(2026-11-21, the worker model on an RTX 3090), the tests of the tester
+that failed on an assertion were wrong each time, also on two changes
+that a person approved. In three of three runs, the tester found a change
+that passed its check and its review and stopped with a `TypeError` on the
+real `Tools` object (the tests of that change used a fake). It gave no
+finding on nine other changes, four of them approved by a person. It did
+not find the defects where the code runs and gives a wrong value.
 
 Before a review round (the test gate, the work review, or the checklist),
 the harness keeps the change that passed the check as a git tree object
