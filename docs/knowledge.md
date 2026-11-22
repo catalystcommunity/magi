@@ -265,7 +265,8 @@ only when its title and instructions share two or more subject words with
 the title of the lesson. Magi compares the first 5 letters of each word of
 5 or more letters, and ignores words that most tasks have (`check`,
 `tests`, `error`). A topic lesson gets 2 points and 1 point for each shared
-word, up to 3.
+word, up to 3. The area can give more subject words after a colon:
+`topic: retry idempotency duplicate`. Magi compares these words also.
 
 - An operator call makes a proposal: `magi lesson propose -title T -area A
   -source S -text TEXT` (`propose-lesson`).

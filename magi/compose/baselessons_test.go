@@ -139,4 +139,10 @@ func TestLessonsForTopic(t *testing.T) {
 		"Sort the keys of the map. Check their order in the tests."); got != "" {
 		t.Fatalf("lessons = %q", got)
 	}
+	// The area gives subject words that the title does not have.
+	s = lessonsSystem(t, lessonEntity("lp-0003", "Send the same key again", lessonTopic+": retry idempotency duplicate", "Text."))
+	if got := s.lessonsFor(context.Background(), "magi", "Retry the upload",
+		"A retry must not make a duplicate object."); got != "- lp-0003 Send the same key again: Text." {
+		t.Fatalf("lessons = %q", got)
+	}
 }

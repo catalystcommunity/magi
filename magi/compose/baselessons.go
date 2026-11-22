@@ -35,13 +35,17 @@ func (s *System) lessonsFor(ctx context.Context, repo, title, instructions strin
 	var out []scored
 	stems := topicStems(text)
 	for _, e := range entities {
-		score, topic := 0, false
+		score, topic, subject := 0, false, strings.ToLower(e.Label)
 		for _, area := range list(e.Properties["area"]) {
 			switch {
 			case area == "all code":
 				score += 3
 			case area == lessonTopic:
 				topic = true
+			case strings.HasPrefix(area, lessonTopic+":"):
+				// The words after the colon are more subject words: the words of
+				// a task about the subject that the title does not have.
+				topic, subject = true, subject+" "+strings.ToLower(area[len(lessonTopic)+1:])
 			case repo == s.Cfg.Repo && strings.Contains(text, strings.ToLower(area)):
 				score += 5
 			}
@@ -50,7 +54,7 @@ func (s *System) lessonsFor(ctx context.Context, repo, title, instructions strin
 			// A topic lesson is for a task about its subject only: one shared
 			// word is chance.
 			n := 0
-			for stem := range topicStems(strings.ToLower(e.Label)) {
+			for stem := range topicStems(subject) {
 				if stems[stem] {
 					n++
 				}
