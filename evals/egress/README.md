@@ -31,3 +31,27 @@ python3 -I evals/egress/decide_destinations.py --url https://magi.example.local 
 
 The question text is also in `magi/compose/egressauto.go`
 (`hostQuestion`). Change them together.
+
+## Corpus and training
+
+- `corpus1.json`: 780 official hosts of public sources in 35 categories and
+  896 hosts that need a person in 36 categories. A coding agent with a
+  strong model wrote it from memory, with the instruction to leave out
+  each host that it is not sure of. It is the dev set (the even entries)
+  and the test set (the odd entries). Do not train on it.
+- `train1.json`: 882 official hosts and 1572 hosts that need a person, from
+  separate runs of the same writer that got the hosts of `corpus1.json`
+  as hosts to leave out. This is the training set.
+- `export_train.py` writes the training records of the question for a
+  decision LoRA. It adds names that look like the known hosts of the
+  training set, with the answer "no".
+- `decide_destinations.py --server URL --split dev|test` scores a
+  llama-server directly, for the checkpoints of a training run.
+
+The labels come from a model, not from a person. A host of the list of
+official hosts can be wrong. Look at the hosts that a trained model
+refuses with a high probability: some of them are label errors.
+
+Train with `evals/notetaker/train_lora.py`, together with records of the
+note questions (`evals/decide/export_train.py`), because one adapter
+serves all questions of the task `decide`.
