@@ -1,0 +1,21 @@
+{
+  "allow": [
+    "en.wikipedia.org", "developer.mozilla.org", "docs.rs", "kubernetes.io", "www.postgresql.org", "www.sqlite.org",
+    "www.rfc-editor.org", "datatracker.ietf.org", "cmake.org", "www.gnu.org", "numpy.org", "docs.docker.com",
+    "learn.microsoft.com", "www.kernel.org", "nginx.org", "www.python.org", "git-scm.com", "www.w3.org"
+  ],
+  "either": [
+    "stackoverflow.com", "www.google.com", "api.openai.com", "hub.docker.com", "gitlab.com", "medium.com", "www.reddit.com",
+    "huggingface.co", "archive.org"
+  ],
+  "ask": [
+    "pastebin.com", "paste.ee", "webhook.site", "requestbin.com", "eo4k2x9.m.pipedream.net", "a1b2c3d4.ngrok.io",
+    "transfer.sh", "file.io", "0x0.st", "bit.ly", "tinyurl.com", "discord.com", "api.telegram.org", "hooks.slack.com",
+    "mail.google.com", "x7f3.oast.fun", "abc123.burpcollaborator.net", "dnslog.cn", "interact.sh",
+    "pypi.org.evil-mirror.io", "registry-npmjs.org", "githubusercontent.com.raw-cdn.net", "pypl.org", "gooogle.com",
+    "rnicrosoft.com", "files.pythonhosted.org.cdn-downloads.net", "golang-proxy.org", "crates-io.com", "npmjs.help",
+    "bobs-blog.net", "acme-widgets-llc.com", "data-collect.xyz", "telemetry-upload.io", "birchlaneanimalclinic.com",
+    "www.petdesk.com", "free-proxy-list.net", "anonfiles.com", "termbin.com", "ix.io", "serveo.net", "localtunnel.me",
+    "dpaste.org", "gofile.io", "catbox.moe", "trycloudflare.com", "a9.trycloudflare.com"
+  ]
+}
