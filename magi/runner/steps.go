@@ -491,6 +491,31 @@ git rev-parse HEAD`, a.Vars["base_commit"], branch, shellQuote(w)), 120000)
 	out["patch"], out["patch.files"] = patch.Digest, string(files)
 	out["check_output"], out["check.attempts"] = "", "0"
 	hint := ""
+	if len(r.Cfg.Checker.Command) > 0 {
+		r.note(ctx, st, "Checks passed. The checker started.")
+		found, err := r.checkerFindings(ctx, a, env, workdir, w, diff.Patch)
+		switch {
+		case err != nil:
+			// The checker is a help, not a gate: its failure does not stop the task.
+			r.Log.Warn("checker", "run", a.Run, "err", err)
+			hint = "\n\nThe checker failed: " + err.Error()
+		case found == "":
+			out["checker.verdict"] = "approve"
+			hint = "\n\nThe checker found no defect."
+		case a.Vars["checker.rounds"] == "":
+			// The apprentice gets the findings one time. The count is kept, so
+			// the next pass goes to the review of a person.
+			out["checker.verdict"], out["checker.rounds"] = "revise", "1"
+			out["check_output"] = "The check command passed. A checker then read the change and ran tests of its own on it. " +
+				"It found these defects. Correct each one and add a test for it. If a finding is wrong, " +
+				"tell why in the finish summary.\n\n" + found
+			r.post(ctx, st, "The checks passed. The checker found defects; I sent them back to the apprentice.")
+			return Result{Outcome: "fail-checks", Outputs: out}, nil
+		default:
+			out["checker.verdict"] = "revise"
+			hint = "\n\nThe checker still finds these defects after one round of corrections:\n" + found
+		}
+	}
 	if r.Cfg.Apprentice.ReviewModel != "" {
 		r.note(ctx, st, "Checks passed. The model review started.")
 		verdict, sum := r.modelReview(ctx, a)
@@ -506,6 +531,27 @@ git rev-parse HEAD`, a.Vars["base_commit"], branch, shellQuote(w)), 120000)
 	}
 	r.report(ctx, st, "normal", "Ready for review", review+hint)
 	return Result{Outcome: "pass", Outputs: out}, nil
+}
+
+// checkerFindings runs the checker on the tree of the branch. It gives the
+// findings as a list, or "" when the checker approves.
+func (r *Runner) checkerFindings(ctx context.Context, a magiapi.RunnerAssignment, env, workdir, w, patch string) (string, error) {
+	res, err := r.exec(ctx, env, workdir, "git archive --format=tar.gz -o "+shellQuote(w+"/tree.tgz")+" HEAD", 120000)
+	if err != nil {
+		return "", err
+	}
+	if res.ExitCode != 0 {
+		return "", fmt.Errorf("archive of the tree: %s", tail(string(res.Stdout)+string(res.Stderr), 300))
+	}
+	tree, err := r.readFile(ctx, env, w+"/tree.tgz", 64<<20)
+	if err != nil {
+		return "", err
+	}
+	c, err := r.runChecker(ctx, a, tree, patch)
+	if err != nil || c.Verdict == "approve" || len(c.Findings) == 0 {
+		return "", err
+	}
+	return c.text(), nil
 }
 
 // merge merges the reviewed branch onto the newest upstream commit in the

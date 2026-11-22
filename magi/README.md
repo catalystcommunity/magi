@@ -183,6 +183,41 @@ To see the log of a runner, run `journalctl --user -u magi-runner@<magi
 host>` (Linux) or read `~/Library/Logs/magi-runner-<magi host>.log`
 (macOS).
 
+### Checker
+
+A runner can run a checker: a command of the runner host that checks a
+change after its checks pass. The command is a coding agent of the person
+who owns the runner, for example Codex, with the sign-in that this person
+made on the host. The runner only starts the command. It does not read,
+keep, or send the credentials of the command.
+
+Set the command in the configuration of the runner:
+
+```json
+"checker": {
+  "command": ["codex", "exec", "-s", "workspace-write", "--ephemeral", "--ignore-user-config",
+              "--ignore-rules", "--color", "never", "--output-schema", "{schema}", "-o", "{out}", "-"],
+  "timeout_minutes": 20
+}
+```
+
+- The command runs in a copy of the tree of the change, outside the
+  sandbox of the task. `{dir}` is that directory, `{diff}` is the file with
+  the diff, `{schema}` is the JSON Schema of the result, and `{out}` is the
+  file where the command must write the result.
+- The task and the instructions for the checker come on standard input
+  (`runner/checker-prompt.md`).
+- The result has a verdict (`approve` or `revise`) and findings. Each
+  finding has a file, a line, the sentence of the task, the problem, and
+  the evidence.
+- The first findings go back to the apprentice as the output of a failed
+  check, one time. This does not count as a failed check.
+- After that round, the findings are a hint in the review request. A
+  failure of the checker is also a hint. The checker does not stop a task.
+
+The checker runs code of the change on the runner host, in the sandbox of
+the coding agent. Use a coding agent that has a sandbox with no network.
+
 ### Runner updates
 
 Magi tells runners which release to run. The service runs the launcher

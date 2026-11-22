@@ -88,6 +88,16 @@ type Config struct {
 		// the change (primitives/apprentice tester.py). It needs WorkReview.
 		Tester bool `json:"tester"`
 	} `json:"apprentice"`
+	// Checker is a command of this host that checks a change after its
+	// checks pass (checker.go), for example the coding agent of the person
+	// who owns the runner. Command is the argument list; "{dir}" is the copy
+	// of the tree, "{diff}" the diff file, "{schema}" the JSON Schema of the
+	// result, and "{out}" the file where the command writes the result. The
+	// task comes on standard input. Empty: no checker.
+	Checker struct {
+		Command        []string `json:"command"`
+		TimeoutMinutes int      `json:"timeout_minutes"`
+	} `json:"checker"`
 	Sandbox struct {
 		// Preflight is a shell command that runs in the sandbox before each
 		// work round, for example an HTTPS request through the egress proxy.
