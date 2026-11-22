@@ -276,14 +276,16 @@ type System struct {
 	EgressProxy *EgressProxy
 	// egressReviews caches decided egress reviews (egressreview.go).
 	egressReviews *egressReviews
-	Artifacts     *artifactsapi.ArtifactClient
-	Conversation  *conversationapi.ConversationClient
-	Execution     *executionapi.ExecutionClient
-	Knowledge     *knowledgeapi.KnowledgeClient
-	Source        *sourceapi.SourceClient
-	Speech        *speechapi.SpeechClient
-	Workflow      *workflowapi.WorkflowClient
-	Release       *releaseapi.ReleaseClient
+	// egressAsked keeps the hosts that the model did not permit (egressauto.go).
+	egressAsked  egressAutoAsked
+	Artifacts    *artifactsapi.ArtifactClient
+	Conversation *conversationapi.ConversationClient
+	Execution    *executionapi.ExecutionClient
+	Knowledge    *knowledgeapi.KnowledgeClient
+	Source       *sourceapi.SourceClient
+	Speech       *speechapi.SpeechClient
+	Workflow     *workflowapi.WorkflowClient
+	Release      *releaseapi.ReleaseClient
 	// Models is the model catalog; nil when Cfg.Models is "".
 	Models *modelsapi.ModelClient
 	// Router selects models from the catalog (models.go); nil without it.

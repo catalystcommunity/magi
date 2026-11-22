@@ -25,6 +25,7 @@ obeys the record), `replaced` (a later record replaces it).
 | [0011](0011-stable-prompt-prefix.md) | The prompt prefix is stable in a session | accepted |
 | [0012](0012-stall-check.md) | A task that makes no progress is found and stopped | done |
 | [0013](0013-not-done.md) | Things that Magi does not do | accepted |
+| [0014](0014-automatic-destinations.md) | Magi permits known public destinations with no person | accepted |
 
 ## Who decides
 
@@ -45,4 +46,5 @@ content. A person decides what cannot be undone.
 | Which model serves a role? | Code, from measured results | `docs/models.md` |
 | Does a persona start work with no message from a person? | Code: the event rules and the loop limit | record 0009 |
 | Is a task stopped because it makes no progress? | Code | record 0012 |
+| Can a task environment connect to a new host? | Code for known software sources and for private names; the review model for a host that it knows with high confidence; a person for the rest | record 0014 |
 | Is a remembered fact changed or retracted? | The note taker proposes; code applies the change rules; a person reviews the queue | `docs/knowledge.md` |

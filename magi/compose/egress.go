@@ -31,6 +31,8 @@ type EgressRules struct {
 	Secrets []EgressSecretRule `json:"secrets"`
 	Rules   []EgressRule       `json:"rules"`
 	Default string             `json:"default"`
+	// Auto permits destinations with no person; nil permits none.
+	Auto *EgressAuto `json:"auto,omitempty"`
 }
 
 type EgressSecretRule struct {

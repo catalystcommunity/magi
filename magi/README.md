@@ -367,7 +367,9 @@ three parts in it:
   - `report`: the proxy blocked a flow for review (kind `request` or
     `destination`).
   - `destination`: whether a decided review permits a destination that
-    the policy of the proxy does not permit.
+    the policy of the proxy does not permit. With `auto` in the rules
+    file, Magi permits some destinations with no person
+    (`docs/egress-proxy.md`, section 4.2).
 - **Reviews** for admins: `list-egress-reviews` and `decide-egress-review`
   (`magi egress-reviews`, `magi egress-review`, the web tab Network, and
   the Android screen Network). The proxy does not wait for a person: it
@@ -502,9 +504,15 @@ The rules file (`MAGI_EGRESS_RULES`) has no secret values:
     {"hosts": ["api.example.local"], "methods": ["GET"], "verdict": "pass", "reason": "reads"},
     {"hosts": ["*"], "methods": ["DELETE"], "verdict": "review"}
   ],
-  "default": "model"
+  "default": "model",
+  "auto": {"sources": true, "hosts": ["*.mirror.example.org"], "model": true}
 }
 ```
+
+`auto` is optional. It lets Magi permit a destination that the policy of
+the proxy does not list: the public software sources that Magi knows
+(`sources`), the hosts of the installation (`hosts`), and a host that the
+review model knows with high confidence (`model`).
 
 The environment has only the placeholder (for example
 `Authorization: Bearer magi-secret-gh`). The proxy puts the value in, only

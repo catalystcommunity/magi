@@ -199,6 +199,17 @@ func (e *Egress) Destination(ctx context.Context, req magiapi.EgressDestinationR
 		return magiapi.EgressDestinationResponse{}, err
 	}
 	d := e.S.reviews().decided(ctx, e.S, reviewParts{kind: "destination", host: req.Destination})
+	if d == nil {
+		// No decision: Magi can permit some destinations with no person. A
+		// decision without its record permits nothing.
+		if why := e.autoDestination(ctx, req); why != "" {
+			if err := e.permitAuto(ctx, req, why); err != nil {
+				e.S.Log.Warn("egress automatic decision", "destination", req.Destination, "err", err)
+			} else {
+				return magiapi.EgressDestinationResponse{Allowed: true}, nil
+			}
+		}
+	}
 	out := magiapi.EgressDestinationResponse{Allowed: d != nil && d.Decision != "block"}
 	if d != nil && d.Decision == "allow-layer4" {
 		out.Layer4 = ptr(true)

@@ -150,6 +150,38 @@ can continue in a different way.
   `egress-report` or `egress-decision`), so each decision has a record of
   who made it and when.
 
+## 4.2 Destinations that Magi permits with no person
+
+Most reviews are destinations that a task reads software from. `auto` in
+the rules file lets Magi decide these (record 0014). When the proxy asks
+about a destination that has no decision, Magi permits it in these cases:
+
+| Setting | Magi permits |
+| --- | --- |
+| `"sources": true` | A host in the list of public software sources of Magi (`sourceHosts` in `magi/compose/egressauto.go`): package indexes, toolchains, operating system packages, source and release files, container images |
+| `"hosts": [...]` | A host that matches a pattern of the installation (`name` or `*.name`) |
+| `"model": true` | A host that the review model knows as a public source of software, documentation, or reference data, with high confidence |
+
+- Magi never permits these automatically: an address, a name with one
+  label, a private or reserved name (`.local`, `.internal`, `.svc`,
+  `.test`, ...), a name in the punycode form, and a port that is not 80
+  or 443. They go to an admin.
+- The model gets the host name and the title and instructions of the
+  task. It gets no data from the environment. It must answer with a tool
+  call: `allow` with the confidence `high` permits; each other answer, an
+  error, and no answer in 25 seconds do not. Then the review stays open
+  for an admin, and Magi does not ask the model again for the same task
+  and host for 30 minutes.
+- The model decides only for the environment of a task.
+- An automatic decision is a decided review with the decider `magi:auto`
+  and the reason in the note. An admin sees it in the decided reviews and
+  can decide it again, for example `block`.
+- The decision permits the destination only. The proxy inspects each
+  request as before: it removes secrets, and `evaluate` gives the verdict.
+  Use a rule that passes only reads (`GET`, `HEAD`) to all hosts, so that a
+  request that sends data to a new host goes to the review model or to an
+  admin.
+
 ## 5. Decisions on the open questions
 
 - **One proxy for the installation** first. The same program can run on a
