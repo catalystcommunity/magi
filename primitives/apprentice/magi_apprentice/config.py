@@ -85,6 +85,7 @@ class Limits:
     self_review: bool = True          # one review request before the first accepted finish
     test_gate: bool = True            # new tests run once on the code without the change (testgate.py)
     spec_step: bool = True            # acceptance checks from the instructions before the work (spec.py)
+    tester: bool = False              # tests from the task text, run before the review (tester.py)
 
     @classmethod
     def from_env(cls) -> "Limits":
@@ -102,6 +103,7 @@ class Limits:
             self_review=_env("MAGI_APPRENTICE_SELF_REVIEW", "true") != "false",
             test_gate=_env("MAGI_APPRENTICE_TEST_GATE", "true") != "false",
             spec_step=_env("MAGI_APPRENTICE_SPEC_STEP", "true") != "false",
+            tester=_env("MAGI_APPRENTICE_TESTER", "false") == "true",
         )
 
 

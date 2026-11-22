@@ -239,6 +239,25 @@ func TestWorkStepPassesReviewModel(t *testing.T) {
 	}
 }
 
+// The tester runs before the review of a work round, so it needs the
+// review model in the work round.
+func TestWorkStepPassesTester(t *testing.T) {
+	const result = `{"status": "finished", "outcome": "done", "summary": "ok", "steps": 1, "tool_calls": 1}`
+	var cfg Config
+	cfg.Apprentice.ReviewModel, cfg.Apprentice.Tester = "qwen-review", true
+	if _, _, args := workStepConfig(t, result, nil, cfg); strings.Contains(args, "--tester") {
+		t.Errorf("arguments without work_review = %q", args)
+	}
+	cfg.Apprentice.WorkReview = true
+	if _, _, args := workStepConfig(t, result, nil, cfg); !strings.Contains(args, "--tester") {
+		t.Errorf("arguments = %q", args)
+	}
+	cfg.Apprentice.Tester = false
+	if _, _, args := workStepConfig(t, result, nil, cfg); strings.Contains(args, "--tester") {
+		t.Errorf("arguments with the tester off = %q", args)
+	}
+}
+
 // The model review gets the task with the earlier review comment, the base
 // of the change, and the review model; its summary is the hint.
 func TestModelReview(t *testing.T) {

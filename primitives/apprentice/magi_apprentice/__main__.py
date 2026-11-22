@@ -57,6 +57,8 @@ def cmd_run(args: argparse.Namespace) -> int:
     model_cfg, limits = apply_model_override(ModelConfig.from_env(), Limits.from_env(), args.model)
     if args.max_steps:
         limits.max_steps = args.max_steps
+    if args.tester:
+        limits.tester = True
     instructions = args.instructions
     if instructions.startswith("@"):
         with open(instructions[1:]) as f:
@@ -138,6 +140,8 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--model", help="model name or JSON override")
     r.add_argument("--max-steps", type=int)
     r.add_argument("--supervisor-model", help="model name of the supervisor (default: no supervisor)")
+    r.add_argument("--tester", action="store_true",
+                   help="with a review model: tests from the task text, run before the review")
     r.add_argument("--review-model", help="model name of the lens review at the first finish "
                                           "(default: the checklist self-review)")
     r.add_argument("--transcript", help="also write the JSONL transcript to this file")

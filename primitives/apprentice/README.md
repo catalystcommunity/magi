@@ -283,6 +283,21 @@ blocker, and it says in the finish summary why a false one is false. An
 approval, a failed review, or a revise with no blockers gets the checklist
 only: an approval of one review is not reliable.
 
+With `--tester` (or `MAGI_APPRENTICE_TESTER=true`) and a review model, the
+tester runs before the work review (`tester.py`). The tester is a second
+run of the worker model with an empty context. It gets the task and the
+work directory with the change. It writes one test file from the words of
+the task, runs it, and reports the tests that fail because the code does
+not do what the task says. It has 40 model calls and 20 minutes. The
+harness then puts the work directory back as it was before the tester, so
+the tester cannot change the work. Each finding goes to the apprentice
+before the blockers of the review, with the sentence of the task and the
+source of the test. The harness drops a finding whose test is not in the
+test file. The transcript has the records of the tester with the prefix
+`tester_`, and one record `tester` with the findings. The tester is off by
+default. The runner passes the flag when `apprentice.tester` is true and
+the work review is on.
+
 Before a review round (the test gate, the work review, or the checklist),
 the harness keeps the change that passed the check as a git tree object
 (`git write-tree`). When the run then ends without a passing check (a loop,
@@ -390,6 +405,7 @@ dollars.
 | `MAGI_APPRENTICE_SELF_REVIEW` | `true` | One review request before the first accepted `finish`; `false` turns it off |
 | `MAGI_APPRENTICE_TEST_GATE` | `true` | The new tests run once on the code without the change; `false` turns it off |
 | `MAGI_APPRENTICE_SPEC_STEP` | `true` | With a review model: acceptance checks from the instructions before the work; `false` turns it off |
+| `MAGI_APPRENTICE_TESTER` | `false` | With a review model: tests from the task text, run on the change before the work review |
 
 For llama.cpp, start `llama-server` with `--jinja`. For a hosted provider,
 change only the base URL, the model name, and the key file.

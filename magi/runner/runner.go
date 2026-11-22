@@ -83,6 +83,10 @@ type Config struct {
 		// apprentice reviews its first finish with it and fixes or rebuts
 		// the blockers before the checks of the runner.
 		WorkReview bool `json:"work_review"`
+		// Tester adds a run of the worker model before the review of a
+		// work round: it writes tests from the task text and runs them on
+		// the change (primitives/apprentice tester.py). It needs WorkReview.
+		Tester bool `json:"tester"`
 	} `json:"apprentice"`
 	Sandbox struct {
 		// Preflight is a shell command that runs in the sandbox before each

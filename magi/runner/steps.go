@@ -193,6 +193,9 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 	}
 	if r.Cfg.Apprentice.WorkReview && r.Cfg.Apprentice.ReviewModel != "" {
 		args = append(args, "--review-model", r.Cfg.Apprentice.ReviewModel)
+		if r.Cfg.Apprentice.Tester {
+			args = append(args, "--tester")
+		}
 	}
 	cmd := exec.CommandContext(ctx, r.Cfg.Apprentice.Python, args...)
 	cmd.Env = append(r.apprenticeEnv(dir),

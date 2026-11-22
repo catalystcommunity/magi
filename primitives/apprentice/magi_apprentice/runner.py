@@ -11,6 +11,7 @@ from .config import Limits, ModelConfig
 from .model import ChatModel, Model
 from .prereview import pre_review
 from .spec import acceptance_checks, has_checks, with_checks
+from . import tester
 from .supervisor import Supervisor
 from .tools import Tools, Workspace
 from .transcript import Transcript, default_redactor
@@ -101,8 +102,19 @@ def run_task(task: Task, *, execution: Any, environment: str, model_cfg: ModelCo
                                        temperature=0.6)))
 
         def reviewer(tools: Tools, t: Task) -> dict:
+            # The tester first: its findings come from a run, so they go
+            # before the items of the review, which come from a reading.
+            found = []
+            if limits.tester:
+                try:
+                    found = tester.run(tester_model, tools, task_text(t), limits, tr)
+                except Exception as e:  # the review works without the tester
+                    tr.record("tester", error=f"{type(e).__name__}: {e}")
             # Two samples: the blockers of one review differ from run to run.
-            return pre_review(rm, tools, task_text(t), "HEAD", t.lessons or "", samples=WORK_REVIEW_SAMPLES)
+            rv = pre_review(rm, tools, task_text(t), "HEAD", t.lessons or "", samples=WORK_REVIEW_SAMPLES)
+            if found:
+                rv = {**rv, "verdict": "revise", "blockers": found + list(rv.get("blockers") or [])}
+            return rv
         # The spec step uses the review model: it checks the task, as the
         # review checks the change. Checks that the task has already stay.
         if limits.spec_step and not has_checks(task.instructions):
@@ -113,12 +125,15 @@ def run_task(task: Task, *, execution: Any, environment: str, model_cfg: ModelCo
                 task.instructions)
             task.instructions = with_checks(task.instructions, checks)
             tr.record("spec_step", model=review_model, **rec)
-    apprentice = Apprentice(model or ChatModel(model_cfg, on_wait=model_wait_recorder(tr)),
+    worker_model = model or ChatModel(model_cfg, on_wait=model_wait_recorder(tr))
+    # The tester is the worker model with an empty context.
+    tester_model = _Noting(worker_model) if review_model else None
+    apprentice = Apprentice(worker_model,
                   Tools(Workspace(execution, environment, task.workdir, limits)),
                   limits, tr, steering=steering, should_stop=should_stop, on_progress=on_progress,
                   supervisor=supervisor, reviewer=reviewer)
     if review_model:
-        rm.alive = apprentice.alive
+        rm.alive = tester_model.alive = apprentice.alive
     try:
         result = apprentice.run(task)
     except Exception as e:  # keep the evidence of a crashed task
