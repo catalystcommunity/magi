@@ -178,6 +178,7 @@ cat "$HOME/.ssh/id" 2>/dev/null && echo "READ THE KEY"
 echo "login: $(cat "$HOME/.agent/login")"
 echo "tool: $(cat ` + tools + `/version)"
 echo "secret: [$MAGI_TEST_RUNNER_SECRET] flag: [$CHECKER_FLAG] home: [$HOME]"
+echo "token: [$CHECKER_TOKEN]"
 touch ` + tools + `/new 2>/dev/null && echo "WROTE THE TOOLS"
 touch "$HOME/.agent/refreshed" && echo "wrote the sign-in directory"
 touch /usr/magi-test 2>/dev/null && echo "WROTE /usr"
@@ -191,9 +192,18 @@ exit 0
 	r.Cfg.Checker.Writable = []string{filepath.Join(home, ".agent")}
 	r.Cfg.Checker.ReadOnly = []string{tools}
 	r.Cfg.Checker.Env = map[string]string{"CHECKER_FLAG": "on"}
+	if err := os.WriteFile(filepath.Join(state, "token"), []byte("file-token\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r.Cfg.Checker.EnvFiles = map[string]string{"CHECKER_TOKEN": filepath.Join(state, "token")}
 	argv, env, err := r.checkerCommand(dir, []string{link, script})
 	if err != nil {
 		t.Fatal(err)
+	}
+	// The value of a file is not in the argument list, which each user of
+	// the host can read.
+	if strings.Contains(strings.Join(argv, " "), "file-token") {
+		t.Errorf("the token is in the arguments: %q", argv)
 	}
 	cmd := exec.Command(argv[0], argv[1:]...)
 	cmd.Dir, cmd.Env = filepath.Join(dir, "tree"), env
@@ -202,7 +212,7 @@ exit 0
 	}
 	b, _ := os.ReadFile(filepath.Join(dir, "out"))
 	got := string(b)
-	for _, want := range []string{"login: sign-in", "tool: tool 1", "secret: [] flag: [on] home: [" + home + "]", "wrote the sign-in directory"} {
+	for _, want := range []string{"login: sign-in", "tool: tool 1", "secret: [] flag: [on] home: [" + home + "]", "wrote the sign-in directory", "token: [file-token]"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("no %q in:\n%s", want, got)
 		}
@@ -215,6 +225,11 @@ exit 0
 	if _, err := os.Stat(filepath.Join(home, ".agent", "refreshed")); err != nil {
 		t.Errorf("the writable path did not keep the file: %v", err)
 	}
+	r.Cfg.Checker.EnvFiles = map[string]string{"CHECKER_TOKEN": filepath.Join(state, "none")}
+	if _, _, err := r.checkerCommand(dir, []string{link}); err == nil {
+		t.Error("a missing token file was accepted")
+	}
+	r.Cfg.Checker.EnvFiles = nil
 	// A relative path of the configuration is an error.
 	r.Cfg.Checker.ReadOnly = []string{"tools"}
 	if _, _, err := r.checkerCommand(dir, []string{link}); err == nil {

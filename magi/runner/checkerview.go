@@ -26,8 +26,10 @@ var checkerEtc = []string{"resolv.conf", "hosts", "nsswitch.conf", "passwd", "gr
 
 // checkerView gives the command that runs argv in the view. dir is the
 // directory of the check (read-write). writable and readOnly are the paths
-// of the configuration. env is the whole environment of the command.
-func checkerView(bwrap, home, dir string, argv, writable, readOnly []string, env map[string]string) ([]string, error) {
+// of the configuration. The command gets the environment of the bubblewrap
+// process, so the caller gives that process only the checker environment:
+// a value in the argument list of bubblewrap is public on the host.
+func checkerView(bwrap, home, dir string, argv, writable, readOnly []string) ([]string, error) {
 	bin, err := exec.LookPath(argv[0])
 	if err != nil {
 		return nil, err
@@ -40,7 +42,7 @@ func checkerView(bwrap, home, dir string, argv, writable, readOnly []string, env
 	if bin, err = filepath.Abs(bin); err != nil {
 		return nil, err
 	}
-	a := []string{bwrap, "--unshare-all", "--share-net", "--die-with-parent", "--new-session", "--clearenv",
+	a := []string{bwrap, "--unshare-all", "--share-net", "--die-with-parent", "--new-session",
 		"--ro-bind", "/usr", "/usr", "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--tmpfs", "/run"}
 	for _, p := range []string{"/bin", "/sbin", "/lib", "/lib32", "/lib64", "/opt"} {
 		fi, err := os.Lstat(p)
@@ -71,21 +73,14 @@ func checkerView(bwrap, home, dir string, argv, writable, readOnly []string, env
 		a = append(a, "--bind", p, p)
 	}
 	a = append(a, "--bind", dir, dir)
-	keys := make([]string, 0, len(env))
-	for k := range env {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		a = append(a, "--setenv", k, env[k])
-	}
 	return append(append(a, "--", bin), argv[1:]...), nil
 }
 
-// checkerEnv is the environment of the checker command: a small fixed set
-// and the variables of the configuration. The variables of the runner
-// (tokens, agent sockets) are not in it.
-func checkerEnv(home string, more map[string]string) map[string]string {
+// checkerEnv is the environment of the checker command: a small fixed set,
+// the variables of the configuration, and the variables whose value is in
+// a file (a token). The variables of the runner (tokens, agent sockets)
+// are not in it.
+func checkerEnv(home string, more, files map[string]string) ([]string, error) {
 	env := map[string]string{"HOME": home, "PATH": "/usr/local/bin:/usr/bin:/bin", "LANG": "C.UTF-8", "TERM": "dumb"}
 	if u := os.Getenv("USER"); u != "" {
 		env["USER"] = u
@@ -93,23 +88,34 @@ func checkerEnv(home string, more map[string]string) map[string]string {
 	for k, v := range more {
 		env[k] = v
 	}
-	return env
+	for k, path := range files {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("checker env_files %s: %w", k, err)
+		}
+		env[k] = strings.TrimSpace(string(b))
+	}
+	list := make([]string, 0, len(env))
+	for k, v := range env {
+		list = append(list, k+"="+v)
+	}
+	sort.Strings(list)
+	return list, nil
 }
 
-// checkerCommand gives the command of the checker for this host. Linux:
-// the view. A host with no bubblewrap gets an error, not a command with no
-// view. macOS has no view yet: the command runs as it is, with the small
-// environment.
+// checkerCommand gives the command of the checker for this host and its
+// environment. Linux: the view. A host with no bubblewrap gets an error,
+// not a command with no view. macOS has no view yet: the command runs as
+// it is, with the small environment.
 func (r *Runner) checkerCommand(dir string, argv []string) ([]string, []string, error) {
 	home, _ := os.UserHomeDir()
 	c := r.Cfg.Checker
-	env := checkerEnv(home, c.Env)
+	env, err := checkerEnv(home, c.Env, c.EnvFiles)
+	if err != nil {
+		return nil, nil, err
+	}
 	if runtime.GOOS != "linux" {
-		list := make([]string, 0, len(env))
-		for k, v := range env {
-			list = append(list, k+"="+v)
-		}
-		return argv, list, nil
+		return argv, env, nil
 	}
 	bwrap, err := exec.LookPath("bwrap")
 	if err != nil {
@@ -120,6 +126,6 @@ func (r *Runner) checkerCommand(dir string, argv []string) ([]string, []string, 
 			return nil, nil, fmt.Errorf("checker path %q: use an absolute path or ~/", p)
 		}
 	}
-	out, err := checkerView(bwrap, home, dir, argv, c.Writable, c.ReadOnly, env)
-	return out, []string{}, err
+	out, err := checkerView(bwrap, home, dir, argv, c.Writable, c.ReadOnly)
+	return out, env, err
 }

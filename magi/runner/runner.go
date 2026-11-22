@@ -106,6 +106,10 @@ type Config struct {
 		Writable       []string          `json:"writable"`
 		ReadOnly       []string          `json:"read_only"`
 		Env            map[string]string `json:"env"`
+		// EnvFiles are variables whose value is the text of a file of this
+		// host (a token of the coding agent). The runner reads the file
+		// when the checker starts and gives the value only to the command.
+		EnvFiles map[string]string `json:"env_files"`
 	} `json:"checker"`
 	Sandbox struct {
 		// Preflight is a shell command that runs in the sandbox before each
@@ -169,6 +173,10 @@ func LoadConfig(path string) (Config, error) {
 	}
 	for i := range c.Checker.ReadOnly {
 		fix(&c.Checker.ReadOnly[i])
+	}
+	for k, v := range c.Checker.EnvFiles {
+		fix(&v)
+		c.Checker.EnvFiles[k] = v
 	}
 	for k, v := range c.Checker.Env {
 		// A path list can have more than one home path.

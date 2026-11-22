@@ -200,7 +200,8 @@ Set the command in the configuration of the runner:
   "timeout_minutes": 20,
   "writable": ["~/.codex"],
   "read_only": ["~/.cache/gomod"],
-  "env": {"GOMODCACHE": "~/.cache/gomod", "GOPROXY": "off"}
+  "env": {"GOMODCACHE": "~/.cache/gomod", "GOPROXY": "off"},
+  "env_files": {"AGENT_TOKEN": "~/.config/magi-runner/agent-token"}
 }
 ```
 
@@ -238,11 +239,32 @@ runner starts the command in a view of the host (bubblewrap):
   tests of the change.
 - The command gets `HOME`, `PATH`, `USER`, `LANG`, `TERM`, and the
   variables of `env`. It does not get the variables of the runner.
+- `env_files` gives a variable the text of a file of the host, for a
+  coding agent that signs in with a token in a variable. Keep the file
+  readable only by the user of the runner. The runner reads it when the
+  checker starts. The value is not in the configuration, not in the
+  argument list, and not in a report.
 - The view keeps the network: the coding agent calls its service. So use a
   coding agent that has a sandbox with no network for the commands that
   it runs.
 - A Linux host with no bubblewrap does not run the checker. macOS has no
   view yet: there the command runs with the small environment only.
+
+A coding agent that prints its result needs a shell around it. This
+example gives the agent a token from a file, and only tools that read:
+
+```json
+"checker": {
+  "command": ["sh", "-c", "claude -p --model MODEL --effort high --tools Read,Grep,Glob --output-format json --json-schema \"$(cat {schema})\" | jq .structured_output > {out}"],
+  "read_only": ["~/.local/bin/claude"],
+  "env": {"PATH": "~/.local/bin:/usr/bin:/bin"},
+  "env_files": {"CLAUDE_CODE_OAUTH_TOKEN": "~/.config/magi-runner/claude-token"}
+}
+```
+
+An agent that gets its token in a variable gives the token to each command
+that it starts. Give such an agent no tool that runs commands, or a
+sandbox with no network for them.
 
 The code of the change can read the paths of `writable`, which have the
 sign-in of the coding agent. It has no network in the sandbox of the
