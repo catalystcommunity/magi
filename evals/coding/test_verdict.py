@@ -22,6 +22,16 @@ class CompareTest(unittest.TestCase):
         v = verdict.compare([run(pr2=("a", "b c d")), run(pr2=("a b c", "d"))], [run(pr2=("a b c d", ""))])
         self.assertEqual(v["verdict"], "no change")
 
+    def test_the_spread_is_by_case_and_of_the_side_that_has_more(self):
+        # The totals of the baseline runs are equal: one case goes up and one goes down.
+        base = [run(pr2=("a b", ""), pr3=("", "x y")), run(pr2=("", "a b"), pr3=("x y", ""))]
+        v = verdict.compare(base, [run(pr2=("a b", ""), pr3=("x y", ""))])
+        self.assertEqual((v["baseline"], v["spread"], v["verdict"]), ([1.0, 1.0], 2.0, "no change"))
+        # The baseline runs are equal and the candidate runs are not.
+        base = [run(pr2=("a", "b c d")), run(pr2=("a", "b c d"))]
+        v = verdict.compare(base, [run(pr2=("a b c d", "")), run(pr2=("a", "b c d"))])
+        self.assertEqual((v["spread"], v["verdict"]), (0.75, "no change"))
+
     def test_a_loss_larger_than_the_spread_is_a_fail(self):
         v = verdict.compare([run(pr2=("a b c", "d")), run(pr2=("a b d", "c"))], [run(pr2=("a", "b c d"))])
         self.assertEqual(v["verdict"], "fail")

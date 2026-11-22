@@ -85,6 +85,7 @@ class Limits:
     self_review: bool = True          # one review request before the first accepted finish
     test_gate: bool = True            # new tests run once on the code without the change (testgate.py)
     spec_step: bool = True            # acceptance checks from the instructions before the work (spec.py)
+    diff_gate: bool = True            # the rules on the diff at finish (diffgate.py)
     tester: bool = False              # tests from the task text, run before the review (tester.py)
 
     @classmethod

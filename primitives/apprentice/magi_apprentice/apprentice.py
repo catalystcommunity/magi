@@ -677,7 +677,8 @@ class Apprentice:
         # The diff rules come first: they are cheap, and a fix changes what
         # the check sees. They do not use up a check retry, and after
         # DIFF_GATE_REJECTS the finish goes on, so a rule cannot hold a run.
-        found = diffgate.check(self.tools, task.instructions) if self._gate_rejects < DIFF_GATE_REJECTS else []
+        found = (diffgate.check(self.tools, task.instructions)
+                 if self.limits.diff_gate and self._gate_rejects < DIFF_GATE_REJECTS else [])
         found = [p for p in found if not p.startswith(tuple(self._hints_noted))]
         if found:
             self._hints_noted |= {h for h in diffgate.HINTS if any(p.startswith(h) for p in found)}

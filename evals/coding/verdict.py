@@ -11,10 +11,16 @@ each case, so each case counts the same. A case with no diff has the score 0.
 
 - fail: a probe passes in each baseline run and fails in each candidate run
   (the floor), or the candidate mean is below the baseline mean by more than
-  the spread of the baseline runs.
+  the spread.
 - pass: the candidate mean is above the baseline mean by more than the
-  spread of the baseline runs.
+  spread.
 - no change: the difference is not larger than the spread.
+
+The spread of one side is the sum, over the cases, of the highest part of
+the case minus the lowest part in the runs of that side. The spread of the
+verdict is the larger of the two sides. The totals of two runs can be
+equal when one case goes up and a different case goes down, so the spread
+is not the difference of the totals.
 - no verdict: fewer than two baseline runs, so there is no spread.
 
 The exit status is 0 for pass, 1 for fail, 2 for no change, 3 for no verdict.
@@ -59,6 +65,9 @@ def compare(baseline: list[dict], candidate: list[dict], cases: list[str] | None
 
     def mean(xs: list[float]) -> float:
         return sum(xs) / len(xs) if xs else 0.0
+    def spread(side: list[dict]) -> float:
+        parts = [[len(r[case]["passed"]) / len(probes[case]) for r in side] for case in ids]
+        return sum(max(p) - min(p) for p in parts if p)
     b, c = [score(r) for r in baseline], [score(r) for r in candidate]
     floor = sorted(f"{case}:{p}" for case in ids for p in probes[case]
                    if baseline and candidate and all(p in r[case]["passed"] for r in baseline)
@@ -66,7 +75,7 @@ def compare(baseline: list[dict], candidate: list[dict], cases: list[str] | None
     by_case = {case: (mean([len(r[case]["passed"]) / len(probes[case]) for r in baseline]),
                       mean([len(r[case]["passed"]) / len(probes[case]) for r in candidate])) for case in ids}
     out = {"cases": ids, "baseline": b, "candidate": c, "floor": floor, "by_case": by_case,
-           "spread": max(b) - min(b) if b else 0.0, "difference": mean(c) - mean(b)}
+           "spread": max(spread(baseline), spread(candidate)), "difference": mean(c) - mean(b)}
     if len(b) < 2 or not c or not ids:
         out["verdict"] = "no verdict"
     elif floor or out["difference"] < -out["spread"]:
@@ -84,7 +93,7 @@ def report(v: dict) -> str:
              f"cases: {', '.join(v['cases']) or 'none'}",
              "baseline scores:  " + " ".join(f"{x:.2f}" for x in v["baseline"]),
              "candidate scores: " + " ".join(f"{x:.2f}" for x in v["candidate"]),
-             f"difference of the means: {v['difference']:+.2f}; spread of the baseline runs: {v['spread']:.2f}"]
+             f"difference of the means: {v['difference']:+.2f}; spread: {v['spread']:.2f}"]
     lines += [f"  {case:5} {b:.2f} -> {c:.2f}" for case, (b, c) in v["by_case"].items()]
     if v["floor"]:
         lines.append("probes that pass in each baseline run and fail in each candidate run:")

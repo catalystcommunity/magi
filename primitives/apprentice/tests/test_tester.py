@@ -222,6 +222,14 @@ class RunTest(unittest.TestCase):
         self.assertIn("has a fake, a stub, or a mock of its own", note)
         self.assertIn("class FakeTools:", note)
 
+    def test_the_diff_rules_do_not_run_on_the_finish_of_the_tester(self):
+        # The diff is the change of the worker: a rule on it is not for the tester.
+        Path(self.d, "test_new.py").write_text("class FakeTools:\n    pass\n")
+        self.run_tester(reply(call("write_file", path="test_tester_probe.py", content=PROBE)),
+                        reply(call("finish", summary="done")))
+        self.assertEqual(records(self.tr, "tester_diff_gate"), [])
+        self.assertEqual(records(self.tr, "tester")[0]["status"], "finished")
+
     def test_the_records_of_the_tester_have_their_own_kinds(self):
         self.run_tester(reply(call("write_file", path="test_tester_probe.py", content=PROBE)),
                         reply(call("finish", summary="done")))

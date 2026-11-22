@@ -353,10 +353,12 @@ python3 -I evals/coding/verdict.py --baseline base-1,base-2 --candidate cand-1,c
 
 The score of a run is the sum of the parts of the probes that pass, one
 part for each case. The verdict is `pass` when the mean of the candidate
-is above the mean of the baseline by more than the spread of the baseline
-runs. It is `fail` when the mean is below by more than the spread, or
-when a probe passes in each baseline run and fails in each candidate run.
-A smaller difference is `no change`. One baseline run gives `no verdict`.
+is above the mean of the baseline by more than the spread. It is `fail`
+when the mean is below by more than the spread, or when a probe passes in
+each baseline run and fails in each candidate run. A smaller difference is
+`no change`. The spread of one side is the sum, over the cases, of the
+highest part of the case minus the lowest part in the runs of that side.
+The spread of the verdict is the larger of the two sides. One baseline run gives `no verdict`.
 The exit status is 0, 1, 2, or 3 in that sequence.
 
 ### One case by hand

@@ -173,9 +173,16 @@ rule comes from a correction that a reviewer made more than once.
 | A file lost its executable bit (`git diff --summary` shows `100755 => 100644`) | run `chmod 755` on the file |
 | The change deletes a test file, and the task does not say to remove tests | restore the file, or tell why it must go |
 | The change adds the same block of 4 code lines in two places of one file (tests, generated files, and error boilerplate are not counted) | put the code in one helper or constant, or tell why the copies must stay |
+| A Python test file of the change adds a class with `Fake`, `Mock`, or `Stub` in its name | add a test that goes through the real object, or tell why no real object can be used |
 
 The copy rule is a hint. The harness gives it one time in a run. On the
 last 300 commits of main, it found 5 commits of approved code.
+
+The fake rule is a hint too. A test on a fake that the change wrote agrees
+with the change, not with the real object. In evals/coding pr2, a change
+passed its tests, the check, and the review, and stopped with a
+`TypeError` on the real `Tools` object: its tests used a new fake. In 90
+days of main, only two large first commits added such a class.
 
 A rejection by these rules does not use up a check retry. After 2
 rejections in one run, the harness accepts the finish, so that a rule
@@ -317,6 +324,11 @@ that passed its check and its review and stopped with a `TypeError` on the
 real `Tools` object (the tests of that change used a fake). It gave no
 finding on nine other changes, four of them approved by a person. It did
 not find the defects where the code runs and gives a wrong value.
+
+Why it is off by default: in a comparison of two runs with the tester and
+two runs without it, on three cases (2026-11-22), the tester gave no
+finding in six runs and the verdict was no change. Each run of the tester
+added 5 to 20 minutes.
 
 Before a review round (the test gate, the work review, or the checklist),
 the harness keeps the change that passed the check as a git tree object

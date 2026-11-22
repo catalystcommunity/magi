@@ -7,7 +7,7 @@ from fakes import FakeModel, call, reply
 
 from magi_apprentice.apprentice import Apprentice, Task
 from magi_apprentice.config import Limits
-from magi_apprentice.diffgate import duplicated_blocks, problems
+from magi_apprentice.diffgate import FAKES, duplicated_blocks, problems
 from magi_apprentice.local import LocalExecution
 from magi_apprentice.tools import Tools, Workspace
 from magi_apprentice.transcript import Redactor, Transcript
@@ -84,6 +84,18 @@ class ProblemsTest(unittest.TestCase):
         task = "   KnownUser = { subject: text, last_seen_ms: uint }\n"
         self.assertEqual(len(problems(gate_out(diff=diff), task)), 1)
         self.assertEqual(problems(gate_out(diff=diff), task + "5. Add ? name: text to KnownUser.\n"), [])
+
+    def test_a_fake_class_of_its_own_in_a_python_test_file(self):
+        diff = added("pkg/tests/test_context.py", ["class FakeTools:", "    def read_file(self, path):", "        return 'text'"])
+        found = problems(gate_out(diff=diff), "t")
+        self.assertEqual(len(found), 1)
+        self.assertTrue(found[0].startswith(FAKES + "FakeTools in pkg/tests/test_context.py"))
+        self.assertIn("goes through the real object", found[0])
+        # A fake in the code, a fake in a Go test, and a test class with a
+        # different name are not counted.
+        for path, line in (("pkg/fakes.py", "class FakeTools:"), ("pkg/a_test.go", "type FakeTools struct {"),
+                           ("pkg/tests/test_a.py", "class ToolsTest(unittest.TestCase):")):
+            self.assertEqual(problems(gate_out(diff=added(path, [line, "    x = 1"])), "t"), [])
 
     def test_a_clean_change_has_no_problem(self):
         self.assertEqual(problems(gate_out(" create mode 100644 b.go\n", "A\tb.go\n"), "x"), [])

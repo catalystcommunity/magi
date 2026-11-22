@@ -16,6 +16,13 @@ once, and that a fixed rule finds every time:
   a copy AdminGetRunDiffRequest of the request type). The reviewer model
   approved that change in 15 of 15 calls. A later task step can change a
   given line, so the model can keep its form when it says why.
+- A Python test file gets a fake class of its own. In evals/coding pr2, a
+  change read a file with a call that gives a result object and used it as
+  text. Its tests used a new fake that gave text, so they passed, and so
+  did the check and the review; the change stopped with a TypeError on the
+  real object. In 90 days of main, only two large first commits added such
+  a class, so the rule is a hint: the model can keep the fake when it says
+  why no real object can be used.
 """
 from __future__ import annotations
 
@@ -54,8 +61,10 @@ CONTRACT = "The change has a contract line in a different form from the task: "
 CONTRACT_FILE = re.compile(r"\.csil$")
 OP = re.compile(r"(?<![\w-])([a-z][a-z0-9-]*)\s*:\s*([A-Z]\w*)\s*->\s*([A-Z]\w*)")
 TYPE = re.compile(r"^\s*([A-Z]\w*)\s*=\s*(\S.*?)\s*$", re.M)
+FAKES = "The tests of the change add a fake of their own: "
+FAKE_CLASS = re.compile(r"^\+\s*class ([A-Za-z_]*(?:Fake|Mock|Stub)[A-Za-z_]*)\b")
 # The hints: the gate gives each one once in a run.
-HINTS = (COPIES, CONTRACT)
+HINTS = (COPIES, CONTRACT, FAKES)
 DUP_LINES = 4      # a copied block has at least this many lines
 DUP_MIN_CHARS = 12  # shorter lines (a brace, "return x") are not counted
 
@@ -136,6 +145,17 @@ def _asked(given: str, form: str, flat_task: str) -> bool:
     return old <= set(form.strip("{}").split(",")) and all(f and f in flat_task for f in new)
 
 
+def new_fakes(diff: str) -> list[tuple[str, str]]:
+    """(file, class) of each fake class that the diff adds in a Python test file."""
+    out, path = [], ""
+    for line in diff.splitlines():
+        if line.startswith("+++ b/"):
+            path = line[6:]
+        elif path.endswith(".py") and TEST_FILE.search(path) and (m := FAKE_CLASS.match(line)):
+            out.append((path, m.group(1)))
+    return out
+
+
 def problems(out: str, task_text: str) -> list[str]:
     """The rule breaks in the output of GATE_SCRIPT, as instructions."""
     summary, name_status, diff = _sections(out)
@@ -157,6 +177,12 @@ def problems(out: str, task_text: str) -> list[str]:
     if changed:
         found.append(CONTRACT + "; ".join(f"the task says `{t[:120]}`, the change has `{c[:120]}`" for t, c in changed[:5])
                      + ". Use the form of the task, or say in the summary why it must be different.")
+    fakes = new_fakes(diff)
+    if fakes:
+        found.append(FAKES + "; ".join(f"{name} in {path}" for path, name in fakes[:5])
+                     + ". A test on a fake that the change wrote agrees with the change, not with the real object. "
+                     "Add a test that goes through the real object with the helpers that the tests had before, "
+                     "or say in the summary why no real object can be used.")
     return found
 
 

@@ -41,7 +41,7 @@ import shlex
 from dataclasses import replace
 from typing import Any
 
-from .apprentice import DIFF_GATE_REJECTS, RESTORE_SCRIPT, SNAPSHOT_SCRIPT, Apprentice, Task
+from .apprentice import RESTORE_SCRIPT, SNAPSHOT_SCRIPT, Apprentice, Task
 from .config import Limits
 from .diffgate import TEST_FILE
 from .model import Model
@@ -226,15 +226,14 @@ def run(model: Model, tools: Tools, task_text: str, limits: Limits, transcript: 
     tree = lines[0]
     said = sentences(task_text)
     sub = replace(limits, max_steps=min(MAX_STEPS, limits.max_steps), max_seconds=min(MAX_SECONDS, limits.max_seconds),
-                  self_review=False, test_gate=False)
+                  self_review=False, test_gate=False,
+                  # The diff rules are for the worker: the diff here is its change.
+                  diff_gate=False)
     instructions = INSTRUCTIONS.format(py=PY_FILE, go=GO_FILE, task=task_text,
                                        sentences="\n".join(f"S{i}. {s}" for i, s in enumerate(said, 1)))
     path, source, failed, changed, result = "", "", {}, [], None
     try:
-        run_ = Apprentice(model, tools, sub, _Prefixed(transcript))
-        # The diff rules are for the worker: the diff here is its change.
-        run_._gate_rejects = DIFF_GATE_REJECTS
-        result = run_.run(Task(instructions, workdir=tools.ws.workdir, check_command=GATE.replace("{n}", str(len(said)))))
+        result = Apprentice(model, tools, sub, _Prefixed(transcript)).run(Task(instructions, workdir=tools.ws.workdir, check_command=GATE.replace("{n}", str(len(said)))))
         path = as_text(tools.ws.sh(FIND_FILE, timeout_s=60).stdout).strip()
         if path:
             source = as_text(tools.ws.sh("cat " + shlex.quote(path), timeout_s=60).stdout)
