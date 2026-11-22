@@ -86,18 +86,18 @@ func TestLessonsForWordCap(t *testing.T) {
 	}
 }
 
-// At most 8 lessons, highest score first, then by id.
+// At most lessonsMax lessons, highest score first, then by id.
 func TestLessonsForOrderAndLimit(t *testing.T) {
 	var ents []knowledgeapi.Entity
-	for i := 1; i <= 10; i++ {
+	for i := 1; i <= lessonsMax+2; i++ {
 		ents = append(ents, lessonEntity(fmt.Sprintf("rl-%04d", i), "Lesson about the sandbox of the runner", "all code", "Text."))
 	}
 	// This lesson has the area of the task, so it scores higher than the rest.
 	ents = append(ents, lessonEntity("rl-0099", "Lesson about the sandbox of the runner", "magi/runner", "Text."))
 	s := lessonsSystem(t, ents...)
 	lines := strings.Split(s.lessonsFor(context.Background(), "magi", "A task", "Work in magi/runner."), "\n")
-	if len(lines) != 8 {
-		t.Fatalf("lines = %d, want 8:\n%s", len(lines), strings.Join(lines, "\n"))
+	if len(lines) != lessonsMax {
+		t.Fatalf("lines = %d, want %d:\n%s", len(lines), lessonsMax, strings.Join(lines, "\n"))
 	}
 	if lines[0] != "- rl-0099 Lesson about the sandbox of the runner: Text." {
 		t.Fatalf("first line = %q", lines[0])

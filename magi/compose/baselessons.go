@@ -13,7 +13,7 @@ import (
 
 // lessonsMax is the number of lessons that one code change gets. The first
 // message must stay small: the lessons are one part of it.
-const lessonsMax = 8
+const lessonsMax = 12
 
 // lessonsFor gives the lessons that relate to one code change: one line for
 // each lesson, highest score first. A lesson of area "all code" applies to

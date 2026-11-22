@@ -75,3 +75,33 @@ Source: coding eval runs run_ZxwL_MGQ99CRMRUjhj7- and run_QcvQXqxVAJLInUH-35sn (
 When the same block of several lines appears two or more times, put it in
 one helper or one constant. A message text and a usage sum are examples.
 This lesson is about a block of lines, and rl-0002 is about one expression.
+
+## rl-0008: Keep the columns of command output
+
+Area: all code
+Source: coding eval runs run_4YA8WjIpQmBGrUtn_btn and two more runs of the same task (review 2026-11-22)
+
+Do not remove the space at the start of command output when the columns
+have a meaning. A line " M file" of git status --short is a different
+state from "M file". Remove only the space at the end (rstrip in Python,
+TrimRight in Go). Test with an input that has a space in the first column.
+
+## rl-0009: A new model call goes the same way as the other model calls
+
+Area: primitives/apprentice
+Source: coding eval runs run_ZI7vpPWbEAFoBMXvFF7_ and three more runs of the same task (review 2026-11-22)
+
+When a change adds a model call, the call counts its tokens in the usage of
+the result and records its answer in the transcript, as the model call of
+the run loop does. A failed call keeps the text that the result had before
+the call. Test the usage, the transcript, and the failed call.
+
+## rl-0010: Test each number of the task at the number and past it
+
+Area: all code
+Source: coding eval runs of the same task with the label v86 (review 2026-11-22)
+
+When the task text gives a number (a limit of characters, a count of lines,
+a step), write a test with an input past that number and a test at that
+number. Check the exact result: the length of the cut text, the step of the
+note. A test with a small input does not reach the limit.
