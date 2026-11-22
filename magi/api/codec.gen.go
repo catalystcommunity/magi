@@ -10014,6 +10014,371 @@ func DecodeDecisionRequest(csilData []byte) (DecisionRequest, error) {
 	return csilDecDecisionRequest(csilRoot)
 }
 
+// csilEncLesson builds the canonical CBOR value tree for a Lesson.
+func csilEncLesson(csilV Lesson) cborValue {
+	csilEntries := make(cborMap, 0, 9)
+	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
+	csilEntries = append(csilEntries, cborEntry{cborText("area"), cborText(csilV.Area)})
+	csilEntries = append(csilEntries, cborEntry{cborText("text"), cborText(csilV.Text)})
+	csilEntries = append(csilEntries, cborEntry{cborText("title"), cborText(csilV.Title)})
+	csilEntries = append(csilEntries, cborEntry{cborText("origin"), cborText(csilV.Origin)})
+	csilEntries = append(csilEntries, cborEntry{cborText("source"), cborText(csilV.Source)})
+	csilEntries = append(csilEntries, cborEntry{cborText("status"), cborText(csilV.Status)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_ms"), cborUint(csilV.CreatedMs)})
+	if csilV.DecidedBy != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("decided_by"), cborText((*csilV.DecidedBy))})
+	}
+	return csilEntries
+}
+
+// csilDecLesson reconstructs a Lesson from a decoded CBOR value tree.
+func csilDecLesson(csilRoot cborValue) (Lesson, error) {
+	var csilOut Lesson
+	{
+		csilField, csilErr := cborRequire(csilRoot, "id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Id = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "title")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Title = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "area")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Area = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "source")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Source = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "text")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Text = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "origin")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Origin = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "status")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Status = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "decided_by"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.DecidedBy = &csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "created_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.CreatedMs = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeLesson encodes a Lesson to canonical CSIL CBOR bytes.
+func EncodeLesson(csilV Lesson) []byte {
+	return cborEncode(csilEncLesson(csilV))
+}
+
+// DecodeLesson decodes canonical CSIL CBOR bytes into a Lesson.
+func DecodeLesson(csilData []byte) (Lesson, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero Lesson
+		return csilZero, csilErr
+	}
+	return csilDecLesson(csilRoot)
+}
+
+// csilEncProposeLessonRequest builds the canonical CBOR value tree for a ProposeLessonRequest.
+func csilEncProposeLessonRequest(csilV ProposeLessonRequest) cborValue {
+	csilEntries := make(cborMap, 0, 4)
+	csilEntries = append(csilEntries, cborEntry{cborText("area"), cborText(csilV.Area)})
+	csilEntries = append(csilEntries, cborEntry{cborText("text"), cborText(csilV.Text)})
+	csilEntries = append(csilEntries, cborEntry{cborText("title"), cborText(csilV.Title)})
+	csilEntries = append(csilEntries, cborEntry{cborText("source"), cborText(csilV.Source)})
+	return csilEntries
+}
+
+// csilDecProposeLessonRequest reconstructs a ProposeLessonRequest from a decoded CBOR value tree.
+func csilDecProposeLessonRequest(csilRoot cborValue) (ProposeLessonRequest, error) {
+	var csilOut ProposeLessonRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "title")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Title = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "area")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Area = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "source")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Source = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "text")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Text = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeProposeLessonRequest encodes a ProposeLessonRequest to canonical CSIL CBOR bytes.
+func EncodeProposeLessonRequest(csilV ProposeLessonRequest) []byte {
+	return cborEncode(csilEncProposeLessonRequest(csilV))
+}
+
+// DecodeProposeLessonRequest decodes canonical CSIL CBOR bytes into a ProposeLessonRequest.
+func DecodeProposeLessonRequest(csilData []byte) (ProposeLessonRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ProposeLessonRequest
+		return csilZero, csilErr
+	}
+	return csilDecProposeLessonRequest(csilRoot)
+}
+
+// csilEncListLessonsRequest builds the canonical CBOR value tree for a ListLessonsRequest.
+func csilEncListLessonsRequest(csilV ListLessonsRequest) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	if csilV.Status != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("status"), cborText((*csilV.Status))})
+	}
+	return csilEntries
+}
+
+// csilDecListLessonsRequest reconstructs a ListLessonsRequest from a decoded CBOR value tree.
+func csilDecListLessonsRequest(csilRoot cborValue) (ListLessonsRequest, error) {
+	var csilOut ListLessonsRequest
+	if csilField, csilOk := cborMapGet(csilRoot, "status"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Status = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeListLessonsRequest encodes a ListLessonsRequest to canonical CSIL CBOR bytes.
+func EncodeListLessonsRequest(csilV ListLessonsRequest) []byte {
+	return cborEncode(csilEncListLessonsRequest(csilV))
+}
+
+// DecodeListLessonsRequest decodes canonical CSIL CBOR bytes into a ListLessonsRequest.
+func DecodeListLessonsRequest(csilData []byte) (ListLessonsRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ListLessonsRequest
+		return csilZero, csilErr
+	}
+	return csilDecListLessonsRequest(csilRoot)
+}
+
+// csilEncListLessonsResponse builds the canonical CBOR value tree for a ListLessonsResponse.
+func csilEncListLessonsResponse(csilV ListLessonsResponse) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("lessons"), cborEncArray(csilV.Lessons, func(csilElem Lesson) cborValue { return csilEncLesson(csilElem) })})
+	return csilEntries
+}
+
+// csilDecListLessonsResponse reconstructs a ListLessonsResponse from a decoded CBOR value tree.
+func csilDecListLessonsResponse(csilRoot cborValue) (ListLessonsResponse, error) {
+	var csilOut ListLessonsResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "lessons")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]Lesson, error) { return cborDecArray(csilV, csilDecLesson) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Lessons = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeListLessonsResponse encodes a ListLessonsResponse to canonical CSIL CBOR bytes.
+func EncodeListLessonsResponse(csilV ListLessonsResponse) []byte {
+	return cborEncode(csilEncListLessonsResponse(csilV))
+}
+
+// DecodeListLessonsResponse decodes canonical CSIL CBOR bytes into a ListLessonsResponse.
+func DecodeListLessonsResponse(csilData []byte) (ListLessonsResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ListLessonsResponse
+		return csilZero, csilErr
+	}
+	return csilDecListLessonsResponse(csilRoot)
+}
+
+// csilEncDecideLessonRequest builds the canonical CBOR value tree for a DecideLessonRequest.
+func csilEncDecideLessonRequest(csilV DecideLessonRequest) cborValue {
+	csilEntries := make(cborMap, 0, 5)
+	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
+	if csilV.Area != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("area"), cborText((*csilV.Area))})
+	}
+	if csilV.Text != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("text"), cborText((*csilV.Text))})
+	}
+	if csilV.Title != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("title"), cborText((*csilV.Title))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("decision"), cborText(csilV.Decision)})
+	return csilEntries
+}
+
+// csilDecDecideLessonRequest reconstructs a DecideLessonRequest from a decoded CBOR value tree.
+func csilDecDecideLessonRequest(csilRoot cborValue) (DecideLessonRequest, error) {
+	var csilOut DecideLessonRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Id = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "decision")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Decision = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "title"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Title = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "area"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Area = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "text"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Text = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeDecideLessonRequest encodes a DecideLessonRequest to canonical CSIL CBOR bytes.
+func EncodeDecideLessonRequest(csilV DecideLessonRequest) []byte {
+	return cborEncode(csilEncDecideLessonRequest(csilV))
+}
+
+// DecodeDecideLessonRequest decodes canonical CSIL CBOR bytes into a DecideLessonRequest.
+func DecodeDecideLessonRequest(csilData []byte) (DecideLessonRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero DecideLessonRequest
+		return csilZero, csilErr
+	}
+	return csilDecDecideLessonRequest(csilRoot)
+}
+
 // csilEncDecisionAnswer builds the canonical CBOR value tree for a DecisionAnswer.
 func csilEncDecisionAnswer(csilV DecisionAnswer) cborValue {
 	csilEntries := make(cborMap, 0, 6)

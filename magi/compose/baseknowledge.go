@@ -5,7 +5,6 @@ import (
 	"embed"
 	"fmt"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -204,21 +203,13 @@ func (s *System) ImportBaseKnowledge(ctx context.Context) error {
 }
 
 // repoLessons finds the lesson entities that the repository owns: kind
-// "lesson", external system "magi-repo", owner "service:magi". The search
-// has no filter for an external system, so it reads the entities of the kind
-// and keeps the ones with the reference and the owner. Search gives only
-// current entities, so a retracted lesson is not in the list: the next start
-// does not retract it again. One page of 500 is more than the lessons of one
-// repository; a bigger set needs a filter in the contract.
+// "lesson", external system "magi-repo", owner "service:magi". Search gives
+// only current entities, so a retracted lesson is not in the list: the next
+// start does not retract it again.
 func (s *System) repoLessons(ctx context.Context) []knowledgeapi.Entity {
-	res, err := s.Knowledge.Search(ctx, knowledgeapi.SearchRequest{Types: []string{"entity"}, Kind: optional(lessonKind), Limit: ptr(uint64(500))})
-	if err != nil {
-		s.Log.Warn("base knowledge: search", "err", err)
-		return nil
-	}
 	var out []knowledgeapi.Entity
-	for _, e := range res.Entities {
-		if e.External != nil && e.External.System == lessonSystem && slices.Contains(e.Owners, lessonOwner) {
+	for _, e := range s.lessonEntities(ctx) {
+		if e.External.System == lessonSystem {
 			out = append(out, e)
 		}
 	}

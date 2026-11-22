@@ -4535,6 +4535,176 @@ class DecisionRequest:
 
 
 @dataclass
+class Lesson:
+    id: str
+    title: str
+    area: str
+    source: str
+    text: str
+    origin: str
+    status: str
+    created_ms: int
+    decided_by: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'title') and self.title is not None:
+            result['title'] = self.title
+        if hasattr(self, 'area') and self.area is not None:
+            result['area'] = self.area
+        if hasattr(self, 'source') and self.source is not None:
+            result['source'] = self.source
+        if hasattr(self, 'text') and self.text is not None:
+            result['text'] = self.text
+        if hasattr(self, 'origin') and self.origin is not None:
+            result['origin'] = self.origin
+        if hasattr(self, 'status') and self.status is not None:
+            result['status'] = self.status
+        if hasattr(self, 'decided_by') and self.decided_by is not None:
+            result['decided_by'] = self.decided_by
+        if hasattr(self, 'created_ms') and self.created_ms is not None:
+            result['created_ms'] = self.created_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Lesson':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), title=data.get('title'), area=data.get('area'), source=data.get('source'), text=data.get('text'), origin=data.get('origin'), status=data.get('status'), decided_by=data.get('decided_by'), created_ms=data.get('created_ms'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'Lesson':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ProposeLessonRequest:
+    title: str
+    area: str
+    source: str
+    text: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'title') and self.title is not None:
+            result['title'] = self.title
+        if hasattr(self, 'area') and self.area is not None:
+            result['area'] = self.area
+        if hasattr(self, 'source') and self.source is not None:
+            result['source'] = self.source
+        if hasattr(self, 'text') and self.text is not None:
+            result['text'] = self.text
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ProposeLessonRequest':
+        """Create instance from dictionary."""
+        return cls(title=data.get('title'), area=data.get('area'), source=data.get('source'), text=data.get('text'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ProposeLessonRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ListLessonsRequest:
+    status: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'status') and self.status is not None:
+            result['status'] = self.status
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ListLessonsRequest':
+        """Create instance from dictionary."""
+        return cls(status=data.get('status'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ListLessonsRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ListLessonsResponse:
+    lessons: List[Lesson]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'lessons') and self.lessons is not None:
+            result['lessons'] = self.lessons
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ListLessonsResponse':
+        """Create instance from dictionary."""
+        return cls(lessons=data.get('lessons'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ListLessonsResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class DecideLessonRequest:
+    id: str
+    decision: str
+    title: Optional[str] = None
+    area: Optional[str] = None
+    text: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'id') and self.id is not None:
+            result['id'] = self.id
+        if hasattr(self, 'decision') and self.decision is not None:
+            result['decision'] = self.decision
+        if hasattr(self, 'title') and self.title is not None:
+            result['title'] = self.title
+        if hasattr(self, 'area') and self.area is not None:
+            result['area'] = self.area
+        if hasattr(self, 'text') and self.text is not None:
+            result['text'] = self.text
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'DecideLessonRequest':
+        """Create instance from dictionary."""
+        return cls(id=data.get('id'), decision=data.get('decision'), title=data.get('title'), area=data.get('area'), text=data.get('text'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'DecideLessonRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
 class DecisionAnswer:
     id: str
     probs: List[float]

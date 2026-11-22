@@ -71,6 +71,18 @@ class MagiClient:
         """answer-review"""
         return AnswerReviewResponse.from_cbor(self._transport.call("MagiService", "answer-review", req.to_cbor()))
 
+    def propose_lesson(self, req: ProposeLessonRequest) -> Lesson:
+        """propose-lesson"""
+        return Lesson.from_cbor(self._transport.call("MagiService", "propose-lesson", req.to_cbor()))
+
+    def list_lessons(self, req: ListLessonsRequest) -> ListLessonsResponse:
+        """list-lessons"""
+        return ListLessonsResponse.from_cbor(self._transport.call("MagiService", "list-lessons", req.to_cbor()))
+
+    def decide_lesson(self, req: DecideLessonRequest) -> Lesson:
+        """decide-lesson"""
+        return Lesson.from_cbor(self._transport.call("MagiService", "decide-lesson", req.to_cbor()))
+
     def list_personas(self, req: ListPersonasRequest) -> ListPersonasResponse:
         """list-personas"""
         return ListPersonasResponse.from_cbor(self._transport.call("MagiService", "list-personas", req.to_cbor()))

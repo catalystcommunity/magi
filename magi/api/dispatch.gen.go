@@ -189,6 +189,39 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			}
 			return EncodeAnswerReviewResponse(resp), nil
 		},
+		"propose-lesson": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeProposeLessonRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ProposeLesson(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeLesson(resp), nil
+		},
+		"list-lessons": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListLessonsRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListLessons(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListLessonsResponse(resp), nil
+		},
+		"decide-lesson": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeDecideLessonRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.DecideLesson(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeLesson(resp), nil
+		},
 		"list-personas": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListPersonasRequest(b)
 			if err != nil {

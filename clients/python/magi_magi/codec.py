@@ -4707,6 +4707,161 @@ def _decision_request_from_cbor(data: bytes) -> "DecisionRequest":
 DecisionRequest.to_cbor = _decision_request_to_cbor
 DecisionRequest.from_cbor = staticmethod(_decision_request_from_cbor)
 
+def _encode_lesson_value(v: "Lesson") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_m["area"] = v.area
+    csil_m["text"] = v.text
+    csil_m["title"] = v.title
+    csil_m["origin"] = v.origin
+    csil_m["source"] = v.source
+    csil_m["status"] = v.status
+    csil_m["created_ms"] = v.created_ms
+    csil_x = v.decided_by
+    if csil_x is not None:
+        csil_m["decided_by"] = csil_x
+    return csil_m
+
+def _decode_lesson_value(tree: Any) -> "Lesson":
+    tree = _csil_expect_map(tree)
+    return Lesson(
+        id=_csil_expect_text(tree["id"]),
+        title=_csil_expect_text(tree["title"]),
+        area=_csil_expect_text(tree["area"]),
+        source=_csil_expect_text(tree["source"]),
+        text=_csil_expect_text(tree["text"]),
+        origin=_csil_expect_text(tree["origin"]),
+        status=_csil_expect_text(tree["status"]),
+        decided_by=(None if tree.get("decided_by") is None else _csil_expect_text(tree["decided_by"])),
+        created_ms=_csil_expect_uint(tree["created_ms"]),
+    )
+
+
+def _lesson_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_lesson_value(self))
+
+
+def _lesson_from_cbor(data: bytes) -> "Lesson":
+    return _decode_lesson_value(cbor_decode(data))
+
+
+Lesson.to_cbor = _lesson_to_cbor
+Lesson.from_cbor = staticmethod(_lesson_from_cbor)
+
+def _encode_propose_lesson_request_value(v: "ProposeLessonRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["area"] = v.area
+    csil_m["text"] = v.text
+    csil_m["title"] = v.title
+    csil_m["source"] = v.source
+    return csil_m
+
+def _decode_propose_lesson_request_value(tree: Any) -> "ProposeLessonRequest":
+    tree = _csil_expect_map(tree)
+    return ProposeLessonRequest(
+        title=_csil_expect_text(tree["title"]),
+        area=_csil_expect_text(tree["area"]),
+        source=_csil_expect_text(tree["source"]),
+        text=_csil_expect_text(tree["text"]),
+    )
+
+
+def _propose_lesson_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_propose_lesson_request_value(self))
+
+
+def _propose_lesson_request_from_cbor(data: bytes) -> "ProposeLessonRequest":
+    return _decode_propose_lesson_request_value(cbor_decode(data))
+
+
+ProposeLessonRequest.to_cbor = _propose_lesson_request_to_cbor
+ProposeLessonRequest.from_cbor = staticmethod(_propose_lesson_request_from_cbor)
+
+def _encode_list_lessons_request_value(v: "ListLessonsRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.status
+    if csil_x is not None:
+        csil_m["status"] = csil_x
+    return csil_m
+
+def _decode_list_lessons_request_value(tree: Any) -> "ListLessonsRequest":
+    tree = _csil_expect_map(tree)
+    return ListLessonsRequest(
+        status=(None if tree.get("status") is None else _csil_expect_text(tree["status"])),
+    )
+
+
+def _list_lessons_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_lessons_request_value(self))
+
+
+def _list_lessons_request_from_cbor(data: bytes) -> "ListLessonsRequest":
+    return _decode_list_lessons_request_value(cbor_decode(data))
+
+
+ListLessonsRequest.to_cbor = _list_lessons_request_to_cbor
+ListLessonsRequest.from_cbor = staticmethod(_list_lessons_request_from_cbor)
+
+def _encode_list_lessons_response_value(v: "ListLessonsResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["lessons"] = [_encode_lesson_value(csil_e) for csil_e in v.lessons]
+    return csil_m
+
+def _decode_list_lessons_response_value(tree: Any) -> "ListLessonsResponse":
+    tree = _csil_expect_map(tree)
+    return ListLessonsResponse(
+        lessons=[_decode_lesson_value(csil_e) for csil_e in _csil_expect_array(tree["lessons"])],
+    )
+
+
+def _list_lessons_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_lessons_response_value(self))
+
+
+def _list_lessons_response_from_cbor(data: bytes) -> "ListLessonsResponse":
+    return _decode_list_lessons_response_value(cbor_decode(data))
+
+
+ListLessonsResponse.to_cbor = _list_lessons_response_to_cbor
+ListLessonsResponse.from_cbor = staticmethod(_list_lessons_response_from_cbor)
+
+def _encode_decide_lesson_request_value(v: "DecideLessonRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["id"] = v.id
+    csil_x = v.area
+    if csil_x is not None:
+        csil_m["area"] = csil_x
+    csil_x = v.text
+    if csil_x is not None:
+        csil_m["text"] = csil_x
+    csil_x = v.title
+    if csil_x is not None:
+        csil_m["title"] = csil_x
+    csil_m["decision"] = v.decision
+    return csil_m
+
+def _decode_decide_lesson_request_value(tree: Any) -> "DecideLessonRequest":
+    tree = _csil_expect_map(tree)
+    return DecideLessonRequest(
+        id=_csil_expect_text(tree["id"]),
+        decision=_csil_expect_text(tree["decision"]),
+        title=(None if tree.get("title") is None else _csil_expect_text(tree["title"])),
+        area=(None if tree.get("area") is None else _csil_expect_text(tree["area"])),
+        text=(None if tree.get("text") is None else _csil_expect_text(tree["text"])),
+    )
+
+
+def _decide_lesson_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_decide_lesson_request_value(self))
+
+
+def _decide_lesson_request_from_cbor(data: bytes) -> "DecideLessonRequest":
+    return _decode_decide_lesson_request_value(cbor_decode(data))
+
+
+DecideLessonRequest.to_cbor = _decide_lesson_request_to_cbor
+DecideLessonRequest.from_cbor = staticmethod(_decide_lesson_request_from_cbor)
+
 def _encode_decision_answer_value(v: "DecisionAnswer") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["id"] = v.id

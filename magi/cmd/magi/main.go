@@ -103,6 +103,13 @@ var usage = `usage: magi [--server URL] <command> [args]
                              of a decided review replaces its rule
   usage [-days N]            count Magi replies by model (default 7 days)
   runners                    list connected runners and the runner release
+  lessons [-status S]        operator: list the review lessons (proposed, approved,
+                             rejected); a code change gets only approved lessons
+  lesson propose -title T -area A -source S -text TEXT
+                             operator: propose a lesson for the knowledge graph
+  lesson approve|reject ID [-title T] [-area A] [-text TEXT]
+                             admin: decide a proposed lesson; the flags change
+                             it before the decision
   runner-release VERSION DIR   operator: upload DIR/magi-runner-<os>-<arch>.tar.gz
                              (from go run ./cmd/runner-package) and make VERSION
                              the release; runners update when idle
@@ -361,6 +368,48 @@ func (c *cli) run(cmd string, args []string) error {
 				fmt.Printf("%-16s %s\n", "", e)
 			}
 		}
+	case "lessons":
+		status := fs.String("status", "", "proposed, approved, or rejected (default: each lesson)")
+		fs.Parse(args)
+		res, err := c.magi.ListLessons(c.ctx, magiapi.ListLessonsRequest{Status: optional(*status)})
+		if err != nil {
+			return err
+		}
+		if len(res.Lessons) == 0 {
+			fmt.Println("no lessons")
+		}
+		for _, l := range res.Lessons {
+			fmt.Printf("\n%s  %s  %s (%s)\n  area: %s\n  source: %s\n  %s\n", l.Id, l.Status, l.Title, l.Origin, l.Area, l.Source, l.Text)
+		}
+	case "lesson":
+		title := fs.String("title", "", "the title of the lesson")
+		area := fs.String("area", "", "\"all code\" or a path")
+		source := fs.String("source", "", "where the lesson comes from (propose)")
+		text := fs.String("text", "", "the lesson in one to four short sentences")
+		usage := errors.New("lesson propose -title T -area A -source S -text TEXT | lesson approve|reject ID [-title T] [-area A] [-text TEXT]")
+		if len(args) < 1 {
+			return usage
+		}
+		var l magiapi.Lesson
+		var err error
+		switch args[0] {
+		case "propose":
+			fs.Parse(args[1:])
+			l, err = c.magi.ProposeLesson(c.ctx, magiapi.ProposeLessonRequest{Title: *title, Area: *area, Source: *source, Text: *text})
+		case "approve", "reject":
+			if len(args) < 2 {
+				return usage
+			}
+			fs.Parse(args[2:])
+			l, err = c.magi.DecideLesson(c.ctx, magiapi.DecideLessonRequest{Id: args[1], Decision: args[0],
+				Title: optional(*title), Area: optional(*area), Text: optional(*text)})
+		default:
+			return usage
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%s  %s  %s\n", l.Id, l.Status, l.Title)
 	case "runner-release":
 		if len(args) != 2 {
 			return errors.New("runner-release VERSION DIR")

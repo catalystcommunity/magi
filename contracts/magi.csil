@@ -687,6 +687,35 @@ DecisionRequest = {
 }
 
 ;;; probs: one for each choice (noul: yes, no; score: 0 to max).
+;;; A review lesson: a rule from a code review that the next code change
+;;; gets (docs/knowledge.md). origin is "repository" (a lesson of the
+;;; lessons file of the release) or "proposal" (a lesson that an operator
+;;; call proposed). status is "proposed", "approved", or "rejected". A code
+;;; change gets only approved lessons. A repository lesson is approved.
+Lesson = {
+  id: text,
+  title: text,
+  area: text,
+  source: text,
+  text: text,
+  origin: text,
+  status: text,
+  ? decided_by: text,
+  created_ms: uint,
+}
+;;; Operator call. area is "all code" or a path. source tells where the
+;;; lesson comes from (a run id, a repository and a commit). The response
+;;; is the lesson with status "proposed". A proposal with the title of an
+;;; existing proposal gives that proposal.
+ProposeLessonRequest = { title: text, area: text, source: text, text: text }
+;;; status "" gives each lesson.
+ListLessonsRequest = { ? status: text }
+ListLessonsResponse = { lessons: [* Lesson] }
+;;; Only an administrator (a person) decides. decision is "approve" or
+;;; "reject". title, area, and text change the proposal before the
+;;; decision. A repository lesson has no decision: change the file.
+DecideLessonRequest = { id: text, decision: text, ? title: text, ? area: text, ? text: text }
+
 ;;; calibrated: the model has a calibration for this question id.
 DecisionAnswer = {
   id: text,
@@ -710,6 +739,9 @@ service MagiService {
   set-visibility: SetVisibilityRequest -> Message,
   list-reviews: ListReviewsRequest -> ListReviewsResponse,
   answer-review: AnswerReviewRequest -> AnswerReviewResponse,
+  propose-lesson: ProposeLessonRequest -> Lesson,
+  list-lessons: ListLessonsRequest -> ListLessonsResponse,
+  decide-lesson: DecideLessonRequest -> Lesson,
   list-personas: ListPersonasRequest -> ListPersonasResponse,
   put-persona: PutPersonaRequest -> PersonaInfo,
   get-audio: GetAudioRequest -> AudioResponse,

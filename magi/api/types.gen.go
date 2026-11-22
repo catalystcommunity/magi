@@ -1077,6 +1077,46 @@ type DecisionRequest struct {
 	Model     *ModelSelector     `json:"model,omitempty" yaml:"model,omitempty"`
 }
 
+// Lesson represents a structured data type
+type Lesson struct {
+	Id        string  `json:"id" yaml:"id"`
+	Title     string  `json:"title" yaml:"title"`
+	Area      string  `json:"area" yaml:"area"`
+	Source    string  `json:"source" yaml:"source"`
+	Text      string  `json:"text" yaml:"text"`
+	Origin    string  `json:"origin" yaml:"origin"`
+	Status    string  `json:"status" yaml:"status"`
+	DecidedBy *string `json:"decided_by,omitempty" yaml:"decided_by,omitempty"`
+	CreatedMs uint64  `json:"created_ms" yaml:"created_ms"`
+}
+
+// ProposeLessonRequest represents a structured data type
+type ProposeLessonRequest struct {
+	Title  string `json:"title" yaml:"title"`
+	Area   string `json:"area" yaml:"area"`
+	Source string `json:"source" yaml:"source"`
+	Text   string `json:"text" yaml:"text"`
+}
+
+// ListLessonsRequest represents a structured data type
+type ListLessonsRequest struct {
+	Status *string `json:"status,omitempty" yaml:"status,omitempty"`
+}
+
+// ListLessonsResponse represents a structured data type
+type ListLessonsResponse struct {
+	Lessons []Lesson `json:"lessons" yaml:"lessons"`
+}
+
+// DecideLessonRequest represents a structured data type
+type DecideLessonRequest struct {
+	Id       string  `json:"id" yaml:"id"`
+	Decision string  `json:"decision" yaml:"decision"`
+	Title    *string `json:"title,omitempty" yaml:"title,omitempty"`
+	Area     *string `json:"area,omitempty" yaml:"area,omitempty"`
+	Text     *string `json:"text,omitempty" yaml:"text,omitempty"`
+}
+
 // DecisionAnswer represents a structured data type
 type DecisionAnswer struct {
 	Id         string    `json:"id" yaml:"id"`

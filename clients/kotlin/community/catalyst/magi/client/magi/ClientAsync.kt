@@ -46,6 +46,15 @@ class MagiAsyncClient(private val transport: AsyncTransport) {
     suspend fun answerReview(request: AnswerReviewRequest): AnswerReviewResponse {
         return decode<AnswerReviewResponse>(transport.call("MagiService", "answer-review", encode(request)))
     }
+    suspend fun proposeLesson(request: ProposeLessonRequest): Lesson {
+        return decode<Lesson>(transport.call("MagiService", "propose-lesson", encode(request)))
+    }
+    suspend fun listLessons(request: ListLessonsRequest): ListLessonsResponse {
+        return decode<ListLessonsResponse>(transport.call("MagiService", "list-lessons", encode(request)))
+    }
+    suspend fun decideLesson(request: DecideLessonRequest): Lesson {
+        return decode<Lesson>(transport.call("MagiService", "decide-lesson", encode(request)))
+    }
     suspend fun listPersonas(request: ListPersonasRequest): ListPersonasResponse {
         return decode<ListPersonasResponse>(transport.call("MagiService", "list-personas", encode(request)))
     }

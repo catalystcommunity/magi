@@ -278,6 +278,32 @@ export function asLiteral<T extends CborValue>(value: CborValue, expected: T): T
 /** Validate a decoded scalar against a literal-enum's declared vocabulary, erroring
  * on an unknown value. The caller reads through `asNumber`/`asString`/`asBool`, which
  * already normalize a decoded `bigint` to `number`, so a plain membership check suffices. */
+/** CBOR orders unsigned integer keys first, then negative keys by magnitude. */
+export function enumNumberMap(entries: [bigint, CborValue][]): Map<CborValue, CborValue> {
+  return new Map(entries.sort(([a], [b]) => {
+    if (a === b) return 0;
+    if ((a < 0n) !== (b < 0n)) return a < 0n ? 1 : -1;
+    if (a < 0n) return a > b ? -1 : 1;
+    return a < b ? -1 : 1;
+  }));
+}
+
+export function enumToNumber(label: string, entries: readonly (readonly [string, bigint])[]): bigint {
+  for (const [name, number] of entries) {
+    if (name === label) return number;
+  }
+  throw new Error("unknown enum label");
+}
+
+export function enumFromNumber(value: CborValue, entries: readonly (readonly [string, bigint])[]): string {
+  if (typeof value === "bigint" || (typeof value === "number" && Number.isSafeInteger(value))) {
+    for (const [name, number] of entries) {
+      if (BigInt(value) === number) return name;
+    }
+  }
+  throw new Error("unknown enum number");
+}
+
 export function asEnumMember<T extends number | string | boolean | null>(
   value: T,
   members: readonly T[],

@@ -248,6 +248,32 @@ file gets a `fix`; a lesson that the file no longer has gets a `retract`.
 Production gets the same lessons from the same release. The knowledge graph
 is a copy that Magi can search; it is not the authority.
 
+### Proposed lessons
+
+A lesson can also start as a proposal in the knowledge graph. The graph
+then keeps the corpus: the proposals, the approved lessons, and the
+rejected lessons. A proposal is an entity of kind `lesson` with the
+external system `magi-lesson-proposal` and the property `status`
+(`proposed`, `approved`, or `rejected`). Its id is `lp-` and 8 hex digits
+of the title, so a second proposal with the same title gives the first one.
+
+- An operator call makes a proposal: `magi lesson propose -title T -area A
+  -source S -text TEXT` (`propose-lesson`).
+- `magi lessons -status proposed` lists the proposals (`list-lessons`).
+- Only an administrator decides: `magi lesson approve ID` or `magi lesson
+  reject ID` (`decide-lesson`). The flags `-title`, `-area`, and `-text`
+  change the proposal before the decision. The operate scope of a service
+  is not sufficient, because a lesson changes each later code change.
+- A code change gets a proposal only when its status is `approved`. A
+  lesson of the file is always approved.
+- A rejected proposal stays in the graph, so the same lesson does not come
+  back as a new proposal.
+
+The proposals are data of one installation. To keep an approved lesson for
+each installation, add it to the file.
+
+### Lessons of the file
+
 A reviewer adds a lesson at the end of the file: the next free id, a title,
 the area, the source, and the lesson in short sentences. A test parses the
 embedded file, so a bad header or a duplicate id fails `tools/check.sh`.
@@ -258,7 +284,7 @@ area path that the title or the instructions name gets 5 points, but only
 for the repository of Magi. A word of 5 or more letters that the lesson
 title and the task share gives 1 point, up to 3 points. Magi keeps the
 lessons with more than 0 points: the highest score first, then by id, at
-most 8. Magi puts the lessons in the var `lessons` of the run, and the
+most 12. Magi puts the lessons in the var `lessons` of the run, and the
 apprentice shows them in its first message, before the task instructions.
 If the knowledge service fails, the code change starts without lessons.
 

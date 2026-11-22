@@ -1333,6 +1333,48 @@ data class DecisionRequest(
     val model: ModelSelector? = null
 )
 
+/** Lesson record. */
+data class Lesson(
+    val id: String,
+    val title: String,
+    val area: String,
+    val source: String,
+    val text: String,
+    val origin: String,
+    val status: String,
+    // wire key: decided_by
+    val decidedBy: String? = null,
+    // wire key: created_ms
+    val createdMs: ULong
+)
+
+/** ProposeLessonRequest record. */
+data class ProposeLessonRequest(
+    val title: String,
+    val area: String,
+    val source: String,
+    val text: String
+)
+
+/** ListLessonsRequest record. */
+data class ListLessonsRequest(
+    val status: String? = null
+)
+
+/** ListLessonsResponse record. */
+data class ListLessonsResponse(
+    val lessons: List<Lesson>
+)
+
+/** DecideLessonRequest record. */
+data class DecideLessonRequest(
+    val id: String,
+    val decision: String,
+    val title: String? = null,
+    val area: String? = null,
+    val text: String? = null
+)
+
 /** DecisionAnswer record. */
 data class DecisionAnswer(
     val id: String,

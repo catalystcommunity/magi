@@ -21,7 +21,7 @@ const lessonsMax = 12
 // of Magi. repoLessons logs an error of the knowledge service and gives no
 // entity, so this returns "": a task does not stop for the lessons.
 func (s *System) lessonsFor(ctx context.Context, repo, title, instructions string) string {
-	entities := s.repoLessons(ctx)
+	entities := s.approvedLessons(ctx)
 	if len(entities) == 0 {
 		return ""
 	}

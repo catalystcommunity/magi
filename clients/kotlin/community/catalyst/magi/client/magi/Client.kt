@@ -56,6 +56,15 @@ class MagiClient(private val transport: Transport) {
     fun answerReview(request: AnswerReviewRequest): AnswerReviewResponse {
         return decode<AnswerReviewResponse>(transport.call("MagiService", "answer-review", encode(request)))
     }
+    fun proposeLesson(request: ProposeLessonRequest): Lesson {
+        return decode<Lesson>(transport.call("MagiService", "propose-lesson", encode(request)))
+    }
+    fun listLessons(request: ListLessonsRequest): ListLessonsResponse {
+        return decode<ListLessonsResponse>(transport.call("MagiService", "list-lessons", encode(request)))
+    }
+    fun decideLesson(request: DecideLessonRequest): Lesson {
+        return decode<Lesson>(transport.call("MagiService", "decide-lesson", encode(request)))
+    }
     fun listPersonas(request: ListPersonasRequest): ListPersonasResponse {
         return decode<ListPersonasResponse>(transport.call("MagiService", "list-personas", encode(request)))
     }

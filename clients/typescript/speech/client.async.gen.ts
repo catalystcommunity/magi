@@ -10,7 +10,11 @@ export interface AsyncServiceTransport {
 }
 
 export class SpeechAsyncClient {
-  constructor(private readonly t: AsyncServiceTransport) {}
+  private readonly t: AsyncServiceTransport;
+
+  constructor(t: AsyncServiceTransport) {
+    this.t = t;
+  }
 
   /**
    * @throws {ServiceError} when the API returns an error response

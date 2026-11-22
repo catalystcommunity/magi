@@ -133,6 +133,33 @@ func (c *MagiClient) AnswerReview(ctx context.Context, req AnswerReviewRequest) 
 	return DecodeAnswerReviewResponse(csilResp)
 }
 
+func (c *MagiClient) ProposeLesson(ctx context.Context, req ProposeLessonRequest) (Lesson, error) {
+	var csilZero Lesson
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "propose-lesson", EncodeProposeLessonRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeLesson(csilResp)
+}
+
+func (c *MagiClient) ListLessons(ctx context.Context, req ListLessonsRequest) (ListLessonsResponse, error) {
+	var csilZero ListLessonsResponse
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-lessons", EncodeListLessonsRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListLessonsResponse(csilResp)
+}
+
+func (c *MagiClient) DecideLesson(ctx context.Context, req DecideLessonRequest) (Lesson, error) {
+	var csilZero Lesson
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "decide-lesson", EncodeDecideLessonRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeLesson(csilResp)
+}
+
 func (c *MagiClient) ListPersonas(ctx context.Context, req ListPersonasRequest) (ListPersonasResponse, error) {
 	var csilZero ListPersonasResponse
 	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-personas", EncodeListPersonasRequest(req))

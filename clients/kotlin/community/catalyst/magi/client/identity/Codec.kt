@@ -304,6 +304,18 @@ object CsilCbor {
     fun asMap(v: CborValue): List<Pair<CborValue, CborValue>> =
         (v as? CborValue.CMap)?.entries ?: throw CborError("expected map")
 
+    fun encDate(date: java.time.LocalDate): CborValue {
+        val text = date.toString()
+        require(text.length == 10) { "date requires a four-digit year" }
+        return CborValue.CTag(1004uL, CborValue.CText(text))
+    }
+
+    fun asDate(v: CborValue): java.time.LocalDate {
+        val text = asTaggedText(v, 1004uL)
+        require(text.length == 10) { "expected YYYY-MM-DD" }
+        return java.time.LocalDate.parse(text)
+    }
+
     fun asTaggedText(v: CborValue, tag: ULong): String {
         if (v is CborValue.CTag && v.tag == tag) return asText(v.value)
         throw CborError("expected tag $tag")
@@ -1170,4 +1182,9 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     KnownUser::class -> knownUserFromCborValue(cbor)
     ListUsersResponse::class -> listUsersResponseFromCborValue(cbor)
     else -> throw CborError("no CSIL CBOR codec for $type")
+}
+data class RpcReply(val variant: String, val payload: ByteArray)
+
+fun resolveRpcReply(service: String, op: String, variant: String?, payload: ByteArray): ByteArray {
+    return payload
 }

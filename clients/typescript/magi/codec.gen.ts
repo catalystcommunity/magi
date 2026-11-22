@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { Access, AckNoticeRequest, Activity, ActivityRequest, AdminChat, AdminGetRunOutputRequest, AdminGetRunRequest, AdminListChatsRequest, AdminListChatsResponse, AdminListRunsRequest, AdminListRunsResponse, AdminReadChatRequest, AdminReadChatResponse, AdminRun, AdminRunSummary, AdminTurnLogRequest, AdminTurnLogResponse, AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, ChangeKnowledgeRequest, ChangeKnowledgeResponse, CheckOverlapRequest, CheckOverlapResponse, ConnectRequest, ConnectResponse, Connection, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideRequest, DecisionAnswer, DecisionQuestion, DecisionRequest, DecisionResponse, DeleteLexiconWordRequest, DeleteLexiconWordResponse, DeliverNoticeRequest, Device, DisconnectRequest, EgressDestinationRequest, EgressDestinationResponse, EgressDetectRequest, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressFlow, EgressFlowHeader, EgressReportRequest, EgressReportResponse, EgressReview, EgressReviewHeader, EgressSecretRule, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, FileChange, FinishTodoRequest, GetAccessRequest, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetPageRequest, GetTaskDiffRequest, GetTaskOutputRequest, GetTaskRequest, HistoryMessage, ImportHistoryRequest, ImportHistoryResponse, ImportedMessage, KnowledgeChange, KnowledgeFact, KnowledgeHistoryRequest, KnowledgeHistoryResponse, KnowledgeItem, KnowledgeRecord, LexiconWord, LinkRequest, ListConnectionsRequest, ListConnectionsResponse, ListDevicesRequest, ListDevicesResponse, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListNoticesRequest, ListNoticesResponse, ListPagesRequest, ListPagesResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListTodosRequest, ListTodosResponse, ListVoicesRequest, ListVoicesResponse, ListenRequest, ListenResponse, MergeKnowledgeRequest, Message, MessageLink, ModelSelector, Notice, NoticeDelivery, Page, PersonaInfo, PutAppReleaseRequest, PutDeviceRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, RememberResponse, RemoveDeviceRequest, ReportDeliveryRequest, ReportDeliveryResponse, ReviewItem, RunnerAck, RunnerAssignment, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerEgressProxy, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerInfo, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, RunnerTerminal, RunnerTerminalsRequest, RunnerTerminalsResponse, RunnerUpdate, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, SpeechPart, StartTaskRequest, StopSpeechRequest, StopSpeechResponse, Task, TaskDiff, TaskOutput, TaskStep, Todo, TraceRequest, TraceResponse, UnlinkRequest, UnmergeKnowledgeRequest, VoiceInfo, WaitNoticesRequest, WaitNoticesResponse, WordTime } from "./types.gen.ts";
+import type { Access, AckNoticeRequest, Activity, ActivityRequest, AdminChat, AdminGetRunOutputRequest, AdminGetRunRequest, AdminListChatsRequest, AdminListChatsResponse, AdminListRunsRequest, AdminListRunsResponse, AdminReadChatRequest, AdminReadChatResponse, AdminRun, AdminRunSummary, AdminTurnLogRequest, AdminTurnLogResponse, AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, ChangeKnowledgeRequest, ChangeKnowledgeResponse, CheckOverlapRequest, CheckOverlapResponse, ConnectRequest, ConnectResponse, Connection, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideLessonRequest, DecideRequest, DecisionAnswer, DecisionQuestion, DecisionRequest, DecisionResponse, DeleteLexiconWordRequest, DeleteLexiconWordResponse, DeliverNoticeRequest, Device, DisconnectRequest, EgressDestinationRequest, EgressDestinationResponse, EgressDetectRequest, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressFlow, EgressFlowHeader, EgressReportRequest, EgressReportResponse, EgressReview, EgressReviewHeader, EgressSecretRule, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, FileChange, FinishTodoRequest, GetAccessRequest, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetPageRequest, GetTaskDiffRequest, GetTaskOutputRequest, GetTaskRequest, HistoryMessage, ImportHistoryRequest, ImportHistoryResponse, ImportedMessage, KnowledgeChange, KnowledgeFact, KnowledgeHistoryRequest, KnowledgeHistoryResponse, KnowledgeItem, KnowledgeRecord, Lesson, LexiconWord, LinkRequest, ListConnectionsRequest, ListConnectionsResponse, ListDevicesRequest, ListDevicesResponse, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLessonsRequest, ListLessonsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListNoticesRequest, ListNoticesResponse, ListPagesRequest, ListPagesResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListTodosRequest, ListTodosResponse, ListVoicesRequest, ListVoicesResponse, ListenRequest, ListenResponse, MergeKnowledgeRequest, Message, MessageLink, ModelSelector, Notice, NoticeDelivery, Page, PersonaInfo, ProposeLessonRequest, PutAppReleaseRequest, PutDeviceRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, RememberResponse, RemoveDeviceRequest, ReportDeliveryRequest, ReportDeliveryResponse, ReviewItem, RunnerAck, RunnerAssignment, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerEgressProxy, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerInfo, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, RunnerTerminal, RunnerTerminalsRequest, RunnerTerminalsResponse, RunnerUpdate, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, SpeechPart, StartTaskRequest, StopSpeechRequest, StopSpeechResponse, Task, TaskDiff, TaskOutput, TaskStep, Todo, TraceRequest, TraceResponse, UnlinkRequest, UnmergeKnowledgeRequest, VoiceInfo, WaitNoticesRequest, WaitNoticesResponse, WordTime } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -278,6 +278,32 @@ export function asLiteral<T extends CborValue>(value: CborValue, expected: T): T
 /** Validate a decoded scalar against a literal-enum's declared vocabulary, erroring
  * on an unknown value. The caller reads through `asNumber`/`asString`/`asBool`, which
  * already normalize a decoded `bigint` to `number`, so a plain membership check suffices. */
+/** CBOR orders unsigned integer keys first, then negative keys by magnitude. */
+export function enumNumberMap(entries: [bigint, CborValue][]): Map<CborValue, CborValue> {
+  return new Map(entries.sort(([a], [b]) => {
+    if (a === b) return 0;
+    if ((a < 0n) !== (b < 0n)) return a < 0n ? 1 : -1;
+    if (a < 0n) return a > b ? -1 : 1;
+    return a < b ? -1 : 1;
+  }));
+}
+
+export function enumToNumber(label: string, entries: readonly (readonly [string, bigint])[]): bigint {
+  for (const [name, number] of entries) {
+    if (name === label) return number;
+  }
+  throw new Error("unknown enum label");
+}
+
+export function enumFromNumber(value: CborValue, entries: readonly (readonly [string, bigint])[]): string {
+  if (typeof value === "bigint" || (typeof value === "number" && Number.isSafeInteger(value))) {
+    for (const [name, number] of entries) {
+      if (BigInt(value) === number) return name;
+    }
+  }
+  throw new Error("unknown enum number");
+}
+
 export function asEnumMember<T extends number | string | boolean | null>(
   value: T,
   members: readonly T[],
@@ -3936,6 +3962,136 @@ export function toDecisionRequestCbor(v: DecisionRequest): Uint8Array {
 
 export function fromDecisionRequestCbor(bytes: Uint8Array): DecisionRequest {
   return fromDecisionRequestCborValue(decode(bytes));
+}
+
+export function toLessonCborValue(v: Lesson): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  csilMap.set("area", v.area);
+  csilMap.set("text", v.text);
+  csilMap.set("title", v.title);
+  csilMap.set("origin", v.origin);
+  csilMap.set("source", v.source);
+  csilMap.set("status", v.status);
+  csilMap.set("created_ms", v.createdMs);
+  if (v.decidedBy !== undefined) csilMap.set("decided_by", v.decidedBy);
+  return csilMap;
+}
+
+export function fromLessonCborValue(value: CborValue): Lesson {
+  return {
+    id: asString(requireKey(value, "id")),
+    title: asString(requireKey(value, "title")),
+    area: asString(requireKey(value, "area")),
+    source: asString(requireKey(value, "source")),
+    text: asString(requireKey(value, "text")),
+    origin: asString(requireKey(value, "origin")),
+    status: asString(requireKey(value, "status")),
+    decidedBy: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "decided_by")),
+    createdMs: asNumber(requireKey(value, "created_ms")),
+  };
+}
+
+export function toLessonCbor(v: Lesson): Uint8Array {
+  return encodeValue(toLessonCborValue(v));
+}
+
+export function fromLessonCbor(bytes: Uint8Array): Lesson {
+  return fromLessonCborValue(decode(bytes));
+}
+
+export function toProposeLessonRequestCborValue(v: ProposeLessonRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("area", v.area);
+  csilMap.set("text", v.text);
+  csilMap.set("title", v.title);
+  csilMap.set("source", v.source);
+  return csilMap;
+}
+
+export function fromProposeLessonRequestCborValue(value: CborValue): ProposeLessonRequest {
+  return {
+    title: asString(requireKey(value, "title")),
+    area: asString(requireKey(value, "area")),
+    source: asString(requireKey(value, "source")),
+    text: asString(requireKey(value, "text")),
+  };
+}
+
+export function toProposeLessonRequestCbor(v: ProposeLessonRequest): Uint8Array {
+  return encodeValue(toProposeLessonRequestCborValue(v));
+}
+
+export function fromProposeLessonRequestCbor(bytes: Uint8Array): ProposeLessonRequest {
+  return fromProposeLessonRequestCborValue(decode(bytes));
+}
+
+export function toListLessonsRequestCborValue(v: ListLessonsRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.status !== undefined) csilMap.set("status", v.status);
+  return csilMap;
+}
+
+export function fromListLessonsRequestCborValue(value: CborValue): ListLessonsRequest {
+  return {
+    status: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "status")),
+  };
+}
+
+export function toListLessonsRequestCbor(v: ListLessonsRequest): Uint8Array {
+  return encodeValue(toListLessonsRequestCborValue(v));
+}
+
+export function fromListLessonsRequestCbor(bytes: Uint8Array): ListLessonsRequest {
+  return fromListLessonsRequestCborValue(decode(bytes));
+}
+
+export function toListLessonsResponseCborValue(v: ListLessonsResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("lessons", v.lessons.map((csilE): CborValue => toLessonCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromListLessonsResponseCborValue(value: CborValue): ListLessonsResponse {
+  return {
+    lessons: asArray(requireKey(value, "lessons")).map((csilE) => fromLessonCborValue(csilE)),
+  };
+}
+
+export function toListLessonsResponseCbor(v: ListLessonsResponse): Uint8Array {
+  return encodeValue(toListLessonsResponseCborValue(v));
+}
+
+export function fromListLessonsResponseCbor(bytes: Uint8Array): ListLessonsResponse {
+  return fromListLessonsResponseCborValue(decode(bytes));
+}
+
+export function toDecideLessonRequestCborValue(v: DecideLessonRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("id", v.id);
+  if (v.area !== undefined) csilMap.set("area", v.area);
+  if (v.text !== undefined) csilMap.set("text", v.text);
+  if (v.title !== undefined) csilMap.set("title", v.title);
+  csilMap.set("decision", v.decision);
+  return csilMap;
+}
+
+export function fromDecideLessonRequestCborValue(value: CborValue): DecideLessonRequest {
+  return {
+    id: asString(requireKey(value, "id")),
+    decision: asString(requireKey(value, "decision")),
+    title: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "title")),
+    area: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "area")),
+    text: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "text")),
+  };
+}
+
+export function toDecideLessonRequestCbor(v: DecideLessonRequest): Uint8Array {
+  return encodeValue(toDecideLessonRequestCborValue(v));
+}
+
+export function fromDecideLessonRequestCbor(bytes: Uint8Array): DecideLessonRequest {
+  return fromDecideLessonRequestCborValue(decode(bytes));
 }
 
 export function toDecisionAnswerCborValue(v: DecisionAnswer): CborValue {

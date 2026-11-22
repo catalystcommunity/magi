@@ -10,7 +10,11 @@ export interface ServiceTransport {
 }
 
 export class ConversationClient {
-  constructor(private readonly t: ServiceTransport) {}
+  private readonly t: ServiceTransport;
+
+  constructor(t: ServiceTransport) {
+    this.t = t;
+  }
 
   /**
    * @throws {ServiceError} when the API returns an error response

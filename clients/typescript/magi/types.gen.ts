@@ -1272,6 +1272,62 @@ export interface DecisionRequest {
 
 /**
  * probs: one for each choice (noul: yes, no; score: 0 to max).
+ * A review lesson: a rule from a code review that the next code change
+ * gets (docs/knowledge.md). origin is "repository" (a lesson of the
+ * lessons file of the release) or "proposal" (a lesson that an operator
+ * call proposed). status is "proposed", "approved", or "rejected". A code
+ * change gets only approved lessons. A repository lesson is approved.
+ */
+export interface Lesson {
+  id: string;
+  title: string;
+  area: string;
+  source: string;
+  text: string;
+  origin: string;
+  status: string;
+  decidedBy?: string;
+  createdMs: number;
+}
+
+/**
+ * Operator call. area is "all code" or a path. source tells where the
+ * lesson comes from (a run id, a repository and a commit). The response
+ * is the lesson with status "proposed". A proposal with the title of an
+ * existing proposal gives that proposal.
+ */
+export interface ProposeLessonRequest {
+  title: string;
+  area: string;
+  source: string;
+  text: string;
+}
+
+/**
+ * status "" gives each lesson.
+ */
+export interface ListLessonsRequest {
+  status?: string;
+}
+
+export interface ListLessonsResponse {
+  lessons: Lesson[];
+}
+
+/**
+ * Only an administrator (a person) decides. decision is "approve" or
+ * "reject". title, area, and text change the proposal before the
+ * decision. A repository lesson has no decision: change the file.
+ */
+export interface DecideLessonRequest {
+  id: string;
+  decision: string;
+  title?: string;
+  area?: string;
+  text?: string;
+}
+
+/**
  * calibrated: the model has a calibration for this question id.
  */
 export interface DecisionAnswer {

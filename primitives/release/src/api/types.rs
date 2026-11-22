@@ -1,6 +1,6 @@
 //! Generated types from CSIL specification
 
-#![allow(non_camel_case_types, clippy::large_enum_variant)]
+#![allow(clippy::large_enum_variant)]
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Target {

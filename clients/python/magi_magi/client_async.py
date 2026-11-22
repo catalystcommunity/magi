@@ -71,6 +71,18 @@ class MagiAsyncClient:
         """answer-review"""
         return AnswerReviewResponse.from_cbor(await self._transport.call("MagiService", "answer-review", req.to_cbor()))
 
+    async def propose_lesson(self, req: ProposeLessonRequest) -> Lesson:
+        """propose-lesson"""
+        return Lesson.from_cbor(await self._transport.call("MagiService", "propose-lesson", req.to_cbor()))
+
+    async def list_lessons(self, req: ListLessonsRequest) -> ListLessonsResponse:
+        """list-lessons"""
+        return ListLessonsResponse.from_cbor(await self._transport.call("MagiService", "list-lessons", req.to_cbor()))
+
+    async def decide_lesson(self, req: DecideLessonRequest) -> Lesson:
+        """decide-lesson"""
+        return Lesson.from_cbor(await self._transport.call("MagiService", "decide-lesson", req.to_cbor()))
+
     async def list_personas(self, req: ListPersonasRequest) -> ListPersonasResponse:
         """list-personas"""
         return ListPersonasResponse.from_cbor(await self._transport.call("MagiService", "list-personas", req.to_cbor()))
