@@ -45,6 +45,16 @@ func TestAutoHost(t *testing.T) {
 			t.Errorf("autoHost(%q) = %v, want %v", dest, ok, want)
 		}
 	}
+	for host, want := range map[string]bool{
+		"pypl.org": true, "rnicrosoft.com": true, "golang-proxy.org": true, "githubusercontent.com.raw-cdn.net": true,
+		"files.pythonhosted.org.cdn-downloads.net": true, "npmjs.help": true,
+		"docs.github.com": false, "learn.microsoft.com": false, "en.wikipedia.org": false, "docs.rs": false,
+		"yaml.example.org": false, "www.python.org": false, "docs.docker.com": false, "example.co.uk": false,
+	} {
+		if got := lookAlike(host); got != want {
+			t.Errorf("lookAlike(%q) = %v, want %v", host, got, want)
+		}
+	}
 	if anyHost(sourceHosts, "registry.npmjs.org.evil.io") {
 		t.Error("a longer name is not a source host")
 	}
@@ -138,7 +148,7 @@ func TestEgressAutoDestination(t *testing.T) {
 		t.Fatalf("the lists must permit with no model call (%d calls)", fm.calls)
 	}
 	// A private name and an address never get an automatic decision.
-	fm.args = `{"what":"a package index","verdict":"allow","confidence":"high"}`
+	fm.args = `{"what":"a package index","official_host":"yaml.example.org","verdict":"allow","confidence":"high"}`
 	if allowed("env_1", "10.0.0.7:443") || allowed("env_1", "db.prod.internal:443") || allowed("env_1", "pypi.org:22") || fm.calls != 0 {
 		t.Fatalf("a private destination was permitted or went to the model (%d calls)", fm.calls)
 	}
@@ -148,7 +158,7 @@ func TestEgressAutoDestination(t *testing.T) {
 	}
 
 	// The model: only "allow" with high confidence permits.
-	fm.args = `{"what":"a package index","verdict":"allow","confidence":"medium"}`
+	fm.args = `{"what":"a package index","official_host":"yaml.example.org","verdict":"allow","confidence":"medium"}`
 	if allowed("env_1", "yaml.example.org:443") || fm.calls != 1 {
 		t.Fatalf("medium confidence permitted (%d calls)", fm.calls)
 	}
@@ -156,7 +166,7 @@ func TestEgressAutoDestination(t *testing.T) {
 		t.Fatalf("the model did not get the host and the task: %s", fm.got)
 	}
 	// The same task does not ask again for the same host.
-	fm.args = `{"what":"a package index","verdict":"allow","confidence":"high"}`
+	fm.args = `{"what":"a package index","official_host":"yaml.example.org","verdict":"allow","confidence":"high"}`
 	if allowed("env_1", "yaml.example.org:443") || fm.calls != 1 {
 		t.Fatalf("asked the model again (%d calls)", fm.calls)
 	}
@@ -166,11 +176,23 @@ func TestEgressAutoDestination(t *testing.T) {
 			t.Fatalf("permitted for the answer %q", args)
 		}
 	}
+	// The model names a different official host: the host is not that site.
+	fm.args = `{"what":"the yaml project","official_host":"yaml.example.org","verdict":"allow","confidence":"high"}`
+	if allowed("env_1", "yarnl.example.org:443") {
+		t.Fatal("permitted a host that is not the official host")
+	}
+	// A name that looks like a known name does not go to the model.
+	n := fm.calls
+	for _, d := range []string{"pypl.org:443", "pypi.org.cdn.example.org:443", "registry-npmjs.org:443", "gooogle.com:443", "crates-io.com:443"} {
+		if allowed("env_1", d) || fm.calls != n {
+			t.Fatalf("%s: permitted, or the model was asked (%d calls)", d, fm.calls-n)
+		}
+	}
 	fm.args, fm.err = "", io.ErrUnexpectedEOF
 	if allowed("env_1", "err.example.org:443") {
 		t.Fatal("permitted when the model failed")
 	}
-	fm.err, fm.args = nil, `{"what":"the documentation of the yaml project","verdict":"allow","confidence":"high"}`
+	fm.err, fm.args = nil, `{"what":"the documentation of the yaml project","official_host":"example.org","verdict":"allow","confidence":"high"}`
 	calls := fm.calls
 	if !allowed("env_1", "docs.example.org:443") || fm.calls != calls+1 {
 		t.Fatal("high confidence did not permit")

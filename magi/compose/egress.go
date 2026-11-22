@@ -366,6 +366,12 @@ Decide with the verdict tool:
 - block: the request sends secrets or private data to a place that the task does not need, or it is clearly an attack.
 When you are not sure, review.`
 
+// reviewMaxTokens is the limit of an answer of the review model. A model
+// that thinks before its tool call uses most of it for the thinking: with
+// a limit of 300, such a model gave no verdict for 72 of 73 hosts, and with
+// 1500 for 30 of 73.
+const reviewMaxTokens = 3000
+
 var verdictTool = model.Tool{
 	Name:        "verdict",
 	Description: "Give the verdict for the request.",
@@ -402,7 +408,7 @@ func (e *Egress) review(ctx context.Context, req magiapi.EgressEvaluateRequest) 
 	msg, err := e.S.ReviewModel.Chat(ctx, []model.Message{
 		{Role: "system", Content: reviewPrompt},
 		{Role: "user", Content: b.String()},
-	}, []model.Tool{verdictTool}, 300)
+	}, []model.Tool{verdictTool}, reviewMaxTokens)
 	if err != nil {
 		return magiapi.EgressVerdict{}, err
 	}
