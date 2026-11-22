@@ -270,8 +270,8 @@ word, up to 3.
 - An operator call makes a proposal: `magi lesson propose -title T -area A
   -source S -text TEXT` (`propose-lesson`).
 - `magi lessons -status proposed` lists the proposals (`list-lessons`).
-- Only an administrator decides: `magi lesson approve ID` or `magi lesson
-  reject ID` (`decide-lesson`). The flags `-title`, `-area`, and `-text`
+- Only an administrator decides: `magi lesson approve ID...` or `magi
+  lesson reject ID...` (`decide-lesson`), with one or more ids. The flags `-title`, `-area`, and `-text`
   change the proposal before the decision. The operate scope of a service
   is not sufficient, because a lesson changes each later code change.
 - A code change gets a proposal only when its status is `approved`. A
