@@ -131,7 +131,10 @@ says that the task stopped at the limit.
 ## Thinking cuts
 
 A thinking model can spend the whole output limit on reasoning. The reply then
-has `finish_reason` `length`, no content, and no tool call. The harness answers
+has `finish_reason` `length`, no content, and no tool call. A server with a
+reasoning budget ends the thinking itself: the reply then stops normally, but it
+has reasoning, no content, and no tool call. The harness handles the two cases
+the same way. It answers
 with a note that tells the model not to think about the whole task again, and to
 call one tool now. A cut reply that has content keeps the note about writing
 large files in parts. The transcript records the reply as `thinking_cut`, with

@@ -48,6 +48,8 @@ CUT_REPLY = ("Your last reply was cut at the output token limit. Write large fil
 THINK_CUT = ("Your last reply was cut at the output limit while you were still thinking, and it "
              "had no tool call. Do not think about the whole task again. Decide the next small "
              "step and call one tool now.")
+THINK_END = ("Your last reply had thinking, but no answer and no tool call. Do not think about "
+             "the whole task again. Decide the next small step and call one tool now.")
 # A long context makes long thinking more likely, so a thinking cut compacts
 # earlier than the normal threshold.
 THINK_CUT_COMPACT_RATIO = 0.6
@@ -522,8 +524,10 @@ class Apprentice:
             if not reply.tool_calls:
                 idle += 1
                 # A reply that the limit cut during thinking has no content and
-                # no tool call.
-                thinking_cut = reply.finish_reason == "length" and not reply.content.strip()
+                # no tool call. A server with a reasoning budget ends the thinking
+                # itself; the reply then stops normally, also with no content.
+                cut = reply.finish_reason == "length"
+                thinking_cut = not reply.content.strip() and (cut or bool(reply.reasoning.strip()))
                 if thinking_cut:
                     thinking_cuts += 1
                     tr.record("thinking_cut", step=res.steps, reasoning_chars=len(reply.reasoning))
@@ -542,7 +546,7 @@ class Apprentice:
                         tr.record("compaction", removed_chars=removed, est_tokens=ctx.tokens(),
                                   reason="thinking cut")
                         sent = min(sent, len(ctx.messages))
-                    note = THINK_CUT
+                    note = THINK_CUT if cut else THINK_END
                 else:
                     note = CUT_REPLY if reply.finish_reason == "length" else CONTINUE
                 ctx.messages.append({"role": "user", "content": note})

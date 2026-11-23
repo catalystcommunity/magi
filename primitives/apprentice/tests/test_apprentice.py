@@ -173,6 +173,26 @@ class LoopTest(unittest.TestCase):
         self.assertEqual(resp["reasoning_tail"], "plan " * 80)
         self.assertNotIn("plan " * 81, json.dumps(resp))
 
+    def test_thinking_that_ends_with_no_answer_is_a_thinking_cut(self):
+        # A server with a reasoning budget ends the thinking itself. The reply
+        # stops normally, but it has no content and no tool call.
+        a, model, _, tr = apprentice([reply(content="", finish_reason="stop", reasoning="trace " * 50),
+                                      reply(call("finish", summary="s"))],
+                                     limits=Limits(self_review=False))
+        r = a.run(Task("t"))
+        self.assertEqual(r.status, "finished")
+        self.assertIn("had thinking, but no answer", model.requests[1][-1]["content"])
+        self.assertIn("call one tool now", model.requests[1][-1]["content"])
+        self.assertEqual(len(records(tr, "thinking_cut")), 1)
+
+    def test_an_empty_reply_with_no_thinking_keeps_the_continue_note(self):
+        a, model, _, tr = apprentice([reply(content="", finish_reason="stop"),
+                                      reply(call("finish", summary="s"))],
+                                     limits=Limits(self_review=False))
+        a.run(Task("t"))
+        self.assertIn("Continue with the task", model.requests[1][-1]["content"])
+        self.assertEqual(records(tr, "thinking_cut"), [])
+
     def test_a_cut_with_content_keeps_the_old_note(self):
         a, model, _, tr = apprentice([reply(content="half a file", finish_reason="length"),
                                       reply(call("finish", summary="s"))],
