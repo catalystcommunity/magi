@@ -6,6 +6,20 @@ from typing import Optional, List, Dict, Any, Union
 import json
 
 
+def _csil_json_bytes_out(value: Any) -> str:
+    import base64
+
+    return base64.b64encode(bytes(value)).decode("ascii")
+
+
+def _csil_json_bytes_in(value: Any) -> bytes:
+    import base64
+
+    if not isinstance(value, str):
+        raise ValueError(f"expected base64 text, got {type(value).__name__}")
+    return base64.b64decode(value, validate=True)
+
+
 @dataclass
 class EnvironmentSpec:
     image: str
@@ -77,7 +91,7 @@ class Environment:
         if hasattr(self, 'id') and self.id is not None:
             result['id'] = self.id
         if hasattr(self, 'spec') and self.spec is not None:
-            result['spec'] = self.spec
+            result['spec'] = self.spec.to_dict()
         if hasattr(self, 'owner') and self.owner is not None:
             result['owner'] = self.owner
         if hasattr(self, 'status') and self.status is not None:
@@ -95,7 +109,7 @@ class Environment:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Environment':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), spec=data.get('spec'), owner=data.get('owner'), status=data.get('status'), message=data.get('message'), held=data.get('held'), created_ms=data.get('created_ms'), expires_ms=data.get('expires_ms'))
+        return cls(id=data.get('id'), spec=(None if data.get('spec') is None else EnvironmentSpec.from_dict(data['spec'])), owner=data.get('owner'), status=data.get('status'), message=data.get('message'), held=data.get('held'), created_ms=data.get('created_ms'), expires_ms=data.get('expires_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -116,7 +130,7 @@ class CreateRequest:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'spec') and self.spec is not None:
-            result['spec'] = self.spec
+            result['spec'] = self.spec.to_dict()
         if hasattr(self, 'owner') and self.owner is not None:
             result['owner'] = self.owner
         if hasattr(self, 'wait_ready_ms') and self.wait_ready_ms is not None:
@@ -126,7 +140,7 @@ class CreateRequest:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'CreateRequest':
         """Create instance from dictionary."""
-        return cls(spec=data.get('spec'), owner=data.get('owner'), wait_ready_ms=data.get('wait_ready_ms'))
+        return cls(spec=(None if data.get('spec') is None else EnvironmentSpec.from_dict(data['spec'])), owner=data.get('owner'), wait_ready_ms=data.get('wait_ready_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -201,13 +215,13 @@ class ListResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'environments') and self.environments is not None:
-            result['environments'] = self.environments
+            result['environments'] = [item0.to_dict() for item0 in self.environments]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListResponse':
         """Create instance from dictionary."""
-        return cls(environments=data.get('environments'))
+        return cls(environments=(None if data.get('environments') is None else [Environment.from_dict(item0) for item0 in data['environments']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -321,7 +335,7 @@ class ExecRequest:
         if hasattr(self, 'env') and self.env is not None:
             result['env'] = self.env
         if hasattr(self, 'stdin') and self.stdin is not None:
-            result['stdin'] = self.stdin
+            result['stdin'] = _csil_json_bytes_out(self.stdin)
         if hasattr(self, 'timeout_ms') and self.timeout_ms is not None:
             result['timeout_ms'] = self.timeout_ms
         if hasattr(self, 'max_output_bytes') and self.max_output_bytes is not None:
@@ -331,7 +345,7 @@ class ExecRequest:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ExecRequest':
         """Create instance from dictionary."""
-        return cls(environment=data.get('environment'), argv=data.get('argv'), cwd=data.get('cwd'), env=data.get('env'), stdin=data.get('stdin'), timeout_ms=data.get('timeout_ms'), max_output_bytes=data.get('max_output_bytes'))
+        return cls(environment=data.get('environment'), argv=data.get('argv'), cwd=data.get('cwd'), env=data.get('env'), stdin=(None if data.get('stdin') is None else _csil_json_bytes_in(data['stdin'])), timeout_ms=data.get('timeout_ms'), max_output_bytes=data.get('max_output_bytes'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -357,9 +371,9 @@ class ExecResult:
         if hasattr(self, 'exit_code') and self.exit_code is not None:
             result['exit_code'] = self.exit_code
         if hasattr(self, 'stdout') and self.stdout is not None:
-            result['stdout'] = self.stdout
+            result['stdout'] = _csil_json_bytes_out(self.stdout)
         if hasattr(self, 'stderr') and self.stderr is not None:
-            result['stderr'] = self.stderr
+            result['stderr'] = _csil_json_bytes_out(self.stderr)
         if hasattr(self, 'truncated') and self.truncated is not None:
             result['truncated'] = self.truncated
         if hasattr(self, 'timed_out') and self.timed_out is not None:
@@ -371,7 +385,7 @@ class ExecResult:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ExecResult':
         """Create instance from dictionary."""
-        return cls(exit_code=data.get('exit_code'), stdout=data.get('stdout'), stderr=data.get('stderr'), truncated=data.get('truncated'), timed_out=data.get('timed_out'), duration_ms=data.get('duration_ms'))
+        return cls(exit_code=data.get('exit_code'), stdout=(None if data.get('stdout') is None else _csil_json_bytes_in(data['stdout'])), stderr=(None if data.get('stderr') is None else _csil_json_bytes_in(data['stderr'])), truncated=data.get('truncated'), timed_out=data.get('timed_out'), duration_ms=data.get('duration_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -426,7 +440,7 @@ class FileContent:
         if hasattr(self, 'path') and self.path is not None:
             result['path'] = self.path
         if hasattr(self, 'body') and self.body is not None:
-            result['body'] = self.body
+            result['body'] = _csil_json_bytes_out(self.body)
         if hasattr(self, 'size') and self.size is not None:
             result['size'] = self.size
         if hasattr(self, 'truncated') and self.truncated is not None:
@@ -436,7 +450,7 @@ class FileContent:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'FileContent':
         """Create instance from dictionary."""
-        return cls(path=data.get('path'), body=data.get('body'), size=data.get('size'), truncated=data.get('truncated'))
+        return cls(path=data.get('path'), body=(None if data.get('body') is None else _csil_json_bytes_in(data['body'])), size=data.get('size'), truncated=data.get('truncated'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -462,7 +476,7 @@ class WriteFileRequest:
         if hasattr(self, 'path') and self.path is not None:
             result['path'] = self.path
         if hasattr(self, 'body') and self.body is not None:
-            result['body'] = self.body
+            result['body'] = _csil_json_bytes_out(self.body)
         if hasattr(self, 'mode') and self.mode is not None:
             result['mode'] = self.mode
         return result
@@ -470,7 +484,7 @@ class WriteFileRequest:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'WriteFileRequest':
         """Create instance from dictionary."""
-        return cls(environment=data.get('environment'), path=data.get('path'), body=data.get('body'), mode=data.get('mode'))
+        return cls(environment=data.get('environment'), path=data.get('path'), body=(None if data.get('body') is None else _csil_json_bytes_in(data['body'])), mode=data.get('mode'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -583,7 +597,7 @@ class ListFilesResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'entries') and self.entries is not None:
-            result['entries'] = self.entries
+            result['entries'] = [item0.to_dict() for item0 in self.entries]
         if hasattr(self, 'truncated') and self.truncated is not None:
             result['truncated'] = self.truncated
         return result
@@ -591,7 +605,7 @@ class ListFilesResponse:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListFilesResponse':
         """Create instance from dictionary."""
-        return cls(entries=data.get('entries'), truncated=data.get('truncated'))
+        return cls(entries=(None if data.get('entries') is None else [FileEntry.from_dict(item0) for item0 in data['entries']]), truncated=data.get('truncated'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

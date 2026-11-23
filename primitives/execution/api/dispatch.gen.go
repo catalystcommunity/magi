@@ -16,7 +16,7 @@ func ExecutionServiceOps(impl ExecutionService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeEnvironment(resp), nil
+			return EncodeEnvironment(resp)
 		},
 		"get": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetRequest(b)
@@ -27,7 +27,7 @@ func ExecutionServiceOps(impl ExecutionService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeEnvironment(resp), nil
+			return EncodeEnvironment(resp)
 		},
 		"list": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListRequest(b)
@@ -38,7 +38,7 @@ func ExecutionServiceOps(impl ExecutionService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListResponse(resp), nil
+			return EncodeListResponse(resp)
 		},
 		"destroy": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeDestroyRequest(b)
@@ -49,7 +49,7 @@ func ExecutionServiceOps(impl ExecutionService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeEnvironment(resp), nil
+			return EncodeEnvironment(resp)
 		},
 		"hold": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeHoldRequest(b)
@@ -60,7 +60,7 @@ func ExecutionServiceOps(impl ExecutionService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeEnvironment(resp), nil
+			return EncodeEnvironment(resp)
 		},
 		"extend": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeExtendRequest(b)
@@ -71,7 +71,7 @@ func ExecutionServiceOps(impl ExecutionService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeEnvironment(resp), nil
+			return EncodeEnvironment(resp)
 		},
 		"exec": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeExecRequest(b)
@@ -82,7 +82,7 @@ func ExecutionServiceOps(impl ExecutionService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeExecResult(resp), nil
+			return EncodeExecResult(resp)
 		},
 		"read-file": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeReadFileRequest(b)
@@ -93,7 +93,7 @@ func ExecutionServiceOps(impl ExecutionService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeFileContent(resp), nil
+			return EncodeFileContent(resp)
 		},
 		"write-file": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeWriteFileRequest(b)
@@ -104,7 +104,7 @@ func ExecutionServiceOps(impl ExecutionService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeWriteFileResponse(resp), nil
+			return EncodeWriteFileResponse(resp)
 		},
 		"list-files": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListFilesRequest(b)
@@ -115,7 +115,7 @@ func ExecutionServiceOps(impl ExecutionService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListFilesResponse(resp), nil
+			return EncodeListFilesResponse(resp)
 		},
 	}
 }

@@ -16,7 +16,7 @@ func ReleaseServiceOps(impl ReleaseService) map[string]func(context.Context, []b
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRelease(resp), nil
+			return EncodeRelease(resp)
 		},
 		"get": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetReleaseRequest(b)
@@ -27,7 +27,7 @@ func ReleaseServiceOps(impl ReleaseService) map[string]func(context.Context, []b
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRelease(resp), nil
+			return EncodeRelease(resp)
 		},
 		"list": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListReleasesRequest(b)
@@ -38,7 +38,7 @@ func ReleaseServiceOps(impl ReleaseService) map[string]func(context.Context, []b
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListReleasesResponse(resp), nil
+			return EncodeListReleasesResponse(resp)
 		},
 		"rollback": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeRollbackRequest(b)
@@ -49,7 +49,7 @@ func ReleaseServiceOps(impl ReleaseService) map[string]func(context.Context, []b
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRelease(resp), nil
+			return EncodeRelease(resp)
 		},
 		"list-targets": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListTargetsRequest(b)
@@ -60,7 +60,7 @@ func ReleaseServiceOps(impl ReleaseService) map[string]func(context.Context, []b
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListTargetsResponse(resp), nil
+			return EncodeListTargetsResponse(resp)
 		},
 	}
 }

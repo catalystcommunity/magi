@@ -45,7 +45,11 @@ func NewExecutionClient(transport Transport) *ExecutionClient {
 
 func (c *ExecutionClient) Create(ctx context.Context, req CreateRequest) (Environment, error) {
 	var csilZero Environment
-	csilResp, csilErr := c.transport.Call(ctx, "ExecutionService", "create", EncodeCreateRequest(req))
+	csilReq, csilErr := EncodeCreateRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ExecutionService", "create", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -54,7 +58,11 @@ func (c *ExecutionClient) Create(ctx context.Context, req CreateRequest) (Enviro
 
 func (c *ExecutionClient) Get(ctx context.Context, req GetRequest) (Environment, error) {
 	var csilZero Environment
-	csilResp, csilErr := c.transport.Call(ctx, "ExecutionService", "get", EncodeGetRequest(req))
+	csilReq, csilErr := EncodeGetRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ExecutionService", "get", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -63,7 +71,11 @@ func (c *ExecutionClient) Get(ctx context.Context, req GetRequest) (Environment,
 
 func (c *ExecutionClient) List(ctx context.Context, req ListRequest) (ListResponse, error) {
 	var csilZero ListResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ExecutionService", "list", EncodeListRequest(req))
+	csilReq, csilErr := EncodeListRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ExecutionService", "list", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -72,7 +84,11 @@ func (c *ExecutionClient) List(ctx context.Context, req ListRequest) (ListRespon
 
 func (c *ExecutionClient) Destroy(ctx context.Context, req DestroyRequest) (Environment, error) {
 	var csilZero Environment
-	csilResp, csilErr := c.transport.Call(ctx, "ExecutionService", "destroy", EncodeDestroyRequest(req))
+	csilReq, csilErr := EncodeDestroyRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ExecutionService", "destroy", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -81,7 +97,11 @@ func (c *ExecutionClient) Destroy(ctx context.Context, req DestroyRequest) (Envi
 
 func (c *ExecutionClient) Hold(ctx context.Context, req HoldRequest) (Environment, error) {
 	var csilZero Environment
-	csilResp, csilErr := c.transport.Call(ctx, "ExecutionService", "hold", EncodeHoldRequest(req))
+	csilReq, csilErr := EncodeHoldRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ExecutionService", "hold", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -90,7 +110,11 @@ func (c *ExecutionClient) Hold(ctx context.Context, req HoldRequest) (Environmen
 
 func (c *ExecutionClient) Extend(ctx context.Context, req ExtendRequest) (Environment, error) {
 	var csilZero Environment
-	csilResp, csilErr := c.transport.Call(ctx, "ExecutionService", "extend", EncodeExtendRequest(req))
+	csilReq, csilErr := EncodeExtendRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ExecutionService", "extend", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -99,7 +123,11 @@ func (c *ExecutionClient) Extend(ctx context.Context, req ExtendRequest) (Enviro
 
 func (c *ExecutionClient) Exec(ctx context.Context, req ExecRequest) (ExecResult, error) {
 	var csilZero ExecResult
-	csilResp, csilErr := c.transport.Call(ctx, "ExecutionService", "exec", EncodeExecRequest(req))
+	csilReq, csilErr := EncodeExecRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ExecutionService", "exec", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -108,7 +136,11 @@ func (c *ExecutionClient) Exec(ctx context.Context, req ExecRequest) (ExecResult
 
 func (c *ExecutionClient) ReadFile(ctx context.Context, req ReadFileRequest) (FileContent, error) {
 	var csilZero FileContent
-	csilResp, csilErr := c.transport.Call(ctx, "ExecutionService", "read-file", EncodeReadFileRequest(req))
+	csilReq, csilErr := EncodeReadFileRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ExecutionService", "read-file", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -117,7 +149,11 @@ func (c *ExecutionClient) ReadFile(ctx context.Context, req ReadFileRequest) (Fi
 
 func (c *ExecutionClient) WriteFile(ctx context.Context, req WriteFileRequest) (WriteFileResponse, error) {
 	var csilZero WriteFileResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ExecutionService", "write-file", EncodeWriteFileRequest(req))
+	csilReq, csilErr := EncodeWriteFileRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ExecutionService", "write-file", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -126,7 +162,11 @@ func (c *ExecutionClient) WriteFile(ctx context.Context, req WriteFileRequest) (
 
 func (c *ExecutionClient) ListFiles(ctx context.Context, req ListFilesRequest) (ListFilesResponse, error) {
 	var csilZero ListFilesResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ExecutionService", "list-files", EncodeListFilesRequest(req))
+	csilReq, csilErr := EncodeListFilesRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ExecutionService", "list-files", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}

@@ -136,13 +136,13 @@ class ListFlowsResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'flows') and self.flows is not None:
-            result['flows'] = self.flows
+            result['flows'] = [item0.to_dict() for item0 in self.flows]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListFlowsResponse':
         """Create instance from dictionary."""
-        return cls(flows=data.get('flows'))
+        return cls(flows=(None if data.get('flows') is None else [FlowRecord.from_dict(item0) for item0 in data['flows']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

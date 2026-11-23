@@ -6,6 +6,20 @@ from typing import Optional, List, Dict, Any, Union
 import json
 
 
+def _csil_json_bytes_out(value: Any) -> str:
+    import base64
+
+    return base64.b64encode(bytes(value)).decode("ascii")
+
+
+def _csil_json_bytes_in(value: Any) -> bytes:
+    import base64
+
+    if not isinstance(value, str):
+        raise ValueError(f"expected base64 text, got {type(value).__name__}")
+    return base64.b64decode(value, validate=True)
+
+
 @dataclass
 class TranscribeRequest:
     audio: bytes
@@ -15,7 +29,7 @@ class TranscribeRequest:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'audio') and self.audio is not None:
-            result['audio'] = self.audio
+            result['audio'] = _csil_json_bytes_out(self.audio)
         if hasattr(self, 'media_type') and self.media_type is not None:
             result['media_type'] = self.media_type
         if hasattr(self, 'language') and self.language is not None:
@@ -25,7 +39,7 @@ class TranscribeRequest:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'TranscribeRequest':
         """Create instance from dictionary."""
-        return cls(audio=data.get('audio'), media_type=data.get('media_type'), language=data.get('language'))
+        return cls(audio=(None if data.get('audio') is None else _csil_json_bytes_in(data['audio'])), media_type=data.get('media_type'), language=data.get('language'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -131,7 +145,7 @@ class Audio:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'body') and self.body is not None:
-            result['body'] = self.body
+            result['body'] = _csil_json_bytes_out(self.body)
         if hasattr(self, 'spoken') and self.spoken is not None:
             result['spoken'] = self.spoken
         if hasattr(self, 'media_type') and self.media_type is not None:
@@ -145,13 +159,13 @@ class Audio:
         if hasattr(self, 'elapsed_ms') and self.elapsed_ms is not None:
             result['elapsed_ms'] = self.elapsed_ms
         if hasattr(self, 'words') and self.words is not None:
-            result['words'] = self.words
+            result['words'] = [item0.to_dict() for item0 in self.words]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Audio':
         """Create instance from dictionary."""
-        return cls(body=data.get('body'), spoken=data.get('spoken'), media_type=data.get('media_type'), voice=data.get('voice'), engine=data.get('engine'), audio_ms=data.get('audio_ms'), elapsed_ms=data.get('elapsed_ms'), words=data.get('words'))
+        return cls(body=(None if data.get('body') is None else _csil_json_bytes_in(data['body'])), spoken=data.get('spoken'), media_type=data.get('media_type'), voice=data.get('voice'), engine=data.get('engine'), audio_ms=data.get('audio_ms'), elapsed_ms=data.get('elapsed_ms'), words=(None if data.get('words') is None else [WordTime.from_dict(item0) for item0 in data['words']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -266,13 +280,13 @@ class ListVoicesResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'voices') and self.voices is not None:
-            result['voices'] = self.voices
+            result['voices'] = [item0.to_dict() for item0 in self.voices]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListVoicesResponse':
         """Create instance from dictionary."""
-        return cls(voices=data.get('voices'))
+        return cls(voices=(None if data.get('voices') is None else [Voice.from_dict(item0) for item0 in data['voices']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -338,13 +352,13 @@ class ListLexiconResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'entries') and self.entries is not None:
-            result['entries'] = self.entries
+            result['entries'] = [item0.to_dict() for item0 in self.entries]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListLexiconResponse':
         """Create instance from dictionary."""
-        return cls(entries=data.get('entries'))
+        return cls(entries=(None if data.get('entries') is None else [LexiconEntry.from_dict(item0) for item0 in data['entries']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -504,7 +518,7 @@ class DetectSpeechRequest:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'audio') and self.audio is not None:
-            result['audio'] = self.audio
+            result['audio'] = _csil_json_bytes_out(self.audio)
         if hasattr(self, 'media_type') and self.media_type is not None:
             result['media_type'] = self.media_type
         return result
@@ -512,7 +526,7 @@ class DetectSpeechRequest:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'DetectSpeechRequest':
         """Create instance from dictionary."""
-        return cls(audio=data.get('audio'), media_type=data.get('media_type'))
+        return cls(audio=(None if data.get('audio') is None else _csil_json_bytes_in(data['audio'])), media_type=data.get('media_type'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -567,7 +581,7 @@ class DetectSpeechResponse:
         if hasattr(self, 'audio_ms') and self.audio_ms is not None:
             result['audio_ms'] = self.audio_ms
         if hasattr(self, 'segments') and self.segments is not None:
-            result['segments'] = self.segments
+            result['segments'] = [item0.to_dict() for item0 in self.segments]
         if hasattr(self, 'engine') and self.engine is not None:
             result['engine'] = self.engine
         if hasattr(self, 'elapsed_ms') and self.elapsed_ms is not None:
@@ -577,7 +591,7 @@ class DetectSpeechResponse:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'DetectSpeechResponse':
         """Create instance from dictionary."""
-        return cls(speech_ms=data.get('speech_ms'), audio_ms=data.get('audio_ms'), segments=data.get('segments'), engine=data.get('engine'), elapsed_ms=data.get('elapsed_ms'))
+        return cls(speech_ms=data.get('speech_ms'), audio_ms=data.get('audio_ms'), segments=(None if data.get('segments') is None else [SpeechSegment.from_dict(item0) for item0 in data['segments']]), engine=data.get('engine'), elapsed_ms=data.get('elapsed_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -624,13 +638,13 @@ class ClassifyTurnRequest:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'items') and self.items is not None:
-            result['items'] = self.items
+            result['items'] = [item0.to_dict() for item0 in self.items]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ClassifyTurnRequest':
         """Create instance from dictionary."""
-        return cls(items=data.get('items'))
+        return cls(items=(None if data.get('items') is None else [TurnText.from_dict(item0) for item0 in data['items']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -682,7 +696,7 @@ class ClassifyTurnResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'results') and self.results is not None:
-            result['results'] = self.results
+            result['results'] = [item0.to_dict() for item0 in self.results]
         if hasattr(self, 'engine') and self.engine is not None:
             result['engine'] = self.engine
         if hasattr(self, 'elapsed_ms') and self.elapsed_ms is not None:
@@ -692,7 +706,7 @@ class ClassifyTurnResponse:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ClassifyTurnResponse':
         """Create instance from dictionary."""
-        return cls(results=data.get('results'), engine=data.get('engine'), elapsed_ms=data.get('elapsed_ms'))
+        return cls(results=(None if data.get('results') is None else [TurnClass.from_dict(item0) for item0 in data['results']]), engine=data.get('engine'), elapsed_ms=data.get('elapsed_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

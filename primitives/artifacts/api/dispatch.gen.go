@@ -16,7 +16,7 @@ func ArtifactServiceOps(impl ArtifactService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeArtifact(resp), nil
+			return EncodeArtifact(resp)
 		},
 		"get": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetRequest(b)
@@ -27,7 +27,7 @@ func ArtifactServiceOps(impl ArtifactService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeGetResponse(resp), nil
+			return EncodeGetResponse(resp)
 		},
 		"stat": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeStatRequest(b)
@@ -38,7 +38,7 @@ func ArtifactServiceOps(impl ArtifactService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeArtifact(resp), nil
+			return EncodeArtifact(resp)
 		},
 		"list": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListRequest(b)
@@ -49,7 +49,7 @@ func ArtifactServiceOps(impl ArtifactService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListResponse(resp), nil
+			return EncodeListResponse(resp)
 		},
 		"label": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeLabelRequest(b)
@@ -60,7 +60,7 @@ func ArtifactServiceOps(impl ArtifactService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeArtifact(resp), nil
+			return EncodeArtifact(resp)
 		},
 	}
 }

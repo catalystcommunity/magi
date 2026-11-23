@@ -45,7 +45,11 @@ func NewReleaseClient(transport Transport) *ReleaseClient {
 
 func (c *ReleaseClient) Create(ctx context.Context, req CreateReleaseRequest) (Release, error) {
 	var csilZero Release
-	csilResp, csilErr := c.transport.Call(ctx, "ReleaseService", "create", EncodeCreateReleaseRequest(req))
+	csilReq, csilErr := EncodeCreateReleaseRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ReleaseService", "create", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -54,7 +58,11 @@ func (c *ReleaseClient) Create(ctx context.Context, req CreateReleaseRequest) (R
 
 func (c *ReleaseClient) Get(ctx context.Context, req GetReleaseRequest) (Release, error) {
 	var csilZero Release
-	csilResp, csilErr := c.transport.Call(ctx, "ReleaseService", "get", EncodeGetReleaseRequest(req))
+	csilReq, csilErr := EncodeGetReleaseRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ReleaseService", "get", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -63,7 +71,11 @@ func (c *ReleaseClient) Get(ctx context.Context, req GetReleaseRequest) (Release
 
 func (c *ReleaseClient) List(ctx context.Context, req ListReleasesRequest) (ListReleasesResponse, error) {
 	var csilZero ListReleasesResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ReleaseService", "list", EncodeListReleasesRequest(req))
+	csilReq, csilErr := EncodeListReleasesRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ReleaseService", "list", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -72,7 +84,11 @@ func (c *ReleaseClient) List(ctx context.Context, req ListReleasesRequest) (List
 
 func (c *ReleaseClient) Rollback(ctx context.Context, req RollbackRequest) (Release, error) {
 	var csilZero Release
-	csilResp, csilErr := c.transport.Call(ctx, "ReleaseService", "rollback", EncodeRollbackRequest(req))
+	csilReq, csilErr := EncodeRollbackRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ReleaseService", "rollback", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -81,7 +97,11 @@ func (c *ReleaseClient) Rollback(ctx context.Context, req RollbackRequest) (Rele
 
 func (c *ReleaseClient) ListTargets(ctx context.Context, req ListTargetsRequest) (ListTargetsResponse, error) {
 	var csilZero ListTargetsResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ReleaseService", "list-targets", EncodeListTargetsRequest(req))
+	csilReq, csilErr := EncodeListTargetsRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ReleaseService", "list-targets", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}

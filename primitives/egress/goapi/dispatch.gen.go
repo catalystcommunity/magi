@@ -16,7 +16,7 @@ func EgressServiceOps(impl EgressService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListFlowsResponse(resp), nil
+			return EncodeListFlowsResponse(resp)
 		},
 	}
 }

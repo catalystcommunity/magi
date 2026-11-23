@@ -16,7 +16,7 @@ func EgressAskServiceOps(impl EgressAskService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeEgressEnvironmentResponse(resp), nil
+			return EncodeEgressEnvironmentResponse(resp)
 		},
 		"destination": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeEgressDestinationRequest(b)
@@ -27,7 +27,7 @@ func EgressAskServiceOps(impl EgressAskService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeEgressDestinationResponse(resp), nil
+			return EncodeEgressDestinationResponse(resp)
 		},
 		"report": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeEgressReportRequest(b)
@@ -38,7 +38,7 @@ func EgressAskServiceOps(impl EgressAskService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeEgressReportResponse(resp), nil
+			return EncodeEgressReportResponse(resp)
 		},
 		"evaluate": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeEgressEvaluateRequest(b)
@@ -49,7 +49,7 @@ func EgressAskServiceOps(impl EgressAskService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeEgressVerdict(resp), nil
+			return EncodeEgressVerdict(resp)
 		},
 		"detect": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeEgressDetectRequest(b)
@@ -60,7 +60,7 @@ func EgressAskServiceOps(impl EgressAskService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeEgressVerdict(resp), nil
+			return EncodeEgressVerdict(resp)
 		},
 		"secret-rules": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeEgressSecretRulesRequest(b)
@@ -71,7 +71,7 @@ func EgressAskServiceOps(impl EgressAskService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeEgressSecretRulesResponse(resp), nil
+			return EncodeEgressSecretRulesResponse(resp)
 		},
 	}
 }
@@ -88,7 +88,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeSayResponse(resp), nil
+			return EncodeSayResponse(resp)
 		},
 		"read": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeReadRequest(b)
@@ -99,7 +99,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeReadResponse(resp), nil
+			return EncodeReadResponse(resp)
 		},
 		"search": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeSearchRequest(b)
@@ -110,7 +110,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeSearchResponse(resp), nil
+			return EncodeSearchResponse(resp)
 		},
 		"trace": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeTraceRequest(b)
@@ -121,7 +121,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeTraceResponse(resp), nil
+			return EncodeTraceResponse(resp)
 		},
 		"list-links": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListLinksRequest(b)
@@ -132,7 +132,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListLinksResponse(resp), nil
+			return EncodeListLinksResponse(resp)
 		},
 		"link": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeLinkRequest(b)
@@ -143,7 +143,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeMessageLink(resp), nil
+			return EncodeMessageLink(resp)
 		},
 		"unlink": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeUnlinkRequest(b)
@@ -154,7 +154,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeMessageLink(resp), nil
+			return EncodeMessageLink(resp)
 		},
 		"set-visibility": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeSetVisibilityRequest(b)
@@ -165,7 +165,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeMessage(resp), nil
+			return EncodeMessage(resp)
 		},
 		"list-reviews": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListReviewsRequest(b)
@@ -176,7 +176,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListReviewsResponse(resp), nil
+			return EncodeListReviewsResponse(resp)
 		},
 		"answer-review": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeAnswerReviewRequest(b)
@@ -187,7 +187,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeAnswerReviewResponse(resp), nil
+			return EncodeAnswerReviewResponse(resp)
 		},
 		"propose-lesson": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeProposeLessonRequest(b)
@@ -198,7 +198,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeLesson(resp), nil
+			return EncodeLesson(resp)
 		},
 		"list-lessons": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListLessonsRequest(b)
@@ -209,7 +209,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListLessonsResponse(resp), nil
+			return EncodeListLessonsResponse(resp)
 		},
 		"decide-lesson": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeDecideLessonRequest(b)
@@ -220,7 +220,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeLesson(resp), nil
+			return EncodeLesson(resp)
 		},
 		"list-personas": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListPersonasRequest(b)
@@ -231,7 +231,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListPersonasResponse(resp), nil
+			return EncodeListPersonasResponse(resp)
 		},
 		"put-persona": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodePutPersonaRequest(b)
@@ -242,7 +242,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodePersonaInfo(resp), nil
+			return EncodePersonaInfo(resp)
 		},
 		"get-audio": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetAudioRequest(b)
@@ -253,7 +253,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeAudioResponse(resp), nil
+			return EncodeAudioResponse(resp)
 		},
 		"listen": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListenRequest(b)
@@ -264,7 +264,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListenResponse(resp), nil
+			return EncodeListenResponse(resp)
 		},
 		"stop-speech": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeStopSpeechRequest(b)
@@ -275,7 +275,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeStopSpeechResponse(resp), nil
+			return EncodeStopSpeechResponse(resp)
 		},
 		"report-delivery": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeReportDeliveryRequest(b)
@@ -286,7 +286,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeReportDeliveryResponse(resp), nil
+			return EncodeReportDeliveryResponse(resp)
 		},
 		"check-overlap": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeCheckOverlapRequest(b)
@@ -297,7 +297,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeCheckOverlapResponse(resp), nil
+			return EncodeCheckOverlapResponse(resp)
 		},
 		"put-device": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodePutDeviceRequest(b)
@@ -308,7 +308,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeDevice(resp), nil
+			return EncodeDevice(resp)
 		},
 		"list-devices": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListDevicesRequest(b)
@@ -319,7 +319,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListDevicesResponse(resp), nil
+			return EncodeListDevicesResponse(resp)
 		},
 		"remove-device": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeRemoveDeviceRequest(b)
@@ -330,7 +330,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeDevice(resp), nil
+			return EncodeDevice(resp)
 		},
 		"wait-notices": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeWaitNoticesRequest(b)
@@ -341,7 +341,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeWaitNoticesResponse(resp), nil
+			return EncodeWaitNoticesResponse(resp)
 		},
 		"deliver-notice": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeDeliverNoticeRequest(b)
@@ -352,7 +352,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeNotice(resp), nil
+			return EncodeNotice(resp)
 		},
 		"ack-notice": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeAckNoticeRequest(b)
@@ -363,7 +363,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeNotice(resp), nil
+			return EncodeNotice(resp)
 		},
 		"list-notices": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListNoticesRequest(b)
@@ -374,7 +374,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListNoticesResponse(resp), nil
+			return EncodeListNoticesResponse(resp)
 		},
 		"start-task": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeStartTaskRequest(b)
@@ -385,7 +385,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeTask(resp), nil
+			return EncodeTask(resp)
 		},
 		"get-task": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetTaskRequest(b)
@@ -396,7 +396,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeTask(resp), nil
+			return EncodeTask(resp)
 		},
 		"list-tasks": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListTasksRequest(b)
@@ -407,7 +407,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListTasksResponse(resp), nil
+			return EncodeListTasksResponse(resp)
 		},
 		"list-todos": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListTodosRequest(b)
@@ -418,7 +418,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListTodosResponse(resp), nil
+			return EncodeListTodosResponse(resp)
 		},
 		"finish-todo": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeFinishTodoRequest(b)
@@ -429,7 +429,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeTodo(resp), nil
+			return EncodeTodo(resp)
 		},
 		"get-task-diff": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetTaskDiffRequest(b)
@@ -440,7 +440,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeTaskDiff(resp), nil
+			return EncodeTaskDiff(resp)
 		},
 		"get-task-output": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetTaskOutputRequest(b)
@@ -451,7 +451,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeTaskOutput(resp), nil
+			return EncodeTaskOutput(resp)
 		},
 		"decide": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeDecideRequest(b)
@@ -462,7 +462,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeTask(resp), nil
+			return EncodeTask(resp)
 		},
 		"decision": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeDecisionRequest(b)
@@ -473,7 +473,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeDecisionResponse(resp), nil
+			return EncodeDecisionResponse(resp)
 		},
 		"cancel-task": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeCancelTaskRequest(b)
@@ -484,7 +484,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeTask(resp), nil
+			return EncodeTask(resp)
 		},
 		"query-knowledge": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeQueryKnowledgeRequest(b)
@@ -495,7 +495,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeQueryKnowledgeResponse(resp), nil
+			return EncodeQueryKnowledgeResponse(resp)
 		},
 		"remember": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeRememberRequest(b)
@@ -506,7 +506,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRememberResponse(resp), nil
+			return EncodeRememberResponse(resp)
 		},
 		"change-knowledge": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeChangeKnowledgeRequest(b)
@@ -517,7 +517,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeChangeKnowledgeResponse(resp), nil
+			return EncodeChangeKnowledgeResponse(resp)
 		},
 		"knowledge-history": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeKnowledgeHistoryRequest(b)
@@ -528,7 +528,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeKnowledgeHistoryResponse(resp), nil
+			return EncodeKnowledgeHistoryResponse(resp)
 		},
 		"merge-knowledge": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeMergeKnowledgeRequest(b)
@@ -539,7 +539,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeChangeKnowledgeResponse(resp), nil
+			return EncodeChangeKnowledgeResponse(resp)
 		},
 		"unmerge-knowledge": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeUnmergeKnowledgeRequest(b)
@@ -550,7 +550,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeChangeKnowledgeResponse(resp), nil
+			return EncodeChangeKnowledgeResponse(resp)
 		},
 		"list-voices": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListVoicesRequest(b)
@@ -561,7 +561,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListVoicesResponse(resp), nil
+			return EncodeListVoicesResponse(resp)
 		},
 		"list-lexicon": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListLexiconRequest(b)
@@ -572,7 +572,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListLexiconResponse(resp), nil
+			return EncodeListLexiconResponse(resp)
 		},
 		"put-lexicon-word": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodePutLexiconWordRequest(b)
@@ -583,7 +583,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeLexiconWord(resp), nil
+			return EncodeLexiconWord(resp)
 		},
 		"delete-lexicon-word": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeDeleteLexiconWordRequest(b)
@@ -594,7 +594,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeDeleteLexiconWordResponse(resp), nil
+			return EncodeDeleteLexiconWordResponse(resp)
 		},
 		"speak": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeSpeakRequest(b)
@@ -605,7 +605,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeSpeakResponse(resp), nil
+			return EncodeSpeakResponse(resp)
 		},
 		"list-runners": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListRunnersRequest(b)
@@ -616,7 +616,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListRunnersResponse(resp), nil
+			return EncodeListRunnersResponse(resp)
 		},
 		"get-access": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetAccessRequest(b)
@@ -627,7 +627,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeAccess(resp), nil
+			return EncodeAccess(resp)
 		},
 		"admin-list-runs": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeAdminListRunsRequest(b)
@@ -638,7 +638,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeAdminListRunsResponse(resp), nil
+			return EncodeAdminListRunsResponse(resp)
 		},
 		"admin-get-run": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeAdminGetRunRequest(b)
@@ -649,7 +649,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeAdminRun(resp), nil
+			return EncodeAdminRun(resp)
 		},
 		"admin-get-run-output": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeAdminGetRunOutputRequest(b)
@@ -660,7 +660,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeTaskOutput(resp), nil
+			return EncodeTaskOutput(resp)
 		},
 		"admin-get-run-diff": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeAdminGetRunRequest(b)
@@ -671,7 +671,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeTaskDiff(resp), nil
+			return EncodeTaskDiff(resp)
 		},
 		"admin-list-chats": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeAdminListChatsRequest(b)
@@ -682,7 +682,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeAdminListChatsResponse(resp), nil
+			return EncodeAdminListChatsResponse(resp)
 		},
 		"admin-read-chat": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeAdminReadChatRequest(b)
@@ -693,7 +693,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeAdminReadChatResponse(resp), nil
+			return EncodeAdminReadChatResponse(resp)
 		},
 		"admin-turn-log": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeAdminTurnLogRequest(b)
@@ -704,7 +704,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeAdminTurnLogResponse(resp), nil
+			return EncodeAdminTurnLogResponse(resp)
 		},
 		"put-runner-package": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodePutRunnerPackageRequest(b)
@@ -715,7 +715,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodePutRunnerPackageResponse(resp), nil
+			return EncodePutRunnerPackageResponse(resp)
 		},
 		"set-runner-release": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeSetRunnerReleaseRequest(b)
@@ -726,7 +726,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeSetRunnerReleaseResponse(resp), nil
+			return EncodeSetRunnerReleaseResponse(resp)
 		},
 		"put-app-release": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodePutAppReleaseRequest(b)
@@ -737,7 +737,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeAppRelease(resp), nil
+			return EncodeAppRelease(resp)
 		},
 		"get-app-release": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetAppReleaseRequest(b)
@@ -748,7 +748,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeGetAppReleaseResponse(resp), nil
+			return EncodeGetAppReleaseResponse(resp)
 		},
 		"get-app-package": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetAppPackageRequest(b)
@@ -759,7 +759,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeGetAppPackageResponse(resp), nil
+			return EncodeGetAppPackageResponse(resp)
 		},
 		"list-egress-reviews": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListEgressReviewsRequest(b)
@@ -770,7 +770,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListEgressReviewsResponse(resp), nil
+			return EncodeListEgressReviewsResponse(resp)
 		},
 		"decide-egress-review": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeDecideEgressReviewRequest(b)
@@ -781,7 +781,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeDecideEgressReviewResponse(resp), nil
+			return EncodeDecideEgressReviewResponse(resp)
 		},
 		"connect": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeConnectRequest(b)
@@ -792,7 +792,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeConnectResponse(resp), nil
+			return EncodeConnectResponse(resp)
 		},
 		"list-connections": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListConnectionsRequest(b)
@@ -803,7 +803,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListConnectionsResponse(resp), nil
+			return EncodeListConnectionsResponse(resp)
 		},
 		"disconnect": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeDisconnectRequest(b)
@@ -814,7 +814,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeConnection(resp), nil
+			return EncodeConnection(resp)
 		},
 		"import-history": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeImportHistoryRequest(b)
@@ -825,7 +825,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeImportHistoryResponse(resp), nil
+			return EncodeImportHistoryResponse(resp)
 		},
 		"activity": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeActivityRequest(b)
@@ -836,7 +836,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeActivity(resp), nil
+			return EncodeActivity(resp)
 		},
 		"get-page": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetPageRequest(b)
@@ -847,7 +847,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodePage(resp), nil
+			return EncodePage(resp)
 		},
 		"list-pages": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListPagesRequest(b)
@@ -858,7 +858,7 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListPagesResponse(resp), nil
+			return EncodeListPagesResponse(resp)
 		},
 	}
 }
@@ -875,7 +875,7 @@ func RunnerServiceOps(impl RunnerService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRunnerClaimResponse(resp), nil
+			return EncodeRunnerClaimResponse(resp)
 		},
 		"heartbeat": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeRunnerStep(b)
@@ -886,7 +886,7 @@ func RunnerServiceOps(impl RunnerService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRunnerAck(resp), nil
+			return EncodeRunnerAck(resp)
 		},
 		"progress": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeRunnerProgressRequest(b)
@@ -897,7 +897,7 @@ func RunnerServiceOps(impl RunnerService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRunnerAck(resp), nil
+			return EncodeRunnerAck(resp)
 		},
 		"complete": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeRunnerCompleteRequest(b)
@@ -908,7 +908,7 @@ func RunnerServiceOps(impl RunnerService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRunnerAck(resp), nil
+			return EncodeRunnerAck(resp)
 		},
 		"put-artifact": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeRunnerPutArtifactRequest(b)
@@ -919,7 +919,7 @@ func RunnerServiceOps(impl RunnerService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRunnerPutArtifactResponse(resp), nil
+			return EncodeRunnerPutArtifactResponse(resp)
 		},
 		"post": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeRunnerPostRequest(b)
@@ -930,7 +930,7 @@ func RunnerServiceOps(impl RunnerService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRunnerAck(resp), nil
+			return EncodeRunnerAck(resp)
 		},
 		"run-status": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeRunnerRunStatusRequest(b)
@@ -941,7 +941,7 @@ func RunnerServiceOps(impl RunnerService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRunnerRunStatusResponse(resp), nil
+			return EncodeRunnerRunStatusResponse(resp)
 		},
 		"hello": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeRunnerHelloRequest(b)
@@ -952,7 +952,7 @@ func RunnerServiceOps(impl RunnerService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRunnerHelloResponse(resp), nil
+			return EncodeRunnerHelloResponse(resp)
 		},
 		"get-package": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeRunnerGetPackageRequest(b)
@@ -963,7 +963,7 @@ func RunnerServiceOps(impl RunnerService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRunnerGetPackageResponse(resp), nil
+			return EncodeRunnerGetPackageResponse(resp)
 		},
 		"get-artifact": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeRunnerGetArtifactRequest(b)
@@ -974,7 +974,7 @@ func RunnerServiceOps(impl RunnerService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRunnerGetArtifactResponse(resp), nil
+			return EncodeRunnerGetArtifactResponse(resp)
 		},
 		"egress-access": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeRunnerStep(b)
@@ -985,7 +985,7 @@ func RunnerServiceOps(impl RunnerService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRunnerEgressAccessResponse(resp), nil
+			return EncodeRunnerEgressAccessResponse(resp)
 		},
 		"terminals": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeRunnerTerminalsRequest(b)
@@ -996,7 +996,7 @@ func RunnerServiceOps(impl RunnerService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRunnerTerminalsResponse(resp), nil
+			return EncodeRunnerTerminalsResponse(resp)
 		},
 	}
 }

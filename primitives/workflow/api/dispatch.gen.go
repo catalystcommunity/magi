@@ -16,7 +16,7 @@ func WorkflowServiceOps(impl WorkflowService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeDefinition(resp), nil
+			return EncodeDefinition(resp)
 		},
 		"get-definition": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetDefinitionRequest(b)
@@ -27,7 +27,7 @@ func WorkflowServiceOps(impl WorkflowService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeDefinition(resp), nil
+			return EncodeDefinition(resp)
 		},
 		"start": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeStartRequest(b)
@@ -38,7 +38,7 @@ func WorkflowServiceOps(impl WorkflowService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRun(resp), nil
+			return EncodeRun(resp)
 		},
 		"get-run": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetRunRequest(b)
@@ -49,7 +49,7 @@ func WorkflowServiceOps(impl WorkflowService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRun(resp), nil
+			return EncodeRun(resp)
 		},
 		"list-runs": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListRunsRequest(b)
@@ -60,7 +60,7 @@ func WorkflowServiceOps(impl WorkflowService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListRunsResponse(resp), nil
+			return EncodeListRunsResponse(resp)
 		},
 		"watch-run": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeWatchRunRequest(b)
@@ -71,7 +71,7 @@ func WorkflowServiceOps(impl WorkflowService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRun(resp), nil
+			return EncodeRun(resp)
 		},
 		"claim": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeClaimRequest(b)
@@ -82,7 +82,7 @@ func WorkflowServiceOps(impl WorkflowService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeClaimResponse(resp), nil
+			return EncodeClaimResponse(resp)
 		},
 		"heartbeat": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeHeartbeatRequest(b)
@@ -93,7 +93,7 @@ func WorkflowServiceOps(impl WorkflowService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeAck(resp), nil
+			return EncodeAck(resp)
 		},
 		"progress": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeProgressRequest(b)
@@ -104,7 +104,7 @@ func WorkflowServiceOps(impl WorkflowService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeAck(resp), nil
+			return EncodeAck(resp)
 		},
 		"complete": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeCompleteRequest(b)
@@ -115,7 +115,7 @@ func WorkflowServiceOps(impl WorkflowService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRun(resp), nil
+			return EncodeRun(resp)
 		},
 		"decide": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeDecideRequest(b)
@@ -126,7 +126,7 @@ func WorkflowServiceOps(impl WorkflowService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRun(resp), nil
+			return EncodeRun(resp)
 		},
 		"cancel": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeCancelRequest(b)
@@ -137,7 +137,7 @@ func WorkflowServiceOps(impl WorkflowService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRun(resp), nil
+			return EncodeRun(resp)
 		},
 	}
 }

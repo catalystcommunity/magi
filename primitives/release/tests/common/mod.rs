@@ -58,11 +58,11 @@ impl Running {
             images: images.iter().map(|(t, i)| api::TargetImage { target: t.to_string(), image: i.to_string() }).collect(),
             reason: Some("test".into()),
         };
-        self.call(tok, "create", api::encode_create_release_request(&req)).await.map(|b| api::decode_release(&b).unwrap())
+        self.call(tok, "create", api::encode_create_release_request(&req).unwrap()).await.map(|b| api::decode_release(&b).unwrap())
     }
 
     pub async fn get(&self, tok: &str, id: &str) -> api::Release {
-        let b = self.call(tok, "get", api::encode_get_release_request(&api::GetReleaseRequest { id: id.into() })).await.unwrap();
+        let b = self.call(tok, "get", api::encode_get_release_request(&api::GetReleaseRequest { id: id.into() }).unwrap()).await.unwrap();
         api::decode_release(&b).unwrap()
     }
 

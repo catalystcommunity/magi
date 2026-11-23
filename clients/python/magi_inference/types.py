@@ -150,7 +150,7 @@ class DecideRequest:
         if hasattr(self, 'state') and self.state is not None:
             result['state'] = self.state
         if hasattr(self, 'questions') and self.questions is not None:
-            result['questions'] = self.questions
+            result['questions'] = [item0.to_dict() for item0 in self.questions]
         if hasattr(self, 'model') and self.model is not None:
             result['model'] = self.model
         return result
@@ -158,7 +158,7 @@ class DecideRequest:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'DecideRequest':
         """Create instance from dictionary."""
-        return cls(state=data.get('state'), questions=data.get('questions'), model=data.get('model'))
+        return cls(state=data.get('state'), questions=(None if data.get('questions') is None else [Question.from_dict(item0) for item0 in data['questions']]), model=data.get('model'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -219,7 +219,7 @@ class DecideResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'answers') and self.answers is not None:
-            result['answers'] = self.answers
+            result['answers'] = [item0.to_dict() for item0 in self.answers]
         if hasattr(self, 'model') and self.model is not None:
             result['model'] = self.model
         if hasattr(self, 'ms') and self.ms is not None:
@@ -229,7 +229,7 @@ class DecideResponse:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'DecideResponse':
         """Create instance from dictionary."""
-        return cls(answers=data.get('answers'), model=data.get('model'), ms=data.get('ms'))
+        return cls(answers=(None if data.get('answers') is None else [Answer.from_dict(item0) for item0 in data['answers']]), model=data.get('model'), ms=data.get('ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

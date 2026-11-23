@@ -6,6 +6,20 @@ from typing import Optional, List, Dict, Any, Union
 import json
 
 
+def _csil_json_bytes_out(value: Any) -> str:
+    import base64
+
+    return base64.b64encode(bytes(value)).decode("ascii")
+
+
+def _csil_json_bytes_in(value: Any) -> bytes:
+    import base64
+
+    if not isinstance(value, str):
+        raise ValueError(f"expected base64 text, got {type(value).__name__}")
+    return base64.b64decode(value, validate=True)
+
+
 @dataclass
 class BeginLoginRequest:
     identity: str
@@ -351,9 +365,9 @@ class BeginGrantRequest:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'audience') and self.audience is not None:
-            result['audience'] = self.audience
+            result['audience'] = self.audience.to_dict()
         if hasattr(self, 'signed_scope_set') and self.signed_scope_set is not None:
-            result['signed_scope_set'] = self.signed_scope_set
+            result['signed_scope_set'] = _csil_json_bytes_out(self.signed_scope_set)
         if hasattr(self, 'owner') and self.owner is not None:
             result['owner'] = self.owner
         if hasattr(self, 'return_url') and self.return_url is not None:
@@ -363,7 +377,7 @@ class BeginGrantRequest:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'BeginGrantRequest':
         """Create instance from dictionary."""
-        return cls(audience=data.get('audience'), signed_scope_set=data.get('signed_scope_set'), owner=data.get('owner'), return_url=data.get('return_url'))
+        return cls(audience=(None if data.get('audience') is None else AppRef.from_dict(data['audience'])), signed_scope_set=(None if data.get('signed_scope_set') is None else _csil_json_bytes_in(data['signed_scope_set'])), owner=data.get('owner'), return_url=data.get('return_url'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -421,7 +435,7 @@ class Grant:
         if hasattr(self, 'owner') and self.owner is not None:
             result['owner'] = self.owner
         if hasattr(self, 'audience') and self.audience is not None:
-            result['audience'] = self.audience
+            result['audience'] = self.audience.to_dict()
         if hasattr(self, 'scopes') and self.scopes is not None:
             result['scopes'] = self.scopes
         if hasattr(self, 'expires_ms') and self.expires_ms is not None:
@@ -437,7 +451,7 @@ class Grant:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Grant':
         """Create instance from dictionary."""
-        return cls(grant_id=data.get('grant_id'), owner=data.get('owner'), audience=data.get('audience'), scopes=data.get('scopes'), expires_ms=data.get('expires_ms'), renewable_until_ms=data.get('renewable_until_ms'), created_ms=data.get('created_ms'), state=data.get('state'))
+        return cls(grant_id=data.get('grant_id'), owner=data.get('owner'), audience=(None if data.get('audience') is None else AppRef.from_dict(data['audience'])), scopes=data.get('scopes'), expires_ms=data.get('expires_ms'), renewable_until_ms=data.get('renewable_until_ms'), created_ms=data.get('created_ms'), state=data.get('state'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -459,13 +473,13 @@ class ListGrantsRequest:
         if hasattr(self, 'owner') and self.owner is not None:
             result['owner'] = self.owner
         if hasattr(self, 'audience') and self.audience is not None:
-            result['audience'] = self.audience
+            result['audience'] = self.audience.to_dict()
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListGrantsRequest':
         """Create instance from dictionary."""
-        return cls(owner=data.get('owner'), audience=data.get('audience'))
+        return cls(owner=data.get('owner'), audience=(None if data.get('audience') is None else AppRef.from_dict(data['audience'])))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -484,13 +498,13 @@ class ListGrantsResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'grants') and self.grants is not None:
-            result['grants'] = self.grants
+            result['grants'] = [item0.to_dict() for item0 in self.grants]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListGrantsResponse':
         """Create instance from dictionary."""
-        return cls(grants=data.get('grants'))
+        return cls(grants=(None if data.get('grants') is None else [Grant.from_dict(item0) for item0 in data['grants']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -539,9 +553,9 @@ class PresentGrantRequest:
         if hasattr(self, 'owner') and self.owner is not None:
             result['owner'] = self.owner
         if hasattr(self, 'audience') and self.audience is not None:
-            result['audience'] = self.audience
+            result['audience'] = self.audience.to_dict()
         if hasattr(self, 'request_digest') and self.request_digest is not None:
-            result['request_digest'] = self.request_digest
+            result['request_digest'] = _csil_json_bytes_out(self.request_digest)
         if hasattr(self, 'grant_id') and self.grant_id is not None:
             result['grant_id'] = self.grant_id
         return result
@@ -549,7 +563,7 @@ class PresentGrantRequest:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'PresentGrantRequest':
         """Create instance from dictionary."""
-        return cls(owner=data.get('owner'), audience=data.get('audience'), request_digest=data.get('request_digest'), grant_id=data.get('grant_id'))
+        return cls(owner=data.get('owner'), audience=(None if data.get('audience') is None else AppRef.from_dict(data['audience'])), request_digest=(None if data.get('request_digest') is None else _csil_json_bytes_in(data['request_digest'])), grant_id=data.get('grant_id'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -571,7 +585,7 @@ class PresentGrantResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'credential') and self.credential is not None:
-            result['credential'] = self.credential
+            result['credential'] = _csil_json_bytes_out(self.credential)
         if hasattr(self, 'grant_id') and self.grant_id is not None:
             result['grant_id'] = self.grant_id
         if hasattr(self, 'scopes') and self.scopes is not None:
@@ -583,7 +597,7 @@ class PresentGrantResponse:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'PresentGrantResponse':
         """Create instance from dictionary."""
-        return cls(credential=data.get('credential'), grant_id=data.get('grant_id'), scopes=data.get('scopes'), expires_ms=data.get('expires_ms'))
+        return cls(credential=(None if data.get('credential') is None else _csil_json_bytes_in(data['credential'])), grant_id=data.get('grant_id'), scopes=data.get('scopes'), expires_ms=data.get('expires_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -791,13 +805,13 @@ class ListCredentialsResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'credentials') and self.credentials is not None:
-            result['credentials'] = self.credentials
+            result['credentials'] = [item0.to_dict() for item0 in self.credentials]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListCredentialsResponse':
         """Create instance from dictionary."""
-        return cls(credentials=data.get('credentials'))
+        return cls(credentials=(None if data.get('credentials') is None else [Credential.from_dict(item0) for item0 in data['credentials']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -878,13 +892,13 @@ class ListRolesResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'assignments') and self.assignments is not None:
-            result['assignments'] = self.assignments
+            result['assignments'] = [item0.to_dict() for item0 in self.assignments]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListRolesResponse':
         """Create instance from dictionary."""
-        return cls(assignments=data.get('assignments'))
+        return cls(assignments=(None if data.get('assignments') is None else [RoleAssignment.from_dict(item0) for item0 in data['assignments']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -1015,13 +1029,13 @@ class ListUsersResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'users') and self.users is not None:
-            result['users'] = self.users
+            result['users'] = [item0.to_dict() for item0 in self.users]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListUsersResponse':
         """Create instance from dictionary."""
-        return cls(users=data.get('users'))
+        return cls(users=(None if data.get('users') is None else [KnownUser.from_dict(item0) for item0 in data['users']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

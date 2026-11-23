@@ -16,7 +16,7 @@ func ModelServiceOps(impl ModelService) map[string]func(context.Context, []byte)
 			if err != nil {
 				return nil, err
 			}
-			return EncodeModel(resp), nil
+			return EncodeModel(resp)
 		},
 		"get_model": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetModelRequest(b)
@@ -27,7 +27,7 @@ func ModelServiceOps(impl ModelService) map[string]func(context.Context, []byte)
 			if err != nil {
 				return nil, err
 			}
-			return EncodeModel(resp), nil
+			return EncodeModel(resp)
 		},
 		"delete_model": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeDeleteModelRequest(b)
@@ -38,7 +38,7 @@ func ModelServiceOps(impl ModelService) map[string]func(context.Context, []byte)
 			if err != nil {
 				return nil, err
 			}
-			return EncodeDeleteResponse(resp), nil
+			return EncodeDeleteResponse(resp)
 		},
 		"list_models": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListModelsRequest(b)
@@ -49,7 +49,7 @@ func ModelServiceOps(impl ModelService) map[string]func(context.Context, []byte)
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListModelsResponse(resp), nil
+			return EncodeListModelsResponse(resp)
 		},
 		"score": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeScoreRequest(b)
@@ -60,7 +60,7 @@ func ModelServiceOps(impl ModelService) map[string]func(context.Context, []byte)
 			if err != nil {
 				return nil, err
 			}
-			return EncodeModel(resp), nil
+			return EncodeModel(resp)
 		},
 		"put_task": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodePutTaskRequest(b)
@@ -71,7 +71,7 @@ func ModelServiceOps(impl ModelService) map[string]func(context.Context, []byte)
 			if err != nil {
 				return nil, err
 			}
-			return EncodeTaskDefault(resp), nil
+			return EncodeTaskDefault(resp)
 		},
 		"get_task": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetTaskRequest(b)
@@ -82,7 +82,7 @@ func ModelServiceOps(impl ModelService) map[string]func(context.Context, []byte)
 			if err != nil {
 				return nil, err
 			}
-			return EncodeTaskDefault(resp), nil
+			return EncodeTaskDefault(resp)
 		},
 		"list_tasks": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListTasksRequest(b)
@@ -93,7 +93,7 @@ func ModelServiceOps(impl ModelService) map[string]func(context.Context, []byte)
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListTasksResponse(resp), nil
+			return EncodeListTasksResponse(resp)
 		},
 		"select": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeSelectRequest(b)
@@ -104,7 +104,7 @@ func ModelServiceOps(impl ModelService) map[string]func(context.Context, []byte)
 			if err != nil {
 				return nil, err
 			}
-			return EncodeSelectResponse(resp), nil
+			return EncodeSelectResponse(resp)
 		},
 	}
 }

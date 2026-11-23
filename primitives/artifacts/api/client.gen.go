@@ -45,7 +45,11 @@ func NewArtifactClient(transport Transport) *ArtifactClient {
 
 func (c *ArtifactClient) Put(ctx context.Context, req PutRequest) (Artifact, error) {
 	var csilZero Artifact
-	csilResp, csilErr := c.transport.Call(ctx, "ArtifactService", "put", EncodePutRequest(req))
+	csilReq, csilErr := EncodePutRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ArtifactService", "put", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -54,7 +58,11 @@ func (c *ArtifactClient) Put(ctx context.Context, req PutRequest) (Artifact, err
 
 func (c *ArtifactClient) Get(ctx context.Context, req GetRequest) (GetResponse, error) {
 	var csilZero GetResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ArtifactService", "get", EncodeGetRequest(req))
+	csilReq, csilErr := EncodeGetRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ArtifactService", "get", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -63,7 +71,11 @@ func (c *ArtifactClient) Get(ctx context.Context, req GetRequest) (GetResponse, 
 
 func (c *ArtifactClient) Stat(ctx context.Context, req StatRequest) (Artifact, error) {
 	var csilZero Artifact
-	csilResp, csilErr := c.transport.Call(ctx, "ArtifactService", "stat", EncodeStatRequest(req))
+	csilReq, csilErr := EncodeStatRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ArtifactService", "stat", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -72,7 +84,11 @@ func (c *ArtifactClient) Stat(ctx context.Context, req StatRequest) (Artifact, e
 
 func (c *ArtifactClient) List(ctx context.Context, req ListRequest) (ListResponse, error) {
 	var csilZero ListResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ArtifactService", "list", EncodeListRequest(req))
+	csilReq, csilErr := EncodeListRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ArtifactService", "list", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -81,7 +97,11 @@ func (c *ArtifactClient) List(ctx context.Context, req ListRequest) (ListRespons
 
 func (c *ArtifactClient) Label(ctx context.Context, req LabelRequest) (Artifact, error) {
 	var csilZero Artifact
-	csilResp, csilErr := c.transport.Call(ctx, "ArtifactService", "label", EncodeLabelRequest(req))
+	csilReq, csilErr := EncodeLabelRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ArtifactService", "label", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}

@@ -16,7 +16,7 @@ func InferenceServiceOps(impl InferenceService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeStatus(resp), nil
+			return EncodeStatus(resp)
 		},
 		"warm": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeWarmRequest(b)
@@ -27,7 +27,7 @@ func InferenceServiceOps(impl InferenceService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeStatus(resp), nil
+			return EncodeStatus(resp)
 		},
 		"decide": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeDecideRequest(b)
@@ -38,7 +38,7 @@ func InferenceServiceOps(impl InferenceService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeDecideResponse(resp), nil
+			return EncodeDecideResponse(resp)
 		},
 	}
 }

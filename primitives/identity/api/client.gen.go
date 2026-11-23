@@ -45,7 +45,11 @@ func NewIdentityClient(transport Transport) *IdentityClient {
 
 func (c *IdentityClient) BeginLogin(ctx context.Context, req BeginLoginRequest) (BeginLoginResponse, error) {
 	var csilZero BeginLoginResponse
-	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "begin-login", EncodeBeginLoginRequest(req))
+	csilReq, csilErr := EncodeBeginLoginRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "begin-login", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -54,7 +58,11 @@ func (c *IdentityClient) BeginLogin(ctx context.Context, req BeginLoginRequest) 
 
 func (c *IdentityClient) PollLogin(ctx context.Context, req PollLoginRequest) (PollLoginResponse, error) {
 	var csilZero PollLoginResponse
-	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "poll-login", EncodePollLoginRequest(req))
+	csilReq, csilErr := EncodePollLoginRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "poll-login", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -63,7 +71,11 @@ func (c *IdentityClient) PollLogin(ctx context.Context, req PollLoginRequest) (P
 
 func (c *IdentityClient) WhoAmI(ctx context.Context, req WhoAmIRequest) (WhoAmIResponse, error) {
 	var csilZero WhoAmIResponse
-	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "who-am-i", EncodeWhoAmIRequest(req))
+	csilReq, csilErr := EncodeWhoAmIRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "who-am-i", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -72,7 +84,11 @@ func (c *IdentityClient) WhoAmI(ctx context.Context, req WhoAmIRequest) (WhoAmIR
 
 func (c *IdentityClient) IssueServiceToken(ctx context.Context, req IssueServiceTokenRequest) (TokenResponse, error) {
 	var csilZero TokenResponse
-	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "issue-service-token", EncodeIssueServiceTokenRequest(req))
+	csilReq, csilErr := EncodeIssueServiceTokenRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "issue-service-token", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -81,7 +97,11 @@ func (c *IdentityClient) IssueServiceToken(ctx context.Context, req IssueService
 
 func (c *IdentityClient) Refresh(ctx context.Context, req RefreshRequest) (TokenResponse, error) {
 	var csilZero TokenResponse
-	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "refresh", EncodeRefreshRequest(req))
+	csilReq, csilErr := EncodeRefreshRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "refresh", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -90,7 +110,11 @@ func (c *IdentityClient) Refresh(ctx context.Context, req RefreshRequest) (Token
 
 func (c *IdentityClient) Application(ctx context.Context, req ApplicationRequest) (AppRef, error) {
 	var csilZero AppRef
-	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "application", EncodeApplicationRequest(req))
+	csilReq, csilErr := EncodeApplicationRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "application", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -99,7 +123,11 @@ func (c *IdentityClient) Application(ctx context.Context, req ApplicationRequest
 
 func (c *IdentityClient) BeginGrant(ctx context.Context, req BeginGrantRequest) (BeginGrantResponse, error) {
 	var csilZero BeginGrantResponse
-	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "begin-grant", EncodeBeginGrantRequest(req))
+	csilReq, csilErr := EncodeBeginGrantRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "begin-grant", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -108,7 +136,11 @@ func (c *IdentityClient) BeginGrant(ctx context.Context, req BeginGrantRequest) 
 
 func (c *IdentityClient) ListGrants(ctx context.Context, req ListGrantsRequest) (ListGrantsResponse, error) {
 	var csilZero ListGrantsResponse
-	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "list-grants", EncodeListGrantsRequest(req))
+	csilReq, csilErr := EncodeListGrantsRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "list-grants", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -117,7 +149,11 @@ func (c *IdentityClient) ListGrants(ctx context.Context, req ListGrantsRequest) 
 
 func (c *IdentityClient) ExpiringGrants(ctx context.Context, req ExpiringGrantsRequest) (ListGrantsResponse, error) {
 	var csilZero ListGrantsResponse
-	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "expiring-grants", EncodeExpiringGrantsRequest(req))
+	csilReq, csilErr := EncodeExpiringGrantsRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "expiring-grants", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -126,7 +162,11 @@ func (c *IdentityClient) ExpiringGrants(ctx context.Context, req ExpiringGrantsR
 
 func (c *IdentityClient) PresentGrant(ctx context.Context, req PresentGrantRequest) (PresentGrantResponse, error) {
 	var csilZero PresentGrantResponse
-	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "present-grant", EncodePresentGrantRequest(req))
+	csilReq, csilErr := EncodePresentGrantRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "present-grant", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -135,7 +175,11 @@ func (c *IdentityClient) PresentGrant(ctx context.Context, req PresentGrantReque
 
 func (c *IdentityClient) ForgetGrant(ctx context.Context, req ForgetGrantRequest) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "forget-grant", EncodeForgetGrantRequest(req))
+	csilReq, csilErr := EncodeForgetGrantRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "forget-grant", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -144,7 +188,11 @@ func (c *IdentityClient) ForgetGrant(ctx context.Context, req ForgetGrantRequest
 
 func (c *IdentityClient) PutCredential(ctx context.Context, req PutCredentialRequest) (Credential, error) {
 	var csilZero Credential
-	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "put-credential", EncodePutCredentialRequest(req))
+	csilReq, csilErr := EncodePutCredentialRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "put-credential", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -153,7 +201,11 @@ func (c *IdentityClient) PutCredential(ctx context.Context, req PutCredentialReq
 
 func (c *IdentityClient) GetCredential(ctx context.Context, req CredentialRef) (Credential, error) {
 	var csilZero Credential
-	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "get-credential", EncodeCredentialRef(req))
+	csilReq, csilErr := EncodeCredentialRef(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "get-credential", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -162,7 +214,11 @@ func (c *IdentityClient) GetCredential(ctx context.Context, req CredentialRef) (
 
 func (c *IdentityClient) ListCredentials(ctx context.Context, req ListCredentialsRequest) (ListCredentialsResponse, error) {
 	var csilZero ListCredentialsResponse
-	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "list-credentials", EncodeListCredentialsRequest(req))
+	csilReq, csilErr := EncodeListCredentialsRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "list-credentials", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -171,7 +227,11 @@ func (c *IdentityClient) ListCredentials(ctx context.Context, req ListCredential
 
 func (c *IdentityClient) ForgetCredential(ctx context.Context, req CredentialRef) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "forget-credential", EncodeCredentialRef(req))
+	csilReq, csilErr := EncodeCredentialRef(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "forget-credential", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -180,7 +240,11 @@ func (c *IdentityClient) ForgetCredential(ctx context.Context, req CredentialRef
 
 func (c *IdentityClient) ListRoles(ctx context.Context, req ListRolesRequest) (ListRolesResponse, error) {
 	var csilZero ListRolesResponse
-	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "list-roles", EncodeListRolesRequest(req))
+	csilReq, csilErr := EncodeListRolesRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "list-roles", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -189,7 +253,11 @@ func (c *IdentityClient) ListRoles(ctx context.Context, req ListRolesRequest) (L
 
 func (c *IdentityClient) SetSubjectRoles(ctx context.Context, req SetSubjectRolesRequest) (ListRolesResponse, error) {
 	var csilZero ListRolesResponse
-	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "set-subject-roles", EncodeSetSubjectRolesRequest(req))
+	csilReq, csilErr := EncodeSetSubjectRolesRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "set-subject-roles", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -198,7 +266,11 @@ func (c *IdentityClient) SetSubjectRoles(ctx context.Context, req SetSubjectRole
 
 func (c *IdentityClient) SetRoleSubjects(ctx context.Context, req SetRoleSubjectsRequest) (ListRolesResponse, error) {
 	var csilZero ListRolesResponse
-	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "set-role-subjects", EncodeSetRoleSubjectsRequest(req))
+	csilReq, csilErr := EncodeSetRoleSubjectsRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "set-role-subjects", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -207,7 +279,11 @@ func (c *IdentityClient) SetRoleSubjects(ctx context.Context, req SetRoleSubject
 
 func (c *IdentityClient) ListUsers(ctx context.Context, req ListUsersRequest) (ListUsersResponse, error) {
 	var csilZero ListUsersResponse
-	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "list-users", EncodeListUsersRequest(req))
+	csilReq, csilErr := EncodeListUsersRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "IdentityService", "list-users", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}

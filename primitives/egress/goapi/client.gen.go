@@ -45,7 +45,11 @@ func NewEgressClient(transport Transport) *EgressClient {
 
 func (c *EgressClient) ListFlows(ctx context.Context, req ListFlowsRequest) (ListFlowsResponse, error) {
 	var csilZero ListFlowsResponse
-	csilResp, csilErr := c.transport.Call(ctx, "EgressService", "list-flows", EncodeListFlowsRequest(req))
+	csilReq, csilErr := EncodeListFlowsRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "EgressService", "list-flows", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}

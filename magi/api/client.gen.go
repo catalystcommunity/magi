@@ -45,7 +45,11 @@ func NewMagiClient(transport Transport) *MagiClient {
 
 func (c *MagiClient) Say(ctx context.Context, req SayRequest) (SayResponse, error) {
 	var csilZero SayResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "say", EncodeSayRequest(req))
+	csilReq, csilErr := EncodeSayRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "say", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -54,7 +58,11 @@ func (c *MagiClient) Say(ctx context.Context, req SayRequest) (SayResponse, erro
 
 func (c *MagiClient) Read(ctx context.Context, req ReadRequest) (ReadResponse, error) {
 	var csilZero ReadResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "read", EncodeReadRequest(req))
+	csilReq, csilErr := EncodeReadRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "read", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -63,7 +71,11 @@ func (c *MagiClient) Read(ctx context.Context, req ReadRequest) (ReadResponse, e
 
 func (c *MagiClient) Search(ctx context.Context, req SearchRequest) (SearchResponse, error) {
 	var csilZero SearchResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "search", EncodeSearchRequest(req))
+	csilReq, csilErr := EncodeSearchRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "search", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -72,7 +84,11 @@ func (c *MagiClient) Search(ctx context.Context, req SearchRequest) (SearchRespo
 
 func (c *MagiClient) Trace(ctx context.Context, req TraceRequest) (TraceResponse, error) {
 	var csilZero TraceResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "trace", EncodeTraceRequest(req))
+	csilReq, csilErr := EncodeTraceRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "trace", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -81,7 +97,11 @@ func (c *MagiClient) Trace(ctx context.Context, req TraceRequest) (TraceResponse
 
 func (c *MagiClient) ListLinks(ctx context.Context, req ListLinksRequest) (ListLinksResponse, error) {
 	var csilZero ListLinksResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-links", EncodeListLinksRequest(req))
+	csilReq, csilErr := EncodeListLinksRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-links", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -90,7 +110,11 @@ func (c *MagiClient) ListLinks(ctx context.Context, req ListLinksRequest) (ListL
 
 func (c *MagiClient) Link(ctx context.Context, req LinkRequest) (MessageLink, error) {
 	var csilZero MessageLink
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "link", EncodeLinkRequest(req))
+	csilReq, csilErr := EncodeLinkRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "link", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -99,7 +123,11 @@ func (c *MagiClient) Link(ctx context.Context, req LinkRequest) (MessageLink, er
 
 func (c *MagiClient) Unlink(ctx context.Context, req UnlinkRequest) (MessageLink, error) {
 	var csilZero MessageLink
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "unlink", EncodeUnlinkRequest(req))
+	csilReq, csilErr := EncodeUnlinkRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "unlink", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -108,7 +136,11 @@ func (c *MagiClient) Unlink(ctx context.Context, req UnlinkRequest) (MessageLink
 
 func (c *MagiClient) SetVisibility(ctx context.Context, req SetVisibilityRequest) (Message, error) {
 	var csilZero Message
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "set-visibility", EncodeSetVisibilityRequest(req))
+	csilReq, csilErr := EncodeSetVisibilityRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "set-visibility", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -117,7 +149,11 @@ func (c *MagiClient) SetVisibility(ctx context.Context, req SetVisibilityRequest
 
 func (c *MagiClient) ListReviews(ctx context.Context, req ListReviewsRequest) (ListReviewsResponse, error) {
 	var csilZero ListReviewsResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-reviews", EncodeListReviewsRequest(req))
+	csilReq, csilErr := EncodeListReviewsRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-reviews", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -126,7 +162,11 @@ func (c *MagiClient) ListReviews(ctx context.Context, req ListReviewsRequest) (L
 
 func (c *MagiClient) AnswerReview(ctx context.Context, req AnswerReviewRequest) (AnswerReviewResponse, error) {
 	var csilZero AnswerReviewResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "answer-review", EncodeAnswerReviewRequest(req))
+	csilReq, csilErr := EncodeAnswerReviewRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "answer-review", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -135,7 +175,11 @@ func (c *MagiClient) AnswerReview(ctx context.Context, req AnswerReviewRequest) 
 
 func (c *MagiClient) ProposeLesson(ctx context.Context, req ProposeLessonRequest) (Lesson, error) {
 	var csilZero Lesson
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "propose-lesson", EncodeProposeLessonRequest(req))
+	csilReq, csilErr := EncodeProposeLessonRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "propose-lesson", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -144,7 +188,11 @@ func (c *MagiClient) ProposeLesson(ctx context.Context, req ProposeLessonRequest
 
 func (c *MagiClient) ListLessons(ctx context.Context, req ListLessonsRequest) (ListLessonsResponse, error) {
 	var csilZero ListLessonsResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-lessons", EncodeListLessonsRequest(req))
+	csilReq, csilErr := EncodeListLessonsRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-lessons", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -153,7 +201,11 @@ func (c *MagiClient) ListLessons(ctx context.Context, req ListLessonsRequest) (L
 
 func (c *MagiClient) DecideLesson(ctx context.Context, req DecideLessonRequest) (Lesson, error) {
 	var csilZero Lesson
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "decide-lesson", EncodeDecideLessonRequest(req))
+	csilReq, csilErr := EncodeDecideLessonRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "decide-lesson", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -162,7 +214,11 @@ func (c *MagiClient) DecideLesson(ctx context.Context, req DecideLessonRequest) 
 
 func (c *MagiClient) ListPersonas(ctx context.Context, req ListPersonasRequest) (ListPersonasResponse, error) {
 	var csilZero ListPersonasResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-personas", EncodeListPersonasRequest(req))
+	csilReq, csilErr := EncodeListPersonasRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-personas", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -171,7 +227,11 @@ func (c *MagiClient) ListPersonas(ctx context.Context, req ListPersonasRequest) 
 
 func (c *MagiClient) PutPersona(ctx context.Context, req PutPersonaRequest) (PersonaInfo, error) {
 	var csilZero PersonaInfo
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "put-persona", EncodePutPersonaRequest(req))
+	csilReq, csilErr := EncodePutPersonaRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "put-persona", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -180,7 +240,11 @@ func (c *MagiClient) PutPersona(ctx context.Context, req PutPersonaRequest) (Per
 
 func (c *MagiClient) GetAudio(ctx context.Context, req GetAudioRequest) (AudioResponse, error) {
 	var csilZero AudioResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "get-audio", EncodeGetAudioRequest(req))
+	csilReq, csilErr := EncodeGetAudioRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "get-audio", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -189,7 +253,11 @@ func (c *MagiClient) GetAudio(ctx context.Context, req GetAudioRequest) (AudioRe
 
 func (c *MagiClient) Listen(ctx context.Context, req ListenRequest) (ListenResponse, error) {
 	var csilZero ListenResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "listen", EncodeListenRequest(req))
+	csilReq, csilErr := EncodeListenRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "listen", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -198,7 +266,11 @@ func (c *MagiClient) Listen(ctx context.Context, req ListenRequest) (ListenRespo
 
 func (c *MagiClient) StopSpeech(ctx context.Context, req StopSpeechRequest) (StopSpeechResponse, error) {
 	var csilZero StopSpeechResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "stop-speech", EncodeStopSpeechRequest(req))
+	csilReq, csilErr := EncodeStopSpeechRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "stop-speech", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -207,7 +279,11 @@ func (c *MagiClient) StopSpeech(ctx context.Context, req StopSpeechRequest) (Sto
 
 func (c *MagiClient) ReportDelivery(ctx context.Context, req ReportDeliveryRequest) (ReportDeliveryResponse, error) {
 	var csilZero ReportDeliveryResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "report-delivery", EncodeReportDeliveryRequest(req))
+	csilReq, csilErr := EncodeReportDeliveryRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "report-delivery", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -216,7 +292,11 @@ func (c *MagiClient) ReportDelivery(ctx context.Context, req ReportDeliveryReque
 
 func (c *MagiClient) CheckOverlap(ctx context.Context, req CheckOverlapRequest) (CheckOverlapResponse, error) {
 	var csilZero CheckOverlapResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "check-overlap", EncodeCheckOverlapRequest(req))
+	csilReq, csilErr := EncodeCheckOverlapRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "check-overlap", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -225,7 +305,11 @@ func (c *MagiClient) CheckOverlap(ctx context.Context, req CheckOverlapRequest) 
 
 func (c *MagiClient) PutDevice(ctx context.Context, req PutDeviceRequest) (Device, error) {
 	var csilZero Device
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "put-device", EncodePutDeviceRequest(req))
+	csilReq, csilErr := EncodePutDeviceRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "put-device", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -234,7 +318,11 @@ func (c *MagiClient) PutDevice(ctx context.Context, req PutDeviceRequest) (Devic
 
 func (c *MagiClient) ListDevices(ctx context.Context, req ListDevicesRequest) (ListDevicesResponse, error) {
 	var csilZero ListDevicesResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-devices", EncodeListDevicesRequest(req))
+	csilReq, csilErr := EncodeListDevicesRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-devices", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -243,7 +331,11 @@ func (c *MagiClient) ListDevices(ctx context.Context, req ListDevicesRequest) (L
 
 func (c *MagiClient) RemoveDevice(ctx context.Context, req RemoveDeviceRequest) (Device, error) {
 	var csilZero Device
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "remove-device", EncodeRemoveDeviceRequest(req))
+	csilReq, csilErr := EncodeRemoveDeviceRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "remove-device", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -252,7 +344,11 @@ func (c *MagiClient) RemoveDevice(ctx context.Context, req RemoveDeviceRequest) 
 
 func (c *MagiClient) WaitNotices(ctx context.Context, req WaitNoticesRequest) (WaitNoticesResponse, error) {
 	var csilZero WaitNoticesResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "wait-notices", EncodeWaitNoticesRequest(req))
+	csilReq, csilErr := EncodeWaitNoticesRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "wait-notices", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -261,7 +357,11 @@ func (c *MagiClient) WaitNotices(ctx context.Context, req WaitNoticesRequest) (W
 
 func (c *MagiClient) DeliverNotice(ctx context.Context, req DeliverNoticeRequest) (Notice, error) {
 	var csilZero Notice
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "deliver-notice", EncodeDeliverNoticeRequest(req))
+	csilReq, csilErr := EncodeDeliverNoticeRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "deliver-notice", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -270,7 +370,11 @@ func (c *MagiClient) DeliverNotice(ctx context.Context, req DeliverNoticeRequest
 
 func (c *MagiClient) AckNotice(ctx context.Context, req AckNoticeRequest) (Notice, error) {
 	var csilZero Notice
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "ack-notice", EncodeAckNoticeRequest(req))
+	csilReq, csilErr := EncodeAckNoticeRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "ack-notice", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -279,7 +383,11 @@ func (c *MagiClient) AckNotice(ctx context.Context, req AckNoticeRequest) (Notic
 
 func (c *MagiClient) ListNotices(ctx context.Context, req ListNoticesRequest) (ListNoticesResponse, error) {
 	var csilZero ListNoticesResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-notices", EncodeListNoticesRequest(req))
+	csilReq, csilErr := EncodeListNoticesRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-notices", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -288,7 +396,11 @@ func (c *MagiClient) ListNotices(ctx context.Context, req ListNoticesRequest) (L
 
 func (c *MagiClient) StartTask(ctx context.Context, req StartTaskRequest) (Task, error) {
 	var csilZero Task
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "start-task", EncodeStartTaskRequest(req))
+	csilReq, csilErr := EncodeStartTaskRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "start-task", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -297,7 +409,11 @@ func (c *MagiClient) StartTask(ctx context.Context, req StartTaskRequest) (Task,
 
 func (c *MagiClient) GetTask(ctx context.Context, req GetTaskRequest) (Task, error) {
 	var csilZero Task
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "get-task", EncodeGetTaskRequest(req))
+	csilReq, csilErr := EncodeGetTaskRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "get-task", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -306,7 +422,11 @@ func (c *MagiClient) GetTask(ctx context.Context, req GetTaskRequest) (Task, err
 
 func (c *MagiClient) ListTasks(ctx context.Context, req ListTasksRequest) (ListTasksResponse, error) {
 	var csilZero ListTasksResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-tasks", EncodeListTasksRequest(req))
+	csilReq, csilErr := EncodeListTasksRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-tasks", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -315,7 +435,11 @@ func (c *MagiClient) ListTasks(ctx context.Context, req ListTasksRequest) (ListT
 
 func (c *MagiClient) ListTodos(ctx context.Context, req ListTodosRequest) (ListTodosResponse, error) {
 	var csilZero ListTodosResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-todos", EncodeListTodosRequest(req))
+	csilReq, csilErr := EncodeListTodosRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-todos", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -324,7 +448,11 @@ func (c *MagiClient) ListTodos(ctx context.Context, req ListTodosRequest) (ListT
 
 func (c *MagiClient) FinishTodo(ctx context.Context, req FinishTodoRequest) (Todo, error) {
 	var csilZero Todo
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "finish-todo", EncodeFinishTodoRequest(req))
+	csilReq, csilErr := EncodeFinishTodoRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "finish-todo", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -333,7 +461,11 @@ func (c *MagiClient) FinishTodo(ctx context.Context, req FinishTodoRequest) (Tod
 
 func (c *MagiClient) GetTaskDiff(ctx context.Context, req GetTaskDiffRequest) (TaskDiff, error) {
 	var csilZero TaskDiff
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "get-task-diff", EncodeGetTaskDiffRequest(req))
+	csilReq, csilErr := EncodeGetTaskDiffRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "get-task-diff", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -342,7 +474,11 @@ func (c *MagiClient) GetTaskDiff(ctx context.Context, req GetTaskDiffRequest) (T
 
 func (c *MagiClient) GetTaskOutput(ctx context.Context, req GetTaskOutputRequest) (TaskOutput, error) {
 	var csilZero TaskOutput
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "get-task-output", EncodeGetTaskOutputRequest(req))
+	csilReq, csilErr := EncodeGetTaskOutputRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "get-task-output", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -351,7 +487,11 @@ func (c *MagiClient) GetTaskOutput(ctx context.Context, req GetTaskOutputRequest
 
 func (c *MagiClient) Decide(ctx context.Context, req DecideRequest) (Task, error) {
 	var csilZero Task
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "decide", EncodeDecideRequest(req))
+	csilReq, csilErr := EncodeDecideRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "decide", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -360,7 +500,11 @@ func (c *MagiClient) Decide(ctx context.Context, req DecideRequest) (Task, error
 
 func (c *MagiClient) Decision(ctx context.Context, req DecisionRequest) (DecisionResponse, error) {
 	var csilZero DecisionResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "decision", EncodeDecisionRequest(req))
+	csilReq, csilErr := EncodeDecisionRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "decision", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -369,7 +513,11 @@ func (c *MagiClient) Decision(ctx context.Context, req DecisionRequest) (Decisio
 
 func (c *MagiClient) CancelTask(ctx context.Context, req CancelTaskRequest) (Task, error) {
 	var csilZero Task
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "cancel-task", EncodeCancelTaskRequest(req))
+	csilReq, csilErr := EncodeCancelTaskRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "cancel-task", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -378,7 +526,11 @@ func (c *MagiClient) CancelTask(ctx context.Context, req CancelTaskRequest) (Tas
 
 func (c *MagiClient) QueryKnowledge(ctx context.Context, req QueryKnowledgeRequest) (QueryKnowledgeResponse, error) {
 	var csilZero QueryKnowledgeResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "query-knowledge", EncodeQueryKnowledgeRequest(req))
+	csilReq, csilErr := EncodeQueryKnowledgeRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "query-knowledge", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -387,7 +539,11 @@ func (c *MagiClient) QueryKnowledge(ctx context.Context, req QueryKnowledgeReque
 
 func (c *MagiClient) Remember(ctx context.Context, req RememberRequest) (RememberResponse, error) {
 	var csilZero RememberResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "remember", EncodeRememberRequest(req))
+	csilReq, csilErr := EncodeRememberRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "remember", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -396,7 +552,11 @@ func (c *MagiClient) Remember(ctx context.Context, req RememberRequest) (Remembe
 
 func (c *MagiClient) ChangeKnowledge(ctx context.Context, req ChangeKnowledgeRequest) (ChangeKnowledgeResponse, error) {
 	var csilZero ChangeKnowledgeResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "change-knowledge", EncodeChangeKnowledgeRequest(req))
+	csilReq, csilErr := EncodeChangeKnowledgeRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "change-knowledge", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -405,7 +565,11 @@ func (c *MagiClient) ChangeKnowledge(ctx context.Context, req ChangeKnowledgeReq
 
 func (c *MagiClient) KnowledgeHistory(ctx context.Context, req KnowledgeHistoryRequest) (KnowledgeHistoryResponse, error) {
 	var csilZero KnowledgeHistoryResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "knowledge-history", EncodeKnowledgeHistoryRequest(req))
+	csilReq, csilErr := EncodeKnowledgeHistoryRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "knowledge-history", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -414,7 +578,11 @@ func (c *MagiClient) KnowledgeHistory(ctx context.Context, req KnowledgeHistoryR
 
 func (c *MagiClient) MergeKnowledge(ctx context.Context, req MergeKnowledgeRequest) (ChangeKnowledgeResponse, error) {
 	var csilZero ChangeKnowledgeResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "merge-knowledge", EncodeMergeKnowledgeRequest(req))
+	csilReq, csilErr := EncodeMergeKnowledgeRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "merge-knowledge", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -423,7 +591,11 @@ func (c *MagiClient) MergeKnowledge(ctx context.Context, req MergeKnowledgeReque
 
 func (c *MagiClient) UnmergeKnowledge(ctx context.Context, req UnmergeKnowledgeRequest) (ChangeKnowledgeResponse, error) {
 	var csilZero ChangeKnowledgeResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "unmerge-knowledge", EncodeUnmergeKnowledgeRequest(req))
+	csilReq, csilErr := EncodeUnmergeKnowledgeRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "unmerge-knowledge", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -432,7 +604,11 @@ func (c *MagiClient) UnmergeKnowledge(ctx context.Context, req UnmergeKnowledgeR
 
 func (c *MagiClient) ListVoices(ctx context.Context, req ListVoicesRequest) (ListVoicesResponse, error) {
 	var csilZero ListVoicesResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-voices", EncodeListVoicesRequest(req))
+	csilReq, csilErr := EncodeListVoicesRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-voices", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -441,7 +617,11 @@ func (c *MagiClient) ListVoices(ctx context.Context, req ListVoicesRequest) (Lis
 
 func (c *MagiClient) ListLexicon(ctx context.Context, req ListLexiconRequest) (ListLexiconResponse, error) {
 	var csilZero ListLexiconResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-lexicon", EncodeListLexiconRequest(req))
+	csilReq, csilErr := EncodeListLexiconRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-lexicon", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -450,7 +630,11 @@ func (c *MagiClient) ListLexicon(ctx context.Context, req ListLexiconRequest) (L
 
 func (c *MagiClient) PutLexiconWord(ctx context.Context, req PutLexiconWordRequest) (LexiconWord, error) {
 	var csilZero LexiconWord
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "put-lexicon-word", EncodePutLexiconWordRequest(req))
+	csilReq, csilErr := EncodePutLexiconWordRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "put-lexicon-word", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -459,7 +643,11 @@ func (c *MagiClient) PutLexiconWord(ctx context.Context, req PutLexiconWordReque
 
 func (c *MagiClient) DeleteLexiconWord(ctx context.Context, req DeleteLexiconWordRequest) (DeleteLexiconWordResponse, error) {
 	var csilZero DeleteLexiconWordResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "delete-lexicon-word", EncodeDeleteLexiconWordRequest(req))
+	csilReq, csilErr := EncodeDeleteLexiconWordRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "delete-lexicon-word", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -468,7 +656,11 @@ func (c *MagiClient) DeleteLexiconWord(ctx context.Context, req DeleteLexiconWor
 
 func (c *MagiClient) Speak(ctx context.Context, req SpeakRequest) (SpeakResponse, error) {
 	var csilZero SpeakResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "speak", EncodeSpeakRequest(req))
+	csilReq, csilErr := EncodeSpeakRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "speak", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -477,7 +669,11 @@ func (c *MagiClient) Speak(ctx context.Context, req SpeakRequest) (SpeakResponse
 
 func (c *MagiClient) ListRunners(ctx context.Context, req ListRunnersRequest) (ListRunnersResponse, error) {
 	var csilZero ListRunnersResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-runners", EncodeListRunnersRequest(req))
+	csilReq, csilErr := EncodeListRunnersRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-runners", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -486,7 +682,11 @@ func (c *MagiClient) ListRunners(ctx context.Context, req ListRunnersRequest) (L
 
 func (c *MagiClient) GetAccess(ctx context.Context, req GetAccessRequest) (Access, error) {
 	var csilZero Access
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "get-access", EncodeGetAccessRequest(req))
+	csilReq, csilErr := EncodeGetAccessRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "get-access", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -495,7 +695,11 @@ func (c *MagiClient) GetAccess(ctx context.Context, req GetAccessRequest) (Acces
 
 func (c *MagiClient) AdminListRuns(ctx context.Context, req AdminListRunsRequest) (AdminListRunsResponse, error) {
 	var csilZero AdminListRunsResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "admin-list-runs", EncodeAdminListRunsRequest(req))
+	csilReq, csilErr := EncodeAdminListRunsRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "admin-list-runs", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -504,7 +708,11 @@ func (c *MagiClient) AdminListRuns(ctx context.Context, req AdminListRunsRequest
 
 func (c *MagiClient) AdminGetRun(ctx context.Context, req AdminGetRunRequest) (AdminRun, error) {
 	var csilZero AdminRun
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "admin-get-run", EncodeAdminGetRunRequest(req))
+	csilReq, csilErr := EncodeAdminGetRunRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "admin-get-run", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -513,7 +721,11 @@ func (c *MagiClient) AdminGetRun(ctx context.Context, req AdminGetRunRequest) (A
 
 func (c *MagiClient) AdminGetRunOutput(ctx context.Context, req AdminGetRunOutputRequest) (TaskOutput, error) {
 	var csilZero TaskOutput
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "admin-get-run-output", EncodeAdminGetRunOutputRequest(req))
+	csilReq, csilErr := EncodeAdminGetRunOutputRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "admin-get-run-output", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -522,7 +734,11 @@ func (c *MagiClient) AdminGetRunOutput(ctx context.Context, req AdminGetRunOutpu
 
 func (c *MagiClient) AdminGetRunDiff(ctx context.Context, req AdminGetRunRequest) (TaskDiff, error) {
 	var csilZero TaskDiff
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "admin-get-run-diff", EncodeAdminGetRunRequest(req))
+	csilReq, csilErr := EncodeAdminGetRunRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "admin-get-run-diff", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -531,7 +747,11 @@ func (c *MagiClient) AdminGetRunDiff(ctx context.Context, req AdminGetRunRequest
 
 func (c *MagiClient) AdminListChats(ctx context.Context, req AdminListChatsRequest) (AdminListChatsResponse, error) {
 	var csilZero AdminListChatsResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "admin-list-chats", EncodeAdminListChatsRequest(req))
+	csilReq, csilErr := EncodeAdminListChatsRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "admin-list-chats", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -540,7 +760,11 @@ func (c *MagiClient) AdminListChats(ctx context.Context, req AdminListChatsReque
 
 func (c *MagiClient) AdminReadChat(ctx context.Context, req AdminReadChatRequest) (AdminReadChatResponse, error) {
 	var csilZero AdminReadChatResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "admin-read-chat", EncodeAdminReadChatRequest(req))
+	csilReq, csilErr := EncodeAdminReadChatRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "admin-read-chat", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -549,7 +773,11 @@ func (c *MagiClient) AdminReadChat(ctx context.Context, req AdminReadChatRequest
 
 func (c *MagiClient) AdminTurnLog(ctx context.Context, req AdminTurnLogRequest) (AdminTurnLogResponse, error) {
 	var csilZero AdminTurnLogResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "admin-turn-log", EncodeAdminTurnLogRequest(req))
+	csilReq, csilErr := EncodeAdminTurnLogRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "admin-turn-log", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -558,7 +786,11 @@ func (c *MagiClient) AdminTurnLog(ctx context.Context, req AdminTurnLogRequest) 
 
 func (c *MagiClient) PutRunnerPackage(ctx context.Context, req PutRunnerPackageRequest) (PutRunnerPackageResponse, error) {
 	var csilZero PutRunnerPackageResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "put-runner-package", EncodePutRunnerPackageRequest(req))
+	csilReq, csilErr := EncodePutRunnerPackageRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "put-runner-package", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -567,7 +799,11 @@ func (c *MagiClient) PutRunnerPackage(ctx context.Context, req PutRunnerPackageR
 
 func (c *MagiClient) SetRunnerRelease(ctx context.Context, req SetRunnerReleaseRequest) (SetRunnerReleaseResponse, error) {
 	var csilZero SetRunnerReleaseResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "set-runner-release", EncodeSetRunnerReleaseRequest(req))
+	csilReq, csilErr := EncodeSetRunnerReleaseRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "set-runner-release", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -576,7 +812,11 @@ func (c *MagiClient) SetRunnerRelease(ctx context.Context, req SetRunnerReleaseR
 
 func (c *MagiClient) PutAppRelease(ctx context.Context, req PutAppReleaseRequest) (AppRelease, error) {
 	var csilZero AppRelease
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "put-app-release", EncodePutAppReleaseRequest(req))
+	csilReq, csilErr := EncodePutAppReleaseRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "put-app-release", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -585,7 +825,11 @@ func (c *MagiClient) PutAppRelease(ctx context.Context, req PutAppReleaseRequest
 
 func (c *MagiClient) GetAppRelease(ctx context.Context, req GetAppReleaseRequest) (GetAppReleaseResponse, error) {
 	var csilZero GetAppReleaseResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "get-app-release", EncodeGetAppReleaseRequest(req))
+	csilReq, csilErr := EncodeGetAppReleaseRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "get-app-release", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -594,7 +838,11 @@ func (c *MagiClient) GetAppRelease(ctx context.Context, req GetAppReleaseRequest
 
 func (c *MagiClient) GetAppPackage(ctx context.Context, req GetAppPackageRequest) (GetAppPackageResponse, error) {
 	var csilZero GetAppPackageResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "get-app-package", EncodeGetAppPackageRequest(req))
+	csilReq, csilErr := EncodeGetAppPackageRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "get-app-package", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -603,7 +851,11 @@ func (c *MagiClient) GetAppPackage(ctx context.Context, req GetAppPackageRequest
 
 func (c *MagiClient) ListEgressReviews(ctx context.Context, req ListEgressReviewsRequest) (ListEgressReviewsResponse, error) {
 	var csilZero ListEgressReviewsResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-egress-reviews", EncodeListEgressReviewsRequest(req))
+	csilReq, csilErr := EncodeListEgressReviewsRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-egress-reviews", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -612,7 +864,11 @@ func (c *MagiClient) ListEgressReviews(ctx context.Context, req ListEgressReview
 
 func (c *MagiClient) DecideEgressReview(ctx context.Context, req DecideEgressReviewRequest) (DecideEgressReviewResponse, error) {
 	var csilZero DecideEgressReviewResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "decide-egress-review", EncodeDecideEgressReviewRequest(req))
+	csilReq, csilErr := EncodeDecideEgressReviewRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "decide-egress-review", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -621,7 +877,11 @@ func (c *MagiClient) DecideEgressReview(ctx context.Context, req DecideEgressRev
 
 func (c *MagiClient) Connect(ctx context.Context, req ConnectRequest) (ConnectResponse, error) {
 	var csilZero ConnectResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "connect", EncodeConnectRequest(req))
+	csilReq, csilErr := EncodeConnectRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "connect", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -630,7 +890,11 @@ func (c *MagiClient) Connect(ctx context.Context, req ConnectRequest) (ConnectRe
 
 func (c *MagiClient) ListConnections(ctx context.Context, req ListConnectionsRequest) (ListConnectionsResponse, error) {
 	var csilZero ListConnectionsResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-connections", EncodeListConnectionsRequest(req))
+	csilReq, csilErr := EncodeListConnectionsRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-connections", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -639,7 +903,11 @@ func (c *MagiClient) ListConnections(ctx context.Context, req ListConnectionsReq
 
 func (c *MagiClient) Disconnect(ctx context.Context, req DisconnectRequest) (Connection, error) {
 	var csilZero Connection
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "disconnect", EncodeDisconnectRequest(req))
+	csilReq, csilErr := EncodeDisconnectRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "disconnect", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -648,7 +916,11 @@ func (c *MagiClient) Disconnect(ctx context.Context, req DisconnectRequest) (Con
 
 func (c *MagiClient) ImportHistory(ctx context.Context, req ImportHistoryRequest) (ImportHistoryResponse, error) {
 	var csilZero ImportHistoryResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "import-history", EncodeImportHistoryRequest(req))
+	csilReq, csilErr := EncodeImportHistoryRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "import-history", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -657,7 +929,11 @@ func (c *MagiClient) ImportHistory(ctx context.Context, req ImportHistoryRequest
 
 func (c *MagiClient) Activity(ctx context.Context, req ActivityRequest) (Activity, error) {
 	var csilZero Activity
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "activity", EncodeActivityRequest(req))
+	csilReq, csilErr := EncodeActivityRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "activity", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -666,7 +942,11 @@ func (c *MagiClient) Activity(ctx context.Context, req ActivityRequest) (Activit
 
 func (c *MagiClient) GetPage(ctx context.Context, req GetPageRequest) (Page, error) {
 	var csilZero Page
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "get-page", EncodeGetPageRequest(req))
+	csilReq, csilErr := EncodeGetPageRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "get-page", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -675,7 +955,11 @@ func (c *MagiClient) GetPage(ctx context.Context, req GetPageRequest) (Page, err
 
 func (c *MagiClient) ListPages(ctx context.Context, req ListPagesRequest) (ListPagesResponse, error) {
 	var csilZero ListPagesResponse
-	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-pages", EncodeListPagesRequest(req))
+	csilReq, csilErr := EncodeListPagesRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "list-pages", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -694,7 +978,11 @@ func NewRunnerClient(transport Transport) *RunnerClient {
 
 func (c *RunnerClient) Claim(ctx context.Context, req RunnerClaimRequest) (RunnerClaimResponse, error) {
 	var csilZero RunnerClaimResponse
-	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "claim", EncodeRunnerClaimRequest(req))
+	csilReq, csilErr := EncodeRunnerClaimRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "claim", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -703,7 +991,11 @@ func (c *RunnerClient) Claim(ctx context.Context, req RunnerClaimRequest) (Runne
 
 func (c *RunnerClient) Heartbeat(ctx context.Context, req RunnerStep) (RunnerAck, error) {
 	var csilZero RunnerAck
-	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "heartbeat", EncodeRunnerStep(req))
+	csilReq, csilErr := EncodeRunnerStep(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "heartbeat", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -712,7 +1004,11 @@ func (c *RunnerClient) Heartbeat(ctx context.Context, req RunnerStep) (RunnerAck
 
 func (c *RunnerClient) Progress(ctx context.Context, req RunnerProgressRequest) (RunnerAck, error) {
 	var csilZero RunnerAck
-	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "progress", EncodeRunnerProgressRequest(req))
+	csilReq, csilErr := EncodeRunnerProgressRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "progress", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -721,7 +1017,11 @@ func (c *RunnerClient) Progress(ctx context.Context, req RunnerProgressRequest) 
 
 func (c *RunnerClient) Complete(ctx context.Context, req RunnerCompleteRequest) (RunnerAck, error) {
 	var csilZero RunnerAck
-	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "complete", EncodeRunnerCompleteRequest(req))
+	csilReq, csilErr := EncodeRunnerCompleteRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "complete", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -730,7 +1030,11 @@ func (c *RunnerClient) Complete(ctx context.Context, req RunnerCompleteRequest) 
 
 func (c *RunnerClient) PutArtifact(ctx context.Context, req RunnerPutArtifactRequest) (RunnerPutArtifactResponse, error) {
 	var csilZero RunnerPutArtifactResponse
-	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "put-artifact", EncodeRunnerPutArtifactRequest(req))
+	csilReq, csilErr := EncodeRunnerPutArtifactRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "put-artifact", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -739,7 +1043,11 @@ func (c *RunnerClient) PutArtifact(ctx context.Context, req RunnerPutArtifactReq
 
 func (c *RunnerClient) Post(ctx context.Context, req RunnerPostRequest) (RunnerAck, error) {
 	var csilZero RunnerAck
-	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "post", EncodeRunnerPostRequest(req))
+	csilReq, csilErr := EncodeRunnerPostRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "post", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -748,7 +1056,11 @@ func (c *RunnerClient) Post(ctx context.Context, req RunnerPostRequest) (RunnerA
 
 func (c *RunnerClient) RunStatus(ctx context.Context, req RunnerRunStatusRequest) (RunnerRunStatusResponse, error) {
 	var csilZero RunnerRunStatusResponse
-	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "run-status", EncodeRunnerRunStatusRequest(req))
+	csilReq, csilErr := EncodeRunnerRunStatusRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "run-status", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -757,7 +1069,11 @@ func (c *RunnerClient) RunStatus(ctx context.Context, req RunnerRunStatusRequest
 
 func (c *RunnerClient) Hello(ctx context.Context, req RunnerHelloRequest) (RunnerHelloResponse, error) {
 	var csilZero RunnerHelloResponse
-	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "hello", EncodeRunnerHelloRequest(req))
+	csilReq, csilErr := EncodeRunnerHelloRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "hello", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -766,7 +1082,11 @@ func (c *RunnerClient) Hello(ctx context.Context, req RunnerHelloRequest) (Runne
 
 func (c *RunnerClient) GetPackage(ctx context.Context, req RunnerGetPackageRequest) (RunnerGetPackageResponse, error) {
 	var csilZero RunnerGetPackageResponse
-	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "get-package", EncodeRunnerGetPackageRequest(req))
+	csilReq, csilErr := EncodeRunnerGetPackageRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "get-package", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -775,7 +1095,11 @@ func (c *RunnerClient) GetPackage(ctx context.Context, req RunnerGetPackageReque
 
 func (c *RunnerClient) GetArtifact(ctx context.Context, req RunnerGetArtifactRequest) (RunnerGetArtifactResponse, error) {
 	var csilZero RunnerGetArtifactResponse
-	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "get-artifact", EncodeRunnerGetArtifactRequest(req))
+	csilReq, csilErr := EncodeRunnerGetArtifactRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "get-artifact", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -784,7 +1108,11 @@ func (c *RunnerClient) GetArtifact(ctx context.Context, req RunnerGetArtifactReq
 
 func (c *RunnerClient) EgressAccess(ctx context.Context, req RunnerStep) (RunnerEgressAccessResponse, error) {
 	var csilZero RunnerEgressAccessResponse
-	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "egress-access", EncodeRunnerStep(req))
+	csilReq, csilErr := EncodeRunnerStep(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "egress-access", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -793,7 +1121,11 @@ func (c *RunnerClient) EgressAccess(ctx context.Context, req RunnerStep) (Runner
 
 func (c *RunnerClient) Terminals(ctx context.Context, req RunnerTerminalsRequest) (RunnerTerminalsResponse, error) {
 	var csilZero RunnerTerminalsResponse
-	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "terminals", EncodeRunnerTerminalsRequest(req))
+	csilReq, csilErr := EncodeRunnerTerminalsRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "RunnerService", "terminals", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -812,7 +1144,11 @@ func NewEgressAskClient(transport Transport) *EgressAskClient {
 
 func (c *EgressAskClient) Environment(ctx context.Context, req EgressEnvironmentRequest) (EgressEnvironmentResponse, error) {
 	var csilZero EgressEnvironmentResponse
-	csilResp, csilErr := c.transport.Call(ctx, "EgressAskService", "environment", EncodeEgressEnvironmentRequest(req))
+	csilReq, csilErr := EncodeEgressEnvironmentRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "EgressAskService", "environment", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -821,7 +1157,11 @@ func (c *EgressAskClient) Environment(ctx context.Context, req EgressEnvironment
 
 func (c *EgressAskClient) Destination(ctx context.Context, req EgressDestinationRequest) (EgressDestinationResponse, error) {
 	var csilZero EgressDestinationResponse
-	csilResp, csilErr := c.transport.Call(ctx, "EgressAskService", "destination", EncodeEgressDestinationRequest(req))
+	csilReq, csilErr := EncodeEgressDestinationRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "EgressAskService", "destination", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -830,7 +1170,11 @@ func (c *EgressAskClient) Destination(ctx context.Context, req EgressDestination
 
 func (c *EgressAskClient) Report(ctx context.Context, req EgressReportRequest) (EgressReportResponse, error) {
 	var csilZero EgressReportResponse
-	csilResp, csilErr := c.transport.Call(ctx, "EgressAskService", "report", EncodeEgressReportRequest(req))
+	csilReq, csilErr := EncodeEgressReportRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "EgressAskService", "report", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -839,7 +1183,11 @@ func (c *EgressAskClient) Report(ctx context.Context, req EgressReportRequest) (
 
 func (c *EgressAskClient) Evaluate(ctx context.Context, req EgressEvaluateRequest) (EgressVerdict, error) {
 	var csilZero EgressVerdict
-	csilResp, csilErr := c.transport.Call(ctx, "EgressAskService", "evaluate", EncodeEgressEvaluateRequest(req))
+	csilReq, csilErr := EncodeEgressEvaluateRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "EgressAskService", "evaluate", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -848,7 +1196,11 @@ func (c *EgressAskClient) Evaluate(ctx context.Context, req EgressEvaluateReques
 
 func (c *EgressAskClient) Detect(ctx context.Context, req EgressDetectRequest) (EgressVerdict, error) {
 	var csilZero EgressVerdict
-	csilResp, csilErr := c.transport.Call(ctx, "EgressAskService", "detect", EncodeEgressDetectRequest(req))
+	csilReq, csilErr := EncodeEgressDetectRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "EgressAskService", "detect", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -857,7 +1209,11 @@ func (c *EgressAskClient) Detect(ctx context.Context, req EgressDetectRequest) (
 
 func (c *EgressAskClient) SecretRules(ctx context.Context, req EgressSecretRulesRequest) (EgressSecretRulesResponse, error) {
 	var csilZero EgressSecretRulesResponse
-	csilResp, csilErr := c.transport.Call(ctx, "EgressAskService", "secret-rules", EncodeEgressSecretRulesRequest(req))
+	csilReq, csilErr := EncodeEgressSecretRulesRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "EgressAskService", "secret-rules", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}

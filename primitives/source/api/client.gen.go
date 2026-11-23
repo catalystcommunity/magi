@@ -45,7 +45,11 @@ func NewSourceClient(transport Transport) *SourceClient {
 
 func (c *SourceClient) CreateRepo(ctx context.Context, req CreateRepoRequest) (Repository, error) {
 	var csilZero Repository
-	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "create-repo", EncodeCreateRepoRequest(req))
+	csilReq, csilErr := EncodeCreateRepoRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "create-repo", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -54,7 +58,11 @@ func (c *SourceClient) CreateRepo(ctx context.Context, req CreateRepoRequest) (R
 
 func (c *SourceClient) GetRepo(ctx context.Context, req GetRepoRequest) (Repository, error) {
 	var csilZero Repository
-	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "get-repo", EncodeGetRepoRequest(req))
+	csilReq, csilErr := EncodeGetRepoRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "get-repo", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -63,7 +71,11 @@ func (c *SourceClient) GetRepo(ctx context.Context, req GetRepoRequest) (Reposit
 
 func (c *SourceClient) ListRepos(ctx context.Context, req ListReposRequest) (ListReposResponse, error) {
 	var csilZero ListReposResponse
-	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "list-repos", EncodeListReposRequest(req))
+	csilReq, csilErr := EncodeListReposRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "list-repos", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -72,7 +84,11 @@ func (c *SourceClient) ListRepos(ctx context.Context, req ListReposRequest) (Lis
 
 func (c *SourceClient) ListRefs(ctx context.Context, req ListRefsRequest) (ListRefsResponse, error) {
 	var csilZero ListRefsResponse
-	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "list-refs", EncodeListRefsRequest(req))
+	csilReq, csilErr := EncodeListRefsRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "list-refs", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -81,7 +97,11 @@ func (c *SourceClient) ListRefs(ctx context.Context, req ListRefsRequest) (ListR
 
 func (c *SourceClient) Diff(ctx context.Context, req DiffRequest) (DiffResult, error) {
 	var csilZero DiffResult
-	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "diff", EncodeDiffRequest(req))
+	csilReq, csilErr := EncodeDiffRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "diff", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -90,7 +110,11 @@ func (c *SourceClient) Diff(ctx context.Context, req DiffRequest) (DiffResult, e
 
 func (c *SourceClient) Merge(ctx context.Context, req MergeRequest) (MergeResult, error) {
 	var csilZero MergeResult
-	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "merge", EncodeMergeRequest(req))
+	csilReq, csilErr := EncodeMergeRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "merge", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -99,7 +123,11 @@ func (c *SourceClient) Merge(ctx context.Context, req MergeRequest) (MergeResult
 
 func (c *SourceClient) DeleteBranch(ctx context.Context, req DeleteBranchRequest) (DeleteBranchResponse, error) {
 	var csilZero DeleteBranchResponse
-	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "delete-branch", EncodeDeleteBranchRequest(req))
+	csilReq, csilErr := EncodeDeleteBranchRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "delete-branch", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -108,7 +136,11 @@ func (c *SourceClient) DeleteBranch(ctx context.Context, req DeleteBranchRequest
 
 func (c *SourceClient) Bundle(ctx context.Context, req BundleRequest) (BundleResponse, error) {
 	var csilZero BundleResponse
-	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "bundle", EncodeBundleRequest(req))
+	csilReq, csilErr := EncodeBundleRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "bundle", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -117,7 +149,11 @@ func (c *SourceClient) Bundle(ctx context.Context, req BundleRequest) (BundleRes
 
 func (c *SourceClient) PushBundle(ctx context.Context, req PushBundleRequest) (PushBundleResponse, error) {
 	var csilZero PushBundleResponse
-	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "push-bundle", EncodePushBundleRequest(req))
+	csilReq, csilErr := EncodePushBundleRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "push-bundle", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -126,7 +162,11 @@ func (c *SourceClient) PushBundle(ctx context.Context, req PushBundleRequest) (P
 
 func (c *SourceClient) Sync(ctx context.Context, req SyncRequest) (SyncResult, error) {
 	var csilZero SyncResult
-	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "sync", EncodeSyncRequest(req))
+	csilReq, csilErr := EncodeSyncRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "sync", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -135,7 +175,11 @@ func (c *SourceClient) Sync(ctx context.Context, req SyncRequest) (SyncResult, e
 
 func (c *SourceClient) Publish(ctx context.Context, req PublishRequest) (PublishResult, error) {
 	var csilZero PublishResult
-	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "publish", EncodePublishRequest(req))
+	csilReq, csilErr := EncodePublishRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SourceService", "publish", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}

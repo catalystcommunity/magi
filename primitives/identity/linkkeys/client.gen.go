@@ -45,7 +45,11 @@ func NewRpClient(transport Transport) *RpClient {
 
 func (c *RpClient) SignRequest(ctx context.Context, req RpSignRequest) (RpSignResponse, error) {
 	var csilZero RpSignResponse
-	csilResp, csilErr := c.transport.Call(ctx, "Rp", "sign-request", EncodeRpSignRequest(req))
+	csilReq, csilErr := EncodeRpSignRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "Rp", "sign-request", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -54,7 +58,11 @@ func (c *RpClient) SignRequest(ctx context.Context, req RpSignRequest) (RpSignRe
 
 func (c *RpClient) DecryptToken(ctx context.Context, req RpDecryptRequest) (RpDecryptResponse, error) {
 	var csilZero RpDecryptResponse
-	csilResp, csilErr := c.transport.Call(ctx, "Rp", "decrypt-token", EncodeRpDecryptRequest(req))
+	csilReq, csilErr := EncodeRpDecryptRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "Rp", "decrypt-token", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -63,7 +71,11 @@ func (c *RpClient) DecryptToken(ctx context.Context, req RpDecryptRequest) (RpDe
 
 func (c *RpClient) VerifyAssertion(ctx context.Context, req RpVerifyRequest) (RpVerifyResponse, error) {
 	var csilZero RpVerifyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "Rp", "verify-assertion", EncodeRpVerifyRequest(req))
+	csilReq, csilErr := EncodeRpVerifyRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "Rp", "verify-assertion", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -72,7 +84,11 @@ func (c *RpClient) VerifyAssertion(ctx context.Context, req RpVerifyRequest) (Rp
 
 func (c *RpClient) UserinfoFetch(ctx context.Context, req RpUserInfoRequest) (UserInfo, error) {
 	var csilZero UserInfo
-	csilResp, csilErr := c.transport.Call(ctx, "Rp", "userinfo-fetch", EncodeRpUserInfoRequest(req))
+	csilReq, csilErr := EncodeRpUserInfoRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "Rp", "userinfo-fetch", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -81,7 +97,11 @@ func (c *RpClient) UserinfoFetch(ctx context.Context, req RpUserInfoRequest) (Us
 
 func (c *RpClient) ResolveDomainKeys(ctx context.Context, req RpResolveDomainKeysRequest) (RpResolveDomainKeysResponse, error) {
 	var csilZero RpResolveDomainKeysResponse
-	csilResp, csilErr := c.transport.Call(ctx, "Rp", "resolve-domain-keys", EncodeRpResolveDomainKeysRequest(req))
+	csilReq, csilErr := EncodeRpResolveDomainKeysRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "Rp", "resolve-domain-keys", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}

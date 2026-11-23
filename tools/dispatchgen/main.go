@@ -92,7 +92,9 @@ func run(dir string) error {
 			fmt.Fprintf(&b, "\t\t%q: func(ctx context.Context, b []byte) ([]byte, error) {\n", o.name)
 			fmt.Fprintf(&b, "\t\t\treq, err := Decode%s(b)\n\t\t\tif err != nil {\n\t\t\t\treturn nil, &DecodeError{Err: err}\n\t\t\t}\n", o.req)
 			fmt.Fprintf(&b, "\t\t\tresp, err := impl.%s(ctx, req)\n\t\t\tif err != nil {\n\t\t\t\treturn nil, err\n\t\t\t}\n", o.method)
-			fmt.Fprintf(&b, "\t\t\treturn Encode%s(resp), nil\n\t\t},\n", o.resp)
+			// An encode error is a fault of the server: the transport answers it
+			// with status 500 and logs it.
+			fmt.Fprintf(&b, "\t\t\treturn Encode%s(resp)\n\t\t},\n", o.resp)
 		}
 		fmt.Fprintf(&b, "\t}\n}\n\n")
 	}

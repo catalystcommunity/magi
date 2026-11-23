@@ -16,7 +16,7 @@ func SourceServiceOps(impl SourceService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRepository(resp), nil
+			return EncodeRepository(resp)
 		},
 		"get-repo": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetRepoRequest(b)
@@ -27,7 +27,7 @@ func SourceServiceOps(impl SourceService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeRepository(resp), nil
+			return EncodeRepository(resp)
 		},
 		"list-repos": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListReposRequest(b)
@@ -38,7 +38,7 @@ func SourceServiceOps(impl SourceService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListReposResponse(resp), nil
+			return EncodeListReposResponse(resp)
 		},
 		"list-refs": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListRefsRequest(b)
@@ -49,7 +49,7 @@ func SourceServiceOps(impl SourceService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListRefsResponse(resp), nil
+			return EncodeListRefsResponse(resp)
 		},
 		"diff": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeDiffRequest(b)
@@ -60,7 +60,7 @@ func SourceServiceOps(impl SourceService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeDiffResult(resp), nil
+			return EncodeDiffResult(resp)
 		},
 		"merge": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeMergeRequest(b)
@@ -71,7 +71,7 @@ func SourceServiceOps(impl SourceService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeMergeResult(resp), nil
+			return EncodeMergeResult(resp)
 		},
 		"delete-branch": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeDeleteBranchRequest(b)
@@ -82,7 +82,7 @@ func SourceServiceOps(impl SourceService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeDeleteBranchResponse(resp), nil
+			return EncodeDeleteBranchResponse(resp)
 		},
 		"bundle": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeBundleRequest(b)
@@ -93,7 +93,7 @@ func SourceServiceOps(impl SourceService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeBundleResponse(resp), nil
+			return EncodeBundleResponse(resp)
 		},
 		"push-bundle": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodePushBundleRequest(b)
@@ -104,7 +104,7 @@ func SourceServiceOps(impl SourceService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodePushBundleResponse(resp), nil
+			return EncodePushBundleResponse(resp)
 		},
 		"sync": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeSyncRequest(b)
@@ -115,7 +115,7 @@ func SourceServiceOps(impl SourceService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeSyncResult(resp), nil
+			return EncodeSyncResult(resp)
 		},
 		"publish": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodePublishRequest(b)
@@ -126,7 +126,7 @@ func SourceServiceOps(impl SourceService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodePublishResult(resp), nil
+			return EncodePublishResult(resp)
 		},
 	}
 }

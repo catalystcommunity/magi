@@ -99,6 +99,50 @@ func cborEncode(v cborValue) []byte {
 	return out
 }
 
+// cborEncodeE serializes the tree an encoder returned, or passes its error on.
+func cborEncodeE(v cborValue, err error) ([]byte, error) {
+	if err != nil {
+		return nil, err
+	}
+	return cborEncode(v), nil
+}
+
+// csilEncDepthLimit is the nesting limit every decoder enforces.
+const csilEncDepthLimit = 64
+
+// csilEncErr keeps the first failure of one encode call. Go accepts a two-result
+// call only as the sole argument of another call, so the latch lets a fallible
+// encoder sit inside a composite literal of the value tree.
+type csilEncErr struct{ err error }
+
+func (e *csilEncErr) val(v cborValue, err error) cborValue {
+	if err != nil {
+		if e.err == nil {
+			e.err = err
+		}
+		return cborNull{}
+	}
+	return v
+}
+
+func (e *csilEncErr) result(v cborValue) (cborValue, error) {
+	if e.err != nil {
+		return nil, e.err
+	}
+	return v, nil
+}
+
+// csilEncMember refuses an enum value outside the declared set, because every
+// decoder refuses it.
+func csilEncMember[T comparable](v T, enc cborValue, members ...T) (cborValue, error) {
+	for _, m := range members {
+		if v == m {
+			return enc, nil
+		}
+	}
+	return nil, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", v)
+}
+
 func cborHead(major byte, n uint64, out *[]byte) {
 	mt := major << 5
 	switch {
@@ -229,6 +273,28 @@ func cborReadArg(b []byte, pos *int, low byte) (uint64, error) {
 // lets a small frame reserve a large multiple of its size at every nesting level.
 const csilCborPreallocLimit = 1024
 
+// cborHalfToFloat64 widens an IEEE 754 half-precision value (RFC 8949 Appendix D)
+// exactly to binary64.
+func cborHalfToFloat64(half uint16) float64 {
+	exp := int(half>>10) & 0x1f
+	mant := float64(half & 0x3ff)
+	var magnitude float64
+	switch {
+	case exp == 0:
+		magnitude = math.Ldexp(mant, -24)
+	case exp == 31 && mant == 0:
+		magnitude = math.Inf(1)
+	case exp == 31:
+		magnitude = math.NaN()
+	default:
+		magnitude = math.Ldexp(mant+1024, exp-25)
+	}
+	if half&0x8000 != 0 {
+		return -magnitude
+	}
+	return magnitude
+}
+
 func cborDec(b []byte, pos *int, depth int) (cborValue, error) {
 	if depth > 64 {
 		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
@@ -250,6 +316,12 @@ func cborDec(b []byte, pos *int, depth int) (cborValue, error) {
 		case 22, 23:
 			*pos++
 			return cborNull{}, nil
+		case 25:
+			bits, err := cborReadArg(b, pos, low)
+			if err != nil {
+				return nil, err
+			}
+			return cborFloat(cborHalfToFloat64(uint16(bits))), nil
 		case 26:
 			bits, err := cborReadArg(b, pos, low)
 			if err != nil {
@@ -350,23 +422,35 @@ func cborDec(b []byte, pos *int, depth int) (cborValue, error) {
 }
 
 // cborEncArray maps a typed slice to a CBOR array via the per-element encoder.
-func cborEncArray[E any](xs []E, f func(E) cborValue) cborValue {
+func cborEncArray[E any](xs []E, f func(E) (cborValue, error)) (cborValue, error) {
 	items := make(cborArray, 0, len(xs))
 	for _, x := range xs {
-		items = append(items, f(x))
+		item, err := f(x)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
 	}
-	return items
+	return items, nil
 }
 
 // cborEncMap maps a typed map to a CBOR map. Go map iteration is unordered, so the
 // inner map's entry order is not canonicalized; the record's own keys (laid down at
 // generation time) are what the cross-language wire contract pins.
-func cborEncMap[K comparable, V any](m map[K]V, kf func(K) cborValue, vf func(V) cborValue) cborValue {
+func cborEncMap[K comparable, V any](m map[K]V, kf func(K) (cborValue, error), vf func(V) (cborValue, error)) (cborValue, error) {
 	entries := make(cborMap, 0, len(m))
 	for k, v := range m {
-		entries = append(entries, cborEntry{kf(k), vf(v)})
+		key, err := kf(k)
+		if err != nil {
+			return nil, err
+		}
+		val, err := vf(v)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, cborEntry{key, val})
 	}
-	return entries
+	return entries, nil
 }
 
 func cborDecArray[E any](v cborValue, f func(cborValue) (E, error)) ([]E, error) {
@@ -500,14 +584,17 @@ func cborAsMap(v cborValue) (cborMap, error) {
 }
 
 // csilEncRef builds the canonical CBOR value tree for a Ref.
-func csilEncRef(csilV Ref) cborValue {
+func csilEncRef(csilV Ref, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("ref"), cborText(csilV.Ref)})
 	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
 	if csilV.Title != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("title"), cborText((*csilV.Title))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecRef reconstructs a Ref from a decoded CBOR value tree.
@@ -546,8 +633,8 @@ func csilDecRef(csilRoot cborValue) (Ref, error) {
 }
 
 // EncodeRef encodes a Ref to canonical CSIL CBOR bytes.
-func EncodeRef(csilV Ref) []byte {
-	return cborEncode(csilEncRef(csilV))
+func EncodeRef(csilV Ref) ([]byte, error) {
+	return cborEncodeE(csilEncRef(csilV, 0))
 }
 
 // DecodeRef decodes canonical CSIL CBOR bytes into a Ref.
@@ -561,13 +648,17 @@ func DecodeRef(csilData []byte) (Ref, error) {
 }
 
 // csilEncMessageLink builds the canonical CBOR value tree for a MessageLink.
-func csilEncMessageLink(csilV MessageLink) cborValue {
+func csilEncMessageLink(csilV MessageLink, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 13)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
 	csilEntries = append(csilEntries, cborEntry{cborText("state"), cborText(csilV.State)})
 	csilEntries = append(csilEntries, cborEntry{cborText("author"), cborText(csilV.Author)})
-	csilEntries = append(csilEntries, cborEntry{cborText("target"), csilEncRef(csilV.Target)})
+	csilEntries = append(csilEntries, cborEntry{cborText("target"), csilE.val(csilEncRef(csilV.Target, csilDepth+1))})
 	csilEntries = append(csilEntries, cborEntry{cborText("weight"), cborFloat(csilV.Weight)})
 	if csilV.Snippet != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("snippet"), cborText((*csilV.Snippet))})
@@ -588,7 +679,7 @@ func csilEncMessageLink(csilV MessageLink) cborValue {
 	if csilV.TargetStart != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("target_start"), cborUint((*csilV.TargetStart))})
 	}
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecMessageLink reconstructs a MessageLink from a decoded CBOR value tree.
@@ -717,8 +808,8 @@ func csilDecMessageLink(csilRoot cborValue) (MessageLink, error) {
 }
 
 // EncodeMessageLink encodes a MessageLink to canonical CSIL CBOR bytes.
-func EncodeMessageLink(csilV MessageLink) []byte {
-	return cborEncode(csilEncMessageLink(csilV))
+func EncodeMessageLink(csilV MessageLink) ([]byte, error) {
+	return cborEncodeE(csilEncMessageLink(csilV, 0))
 }
 
 // DecodeMessageLink decodes canonical CSIL CBOR bytes into a MessageLink.
@@ -732,16 +823,20 @@ func DecodeMessageLink(csilData []byte) (MessageLink, error) {
 }
 
 // csilEncMessage builds the canonical CBOR value tree for a Message.
-func csilEncMessage(csilV Message) cborValue {
+func csilEncMessage(csilV Message, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 15)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("seq"), cborUint(csilV.Seq)})
-	csilEntries = append(csilEntries, cborEntry{cborText("refs"), cborEncArray(csilV.Refs, func(csilElem Ref) cborValue { return csilEncRef(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("refs"), csilE.val(cborEncArray(csilV.Refs, func(csilElem Ref) (cborValue, error) { return csilEncRef(csilElem, csilDepth+1) }))})
 	csilEntries = append(csilEntries, cborEntry{cborText("text"), cborText(csilV.Text)})
 	if csilV.Audio != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("audio"), cborText((*csilV.Audio))})
 	}
-	csilEntries = append(csilEntries, cborEntry{cborText("links"), cborEncArray(csilV.Links, func(csilElem MessageLink) cborValue { return csilEncMessageLink(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("links"), csilE.val(cborEncArray(csilV.Links, func(csilElem MessageLink) (cborValue, error) { return csilEncMessageLink(csilElem, csilDepth+1) }))})
 	csilEntries = append(csilEntries, cborEntry{cborText("author"), cborText(csilV.Author)})
 	csilEntries = append(csilEntries, cborEntry{cborText("stream"), cborText(csilV.Stream)})
 	csilEntries = append(csilEntries, cborEntry{cborText("persona"), cborText(csilV.Persona)})
@@ -753,7 +848,7 @@ func csilEncMessage(csilV Message) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("generated_by"), cborText((*csilV.GeneratedBy))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("visibility_by"), cborText(csilV.VisibilityBy)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecMessage reconstructs a Message from a decoded CBOR value tree.
@@ -920,8 +1015,8 @@ func csilDecMessage(csilRoot cborValue) (Message, error) {
 }
 
 // EncodeMessage encodes a Message to canonical CSIL CBOR bytes.
-func EncodeMessage(csilV Message) []byte {
-	return cborEncode(csilEncMessage(csilV))
+func EncodeMessage(csilV Message) ([]byte, error) {
+	return cborEncodeE(csilEncMessage(csilV, 0))
 }
 
 // DecodeMessage decodes canonical CSIL CBOR bytes into a Message.
@@ -935,13 +1030,17 @@ func DecodeMessage(csilData []byte) (Message, error) {
 }
 
 // csilEncPersonaInfo builds the canonical CBOR value tree for a PersonaInfo.
-func csilEncPersonaInfo(csilV PersonaInfo) cborValue {
+func csilEncPersonaInfo(csilV PersonaInfo, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 4)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
-	csilEntries = append(csilEntries, cborEntry{cborText("members"), cborEncArray(csilV.Members, func(csilElem string) cborValue { return cborText(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("members"), csilE.val(cborEncArray(csilV.Members, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	csilEntries = append(csilEntries, cborEntry{cborText("sharing"), cborText(csilV.Sharing)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecPersonaInfo reconstructs a PersonaInfo from a decoded CBOR value tree.
@@ -995,8 +1094,8 @@ func csilDecPersonaInfo(csilRoot cborValue) (PersonaInfo, error) {
 }
 
 // EncodePersonaInfo encodes a PersonaInfo to canonical CSIL CBOR bytes.
-func EncodePersonaInfo(csilV PersonaInfo) []byte {
-	return cborEncode(csilEncPersonaInfo(csilV))
+func EncodePersonaInfo(csilV PersonaInfo) ([]byte, error) {
+	return cborEncodeE(csilEncPersonaInfo(csilV, 0))
 }
 
 // DecodePersonaInfo decodes canonical CSIL CBOR bytes into a PersonaInfo.
@@ -1010,9 +1109,12 @@ func DecodePersonaInfo(csilData []byte) (PersonaInfo, error) {
 }
 
 // csilEncListPersonasRequest builds the canonical CBOR value tree for a ListPersonasRequest.
-func csilEncListPersonasRequest(csilV ListPersonasRequest) cborValue {
+func csilEncListPersonasRequest(csilV ListPersonasRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 0)
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecListPersonasRequest reconstructs a ListPersonasRequest from a decoded CBOR value tree.
@@ -1022,8 +1124,8 @@ func csilDecListPersonasRequest(csilRoot cborValue) (ListPersonasRequest, error)
 }
 
 // EncodeListPersonasRequest encodes a ListPersonasRequest to canonical CSIL CBOR bytes.
-func EncodeListPersonasRequest(csilV ListPersonasRequest) []byte {
-	return cborEncode(csilEncListPersonasRequest(csilV))
+func EncodeListPersonasRequest(csilV ListPersonasRequest) ([]byte, error) {
+	return cborEncodeE(csilEncListPersonasRequest(csilV, 0))
 }
 
 // DecodeListPersonasRequest decodes canonical CSIL CBOR bytes into a ListPersonasRequest.
@@ -1037,10 +1139,14 @@ func DecodeListPersonasRequest(csilData []byte) (ListPersonasRequest, error) {
 }
 
 // csilEncListPersonasResponse builds the canonical CBOR value tree for a ListPersonasResponse.
-func csilEncListPersonasResponse(csilV ListPersonasResponse) cborValue {
+func csilEncListPersonasResponse(csilV ListPersonasResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
-	csilEntries = append(csilEntries, cborEntry{cborText("personas"), cborEncArray(csilV.Personas, func(csilElem PersonaInfo) cborValue { return csilEncPersonaInfo(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("personas"), csilE.val(cborEncArray(csilV.Personas, func(csilElem PersonaInfo) (cborValue, error) { return csilEncPersonaInfo(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecListPersonasResponse reconstructs a ListPersonasResponse from a decoded CBOR value tree.
@@ -1061,8 +1167,8 @@ func csilDecListPersonasResponse(csilRoot cborValue) (ListPersonasResponse, erro
 }
 
 // EncodeListPersonasResponse encodes a ListPersonasResponse to canonical CSIL CBOR bytes.
-func EncodeListPersonasResponse(csilV ListPersonasResponse) []byte {
-	return cborEncode(csilEncListPersonasResponse(csilV))
+func EncodeListPersonasResponse(csilV ListPersonasResponse) ([]byte, error) {
+	return cborEncodeE(csilEncListPersonasResponse(csilV, 0))
 }
 
 // DecodeListPersonasResponse decodes canonical CSIL CBOR bytes into a ListPersonasResponse.
@@ -1076,15 +1182,19 @@ func DecodeListPersonasResponse(csilData []byte) (ListPersonasResponse, error) {
 }
 
 // csilEncPutPersonaRequest builds the canonical CBOR value tree for a PutPersonaRequest.
-func csilEncPutPersonaRequest(csilV PutPersonaRequest) cborValue {
+func csilEncPutPersonaRequest(csilV PutPersonaRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 4)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
 	if csilV.Members != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("members"), cborEncArray(csilV.Members, func(csilElem string) cborValue { return cborText(csilElem) })})
+		csilEntries = append(csilEntries, cborEntry{cborText("members"), csilE.val(cborEncArray(csilV.Members, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("sharing"), cborText(csilV.Sharing)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecPutPersonaRequest reconstructs a PutPersonaRequest from a decoded CBOR value tree.
@@ -1134,8 +1244,8 @@ func csilDecPutPersonaRequest(csilRoot cborValue) (PutPersonaRequest, error) {
 }
 
 // EncodePutPersonaRequest encodes a PutPersonaRequest to canonical CSIL CBOR bytes.
-func EncodePutPersonaRequest(csilV PutPersonaRequest) []byte {
-	return cborEncode(csilEncPutPersonaRequest(csilV))
+func EncodePutPersonaRequest(csilV PutPersonaRequest) ([]byte, error) {
+	return cborEncodeE(csilEncPutPersonaRequest(csilV, 0))
 }
 
 // DecodePutPersonaRequest decodes canonical CSIL CBOR bytes into a PutPersonaRequest.
@@ -1149,7 +1259,11 @@ func DecodePutPersonaRequest(csilData []byte) (PutPersonaRequest, error) {
 }
 
 // csilEncSayRequest builds the canonical CBOR value tree for a SayRequest.
-func csilEncSayRequest(csilV SayRequest) cborValue {
+func csilEncSayRequest(csilV SayRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 8)
 	if csilV.Text != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("text"), cborText((*csilV.Text))})
@@ -1158,7 +1272,7 @@ func csilEncSayRequest(csilV SayRequest) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("audio"), cborBytes((*csilV.Audio))})
 	}
 	if csilV.Model != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("model"), csilEncModelSelector((*csilV.Model))})
+		csilEntries = append(csilEntries, cborEntry{cborText("model"), csilE.val(csilEncModelSelector((*csilV.Model), csilDepth+1))})
 	}
 	if csilV.Voice != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("voice"), cborText((*csilV.Voice))})
@@ -1175,7 +1289,7 @@ func csilEncSayRequest(csilV SayRequest) cborValue {
 	if csilV.SpeakReply != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("speak_reply"), cborBool((*csilV.SpeakReply))})
 	}
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecSayRequest reconstructs a SayRequest from a decoded CBOR value tree.
@@ -1241,8 +1355,8 @@ func csilDecSayRequest(csilRoot cborValue) (SayRequest, error) {
 }
 
 // EncodeSayRequest encodes a SayRequest to canonical CSIL CBOR bytes.
-func EncodeSayRequest(csilV SayRequest) []byte {
-	return cborEncode(csilEncSayRequest(csilV))
+func EncodeSayRequest(csilV SayRequest) ([]byte, error) {
+	return cborEncodeE(csilEncSayRequest(csilV, 0))
 }
 
 // DecodeSayRequest decodes canonical CSIL CBOR bytes into a SayRequest.
@@ -1256,19 +1370,23 @@ func DecodeSayRequest(csilData []byte) (SayRequest, error) {
 }
 
 // csilEncModelSelector builds the canonical CBOR value tree for a ModelSelector.
-func csilEncModelSelector(csilV ModelSelector) cborValue {
+func csilEncModelSelector(csilV ModelSelector, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 9)
 	if csilV.All != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("all"), cborEncArray(csilV.All, func(csilElem string) cborValue { return cborText(csilElem) })})
+		csilEntries = append(csilEntries, cborEntry{cborText("all"), csilE.val(cborEncArray(csilV.All, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	}
 	if csilV.Any != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("any"), cborEncArray(csilV.Any, func(csilElem string) cborValue { return cborText(csilElem) })})
+		csilEntries = append(csilEntries, cborEntry{cborText("any"), csilE.val(cborEncArray(csilV.Any, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	}
 	if csilV.Name != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText((*csilV.Name))})
 	}
 	if csilV.None != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("none"), cborEncArray(csilV.None, func(csilElem string) cborValue { return cborText(csilElem) })})
+		csilEntries = append(csilEntries, cborEntry{cborText("none"), csilE.val(cborEncArray(csilV.None, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	}
 	if csilV.RankBy != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("rank_by"), cborText((*csilV.RankBy))})
@@ -1277,7 +1395,7 @@ func csilEncModelSelector(csilV ModelSelector) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("only_name"), cborBool((*csilV.OnlyName))})
 	}
 	if csilV.Attributes != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("attributes"), cborEncMap(csilV.Attributes, func(csilK string) cborValue { return cborText(csilK) }, func(csilV string) cborValue { return cborText(csilV) })})
+		csilEntries = append(csilEntries, cborEntry{cborText("attributes"), csilE.val(cborEncMap(csilV.Attributes, func(csilK string) (cborValue, error) { return cborText(csilK), nil }, func(csilV string) (cborValue, error) { return cborText(csilV), nil }))})
 	}
 	if csilV.MaxInputCost != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("max_input_cost"), cborUint((*csilV.MaxInputCost))})
@@ -1285,7 +1403,7 @@ func csilEncModelSelector(csilV ModelSelector) cborValue {
 	if csilV.MaxOutputCost != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("max_output_cost"), cborUint((*csilV.MaxOutputCost))})
 	}
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecModelSelector reconstructs a ModelSelector from a decoded CBOR value tree.
@@ -1358,8 +1476,8 @@ func csilDecModelSelector(csilRoot cborValue) (ModelSelector, error) {
 }
 
 // EncodeModelSelector encodes a ModelSelector to canonical CSIL CBOR bytes.
-func EncodeModelSelector(csilV ModelSelector) []byte {
-	return cborEncode(csilEncModelSelector(csilV))
+func EncodeModelSelector(csilV ModelSelector) ([]byte, error) {
+	return cborEncodeE(csilEncModelSelector(csilV, 0))
 }
 
 // DecodeModelSelector decodes canonical CSIL CBOR bytes into a ModelSelector.
@@ -1373,13 +1491,17 @@ func DecodeModelSelector(csilData []byte) (ModelSelector, error) {
 }
 
 // csilEncSayResponse builds the canonical CBOR value tree for a SayResponse.
-func csilEncSayResponse(csilV SayResponse) cborValue {
+func csilEncSayResponse(csilV SayResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 2)
 	if csilV.Ignored != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("ignored"), cborBool((*csilV.Ignored))})
 	}
-	csilEntries = append(csilEntries, cborEntry{cborText("message"), csilEncMessage(csilV.Message)})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("message"), csilE.val(csilEncMessage(csilV.Message, csilDepth+1))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecSayResponse reconstructs a SayResponse from a decoded CBOR value tree.
@@ -1407,8 +1529,8 @@ func csilDecSayResponse(csilRoot cborValue) (SayResponse, error) {
 }
 
 // EncodeSayResponse encodes a SayResponse to canonical CSIL CBOR bytes.
-func EncodeSayResponse(csilV SayResponse) []byte {
-	return cborEncode(csilEncSayResponse(csilV))
+func EncodeSayResponse(csilV SayResponse) ([]byte, error) {
+	return cborEncodeE(csilEncSayResponse(csilV, 0))
 }
 
 // DecodeSayResponse decodes canonical CSIL CBOR bytes into a SayResponse.
@@ -1422,7 +1544,10 @@ func DecodeSayResponse(csilData []byte) (SayResponse, error) {
 }
 
 // csilEncReadRequest builds the canonical CBOR value tree for a ReadRequest.
-func csilEncReadRequest(csilV ReadRequest) cborValue {
+func csilEncReadRequest(csilV ReadRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 5)
 	if csilV.Limit != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("limit"), cborUint((*csilV.Limit))})
@@ -1439,7 +1564,7 @@ func csilEncReadRequest(csilV ReadRequest) cborValue {
 	if csilV.BeforeSeq != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("before_seq"), cborUint((*csilV.BeforeSeq))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecReadRequest reconstructs a ReadRequest from a decoded CBOR value tree.
@@ -1484,8 +1609,8 @@ func csilDecReadRequest(csilRoot cborValue) (ReadRequest, error) {
 }
 
 // EncodeReadRequest encodes a ReadRequest to canonical CSIL CBOR bytes.
-func EncodeReadRequest(csilV ReadRequest) []byte {
-	return cborEncode(csilEncReadRequest(csilV))
+func EncodeReadRequest(csilV ReadRequest) ([]byte, error) {
+	return cborEncodeE(csilEncReadRequest(csilV, 0))
 }
 
 // DecodeReadRequest decodes canonical CSIL CBOR bytes into a ReadRequest.
@@ -1499,12 +1624,16 @@ func DecodeReadRequest(csilData []byte) (ReadRequest, error) {
 }
 
 // csilEncReadResponse builds the canonical CBOR value tree for a ReadResponse.
-func csilEncReadResponse(csilV ReadResponse) cborValue {
+func csilEncReadResponse(csilV ReadResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("stream"), cborText(csilV.Stream)})
 	csilEntries = append(csilEntries, cborEntry{cborText("last_seq"), cborUint(csilV.LastSeq)})
-	csilEntries = append(csilEntries, cborEntry{cborText("messages"), cborEncArray(csilV.Messages, func(csilElem Message) cborValue { return csilEncMessage(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("messages"), csilE.val(cborEncArray(csilV.Messages, func(csilElem Message) (cborValue, error) { return csilEncMessage(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecReadResponse reconstructs a ReadResponse from a decoded CBOR value tree.
@@ -1547,8 +1676,8 @@ func csilDecReadResponse(csilRoot cborValue) (ReadResponse, error) {
 }
 
 // EncodeReadResponse encodes a ReadResponse to canonical CSIL CBOR bytes.
-func EncodeReadResponse(csilV ReadResponse) []byte {
-	return cborEncode(csilEncReadResponse(csilV))
+func EncodeReadResponse(csilV ReadResponse) ([]byte, error) {
+	return cborEncodeE(csilEncReadResponse(csilV, 0))
 }
 
 // DecodeReadResponse decodes canonical CSIL CBOR bytes into a ReadResponse.
@@ -1562,13 +1691,16 @@ func DecodeReadResponse(csilData []byte) (ReadResponse, error) {
 }
 
 // csilEncSearchRequest builds the canonical CBOR value tree for a SearchRequest.
-func csilEncSearchRequest(csilV SearchRequest) cborValue {
+func csilEncSearchRequest(csilV SearchRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	csilEntries = append(csilEntries, cborEntry{cborText("text"), cborText(csilV.Text)})
 	if csilV.Limit != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("limit"), cborUint((*csilV.Limit))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecSearchRequest reconstructs a SearchRequest from a decoded CBOR value tree.
@@ -1596,8 +1728,8 @@ func csilDecSearchRequest(csilRoot cborValue) (SearchRequest, error) {
 }
 
 // EncodeSearchRequest encodes a SearchRequest to canonical CSIL CBOR bytes.
-func EncodeSearchRequest(csilV SearchRequest) []byte {
-	return cborEncode(csilEncSearchRequest(csilV))
+func EncodeSearchRequest(csilV SearchRequest) ([]byte, error) {
+	return cborEncodeE(csilEncSearchRequest(csilV, 0))
 }
 
 // DecodeSearchRequest decodes canonical CSIL CBOR bytes into a SearchRequest.
@@ -1611,10 +1743,14 @@ func DecodeSearchRequest(csilData []byte) (SearchRequest, error) {
 }
 
 // csilEncSearchResponse builds the canonical CBOR value tree for a SearchResponse.
-func csilEncSearchResponse(csilV SearchResponse) cborValue {
+func csilEncSearchResponse(csilV SearchResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
-	csilEntries = append(csilEntries, cborEntry{cborText("messages"), cborEncArray(csilV.Messages, func(csilElem Message) cborValue { return csilEncMessage(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("messages"), csilE.val(cborEncArray(csilV.Messages, func(csilElem Message) (cborValue, error) { return csilEncMessage(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecSearchResponse reconstructs a SearchResponse from a decoded CBOR value tree.
@@ -1635,8 +1771,8 @@ func csilDecSearchResponse(csilRoot cborValue) (SearchResponse, error) {
 }
 
 // EncodeSearchResponse encodes a SearchResponse to canonical CSIL CBOR bytes.
-func EncodeSearchResponse(csilV SearchResponse) []byte {
-	return cborEncode(csilEncSearchResponse(csilV))
+func EncodeSearchResponse(csilV SearchResponse) ([]byte, error) {
+	return cborEncodeE(csilEncSearchResponse(csilV, 0))
 }
 
 // DecodeSearchResponse decodes canonical CSIL CBOR bytes into a SearchResponse.
@@ -1650,7 +1786,10 @@ func DecodeSearchResponse(csilData []byte) (SearchResponse, error) {
 }
 
 // csilEncTraceRequest builds the canonical CBOR value tree for a TraceRequest.
-func csilEncTraceRequest(csilV TraceRequest) cborValue {
+func csilEncTraceRequest(csilV TraceRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 4)
 	if csilV.Depth != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("depth"), cborUint((*csilV.Depth))})
@@ -1662,7 +1801,7 @@ func csilEncTraceRequest(csilV TraceRequest) cborValue {
 	if csilV.Tentative != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("tentative"), cborBool((*csilV.Tentative))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecTraceRequest reconstructs a TraceRequest from a decoded CBOR value tree.
@@ -1704,8 +1843,8 @@ func csilDecTraceRequest(csilRoot cborValue) (TraceRequest, error) {
 }
 
 // EncodeTraceRequest encodes a TraceRequest to canonical CSIL CBOR bytes.
-func EncodeTraceRequest(csilV TraceRequest) []byte {
-	return cborEncode(csilEncTraceRequest(csilV))
+func EncodeTraceRequest(csilV TraceRequest) ([]byte, error) {
+	return cborEncodeE(csilEncTraceRequest(csilV, 0))
 }
 
 // DecodeTraceRequest decodes canonical CSIL CBOR bytes into a TraceRequest.
@@ -1719,11 +1858,15 @@ func DecodeTraceRequest(csilData []byte) (TraceRequest, error) {
 }
 
 // csilEncTraceResponse builds the canonical CBOR value tree for a TraceResponse.
-func csilEncTraceResponse(csilV TraceResponse) cborValue {
+func csilEncTraceResponse(csilV TraceResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 2)
-	csilEntries = append(csilEntries, cborEntry{cborText("links"), cborEncArray(csilV.Links, func(csilElem MessageLink) cborValue { return csilEncMessageLink(csilElem) })})
-	csilEntries = append(csilEntries, cborEntry{cborText("messages"), cborEncArray(csilV.Messages, func(csilElem Message) cborValue { return csilEncMessage(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("links"), csilE.val(cborEncArray(csilV.Links, func(csilElem MessageLink) (cborValue, error) { return csilEncMessageLink(csilElem, csilDepth+1) }))})
+	csilEntries = append(csilEntries, cborEntry{cborText("messages"), csilE.val(cborEncArray(csilV.Messages, func(csilElem Message) (cborValue, error) { return csilEncMessage(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecTraceResponse reconstructs a TraceResponse from a decoded CBOR value tree.
@@ -1755,8 +1898,8 @@ func csilDecTraceResponse(csilRoot cborValue) (TraceResponse, error) {
 }
 
 // EncodeTraceResponse encodes a TraceResponse to canonical CSIL CBOR bytes.
-func EncodeTraceResponse(csilV TraceResponse) []byte {
-	return cborEncode(csilEncTraceResponse(csilV))
+func EncodeTraceResponse(csilV TraceResponse) ([]byte, error) {
+	return cborEncodeE(csilEncTraceResponse(csilV, 0))
 }
 
 // DecodeTraceResponse decodes canonical CSIL CBOR bytes into a TraceResponse.
@@ -1770,13 +1913,16 @@ func DecodeTraceResponse(csilData []byte) (TraceResponse, error) {
 }
 
 // csilEncListLinksRequest builds the canonical CBOR value tree for a ListLinksRequest.
-func csilEncListLinksRequest(csilV ListLinksRequest) cborValue {
+func csilEncListLinksRequest(csilV ListLinksRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	if csilV.All != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("all"), cborBool((*csilV.All))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("message"), cborText(csilV.Message)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecListLinksRequest reconstructs a ListLinksRequest from a decoded CBOR value tree.
@@ -1804,8 +1950,8 @@ func csilDecListLinksRequest(csilRoot cborValue) (ListLinksRequest, error) {
 }
 
 // EncodeListLinksRequest encodes a ListLinksRequest to canonical CSIL CBOR bytes.
-func EncodeListLinksRequest(csilV ListLinksRequest) []byte {
-	return cborEncode(csilEncListLinksRequest(csilV))
+func EncodeListLinksRequest(csilV ListLinksRequest) ([]byte, error) {
+	return cborEncodeE(csilEncListLinksRequest(csilV, 0))
 }
 
 // DecodeListLinksRequest decodes canonical CSIL CBOR bytes into a ListLinksRequest.
@@ -1819,10 +1965,14 @@ func DecodeListLinksRequest(csilData []byte) (ListLinksRequest, error) {
 }
 
 // csilEncListLinksResponse builds the canonical CBOR value tree for a ListLinksResponse.
-func csilEncListLinksResponse(csilV ListLinksResponse) cborValue {
+func csilEncListLinksResponse(csilV ListLinksResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
-	csilEntries = append(csilEntries, cborEntry{cborText("links"), cborEncArray(csilV.Links, func(csilElem MessageLink) cborValue { return csilEncMessageLink(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("links"), csilE.val(cborEncArray(csilV.Links, func(csilElem MessageLink) (cborValue, error) { return csilEncMessageLink(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecListLinksResponse reconstructs a ListLinksResponse from a decoded CBOR value tree.
@@ -1843,8 +1993,8 @@ func csilDecListLinksResponse(csilRoot cborValue) (ListLinksResponse, error) {
 }
 
 // EncodeListLinksResponse encodes a ListLinksResponse to canonical CSIL CBOR bytes.
-func EncodeListLinksResponse(csilV ListLinksResponse) []byte {
-	return cborEncode(csilEncListLinksResponse(csilV))
+func EncodeListLinksResponse(csilV ListLinksResponse) ([]byte, error) {
+	return cborEncodeE(csilEncListLinksResponse(csilV, 0))
 }
 
 // DecodeListLinksResponse decodes canonical CSIL CBOR bytes into a ListLinksResponse.
@@ -1858,13 +2008,17 @@ func DecodeListLinksResponse(csilData []byte) (ListLinksResponse, error) {
 }
 
 // csilEncLinkRequest builds the canonical CBOR value tree for a LinkRequest.
-func csilEncLinkRequest(csilV LinkRequest) cborValue {
+func csilEncLinkRequest(csilV LinkRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 8)
 	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
 	if csilV.Note != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("note"), cborText((*csilV.Note))})
 	}
-	csilEntries = append(csilEntries, cborEntry{cborText("target"), csilEncRef(csilV.Target)})
+	csilEntries = append(csilEntries, cborEntry{cborText("target"), csilE.val(csilEncRef(csilV.Target, csilDepth+1))})
 	if csilV.Weight != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("weight"), cborFloat((*csilV.Weight))})
 	}
@@ -1878,7 +2032,7 @@ func csilEncLinkRequest(csilV LinkRequest) cborValue {
 	if csilV.SpanStart != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("span_start"), cborUint((*csilV.SpanStart))})
 	}
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecLinkRequest reconstructs a LinkRequest from a decoded CBOR value tree.
@@ -1956,8 +2110,8 @@ func csilDecLinkRequest(csilRoot cborValue) (LinkRequest, error) {
 }
 
 // EncodeLinkRequest encodes a LinkRequest to canonical CSIL CBOR bytes.
-func EncodeLinkRequest(csilV LinkRequest) []byte {
-	return cborEncode(csilEncLinkRequest(csilV))
+func EncodeLinkRequest(csilV LinkRequest) ([]byte, error) {
+	return cborEncodeE(csilEncLinkRequest(csilV, 0))
 }
 
 // DecodeLinkRequest decodes canonical CSIL CBOR bytes into a LinkRequest.
@@ -1971,13 +2125,16 @@ func DecodeLinkRequest(csilData []byte) (LinkRequest, error) {
 }
 
 // csilEncUnlinkRequest builds the canonical CBOR value tree for a UnlinkRequest.
-func csilEncUnlinkRequest(csilV UnlinkRequest) cborValue {
+func csilEncUnlinkRequest(csilV UnlinkRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	csilEntries = append(csilEntries, cborEntry{cborText("link"), cborText(csilV.Link)})
 	if csilV.Note != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("note"), cborText((*csilV.Note))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecUnlinkRequest reconstructs a UnlinkRequest from a decoded CBOR value tree.
@@ -2005,8 +2162,8 @@ func csilDecUnlinkRequest(csilRoot cborValue) (UnlinkRequest, error) {
 }
 
 // EncodeUnlinkRequest encodes a UnlinkRequest to canonical CSIL CBOR bytes.
-func EncodeUnlinkRequest(csilV UnlinkRequest) []byte {
-	return cborEncode(csilEncUnlinkRequest(csilV))
+func EncodeUnlinkRequest(csilV UnlinkRequest) ([]byte, error) {
+	return cborEncodeE(csilEncUnlinkRequest(csilV, 0))
 }
 
 // DecodeUnlinkRequest decodes canonical CSIL CBOR bytes into a UnlinkRequest.
@@ -2020,14 +2177,17 @@ func DecodeUnlinkRequest(csilData []byte) (UnlinkRequest, error) {
 }
 
 // csilEncSetVisibilityRequest builds the canonical CBOR value tree for a SetVisibilityRequest.
-func csilEncSetVisibilityRequest(csilV SetVisibilityRequest) cborValue {
+func csilEncSetVisibilityRequest(csilV SetVisibilityRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 3)
 	if csilV.Note != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("note"), cborText((*csilV.Note))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("message"), cborText(csilV.Message)})
 	csilEntries = append(csilEntries, cborEntry{cborText("visibility"), cborText(csilV.Visibility)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecSetVisibilityRequest reconstructs a SetVisibilityRequest from a decoded CBOR value tree.
@@ -2066,8 +2226,8 @@ func csilDecSetVisibilityRequest(csilRoot cborValue) (SetVisibilityRequest, erro
 }
 
 // EncodeSetVisibilityRequest encodes a SetVisibilityRequest to canonical CSIL CBOR bytes.
-func EncodeSetVisibilityRequest(csilV SetVisibilityRequest) []byte {
-	return cborEncode(csilEncSetVisibilityRequest(csilV))
+func EncodeSetVisibilityRequest(csilV SetVisibilityRequest) ([]byte, error) {
+	return cborEncodeE(csilEncSetVisibilityRequest(csilV, 0))
 }
 
 // DecodeSetVisibilityRequest decodes canonical CSIL CBOR bytes into a SetVisibilityRequest.
@@ -2081,20 +2241,24 @@ func DecodeSetVisibilityRequest(csilData []byte) (SetVisibilityRequest, error) {
 }
 
 // csilEncReviewItem builds the canonical CBOR value tree for a ReviewItem.
-func csilEncReviewItem(csilV ReviewItem) cborValue {
+func csilEncReviewItem(csilV ReviewItem, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 9)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("task"), cborText(csilV.Task)})
 	if csilV.Target != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("target"), csilEncMessage((*csilV.Target))})
+		csilEntries = append(csilEntries, cborEntry{cborText("target"), csilE.val(csilEncMessage((*csilV.Target), csilDepth+1))})
 	}
-	csilEntries = append(csilEntries, cborEntry{cborText("choices"), cborEncArray(csilV.Choices, func(csilElem string) cborValue { return cborText(csilElem) })})
-	csilEntries = append(csilEntries, cborEntry{cborText("message"), csilEncMessage(csilV.Message)})
+	csilEntries = append(csilEntries, cborEntry{cborText("choices"), csilE.val(cborEncArray(csilV.Choices, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
+	csilEntries = append(csilEntries, cborEntry{cborText("message"), csilE.val(csilEncMessage(csilV.Message, csilDepth+1))})
 	csilEntries = append(csilEntries, cborEntry{cborText("proposed"), cborText(csilV.Proposed)})
 	csilEntries = append(csilEntries, cborEntry{cborText("question"), cborText(csilV.Question)})
 	csilEntries = append(csilEntries, cborEntry{cborText("confidence"), cborFloat(csilV.Confidence)})
 	csilEntries = append(csilEntries, cborEntry{cborText("created_ms"), cborUint(csilV.CreatedMs)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecReviewItem reconstructs a ReviewItem from a decoded CBOR value tree.
@@ -2199,8 +2363,8 @@ func csilDecReviewItem(csilRoot cborValue) (ReviewItem, error) {
 }
 
 // EncodeReviewItem encodes a ReviewItem to canonical CSIL CBOR bytes.
-func EncodeReviewItem(csilV ReviewItem) []byte {
-	return cborEncode(csilEncReviewItem(csilV))
+func EncodeReviewItem(csilV ReviewItem) ([]byte, error) {
+	return cborEncodeE(csilEncReviewItem(csilV, 0))
 }
 
 // DecodeReviewItem decodes canonical CSIL CBOR bytes into a ReviewItem.
@@ -2214,12 +2378,15 @@ func DecodeReviewItem(csilData []byte) (ReviewItem, error) {
 }
 
 // csilEncListReviewsRequest builds the canonical CBOR value tree for a ListReviewsRequest.
-func csilEncListReviewsRequest(csilV ListReviewsRequest) cborValue {
+func csilEncListReviewsRequest(csilV ListReviewsRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	if csilV.Limit != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("limit"), cborUint((*csilV.Limit))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecListReviewsRequest reconstructs a ListReviewsRequest from a decoded CBOR value tree.
@@ -2236,8 +2403,8 @@ func csilDecListReviewsRequest(csilRoot cborValue) (ListReviewsRequest, error) {
 }
 
 // EncodeListReviewsRequest encodes a ListReviewsRequest to canonical CSIL CBOR bytes.
-func EncodeListReviewsRequest(csilV ListReviewsRequest) []byte {
-	return cborEncode(csilEncListReviewsRequest(csilV))
+func EncodeListReviewsRequest(csilV ListReviewsRequest) ([]byte, error) {
+	return cborEncodeE(csilEncListReviewsRequest(csilV, 0))
 }
 
 // DecodeListReviewsRequest decodes canonical CSIL CBOR bytes into a ListReviewsRequest.
@@ -2251,10 +2418,14 @@ func DecodeListReviewsRequest(csilData []byte) (ListReviewsRequest, error) {
 }
 
 // csilEncListReviewsResponse builds the canonical CBOR value tree for a ListReviewsResponse.
-func csilEncListReviewsResponse(csilV ListReviewsResponse) cborValue {
+func csilEncListReviewsResponse(csilV ListReviewsResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
-	csilEntries = append(csilEntries, cborEntry{cborText("reviews"), cborEncArray(csilV.Reviews, func(csilElem ReviewItem) cborValue { return csilEncReviewItem(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("reviews"), csilE.val(cborEncArray(csilV.Reviews, func(csilElem ReviewItem) (cborValue, error) { return csilEncReviewItem(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecListReviewsResponse reconstructs a ListReviewsResponse from a decoded CBOR value tree.
@@ -2275,8 +2446,8 @@ func csilDecListReviewsResponse(csilRoot cborValue) (ListReviewsResponse, error)
 }
 
 // EncodeListReviewsResponse encodes a ListReviewsResponse to canonical CSIL CBOR bytes.
-func EncodeListReviewsResponse(csilV ListReviewsResponse) []byte {
-	return cborEncode(csilEncListReviewsResponse(csilV))
+func EncodeListReviewsResponse(csilV ListReviewsResponse) ([]byte, error) {
+	return cborEncodeE(csilEncListReviewsResponse(csilV, 0))
 }
 
 // DecodeListReviewsResponse decodes canonical CSIL CBOR bytes into a ListReviewsResponse.
@@ -2290,14 +2461,17 @@ func DecodeListReviewsResponse(csilData []byte) (ListReviewsResponse, error) {
 }
 
 // csilEncAnswerReviewRequest builds the canonical CBOR value tree for a AnswerReviewRequest.
-func csilEncAnswerReviewRequest(csilV AnswerReviewRequest) cborValue {
+func csilEncAnswerReviewRequest(csilV AnswerReviewRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	if csilV.Note != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("note"), cborText((*csilV.Note))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("answer"), cborText(csilV.Answer)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecAnswerReviewRequest reconstructs a AnswerReviewRequest from a decoded CBOR value tree.
@@ -2336,8 +2510,8 @@ func csilDecAnswerReviewRequest(csilRoot cborValue) (AnswerReviewRequest, error)
 }
 
 // EncodeAnswerReviewRequest encodes a AnswerReviewRequest to canonical CSIL CBOR bytes.
-func EncodeAnswerReviewRequest(csilV AnswerReviewRequest) []byte {
-	return cborEncode(csilEncAnswerReviewRequest(csilV))
+func EncodeAnswerReviewRequest(csilV AnswerReviewRequest) ([]byte, error) {
+	return cborEncodeE(csilEncAnswerReviewRequest(csilV, 0))
 }
 
 // DecodeAnswerReviewRequest decodes canonical CSIL CBOR bytes into a AnswerReviewRequest.
@@ -2351,10 +2525,13 @@ func DecodeAnswerReviewRequest(csilData []byte) (AnswerReviewRequest, error) {
 }
 
 // csilEncAnswerReviewResponse builds the canonical CBOR value tree for a AnswerReviewResponse.
-func csilEncAnswerReviewResponse(csilV AnswerReviewResponse) cborValue {
+func csilEncAnswerReviewResponse(csilV AnswerReviewResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("status"), cborText(csilV.Status)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecAnswerReviewResponse reconstructs a AnswerReviewResponse from a decoded CBOR value tree.
@@ -2375,8 +2552,8 @@ func csilDecAnswerReviewResponse(csilRoot cborValue) (AnswerReviewResponse, erro
 }
 
 // EncodeAnswerReviewResponse encodes a AnswerReviewResponse to canonical CSIL CBOR bytes.
-func EncodeAnswerReviewResponse(csilV AnswerReviewResponse) []byte {
-	return cborEncode(csilEncAnswerReviewResponse(csilV))
+func EncodeAnswerReviewResponse(csilV AnswerReviewResponse) ([]byte, error) {
+	return cborEncodeE(csilEncAnswerReviewResponse(csilV, 0))
 }
 
 // DecodeAnswerReviewResponse decodes canonical CSIL CBOR bytes into a AnswerReviewResponse.
@@ -2390,10 +2567,13 @@ func DecodeAnswerReviewResponse(csilData []byte) (AnswerReviewResponse, error) {
 }
 
 // csilEncGetAudioRequest builds the canonical CBOR value tree for a GetAudioRequest.
-func csilEncGetAudioRequest(csilV GetAudioRequest) cborValue {
+func csilEncGetAudioRequest(csilV GetAudioRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("digest"), cborText(csilV.Digest)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecGetAudioRequest reconstructs a GetAudioRequest from a decoded CBOR value tree.
@@ -2414,8 +2594,8 @@ func csilDecGetAudioRequest(csilRoot cborValue) (GetAudioRequest, error) {
 }
 
 // EncodeGetAudioRequest encodes a GetAudioRequest to canonical CSIL CBOR bytes.
-func EncodeGetAudioRequest(csilV GetAudioRequest) []byte {
-	return cborEncode(csilEncGetAudioRequest(csilV))
+func EncodeGetAudioRequest(csilV GetAudioRequest) ([]byte, error) {
+	return cborEncodeE(csilEncGetAudioRequest(csilV, 0))
 }
 
 // DecodeGetAudioRequest decodes canonical CSIL CBOR bytes into a GetAudioRequest.
@@ -2429,11 +2609,14 @@ func DecodeGetAudioRequest(csilData []byte) (GetAudioRequest, error) {
 }
 
 // csilEncAudioResponse builds the canonical CBOR value tree for a AudioResponse.
-func csilEncAudioResponse(csilV AudioResponse) cborValue {
+func csilEncAudioResponse(csilV AudioResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	csilEntries = append(csilEntries, cborEntry{cborText("body"), cborBytes(csilV.Body)})
 	csilEntries = append(csilEntries, cborEntry{cborText("media_type"), cborText(csilV.MediaType)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecAudioResponse reconstructs a AudioResponse from a decoded CBOR value tree.
@@ -2465,8 +2648,8 @@ func csilDecAudioResponse(csilRoot cborValue) (AudioResponse, error) {
 }
 
 // EncodeAudioResponse encodes a AudioResponse to canonical CSIL CBOR bytes.
-func EncodeAudioResponse(csilV AudioResponse) []byte {
-	return cborEncode(csilEncAudioResponse(csilV))
+func EncodeAudioResponse(csilV AudioResponse) ([]byte, error) {
+	return cborEncodeE(csilEncAudioResponse(csilV, 0))
 }
 
 // DecodeAudioResponse decodes canonical CSIL CBOR bytes into a AudioResponse.
@@ -2480,14 +2663,17 @@ func DecodeAudioResponse(csilData []byte) (AudioResponse, error) {
 }
 
 // csilEncWordTime builds the canonical CBOR value tree for a WordTime.
-func csilEncWordTime(csilV WordTime) cborValue {
+func csilEncWordTime(csilV WordTime, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 5)
 	csilEntries = append(csilEntries, cborEntry{cborText("end"), cborUint(csilV.End)})
 	csilEntries = append(csilEntries, cborEntry{cborText("word"), cborText(csilV.Word)})
 	csilEntries = append(csilEntries, cborEntry{cborText("start"), cborUint(csilV.Start)})
 	csilEntries = append(csilEntries, cborEntry{cborText("end_ms"), cborUint(csilV.EndMs)})
 	csilEntries = append(csilEntries, cborEntry{cborText("start_ms"), cborUint(csilV.StartMs)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecWordTime reconstructs a WordTime from a decoded CBOR value tree.
@@ -2552,8 +2738,8 @@ func csilDecWordTime(csilRoot cborValue) (WordTime, error) {
 }
 
 // EncodeWordTime encodes a WordTime to canonical CSIL CBOR bytes.
-func EncodeWordTime(csilV WordTime) []byte {
-	return cborEncode(csilEncWordTime(csilV))
+func EncodeWordTime(csilV WordTime) ([]byte, error) {
+	return cborEncodeE(csilEncWordTime(csilV, 0))
 }
 
 // DecodeWordTime decodes canonical CSIL CBOR bytes into a WordTime.
@@ -2567,16 +2753,20 @@ func DecodeWordTime(csilData []byte) (WordTime, error) {
 }
 
 // csilEncSpeechPart builds the canonical CBOR value tree for a SpeechPart.
-func csilEncSpeechPart(csilV SpeechPart) cborValue {
+func csilEncSpeechPart(csilV SpeechPart, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 7)
 	csilEntries = append(csilEntries, cborEntry{cborText("end"), cborUint(csilV.End)})
 	csilEntries = append(csilEntries, cborEntry{cborText("audio"), cborText(csilV.Audio)})
 	csilEntries = append(csilEntries, cborEntry{cborText("index"), cborUint(csilV.Index)})
 	csilEntries = append(csilEntries, cborEntry{cborText("start"), cborUint(csilV.Start)})
-	csilEntries = append(csilEntries, cborEntry{cborText("words"), cborEncArray(csilV.Words, func(csilElem WordTime) cborValue { return csilEncWordTime(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("words"), csilE.val(cborEncArray(csilV.Words, func(csilElem WordTime) (cborValue, error) { return csilEncWordTime(csilElem, csilDepth+1) }))})
 	csilEntries = append(csilEntries, cborEntry{cborText("audio_ms"), cborUint(csilV.AudioMs)})
 	csilEntries = append(csilEntries, cborEntry{cborText("media_type"), cborText(csilV.MediaType)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecSpeechPart reconstructs a SpeechPart from a decoded CBOR value tree.
@@ -2663,8 +2853,8 @@ func csilDecSpeechPart(csilRoot cborValue) (SpeechPart, error) {
 }
 
 // EncodeSpeechPart encodes a SpeechPart to canonical CSIL CBOR bytes.
-func EncodeSpeechPart(csilV SpeechPart) []byte {
-	return cborEncode(csilEncSpeechPart(csilV))
+func EncodeSpeechPart(csilV SpeechPart) ([]byte, error) {
+	return cborEncodeE(csilEncSpeechPart(csilV, 0))
 }
 
 // DecodeSpeechPart decodes canonical CSIL CBOR bytes into a SpeechPart.
@@ -2678,7 +2868,10 @@ func DecodeSpeechPart(csilData []byte) (SpeechPart, error) {
 }
 
 // csilEncListenRequest builds the canonical CBOR value tree for a ListenRequest.
-func csilEncListenRequest(csilV ListenRequest) cborValue {
+func csilEncListenRequest(csilV ListenRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 3)
 	if csilV.After != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("after"), cborUint((*csilV.After))})
@@ -2687,7 +2880,7 @@ func csilEncListenRequest(csilV ListenRequest) cborValue {
 	if csilV.WaitMs != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("wait_ms"), cborUint((*csilV.WaitMs))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecListenRequest reconstructs a ListenRequest from a decoded CBOR value tree.
@@ -2722,8 +2915,8 @@ func csilDecListenRequest(csilRoot cborValue) (ListenRequest, error) {
 }
 
 // EncodeListenRequest encodes a ListenRequest to canonical CSIL CBOR bytes.
-func EncodeListenRequest(csilV ListenRequest) []byte {
-	return cborEncode(csilEncListenRequest(csilV))
+func EncodeListenRequest(csilV ListenRequest) ([]byte, error) {
+	return cborEncodeE(csilEncListenRequest(csilV, 0))
 }
 
 // DecodeListenRequest decodes canonical CSIL CBOR bytes into a ListenRequest.
@@ -2737,12 +2930,16 @@ func DecodeListenRequest(csilData []byte) (ListenRequest, error) {
 }
 
 // csilEncListenResponse builds the canonical CBOR value tree for a ListenResponse.
-func csilEncListenResponse(csilV ListenResponse) cborValue {
+func csilEncListenResponse(csilV ListenResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("done"), cborBool(csilV.Done)})
-	csilEntries = append(csilEntries, cborEntry{cborText("parts"), cborEncArray(csilV.Parts, func(csilElem SpeechPart) cborValue { return csilEncSpeechPart(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("parts"), csilE.val(cborEncArray(csilV.Parts, func(csilElem SpeechPart) (cborValue, error) { return csilEncSpeechPart(csilElem, csilDepth+1) }))})
 	csilEntries = append(csilEntries, cborEntry{cborText("stopped"), cborBool(csilV.Stopped)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecListenResponse reconstructs a ListenResponse from a decoded CBOR value tree.
@@ -2785,8 +2982,8 @@ func csilDecListenResponse(csilRoot cborValue) (ListenResponse, error) {
 }
 
 // EncodeListenResponse encodes a ListenResponse to canonical CSIL CBOR bytes.
-func EncodeListenResponse(csilV ListenResponse) []byte {
-	return cborEncode(csilEncListenResponse(csilV))
+func EncodeListenResponse(csilV ListenResponse) ([]byte, error) {
+	return cborEncodeE(csilEncListenResponse(csilV, 0))
 }
 
 // DecodeListenResponse decodes canonical CSIL CBOR bytes into a ListenResponse.
@@ -2800,13 +2997,16 @@ func DecodeListenResponse(csilData []byte) (ListenResponse, error) {
 }
 
 // csilEncStopSpeechRequest builds the canonical CBOR value tree for a StopSpeechRequest.
-func csilEncStopSpeechRequest(csilV StopSpeechRequest) cborValue {
+func csilEncStopSpeechRequest(csilV StopSpeechRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	if csilV.Reason != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("reason"), cborText((*csilV.Reason))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("message"), cborText(csilV.Message)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecStopSpeechRequest reconstructs a StopSpeechRequest from a decoded CBOR value tree.
@@ -2834,8 +3034,8 @@ func csilDecStopSpeechRequest(csilRoot cborValue) (StopSpeechRequest, error) {
 }
 
 // EncodeStopSpeechRequest encodes a StopSpeechRequest to canonical CSIL CBOR bytes.
-func EncodeStopSpeechRequest(csilV StopSpeechRequest) []byte {
-	return cborEncode(csilEncStopSpeechRequest(csilV))
+func EncodeStopSpeechRequest(csilV StopSpeechRequest) ([]byte, error) {
+	return cborEncodeE(csilEncStopSpeechRequest(csilV, 0))
 }
 
 // DecodeStopSpeechRequest decodes canonical CSIL CBOR bytes into a StopSpeechRequest.
@@ -2849,10 +3049,13 @@ func DecodeStopSpeechRequest(csilData []byte) (StopSpeechRequest, error) {
 }
 
 // csilEncStopSpeechResponse builds the canonical CBOR value tree for a StopSpeechResponse.
-func csilEncStopSpeechResponse(csilV StopSpeechResponse) cborValue {
+func csilEncStopSpeechResponse(csilV StopSpeechResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("stopped"), cborBool(csilV.Stopped)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecStopSpeechResponse reconstructs a StopSpeechResponse from a decoded CBOR value tree.
@@ -2873,8 +3076,8 @@ func csilDecStopSpeechResponse(csilRoot cborValue) (StopSpeechResponse, error) {
 }
 
 // EncodeStopSpeechResponse encodes a StopSpeechResponse to canonical CSIL CBOR bytes.
-func EncodeStopSpeechResponse(csilV StopSpeechResponse) []byte {
-	return cborEncode(csilEncStopSpeechResponse(csilV))
+func EncodeStopSpeechResponse(csilV StopSpeechResponse) ([]byte, error) {
+	return cborEncodeE(csilEncStopSpeechResponse(csilV, 0))
 }
 
 // DecodeStopSpeechResponse decodes canonical CSIL CBOR bytes into a StopSpeechResponse.
@@ -2888,7 +3091,10 @@ func DecodeStopSpeechResponse(csilData []byte) (StopSpeechResponse, error) {
 }
 
 // csilEncReportDeliveryRequest builds the canonical CBOR value tree for a ReportDeliveryRequest.
-func csilEncReportDeliveryRequest(csilV ReportDeliveryRequest) cborValue {
+func csilEncReportDeliveryRequest(csilV ReportDeliveryRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 5)
 	if csilV.Reason != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("reason"), cborText((*csilV.Reason))})
@@ -2903,7 +3109,7 @@ func csilEncReportDeliveryRequest(csilV ReportDeliveryRequest) cborValue {
 	if csilV.SpokenUntil != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("spoken_until"), cborUint((*csilV.SpokenUntil))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecReportDeliveryRequest reconstructs a ReportDeliveryRequest from a decoded CBOR value tree.
@@ -2952,8 +3158,8 @@ func csilDecReportDeliveryRequest(csilRoot cborValue) (ReportDeliveryRequest, er
 }
 
 // EncodeReportDeliveryRequest encodes a ReportDeliveryRequest to canonical CSIL CBOR bytes.
-func EncodeReportDeliveryRequest(csilV ReportDeliveryRequest) []byte {
-	return cborEncode(csilEncReportDeliveryRequest(csilV))
+func EncodeReportDeliveryRequest(csilV ReportDeliveryRequest) ([]byte, error) {
+	return cborEncodeE(csilEncReportDeliveryRequest(csilV, 0))
 }
 
 // DecodeReportDeliveryRequest decodes canonical CSIL CBOR bytes into a ReportDeliveryRequest.
@@ -2967,9 +3173,12 @@ func DecodeReportDeliveryRequest(csilData []byte) (ReportDeliveryRequest, error)
 }
 
 // csilEncReportDeliveryResponse builds the canonical CBOR value tree for a ReportDeliveryResponse.
-func csilEncReportDeliveryResponse(csilV ReportDeliveryResponse) cborValue {
+func csilEncReportDeliveryResponse(csilV ReportDeliveryResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 0)
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecReportDeliveryResponse reconstructs a ReportDeliveryResponse from a decoded CBOR value tree.
@@ -2979,8 +3188,8 @@ func csilDecReportDeliveryResponse(csilRoot cborValue) (ReportDeliveryResponse, 
 }
 
 // EncodeReportDeliveryResponse encodes a ReportDeliveryResponse to canonical CSIL CBOR bytes.
-func EncodeReportDeliveryResponse(csilV ReportDeliveryResponse) []byte {
-	return cborEncode(csilEncReportDeliveryResponse(csilV))
+func EncodeReportDeliveryResponse(csilV ReportDeliveryResponse) ([]byte, error) {
+	return cborEncodeE(csilEncReportDeliveryResponse(csilV, 0))
 }
 
 // DecodeReportDeliveryResponse decodes canonical CSIL CBOR bytes into a ReportDeliveryResponse.
@@ -2994,7 +3203,10 @@ func DecodeReportDeliveryResponse(csilData []byte) (ReportDeliveryResponse, erro
 }
 
 // csilEncCheckOverlapRequest builds the canonical CBOR value tree for a CheckOverlapRequest.
-func csilEncCheckOverlapRequest(csilV CheckOverlapRequest) cborValue {
+func csilEncCheckOverlapRequest(csilV CheckOverlapRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 5)
 	csilEntries = append(csilEntries, cborEntry{cborText("audio"), cborBytes(csilV.Audio)})
 	if csilV.Final != nil {
@@ -3007,7 +3219,7 @@ func csilEncCheckOverlapRequest(csilV CheckOverlapRequest) cborValue {
 	if csilV.HeardUntil != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("heard_until"), cborUint((*csilV.HeardUntil))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecCheckOverlapRequest reconstructs a CheckOverlapRequest from a decoded CBOR value tree.
@@ -3060,8 +3272,8 @@ func csilDecCheckOverlapRequest(csilRoot cborValue) (CheckOverlapRequest, error)
 }
 
 // EncodeCheckOverlapRequest encodes a CheckOverlapRequest to canonical CSIL CBOR bytes.
-func EncodeCheckOverlapRequest(csilV CheckOverlapRequest) []byte {
-	return cborEncode(csilEncCheckOverlapRequest(csilV))
+func EncodeCheckOverlapRequest(csilV CheckOverlapRequest) ([]byte, error) {
+	return cborEncodeE(csilEncCheckOverlapRequest(csilV, 0))
 }
 
 // DecodeCheckOverlapRequest decodes canonical CSIL CBOR bytes into a CheckOverlapRequest.
@@ -3075,7 +3287,10 @@ func DecodeCheckOverlapRequest(csilData []byte) (CheckOverlapRequest, error) {
 }
 
 // csilEncCheckOverlapResponse builds the canonical CBOR value tree for a CheckOverlapResponse.
-func csilEncCheckOverlapResponse(csilV CheckOverlapResponse) cborValue {
+func csilEncCheckOverlapResponse(csilV CheckOverlapResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 6)
 	csilEntries = append(csilEntries, cborEntry{cborText("ack"), cborFloat(csilV.Ack)})
 	csilEntries = append(csilEntries, cborEntry{cborText("turn"), cborFloat(csilV.Turn)})
@@ -3083,7 +3298,7 @@ func csilEncCheckOverlapResponse(csilV CheckOverlapResponse) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("decision"), cborText(csilV.Decision)})
 	csilEntries = append(csilEntries, cborEntry{cborText("speech_ms"), cborUint(csilV.SpeechMs)})
 	csilEntries = append(csilEntries, cborEntry{cborText("elapsed_ms"), cborUint(csilV.ElapsedMs)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecCheckOverlapResponse reconstructs a CheckOverlapResponse from a decoded CBOR value tree.
@@ -3159,8 +3374,8 @@ func csilDecCheckOverlapResponse(csilRoot cborValue) (CheckOverlapResponse, erro
 }
 
 // EncodeCheckOverlapResponse encodes a CheckOverlapResponse to canonical CSIL CBOR bytes.
-func EncodeCheckOverlapResponse(csilV CheckOverlapResponse) []byte {
-	return cborEncode(csilEncCheckOverlapResponse(csilV))
+func EncodeCheckOverlapResponse(csilV CheckOverlapResponse) ([]byte, error) {
+	return cborEncodeE(csilEncCheckOverlapResponse(csilV, 0))
 }
 
 // DecodeCheckOverlapResponse decodes canonical CSIL CBOR bytes into a CheckOverlapResponse.
@@ -3174,16 +3389,20 @@ func DecodeCheckOverlapResponse(csilData []byte) (CheckOverlapResponse, error) {
 }
 
 // csilEncDevice builds the canonical CBOR value tree for a Device.
-func csilEncDevice(csilV Device) cborValue {
+func csilEncDevice(csilV Device, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 7)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
-	csilEntries = append(csilEntries, cborEntry{cborText("can"), cborEncArray(csilV.Can, func(csilElem string) cborValue { return cborText(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("can"), csilE.val(cborEncArray(csilV.Can, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
 	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
 	csilEntries = append(csilEntries, cborEntry{cborText("active"), cborBool(csilV.Active)})
 	csilEntries = append(csilEntries, cborEntry{cborText("seen_ms"), cborUint(csilV.SeenMs)})
 	csilEntries = append(csilEntries, cborEntry{cborText("hands_free"), cborBool(csilV.HandsFree)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecDevice reconstructs a Device from a decoded CBOR value tree.
@@ -3270,8 +3489,8 @@ func csilDecDevice(csilRoot cborValue) (Device, error) {
 }
 
 // EncodeDevice encodes a Device to canonical CSIL CBOR bytes.
-func EncodeDevice(csilV Device) []byte {
-	return cborEncode(csilEncDevice(csilV))
+func EncodeDevice(csilV Device) ([]byte, error) {
+	return cborEncodeE(csilEncDevice(csilV, 0))
 }
 
 // DecodeDevice decodes canonical CSIL CBOR bytes into a Device.
@@ -3285,11 +3504,15 @@ func DecodeDevice(csilData []byte) (Device, error) {
 }
 
 // csilEncPutDeviceRequest builds the canonical CBOR value tree for a PutDeviceRequest.
-func csilEncPutDeviceRequest(csilV PutDeviceRequest) cborValue {
+func csilEncPutDeviceRequest(csilV PutDeviceRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 6)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	if csilV.Can != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("can"), cborEncArray(csilV.Can, func(csilElem string) cborValue { return cborText(csilElem) })})
+		csilEntries = append(csilEntries, cborEntry{cborText("can"), csilE.val(cborEncArray(csilV.Can, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
 	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
@@ -3299,7 +3522,7 @@ func csilEncPutDeviceRequest(csilV PutDeviceRequest) cborValue {
 	if csilV.HandsFree != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("hands_free"), cborBool((*csilV.HandsFree))})
 	}
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecPutDeviceRequest reconstructs a PutDeviceRequest from a decoded CBOR value tree.
@@ -3363,8 +3586,8 @@ func csilDecPutDeviceRequest(csilRoot cborValue) (PutDeviceRequest, error) {
 }
 
 // EncodePutDeviceRequest encodes a PutDeviceRequest to canonical CSIL CBOR bytes.
-func EncodePutDeviceRequest(csilV PutDeviceRequest) []byte {
-	return cborEncode(csilEncPutDeviceRequest(csilV))
+func EncodePutDeviceRequest(csilV PutDeviceRequest) ([]byte, error) {
+	return cborEncodeE(csilEncPutDeviceRequest(csilV, 0))
 }
 
 // DecodePutDeviceRequest decodes canonical CSIL CBOR bytes into a PutDeviceRequest.
@@ -3378,9 +3601,12 @@ func DecodePutDeviceRequest(csilData []byte) (PutDeviceRequest, error) {
 }
 
 // csilEncListDevicesRequest builds the canonical CBOR value tree for a ListDevicesRequest.
-func csilEncListDevicesRequest(csilV ListDevicesRequest) cborValue {
+func csilEncListDevicesRequest(csilV ListDevicesRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 0)
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecListDevicesRequest reconstructs a ListDevicesRequest from a decoded CBOR value tree.
@@ -3390,8 +3616,8 @@ func csilDecListDevicesRequest(csilRoot cborValue) (ListDevicesRequest, error) {
 }
 
 // EncodeListDevicesRequest encodes a ListDevicesRequest to canonical CSIL CBOR bytes.
-func EncodeListDevicesRequest(csilV ListDevicesRequest) []byte {
-	return cborEncode(csilEncListDevicesRequest(csilV))
+func EncodeListDevicesRequest(csilV ListDevicesRequest) ([]byte, error) {
+	return cborEncodeE(csilEncListDevicesRequest(csilV, 0))
 }
 
 // DecodeListDevicesRequest decodes canonical CSIL CBOR bytes into a ListDevicesRequest.
@@ -3405,10 +3631,14 @@ func DecodeListDevicesRequest(csilData []byte) (ListDevicesRequest, error) {
 }
 
 // csilEncListDevicesResponse builds the canonical CBOR value tree for a ListDevicesResponse.
-func csilEncListDevicesResponse(csilV ListDevicesResponse) cborValue {
+func csilEncListDevicesResponse(csilV ListDevicesResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
-	csilEntries = append(csilEntries, cborEntry{cborText("devices"), cborEncArray(csilV.Devices, func(csilElem Device) cborValue { return csilEncDevice(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("devices"), csilE.val(cborEncArray(csilV.Devices, func(csilElem Device) (cborValue, error) { return csilEncDevice(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecListDevicesResponse reconstructs a ListDevicesResponse from a decoded CBOR value tree.
@@ -3429,8 +3659,8 @@ func csilDecListDevicesResponse(csilRoot cborValue) (ListDevicesResponse, error)
 }
 
 // EncodeListDevicesResponse encodes a ListDevicesResponse to canonical CSIL CBOR bytes.
-func EncodeListDevicesResponse(csilV ListDevicesResponse) []byte {
-	return cborEncode(csilEncListDevicesResponse(csilV))
+func EncodeListDevicesResponse(csilV ListDevicesResponse) ([]byte, error) {
+	return cborEncodeE(csilEncListDevicesResponse(csilV, 0))
 }
 
 // DecodeListDevicesResponse decodes canonical CSIL CBOR bytes into a ListDevicesResponse.
@@ -3444,10 +3674,13 @@ func DecodeListDevicesResponse(csilData []byte) (ListDevicesResponse, error) {
 }
 
 // csilEncRemoveDeviceRequest builds the canonical CBOR value tree for a RemoveDeviceRequest.
-func csilEncRemoveDeviceRequest(csilV RemoveDeviceRequest) cborValue {
+func csilEncRemoveDeviceRequest(csilV RemoveDeviceRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecRemoveDeviceRequest reconstructs a RemoveDeviceRequest from a decoded CBOR value tree.
@@ -3468,8 +3701,8 @@ func csilDecRemoveDeviceRequest(csilRoot cborValue) (RemoveDeviceRequest, error)
 }
 
 // EncodeRemoveDeviceRequest encodes a RemoveDeviceRequest to canonical CSIL CBOR bytes.
-func EncodeRemoveDeviceRequest(csilV RemoveDeviceRequest) []byte {
-	return cborEncode(csilEncRemoveDeviceRequest(csilV))
+func EncodeRemoveDeviceRequest(csilV RemoveDeviceRequest) ([]byte, error) {
+	return cborEncodeE(csilEncRemoveDeviceRequest(csilV, 0))
 }
 
 // DecodeRemoveDeviceRequest decodes canonical CSIL CBOR bytes into a RemoveDeviceRequest.
@@ -3483,12 +3716,15 @@ func DecodeRemoveDeviceRequest(csilData []byte) (RemoveDeviceRequest, error) {
 }
 
 // csilEncNoticeDelivery builds the canonical CBOR value tree for a NoticeDelivery.
-func csilEncNoticeDelivery(csilV NoticeDelivery) cborValue {
+func csilEncNoticeDelivery(csilV NoticeDelivery, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("how"), cborText(csilV.How)})
 	csilEntries = append(csilEntries, cborEntry{cborText("at_ms"), cborUint(csilV.AtMs)})
 	csilEntries = append(csilEntries, cborEntry{cborText("device"), cborText(csilV.Device)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecNoticeDelivery reconstructs a NoticeDelivery from a decoded CBOR value tree.
@@ -3531,8 +3767,8 @@ func csilDecNoticeDelivery(csilRoot cborValue) (NoticeDelivery, error) {
 }
 
 // EncodeNoticeDelivery encodes a NoticeDelivery to canonical CSIL CBOR bytes.
-func EncodeNoticeDelivery(csilV NoticeDelivery) []byte {
-	return cborEncode(csilEncNoticeDelivery(csilV))
+func EncodeNoticeDelivery(csilV NoticeDelivery) ([]byte, error) {
+	return cborEncodeE(csilEncNoticeDelivery(csilV, 0))
 }
 
 // DecodeNoticeDelivery decodes canonical CSIL CBOR bytes into a NoticeDelivery.
@@ -3546,7 +3782,11 @@ func DecodeNoticeDelivery(csilData []byte) (NoticeDelivery, error) {
 }
 
 // csilEncNotice builds the canonical CBOR value tree for a Notice.
-func csilEncNotice(csilV Notice) cborValue {
+func csilEncNotice(csilV Notice, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 10)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("text"), cborText(csilV.Text)})
@@ -3561,8 +3801,8 @@ func csilEncNotice(csilV Notice) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("acked_ms"), cborUint((*csilV.AckedMs))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("created_ms"), cborUint(csilV.CreatedMs)})
-	csilEntries = append(csilEntries, cborEntry{cborText("deliveries"), cborEncArray(csilV.Deliveries, func(csilElem NoticeDelivery) cborValue { return csilEncNoticeDelivery(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("deliveries"), csilE.val(cborEncArray(csilV.Deliveries, func(csilElem NoticeDelivery) (cborValue, error) { return csilEncNoticeDelivery(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecNotice reconstructs a Notice from a decoded CBOR value tree.
@@ -3674,8 +3914,8 @@ func csilDecNotice(csilRoot cborValue) (Notice, error) {
 }
 
 // EncodeNotice encodes a Notice to canonical CSIL CBOR bytes.
-func EncodeNotice(csilV Notice) []byte {
-	return cborEncode(csilEncNotice(csilV))
+func EncodeNotice(csilV Notice) ([]byte, error) {
+	return cborEncodeE(csilEncNotice(csilV, 0))
 }
 
 // DecodeNotice decodes canonical CSIL CBOR bytes into a Notice.
@@ -3689,7 +3929,10 @@ func DecodeNotice(csilData []byte) (Notice, error) {
 }
 
 // csilEncWaitNoticesRequest builds the canonical CBOR value tree for a WaitNoticesRequest.
-func csilEncWaitNoticesRequest(csilV WaitNoticesRequest) cborValue {
+func csilEncWaitNoticesRequest(csilV WaitNoticesRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("device"), cborText(csilV.Device)})
 	if csilV.WaitMs != nil {
@@ -3698,7 +3941,7 @@ func csilEncWaitNoticesRequest(csilV WaitNoticesRequest) cborValue {
 	if csilV.ClosedAfter != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("closed_after"), cborUint((*csilV.ClosedAfter))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecWaitNoticesRequest reconstructs a WaitNoticesRequest from a decoded CBOR value tree.
@@ -3733,8 +3976,8 @@ func csilDecWaitNoticesRequest(csilRoot cborValue) (WaitNoticesRequest, error) {
 }
 
 // EncodeWaitNoticesRequest encodes a WaitNoticesRequest to canonical CSIL CBOR bytes.
-func EncodeWaitNoticesRequest(csilV WaitNoticesRequest) []byte {
-	return cborEncode(csilEncWaitNoticesRequest(csilV))
+func EncodeWaitNoticesRequest(csilV WaitNoticesRequest) ([]byte, error) {
+	return cborEncodeE(csilEncWaitNoticesRequest(csilV, 0))
 }
 
 // DecodeWaitNoticesRequest decodes canonical CSIL CBOR bytes into a WaitNoticesRequest.
@@ -3748,12 +3991,16 @@ func DecodeWaitNoticesRequest(csilData []byte) (WaitNoticesRequest, error) {
 }
 
 // csilEncWaitNoticesResponse builds the canonical CBOR value tree for a WaitNoticesResponse.
-func csilEncWaitNoticesResponse(csilV WaitNoticesResponse) cborValue {
+func csilEncWaitNoticesResponse(csilV WaitNoticesResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 3)
-	csilEntries = append(csilEntries, cborEntry{cborText("closed"), cborEncArray(csilV.Closed, func(csilElem string) cborValue { return cborText(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("closed"), csilE.val(cborEncArray(csilV.Closed, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	csilEntries = append(csilEntries, cborEntry{cborText("now_ms"), cborUint(csilV.NowMs)})
-	csilEntries = append(csilEntries, cborEntry{cborText("notices"), cborEncArray(csilV.Notices, func(csilElem Notice) cborValue { return csilEncNotice(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("notices"), csilE.val(cborEncArray(csilV.Notices, func(csilElem Notice) (cborValue, error) { return csilEncNotice(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecWaitNoticesResponse reconstructs a WaitNoticesResponse from a decoded CBOR value tree.
@@ -3796,8 +4043,8 @@ func csilDecWaitNoticesResponse(csilRoot cborValue) (WaitNoticesResponse, error)
 }
 
 // EncodeWaitNoticesResponse encodes a WaitNoticesResponse to canonical CSIL CBOR bytes.
-func EncodeWaitNoticesResponse(csilV WaitNoticesResponse) []byte {
-	return cborEncode(csilEncWaitNoticesResponse(csilV))
+func EncodeWaitNoticesResponse(csilV WaitNoticesResponse) ([]byte, error) {
+	return cborEncodeE(csilEncWaitNoticesResponse(csilV, 0))
 }
 
 // DecodeWaitNoticesResponse decodes canonical CSIL CBOR bytes into a WaitNoticesResponse.
@@ -3811,12 +4058,15 @@ func DecodeWaitNoticesResponse(csilData []byte) (WaitNoticesResponse, error) {
 }
 
 // csilEncDeliverNoticeRequest builds the canonical CBOR value tree for a DeliverNoticeRequest.
-func csilEncDeliverNoticeRequest(csilV DeliverNoticeRequest) cborValue {
+func csilEncDeliverNoticeRequest(csilV DeliverNoticeRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("how"), cborText(csilV.How)})
 	csilEntries = append(csilEntries, cborEntry{cborText("device"), cborText(csilV.Device)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecDeliverNoticeRequest reconstructs a DeliverNoticeRequest from a decoded CBOR value tree.
@@ -3859,8 +4109,8 @@ func csilDecDeliverNoticeRequest(csilRoot cborValue) (DeliverNoticeRequest, erro
 }
 
 // EncodeDeliverNoticeRequest encodes a DeliverNoticeRequest to canonical CSIL CBOR bytes.
-func EncodeDeliverNoticeRequest(csilV DeliverNoticeRequest) []byte {
-	return cborEncode(csilEncDeliverNoticeRequest(csilV))
+func EncodeDeliverNoticeRequest(csilV DeliverNoticeRequest) ([]byte, error) {
+	return cborEncodeE(csilEncDeliverNoticeRequest(csilV, 0))
 }
 
 // DecodeDeliverNoticeRequest decodes canonical CSIL CBOR bytes into a DeliverNoticeRequest.
@@ -3874,13 +4124,16 @@ func DecodeDeliverNoticeRequest(csilData []byte) (DeliverNoticeRequest, error) {
 }
 
 // csilEncAckNoticeRequest builds the canonical CBOR value tree for a AckNoticeRequest.
-func csilEncAckNoticeRequest(csilV AckNoticeRequest) cborValue {
+func csilEncAckNoticeRequest(csilV AckNoticeRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	if csilV.Device != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("device"), cborText((*csilV.Device))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecAckNoticeRequest reconstructs a AckNoticeRequest from a decoded CBOR value tree.
@@ -3908,8 +4161,8 @@ func csilDecAckNoticeRequest(csilRoot cborValue) (AckNoticeRequest, error) {
 }
 
 // EncodeAckNoticeRequest encodes a AckNoticeRequest to canonical CSIL CBOR bytes.
-func EncodeAckNoticeRequest(csilV AckNoticeRequest) []byte {
-	return cborEncode(csilEncAckNoticeRequest(csilV))
+func EncodeAckNoticeRequest(csilV AckNoticeRequest) ([]byte, error) {
+	return cborEncodeE(csilEncAckNoticeRequest(csilV, 0))
 }
 
 // DecodeAckNoticeRequest decodes canonical CSIL CBOR bytes into a AckNoticeRequest.
@@ -3923,7 +4176,10 @@ func DecodeAckNoticeRequest(csilData []byte) (AckNoticeRequest, error) {
 }
 
 // csilEncListNoticesRequest builds the canonical CBOR value tree for a ListNoticesRequest.
-func csilEncListNoticesRequest(csilV ListNoticesRequest) cborValue {
+func csilEncListNoticesRequest(csilV ListNoticesRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	if csilV.Open != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("open"), cborBool((*csilV.Open))})
@@ -3931,7 +4187,7 @@ func csilEncListNoticesRequest(csilV ListNoticesRequest) cborValue {
 	if csilV.Limit != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("limit"), cborUint((*csilV.Limit))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecListNoticesRequest reconstructs a ListNoticesRequest from a decoded CBOR value tree.
@@ -3955,8 +4211,8 @@ func csilDecListNoticesRequest(csilRoot cborValue) (ListNoticesRequest, error) {
 }
 
 // EncodeListNoticesRequest encodes a ListNoticesRequest to canonical CSIL CBOR bytes.
-func EncodeListNoticesRequest(csilV ListNoticesRequest) []byte {
-	return cborEncode(csilEncListNoticesRequest(csilV))
+func EncodeListNoticesRequest(csilV ListNoticesRequest) ([]byte, error) {
+	return cborEncodeE(csilEncListNoticesRequest(csilV, 0))
 }
 
 // DecodeListNoticesRequest decodes canonical CSIL CBOR bytes into a ListNoticesRequest.
@@ -3970,10 +4226,14 @@ func DecodeListNoticesRequest(csilData []byte) (ListNoticesRequest, error) {
 }
 
 // csilEncListNoticesResponse builds the canonical CBOR value tree for a ListNoticesResponse.
-func csilEncListNoticesResponse(csilV ListNoticesResponse) cborValue {
+func csilEncListNoticesResponse(csilV ListNoticesResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
-	csilEntries = append(csilEntries, cborEntry{cborText("notices"), cborEncArray(csilV.Notices, func(csilElem Notice) cborValue { return csilEncNotice(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("notices"), csilE.val(cborEncArray(csilV.Notices, func(csilElem Notice) (cborValue, error) { return csilEncNotice(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecListNoticesResponse reconstructs a ListNoticesResponse from a decoded CBOR value tree.
@@ -3994,8 +4254,8 @@ func csilDecListNoticesResponse(csilRoot cborValue) (ListNoticesResponse, error)
 }
 
 // EncodeListNoticesResponse encodes a ListNoticesResponse to canonical CSIL CBOR bytes.
-func EncodeListNoticesResponse(csilV ListNoticesResponse) []byte {
-	return cborEncode(csilEncListNoticesResponse(csilV))
+func EncodeListNoticesResponse(csilV ListNoticesResponse) ([]byte, error) {
+	return cborEncodeE(csilEncListNoticesResponse(csilV, 0))
 }
 
 // DecodeListNoticesResponse decodes canonical CSIL CBOR bytes into a ListNoticesResponse.
@@ -4009,10 +4269,14 @@ func DecodeListNoticesResponse(csilData []byte) (ListNoticesResponse, error) {
 }
 
 // csilEncTaskStep builds the canonical CBOR value tree for a TaskStep.
-func csilEncTaskStep(csilV TaskStep) cborValue {
+func csilEncTaskStep(csilV TaskStep, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 6)
 	csilEntries = append(csilEntries, cborEntry{cborText("step"), cborText(csilV.Step)})
-	csilEntries = append(csilEntries, cborEntry{cborText("notes"), cborEncArray(csilV.Notes, func(csilElem string) cborValue { return cborText(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("notes"), csilE.val(cborEncArray(csilV.Notes, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	csilEntries = append(csilEntries, cborEntry{cborText("status"), cborText(csilV.Status)})
 	if csilV.Outcome != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("outcome"), cborText((*csilV.Outcome))})
@@ -4021,7 +4285,7 @@ func csilEncTaskStep(csilV TaskStep) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("ended_ms"), cborUint((*csilV.EndedMs))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("started_ms"), cborUint(csilV.StartedMs)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecTaskStep reconstructs a TaskStep from a decoded CBOR value tree.
@@ -4089,8 +4353,8 @@ func csilDecTaskStep(csilRoot cborValue) (TaskStep, error) {
 }
 
 // EncodeTaskStep encodes a TaskStep to canonical CSIL CBOR bytes.
-func EncodeTaskStep(csilV TaskStep) []byte {
-	return cborEncode(csilEncTaskStep(csilV))
+func EncodeTaskStep(csilV TaskStep) ([]byte, error) {
+	return cborEncodeE(csilEncTaskStep(csilV, 0))
 }
 
 // DecodeTaskStep decodes canonical CSIL CBOR bytes into a TaskStep.
@@ -4104,18 +4368,22 @@ func DecodeTaskStep(csilData []byte) (TaskStep, error) {
 }
 
 // csilEncTask builds the canonical CBOR value tree for a Task.
-func csilEncTask(csilV Task) cborValue {
+func csilEncTask(csilV Task, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 15)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
-	csilEntries = append(csilEntries, cborEntry{cborText("refs"), cborEncArray(csilV.Refs, func(csilElem Ref) cborValue { return csilEncRef(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("refs"), csilE.val(cborEncArray(csilV.Refs, func(csilElem Ref) (cborValue, error) { return csilEncRef(csilElem, csilDepth+1) }))})
 	if csilV.Repo != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("repo"), cborText((*csilV.Repo))})
 	}
 	if csilV.Error != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("error"), cborText((*csilV.Error))})
 	}
-	csilEntries = append(csilEntries, cborEntry{cborText("steps"), cborEncArray(csilV.Steps, func(csilElem TaskStep) cborValue { return csilEncTaskStep(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("steps"), csilE.val(cborEncArray(csilV.Steps, func(csilElem TaskStep) (cborValue, error) { return csilEncTaskStep(csilElem, csilDepth+1) }))})
 	csilEntries = append(csilEntries, cborEntry{cborText("title"), cborText(csilV.Title)})
 	if csilV.Branch != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("branch"), cborText((*csilV.Branch))})
@@ -4125,7 +4393,7 @@ func csilEncTask(csilV Task) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("terminal"), cborBool((*csilV.Terminal))})
 	}
 	if csilV.Decisions != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("decisions"), cborEncArray(csilV.Decisions, func(csilElem string) cborValue { return cborText(csilElem) })})
+		csilEntries = append(csilEntries, cborEntry{cborText("decisions"), csilE.val(cborEncArray(csilV.Decisions, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("created_ms"), cborUint(csilV.CreatedMs)})
 	csilEntries = append(csilEntries, cborEntry{cborText("updated_ms"), cborUint(csilV.UpdatedMs)})
@@ -4133,7 +4401,7 @@ func csilEncTask(csilV Task) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("waiting_for"), cborText((*csilV.WaitingFor))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("current_step"), cborText(csilV.CurrentStep)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecTask reconstructs a Task from a decoded CBOR value tree.
@@ -4284,8 +4552,8 @@ func csilDecTask(csilRoot cborValue) (Task, error) {
 }
 
 // EncodeTask encodes a Task to canonical CSIL CBOR bytes.
-func EncodeTask(csilV Task) []byte {
-	return cborEncode(csilEncTask(csilV))
+func EncodeTask(csilV Task) ([]byte, error) {
+	return cborEncodeE(csilEncTask(csilV, 0))
 }
 
 // DecodeTask decodes canonical CSIL CBOR bytes into a Task.
@@ -4299,7 +4567,10 @@ func DecodeTask(csilData []byte) (Task, error) {
 }
 
 // csilEncStartTaskRequest builds the canonical CBOR value tree for a StartTaskRequest.
-func csilEncStartTaskRequest(csilV StartTaskRequest) cborValue {
+func csilEncStartTaskRequest(csilV StartTaskRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 7)
 	if csilV.Base != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("base"), cborText((*csilV.Base))})
@@ -4318,7 +4589,7 @@ func csilEncStartTaskRequest(csilV StartTaskRequest) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("runner"), cborText((*csilV.Runner))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("instructions"), cborText(csilV.Instructions)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecStartTaskRequest reconstructs a StartTaskRequest from a decoded CBOR value tree.
@@ -4385,8 +4656,8 @@ func csilDecStartTaskRequest(csilRoot cborValue) (StartTaskRequest, error) {
 }
 
 // EncodeStartTaskRequest encodes a StartTaskRequest to canonical CSIL CBOR bytes.
-func EncodeStartTaskRequest(csilV StartTaskRequest) []byte {
-	return cborEncode(csilEncStartTaskRequest(csilV))
+func EncodeStartTaskRequest(csilV StartTaskRequest) ([]byte, error) {
+	return cborEncodeE(csilEncStartTaskRequest(csilV, 0))
 }
 
 // DecodeStartTaskRequest decodes canonical CSIL CBOR bytes into a StartTaskRequest.
@@ -4400,10 +4671,13 @@ func DecodeStartTaskRequest(csilData []byte) (StartTaskRequest, error) {
 }
 
 // csilEncGetTaskRequest builds the canonical CBOR value tree for a GetTaskRequest.
-func csilEncGetTaskRequest(csilV GetTaskRequest) cborValue {
+func csilEncGetTaskRequest(csilV GetTaskRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecGetTaskRequest reconstructs a GetTaskRequest from a decoded CBOR value tree.
@@ -4424,8 +4698,8 @@ func csilDecGetTaskRequest(csilRoot cborValue) (GetTaskRequest, error) {
 }
 
 // EncodeGetTaskRequest encodes a GetTaskRequest to canonical CSIL CBOR bytes.
-func EncodeGetTaskRequest(csilV GetTaskRequest) []byte {
-	return cborEncode(csilEncGetTaskRequest(csilV))
+func EncodeGetTaskRequest(csilV GetTaskRequest) ([]byte, error) {
+	return cborEncodeE(csilEncGetTaskRequest(csilV, 0))
 }
 
 // DecodeGetTaskRequest decodes canonical CSIL CBOR bytes into a GetTaskRequest.
@@ -4439,7 +4713,10 @@ func DecodeGetTaskRequest(csilData []byte) (GetTaskRequest, error) {
 }
 
 // csilEncListTasksRequest builds the canonical CBOR value tree for a ListTasksRequest.
-func csilEncListTasksRequest(csilV ListTasksRequest) cborValue {
+func csilEncListTasksRequest(csilV ListTasksRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	if csilV.Limit != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("limit"), cborUint((*csilV.Limit))})
@@ -4447,7 +4724,7 @@ func csilEncListTasksRequest(csilV ListTasksRequest) cborValue {
 	if csilV.Status != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("status"), cborText((*csilV.Status))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecListTasksRequest reconstructs a ListTasksRequest from a decoded CBOR value tree.
@@ -4471,8 +4748,8 @@ func csilDecListTasksRequest(csilRoot cborValue) (ListTasksRequest, error) {
 }
 
 // EncodeListTasksRequest encodes a ListTasksRequest to canonical CSIL CBOR bytes.
-func EncodeListTasksRequest(csilV ListTasksRequest) []byte {
-	return cborEncode(csilEncListTasksRequest(csilV))
+func EncodeListTasksRequest(csilV ListTasksRequest) ([]byte, error) {
+	return cborEncodeE(csilEncListTasksRequest(csilV, 0))
 }
 
 // DecodeListTasksRequest decodes canonical CSIL CBOR bytes into a ListTasksRequest.
@@ -4486,10 +4763,14 @@ func DecodeListTasksRequest(csilData []byte) (ListTasksRequest, error) {
 }
 
 // csilEncListTasksResponse builds the canonical CBOR value tree for a ListTasksResponse.
-func csilEncListTasksResponse(csilV ListTasksResponse) cborValue {
+func csilEncListTasksResponse(csilV ListTasksResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
-	csilEntries = append(csilEntries, cborEntry{cborText("tasks"), cborEncArray(csilV.Tasks, func(csilElem Task) cborValue { return csilEncTask(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("tasks"), csilE.val(cborEncArray(csilV.Tasks, func(csilElem Task) (cborValue, error) { return csilEncTask(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecListTasksResponse reconstructs a ListTasksResponse from a decoded CBOR value tree.
@@ -4510,8 +4791,8 @@ func csilDecListTasksResponse(csilRoot cborValue) (ListTasksResponse, error) {
 }
 
 // EncodeListTasksResponse encodes a ListTasksResponse to canonical CSIL CBOR bytes.
-func EncodeListTasksResponse(csilV ListTasksResponse) []byte {
-	return cborEncode(csilEncListTasksResponse(csilV))
+func EncodeListTasksResponse(csilV ListTasksResponse) ([]byte, error) {
+	return cborEncodeE(csilEncListTasksResponse(csilV, 0))
 }
 
 // DecodeListTasksResponse decodes canonical CSIL CBOR bytes into a ListTasksResponse.
@@ -4525,7 +4806,10 @@ func DecodeListTasksResponse(csilData []byte) (ListTasksResponse, error) {
 }
 
 // csilEncTodo builds the canonical CBOR value tree for a Todo.
-func csilEncTodo(csilV Todo) cborValue {
+func csilEncTodo(csilV Todo, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 10)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
@@ -4545,7 +4829,7 @@ func csilEncTodo(csilV Todo) cborValue {
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("created_ms"), cborUint(csilV.CreatedMs)})
 	csilEntries = append(csilEntries, cborEntry{cborText("updated_ms"), cborUint(csilV.UpdatedMs)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecTodo reconstructs a Todo from a decoded CBOR value tree.
@@ -4649,8 +4933,8 @@ func csilDecTodo(csilRoot cborValue) (Todo, error) {
 }
 
 // EncodeTodo encodes a Todo to canonical CSIL CBOR bytes.
-func EncodeTodo(csilV Todo) []byte {
-	return cborEncode(csilEncTodo(csilV))
+func EncodeTodo(csilV Todo) ([]byte, error) {
+	return cborEncodeE(csilEncTodo(csilV, 0))
 }
 
 // DecodeTodo decodes canonical CSIL CBOR bytes into a Todo.
@@ -4664,7 +4948,10 @@ func DecodeTodo(csilData []byte) (Todo, error) {
 }
 
 // csilEncListTodosRequest builds the canonical CBOR value tree for a ListTodosRequest.
-func csilEncListTodosRequest(csilV ListTodosRequest) cborValue {
+func csilEncListTodosRequest(csilV ListTodosRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	if csilV.Plan != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("plan"), cborText((*csilV.Plan))})
@@ -4672,7 +4959,7 @@ func csilEncListTodosRequest(csilV ListTodosRequest) cborValue {
 	if csilV.IncludeEnded != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("include_ended"), cborBool((*csilV.IncludeEnded))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecListTodosRequest reconstructs a ListTodosRequest from a decoded CBOR value tree.
@@ -4696,8 +4983,8 @@ func csilDecListTodosRequest(csilRoot cborValue) (ListTodosRequest, error) {
 }
 
 // EncodeListTodosRequest encodes a ListTodosRequest to canonical CSIL CBOR bytes.
-func EncodeListTodosRequest(csilV ListTodosRequest) []byte {
-	return cborEncode(csilEncListTodosRequest(csilV))
+func EncodeListTodosRequest(csilV ListTodosRequest) ([]byte, error) {
+	return cborEncodeE(csilEncListTodosRequest(csilV, 0))
 }
 
 // DecodeListTodosRequest decodes canonical CSIL CBOR bytes into a ListTodosRequest.
@@ -4711,10 +4998,14 @@ func DecodeListTodosRequest(csilData []byte) (ListTodosRequest, error) {
 }
 
 // csilEncListTodosResponse builds the canonical CBOR value tree for a ListTodosResponse.
-func csilEncListTodosResponse(csilV ListTodosResponse) cborValue {
+func csilEncListTodosResponse(csilV ListTodosResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
-	csilEntries = append(csilEntries, cborEntry{cborText("todos"), cborEncArray(csilV.Todos, func(csilElem Todo) cborValue { return csilEncTodo(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("todos"), csilE.val(cborEncArray(csilV.Todos, func(csilElem Todo) (cborValue, error) { return csilEncTodo(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecListTodosResponse reconstructs a ListTodosResponse from a decoded CBOR value tree.
@@ -4735,8 +5026,8 @@ func csilDecListTodosResponse(csilRoot cborValue) (ListTodosResponse, error) {
 }
 
 // EncodeListTodosResponse encodes a ListTodosResponse to canonical CSIL CBOR bytes.
-func EncodeListTodosResponse(csilV ListTodosResponse) []byte {
-	return cborEncode(csilEncListTodosResponse(csilV))
+func EncodeListTodosResponse(csilV ListTodosResponse) ([]byte, error) {
+	return cborEncodeE(csilEncListTodosResponse(csilV, 0))
 }
 
 // DecodeListTodosResponse decodes canonical CSIL CBOR bytes into a ListTodosResponse.
@@ -4750,11 +5041,14 @@ func DecodeListTodosResponse(csilData []byte) (ListTodosResponse, error) {
 }
 
 // csilEncFinishTodoRequest builds the canonical CBOR value tree for a FinishTodoRequest.
-func csilEncFinishTodoRequest(csilV FinishTodoRequest) cborValue {
+func csilEncFinishTodoRequest(csilV FinishTodoRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("outcome"), cborText(csilV.Outcome)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecFinishTodoRequest reconstructs a FinishTodoRequest from a decoded CBOR value tree.
@@ -4786,8 +5080,8 @@ func csilDecFinishTodoRequest(csilRoot cborValue) (FinishTodoRequest, error) {
 }
 
 // EncodeFinishTodoRequest encodes a FinishTodoRequest to canonical CSIL CBOR bytes.
-func EncodeFinishTodoRequest(csilV FinishTodoRequest) []byte {
-	return cborEncode(csilEncFinishTodoRequest(csilV))
+func EncodeFinishTodoRequest(csilV FinishTodoRequest) ([]byte, error) {
+	return cborEncodeE(csilEncFinishTodoRequest(csilV, 0))
 }
 
 // DecodeFinishTodoRequest decodes canonical CSIL CBOR bytes into a FinishTodoRequest.
@@ -4801,12 +5095,15 @@ func DecodeFinishTodoRequest(csilData []byte) (FinishTodoRequest, error) {
 }
 
 // csilEncFileChange builds the canonical CBOR value tree for a FileChange.
-func csilEncFileChange(csilV FileChange) cborValue {
+func csilEncFileChange(csilV FileChange, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("path"), cborText(csilV.Path)})
 	csilEntries = append(csilEntries, cborEntry{cborText("additions"), cborUint(csilV.Additions)})
 	csilEntries = append(csilEntries, cborEntry{cborText("deletions"), cborUint(csilV.Deletions)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecFileChange reconstructs a FileChange from a decoded CBOR value tree.
@@ -4849,8 +5146,8 @@ func csilDecFileChange(csilRoot cborValue) (FileChange, error) {
 }
 
 // EncodeFileChange encodes a FileChange to canonical CSIL CBOR bytes.
-func EncodeFileChange(csilV FileChange) []byte {
-	return cborEncode(csilEncFileChange(csilV))
+func EncodeFileChange(csilV FileChange) ([]byte, error) {
+	return cborEncodeE(csilEncFileChange(csilV, 0))
 }
 
 // DecodeFileChange decodes canonical CSIL CBOR bytes into a FileChange.
@@ -4864,13 +5161,17 @@ func DecodeFileChange(csilData []byte) (FileChange, error) {
 }
 
 // csilEncTaskDiff builds the canonical CBOR value tree for a TaskDiff.
-func csilEncTaskDiff(csilV TaskDiff) cborValue {
+func csilEncTaskDiff(csilV TaskDiff, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 4)
 	csilEntries = append(csilEntries, cborEntry{cborText("task"), cborText(csilV.Task)})
-	csilEntries = append(csilEntries, cborEntry{cborText("files"), cborEncArray(csilV.Files, func(csilElem FileChange) cborValue { return csilEncFileChange(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("files"), csilE.val(cborEncArray(csilV.Files, func(csilElem FileChange) (cborValue, error) { return csilEncFileChange(csilElem, csilDepth+1) }))})
 	csilEntries = append(csilEntries, cborEntry{cborText("patch"), cborText(csilV.Patch)})
 	csilEntries = append(csilEntries, cborEntry{cborText("truncated"), cborBool(csilV.Truncated)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecTaskDiff reconstructs a TaskDiff from a decoded CBOR value tree.
@@ -4924,8 +5225,8 @@ func csilDecTaskDiff(csilRoot cborValue) (TaskDiff, error) {
 }
 
 // EncodeTaskDiff encodes a TaskDiff to canonical CSIL CBOR bytes.
-func EncodeTaskDiff(csilV TaskDiff) []byte {
-	return cborEncode(csilEncTaskDiff(csilV))
+func EncodeTaskDiff(csilV TaskDiff) ([]byte, error) {
+	return cborEncodeE(csilEncTaskDiff(csilV, 0))
 }
 
 // DecodeTaskDiff decodes canonical CSIL CBOR bytes into a TaskDiff.
@@ -4939,10 +5240,13 @@ func DecodeTaskDiff(csilData []byte) (TaskDiff, error) {
 }
 
 // csilEncGetTaskDiffRequest builds the canonical CBOR value tree for a GetTaskDiffRequest.
-func csilEncGetTaskDiffRequest(csilV GetTaskDiffRequest) cborValue {
+func csilEncGetTaskDiffRequest(csilV GetTaskDiffRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecGetTaskDiffRequest reconstructs a GetTaskDiffRequest from a decoded CBOR value tree.
@@ -4963,8 +5267,8 @@ func csilDecGetTaskDiffRequest(csilRoot cborValue) (GetTaskDiffRequest, error) {
 }
 
 // EncodeGetTaskDiffRequest encodes a GetTaskDiffRequest to canonical CSIL CBOR bytes.
-func EncodeGetTaskDiffRequest(csilV GetTaskDiffRequest) []byte {
-	return cborEncode(csilEncGetTaskDiffRequest(csilV))
+func EncodeGetTaskDiffRequest(csilV GetTaskDiffRequest) ([]byte, error) {
+	return cborEncodeE(csilEncGetTaskDiffRequest(csilV, 0))
 }
 
 // DecodeGetTaskDiffRequest decodes canonical CSIL CBOR bytes into a GetTaskDiffRequest.
@@ -4978,11 +5282,14 @@ func DecodeGetTaskDiffRequest(csilData []byte) (GetTaskDiffRequest, error) {
 }
 
 // csilEncGetTaskOutputRequest builds the canonical CBOR value tree for a GetTaskOutputRequest.
-func csilEncGetTaskOutputRequest(csilV GetTaskOutputRequest) cborValue {
+func csilEncGetTaskOutputRequest(csilV GetTaskOutputRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecGetTaskOutputRequest reconstructs a GetTaskOutputRequest from a decoded CBOR value tree.
@@ -5014,8 +5321,8 @@ func csilDecGetTaskOutputRequest(csilRoot cborValue) (GetTaskOutputRequest, erro
 }
 
 // EncodeGetTaskOutputRequest encodes a GetTaskOutputRequest to canonical CSIL CBOR bytes.
-func EncodeGetTaskOutputRequest(csilV GetTaskOutputRequest) []byte {
-	return cborEncode(csilEncGetTaskOutputRequest(csilV))
+func EncodeGetTaskOutputRequest(csilV GetTaskOutputRequest) ([]byte, error) {
+	return cborEncodeE(csilEncGetTaskOutputRequest(csilV, 0))
 }
 
 // DecodeGetTaskOutputRequest decodes canonical CSIL CBOR bytes into a GetTaskOutputRequest.
@@ -5029,14 +5336,17 @@ func DecodeGetTaskOutputRequest(csilData []byte) (GetTaskOutputRequest, error) {
 }
 
 // csilEncTaskOutput builds the canonical CBOR value tree for a TaskOutput.
-func csilEncTaskOutput(csilV TaskOutput) cborValue {
+func csilEncTaskOutput(csilV TaskOutput, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 5)
 	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
 	csilEntries = append(csilEntries, cborEntry{cborText("task"), cborText(csilV.Task)})
 	csilEntries = append(csilEntries, cborEntry{cborText("text"), cborText(csilV.Text)})
 	csilEntries = append(csilEntries, cborEntry{cborText("truncated"), cborBool(csilV.Truncated)})
 	csilEntries = append(csilEntries, cborEntry{cborText("media_type"), cborText(csilV.MediaType)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecTaskOutput reconstructs a TaskOutput from a decoded CBOR value tree.
@@ -5101,8 +5411,8 @@ func csilDecTaskOutput(csilRoot cborValue) (TaskOutput, error) {
 }
 
 // EncodeTaskOutput encodes a TaskOutput to canonical CSIL CBOR bytes.
-func EncodeTaskOutput(csilV TaskOutput) []byte {
-	return cborEncode(csilEncTaskOutput(csilV))
+func EncodeTaskOutput(csilV TaskOutput) ([]byte, error) {
+	return cborEncodeE(csilEncTaskOutput(csilV, 0))
 }
 
 // DecodeTaskOutput decodes canonical CSIL CBOR bytes into a TaskOutput.
@@ -5116,14 +5426,17 @@ func DecodeTaskOutput(csilData []byte) (TaskOutput, error) {
 }
 
 // csilEncDecideRequest builds the canonical CBOR value tree for a DecideRequest.
-func csilEncDecideRequest(csilV DecideRequest) cborValue {
+func csilEncDecideRequest(csilV DecideRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("task"), cborText(csilV.Task)})
 	if csilV.Comment != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("comment"), cborText((*csilV.Comment))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("outcome"), cborText(csilV.Outcome)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecDecideRequest reconstructs a DecideRequest from a decoded CBOR value tree.
@@ -5162,8 +5475,8 @@ func csilDecDecideRequest(csilRoot cborValue) (DecideRequest, error) {
 }
 
 // EncodeDecideRequest encodes a DecideRequest to canonical CSIL CBOR bytes.
-func EncodeDecideRequest(csilV DecideRequest) []byte {
-	return cborEncode(csilEncDecideRequest(csilV))
+func EncodeDecideRequest(csilV DecideRequest) ([]byte, error) {
+	return cborEncodeE(csilEncDecideRequest(csilV, 0))
 }
 
 // DecodeDecideRequest decodes canonical CSIL CBOR bytes into a DecideRequest.
@@ -5177,7 +5490,10 @@ func DecodeDecideRequest(csilData []byte) (DecideRequest, error) {
 }
 
 // csilEncCancelTaskRequest builds the canonical CBOR value tree for a CancelTaskRequest.
-func csilEncCancelTaskRequest(csilV CancelTaskRequest) cborValue {
+func csilEncCancelTaskRequest(csilV CancelTaskRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("task"), cborText(csilV.Task)})
 	if csilV.Reason != nil {
@@ -5186,7 +5502,7 @@ func csilEncCancelTaskRequest(csilV CancelTaskRequest) cborValue {
 	if csilV.Confirm != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("confirm"), cborBool((*csilV.Confirm))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecCancelTaskRequest reconstructs a CancelTaskRequest from a decoded CBOR value tree.
@@ -5221,8 +5537,8 @@ func csilDecCancelTaskRequest(csilRoot cborValue) (CancelTaskRequest, error) {
 }
 
 // EncodeCancelTaskRequest encodes a CancelTaskRequest to canonical CSIL CBOR bytes.
-func EncodeCancelTaskRequest(csilV CancelTaskRequest) []byte {
-	return cborEncode(csilEncCancelTaskRequest(csilV))
+func EncodeCancelTaskRequest(csilV CancelTaskRequest) ([]byte, error) {
+	return cborEncodeE(csilEncCancelTaskRequest(csilV, 0))
 }
 
 // DecodeCancelTaskRequest decodes canonical CSIL CBOR bytes into a CancelTaskRequest.
@@ -5236,7 +5552,10 @@ func DecodeCancelTaskRequest(csilData []byte) (CancelTaskRequest, error) {
 }
 
 // csilEncKnowledgeFact builds the canonical CBOR value tree for a KnowledgeFact.
-func csilEncKnowledgeFact(csilV KnowledgeFact) cborValue {
+func csilEncKnowledgeFact(csilV KnowledgeFact, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 13)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("mine"), cborBool(csilV.Mine)})
@@ -5261,7 +5580,7 @@ func csilEncKnowledgeFact(csilV KnowledgeFact) cborValue {
 	if csilV.ValidFromMs != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("valid_from_ms"), cborUint((*csilV.ValidFromMs))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecKnowledgeFact reconstructs a KnowledgeFact from a decoded CBOR value tree.
@@ -5394,8 +5713,8 @@ func csilDecKnowledgeFact(csilRoot cborValue) (KnowledgeFact, error) {
 }
 
 // EncodeKnowledgeFact encodes a KnowledgeFact to canonical CSIL CBOR bytes.
-func EncodeKnowledgeFact(csilV KnowledgeFact) []byte {
-	return cborEncode(csilEncKnowledgeFact(csilV))
+func EncodeKnowledgeFact(csilV KnowledgeFact) ([]byte, error) {
+	return cborEncodeE(csilEncKnowledgeFact(csilV, 0))
 }
 
 // DecodeKnowledgeFact decodes canonical CSIL CBOR bytes into a KnowledgeFact.
@@ -5409,23 +5728,27 @@ func DecodeKnowledgeFact(csilData []byte) (KnowledgeFact, error) {
 }
 
 // csilEncKnowledgeItem builds the canonical CBOR value tree for a KnowledgeItem.
-func csilEncKnowledgeItem(csilV KnowledgeItem) cborValue {
+func csilEncKnowledgeItem(csilV KnowledgeItem, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 10)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
 	csilEntries = append(csilEntries, cborEntry{cborText("mine"), cborBool(csilV.Mine)})
-	csilEntries = append(csilEntries, cborEntry{cborText("facts"), cborEncArray(csilV.Facts, func(csilElem KnowledgeFact) cborValue { return csilEncKnowledgeFact(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("facts"), csilE.val(cborEncArray(csilV.Facts, func(csilElem KnowledgeFact) (cborValue, error) { return csilEncKnowledgeFact(csilElem, csilDepth+1) }))})
 	csilEntries = append(csilEntries, cborEntry{cborText("label"), cborText(csilV.Label)})
 	if csilV.System != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("system"), cborText((*csilV.System))})
 	}
-	csilEntries = append(csilEntries, cborEntry{cborText("aliases"), cborEncArray(csilV.Aliases, func(csilElem string) cborValue { return cborText(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("aliases"), csilE.val(cborEncArray(csilV.Aliases, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	if csilV.Locator != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("locator"), cborText((*csilV.Locator))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("summary"), cborText(csilV.Summary)})
-	csilEntries = append(csilEntries, cborEntry{cborText("properties"), cborEncMap(csilV.Properties, func(csilK string) cborValue { return cborText(csilK) }, func(csilV string) cborValue { return cborText(csilV) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("properties"), csilE.val(cborEncMap(csilV.Properties, func(csilK string) (cborValue, error) { return cborText(csilK), nil }, func(csilV string) (cborValue, error) { return cborText(csilV), nil }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecKnowledgeItem reconstructs a KnowledgeItem from a decoded CBOR value tree.
@@ -5537,8 +5860,8 @@ func csilDecKnowledgeItem(csilRoot cborValue) (KnowledgeItem, error) {
 }
 
 // EncodeKnowledgeItem encodes a KnowledgeItem to canonical CSIL CBOR bytes.
-func EncodeKnowledgeItem(csilV KnowledgeItem) []byte {
-	return cborEncode(csilEncKnowledgeItem(csilV))
+func EncodeKnowledgeItem(csilV KnowledgeItem) ([]byte, error) {
+	return cborEncodeE(csilEncKnowledgeItem(csilV, 0))
 }
 
 // DecodeKnowledgeItem decodes canonical CSIL CBOR bytes into a KnowledgeItem.
@@ -5552,7 +5875,10 @@ func DecodeKnowledgeItem(csilData []byte) (KnowledgeItem, error) {
 }
 
 // csilEncKnowledgeRecord builds the canonical CBOR value tree for a KnowledgeRecord.
-func csilEncKnowledgeRecord(csilV KnowledgeRecord) cborValue {
+func csilEncKnowledgeRecord(csilV KnowledgeRecord, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 6)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
@@ -5560,7 +5886,7 @@ func csilEncKnowledgeRecord(csilV KnowledgeRecord) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("at_ms"), cborUint(csilV.AtMs)})
 	csilEntries = append(csilEntries, cborEntry{cborText("title"), cborText(csilV.Title)})
 	csilEntries = append(csilEntries, cborEntry{cborText("summary"), cborText(csilV.Summary)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecKnowledgeRecord reconstructs a KnowledgeRecord from a decoded CBOR value tree.
@@ -5636,8 +5962,8 @@ func csilDecKnowledgeRecord(csilRoot cborValue) (KnowledgeRecord, error) {
 }
 
 // EncodeKnowledgeRecord encodes a KnowledgeRecord to canonical CSIL CBOR bytes.
-func EncodeKnowledgeRecord(csilV KnowledgeRecord) []byte {
-	return cborEncode(csilEncKnowledgeRecord(csilV))
+func EncodeKnowledgeRecord(csilV KnowledgeRecord) ([]byte, error) {
+	return cborEncodeE(csilEncKnowledgeRecord(csilV, 0))
 }
 
 // DecodeKnowledgeRecord decodes canonical CSIL CBOR bytes into a KnowledgeRecord.
@@ -5651,7 +5977,10 @@ func DecodeKnowledgeRecord(csilData []byte) (KnowledgeRecord, error) {
 }
 
 // csilEncQueryKnowledgeRequest builds the canonical CBOR value tree for a QueryKnowledgeRequest.
-func csilEncQueryKnowledgeRequest(csilV QueryKnowledgeRequest) cborValue {
+func csilEncQueryKnowledgeRequest(csilV QueryKnowledgeRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 4)
 	if csilV.Kind != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText((*csilV.Kind))})
@@ -5665,7 +5994,7 @@ func csilEncQueryKnowledgeRequest(csilV QueryKnowledgeRequest) cborValue {
 	if csilV.IncludeEnded != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("include_ended"), cborBool((*csilV.IncludeEnded))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecQueryKnowledgeRequest reconstructs a QueryKnowledgeRequest from a decoded CBOR value tree.
@@ -5703,8 +6032,8 @@ func csilDecQueryKnowledgeRequest(csilRoot cborValue) (QueryKnowledgeRequest, er
 }
 
 // EncodeQueryKnowledgeRequest encodes a QueryKnowledgeRequest to canonical CSIL CBOR bytes.
-func EncodeQueryKnowledgeRequest(csilV QueryKnowledgeRequest) []byte {
-	return cborEncode(csilEncQueryKnowledgeRequest(csilV))
+func EncodeQueryKnowledgeRequest(csilV QueryKnowledgeRequest) ([]byte, error) {
+	return cborEncodeE(csilEncQueryKnowledgeRequest(csilV, 0))
 }
 
 // DecodeQueryKnowledgeRequest decodes canonical CSIL CBOR bytes into a QueryKnowledgeRequest.
@@ -5718,11 +6047,17 @@ func DecodeQueryKnowledgeRequest(csilData []byte) (QueryKnowledgeRequest, error)
 }
 
 // csilEncQueryKnowledgeResponse builds the canonical CBOR value tree for a QueryKnowledgeResponse.
-func csilEncQueryKnowledgeResponse(csilV QueryKnowledgeResponse) cborValue {
+func csilEncQueryKnowledgeResponse(csilV QueryKnowledgeResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 2)
-	csilEntries = append(csilEntries, cborEntry{cborText("items"), cborEncArray(csilV.Items, func(csilElem KnowledgeItem) cborValue { return csilEncKnowledgeItem(csilElem) })})
-	csilEntries = append(csilEntries, cborEntry{cborText("records"), cborEncArray(csilV.Records, func(csilElem KnowledgeRecord) cborValue { return csilEncKnowledgeRecord(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("items"), csilE.val(cborEncArray(csilV.Items, func(csilElem KnowledgeItem) (cborValue, error) { return csilEncKnowledgeItem(csilElem, csilDepth+1) }))})
+	csilEntries = append(csilEntries, cborEntry{cborText("records"), csilE.val(cborEncArray(csilV.Records, func(csilElem KnowledgeRecord) (cborValue, error) {
+		return csilEncKnowledgeRecord(csilElem, csilDepth+1)
+	}))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecQueryKnowledgeResponse reconstructs a QueryKnowledgeResponse from a decoded CBOR value tree.
@@ -5754,8 +6089,8 @@ func csilDecQueryKnowledgeResponse(csilRoot cborValue) (QueryKnowledgeResponse, 
 }
 
 // EncodeQueryKnowledgeResponse encodes a QueryKnowledgeResponse to canonical CSIL CBOR bytes.
-func EncodeQueryKnowledgeResponse(csilV QueryKnowledgeResponse) []byte {
-	return cborEncode(csilEncQueryKnowledgeResponse(csilV))
+func EncodeQueryKnowledgeResponse(csilV QueryKnowledgeResponse) ([]byte, error) {
+	return cborEncodeE(csilEncQueryKnowledgeResponse(csilV, 0))
 }
 
 // DecodeQueryKnowledgeResponse decodes canonical CSIL CBOR bytes into a QueryKnowledgeResponse.
@@ -5769,7 +6104,10 @@ func DecodeQueryKnowledgeResponse(csilData []byte) (QueryKnowledgeResponse, erro
 }
 
 // csilEncRememberRequest builds the canonical CBOR value tree for a RememberRequest.
-func csilEncRememberRequest(csilV RememberRequest) cborValue {
+func csilEncRememberRequest(csilV RememberRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 8)
 	if csilV.Also != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("also"), cborBool((*csilV.Also))})
@@ -5791,7 +6129,7 @@ func csilEncRememberRequest(csilV RememberRequest) cborValue {
 	if csilV.SubjectKind != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("subject_kind"), cborText((*csilV.SubjectKind))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecRememberRequest reconstructs a RememberRequest from a decoded CBOR value tree.
@@ -5865,8 +6203,8 @@ func csilDecRememberRequest(csilRoot cborValue) (RememberRequest, error) {
 }
 
 // EncodeRememberRequest encodes a RememberRequest to canonical CSIL CBOR bytes.
-func EncodeRememberRequest(csilV RememberRequest) []byte {
-	return cborEncode(csilEncRememberRequest(csilV))
+func EncodeRememberRequest(csilV RememberRequest) ([]byte, error) {
+	return cborEncodeE(csilEncRememberRequest(csilV, 0))
 }
 
 // DecodeRememberRequest decodes canonical CSIL CBOR bytes into a RememberRequest.
@@ -5880,14 +6218,18 @@ func DecodeRememberRequest(csilData []byte) (RememberRequest, error) {
 }
 
 // csilEncRememberResponse builds the canonical CBOR value tree for a RememberResponse.
-func csilEncRememberResponse(csilV RememberResponse) cborValue {
+func csilEncRememberResponse(csilV RememberResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 3)
-	csilEntries = append(csilEntries, cborEntry{cborText("item"), csilEncKnowledgeItem(csilV.Item)})
+	csilEntries = append(csilEntries, cborEntry{cborText("item"), csilE.val(csilEncKnowledgeItem(csilV.Item, csilDepth+1))})
 	if csilV.Note != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("note"), cborText((*csilV.Note))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("recorded"), cborBool(csilV.Recorded)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecRememberResponse reconstructs a RememberResponse from a decoded CBOR value tree.
@@ -5926,8 +6268,8 @@ func csilDecRememberResponse(csilRoot cborValue) (RememberResponse, error) {
 }
 
 // EncodeRememberResponse encodes a RememberResponse to canonical CSIL CBOR bytes.
-func EncodeRememberResponse(csilV RememberResponse) []byte {
-	return cborEncode(csilEncRememberResponse(csilV))
+func EncodeRememberResponse(csilV RememberResponse) ([]byte, error) {
+	return cborEncodeE(csilEncRememberResponse(csilV, 0))
 }
 
 // DecodeRememberResponse decodes canonical CSIL CBOR bytes into a RememberResponse.
@@ -5941,7 +6283,10 @@ func DecodeRememberResponse(csilData []byte) (RememberResponse, error) {
 }
 
 // csilEncChangeKnowledgeRequest builds the canonical CBOR value tree for a ChangeKnowledgeRequest.
-func csilEncChangeKnowledgeRequest(csilV ChangeKnowledgeRequest) cborValue {
+func csilEncChangeKnowledgeRequest(csilV ChangeKnowledgeRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 6)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	if csilV.Erase != nil {
@@ -5957,7 +6302,7 @@ func csilEncChangeKnowledgeRequest(csilV ChangeKnowledgeRequest) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("reason"), cborText((*csilV.Reason))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("operation"), cborText(csilV.Operation)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecChangeKnowledgeRequest reconstructs a ChangeKnowledgeRequest from a decoded CBOR value tree.
@@ -6017,8 +6362,8 @@ func csilDecChangeKnowledgeRequest(csilRoot cborValue) (ChangeKnowledgeRequest, 
 }
 
 // EncodeChangeKnowledgeRequest encodes a ChangeKnowledgeRequest to canonical CSIL CBOR bytes.
-func EncodeChangeKnowledgeRequest(csilV ChangeKnowledgeRequest) []byte {
-	return cborEncode(csilEncChangeKnowledgeRequest(csilV))
+func EncodeChangeKnowledgeRequest(csilV ChangeKnowledgeRequest) ([]byte, error) {
+	return cborEncodeE(csilEncChangeKnowledgeRequest(csilV, 0))
 }
 
 // DecodeChangeKnowledgeRequest decodes canonical CSIL CBOR bytes into a ChangeKnowledgeRequest.
@@ -6032,7 +6377,10 @@ func DecodeChangeKnowledgeRequest(csilData []byte) (ChangeKnowledgeRequest, erro
 }
 
 // csilEncKnowledgeChange builds the canonical CBOR value tree for a KnowledgeChange.
-func csilEncKnowledgeChange(csilV KnowledgeChange) cborValue {
+func csilEncKnowledgeChange(csilV KnowledgeChange, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 8)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("actor"), cborText(csilV.Actor)})
@@ -6048,7 +6396,7 @@ func csilEncKnowledgeChange(csilV KnowledgeChange) cborValue {
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("record"), cborText(csilV.Record)})
 	csilEntries = append(csilEntries, cborEntry{cborText("operation"), cborText(csilV.Operation)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecKnowledgeChange reconstructs a KnowledgeChange from a decoded CBOR value tree.
@@ -6134,8 +6482,8 @@ func csilDecKnowledgeChange(csilRoot cborValue) (KnowledgeChange, error) {
 }
 
 // EncodeKnowledgeChange encodes a KnowledgeChange to canonical CSIL CBOR bytes.
-func EncodeKnowledgeChange(csilV KnowledgeChange) []byte {
-	return cborEncode(csilEncKnowledgeChange(csilV))
+func EncodeKnowledgeChange(csilV KnowledgeChange) ([]byte, error) {
+	return cborEncodeE(csilEncKnowledgeChange(csilV, 0))
 }
 
 // DecodeKnowledgeChange decodes canonical CSIL CBOR bytes into a KnowledgeChange.
@@ -6149,13 +6497,17 @@ func DecodeKnowledgeChange(csilData []byte) (KnowledgeChange, error) {
 }
 
 // csilEncChangeKnowledgeResponse builds the canonical CBOR value tree for a ChangeKnowledgeResponse.
-func csilEncChangeKnowledgeResponse(csilV ChangeKnowledgeResponse) cborValue {
+func csilEncChangeKnowledgeResponse(csilV ChangeKnowledgeResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 2)
 	if csilV.Item != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("item"), csilEncKnowledgeItem((*csilV.Item))})
+		csilEntries = append(csilEntries, cborEntry{cborText("item"), csilE.val(csilEncKnowledgeItem((*csilV.Item), csilDepth+1))})
 	}
-	csilEntries = append(csilEntries, cborEntry{cborText("change"), csilEncKnowledgeChange(csilV.Change)})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("change"), csilE.val(csilEncKnowledgeChange(csilV.Change, csilDepth+1))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecChangeKnowledgeResponse reconstructs a ChangeKnowledgeResponse from a decoded CBOR value tree.
@@ -6183,8 +6535,8 @@ func csilDecChangeKnowledgeResponse(csilRoot cborValue) (ChangeKnowledgeResponse
 }
 
 // EncodeChangeKnowledgeResponse encodes a ChangeKnowledgeResponse to canonical CSIL CBOR bytes.
-func EncodeChangeKnowledgeResponse(csilV ChangeKnowledgeResponse) []byte {
-	return cborEncode(csilEncChangeKnowledgeResponse(csilV))
+func EncodeChangeKnowledgeResponse(csilV ChangeKnowledgeResponse) ([]byte, error) {
+	return cborEncodeE(csilEncChangeKnowledgeResponse(csilV, 0))
 }
 
 // DecodeChangeKnowledgeResponse decodes canonical CSIL CBOR bytes into a ChangeKnowledgeResponse.
@@ -6198,14 +6550,17 @@ func DecodeChangeKnowledgeResponse(csilData []byte) (ChangeKnowledgeResponse, er
 }
 
 // csilEncMergeKnowledgeRequest builds the canonical CBOR value tree for a MergeKnowledgeRequest.
-func csilEncMergeKnowledgeRequest(csilV MergeKnowledgeRequest) cborValue {
+func csilEncMergeKnowledgeRequest(csilV MergeKnowledgeRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("keep"), cborText(csilV.Keep)})
 	csilEntries = append(csilEntries, cborEntry{cborText("merge"), cborText(csilV.Merge)})
 	if csilV.Reason != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("reason"), cborText((*csilV.Reason))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecMergeKnowledgeRequest reconstructs a MergeKnowledgeRequest from a decoded CBOR value tree.
@@ -6244,8 +6599,8 @@ func csilDecMergeKnowledgeRequest(csilRoot cborValue) (MergeKnowledgeRequest, er
 }
 
 // EncodeMergeKnowledgeRequest encodes a MergeKnowledgeRequest to canonical CSIL CBOR bytes.
-func EncodeMergeKnowledgeRequest(csilV MergeKnowledgeRequest) []byte {
-	return cborEncode(csilEncMergeKnowledgeRequest(csilV))
+func EncodeMergeKnowledgeRequest(csilV MergeKnowledgeRequest) ([]byte, error) {
+	return cborEncodeE(csilEncMergeKnowledgeRequest(csilV, 0))
 }
 
 // DecodeMergeKnowledgeRequest decodes canonical CSIL CBOR bytes into a MergeKnowledgeRequest.
@@ -6259,10 +6614,13 @@ func DecodeMergeKnowledgeRequest(csilData []byte) (MergeKnowledgeRequest, error)
 }
 
 // csilEncUnmergeKnowledgeRequest builds the canonical CBOR value tree for a UnmergeKnowledgeRequest.
-func csilEncUnmergeKnowledgeRequest(csilV UnmergeKnowledgeRequest) cborValue {
+func csilEncUnmergeKnowledgeRequest(csilV UnmergeKnowledgeRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("change"), cborText(csilV.Change)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecUnmergeKnowledgeRequest reconstructs a UnmergeKnowledgeRequest from a decoded CBOR value tree.
@@ -6283,8 +6641,8 @@ func csilDecUnmergeKnowledgeRequest(csilRoot cborValue) (UnmergeKnowledgeRequest
 }
 
 // EncodeUnmergeKnowledgeRequest encodes a UnmergeKnowledgeRequest to canonical CSIL CBOR bytes.
-func EncodeUnmergeKnowledgeRequest(csilV UnmergeKnowledgeRequest) []byte {
-	return cborEncode(csilEncUnmergeKnowledgeRequest(csilV))
+func EncodeUnmergeKnowledgeRequest(csilV UnmergeKnowledgeRequest) ([]byte, error) {
+	return cborEncodeE(csilEncUnmergeKnowledgeRequest(csilV, 0))
 }
 
 // DecodeUnmergeKnowledgeRequest decodes canonical CSIL CBOR bytes into a UnmergeKnowledgeRequest.
@@ -6298,10 +6656,13 @@ func DecodeUnmergeKnowledgeRequest(csilData []byte) (UnmergeKnowledgeRequest, er
 }
 
 // csilEncKnowledgeHistoryRequest builds the canonical CBOR value tree for a KnowledgeHistoryRequest.
-func csilEncKnowledgeHistoryRequest(csilV KnowledgeHistoryRequest) cborValue {
+func csilEncKnowledgeHistoryRequest(csilV KnowledgeHistoryRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecKnowledgeHistoryRequest reconstructs a KnowledgeHistoryRequest from a decoded CBOR value tree.
@@ -6322,8 +6683,8 @@ func csilDecKnowledgeHistoryRequest(csilRoot cborValue) (KnowledgeHistoryRequest
 }
 
 // EncodeKnowledgeHistoryRequest encodes a KnowledgeHistoryRequest to canonical CSIL CBOR bytes.
-func EncodeKnowledgeHistoryRequest(csilV KnowledgeHistoryRequest) []byte {
-	return cborEncode(csilEncKnowledgeHistoryRequest(csilV))
+func EncodeKnowledgeHistoryRequest(csilV KnowledgeHistoryRequest) ([]byte, error) {
+	return cborEncodeE(csilEncKnowledgeHistoryRequest(csilV, 0))
 }
 
 // DecodeKnowledgeHistoryRequest decodes canonical CSIL CBOR bytes into a KnowledgeHistoryRequest.
@@ -6337,10 +6698,16 @@ func DecodeKnowledgeHistoryRequest(csilData []byte) (KnowledgeHistoryRequest, er
 }
 
 // csilEncKnowledgeHistoryResponse builds the canonical CBOR value tree for a KnowledgeHistoryResponse.
-func csilEncKnowledgeHistoryResponse(csilV KnowledgeHistoryResponse) cborValue {
+func csilEncKnowledgeHistoryResponse(csilV KnowledgeHistoryResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
-	csilEntries = append(csilEntries, cborEntry{cborText("changes"), cborEncArray(csilV.Changes, func(csilElem KnowledgeChange) cborValue { return csilEncKnowledgeChange(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("changes"), csilE.val(cborEncArray(csilV.Changes, func(csilElem KnowledgeChange) (cborValue, error) {
+		return csilEncKnowledgeChange(csilElem, csilDepth+1)
+	}))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecKnowledgeHistoryResponse reconstructs a KnowledgeHistoryResponse from a decoded CBOR value tree.
@@ -6361,8 +6728,8 @@ func csilDecKnowledgeHistoryResponse(csilRoot cborValue) (KnowledgeHistoryRespon
 }
 
 // EncodeKnowledgeHistoryResponse encodes a KnowledgeHistoryResponse to canonical CSIL CBOR bytes.
-func EncodeKnowledgeHistoryResponse(csilV KnowledgeHistoryResponse) []byte {
-	return cborEncode(csilEncKnowledgeHistoryResponse(csilV))
+func EncodeKnowledgeHistoryResponse(csilV KnowledgeHistoryResponse) ([]byte, error) {
+	return cborEncodeE(csilEncKnowledgeHistoryResponse(csilV, 0))
 }
 
 // DecodeKnowledgeHistoryResponse decodes canonical CSIL CBOR bytes into a KnowledgeHistoryResponse.
@@ -6376,12 +6743,15 @@ func DecodeKnowledgeHistoryResponse(csilData []byte) (KnowledgeHistoryResponse, 
 }
 
 // csilEncVoiceInfo builds the canonical CBOR value tree for a VoiceInfo.
-func csilEncVoiceInfo(csilV VoiceInfo) cborValue {
+func csilEncVoiceInfo(csilV VoiceInfo, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
 	csilEntries = append(csilEntries, cborEntry{cborText("language"), cborText(csilV.Language)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecVoiceInfo reconstructs a VoiceInfo from a decoded CBOR value tree.
@@ -6424,8 +6794,8 @@ func csilDecVoiceInfo(csilRoot cborValue) (VoiceInfo, error) {
 }
 
 // EncodeVoiceInfo encodes a VoiceInfo to canonical CSIL CBOR bytes.
-func EncodeVoiceInfo(csilV VoiceInfo) []byte {
-	return cborEncode(csilEncVoiceInfo(csilV))
+func EncodeVoiceInfo(csilV VoiceInfo) ([]byte, error) {
+	return cborEncodeE(csilEncVoiceInfo(csilV, 0))
 }
 
 // DecodeVoiceInfo decodes canonical CSIL CBOR bytes into a VoiceInfo.
@@ -6439,12 +6809,15 @@ func DecodeVoiceInfo(csilData []byte) (VoiceInfo, error) {
 }
 
 // csilEncListVoicesRequest builds the canonical CBOR value tree for a ListVoicesRequest.
-func csilEncListVoicesRequest(csilV ListVoicesRequest) cborValue {
+func csilEncListVoicesRequest(csilV ListVoicesRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	if csilV.Language != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("language"), cborText((*csilV.Language))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecListVoicesRequest reconstructs a ListVoicesRequest from a decoded CBOR value tree.
@@ -6461,8 +6834,8 @@ func csilDecListVoicesRequest(csilRoot cborValue) (ListVoicesRequest, error) {
 }
 
 // EncodeListVoicesRequest encodes a ListVoicesRequest to canonical CSIL CBOR bytes.
-func EncodeListVoicesRequest(csilV ListVoicesRequest) []byte {
-	return cborEncode(csilEncListVoicesRequest(csilV))
+func EncodeListVoicesRequest(csilV ListVoicesRequest) ([]byte, error) {
+	return cborEncodeE(csilEncListVoicesRequest(csilV, 0))
 }
 
 // DecodeListVoicesRequest decodes canonical CSIL CBOR bytes into a ListVoicesRequest.
@@ -6476,10 +6849,14 @@ func DecodeListVoicesRequest(csilData []byte) (ListVoicesRequest, error) {
 }
 
 // csilEncListVoicesResponse builds the canonical CBOR value tree for a ListVoicesResponse.
-func csilEncListVoicesResponse(csilV ListVoicesResponse) cborValue {
+func csilEncListVoicesResponse(csilV ListVoicesResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
-	csilEntries = append(csilEntries, cborEntry{cborText("voices"), cborEncArray(csilV.Voices, func(csilElem VoiceInfo) cborValue { return csilEncVoiceInfo(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("voices"), csilE.val(cborEncArray(csilV.Voices, func(csilElem VoiceInfo) (cborValue, error) { return csilEncVoiceInfo(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecListVoicesResponse reconstructs a ListVoicesResponse from a decoded CBOR value tree.
@@ -6500,8 +6877,8 @@ func csilDecListVoicesResponse(csilRoot cborValue) (ListVoicesResponse, error) {
 }
 
 // EncodeListVoicesResponse encodes a ListVoicesResponse to canonical CSIL CBOR bytes.
-func EncodeListVoicesResponse(csilV ListVoicesResponse) []byte {
-	return cborEncode(csilEncListVoicesResponse(csilV))
+func EncodeListVoicesResponse(csilV ListVoicesResponse) ([]byte, error) {
+	return cborEncodeE(csilEncListVoicesResponse(csilV, 0))
 }
 
 // DecodeListVoicesResponse decodes canonical CSIL CBOR bytes into a ListVoicesResponse.
@@ -6515,7 +6892,11 @@ func DecodeListVoicesResponse(csilData []byte) (ListVoicesResponse, error) {
 }
 
 // csilEncLexiconWord builds the canonical CBOR value tree for a LexiconWord.
-func csilEncLexiconWord(csilV LexiconWord) cborValue {
+func csilEncLexiconWord(csilV LexiconWord, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 7)
 	if csilV.Ipa != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("ipa"), cborText((*csilV.Ipa))})
@@ -6527,10 +6908,10 @@ func csilEncLexiconWord(csilV LexiconWord) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("spoken"), cborText((*csilV.Spoken))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("written"), cborText(csilV.Written)})
-	csilEntries = append(csilEntries, cborEntry{cborText("heard_as"), cborEncArray(csilV.HeardAs, func(csilElem string) cborValue { return cborText(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("heard_as"), csilE.val(cborEncArray(csilV.HeardAs, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	csilEntries = append(csilEntries, cborEntry{cborText("updated_by"), cborText(csilV.UpdatedBy)})
 	csilEntries = append(csilEntries, cborEntry{cborText("updated_ms"), cborUint(csilV.UpdatedMs)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecLexiconWord reconstructs a LexiconWord from a decoded CBOR value tree.
@@ -6605,8 +6986,8 @@ func csilDecLexiconWord(csilRoot cborValue) (LexiconWord, error) {
 }
 
 // EncodeLexiconWord encodes a LexiconWord to canonical CSIL CBOR bytes.
-func EncodeLexiconWord(csilV LexiconWord) []byte {
-	return cborEncode(csilEncLexiconWord(csilV))
+func EncodeLexiconWord(csilV LexiconWord) ([]byte, error) {
+	return cborEncodeE(csilEncLexiconWord(csilV, 0))
 }
 
 // DecodeLexiconWord decodes canonical CSIL CBOR bytes into a LexiconWord.
@@ -6620,9 +7001,12 @@ func DecodeLexiconWord(csilData []byte) (LexiconWord, error) {
 }
 
 // csilEncListLexiconRequest builds the canonical CBOR value tree for a ListLexiconRequest.
-func csilEncListLexiconRequest(csilV ListLexiconRequest) cborValue {
+func csilEncListLexiconRequest(csilV ListLexiconRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 0)
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecListLexiconRequest reconstructs a ListLexiconRequest from a decoded CBOR value tree.
@@ -6632,8 +7016,8 @@ func csilDecListLexiconRequest(csilRoot cborValue) (ListLexiconRequest, error) {
 }
 
 // EncodeListLexiconRequest encodes a ListLexiconRequest to canonical CSIL CBOR bytes.
-func EncodeListLexiconRequest(csilV ListLexiconRequest) []byte {
-	return cborEncode(csilEncListLexiconRequest(csilV))
+func EncodeListLexiconRequest(csilV ListLexiconRequest) ([]byte, error) {
+	return cborEncodeE(csilEncListLexiconRequest(csilV, 0))
 }
 
 // DecodeListLexiconRequest decodes canonical CSIL CBOR bytes into a ListLexiconRequest.
@@ -6647,11 +7031,15 @@ func DecodeListLexiconRequest(csilData []byte) (ListLexiconRequest, error) {
 }
 
 // csilEncListLexiconResponse builds the canonical CBOR value tree for a ListLexiconResponse.
-func csilEncListLexiconResponse(csilV ListLexiconResponse) cborValue {
+func csilEncListLexiconResponse(csilV ListLexiconResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 2)
-	csilEntries = append(csilEntries, cborEntry{cborText("words"), cborEncArray(csilV.Words, func(csilElem LexiconWord) cborValue { return csilEncLexiconWord(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("words"), csilE.val(cborEncArray(csilV.Words, func(csilElem LexiconWord) (cborValue, error) { return csilEncLexiconWord(csilElem, csilDepth+1) }))})
 	csilEntries = append(csilEntries, cborEntry{cborText("can_edit"), cborBool(csilV.CanEdit)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecListLexiconResponse reconstructs a ListLexiconResponse from a decoded CBOR value tree.
@@ -6683,8 +7071,8 @@ func csilDecListLexiconResponse(csilRoot cborValue) (ListLexiconResponse, error)
 }
 
 // EncodeListLexiconResponse encodes a ListLexiconResponse to canonical CSIL CBOR bytes.
-func EncodeListLexiconResponse(csilV ListLexiconResponse) []byte {
-	return cborEncode(csilEncListLexiconResponse(csilV))
+func EncodeListLexiconResponse(csilV ListLexiconResponse) ([]byte, error) {
+	return cborEncodeE(csilEncListLexiconResponse(csilV, 0))
 }
 
 // DecodeListLexiconResponse decodes canonical CSIL CBOR bytes into a ListLexiconResponse.
@@ -6698,7 +7086,11 @@ func DecodeListLexiconResponse(csilData []byte) (ListLexiconResponse, error) {
 }
 
 // csilEncPutLexiconWordRequest builds the canonical CBOR value tree for a PutLexiconWordRequest.
-func csilEncPutLexiconWordRequest(csilV PutLexiconWordRequest) cborValue {
+func csilEncPutLexiconWordRequest(csilV PutLexiconWordRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 5)
 	if csilV.Ipa != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("ipa"), cborText((*csilV.Ipa))})
@@ -6711,9 +7103,9 @@ func csilEncPutLexiconWordRequest(csilV PutLexiconWordRequest) cborValue {
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("written"), cborText(csilV.Written)})
 	if csilV.HeardAs != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("heard_as"), cborEncArray(csilV.HeardAs, func(csilElem string) cborValue { return cborText(csilElem) })})
+		csilEntries = append(csilEntries, cborEntry{cborText("heard_as"), csilE.val(cborEncArray(csilV.HeardAs, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	}
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecPutLexiconWordRequest reconstructs a PutLexiconWordRequest from a decoded CBOR value tree.
@@ -6762,8 +7154,8 @@ func csilDecPutLexiconWordRequest(csilRoot cborValue) (PutLexiconWordRequest, er
 }
 
 // EncodePutLexiconWordRequest encodes a PutLexiconWordRequest to canonical CSIL CBOR bytes.
-func EncodePutLexiconWordRequest(csilV PutLexiconWordRequest) []byte {
-	return cborEncode(csilEncPutLexiconWordRequest(csilV))
+func EncodePutLexiconWordRequest(csilV PutLexiconWordRequest) ([]byte, error) {
+	return cborEncodeE(csilEncPutLexiconWordRequest(csilV, 0))
 }
 
 // DecodePutLexiconWordRequest decodes canonical CSIL CBOR bytes into a PutLexiconWordRequest.
@@ -6777,10 +7169,13 @@ func DecodePutLexiconWordRequest(csilData []byte) (PutLexiconWordRequest, error)
 }
 
 // csilEncDeleteLexiconWordRequest builds the canonical CBOR value tree for a DeleteLexiconWordRequest.
-func csilEncDeleteLexiconWordRequest(csilV DeleteLexiconWordRequest) cborValue {
+func csilEncDeleteLexiconWordRequest(csilV DeleteLexiconWordRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("written"), cborText(csilV.Written)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecDeleteLexiconWordRequest reconstructs a DeleteLexiconWordRequest from a decoded CBOR value tree.
@@ -6801,8 +7196,8 @@ func csilDecDeleteLexiconWordRequest(csilRoot cborValue) (DeleteLexiconWordReque
 }
 
 // EncodeDeleteLexiconWordRequest encodes a DeleteLexiconWordRequest to canonical CSIL CBOR bytes.
-func EncodeDeleteLexiconWordRequest(csilV DeleteLexiconWordRequest) []byte {
-	return cborEncode(csilEncDeleteLexiconWordRequest(csilV))
+func EncodeDeleteLexiconWordRequest(csilV DeleteLexiconWordRequest) ([]byte, error) {
+	return cborEncodeE(csilEncDeleteLexiconWordRequest(csilV, 0))
 }
 
 // DecodeDeleteLexiconWordRequest decodes canonical CSIL CBOR bytes into a DeleteLexiconWordRequest.
@@ -6816,10 +7211,13 @@ func DecodeDeleteLexiconWordRequest(csilData []byte) (DeleteLexiconWordRequest, 
 }
 
 // csilEncDeleteLexiconWordResponse builds the canonical CBOR value tree for a DeleteLexiconWordResponse.
-func csilEncDeleteLexiconWordResponse(csilV DeleteLexiconWordResponse) cborValue {
+func csilEncDeleteLexiconWordResponse(csilV DeleteLexiconWordResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("deleted"), cborBool(csilV.Deleted)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecDeleteLexiconWordResponse reconstructs a DeleteLexiconWordResponse from a decoded CBOR value tree.
@@ -6840,8 +7238,8 @@ func csilDecDeleteLexiconWordResponse(csilRoot cborValue) (DeleteLexiconWordResp
 }
 
 // EncodeDeleteLexiconWordResponse encodes a DeleteLexiconWordResponse to canonical CSIL CBOR bytes.
-func EncodeDeleteLexiconWordResponse(csilV DeleteLexiconWordResponse) []byte {
-	return cborEncode(csilEncDeleteLexiconWordResponse(csilV))
+func EncodeDeleteLexiconWordResponse(csilV DeleteLexiconWordResponse) ([]byte, error) {
+	return cborEncodeE(csilEncDeleteLexiconWordResponse(csilV, 0))
 }
 
 // DecodeDeleteLexiconWordResponse decodes canonical CSIL CBOR bytes into a DeleteLexiconWordResponse.
@@ -6855,13 +7253,16 @@ func DecodeDeleteLexiconWordResponse(csilData []byte) (DeleteLexiconWordResponse
 }
 
 // csilEncSpeakRequest builds the canonical CBOR value tree for a SpeakRequest.
-func csilEncSpeakRequest(csilV SpeakRequest) cborValue {
+func csilEncSpeakRequest(csilV SpeakRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	csilEntries = append(csilEntries, cborEntry{cborText("text"), cborText(csilV.Text)})
 	if csilV.Voice != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("voice"), cborText((*csilV.Voice))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecSpeakRequest reconstructs a SpeakRequest from a decoded CBOR value tree.
@@ -6889,8 +7290,8 @@ func csilDecSpeakRequest(csilRoot cborValue) (SpeakRequest, error) {
 }
 
 // EncodeSpeakRequest encodes a SpeakRequest to canonical CSIL CBOR bytes.
-func EncodeSpeakRequest(csilV SpeakRequest) []byte {
-	return cborEncode(csilEncSpeakRequest(csilV))
+func EncodeSpeakRequest(csilV SpeakRequest) ([]byte, error) {
+	return cborEncodeE(csilEncSpeakRequest(csilV, 0))
 }
 
 // DecodeSpeakRequest decodes canonical CSIL CBOR bytes into a SpeakRequest.
@@ -6904,12 +7305,15 @@ func DecodeSpeakRequest(csilData []byte) (SpeakRequest, error) {
 }
 
 // csilEncSpeakResponse builds the canonical CBOR value tree for a SpeakResponse.
-func csilEncSpeakResponse(csilV SpeakResponse) cborValue {
+func csilEncSpeakResponse(csilV SpeakResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("audio"), cborBytes(csilV.Audio)})
 	csilEntries = append(csilEntries, cborEntry{cborText("spoken"), cborText(csilV.Spoken)})
 	csilEntries = append(csilEntries, cborEntry{cborText("media_type"), cborText(csilV.MediaType)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecSpeakResponse reconstructs a SpeakResponse from a decoded CBOR value tree.
@@ -6952,8 +7356,8 @@ func csilDecSpeakResponse(csilRoot cborValue) (SpeakResponse, error) {
 }
 
 // EncodeSpeakResponse encodes a SpeakResponse to canonical CSIL CBOR bytes.
-func EncodeSpeakResponse(csilV SpeakResponse) []byte {
-	return cborEncode(csilEncSpeakResponse(csilV))
+func EncodeSpeakResponse(csilV SpeakResponse) ([]byte, error) {
+	return cborEncodeE(csilEncSpeakResponse(csilV, 0))
 }
 
 // DecodeSpeakResponse decodes canonical CSIL CBOR bytes into a SpeakResponse.
@@ -6967,20 +7371,24 @@ func DecodeSpeakResponse(csilData []byte) (SpeakResponse, error) {
 }
 
 // csilEncRunnerInfo builds the canonical CBOR value tree for a RunnerInfo.
-func csilEncRunnerInfo(csilV RunnerInfo) cborValue {
+func csilEncRunnerInfo(csilV RunnerInfo, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 9)
 	csilEntries = append(csilEntries, cborEntry{cborText("os"), cborText(csilV.Os)})
 	csilEntries = append(csilEntries, cborEntry{cborText("arch"), cborText(csilV.Arch)})
 	csilEntries = append(csilEntries, cborEntry{cborText("busy"), cborBool(csilV.Busy)})
 	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
-	csilEntries = append(csilEntries, cborEntry{cborText("repos"), cborEncArray(csilV.Repos, func(csilElem string) cborValue { return cborText(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("repos"), csilE.val(cborEncArray(csilV.Repos, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	csilEntries = append(csilEntries, cborEntry{cborText("seen_ms"), cborUint(csilV.SeenMs)})
 	csilEntries = append(csilEntries, cborEntry{cborText("version"), cborText(csilV.Version)})
-	csilEntries = append(csilEntries, cborEntry{cborText("publishes"), cborEncArray(csilV.Publishes, func(csilElem string) cborValue { return cborText(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("publishes"), csilE.val(cborEncArray(csilV.Publishes, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	if csilV.UpdateError != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("update_error"), cborText((*csilV.UpdateError))})
 	}
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecRunnerInfo reconstructs a RunnerInfo from a decoded CBOR value tree.
@@ -7085,8 +7493,8 @@ func csilDecRunnerInfo(csilRoot cborValue) (RunnerInfo, error) {
 }
 
 // EncodeRunnerInfo encodes a RunnerInfo to canonical CSIL CBOR bytes.
-func EncodeRunnerInfo(csilV RunnerInfo) []byte {
-	return cborEncode(csilEncRunnerInfo(csilV))
+func EncodeRunnerInfo(csilV RunnerInfo) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerInfo(csilV, 0))
 }
 
 // DecodeRunnerInfo decodes canonical CSIL CBOR bytes into a RunnerInfo.
@@ -7100,9 +7508,12 @@ func DecodeRunnerInfo(csilData []byte) (RunnerInfo, error) {
 }
 
 // csilEncListRunnersRequest builds the canonical CBOR value tree for a ListRunnersRequest.
-func csilEncListRunnersRequest(csilV ListRunnersRequest) cborValue {
+func csilEncListRunnersRequest(csilV ListRunnersRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 0)
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecListRunnersRequest reconstructs a ListRunnersRequest from a decoded CBOR value tree.
@@ -7112,8 +7523,8 @@ func csilDecListRunnersRequest(csilRoot cborValue) (ListRunnersRequest, error) {
 }
 
 // EncodeListRunnersRequest encodes a ListRunnersRequest to canonical CSIL CBOR bytes.
-func EncodeListRunnersRequest(csilV ListRunnersRequest) []byte {
-	return cborEncode(csilEncListRunnersRequest(csilV))
+func EncodeListRunnersRequest(csilV ListRunnersRequest) ([]byte, error) {
+	return cborEncodeE(csilEncListRunnersRequest(csilV, 0))
 }
 
 // DecodeListRunnersRequest decodes canonical CSIL CBOR bytes into a ListRunnersRequest.
@@ -7127,13 +7538,17 @@ func DecodeListRunnersRequest(csilData []byte) (ListRunnersRequest, error) {
 }
 
 // csilEncListRunnersResponse builds the canonical CBOR value tree for a ListRunnersResponse.
-func csilEncListRunnersResponse(csilV ListRunnersResponse) cborValue {
+func csilEncListRunnersResponse(csilV ListRunnersResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 2)
 	if csilV.Release != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("release"), cborText((*csilV.Release))})
 	}
-	csilEntries = append(csilEntries, cborEntry{cborText("runners"), cborEncArray(csilV.Runners, func(csilElem RunnerInfo) cborValue { return csilEncRunnerInfo(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("runners"), csilE.val(cborEncArray(csilV.Runners, func(csilElem RunnerInfo) (cborValue, error) { return csilEncRunnerInfo(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecListRunnersResponse reconstructs a ListRunnersResponse from a decoded CBOR value tree.
@@ -7161,8 +7576,8 @@ func csilDecListRunnersResponse(csilRoot cborValue) (ListRunnersResponse, error)
 }
 
 // EncodeListRunnersResponse encodes a ListRunnersResponse to canonical CSIL CBOR bytes.
-func EncodeListRunnersResponse(csilV ListRunnersResponse) []byte {
-	return cborEncode(csilEncListRunnersResponse(csilV))
+func EncodeListRunnersResponse(csilV ListRunnersResponse) ([]byte, error) {
+	return cborEncodeE(csilEncListRunnersResponse(csilV, 0))
 }
 
 // DecodeListRunnersResponse decodes canonical CSIL CBOR bytes into a ListRunnersResponse.
@@ -7176,9 +7591,12 @@ func DecodeListRunnersResponse(csilData []byte) (ListRunnersResponse, error) {
 }
 
 // csilEncGetAccessRequest builds the canonical CBOR value tree for a GetAccessRequest.
-func csilEncGetAccessRequest(csilV GetAccessRequest) cborValue {
+func csilEncGetAccessRequest(csilV GetAccessRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 0)
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecGetAccessRequest reconstructs a GetAccessRequest from a decoded CBOR value tree.
@@ -7188,8 +7606,8 @@ func csilDecGetAccessRequest(csilRoot cborValue) (GetAccessRequest, error) {
 }
 
 // EncodeGetAccessRequest encodes a GetAccessRequest to canonical CSIL CBOR bytes.
-func EncodeGetAccessRequest(csilV GetAccessRequest) []byte {
-	return cborEncode(csilEncGetAccessRequest(csilV))
+func EncodeGetAccessRequest(csilV GetAccessRequest) ([]byte, error) {
+	return cborEncodeE(csilEncGetAccessRequest(csilV, 0))
 }
 
 // DecodeGetAccessRequest decodes canonical CSIL CBOR bytes into a GetAccessRequest.
@@ -7203,11 +7621,14 @@ func DecodeGetAccessRequest(csilData []byte) (GetAccessRequest, error) {
 }
 
 // csilEncAccess builds the canonical CBOR value tree for a Access.
-func csilEncAccess(csilV Access) cborValue {
+func csilEncAccess(csilV Access, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	csilEntries = append(csilEntries, cborEntry{cborText("subject"), cborText(csilV.Subject)})
 	csilEntries = append(csilEntries, cborEntry{cborText("operator"), cborBool(csilV.Operator)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecAccess reconstructs a Access from a decoded CBOR value tree.
@@ -7239,8 +7660,8 @@ func csilDecAccess(csilRoot cborValue) (Access, error) {
 }
 
 // EncodeAccess encodes a Access to canonical CSIL CBOR bytes.
-func EncodeAccess(csilV Access) []byte {
-	return cborEncode(csilEncAccess(csilV))
+func EncodeAccess(csilV Access) ([]byte, error) {
+	return cborEncodeE(csilEncAccess(csilV, 0))
 }
 
 // DecodeAccess decodes canonical CSIL CBOR bytes into a Access.
@@ -7254,7 +7675,10 @@ func DecodeAccess(csilData []byte) (Access, error) {
 }
 
 // csilEncAdminRunSummary builds the canonical CBOR value tree for a AdminRunSummary.
-func csilEncAdminRunSummary(csilV AdminRunSummary) cborValue {
+func csilEncAdminRunSummary(csilV AdminRunSummary, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 9)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	if csilV.Error != nil {
@@ -7269,7 +7693,7 @@ func csilEncAdminRunSummary(csilV AdminRunSummary) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("definition"), cborText(csilV.Definition)})
 	csilEntries = append(csilEntries, cborEntry{cborText("updated_ms"), cborUint(csilV.UpdatedMs)})
 	csilEntries = append(csilEntries, cborEntry{cborText("current_step"), cborText(csilV.CurrentStep)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecAdminRunSummary reconstructs a AdminRunSummary from a decoded CBOR value tree.
@@ -7370,8 +7794,8 @@ func csilDecAdminRunSummary(csilRoot cborValue) (AdminRunSummary, error) {
 }
 
 // EncodeAdminRunSummary encodes a AdminRunSummary to canonical CSIL CBOR bytes.
-func EncodeAdminRunSummary(csilV AdminRunSummary) []byte {
-	return cborEncode(csilEncAdminRunSummary(csilV))
+func EncodeAdminRunSummary(csilV AdminRunSummary) ([]byte, error) {
+	return cborEncodeE(csilEncAdminRunSummary(csilV, 0))
 }
 
 // DecodeAdminRunSummary decodes canonical CSIL CBOR bytes into a AdminRunSummary.
@@ -7385,7 +7809,10 @@ func DecodeAdminRunSummary(csilData []byte) (AdminRunSummary, error) {
 }
 
 // csilEncAdminListRunsRequest builds the canonical CBOR value tree for a AdminListRunsRequest.
-func csilEncAdminListRunsRequest(csilV AdminListRunsRequest) cborValue {
+func csilEncAdminListRunsRequest(csilV AdminListRunsRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 3)
 	if csilV.Limit != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("limit"), cborUint((*csilV.Limit))})
@@ -7396,7 +7823,7 @@ func csilEncAdminListRunsRequest(csilV AdminListRunsRequest) cborValue {
 	if csilV.Definition != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("definition"), cborText((*csilV.Definition))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecAdminListRunsRequest reconstructs a AdminListRunsRequest from a decoded CBOR value tree.
@@ -7427,8 +7854,8 @@ func csilDecAdminListRunsRequest(csilRoot cborValue) (AdminListRunsRequest, erro
 }
 
 // EncodeAdminListRunsRequest encodes a AdminListRunsRequest to canonical CSIL CBOR bytes.
-func EncodeAdminListRunsRequest(csilV AdminListRunsRequest) []byte {
-	return cborEncode(csilEncAdminListRunsRequest(csilV))
+func EncodeAdminListRunsRequest(csilV AdminListRunsRequest) ([]byte, error) {
+	return cborEncodeE(csilEncAdminListRunsRequest(csilV, 0))
 }
 
 // DecodeAdminListRunsRequest decodes canonical CSIL CBOR bytes into a AdminListRunsRequest.
@@ -7442,10 +7869,16 @@ func DecodeAdminListRunsRequest(csilData []byte) (AdminListRunsRequest, error) {
 }
 
 // csilEncAdminListRunsResponse builds the canonical CBOR value tree for a AdminListRunsResponse.
-func csilEncAdminListRunsResponse(csilV AdminListRunsResponse) cborValue {
+func csilEncAdminListRunsResponse(csilV AdminListRunsResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
-	csilEntries = append(csilEntries, cborEntry{cborText("runs"), cborEncArray(csilV.Runs, func(csilElem AdminRunSummary) cborValue { return csilEncAdminRunSummary(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("runs"), csilE.val(cborEncArray(csilV.Runs, func(csilElem AdminRunSummary) (cborValue, error) {
+		return csilEncAdminRunSummary(csilElem, csilDepth+1)
+	}))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecAdminListRunsResponse reconstructs a AdminListRunsResponse from a decoded CBOR value tree.
@@ -7466,8 +7899,8 @@ func csilDecAdminListRunsResponse(csilRoot cborValue) (AdminListRunsResponse, er
 }
 
 // EncodeAdminListRunsResponse encodes a AdminListRunsResponse to canonical CSIL CBOR bytes.
-func EncodeAdminListRunsResponse(csilV AdminListRunsResponse) []byte {
-	return cborEncode(csilEncAdminListRunsResponse(csilV))
+func EncodeAdminListRunsResponse(csilV AdminListRunsResponse) ([]byte, error) {
+	return cborEncodeE(csilEncAdminListRunsResponse(csilV, 0))
 }
 
 // DecodeAdminListRunsResponse decodes canonical CSIL CBOR bytes into a AdminListRunsResponse.
@@ -7481,12 +7914,16 @@ func DecodeAdminListRunsResponse(csilData []byte) (AdminListRunsResponse, error)
 }
 
 // csilEncAdminRun builds the canonical CBOR value tree for a AdminRun.
-func csilEncAdminRun(csilV AdminRun) cborValue {
+func csilEncAdminRun(csilV AdminRun, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 3)
-	csilEntries = append(csilEntries, cborEntry{cborText("vars"), cborEncMap(csilV.Vars, func(csilK string) cborValue { return cborText(csilK) }, func(csilV string) cborValue { return cborText(csilV) })})
-	csilEntries = append(csilEntries, cborEntry{cborText("steps"), cborEncArray(csilV.Steps, func(csilElem TaskStep) cborValue { return csilEncTaskStep(csilElem) })})
-	csilEntries = append(csilEntries, cborEntry{cborText("summary"), csilEncAdminRunSummary(csilV.Summary)})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("vars"), csilE.val(cborEncMap(csilV.Vars, func(csilK string) (cborValue, error) { return cborText(csilK), nil }, func(csilV string) (cborValue, error) { return cborText(csilV), nil }))})
+	csilEntries = append(csilEntries, cborEntry{cborText("steps"), csilE.val(cborEncArray(csilV.Steps, func(csilElem TaskStep) (cborValue, error) { return csilEncTaskStep(csilElem, csilDepth+1) }))})
+	csilEntries = append(csilEntries, cborEntry{cborText("summary"), csilE.val(csilEncAdminRunSummary(csilV.Summary, csilDepth+1))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecAdminRun reconstructs a AdminRun from a decoded CBOR value tree.
@@ -7529,8 +7966,8 @@ func csilDecAdminRun(csilRoot cborValue) (AdminRun, error) {
 }
 
 // EncodeAdminRun encodes a AdminRun to canonical CSIL CBOR bytes.
-func EncodeAdminRun(csilV AdminRun) []byte {
-	return cborEncode(csilEncAdminRun(csilV))
+func EncodeAdminRun(csilV AdminRun) ([]byte, error) {
+	return cborEncodeE(csilEncAdminRun(csilV, 0))
 }
 
 // DecodeAdminRun decodes canonical CSIL CBOR bytes into a AdminRun.
@@ -7544,10 +7981,13 @@ func DecodeAdminRun(csilData []byte) (AdminRun, error) {
 }
 
 // csilEncAdminGetRunRequest builds the canonical CBOR value tree for a AdminGetRunRequest.
-func csilEncAdminGetRunRequest(csilV AdminGetRunRequest) cborValue {
+func csilEncAdminGetRunRequest(csilV AdminGetRunRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecAdminGetRunRequest reconstructs a AdminGetRunRequest from a decoded CBOR value tree.
@@ -7568,8 +8008,8 @@ func csilDecAdminGetRunRequest(csilRoot cborValue) (AdminGetRunRequest, error) {
 }
 
 // EncodeAdminGetRunRequest encodes a AdminGetRunRequest to canonical CSIL CBOR bytes.
-func EncodeAdminGetRunRequest(csilV AdminGetRunRequest) []byte {
-	return cborEncode(csilEncAdminGetRunRequest(csilV))
+func EncodeAdminGetRunRequest(csilV AdminGetRunRequest) ([]byte, error) {
+	return cborEncodeE(csilEncAdminGetRunRequest(csilV, 0))
 }
 
 // DecodeAdminGetRunRequest decodes canonical CSIL CBOR bytes into a AdminGetRunRequest.
@@ -7583,11 +8023,14 @@ func DecodeAdminGetRunRequest(csilData []byte) (AdminGetRunRequest, error) {
 }
 
 // csilEncAdminGetRunOutputRequest builds the canonical CBOR value tree for a AdminGetRunOutputRequest.
-func csilEncAdminGetRunOutputRequest(csilV AdminGetRunOutputRequest) cborValue {
+func csilEncAdminGetRunOutputRequest(csilV AdminGetRunOutputRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecAdminGetRunOutputRequest reconstructs a AdminGetRunOutputRequest from a decoded CBOR value tree.
@@ -7619,8 +8062,8 @@ func csilDecAdminGetRunOutputRequest(csilRoot cborValue) (AdminGetRunOutputReque
 }
 
 // EncodeAdminGetRunOutputRequest encodes a AdminGetRunOutputRequest to canonical CSIL CBOR bytes.
-func EncodeAdminGetRunOutputRequest(csilV AdminGetRunOutputRequest) []byte {
-	return cborEncode(csilEncAdminGetRunOutputRequest(csilV))
+func EncodeAdminGetRunOutputRequest(csilV AdminGetRunOutputRequest) ([]byte, error) {
+	return cborEncodeE(csilEncAdminGetRunOutputRequest(csilV, 0))
 }
 
 // DecodeAdminGetRunOutputRequest decodes canonical CSIL CBOR bytes into a AdminGetRunOutputRequest.
@@ -7634,7 +8077,10 @@ func DecodeAdminGetRunOutputRequest(csilData []byte) (AdminGetRunOutputRequest, 
 }
 
 // csilEncAdminChat builds the canonical CBOR value tree for a AdminChat.
-func csilEncAdminChat(csilV AdminChat) cborValue {
+func csilEncAdminChat(csilV AdminChat, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 6)
 	csilEntries = append(csilEntries, cborEntry{cborText("person"), cborText(csilV.Person)})
 	csilEntries = append(csilEntries, cborEntry{cborText("stream"), cborText(csilV.Stream)})
@@ -7642,7 +8088,7 @@ func csilEncAdminChat(csilV AdminChat) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("last_seq"), cborUint(csilV.LastSeq)})
 	csilEntries = append(csilEntries, cborEntry{cborText("created_ms"), cborUint(csilV.CreatedMs)})
 	csilEntries = append(csilEntries, cborEntry{cborText("updated_ms"), cborUint(csilV.UpdatedMs)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecAdminChat reconstructs a AdminChat from a decoded CBOR value tree.
@@ -7718,8 +8164,8 @@ func csilDecAdminChat(csilRoot cborValue) (AdminChat, error) {
 }
 
 // EncodeAdminChat encodes a AdminChat to canonical CSIL CBOR bytes.
-func EncodeAdminChat(csilV AdminChat) []byte {
-	return cborEncode(csilEncAdminChat(csilV))
+func EncodeAdminChat(csilV AdminChat) ([]byte, error) {
+	return cborEncodeE(csilEncAdminChat(csilV, 0))
 }
 
 // DecodeAdminChat decodes canonical CSIL CBOR bytes into a AdminChat.
@@ -7733,7 +8179,10 @@ func DecodeAdminChat(csilData []byte) (AdminChat, error) {
 }
 
 // csilEncAdminListChatsRequest builds the canonical CBOR value tree for a AdminListChatsRequest.
-func csilEncAdminListChatsRequest(csilV AdminListChatsRequest) cborValue {
+func csilEncAdminListChatsRequest(csilV AdminListChatsRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	if csilV.Person != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("person"), cborText((*csilV.Person))})
@@ -7741,7 +8190,7 @@ func csilEncAdminListChatsRequest(csilV AdminListChatsRequest) cborValue {
 	if csilV.Persona != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("persona"), cborText((*csilV.Persona))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecAdminListChatsRequest reconstructs a AdminListChatsRequest from a decoded CBOR value tree.
@@ -7765,8 +8214,8 @@ func csilDecAdminListChatsRequest(csilRoot cborValue) (AdminListChatsRequest, er
 }
 
 // EncodeAdminListChatsRequest encodes a AdminListChatsRequest to canonical CSIL CBOR bytes.
-func EncodeAdminListChatsRequest(csilV AdminListChatsRequest) []byte {
-	return cborEncode(csilEncAdminListChatsRequest(csilV))
+func EncodeAdminListChatsRequest(csilV AdminListChatsRequest) ([]byte, error) {
+	return cborEncodeE(csilEncAdminListChatsRequest(csilV, 0))
 }
 
 // DecodeAdminListChatsRequest decodes canonical CSIL CBOR bytes into a AdminListChatsRequest.
@@ -7780,10 +8229,14 @@ func DecodeAdminListChatsRequest(csilData []byte) (AdminListChatsRequest, error)
 }
 
 // csilEncAdminListChatsResponse builds the canonical CBOR value tree for a AdminListChatsResponse.
-func csilEncAdminListChatsResponse(csilV AdminListChatsResponse) cborValue {
+func csilEncAdminListChatsResponse(csilV AdminListChatsResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
-	csilEntries = append(csilEntries, cborEntry{cborText("chats"), cborEncArray(csilV.Chats, func(csilElem AdminChat) cborValue { return csilEncAdminChat(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("chats"), csilE.val(cborEncArray(csilV.Chats, func(csilElem AdminChat) (cborValue, error) { return csilEncAdminChat(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecAdminListChatsResponse reconstructs a AdminListChatsResponse from a decoded CBOR value tree.
@@ -7804,8 +8257,8 @@ func csilDecAdminListChatsResponse(csilRoot cborValue) (AdminListChatsResponse, 
 }
 
 // EncodeAdminListChatsResponse encodes a AdminListChatsResponse to canonical CSIL CBOR bytes.
-func EncodeAdminListChatsResponse(csilV AdminListChatsResponse) []byte {
-	return cborEncode(csilEncAdminListChatsResponse(csilV))
+func EncodeAdminListChatsResponse(csilV AdminListChatsResponse) ([]byte, error) {
+	return cborEncodeE(csilEncAdminListChatsResponse(csilV, 0))
 }
 
 // DecodeAdminListChatsResponse decodes canonical CSIL CBOR bytes into a AdminListChatsResponse.
@@ -7819,7 +8272,10 @@ func DecodeAdminListChatsResponse(csilData []byte) (AdminListChatsResponse, erro
 }
 
 // csilEncAdminReadChatRequest builds the canonical CBOR value tree for a AdminReadChatRequest.
-func csilEncAdminReadChatRequest(csilV AdminReadChatRequest) cborValue {
+func csilEncAdminReadChatRequest(csilV AdminReadChatRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 3)
 	if csilV.Limit != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("limit"), cborUint((*csilV.Limit))})
@@ -7828,7 +8284,7 @@ func csilEncAdminReadChatRequest(csilV AdminReadChatRequest) cborValue {
 	if csilV.BeforeSeq != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("before_seq"), cborUint((*csilV.BeforeSeq))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecAdminReadChatRequest reconstructs a AdminReadChatRequest from a decoded CBOR value tree.
@@ -7863,8 +8319,8 @@ func csilDecAdminReadChatRequest(csilRoot cborValue) (AdminReadChatRequest, erro
 }
 
 // EncodeAdminReadChatRequest encodes a AdminReadChatRequest to canonical CSIL CBOR bytes.
-func EncodeAdminReadChatRequest(csilV AdminReadChatRequest) []byte {
-	return cborEncode(csilEncAdminReadChatRequest(csilV))
+func EncodeAdminReadChatRequest(csilV AdminReadChatRequest) ([]byte, error) {
+	return cborEncodeE(csilEncAdminReadChatRequest(csilV, 0))
 }
 
 // DecodeAdminReadChatRequest decodes canonical CSIL CBOR bytes into a AdminReadChatRequest.
@@ -7878,11 +8334,15 @@ func DecodeAdminReadChatRequest(csilData []byte) (AdminReadChatRequest, error) {
 }
 
 // csilEncAdminReadChatResponse builds the canonical CBOR value tree for a AdminReadChatResponse.
-func csilEncAdminReadChatResponse(csilV AdminReadChatResponse) cborValue {
+func csilEncAdminReadChatResponse(csilV AdminReadChatResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 2)
-	csilEntries = append(csilEntries, cborEntry{cborText("chat"), csilEncAdminChat(csilV.Chat)})
-	csilEntries = append(csilEntries, cborEntry{cborText("messages"), cborEncArray(csilV.Messages, func(csilElem Message) cborValue { return csilEncMessage(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("chat"), csilE.val(csilEncAdminChat(csilV.Chat, csilDepth+1))})
+	csilEntries = append(csilEntries, cborEntry{cborText("messages"), csilE.val(cborEncArray(csilV.Messages, func(csilElem Message) (cborValue, error) { return csilEncMessage(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecAdminReadChatResponse reconstructs a AdminReadChatResponse from a decoded CBOR value tree.
@@ -7914,8 +8374,8 @@ func csilDecAdminReadChatResponse(csilRoot cborValue) (AdminReadChatResponse, er
 }
 
 // EncodeAdminReadChatResponse encodes a AdminReadChatResponse to canonical CSIL CBOR bytes.
-func EncodeAdminReadChatResponse(csilV AdminReadChatResponse) []byte {
-	return cborEncode(csilEncAdminReadChatResponse(csilV))
+func EncodeAdminReadChatResponse(csilV AdminReadChatResponse) ([]byte, error) {
+	return cborEncodeE(csilEncAdminReadChatResponse(csilV, 0))
 }
 
 // DecodeAdminReadChatResponse decodes canonical CSIL CBOR bytes into a AdminReadChatResponse.
@@ -7929,10 +8389,13 @@ func DecodeAdminReadChatResponse(csilData []byte) (AdminReadChatResponse, error)
 }
 
 // csilEncAdminTurnLogRequest builds the canonical CBOR value tree for a AdminTurnLogRequest.
-func csilEncAdminTurnLogRequest(csilV AdminTurnLogRequest) cborValue {
+func csilEncAdminTurnLogRequest(csilV AdminTurnLogRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("message"), cborText(csilV.Message)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecAdminTurnLogRequest reconstructs a AdminTurnLogRequest from a decoded CBOR value tree.
@@ -7953,8 +8416,8 @@ func csilDecAdminTurnLogRequest(csilRoot cborValue) (AdminTurnLogRequest, error)
 }
 
 // EncodeAdminTurnLogRequest encodes a AdminTurnLogRequest to canonical CSIL CBOR bytes.
-func EncodeAdminTurnLogRequest(csilV AdminTurnLogRequest) []byte {
-	return cborEncode(csilEncAdminTurnLogRequest(csilV))
+func EncodeAdminTurnLogRequest(csilV AdminTurnLogRequest) ([]byte, error) {
+	return cborEncodeE(csilEncAdminTurnLogRequest(csilV, 0))
 }
 
 // DecodeAdminTurnLogRequest decodes canonical CSIL CBOR bytes into a AdminTurnLogRequest.
@@ -7968,13 +8431,16 @@ func DecodeAdminTurnLogRequest(csilData []byte) (AdminTurnLogRequest, error) {
 }
 
 // csilEncAdminTurnLogResponse builds the canonical CBOR value tree for a AdminTurnLogResponse.
-func csilEncAdminTurnLogResponse(csilV AdminTurnLogResponse) cborValue {
+func csilEncAdminTurnLogResponse(csilV AdminTurnLogResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	if csilV.Log != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("log"), cborText((*csilV.Log))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("message"), cborText(csilV.Message)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecAdminTurnLogResponse reconstructs a AdminTurnLogResponse from a decoded CBOR value tree.
@@ -8002,8 +8468,8 @@ func csilDecAdminTurnLogResponse(csilRoot cborValue) (AdminTurnLogResponse, erro
 }
 
 // EncodeAdminTurnLogResponse encodes a AdminTurnLogResponse to canonical CSIL CBOR bytes.
-func EncodeAdminTurnLogResponse(csilV AdminTurnLogResponse) []byte {
-	return cborEncode(csilEncAdminTurnLogResponse(csilV))
+func EncodeAdminTurnLogResponse(csilV AdminTurnLogResponse) ([]byte, error) {
+	return cborEncodeE(csilEncAdminTurnLogResponse(csilV, 0))
 }
 
 // DecodeAdminTurnLogResponse decodes canonical CSIL CBOR bytes into a AdminTurnLogResponse.
@@ -8017,13 +8483,16 @@ func DecodeAdminTurnLogResponse(csilData []byte) (AdminTurnLogResponse, error) {
 }
 
 // csilEncPutRunnerPackageRequest builds the canonical CBOR value tree for a PutRunnerPackageRequest.
-func csilEncPutRunnerPackageRequest(csilV PutRunnerPackageRequest) cborValue {
+func csilEncPutRunnerPackageRequest(csilV PutRunnerPackageRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 4)
 	csilEntries = append(csilEntries, cborEntry{cborText("os"), cborText(csilV.Os)})
 	csilEntries = append(csilEntries, cborEntry{cborText("arch"), cborText(csilV.Arch)})
 	csilEntries = append(csilEntries, cborEntry{cborText("body"), cborBytes(csilV.Body)})
 	csilEntries = append(csilEntries, cborEntry{cborText("version"), cborText(csilV.Version)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecPutRunnerPackageRequest reconstructs a PutRunnerPackageRequest from a decoded CBOR value tree.
@@ -8077,8 +8546,8 @@ func csilDecPutRunnerPackageRequest(csilRoot cborValue) (PutRunnerPackageRequest
 }
 
 // EncodePutRunnerPackageRequest encodes a PutRunnerPackageRequest to canonical CSIL CBOR bytes.
-func EncodePutRunnerPackageRequest(csilV PutRunnerPackageRequest) []byte {
-	return cborEncode(csilEncPutRunnerPackageRequest(csilV))
+func EncodePutRunnerPackageRequest(csilV PutRunnerPackageRequest) ([]byte, error) {
+	return cborEncodeE(csilEncPutRunnerPackageRequest(csilV, 0))
 }
 
 // DecodePutRunnerPackageRequest decodes canonical CSIL CBOR bytes into a PutRunnerPackageRequest.
@@ -8092,10 +8561,13 @@ func DecodePutRunnerPackageRequest(csilData []byte) (PutRunnerPackageRequest, er
 }
 
 // csilEncPutRunnerPackageResponse builds the canonical CBOR value tree for a PutRunnerPackageResponse.
-func csilEncPutRunnerPackageResponse(csilV PutRunnerPackageResponse) cborValue {
+func csilEncPutRunnerPackageResponse(csilV PutRunnerPackageResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("digest"), cborText(csilV.Digest)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecPutRunnerPackageResponse reconstructs a PutRunnerPackageResponse from a decoded CBOR value tree.
@@ -8116,8 +8588,8 @@ func csilDecPutRunnerPackageResponse(csilRoot cborValue) (PutRunnerPackageRespon
 }
 
 // EncodePutRunnerPackageResponse encodes a PutRunnerPackageResponse to canonical CSIL CBOR bytes.
-func EncodePutRunnerPackageResponse(csilV PutRunnerPackageResponse) []byte {
-	return cborEncode(csilEncPutRunnerPackageResponse(csilV))
+func EncodePutRunnerPackageResponse(csilV PutRunnerPackageResponse) ([]byte, error) {
+	return cborEncodeE(csilEncPutRunnerPackageResponse(csilV, 0))
 }
 
 // DecodePutRunnerPackageResponse decodes canonical CSIL CBOR bytes into a PutRunnerPackageResponse.
@@ -8131,10 +8603,13 @@ func DecodePutRunnerPackageResponse(csilData []byte) (PutRunnerPackageResponse, 
 }
 
 // csilEncSetRunnerReleaseRequest builds the canonical CBOR value tree for a SetRunnerReleaseRequest.
-func csilEncSetRunnerReleaseRequest(csilV SetRunnerReleaseRequest) cborValue {
+func csilEncSetRunnerReleaseRequest(csilV SetRunnerReleaseRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("version"), cborText(csilV.Version)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecSetRunnerReleaseRequest reconstructs a SetRunnerReleaseRequest from a decoded CBOR value tree.
@@ -8155,8 +8630,8 @@ func csilDecSetRunnerReleaseRequest(csilRoot cborValue) (SetRunnerReleaseRequest
 }
 
 // EncodeSetRunnerReleaseRequest encodes a SetRunnerReleaseRequest to canonical CSIL CBOR bytes.
-func EncodeSetRunnerReleaseRequest(csilV SetRunnerReleaseRequest) []byte {
-	return cborEncode(csilEncSetRunnerReleaseRequest(csilV))
+func EncodeSetRunnerReleaseRequest(csilV SetRunnerReleaseRequest) ([]byte, error) {
+	return cborEncodeE(csilEncSetRunnerReleaseRequest(csilV, 0))
 }
 
 // DecodeSetRunnerReleaseRequest decodes canonical CSIL CBOR bytes into a SetRunnerReleaseRequest.
@@ -8170,11 +8645,15 @@ func DecodeSetRunnerReleaseRequest(csilData []byte) (SetRunnerReleaseRequest, er
 }
 
 // csilEncSetRunnerReleaseResponse builds the canonical CBOR value tree for a SetRunnerReleaseResponse.
-func csilEncSetRunnerReleaseResponse(csilV SetRunnerReleaseResponse) cborValue {
+func csilEncSetRunnerReleaseResponse(csilV SetRunnerReleaseResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 2)
 	csilEntries = append(csilEntries, cborEntry{cborText("version"), cborText(csilV.Version)})
-	csilEntries = append(csilEntries, cborEntry{cborText("packages"), cborEncArray(csilV.Packages, func(csilElem string) cborValue { return cborText(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("packages"), csilE.val(cborEncArray(csilV.Packages, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecSetRunnerReleaseResponse reconstructs a SetRunnerReleaseResponse from a decoded CBOR value tree.
@@ -8206,8 +8685,8 @@ func csilDecSetRunnerReleaseResponse(csilRoot cborValue) (SetRunnerReleaseRespon
 }
 
 // EncodeSetRunnerReleaseResponse encodes a SetRunnerReleaseResponse to canonical CSIL CBOR bytes.
-func EncodeSetRunnerReleaseResponse(csilV SetRunnerReleaseResponse) []byte {
-	return cborEncode(csilEncSetRunnerReleaseResponse(csilV))
+func EncodeSetRunnerReleaseResponse(csilV SetRunnerReleaseResponse) ([]byte, error) {
+	return cborEncodeE(csilEncSetRunnerReleaseResponse(csilV, 0))
 }
 
 // DecodeSetRunnerReleaseResponse decodes canonical CSIL CBOR bytes into a SetRunnerReleaseResponse.
@@ -8221,13 +8700,16 @@ func DecodeSetRunnerReleaseResponse(csilData []byte) (SetRunnerReleaseResponse, 
 }
 
 // csilEncAppRelease builds the canonical CBOR value tree for a AppRelease.
-func csilEncAppRelease(csilV AppRelease) cborValue {
+func csilEncAppRelease(csilV AppRelease, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 4)
 	csilEntries = append(csilEntries, cborEntry{cborText("size"), cborUint(csilV.Size)})
 	csilEntries = append(csilEntries, cborEntry{cborText("digest"), cborText(csilV.Digest)})
 	csilEntries = append(csilEntries, cborEntry{cborText("version_code"), cborUint(csilV.VersionCode)})
 	csilEntries = append(csilEntries, cborEntry{cborText("version_name"), cborText(csilV.VersionName)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecAppRelease reconstructs a AppRelease from a decoded CBOR value tree.
@@ -8281,8 +8763,8 @@ func csilDecAppRelease(csilRoot cborValue) (AppRelease, error) {
 }
 
 // EncodeAppRelease encodes a AppRelease to canonical CSIL CBOR bytes.
-func EncodeAppRelease(csilV AppRelease) []byte {
-	return cborEncode(csilEncAppRelease(csilV))
+func EncodeAppRelease(csilV AppRelease) ([]byte, error) {
+	return cborEncodeE(csilEncAppRelease(csilV, 0))
 }
 
 // DecodeAppRelease decodes canonical CSIL CBOR bytes into a AppRelease.
@@ -8296,12 +8778,15 @@ func DecodeAppRelease(csilData []byte) (AppRelease, error) {
 }
 
 // csilEncPutAppReleaseRequest builds the canonical CBOR value tree for a PutAppReleaseRequest.
-func csilEncPutAppReleaseRequest(csilV PutAppReleaseRequest) cborValue {
+func csilEncPutAppReleaseRequest(csilV PutAppReleaseRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("body"), cborBytes(csilV.Body)})
 	csilEntries = append(csilEntries, cborEntry{cborText("version_code"), cborUint(csilV.VersionCode)})
 	csilEntries = append(csilEntries, cborEntry{cborText("version_name"), cborText(csilV.VersionName)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecPutAppReleaseRequest reconstructs a PutAppReleaseRequest from a decoded CBOR value tree.
@@ -8344,8 +8829,8 @@ func csilDecPutAppReleaseRequest(csilRoot cborValue) (PutAppReleaseRequest, erro
 }
 
 // EncodePutAppReleaseRequest encodes a PutAppReleaseRequest to canonical CSIL CBOR bytes.
-func EncodePutAppReleaseRequest(csilV PutAppReleaseRequest) []byte {
-	return cborEncode(csilEncPutAppReleaseRequest(csilV))
+func EncodePutAppReleaseRequest(csilV PutAppReleaseRequest) ([]byte, error) {
+	return cborEncodeE(csilEncPutAppReleaseRequest(csilV, 0))
 }
 
 // DecodePutAppReleaseRequest decodes canonical CSIL CBOR bytes into a PutAppReleaseRequest.
@@ -8359,9 +8844,12 @@ func DecodePutAppReleaseRequest(csilData []byte) (PutAppReleaseRequest, error) {
 }
 
 // csilEncGetAppReleaseRequest builds the canonical CBOR value tree for a GetAppReleaseRequest.
-func csilEncGetAppReleaseRequest(csilV GetAppReleaseRequest) cborValue {
+func csilEncGetAppReleaseRequest(csilV GetAppReleaseRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 0)
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecGetAppReleaseRequest reconstructs a GetAppReleaseRequest from a decoded CBOR value tree.
@@ -8371,8 +8859,8 @@ func csilDecGetAppReleaseRequest(csilRoot cborValue) (GetAppReleaseRequest, erro
 }
 
 // EncodeGetAppReleaseRequest encodes a GetAppReleaseRequest to canonical CSIL CBOR bytes.
-func EncodeGetAppReleaseRequest(csilV GetAppReleaseRequest) []byte {
-	return cborEncode(csilEncGetAppReleaseRequest(csilV))
+func EncodeGetAppReleaseRequest(csilV GetAppReleaseRequest) ([]byte, error) {
+	return cborEncodeE(csilEncGetAppReleaseRequest(csilV, 0))
 }
 
 // DecodeGetAppReleaseRequest decodes canonical CSIL CBOR bytes into a GetAppReleaseRequest.
@@ -8386,12 +8874,16 @@ func DecodeGetAppReleaseRequest(csilData []byte) (GetAppReleaseRequest, error) {
 }
 
 // csilEncGetAppReleaseResponse builds the canonical CBOR value tree for a GetAppReleaseResponse.
-func csilEncGetAppReleaseResponse(csilV GetAppReleaseResponse) cborValue {
+func csilEncGetAppReleaseResponse(csilV GetAppReleaseResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
 	if csilV.Release != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("release"), csilEncAppRelease((*csilV.Release))})
+		csilEntries = append(csilEntries, cborEntry{cborText("release"), csilE.val(csilEncAppRelease((*csilV.Release), csilDepth+1))})
 	}
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecGetAppReleaseResponse reconstructs a GetAppReleaseResponse from a decoded CBOR value tree.
@@ -8408,8 +8900,8 @@ func csilDecGetAppReleaseResponse(csilRoot cborValue) (GetAppReleaseResponse, er
 }
 
 // EncodeGetAppReleaseResponse encodes a GetAppReleaseResponse to canonical CSIL CBOR bytes.
-func EncodeGetAppReleaseResponse(csilV GetAppReleaseResponse) []byte {
-	return cborEncode(csilEncGetAppReleaseResponse(csilV))
+func EncodeGetAppReleaseResponse(csilV GetAppReleaseResponse) ([]byte, error) {
+	return cborEncodeE(csilEncGetAppReleaseResponse(csilV, 0))
 }
 
 // DecodeGetAppReleaseResponse decodes canonical CSIL CBOR bytes into a GetAppReleaseResponse.
@@ -8423,10 +8915,13 @@ func DecodeGetAppReleaseResponse(csilData []byte) (GetAppReleaseResponse, error)
 }
 
 // csilEncGetAppPackageRequest builds the canonical CBOR value tree for a GetAppPackageRequest.
-func csilEncGetAppPackageRequest(csilV GetAppPackageRequest) cborValue {
+func csilEncGetAppPackageRequest(csilV GetAppPackageRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("digest"), cborText(csilV.Digest)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecGetAppPackageRequest reconstructs a GetAppPackageRequest from a decoded CBOR value tree.
@@ -8447,8 +8942,8 @@ func csilDecGetAppPackageRequest(csilRoot cborValue) (GetAppPackageRequest, erro
 }
 
 // EncodeGetAppPackageRequest encodes a GetAppPackageRequest to canonical CSIL CBOR bytes.
-func EncodeGetAppPackageRequest(csilV GetAppPackageRequest) []byte {
-	return cborEncode(csilEncGetAppPackageRequest(csilV))
+func EncodeGetAppPackageRequest(csilV GetAppPackageRequest) ([]byte, error) {
+	return cborEncodeE(csilEncGetAppPackageRequest(csilV, 0))
 }
 
 // DecodeGetAppPackageRequest decodes canonical CSIL CBOR bytes into a GetAppPackageRequest.
@@ -8462,10 +8957,13 @@ func DecodeGetAppPackageRequest(csilData []byte) (GetAppPackageRequest, error) {
 }
 
 // csilEncGetAppPackageResponse builds the canonical CBOR value tree for a GetAppPackageResponse.
-func csilEncGetAppPackageResponse(csilV GetAppPackageResponse) cborValue {
+func csilEncGetAppPackageResponse(csilV GetAppPackageResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("body"), cborBytes(csilV.Body)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecGetAppPackageResponse reconstructs a GetAppPackageResponse from a decoded CBOR value tree.
@@ -8486,8 +8984,8 @@ func csilDecGetAppPackageResponse(csilRoot cborValue) (GetAppPackageResponse, er
 }
 
 // EncodeGetAppPackageResponse encodes a GetAppPackageResponse to canonical CSIL CBOR bytes.
-func EncodeGetAppPackageResponse(csilV GetAppPackageResponse) []byte {
-	return cborEncode(csilEncGetAppPackageResponse(csilV))
+func EncodeGetAppPackageResponse(csilV GetAppPackageResponse) ([]byte, error) {
+	return cborEncodeE(csilEncGetAppPackageResponse(csilV, 0))
 }
 
 // DecodeGetAppPackageResponse decodes canonical CSIL CBOR bytes into a GetAppPackageResponse.
@@ -8501,11 +8999,14 @@ func DecodeGetAppPackageResponse(csilData []byte) (GetAppPackageResponse, error)
 }
 
 // csilEncEgressReviewHeader builds the canonical CBOR value tree for a EgressReviewHeader.
-func csilEncEgressReviewHeader(csilV EgressReviewHeader) cborValue {
+func csilEncEgressReviewHeader(csilV EgressReviewHeader, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
 	csilEntries = append(csilEntries, cborEntry{cborText("value"), cborText(csilV.Value)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecEgressReviewHeader reconstructs a EgressReviewHeader from a decoded CBOR value tree.
@@ -8537,8 +9038,8 @@ func csilDecEgressReviewHeader(csilRoot cborValue) (EgressReviewHeader, error) {
 }
 
 // EncodeEgressReviewHeader encodes a EgressReviewHeader to canonical CSIL CBOR bytes.
-func EncodeEgressReviewHeader(csilV EgressReviewHeader) []byte {
-	return cborEncode(csilEncEgressReviewHeader(csilV))
+func EncodeEgressReviewHeader(csilV EgressReviewHeader) ([]byte, error) {
+	return cborEncodeE(csilEncEgressReviewHeader(csilV, 0))
 }
 
 // DecodeEgressReviewHeader decodes canonical CSIL CBOR bytes into a EgressReviewHeader.
@@ -8552,7 +9053,11 @@ func DecodeEgressReviewHeader(csilData []byte) (EgressReviewHeader, error) {
 }
 
 // csilEncEgressReview builds the canonical CBOR value tree for a EgressReview.
-func csilEncEgressReview(csilV EgressReview) cborValue {
+func csilEncEgressReview(csilV EgressReview, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 18)
 	csilEntries = append(csilEntries, cborEntry{cborText("by"), cborText(csilV.By)})
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
@@ -8567,7 +9072,9 @@ func csilEncEgressReview(csilV EgressReview) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("state"), cborText(csilV.State)})
 	csilEntries = append(csilEntries, cborEntry{cborText("method"), cborText(csilV.Method)})
 	csilEntries = append(csilEntries, cborEntry{cborText("reason"), cborText(csilV.Reason)})
-	csilEntries = append(csilEntries, cborEntry{cborText("headers"), cborEncArray(csilV.Headers, func(csilElem EgressReviewHeader) cborValue { return csilEncEgressReviewHeader(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("headers"), csilE.val(cborEncArray(csilV.Headers, func(csilElem EgressReviewHeader) (cborValue, error) {
+		return csilEncEgressReviewHeader(csilElem, csilDepth+1)
+	}))})
 	csilEntries = append(csilEntries, cborEntry{cborText("last_ms"), cborUint(csilV.LastMs)})
 	if csilV.Decision != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("decision"), cborText((*csilV.Decision))})
@@ -8578,7 +9085,7 @@ func csilEncEgressReview(csilV EgressReview) cborValue {
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("destination"), cborText(csilV.Destination)})
 	csilEntries = append(csilEntries, cborEntry{cborText("environment"), cborText(csilV.Environment)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecEgressReview reconstructs a EgressReview from a decoded CBOR value tree.
@@ -8776,8 +9283,8 @@ func csilDecEgressReview(csilRoot cborValue) (EgressReview, error) {
 }
 
 // EncodeEgressReview encodes a EgressReview to canonical CSIL CBOR bytes.
-func EncodeEgressReview(csilV EgressReview) []byte {
-	return cborEncode(csilEncEgressReview(csilV))
+func EncodeEgressReview(csilV EgressReview) ([]byte, error) {
+	return cborEncodeE(csilEncEgressReview(csilV, 0))
 }
 
 // DecodeEgressReview decodes canonical CSIL CBOR bytes into a EgressReview.
@@ -8791,7 +9298,10 @@ func DecodeEgressReview(csilData []byte) (EgressReview, error) {
 }
 
 // csilEncListEgressReviewsRequest builds the canonical CBOR value tree for a ListEgressReviewsRequest.
-func csilEncListEgressReviewsRequest(csilV ListEgressReviewsRequest) cborValue {
+func csilEncListEgressReviewsRequest(csilV ListEgressReviewsRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	if csilV.Limit != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("limit"), cborUint((*csilV.Limit))})
@@ -8799,7 +9309,7 @@ func csilEncListEgressReviewsRequest(csilV ListEgressReviewsRequest) cborValue {
 	if csilV.State != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("state"), cborText((*csilV.State))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecListEgressReviewsRequest reconstructs a ListEgressReviewsRequest from a decoded CBOR value tree.
@@ -8823,8 +9333,8 @@ func csilDecListEgressReviewsRequest(csilRoot cborValue) (ListEgressReviewsReque
 }
 
 // EncodeListEgressReviewsRequest encodes a ListEgressReviewsRequest to canonical CSIL CBOR bytes.
-func EncodeListEgressReviewsRequest(csilV ListEgressReviewsRequest) []byte {
-	return cborEncode(csilEncListEgressReviewsRequest(csilV))
+func EncodeListEgressReviewsRequest(csilV ListEgressReviewsRequest) ([]byte, error) {
+	return cborEncodeE(csilEncListEgressReviewsRequest(csilV, 0))
 }
 
 // DecodeListEgressReviewsRequest decodes canonical CSIL CBOR bytes into a ListEgressReviewsRequest.
@@ -8838,10 +9348,14 @@ func DecodeListEgressReviewsRequest(csilData []byte) (ListEgressReviewsRequest, 
 }
 
 // csilEncListEgressReviewsResponse builds the canonical CBOR value tree for a ListEgressReviewsResponse.
-func csilEncListEgressReviewsResponse(csilV ListEgressReviewsResponse) cborValue {
+func csilEncListEgressReviewsResponse(csilV ListEgressReviewsResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
-	csilEntries = append(csilEntries, cborEntry{cborText("reviews"), cborEncArray(csilV.Reviews, func(csilElem EgressReview) cborValue { return csilEncEgressReview(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("reviews"), csilE.val(cborEncArray(csilV.Reviews, func(csilElem EgressReview) (cborValue, error) { return csilEncEgressReview(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecListEgressReviewsResponse reconstructs a ListEgressReviewsResponse from a decoded CBOR value tree.
@@ -8862,8 +9376,8 @@ func csilDecListEgressReviewsResponse(csilRoot cborValue) (ListEgressReviewsResp
 }
 
 // EncodeListEgressReviewsResponse encodes a ListEgressReviewsResponse to canonical CSIL CBOR bytes.
-func EncodeListEgressReviewsResponse(csilV ListEgressReviewsResponse) []byte {
-	return cborEncode(csilEncListEgressReviewsResponse(csilV))
+func EncodeListEgressReviewsResponse(csilV ListEgressReviewsResponse) ([]byte, error) {
+	return cborEncodeE(csilEncListEgressReviewsResponse(csilV, 0))
 }
 
 // DecodeListEgressReviewsResponse decodes canonical CSIL CBOR bytes into a ListEgressReviewsResponse.
@@ -8877,14 +9391,17 @@ func DecodeListEgressReviewsResponse(csilData []byte) (ListEgressReviewsResponse
 }
 
 // csilEncDecideEgressReviewRequest builds the canonical CBOR value tree for a DecideEgressReviewRequest.
-func csilEncDecideEgressReviewRequest(csilV DecideEgressReviewRequest) cborValue {
+func csilEncDecideEgressReviewRequest(csilV DecideEgressReviewRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	if csilV.Note != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("note"), cborText((*csilV.Note))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("decision"), cborText(csilV.Decision)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecDecideEgressReviewRequest reconstructs a DecideEgressReviewRequest from a decoded CBOR value tree.
@@ -8923,8 +9440,8 @@ func csilDecDecideEgressReviewRequest(csilRoot cborValue) (DecideEgressReviewReq
 }
 
 // EncodeDecideEgressReviewRequest encodes a DecideEgressReviewRequest to canonical CSIL CBOR bytes.
-func EncodeDecideEgressReviewRequest(csilV DecideEgressReviewRequest) []byte {
-	return cborEncode(csilEncDecideEgressReviewRequest(csilV))
+func EncodeDecideEgressReviewRequest(csilV DecideEgressReviewRequest) ([]byte, error) {
+	return cborEncodeE(csilEncDecideEgressReviewRequest(csilV, 0))
 }
 
 // DecodeDecideEgressReviewRequest decodes canonical CSIL CBOR bytes into a DecideEgressReviewRequest.
@@ -8938,14 +9455,17 @@ func DecodeDecideEgressReviewRequest(csilData []byte) (DecideEgressReviewRequest
 }
 
 // csilEncDecideEgressReviewResponse builds the canonical CBOR value tree for a DecideEgressReviewResponse.
-func csilEncDecideEgressReviewResponse(csilV DecideEgressReviewResponse) cborValue {
+func csilEncDecideEgressReviewResponse(csilV DecideEgressReviewResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	if csilV.Rule != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("rule"), cborText((*csilV.Rule))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("decision"), cborText(csilV.Decision)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecDecideEgressReviewResponse reconstructs a DecideEgressReviewResponse from a decoded CBOR value tree.
@@ -8984,8 +9504,8 @@ func csilDecDecideEgressReviewResponse(csilRoot cborValue) (DecideEgressReviewRe
 }
 
 // EncodeDecideEgressReviewResponse encodes a DecideEgressReviewResponse to canonical CSIL CBOR bytes.
-func EncodeDecideEgressReviewResponse(csilV DecideEgressReviewResponse) []byte {
-	return cborEncode(csilEncDecideEgressReviewResponse(csilV))
+func EncodeDecideEgressReviewResponse(csilV DecideEgressReviewResponse) ([]byte, error) {
+	return cborEncodeE(csilEncDecideEgressReviewResponse(csilV, 0))
 }
 
 // DecodeDecideEgressReviewResponse decodes canonical CSIL CBOR bytes into a DecideEgressReviewResponse.
@@ -8999,10 +9519,13 @@ func DecodeDecideEgressReviewResponse(csilData []byte) (DecideEgressReviewRespon
 }
 
 // csilEncConnectRequest builds the canonical CBOR value tree for a ConnectRequest.
-func csilEncConnectRequest(csilV ConnectRequest) cborValue {
+func csilEncConnectRequest(csilV ConnectRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("system"), cborText(csilV.System)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecConnectRequest reconstructs a ConnectRequest from a decoded CBOR value tree.
@@ -9023,8 +9546,8 @@ func csilDecConnectRequest(csilRoot cborValue) (ConnectRequest, error) {
 }
 
 // EncodeConnectRequest encodes a ConnectRequest to canonical CSIL CBOR bytes.
-func EncodeConnectRequest(csilV ConnectRequest) []byte {
-	return cborEncode(csilEncConnectRequest(csilV))
+func EncodeConnectRequest(csilV ConnectRequest) ([]byte, error) {
+	return cborEncodeE(csilEncConnectRequest(csilV, 0))
 }
 
 // DecodeConnectRequest decodes canonical CSIL CBOR bytes into a ConnectRequest.
@@ -9038,7 +9561,10 @@ func DecodeConnectRequest(csilData []byte) (ConnectRequest, error) {
 }
 
 // csilEncConnectResponse builds the canonical CBOR value tree for a ConnectResponse.
-func csilEncConnectResponse(csilV ConnectResponse) cborValue {
+func csilEncConnectResponse(csilV ConnectResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 5)
 	csilEntries = append(csilEntries, cborEntry{cborText("url"), cborText(csilV.Url)})
 	csilEntries = append(csilEntries, cborEntry{cborText("system"), cborText(csilV.System)})
@@ -9047,7 +9573,7 @@ func csilEncConnectResponse(csilV ConnectResponse) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("user_code"), cborText((*csilV.UserCode))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("expires_ms"), cborUint(csilV.ExpiresMs)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecConnectResponse reconstructs a ConnectResponse from a decoded CBOR value tree.
@@ -9108,8 +9634,8 @@ func csilDecConnectResponse(csilRoot cborValue) (ConnectResponse, error) {
 }
 
 // EncodeConnectResponse encodes a ConnectResponse to canonical CSIL CBOR bytes.
-func EncodeConnectResponse(csilV ConnectResponse) []byte {
-	return cborEncode(csilEncConnectResponse(csilV))
+func EncodeConnectResponse(csilV ConnectResponse) ([]byte, error) {
+	return cborEncodeE(csilEncConnectResponse(csilV, 0))
 }
 
 // DecodeConnectResponse decodes canonical CSIL CBOR bytes into a ConnectResponse.
@@ -9123,7 +9649,10 @@ func DecodeConnectResponse(csilData []byte) (ConnectResponse, error) {
 }
 
 // csilEncConnection builds the canonical CBOR value tree for a Connection.
-func csilEncConnection(csilV Connection) cborValue {
+func csilEncConnection(csilV Connection, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 4)
 	csilEntries = append(csilEntries, cborEntry{cborText("state"), cborText(csilV.State)})
 	if csilV.Detail != nil {
@@ -9133,7 +9662,7 @@ func csilEncConnection(csilV Connection) cborValue {
 	if csilV.ExpiresMs != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("expires_ms"), cborUint((*csilV.ExpiresMs))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecConnection reconstructs a Connection from a decoded CBOR value tree.
@@ -9179,8 +9708,8 @@ func csilDecConnection(csilRoot cborValue) (Connection, error) {
 }
 
 // EncodeConnection encodes a Connection to canonical CSIL CBOR bytes.
-func EncodeConnection(csilV Connection) []byte {
-	return cborEncode(csilEncConnection(csilV))
+func EncodeConnection(csilV Connection) ([]byte, error) {
+	return cborEncodeE(csilEncConnection(csilV, 0))
 }
 
 // DecodeConnection decodes canonical CSIL CBOR bytes into a Connection.
@@ -9194,9 +9723,12 @@ func DecodeConnection(csilData []byte) (Connection, error) {
 }
 
 // csilEncListConnectionsRequest builds the canonical CBOR value tree for a ListConnectionsRequest.
-func csilEncListConnectionsRequest(csilV ListConnectionsRequest) cborValue {
+func csilEncListConnectionsRequest(csilV ListConnectionsRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 0)
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecListConnectionsRequest reconstructs a ListConnectionsRequest from a decoded CBOR value tree.
@@ -9206,8 +9738,8 @@ func csilDecListConnectionsRequest(csilRoot cborValue) (ListConnectionsRequest, 
 }
 
 // EncodeListConnectionsRequest encodes a ListConnectionsRequest to canonical CSIL CBOR bytes.
-func EncodeListConnectionsRequest(csilV ListConnectionsRequest) []byte {
-	return cborEncode(csilEncListConnectionsRequest(csilV))
+func EncodeListConnectionsRequest(csilV ListConnectionsRequest) ([]byte, error) {
+	return cborEncodeE(csilEncListConnectionsRequest(csilV, 0))
 }
 
 // DecodeListConnectionsRequest decodes canonical CSIL CBOR bytes into a ListConnectionsRequest.
@@ -9221,10 +9753,14 @@ func DecodeListConnectionsRequest(csilData []byte) (ListConnectionsRequest, erro
 }
 
 // csilEncListConnectionsResponse builds the canonical CBOR value tree for a ListConnectionsResponse.
-func csilEncListConnectionsResponse(csilV ListConnectionsResponse) cborValue {
+func csilEncListConnectionsResponse(csilV ListConnectionsResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
-	csilEntries = append(csilEntries, cborEntry{cborText("connections"), cborEncArray(csilV.Connections, func(csilElem Connection) cborValue { return csilEncConnection(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("connections"), csilE.val(cborEncArray(csilV.Connections, func(csilElem Connection) (cborValue, error) { return csilEncConnection(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecListConnectionsResponse reconstructs a ListConnectionsResponse from a decoded CBOR value tree.
@@ -9245,8 +9781,8 @@ func csilDecListConnectionsResponse(csilRoot cborValue) (ListConnectionsResponse
 }
 
 // EncodeListConnectionsResponse encodes a ListConnectionsResponse to canonical CSIL CBOR bytes.
-func EncodeListConnectionsResponse(csilV ListConnectionsResponse) []byte {
-	return cborEncode(csilEncListConnectionsResponse(csilV))
+func EncodeListConnectionsResponse(csilV ListConnectionsResponse) ([]byte, error) {
+	return cborEncodeE(csilEncListConnectionsResponse(csilV, 0))
 }
 
 // DecodeListConnectionsResponse decodes canonical CSIL CBOR bytes into a ListConnectionsResponse.
@@ -9260,10 +9796,13 @@ func DecodeListConnectionsResponse(csilData []byte) (ListConnectionsResponse, er
 }
 
 // csilEncDisconnectRequest builds the canonical CBOR value tree for a DisconnectRequest.
-func csilEncDisconnectRequest(csilV DisconnectRequest) cborValue {
+func csilEncDisconnectRequest(csilV DisconnectRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("system"), cborText(csilV.System)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecDisconnectRequest reconstructs a DisconnectRequest from a decoded CBOR value tree.
@@ -9284,8 +9823,8 @@ func csilDecDisconnectRequest(csilRoot cborValue) (DisconnectRequest, error) {
 }
 
 // EncodeDisconnectRequest encodes a DisconnectRequest to canonical CSIL CBOR bytes.
-func EncodeDisconnectRequest(csilV DisconnectRequest) []byte {
-	return cborEncode(csilEncDisconnectRequest(csilV))
+func EncodeDisconnectRequest(csilV DisconnectRequest) ([]byte, error) {
+	return cborEncodeE(csilEncDisconnectRequest(csilV, 0))
 }
 
 // DecodeDisconnectRequest decodes canonical CSIL CBOR bytes into a DisconnectRequest.
@@ -9299,11 +9838,14 @@ func DecodeDisconnectRequest(csilData []byte) (DisconnectRequest, error) {
 }
 
 // csilEncHistoryMessage builds the canonical CBOR value tree for a HistoryMessage.
-func csilEncHistoryMessage(csilV HistoryMessage) cborValue {
+func csilEncHistoryMessage(csilV HistoryMessage, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	csilEntries = append(csilEntries, cborEntry{cborText("text"), cborText(csilV.Text)})
 	csilEntries = append(csilEntries, cborEntry{cborText("at_ms"), cborUint(csilV.AtMs)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecHistoryMessage reconstructs a HistoryMessage from a decoded CBOR value tree.
@@ -9335,8 +9877,8 @@ func csilDecHistoryMessage(csilRoot cborValue) (HistoryMessage, error) {
 }
 
 // EncodeHistoryMessage encodes a HistoryMessage to canonical CSIL CBOR bytes.
-func EncodeHistoryMessage(csilV HistoryMessage) []byte {
-	return cborEncode(csilEncHistoryMessage(csilV))
+func EncodeHistoryMessage(csilV HistoryMessage) ([]byte, error) {
+	return cborEncodeE(csilEncHistoryMessage(csilV, 0))
 }
 
 // DecodeHistoryMessage decodes canonical CSIL CBOR bytes into a HistoryMessage.
@@ -9350,13 +9892,17 @@ func DecodeHistoryMessage(csilData []byte) (HistoryMessage, error) {
 }
 
 // csilEncImportHistoryRequest builds the canonical CBOR value tree for a ImportHistoryRequest.
-func csilEncImportHistoryRequest(csilV ImportHistoryRequest) cborValue {
+func csilEncImportHistoryRequest(csilV ImportHistoryRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 2)
 	if csilV.Persona != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("persona"), cborText((*csilV.Persona))})
 	}
-	csilEntries = append(csilEntries, cborEntry{cborText("messages"), cborEncArray(csilV.Messages, func(csilElem HistoryMessage) cborValue { return csilEncHistoryMessage(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("messages"), csilE.val(cborEncArray(csilV.Messages, func(csilElem HistoryMessage) (cborValue, error) { return csilEncHistoryMessage(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecImportHistoryRequest reconstructs a ImportHistoryRequest from a decoded CBOR value tree.
@@ -9384,8 +9930,8 @@ func csilDecImportHistoryRequest(csilRoot cborValue) (ImportHistoryRequest, erro
 }
 
 // EncodeImportHistoryRequest encodes a ImportHistoryRequest to canonical CSIL CBOR bytes.
-func EncodeImportHistoryRequest(csilV ImportHistoryRequest) []byte {
-	return cborEncode(csilEncImportHistoryRequest(csilV))
+func EncodeImportHistoryRequest(csilV ImportHistoryRequest) ([]byte, error) {
+	return cborEncodeE(csilEncImportHistoryRequest(csilV, 0))
 }
 
 // DecodeImportHistoryRequest decodes canonical CSIL CBOR bytes into a ImportHistoryRequest.
@@ -9399,7 +9945,11 @@ func DecodeImportHistoryRequest(csilData []byte) (ImportHistoryRequest, error) {
 }
 
 // csilEncImportedMessage builds the canonical CBOR value tree for a ImportedMessage.
-func csilEncImportedMessage(csilV ImportedMessage) cborValue {
+func csilEncImportedMessage(csilV ImportedMessage, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 5)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("ms"), cborUint(csilV.Ms)})
@@ -9407,8 +9957,8 @@ func csilEncImportedMessage(csilV ImportedMessage) cborValue {
 	if csilV.Error != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("error"), cborText((*csilV.Error))})
 	}
-	csilEntries = append(csilEntries, cborEntry{cborText("notes"), cborEncArray(csilV.Notes, func(csilElem string) cborValue { return cborText(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("notes"), csilE.val(cborEncArray(csilV.Notes, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecImportedMessage reconstructs a ImportedMessage from a decoded CBOR value tree.
@@ -9469,8 +10019,8 @@ func csilDecImportedMessage(csilRoot cborValue) (ImportedMessage, error) {
 }
 
 // EncodeImportedMessage encodes a ImportedMessage to canonical CSIL CBOR bytes.
-func EncodeImportedMessage(csilV ImportedMessage) []byte {
-	return cborEncode(csilEncImportedMessage(csilV))
+func EncodeImportedMessage(csilV ImportedMessage) ([]byte, error) {
+	return cborEncodeE(csilEncImportedMessage(csilV, 0))
 }
 
 // DecodeImportedMessage decodes canonical CSIL CBOR bytes into a ImportedMessage.
@@ -9484,10 +10034,16 @@ func DecodeImportedMessage(csilData []byte) (ImportedMessage, error) {
 }
 
 // csilEncImportHistoryResponse builds the canonical CBOR value tree for a ImportHistoryResponse.
-func csilEncImportHistoryResponse(csilV ImportHistoryResponse) cborValue {
+func csilEncImportHistoryResponse(csilV ImportHistoryResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
-	csilEntries = append(csilEntries, cborEntry{cborText("messages"), cborEncArray(csilV.Messages, func(csilElem ImportedMessage) cborValue { return csilEncImportedMessage(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("messages"), csilE.val(cborEncArray(csilV.Messages, func(csilElem ImportedMessage) (cborValue, error) {
+		return csilEncImportedMessage(csilElem, csilDepth+1)
+	}))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecImportHistoryResponse reconstructs a ImportHistoryResponse from a decoded CBOR value tree.
@@ -9508,8 +10064,8 @@ func csilDecImportHistoryResponse(csilRoot cborValue) (ImportHistoryResponse, er
 }
 
 // EncodeImportHistoryResponse encodes a ImportHistoryResponse to canonical CSIL CBOR bytes.
-func EncodeImportHistoryResponse(csilV ImportHistoryResponse) []byte {
-	return cborEncode(csilEncImportHistoryResponse(csilV))
+func EncodeImportHistoryResponse(csilV ImportHistoryResponse) ([]byte, error) {
+	return cborEncodeE(csilEncImportHistoryResponse(csilV, 0))
 }
 
 // DecodeImportHistoryResponse decodes canonical CSIL CBOR bytes into a ImportHistoryResponse.
@@ -9523,12 +10079,15 @@ func DecodeImportHistoryResponse(csilData []byte) (ImportHistoryResponse, error)
 }
 
 // csilEncActivityRequest builds the canonical CBOR value tree for a ActivityRequest.
-func csilEncActivityRequest(csilV ActivityRequest) cborValue {
+func csilEncActivityRequest(csilV ActivityRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	if csilV.Persona != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("persona"), cborText((*csilV.Persona))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecActivityRequest reconstructs a ActivityRequest from a decoded CBOR value tree.
@@ -9545,8 +10104,8 @@ func csilDecActivityRequest(csilRoot cborValue) (ActivityRequest, error) {
 }
 
 // EncodeActivityRequest encodes a ActivityRequest to canonical CSIL CBOR bytes.
-func EncodeActivityRequest(csilV ActivityRequest) []byte {
-	return cborEncode(csilEncActivityRequest(csilV))
+func EncodeActivityRequest(csilV ActivityRequest) ([]byte, error) {
+	return cborEncodeE(csilEncActivityRequest(csilV, 0))
 }
 
 // DecodeActivityRequest decodes canonical CSIL CBOR bytes into a ActivityRequest.
@@ -9560,7 +10119,10 @@ func DecodeActivityRequest(csilData []byte) (ActivityRequest, error) {
 }
 
 // csilEncActivity builds the canonical CBOR value tree for a Activity.
-func csilEncActivity(csilV Activity) cborValue {
+func csilEncActivity(csilV Activity, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 6)
 	if csilV.Text != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("text"), cborText((*csilV.Text))})
@@ -9578,7 +10140,7 @@ func csilEncActivity(csilV Activity) cborValue {
 	if csilV.UpdatedMs != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("updated_ms"), cborUint((*csilV.UpdatedMs))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecActivity reconstructs a Activity from a decoded CBOR value tree.
@@ -9634,8 +10196,8 @@ func csilDecActivity(csilRoot cborValue) (Activity, error) {
 }
 
 // EncodeActivity encodes a Activity to canonical CSIL CBOR bytes.
-func EncodeActivity(csilV Activity) []byte {
-	return cborEncode(csilEncActivity(csilV))
+func EncodeActivity(csilV Activity) ([]byte, error) {
+	return cborEncodeE(csilEncActivity(csilV, 0))
 }
 
 // DecodeActivity decodes canonical CSIL CBOR bytes into a Activity.
@@ -9649,14 +10211,17 @@ func DecodeActivity(csilData []byte) (Activity, error) {
 }
 
 // csilEncPage builds the canonical CBOR value tree for a Page.
-func csilEncPage(csilV Page) cborValue {
+func csilEncPage(csilV Page, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 5)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("text"), cborText(csilV.Text)})
 	csilEntries = append(csilEntries, cborEntry{cborText("title"), cborText(csilV.Title)})
 	csilEntries = append(csilEntries, cborEntry{cborText("persona"), cborText(csilV.Persona)})
 	csilEntries = append(csilEntries, cborEntry{cborText("created_ms"), cborUint(csilV.CreatedMs)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecPage reconstructs a Page from a decoded CBOR value tree.
@@ -9721,8 +10286,8 @@ func csilDecPage(csilRoot cborValue) (Page, error) {
 }
 
 // EncodePage encodes a Page to canonical CSIL CBOR bytes.
-func EncodePage(csilV Page) []byte {
-	return cborEncode(csilEncPage(csilV))
+func EncodePage(csilV Page) ([]byte, error) {
+	return cborEncodeE(csilEncPage(csilV, 0))
 }
 
 // DecodePage decodes canonical CSIL CBOR bytes into a Page.
@@ -9736,10 +10301,13 @@ func DecodePage(csilData []byte) (Page, error) {
 }
 
 // csilEncGetPageRequest builds the canonical CBOR value tree for a GetPageRequest.
-func csilEncGetPageRequest(csilV GetPageRequest) cborValue {
+func csilEncGetPageRequest(csilV GetPageRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecGetPageRequest reconstructs a GetPageRequest from a decoded CBOR value tree.
@@ -9760,8 +10328,8 @@ func csilDecGetPageRequest(csilRoot cborValue) (GetPageRequest, error) {
 }
 
 // EncodeGetPageRequest encodes a GetPageRequest to canonical CSIL CBOR bytes.
-func EncodeGetPageRequest(csilV GetPageRequest) []byte {
-	return cborEncode(csilEncGetPageRequest(csilV))
+func EncodeGetPageRequest(csilV GetPageRequest) ([]byte, error) {
+	return cborEncodeE(csilEncGetPageRequest(csilV, 0))
 }
 
 // DecodeGetPageRequest decodes canonical CSIL CBOR bytes into a GetPageRequest.
@@ -9775,12 +10343,15 @@ func DecodeGetPageRequest(csilData []byte) (GetPageRequest, error) {
 }
 
 // csilEncListPagesRequest builds the canonical CBOR value tree for a ListPagesRequest.
-func csilEncListPagesRequest(csilV ListPagesRequest) cborValue {
+func csilEncListPagesRequest(csilV ListPagesRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	if csilV.Limit != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("limit"), cborUint((*csilV.Limit))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecListPagesRequest reconstructs a ListPagesRequest from a decoded CBOR value tree.
@@ -9797,8 +10368,8 @@ func csilDecListPagesRequest(csilRoot cborValue) (ListPagesRequest, error) {
 }
 
 // EncodeListPagesRequest encodes a ListPagesRequest to canonical CSIL CBOR bytes.
-func EncodeListPagesRequest(csilV ListPagesRequest) []byte {
-	return cborEncode(csilEncListPagesRequest(csilV))
+func EncodeListPagesRequest(csilV ListPagesRequest) ([]byte, error) {
+	return cborEncodeE(csilEncListPagesRequest(csilV, 0))
 }
 
 // DecodeListPagesRequest decodes canonical CSIL CBOR bytes into a ListPagesRequest.
@@ -9812,10 +10383,14 @@ func DecodeListPagesRequest(csilData []byte) (ListPagesRequest, error) {
 }
 
 // csilEncListPagesResponse builds the canonical CBOR value tree for a ListPagesResponse.
-func csilEncListPagesResponse(csilV ListPagesResponse) cborValue {
+func csilEncListPagesResponse(csilV ListPagesResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
-	csilEntries = append(csilEntries, cborEntry{cborText("pages"), cborEncArray(csilV.Pages, func(csilElem Page) cborValue { return csilEncPage(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("pages"), csilE.val(cborEncArray(csilV.Pages, func(csilElem Page) (cborValue, error) { return csilEncPage(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecListPagesResponse reconstructs a ListPagesResponse from a decoded CBOR value tree.
@@ -9836,8 +10411,8 @@ func csilDecListPagesResponse(csilRoot cborValue) (ListPagesResponse, error) {
 }
 
 // EncodeListPagesResponse encodes a ListPagesResponse to canonical CSIL CBOR bytes.
-func EncodeListPagesResponse(csilV ListPagesResponse) []byte {
-	return cborEncode(csilEncListPagesResponse(csilV))
+func EncodeListPagesResponse(csilV ListPagesResponse) ([]byte, error) {
+	return cborEncodeE(csilEncListPagesResponse(csilV, 0))
 }
 
 // DecodeListPagesResponse decodes canonical CSIL CBOR bytes into a ListPagesResponse.
@@ -9851,7 +10426,11 @@ func DecodeListPagesResponse(csilData []byte) (ListPagesResponse, error) {
 }
 
 // csilEncDecisionQuestion builds the canonical CBOR value tree for a DecisionQuestion.
-func csilEncDecisionQuestion(csilV DecisionQuestion) cborValue {
+func csilEncDecisionQuestion(csilV DecisionQuestion, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 6)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	if csilV.Max != nil {
@@ -9859,13 +10438,13 @@ func csilEncDecisionQuestion(csilV DecisionQuestion) cborValue {
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("type"), cborText(csilV.Type)})
 	if csilV.Scale != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("scale"), cborEncMap(csilV.Scale, func(csilK string) cborValue { return cborText(csilK) }, func(csilV string) cborValue { return cborText(csilV) })})
+		csilEntries = append(csilEntries, cborEntry{cborText("scale"), csilE.val(cborEncMap(csilV.Scale, func(csilK string) (cborValue, error) { return cborText(csilK), nil }, func(csilV string) (cborValue, error) { return cborText(csilV), nil }))})
 	}
 	if csilV.Choices != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("choices"), cborEncArray(csilV.Choices, func(csilElem string) cborValue { return cborText(csilElem) })})
+		csilEntries = append(csilEntries, cborEntry{cborText("choices"), csilE.val(cborEncArray(csilV.Choices, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("question"), cborText(csilV.Question)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecDecisionQuestion reconstructs a DecisionQuestion from a decoded CBOR value tree.
@@ -9929,8 +10508,8 @@ func csilDecDecisionQuestion(csilRoot cborValue) (DecisionQuestion, error) {
 }
 
 // EncodeDecisionQuestion encodes a DecisionQuestion to canonical CSIL CBOR bytes.
-func EncodeDecisionQuestion(csilV DecisionQuestion) []byte {
-	return cborEncode(csilEncDecisionQuestion(csilV))
+func EncodeDecisionQuestion(csilV DecisionQuestion) ([]byte, error) {
+	return cborEncodeE(csilEncDecisionQuestion(csilV, 0))
 }
 
 // DecodeDecisionQuestion decodes canonical CSIL CBOR bytes into a DecisionQuestion.
@@ -9944,17 +10523,23 @@ func DecodeDecisionQuestion(csilData []byte) (DecisionQuestion, error) {
 }
 
 // csilEncDecisionRequest builds the canonical CBOR value tree for a DecisionRequest.
-func csilEncDecisionRequest(csilV DecisionRequest) cborValue {
+func csilEncDecisionRequest(csilV DecisionRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 4)
 	if csilV.Task != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("task"), cborText((*csilV.Task))})
 	}
 	if csilV.Model != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("model"), csilEncModelSelector((*csilV.Model))})
+		csilEntries = append(csilEntries, cborEntry{cborText("model"), csilE.val(csilEncModelSelector((*csilV.Model), csilDepth+1))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("state"), cborText(csilV.State)})
-	csilEntries = append(csilEntries, cborEntry{cborText("questions"), cborEncArray(csilV.Questions, func(csilElem DecisionQuestion) cborValue { return csilEncDecisionQuestion(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("questions"), csilE.val(cborEncArray(csilV.Questions, func(csilElem DecisionQuestion) (cborValue, error) {
+		return csilEncDecisionQuestion(csilElem, csilDepth+1)
+	}))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecDecisionRequest reconstructs a DecisionRequest from a decoded CBOR value tree.
@@ -10000,8 +10585,8 @@ func csilDecDecisionRequest(csilRoot cborValue) (DecisionRequest, error) {
 }
 
 // EncodeDecisionRequest encodes a DecisionRequest to canonical CSIL CBOR bytes.
-func EncodeDecisionRequest(csilV DecisionRequest) []byte {
-	return cborEncode(csilEncDecisionRequest(csilV))
+func EncodeDecisionRequest(csilV DecisionRequest) ([]byte, error) {
+	return cborEncodeE(csilEncDecisionRequest(csilV, 0))
 }
 
 // DecodeDecisionRequest decodes canonical CSIL CBOR bytes into a DecisionRequest.
@@ -10015,7 +10600,10 @@ func DecodeDecisionRequest(csilData []byte) (DecisionRequest, error) {
 }
 
 // csilEncLesson builds the canonical CBOR value tree for a Lesson.
-func csilEncLesson(csilV Lesson) cborValue {
+func csilEncLesson(csilV Lesson, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 9)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("area"), cborText(csilV.Area)})
@@ -10028,7 +10616,7 @@ func csilEncLesson(csilV Lesson) cborValue {
 	if csilV.DecidedBy != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("decided_by"), cborText((*csilV.DecidedBy))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecLesson reconstructs a Lesson from a decoded CBOR value tree.
@@ -10133,8 +10721,8 @@ func csilDecLesson(csilRoot cborValue) (Lesson, error) {
 }
 
 // EncodeLesson encodes a Lesson to canonical CSIL CBOR bytes.
-func EncodeLesson(csilV Lesson) []byte {
-	return cborEncode(csilEncLesson(csilV))
+func EncodeLesson(csilV Lesson) ([]byte, error) {
+	return cborEncodeE(csilEncLesson(csilV, 0))
 }
 
 // DecodeLesson decodes canonical CSIL CBOR bytes into a Lesson.
@@ -10148,13 +10736,16 @@ func DecodeLesson(csilData []byte) (Lesson, error) {
 }
 
 // csilEncProposeLessonRequest builds the canonical CBOR value tree for a ProposeLessonRequest.
-func csilEncProposeLessonRequest(csilV ProposeLessonRequest) cborValue {
+func csilEncProposeLessonRequest(csilV ProposeLessonRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 4)
 	csilEntries = append(csilEntries, cborEntry{cborText("area"), cborText(csilV.Area)})
 	csilEntries = append(csilEntries, cborEntry{cborText("text"), cborText(csilV.Text)})
 	csilEntries = append(csilEntries, cborEntry{cborText("title"), cborText(csilV.Title)})
 	csilEntries = append(csilEntries, cborEntry{cborText("source"), cborText(csilV.Source)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecProposeLessonRequest reconstructs a ProposeLessonRequest from a decoded CBOR value tree.
@@ -10208,8 +10799,8 @@ func csilDecProposeLessonRequest(csilRoot cborValue) (ProposeLessonRequest, erro
 }
 
 // EncodeProposeLessonRequest encodes a ProposeLessonRequest to canonical CSIL CBOR bytes.
-func EncodeProposeLessonRequest(csilV ProposeLessonRequest) []byte {
-	return cborEncode(csilEncProposeLessonRequest(csilV))
+func EncodeProposeLessonRequest(csilV ProposeLessonRequest) ([]byte, error) {
+	return cborEncodeE(csilEncProposeLessonRequest(csilV, 0))
 }
 
 // DecodeProposeLessonRequest decodes canonical CSIL CBOR bytes into a ProposeLessonRequest.
@@ -10223,12 +10814,15 @@ func DecodeProposeLessonRequest(csilData []byte) (ProposeLessonRequest, error) {
 }
 
 // csilEncListLessonsRequest builds the canonical CBOR value tree for a ListLessonsRequest.
-func csilEncListLessonsRequest(csilV ListLessonsRequest) cborValue {
+func csilEncListLessonsRequest(csilV ListLessonsRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	if csilV.Status != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("status"), cborText((*csilV.Status))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecListLessonsRequest reconstructs a ListLessonsRequest from a decoded CBOR value tree.
@@ -10245,8 +10839,8 @@ func csilDecListLessonsRequest(csilRoot cborValue) (ListLessonsRequest, error) {
 }
 
 // EncodeListLessonsRequest encodes a ListLessonsRequest to canonical CSIL CBOR bytes.
-func EncodeListLessonsRequest(csilV ListLessonsRequest) []byte {
-	return cborEncode(csilEncListLessonsRequest(csilV))
+func EncodeListLessonsRequest(csilV ListLessonsRequest) ([]byte, error) {
+	return cborEncodeE(csilEncListLessonsRequest(csilV, 0))
 }
 
 // DecodeListLessonsRequest decodes canonical CSIL CBOR bytes into a ListLessonsRequest.
@@ -10260,10 +10854,14 @@ func DecodeListLessonsRequest(csilData []byte) (ListLessonsRequest, error) {
 }
 
 // csilEncListLessonsResponse builds the canonical CBOR value tree for a ListLessonsResponse.
-func csilEncListLessonsResponse(csilV ListLessonsResponse) cborValue {
+func csilEncListLessonsResponse(csilV ListLessonsResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
-	csilEntries = append(csilEntries, cborEntry{cborText("lessons"), cborEncArray(csilV.Lessons, func(csilElem Lesson) cborValue { return csilEncLesson(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("lessons"), csilE.val(cborEncArray(csilV.Lessons, func(csilElem Lesson) (cborValue, error) { return csilEncLesson(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecListLessonsResponse reconstructs a ListLessonsResponse from a decoded CBOR value tree.
@@ -10284,8 +10882,8 @@ func csilDecListLessonsResponse(csilRoot cborValue) (ListLessonsResponse, error)
 }
 
 // EncodeListLessonsResponse encodes a ListLessonsResponse to canonical CSIL CBOR bytes.
-func EncodeListLessonsResponse(csilV ListLessonsResponse) []byte {
-	return cborEncode(csilEncListLessonsResponse(csilV))
+func EncodeListLessonsResponse(csilV ListLessonsResponse) ([]byte, error) {
+	return cborEncodeE(csilEncListLessonsResponse(csilV, 0))
 }
 
 // DecodeListLessonsResponse decodes canonical CSIL CBOR bytes into a ListLessonsResponse.
@@ -10299,7 +10897,10 @@ func DecodeListLessonsResponse(csilData []byte) (ListLessonsResponse, error) {
 }
 
 // csilEncDecideLessonRequest builds the canonical CBOR value tree for a DecideLessonRequest.
-func csilEncDecideLessonRequest(csilV DecideLessonRequest) cborValue {
+func csilEncDecideLessonRequest(csilV DecideLessonRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 5)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	if csilV.Area != nil {
@@ -10312,7 +10913,7 @@ func csilEncDecideLessonRequest(csilV DecideLessonRequest) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("title"), cborText((*csilV.Title))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("decision"), cborText(csilV.Decision)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecDecideLessonRequest reconstructs a DecideLessonRequest from a decoded CBOR value tree.
@@ -10365,8 +10966,8 @@ func csilDecDecideLessonRequest(csilRoot cborValue) (DecideLessonRequest, error)
 }
 
 // EncodeDecideLessonRequest encodes a DecideLessonRequest to canonical CSIL CBOR bytes.
-func EncodeDecideLessonRequest(csilV DecideLessonRequest) []byte {
-	return cborEncode(csilEncDecideLessonRequest(csilV))
+func EncodeDecideLessonRequest(csilV DecideLessonRequest) ([]byte, error) {
+	return cborEncodeE(csilEncDecideLessonRequest(csilV, 0))
 }
 
 // DecodeDecideLessonRequest decodes canonical CSIL CBOR bytes into a DecideLessonRequest.
@@ -10380,17 +10981,21 @@ func DecodeDecideLessonRequest(csilData []byte) (DecideLessonRequest, error) {
 }
 
 // csilEncDecisionAnswer builds the canonical CBOR value tree for a DecisionAnswer.
-func csilEncDecisionAnswer(csilV DecisionAnswer) cborValue {
+func csilEncDecisionAnswer(csilV DecisionAnswer, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 6)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
-	csilEntries = append(csilEntries, cborEntry{cborText("probs"), cborEncArray(csilV.Probs, func(csilElem float64) cborValue { return cborFloat(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("probs"), csilE.val(cborEncArray(csilV.Probs, func(csilElem float64) (cborValue, error) { return cborFloat(csilElem), nil }))})
 	csilEntries = append(csilEntries, cborEntry{cborText("answer"), cborText(csilV.Answer)})
 	if csilV.Expected != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("expected"), cborFloat((*csilV.Expected))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("calibrated"), cborBool(csilV.Calibrated)})
 	csilEntries = append(csilEntries, cborEntry{cborText("confidence"), cborFloat(csilV.Confidence)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecDecisionAnswer reconstructs a DecisionAnswer from a decoded CBOR value tree.
@@ -10462,8 +11067,8 @@ func csilDecDecisionAnswer(csilRoot cborValue) (DecisionAnswer, error) {
 }
 
 // EncodeDecisionAnswer encodes a DecisionAnswer to canonical CSIL CBOR bytes.
-func EncodeDecisionAnswer(csilV DecisionAnswer) []byte {
-	return cborEncode(csilEncDecisionAnswer(csilV))
+func EncodeDecisionAnswer(csilV DecisionAnswer) ([]byte, error) {
+	return cborEncodeE(csilEncDecisionAnswer(csilV, 0))
 }
 
 // DecodeDecisionAnswer decodes canonical CSIL CBOR bytes into a DecisionAnswer.
@@ -10477,12 +11082,16 @@ func DecodeDecisionAnswer(csilData []byte) (DecisionAnswer, error) {
 }
 
 // csilEncDecisionResponse builds the canonical CBOR value tree for a DecisionResponse.
-func csilEncDecisionResponse(csilV DecisionResponse) cborValue {
+func csilEncDecisionResponse(csilV DecisionResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("ms"), cborUint(csilV.Ms)})
 	csilEntries = append(csilEntries, cborEntry{cborText("model"), cborText(csilV.Model)})
-	csilEntries = append(csilEntries, cborEntry{cborText("answers"), cborEncArray(csilV.Answers, func(csilElem DecisionAnswer) cborValue { return csilEncDecisionAnswer(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("answers"), csilE.val(cborEncArray(csilV.Answers, func(csilElem DecisionAnswer) (cborValue, error) { return csilEncDecisionAnswer(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecDecisionResponse reconstructs a DecisionResponse from a decoded CBOR value tree.
@@ -10525,8 +11134,8 @@ func csilDecDecisionResponse(csilRoot cborValue) (DecisionResponse, error) {
 }
 
 // EncodeDecisionResponse encodes a DecisionResponse to canonical CSIL CBOR bytes.
-func EncodeDecisionResponse(csilV DecisionResponse) []byte {
-	return cborEncode(csilEncDecisionResponse(csilV))
+func EncodeDecisionResponse(csilV DecisionResponse) ([]byte, error) {
+	return cborEncodeE(csilEncDecisionResponse(csilV, 0))
 }
 
 // DecodeDecisionResponse decodes canonical CSIL CBOR bytes into a DecisionResponse.
@@ -10540,13 +11149,16 @@ func DecodeDecisionResponse(csilData []byte) (DecisionResponse, error) {
 }
 
 // csilEncRunnerClaimRequest builds the canonical CBOR value tree for a RunnerClaimRequest.
-func csilEncRunnerClaimRequest(csilV RunnerClaimRequest) cborValue {
+func csilEncRunnerClaimRequest(csilV RunnerClaimRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	csilEntries = append(csilEntries, cborEntry{cborText("queue"), cborText(csilV.Queue)})
 	if csilV.WaitMs != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("wait_ms"), cborUint((*csilV.WaitMs))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecRunnerClaimRequest reconstructs a RunnerClaimRequest from a decoded CBOR value tree.
@@ -10574,8 +11186,8 @@ func csilDecRunnerClaimRequest(csilRoot cborValue) (RunnerClaimRequest, error) {
 }
 
 // EncodeRunnerClaimRequest encodes a RunnerClaimRequest to canonical CSIL CBOR bytes.
-func EncodeRunnerClaimRequest(csilV RunnerClaimRequest) []byte {
-	return cborEncode(csilEncRunnerClaimRequest(csilV))
+func EncodeRunnerClaimRequest(csilV RunnerClaimRequest) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerClaimRequest(csilV, 0))
 }
 
 // DecodeRunnerClaimRequest decodes canonical CSIL CBOR bytes into a RunnerClaimRequest.
@@ -10589,15 +11201,19 @@ func DecodeRunnerClaimRequest(csilData []byte) (RunnerClaimRequest, error) {
 }
 
 // csilEncRunnerAssignment builds the canonical CBOR value tree for a RunnerAssignment.
-func csilEncRunnerAssignment(csilV RunnerAssignment) cborValue {
+func csilEncRunnerAssignment(csilV RunnerAssignment, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 6)
 	csilEntries = append(csilEntries, cborEntry{cborText("run"), cborText(csilV.Run)})
 	csilEntries = append(csilEntries, cborEntry{cborText("step"), cborText(csilV.Step)})
-	csilEntries = append(csilEntries, cborEntry{cborText("vars"), cborEncMap(csilV.Vars, func(csilK string) cborValue { return cborText(csilK) }, func(csilV string) cborValue { return cborText(csilV) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("vars"), csilE.val(cborEncMap(csilV.Vars, func(csilK string) (cborValue, error) { return cborText(csilK), nil }, func(csilV string) (cborValue, error) { return cborText(csilV), nil }))})
 	csilEntries = append(csilEntries, cborEntry{cborText("claim"), cborText(csilV.Claim)})
 	csilEntries = append(csilEntries, cborEntry{cborText("owner"), cborText(csilV.Owner)})
 	csilEntries = append(csilEntries, cborEntry{cborText("attempt"), cborUint(csilV.Attempt)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecRunnerAssignment reconstructs a RunnerAssignment from a decoded CBOR value tree.
@@ -10673,8 +11289,8 @@ func csilDecRunnerAssignment(csilRoot cborValue) (RunnerAssignment, error) {
 }
 
 // EncodeRunnerAssignment encodes a RunnerAssignment to canonical CSIL CBOR bytes.
-func EncodeRunnerAssignment(csilV RunnerAssignment) []byte {
-	return cborEncode(csilEncRunnerAssignment(csilV))
+func EncodeRunnerAssignment(csilV RunnerAssignment) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerAssignment(csilV, 0))
 }
 
 // DecodeRunnerAssignment decodes canonical CSIL CBOR bytes into a RunnerAssignment.
@@ -10688,12 +11304,16 @@ func DecodeRunnerAssignment(csilData []byte) (RunnerAssignment, error) {
 }
 
 // csilEncRunnerClaimResponse builds the canonical CBOR value tree for a RunnerClaimResponse.
-func csilEncRunnerClaimResponse(csilV RunnerClaimResponse) cborValue {
+func csilEncRunnerClaimResponse(csilV RunnerClaimResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
 	if csilV.Assignment != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("assignment"), csilEncRunnerAssignment((*csilV.Assignment))})
+		csilEntries = append(csilEntries, cborEntry{cborText("assignment"), csilE.val(csilEncRunnerAssignment((*csilV.Assignment), csilDepth+1))})
 	}
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecRunnerClaimResponse reconstructs a RunnerClaimResponse from a decoded CBOR value tree.
@@ -10710,8 +11330,8 @@ func csilDecRunnerClaimResponse(csilRoot cborValue) (RunnerClaimResponse, error)
 }
 
 // EncodeRunnerClaimResponse encodes a RunnerClaimResponse to canonical CSIL CBOR bytes.
-func EncodeRunnerClaimResponse(csilV RunnerClaimResponse) []byte {
-	return cborEncode(csilEncRunnerClaimResponse(csilV))
+func EncodeRunnerClaimResponse(csilV RunnerClaimResponse) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerClaimResponse(csilV, 0))
 }
 
 // DecodeRunnerClaimResponse decodes canonical CSIL CBOR bytes into a RunnerClaimResponse.
@@ -10725,12 +11345,15 @@ func DecodeRunnerClaimResponse(csilData []byte) (RunnerClaimResponse, error) {
 }
 
 // csilEncRunnerStep builds the canonical CBOR value tree for a RunnerStep.
-func csilEncRunnerStep(csilV RunnerStep) cborValue {
+func csilEncRunnerStep(csilV RunnerStep, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("run"), cborText(csilV.Run)})
 	csilEntries = append(csilEntries, cborEntry{cborText("step"), cborText(csilV.Step)})
 	csilEntries = append(csilEntries, cborEntry{cborText("claim"), cborText(csilV.Claim)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecRunnerStep reconstructs a RunnerStep from a decoded CBOR value tree.
@@ -10773,8 +11396,8 @@ func csilDecRunnerStep(csilRoot cborValue) (RunnerStep, error) {
 }
 
 // EncodeRunnerStep encodes a RunnerStep to canonical CSIL CBOR bytes.
-func EncodeRunnerStep(csilV RunnerStep) []byte {
-	return cborEncode(csilEncRunnerStep(csilV))
+func EncodeRunnerStep(csilV RunnerStep) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerStep(csilV, 0))
 }
 
 // DecodeRunnerStep decodes canonical CSIL CBOR bytes into a RunnerStep.
@@ -10788,14 +11411,18 @@ func DecodeRunnerStep(csilData []byte) (RunnerStep, error) {
 }
 
 // csilEncRunnerProgressRequest builds the canonical CBOR value tree for a RunnerProgressRequest.
-func csilEncRunnerProgressRequest(csilV RunnerProgressRequest) cborValue {
+func csilEncRunnerProgressRequest(csilV RunnerProgressRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 3)
 	if csilV.Ref != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("ref"), cborText((*csilV.Ref))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("note"), cborText(csilV.Note)})
-	csilEntries = append(csilEntries, cborEntry{cborText("step"), csilEncRunnerStep(csilV.Step)})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("step"), csilE.val(csilEncRunnerStep(csilV.Step, csilDepth+1))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecRunnerProgressRequest reconstructs a RunnerProgressRequest from a decoded CBOR value tree.
@@ -10834,8 +11461,8 @@ func csilDecRunnerProgressRequest(csilRoot cborValue) (RunnerProgressRequest, er
 }
 
 // EncodeRunnerProgressRequest encodes a RunnerProgressRequest to canonical CSIL CBOR bytes.
-func EncodeRunnerProgressRequest(csilV RunnerProgressRequest) []byte {
-	return cborEncode(csilEncRunnerProgressRequest(csilV))
+func EncodeRunnerProgressRequest(csilV RunnerProgressRequest) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerProgressRequest(csilV, 0))
 }
 
 // DecodeRunnerProgressRequest decodes canonical CSIL CBOR bytes into a RunnerProgressRequest.
@@ -10849,17 +11476,21 @@ func DecodeRunnerProgressRequest(csilData []byte) (RunnerProgressRequest, error)
 }
 
 // csilEncRunnerCompleteRequest builds the canonical CBOR value tree for a RunnerCompleteRequest.
-func csilEncRunnerCompleteRequest(csilV RunnerCompleteRequest) cborValue {
+func csilEncRunnerCompleteRequest(csilV RunnerCompleteRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 4)
-	csilEntries = append(csilEntries, cborEntry{cborText("step"), csilEncRunnerStep(csilV.Step)})
+	csilEntries = append(csilEntries, cborEntry{cborText("step"), csilE.val(csilEncRunnerStep(csilV.Step, csilDepth+1))})
 	if csilV.Error != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("error"), cborText((*csilV.Error))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("outcome"), cborText(csilV.Outcome)})
 	if csilV.Outputs != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("outputs"), cborEncMap(csilV.Outputs, func(csilK string) cborValue { return cborText(csilK) }, func(csilV string) cborValue { return cborText(csilV) })})
+		csilEntries = append(csilEntries, cborEntry{cborText("outputs"), csilE.val(cborEncMap(csilV.Outputs, func(csilK string) (cborValue, error) { return cborText(csilK), nil }, func(csilV string) (cborValue, error) { return cborText(csilV), nil }))})
 	}
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecRunnerCompleteRequest reconstructs a RunnerCompleteRequest from a decoded CBOR value tree.
@@ -10905,8 +11536,8 @@ func csilDecRunnerCompleteRequest(csilRoot cborValue) (RunnerCompleteRequest, er
 }
 
 // EncodeRunnerCompleteRequest encodes a RunnerCompleteRequest to canonical CSIL CBOR bytes.
-func EncodeRunnerCompleteRequest(csilV RunnerCompleteRequest) []byte {
-	return cborEncode(csilEncRunnerCompleteRequest(csilV))
+func EncodeRunnerCompleteRequest(csilV RunnerCompleteRequest) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerCompleteRequest(csilV, 0))
 }
 
 // DecodeRunnerCompleteRequest decodes canonical CSIL CBOR bytes into a RunnerCompleteRequest.
@@ -10920,15 +11551,19 @@ func DecodeRunnerCompleteRequest(csilData []byte) (RunnerCompleteRequest, error)
 }
 
 // csilEncRunnerPutArtifactRequest builds the canonical CBOR value tree for a RunnerPutArtifactRequest.
-func csilEncRunnerPutArtifactRequest(csilV RunnerPutArtifactRequest) cborValue {
+func csilEncRunnerPutArtifactRequest(csilV RunnerPutArtifactRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 4)
 	csilEntries = append(csilEntries, cborEntry{cborText("body"), cborBytes(csilV.Body)})
-	csilEntries = append(csilEntries, cborEntry{cborText("step"), csilEncRunnerStep(csilV.Step)})
+	csilEntries = append(csilEntries, cborEntry{cborText("step"), csilE.val(csilEncRunnerStep(csilV.Step, csilDepth+1))})
 	if csilV.Labels != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("labels"), cborEncMap(csilV.Labels, func(csilK string) cborValue { return cborText(csilK) }, func(csilV string) cborValue { return cborText(csilV) })})
+		csilEntries = append(csilEntries, cborEntry{cborText("labels"), csilE.val(cborEncMap(csilV.Labels, func(csilK string) (cborValue, error) { return cborText(csilK), nil }, func(csilV string) (cborValue, error) { return cborText(csilV), nil }))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("media_type"), cborText(csilV.MediaType)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecRunnerPutArtifactRequest reconstructs a RunnerPutArtifactRequest from a decoded CBOR value tree.
@@ -10978,8 +11613,8 @@ func csilDecRunnerPutArtifactRequest(csilRoot cborValue) (RunnerPutArtifactReque
 }
 
 // EncodeRunnerPutArtifactRequest encodes a RunnerPutArtifactRequest to canonical CSIL CBOR bytes.
-func EncodeRunnerPutArtifactRequest(csilV RunnerPutArtifactRequest) []byte {
-	return cborEncode(csilEncRunnerPutArtifactRequest(csilV))
+func EncodeRunnerPutArtifactRequest(csilV RunnerPutArtifactRequest) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerPutArtifactRequest(csilV, 0))
 }
 
 // DecodeRunnerPutArtifactRequest decodes canonical CSIL CBOR bytes into a RunnerPutArtifactRequest.
@@ -10993,10 +11628,13 @@ func DecodeRunnerPutArtifactRequest(csilData []byte) (RunnerPutArtifactRequest, 
 }
 
 // csilEncRunnerPutArtifactResponse builds the canonical CBOR value tree for a RunnerPutArtifactResponse.
-func csilEncRunnerPutArtifactResponse(csilV RunnerPutArtifactResponse) cborValue {
+func csilEncRunnerPutArtifactResponse(csilV RunnerPutArtifactResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("digest"), cborText(csilV.Digest)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecRunnerPutArtifactResponse reconstructs a RunnerPutArtifactResponse from a decoded CBOR value tree.
@@ -11017,8 +11655,8 @@ func csilDecRunnerPutArtifactResponse(csilRoot cborValue) (RunnerPutArtifactResp
 }
 
 // EncodeRunnerPutArtifactResponse encodes a RunnerPutArtifactResponse to canonical CSIL CBOR bytes.
-func EncodeRunnerPutArtifactResponse(csilV RunnerPutArtifactResponse) []byte {
-	return cborEncode(csilEncRunnerPutArtifactResponse(csilV))
+func EncodeRunnerPutArtifactResponse(csilV RunnerPutArtifactResponse) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerPutArtifactResponse(csilV, 0))
 }
 
 // DecodeRunnerPutArtifactResponse decodes canonical CSIL CBOR bytes into a RunnerPutArtifactResponse.
@@ -11032,9 +11670,13 @@ func DecodeRunnerPutArtifactResponse(csilData []byte) (RunnerPutArtifactResponse
 }
 
 // csilEncRunnerPostRequest builds the canonical CBOR value tree for a RunnerPostRequest.
-func csilEncRunnerPostRequest(csilV RunnerPostRequest) cborValue {
+func csilEncRunnerPostRequest(csilV RunnerPostRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 4)
-	csilEntries = append(csilEntries, cborEntry{cborText("step"), csilEncRunnerStep(csilV.Step)})
+	csilEntries = append(csilEntries, cborEntry{cborText("step"), csilE.val(csilEncRunnerStep(csilV.Step, csilDepth+1))})
 	csilEntries = append(csilEntries, cborEntry{cborText("text"), cborText(csilV.Text)})
 	if csilV.Notice != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("notice"), cborText((*csilV.Notice))})
@@ -11042,7 +11684,7 @@ func csilEncRunnerPostRequest(csilV RunnerPostRequest) cborValue {
 	if csilV.Urgency != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("urgency"), cborText((*csilV.Urgency))})
 	}
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecRunnerPostRequest reconstructs a RunnerPostRequest from a decoded CBOR value tree.
@@ -11088,8 +11730,8 @@ func csilDecRunnerPostRequest(csilRoot cborValue) (RunnerPostRequest, error) {
 }
 
 // EncodeRunnerPostRequest encodes a RunnerPostRequest to canonical CSIL CBOR bytes.
-func EncodeRunnerPostRequest(csilV RunnerPostRequest) []byte {
-	return cborEncode(csilEncRunnerPostRequest(csilV))
+func EncodeRunnerPostRequest(csilV RunnerPostRequest) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerPostRequest(csilV, 0))
 }
 
 // DecodeRunnerPostRequest decodes canonical CSIL CBOR bytes into a RunnerPostRequest.
@@ -11103,10 +11745,13 @@ func DecodeRunnerPostRequest(csilData []byte) (RunnerPostRequest, error) {
 }
 
 // csilEncRunnerRunStatusRequest builds the canonical CBOR value tree for a RunnerRunStatusRequest.
-func csilEncRunnerRunStatusRequest(csilV RunnerRunStatusRequest) cborValue {
+func csilEncRunnerRunStatusRequest(csilV RunnerRunStatusRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("run"), cborText(csilV.Run)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecRunnerRunStatusRequest reconstructs a RunnerRunStatusRequest from a decoded CBOR value tree.
@@ -11127,8 +11772,8 @@ func csilDecRunnerRunStatusRequest(csilRoot cborValue) (RunnerRunStatusRequest, 
 }
 
 // EncodeRunnerRunStatusRequest encodes a RunnerRunStatusRequest to canonical CSIL CBOR bytes.
-func EncodeRunnerRunStatusRequest(csilV RunnerRunStatusRequest) []byte {
-	return cborEncode(csilEncRunnerRunStatusRequest(csilV))
+func EncodeRunnerRunStatusRequest(csilV RunnerRunStatusRequest) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerRunStatusRequest(csilV, 0))
 }
 
 // DecodeRunnerRunStatusRequest decodes canonical CSIL CBOR bytes into a RunnerRunStatusRequest.
@@ -11142,10 +11787,13 @@ func DecodeRunnerRunStatusRequest(csilData []byte) (RunnerRunStatusRequest, erro
 }
 
 // csilEncRunnerRunStatusResponse builds the canonical CBOR value tree for a RunnerRunStatusResponse.
-func csilEncRunnerRunStatusResponse(csilV RunnerRunStatusResponse) cborValue {
+func csilEncRunnerRunStatusResponse(csilV RunnerRunStatusResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("status"), cborText(csilV.Status)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecRunnerRunStatusResponse reconstructs a RunnerRunStatusResponse from a decoded CBOR value tree.
@@ -11166,8 +11814,8 @@ func csilDecRunnerRunStatusResponse(csilRoot cborValue) (RunnerRunStatusResponse
 }
 
 // EncodeRunnerRunStatusResponse encodes a RunnerRunStatusResponse to canonical CSIL CBOR bytes.
-func EncodeRunnerRunStatusResponse(csilV RunnerRunStatusResponse) []byte {
-	return cborEncode(csilEncRunnerRunStatusResponse(csilV))
+func EncodeRunnerRunStatusResponse(csilV RunnerRunStatusResponse) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerRunStatusResponse(csilV, 0))
 }
 
 // DecodeRunnerRunStatusResponse decodes canonical CSIL CBOR bytes into a RunnerRunStatusResponse.
@@ -11181,10 +11829,13 @@ func DecodeRunnerRunStatusResponse(csilData []byte) (RunnerRunStatusResponse, er
 }
 
 // csilEncRunnerAck builds the canonical CBOR value tree for a RunnerAck.
-func csilEncRunnerAck(csilV RunnerAck) cborValue {
+func csilEncRunnerAck(csilV RunnerAck, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("ok"), cborBool(csilV.Ok)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecRunnerAck reconstructs a RunnerAck from a decoded CBOR value tree.
@@ -11205,8 +11856,8 @@ func csilDecRunnerAck(csilRoot cborValue) (RunnerAck, error) {
 }
 
 // EncodeRunnerAck encodes a RunnerAck to canonical CSIL CBOR bytes.
-func EncodeRunnerAck(csilV RunnerAck) []byte {
-	return cborEncode(csilEncRunnerAck(csilV))
+func EncodeRunnerAck(csilV RunnerAck) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerAck(csilV, 0))
 }
 
 // DecodeRunnerAck decodes canonical CSIL CBOR bytes into a RunnerAck.
@@ -11220,18 +11871,22 @@ func DecodeRunnerAck(csilData []byte) (RunnerAck, error) {
 }
 
 // csilEncRunnerHelloRequest builds the canonical CBOR value tree for a RunnerHelloRequest.
-func csilEncRunnerHelloRequest(csilV RunnerHelloRequest) cborValue {
+func csilEncRunnerHelloRequest(csilV RunnerHelloRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 7)
 	csilEntries = append(csilEntries, cborEntry{cborText("os"), cborText(csilV.Os)})
 	csilEntries = append(csilEntries, cborEntry{cborText("arch"), cborText(csilV.Arch)})
 	csilEntries = append(csilEntries, cborEntry{cborText("busy"), cborBool(csilV.Busy)})
-	csilEntries = append(csilEntries, cborEntry{cborText("repos"), cborEncArray(csilV.Repos, func(csilElem string) cborValue { return cborText(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("repos"), csilE.val(cborEncArray(csilV.Repos, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	csilEntries = append(csilEntries, cborEntry{cborText("version"), cborText(csilV.Version)})
-	csilEntries = append(csilEntries, cborEntry{cborText("publishes"), cborEncArray(csilV.Publishes, func(csilElem string) cborValue { return cborText(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("publishes"), csilE.val(cborEncArray(csilV.Publishes, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	if csilV.UpdateError != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("update_error"), cborText((*csilV.UpdateError))})
 	}
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecRunnerHelloRequest reconstructs a RunnerHelloRequest from a decoded CBOR value tree.
@@ -11314,8 +11969,8 @@ func csilDecRunnerHelloRequest(csilRoot cborValue) (RunnerHelloRequest, error) {
 }
 
 // EncodeRunnerHelloRequest encodes a RunnerHelloRequest to canonical CSIL CBOR bytes.
-func EncodeRunnerHelloRequest(csilV RunnerHelloRequest) []byte {
-	return cborEncode(csilEncRunnerHelloRequest(csilV))
+func EncodeRunnerHelloRequest(csilV RunnerHelloRequest) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerHelloRequest(csilV, 0))
 }
 
 // DecodeRunnerHelloRequest decodes canonical CSIL CBOR bytes into a RunnerHelloRequest.
@@ -11329,12 +11984,15 @@ func DecodeRunnerHelloRequest(csilData []byte) (RunnerHelloRequest, error) {
 }
 
 // csilEncRunnerUpdate builds the canonical CBOR value tree for a RunnerUpdate.
-func csilEncRunnerUpdate(csilV RunnerUpdate) cborValue {
+func csilEncRunnerUpdate(csilV RunnerUpdate, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("size"), cborUint(csilV.Size)})
 	csilEntries = append(csilEntries, cborEntry{cborText("digest"), cborText(csilV.Digest)})
 	csilEntries = append(csilEntries, cborEntry{cborText("version"), cborText(csilV.Version)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecRunnerUpdate reconstructs a RunnerUpdate from a decoded CBOR value tree.
@@ -11377,8 +12035,8 @@ func csilDecRunnerUpdate(csilRoot cborValue) (RunnerUpdate, error) {
 }
 
 // EncodeRunnerUpdate encodes a RunnerUpdate to canonical CSIL CBOR bytes.
-func EncodeRunnerUpdate(csilV RunnerUpdate) []byte {
-	return cborEncode(csilEncRunnerUpdate(csilV))
+func EncodeRunnerUpdate(csilV RunnerUpdate) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerUpdate(csilV, 0))
 }
 
 // DecodeRunnerUpdate decodes canonical CSIL CBOR bytes into a RunnerUpdate.
@@ -11392,12 +12050,16 @@ func DecodeRunnerUpdate(csilData []byte) (RunnerUpdate, error) {
 }
 
 // csilEncRunnerHelloResponse builds the canonical CBOR value tree for a RunnerHelloResponse.
-func csilEncRunnerHelloResponse(csilV RunnerHelloResponse) cborValue {
+func csilEncRunnerHelloResponse(csilV RunnerHelloResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
 	if csilV.Update != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("update"), csilEncRunnerUpdate((*csilV.Update))})
+		csilEntries = append(csilEntries, cborEntry{cborText("update"), csilE.val(csilEncRunnerUpdate((*csilV.Update), csilDepth+1))})
 	}
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecRunnerHelloResponse reconstructs a RunnerHelloResponse from a decoded CBOR value tree.
@@ -11414,8 +12076,8 @@ func csilDecRunnerHelloResponse(csilRoot cborValue) (RunnerHelloResponse, error)
 }
 
 // EncodeRunnerHelloResponse encodes a RunnerHelloResponse to canonical CSIL CBOR bytes.
-func EncodeRunnerHelloResponse(csilV RunnerHelloResponse) []byte {
-	return cborEncode(csilEncRunnerHelloResponse(csilV))
+func EncodeRunnerHelloResponse(csilV RunnerHelloResponse) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerHelloResponse(csilV, 0))
 }
 
 // DecodeRunnerHelloResponse decodes canonical CSIL CBOR bytes into a RunnerHelloResponse.
@@ -11429,12 +12091,15 @@ func DecodeRunnerHelloResponse(csilData []byte) (RunnerHelloResponse, error) {
 }
 
 // csilEncRunnerGetPackageRequest builds the canonical CBOR value tree for a RunnerGetPackageRequest.
-func csilEncRunnerGetPackageRequest(csilV RunnerGetPackageRequest) cborValue {
+func csilEncRunnerGetPackageRequest(csilV RunnerGetPackageRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("os"), cborText(csilV.Os)})
 	csilEntries = append(csilEntries, cborEntry{cborText("arch"), cborText(csilV.Arch)})
 	csilEntries = append(csilEntries, cborEntry{cborText("version"), cborText(csilV.Version)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecRunnerGetPackageRequest reconstructs a RunnerGetPackageRequest from a decoded CBOR value tree.
@@ -11477,8 +12142,8 @@ func csilDecRunnerGetPackageRequest(csilRoot cborValue) (RunnerGetPackageRequest
 }
 
 // EncodeRunnerGetPackageRequest encodes a RunnerGetPackageRequest to canonical CSIL CBOR bytes.
-func EncodeRunnerGetPackageRequest(csilV RunnerGetPackageRequest) []byte {
-	return cborEncode(csilEncRunnerGetPackageRequest(csilV))
+func EncodeRunnerGetPackageRequest(csilV RunnerGetPackageRequest) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerGetPackageRequest(csilV, 0))
 }
 
 // DecodeRunnerGetPackageRequest decodes canonical CSIL CBOR bytes into a RunnerGetPackageRequest.
@@ -11492,11 +12157,14 @@ func DecodeRunnerGetPackageRequest(csilData []byte) (RunnerGetPackageRequest, er
 }
 
 // csilEncRunnerGetPackageResponse builds the canonical CBOR value tree for a RunnerGetPackageResponse.
-func csilEncRunnerGetPackageResponse(csilV RunnerGetPackageResponse) cborValue {
+func csilEncRunnerGetPackageResponse(csilV RunnerGetPackageResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	csilEntries = append(csilEntries, cborEntry{cborText("body"), cborBytes(csilV.Body)})
 	csilEntries = append(csilEntries, cborEntry{cborText("digest"), cborText(csilV.Digest)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecRunnerGetPackageResponse reconstructs a RunnerGetPackageResponse from a decoded CBOR value tree.
@@ -11528,8 +12196,8 @@ func csilDecRunnerGetPackageResponse(csilRoot cborValue) (RunnerGetPackageRespon
 }
 
 // EncodeRunnerGetPackageResponse encodes a RunnerGetPackageResponse to canonical CSIL CBOR bytes.
-func EncodeRunnerGetPackageResponse(csilV RunnerGetPackageResponse) []byte {
-	return cborEncode(csilEncRunnerGetPackageResponse(csilV))
+func EncodeRunnerGetPackageResponse(csilV RunnerGetPackageResponse) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerGetPackageResponse(csilV, 0))
 }
 
 // DecodeRunnerGetPackageResponse decodes canonical CSIL CBOR bytes into a RunnerGetPackageResponse.
@@ -11543,11 +12211,15 @@ func DecodeRunnerGetPackageResponse(csilData []byte) (RunnerGetPackageResponse, 
 }
 
 // csilEncRunnerGetArtifactRequest builds the canonical CBOR value tree for a RunnerGetArtifactRequest.
-func csilEncRunnerGetArtifactRequest(csilV RunnerGetArtifactRequest) cborValue {
+func csilEncRunnerGetArtifactRequest(csilV RunnerGetArtifactRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 2)
-	csilEntries = append(csilEntries, cborEntry{cborText("step"), csilEncRunnerStep(csilV.Step)})
+	csilEntries = append(csilEntries, cborEntry{cborText("step"), csilE.val(csilEncRunnerStep(csilV.Step, csilDepth+1))})
 	csilEntries = append(csilEntries, cborEntry{cborText("digest"), cborText(csilV.Digest)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecRunnerGetArtifactRequest reconstructs a RunnerGetArtifactRequest from a decoded CBOR value tree.
@@ -11579,8 +12251,8 @@ func csilDecRunnerGetArtifactRequest(csilRoot cborValue) (RunnerGetArtifactReque
 }
 
 // EncodeRunnerGetArtifactRequest encodes a RunnerGetArtifactRequest to canonical CSIL CBOR bytes.
-func EncodeRunnerGetArtifactRequest(csilV RunnerGetArtifactRequest) []byte {
-	return cborEncode(csilEncRunnerGetArtifactRequest(csilV))
+func EncodeRunnerGetArtifactRequest(csilV RunnerGetArtifactRequest) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerGetArtifactRequest(csilV, 0))
 }
 
 // DecodeRunnerGetArtifactRequest decodes canonical CSIL CBOR bytes into a RunnerGetArtifactRequest.
@@ -11594,11 +12266,14 @@ func DecodeRunnerGetArtifactRequest(csilData []byte) (RunnerGetArtifactRequest, 
 }
 
 // csilEncRunnerGetArtifactResponse builds the canonical CBOR value tree for a RunnerGetArtifactResponse.
-func csilEncRunnerGetArtifactResponse(csilV RunnerGetArtifactResponse) cborValue {
+func csilEncRunnerGetArtifactResponse(csilV RunnerGetArtifactResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	csilEntries = append(csilEntries, cborEntry{cborText("body"), cborBytes(csilV.Body)})
 	csilEntries = append(csilEntries, cborEntry{cborText("media_type"), cborText(csilV.MediaType)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecRunnerGetArtifactResponse reconstructs a RunnerGetArtifactResponse from a decoded CBOR value tree.
@@ -11630,8 +12305,8 @@ func csilDecRunnerGetArtifactResponse(csilRoot cborValue) (RunnerGetArtifactResp
 }
 
 // EncodeRunnerGetArtifactResponse encodes a RunnerGetArtifactResponse to canonical CSIL CBOR bytes.
-func EncodeRunnerGetArtifactResponse(csilV RunnerGetArtifactResponse) []byte {
-	return cborEncode(csilEncRunnerGetArtifactResponse(csilV))
+func EncodeRunnerGetArtifactResponse(csilV RunnerGetArtifactResponse) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerGetArtifactResponse(csilV, 0))
 }
 
 // DecodeRunnerGetArtifactResponse decodes canonical CSIL CBOR bytes into a RunnerGetArtifactResponse.
@@ -11645,18 +12320,22 @@ func DecodeRunnerGetArtifactResponse(csilData []byte) (RunnerGetArtifactResponse
 }
 
 // csilEncRunnerEgressProxy builds the canonical CBOR value tree for a RunnerEgressProxy.
-func csilEncRunnerEgressProxy(csilV RunnerEgressProxy) cborValue {
+func csilEncRunnerEgressProxy(csilV RunnerEgressProxy, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 5)
 	csilEntries = append(csilEntries, cborEntry{cborText("ca"), cborBytes(csilV.Ca)})
 	if csilV.Env != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("env"), cborEncMap(csilV.Env, func(csilK string) cborValue { return cborText(csilK) }, func(csilV string) cborValue { return cborText(csilV) })})
+		csilEntries = append(csilEntries, cborEntry{cborText("env"), csilE.val(cborEncMap(csilV.Env, func(csilK string) (cborValue, error) { return cborText(csilK), nil }, func(csilV string) (cborValue, error) { return cborText(csilV), nil }))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("credential"), cborText(csilV.Credential)})
 	csilEntries = append(csilEntries, cborEntry{cborText("environment"), cborText(csilV.Environment)})
 	if csilV.SshKnownHosts != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("ssh_known_hosts"), cborText((*csilV.SshKnownHosts))})
 	}
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecRunnerEgressProxy reconstructs a RunnerEgressProxy from a decoded CBOR value tree.
@@ -11713,8 +12392,8 @@ func csilDecRunnerEgressProxy(csilRoot cborValue) (RunnerEgressProxy, error) {
 }
 
 // EncodeRunnerEgressProxy encodes a RunnerEgressProxy to canonical CSIL CBOR bytes.
-func EncodeRunnerEgressProxy(csilV RunnerEgressProxy) []byte {
-	return cborEncode(csilEncRunnerEgressProxy(csilV))
+func EncodeRunnerEgressProxy(csilV RunnerEgressProxy) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerEgressProxy(csilV, 0))
 }
 
 // DecodeRunnerEgressProxy decodes canonical CSIL CBOR bytes into a RunnerEgressProxy.
@@ -11728,12 +12407,16 @@ func DecodeRunnerEgressProxy(csilData []byte) (RunnerEgressProxy, error) {
 }
 
 // csilEncRunnerEgressAccessResponse builds the canonical CBOR value tree for a RunnerEgressAccessResponse.
-func csilEncRunnerEgressAccessResponse(csilV RunnerEgressAccessResponse) cborValue {
+func csilEncRunnerEgressAccessResponse(csilV RunnerEgressAccessResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
 	if csilV.Proxy != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("proxy"), csilEncRunnerEgressProxy((*csilV.Proxy))})
+		csilEntries = append(csilEntries, cborEntry{cborText("proxy"), csilE.val(csilEncRunnerEgressProxy((*csilV.Proxy), csilDepth+1))})
 	}
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecRunnerEgressAccessResponse reconstructs a RunnerEgressAccessResponse from a decoded CBOR value tree.
@@ -11750,8 +12433,8 @@ func csilDecRunnerEgressAccessResponse(csilRoot cborValue) (RunnerEgressAccessRe
 }
 
 // EncodeRunnerEgressAccessResponse encodes a RunnerEgressAccessResponse to canonical CSIL CBOR bytes.
-func EncodeRunnerEgressAccessResponse(csilV RunnerEgressAccessResponse) []byte {
-	return cborEncode(csilEncRunnerEgressAccessResponse(csilV))
+func EncodeRunnerEgressAccessResponse(csilV RunnerEgressAccessResponse) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerEgressAccessResponse(csilV, 0))
 }
 
 // DecodeRunnerEgressAccessResponse decodes canonical CSIL CBOR bytes into a RunnerEgressAccessResponse.
@@ -11765,7 +12448,10 @@ func DecodeRunnerEgressAccessResponse(csilData []byte) (RunnerEgressAccessRespon
 }
 
 // csilEncRunnerTerminal builds the canonical CBOR value tree for a RunnerTerminal.
-func csilEncRunnerTerminal(csilV RunnerTerminal) cborValue {
+func csilEncRunnerTerminal(csilV RunnerTerminal, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 6)
 	if csilV.Cwd != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("cwd"), cborText((*csilV.Cwd))})
@@ -11775,7 +12461,7 @@ func csilEncRunnerTerminal(csilV RunnerTerminal) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("rows"), cborUint(csilV.Rows)})
 	csilEntries = append(csilEntries, cborEntry{cborText("session"), cborText(csilV.Session)})
 	csilEntries = append(csilEntries, cborEntry{cborText("environment"), cborText(csilV.Environment)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecRunnerTerminal reconstructs a RunnerTerminal from a decoded CBOR value tree.
@@ -11847,8 +12533,8 @@ func csilDecRunnerTerminal(csilRoot cborValue) (RunnerTerminal, error) {
 }
 
 // EncodeRunnerTerminal encodes a RunnerTerminal to canonical CSIL CBOR bytes.
-func EncodeRunnerTerminal(csilV RunnerTerminal) []byte {
-	return cborEncode(csilEncRunnerTerminal(csilV))
+func EncodeRunnerTerminal(csilV RunnerTerminal) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerTerminal(csilV, 0))
 }
 
 // DecodeRunnerTerminal decodes canonical CSIL CBOR bytes into a RunnerTerminal.
@@ -11862,12 +12548,15 @@ func DecodeRunnerTerminal(csilData []byte) (RunnerTerminal, error) {
 }
 
 // csilEncRunnerTerminalsRequest builds the canonical CBOR value tree for a RunnerTerminalsRequest.
-func csilEncRunnerTerminalsRequest(csilV RunnerTerminalsRequest) cborValue {
+func csilEncRunnerTerminalsRequest(csilV RunnerTerminalsRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	if csilV.WaitMs != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("wait_ms"), cborUint((*csilV.WaitMs))})
 	}
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecRunnerTerminalsRequest reconstructs a RunnerTerminalsRequest from a decoded CBOR value tree.
@@ -11884,8 +12573,8 @@ func csilDecRunnerTerminalsRequest(csilRoot cborValue) (RunnerTerminalsRequest, 
 }
 
 // EncodeRunnerTerminalsRequest encodes a RunnerTerminalsRequest to canonical CSIL CBOR bytes.
-func EncodeRunnerTerminalsRequest(csilV RunnerTerminalsRequest) []byte {
-	return cborEncode(csilEncRunnerTerminalsRequest(csilV))
+func EncodeRunnerTerminalsRequest(csilV RunnerTerminalsRequest) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerTerminalsRequest(csilV, 0))
 }
 
 // DecodeRunnerTerminalsRequest decodes canonical CSIL CBOR bytes into a RunnerTerminalsRequest.
@@ -11899,10 +12588,14 @@ func DecodeRunnerTerminalsRequest(csilData []byte) (RunnerTerminalsRequest, erro
 }
 
 // csilEncRunnerTerminalsResponse builds the canonical CBOR value tree for a RunnerTerminalsResponse.
-func csilEncRunnerTerminalsResponse(csilV RunnerTerminalsResponse) cborValue {
+func csilEncRunnerTerminalsResponse(csilV RunnerTerminalsResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
-	csilEntries = append(csilEntries, cborEntry{cborText("terminals"), cborEncArray(csilV.Terminals, func(csilElem RunnerTerminal) cborValue { return csilEncRunnerTerminal(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("terminals"), csilE.val(cborEncArray(csilV.Terminals, func(csilElem RunnerTerminal) (cborValue, error) { return csilEncRunnerTerminal(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecRunnerTerminalsResponse reconstructs a RunnerTerminalsResponse from a decoded CBOR value tree.
@@ -11923,8 +12616,8 @@ func csilDecRunnerTerminalsResponse(csilRoot cborValue) (RunnerTerminalsResponse
 }
 
 // EncodeRunnerTerminalsResponse encodes a RunnerTerminalsResponse to canonical CSIL CBOR bytes.
-func EncodeRunnerTerminalsResponse(csilV RunnerTerminalsResponse) []byte {
-	return cborEncode(csilEncRunnerTerminalsResponse(csilV))
+func EncodeRunnerTerminalsResponse(csilV RunnerTerminalsResponse) ([]byte, error) {
+	return cborEncodeE(csilEncRunnerTerminalsResponse(csilV, 0))
 }
 
 // DecodeRunnerTerminalsResponse decodes canonical CSIL CBOR bytes into a RunnerTerminalsResponse.
@@ -11938,11 +12631,14 @@ func DecodeRunnerTerminalsResponse(csilData []byte) (RunnerTerminalsResponse, er
 }
 
 // csilEncEgressFlowHeader builds the canonical CBOR value tree for a EgressFlowHeader.
-func csilEncEgressFlowHeader(csilV EgressFlowHeader) cborValue {
+func csilEncEgressFlowHeader(csilV EgressFlowHeader, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
 	csilEntries = append(csilEntries, cborEntry{cborText("value"), cborText(csilV.Value)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecEgressFlowHeader reconstructs a EgressFlowHeader from a decoded CBOR value tree.
@@ -11974,8 +12670,8 @@ func csilDecEgressFlowHeader(csilRoot cborValue) (EgressFlowHeader, error) {
 }
 
 // EncodeEgressFlowHeader encodes a EgressFlowHeader to canonical CSIL CBOR bytes.
-func EncodeEgressFlowHeader(csilV EgressFlowHeader) []byte {
-	return cborEncode(csilEncEgressFlowHeader(csilV))
+func EncodeEgressFlowHeader(csilV EgressFlowHeader) ([]byte, error) {
+	return cborEncodeE(csilEncEgressFlowHeader(csilV, 0))
 }
 
 // DecodeEgressFlowHeader decodes canonical CSIL CBOR bytes into a EgressFlowHeader.
@@ -11989,7 +12685,11 @@ func DecodeEgressFlowHeader(csilData []byte) (EgressFlowHeader, error) {
 }
 
 // csilEncEgressFlow builds the canonical CBOR value tree for a EgressFlow.
-func csilEncEgressFlow(csilV EgressFlow) cborValue {
+func csilEncEgressFlow(csilV EgressFlow, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 10)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("url"), cborText(csilV.Url)})
@@ -11997,11 +12697,13 @@ func csilEncEgressFlow(csilV EgressFlow) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("owner"), cborText(csilV.Owner)})
 	csilEntries = append(csilEntries, cborEntry{cborText("method"), cborText(csilV.Method)})
 	csilEntries = append(csilEntries, cborEntry{cborText("status"), cborUint(csilV.Status)})
-	csilEntries = append(csilEntries, cborEntry{cborText("headers"), cborEncArray(csilV.Headers, func(csilElem EgressFlowHeader) cborValue { return csilEncEgressFlowHeader(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("headers"), csilE.val(cborEncArray(csilV.Headers, func(csilElem EgressFlowHeader) (cborValue, error) {
+		return csilEncEgressFlowHeader(csilElem, csilDepth+1)
+	}))})
 	csilEntries = append(csilEntries, cborEntry{cborText("direction"), cborText(csilV.Direction)})
 	csilEntries = append(csilEntries, cborEntry{cborText("destination"), cborText(csilV.Destination)})
 	csilEntries = append(csilEntries, cborEntry{cborText("environment"), cborText(csilV.Environment)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecEgressFlow reconstructs a EgressFlow from a decoded CBOR value tree.
@@ -12121,8 +12823,8 @@ func csilDecEgressFlow(csilRoot cborValue) (EgressFlow, error) {
 }
 
 // EncodeEgressFlow encodes a EgressFlow to canonical CSIL CBOR bytes.
-func EncodeEgressFlow(csilV EgressFlow) []byte {
-	return cborEncode(csilEncEgressFlow(csilV))
+func EncodeEgressFlow(csilV EgressFlow) ([]byte, error) {
+	return cborEncodeE(csilEncEgressFlow(csilV, 0))
 }
 
 // DecodeEgressFlow decodes canonical CSIL CBOR bytes into a EgressFlow.
@@ -12136,10 +12838,13 @@ func DecodeEgressFlow(csilData []byte) (EgressFlow, error) {
 }
 
 // csilEncEgressEnvironmentRequest builds the canonical CBOR value tree for a EgressEnvironmentRequest.
-func csilEncEgressEnvironmentRequest(csilV EgressEnvironmentRequest) cborValue {
+func csilEncEgressEnvironmentRequest(csilV EgressEnvironmentRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("environment"), cborText(csilV.Environment)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecEgressEnvironmentRequest reconstructs a EgressEnvironmentRequest from a decoded CBOR value tree.
@@ -12160,8 +12865,8 @@ func csilDecEgressEnvironmentRequest(csilRoot cborValue) (EgressEnvironmentReque
 }
 
 // EncodeEgressEnvironmentRequest encodes a EgressEnvironmentRequest to canonical CSIL CBOR bytes.
-func EncodeEgressEnvironmentRequest(csilV EgressEnvironmentRequest) []byte {
-	return cborEncode(csilEncEgressEnvironmentRequest(csilV))
+func EncodeEgressEnvironmentRequest(csilV EgressEnvironmentRequest) ([]byte, error) {
+	return cborEncodeE(csilEncEgressEnvironmentRequest(csilV, 0))
 }
 
 // DecodeEgressEnvironmentRequest decodes canonical CSIL CBOR bytes into a EgressEnvironmentRequest.
@@ -12175,7 +12880,11 @@ func DecodeEgressEnvironmentRequest(csilData []byte) (EgressEnvironmentRequest, 
 }
 
 // csilEncEgressEnvironmentResponse builds the canonical CBOR value tree for a EgressEnvironmentResponse.
-func csilEncEgressEnvironmentResponse(csilV EgressEnvironmentResponse) cborValue {
+func csilEncEgressEnvironmentResponse(csilV EgressEnvironmentResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 4)
 	if csilV.Goal != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("goal"), cborText((*csilV.Goal))})
@@ -12185,9 +12894,9 @@ func csilEncEgressEnvironmentResponse(csilV EgressEnvironmentResponse) cborValue
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("owner"), cborText(csilV.Owner)})
 	if csilV.Labels != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("labels"), cborEncMap(csilV.Labels, func(csilK string) cborValue { return cborText(csilK) }, func(csilV string) cborValue { return cborText(csilV) })})
+		csilEntries = append(csilEntries, cborEntry{cborText("labels"), csilE.val(cborEncMap(csilV.Labels, func(csilK string) (cborValue, error) { return cborText(csilK), nil }, func(csilV string) (cborValue, error) { return cborText(csilV), nil }))})
 	}
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecEgressEnvironmentResponse reconstructs a EgressEnvironmentResponse from a decoded CBOR value tree.
@@ -12229,8 +12938,8 @@ func csilDecEgressEnvironmentResponse(csilRoot cborValue) (EgressEnvironmentResp
 }
 
 // EncodeEgressEnvironmentResponse encodes a EgressEnvironmentResponse to canonical CSIL CBOR bytes.
-func EncodeEgressEnvironmentResponse(csilV EgressEnvironmentResponse) []byte {
-	return cborEncode(csilEncEgressEnvironmentResponse(csilV))
+func EncodeEgressEnvironmentResponse(csilV EgressEnvironmentResponse) ([]byte, error) {
+	return cborEncodeE(csilEncEgressEnvironmentResponse(csilV, 0))
 }
 
 // DecodeEgressEnvironmentResponse decodes canonical CSIL CBOR bytes into a EgressEnvironmentResponse.
@@ -12244,14 +12953,18 @@ func DecodeEgressEnvironmentResponse(csilData []byte) (EgressEnvironmentResponse
 }
 
 // csilEncEgressEvaluateRequest builds the canonical CBOR value tree for a EgressEvaluateRequest.
-func csilEncEgressEvaluateRequest(csilV EgressEvaluateRequest) cborValue {
+func csilEncEgressEvaluateRequest(csilV EgressEvaluateRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 3)
-	csilEntries = append(csilEntries, cborEntry{cborText("flow"), csilEncEgressFlow(csilV.Flow)})
+	csilEntries = append(csilEntries, cborEntry{cborText("flow"), csilE.val(csilEncEgressFlow(csilV.Flow, csilDepth+1))})
 	csilEntries = append(csilEntries, cborEntry{cborText("plugin"), cborText(csilV.Plugin)})
 	if csilV.Question != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("question"), cborText((*csilV.Question))})
 	}
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecEgressEvaluateRequest reconstructs a EgressEvaluateRequest from a decoded CBOR value tree.
@@ -12290,8 +13003,8 @@ func csilDecEgressEvaluateRequest(csilRoot cborValue) (EgressEvaluateRequest, er
 }
 
 // EncodeEgressEvaluateRequest encodes a EgressEvaluateRequest to canonical CSIL CBOR bytes.
-func EncodeEgressEvaluateRequest(csilV EgressEvaluateRequest) []byte {
-	return cborEncode(csilEncEgressEvaluateRequest(csilV))
+func EncodeEgressEvaluateRequest(csilV EgressEvaluateRequest) ([]byte, error) {
+	return cborEncodeE(csilEncEgressEvaluateRequest(csilV, 0))
 }
 
 // DecodeEgressEvaluateRequest decodes canonical CSIL CBOR bytes into a EgressEvaluateRequest.
@@ -12305,12 +13018,15 @@ func DecodeEgressEvaluateRequest(csilData []byte) (EgressEvaluateRequest, error)
 }
 
 // csilEncEgressVerdict builds the canonical CBOR value tree for a EgressVerdict.
-func csilEncEgressVerdict(csilV EgressVerdict) cborValue {
+func csilEncEgressVerdict(csilV EgressVerdict, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("by"), cborText(csilV.By)})
 	csilEntries = append(csilEntries, cborEntry{cborText("reason"), cborText(csilV.Reason)})
 	csilEntries = append(csilEntries, cborEntry{cborText("verdict"), cborText(csilV.Verdict)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecEgressVerdict reconstructs a EgressVerdict from a decoded CBOR value tree.
@@ -12353,8 +13069,8 @@ func csilDecEgressVerdict(csilRoot cborValue) (EgressVerdict, error) {
 }
 
 // EncodeEgressVerdict encodes a EgressVerdict to canonical CSIL CBOR bytes.
-func EncodeEgressVerdict(csilV EgressVerdict) []byte {
-	return cborEncode(csilEncEgressVerdict(csilV))
+func EncodeEgressVerdict(csilV EgressVerdict) ([]byte, error) {
+	return cborEncodeE(csilEncEgressVerdict(csilV, 0))
 }
 
 // DecodeEgressVerdict decodes canonical CSIL CBOR bytes into a EgressVerdict.
@@ -12368,12 +13084,16 @@ func DecodeEgressVerdict(csilData []byte) (EgressVerdict, error) {
 }
 
 // csilEncEgressDetectRequest builds the canonical CBOR value tree for a EgressDetectRequest.
-func csilEncEgressDetectRequest(csilV EgressDetectRequest) cborValue {
+func csilEncEgressDetectRequest(csilV EgressDetectRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 3)
-	csilEntries = append(csilEntries, cborEntry{cborText("flow"), csilEncEgressFlow(csilV.Flow)})
-	csilEntries = append(csilEntries, cborEntry{cborText("texts"), cborEncArray(csilV.Texts, func(csilElem string) cborValue { return cborText(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("flow"), csilE.val(csilEncEgressFlow(csilV.Flow, csilDepth+1))})
+	csilEntries = append(csilEntries, cborEntry{cborText("texts"), csilE.val(cborEncArray(csilV.Texts, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	csilEntries = append(csilEntries, cborEntry{cborText("plugin"), cborText(csilV.Plugin)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecEgressDetectRequest reconstructs a EgressDetectRequest from a decoded CBOR value tree.
@@ -12416,8 +13136,8 @@ func csilDecEgressDetectRequest(csilRoot cborValue) (EgressDetectRequest, error)
 }
 
 // EncodeEgressDetectRequest encodes a EgressDetectRequest to canonical CSIL CBOR bytes.
-func EncodeEgressDetectRequest(csilV EgressDetectRequest) []byte {
-	return cborEncode(csilEncEgressDetectRequest(csilV))
+func EncodeEgressDetectRequest(csilV EgressDetectRequest) ([]byte, error) {
+	return cborEncodeE(csilEncEgressDetectRequest(csilV, 0))
 }
 
 // DecodeEgressDetectRequest decodes canonical CSIL CBOR bytes into a EgressDetectRequest.
@@ -12431,11 +13151,15 @@ func DecodeEgressDetectRequest(csilData []byte) (EgressDetectRequest, error) {
 }
 
 // csilEncEgressSecretRulesRequest builds the canonical CBOR value tree for a EgressSecretRulesRequest.
-func csilEncEgressSecretRulesRequest(csilV EgressSecretRulesRequest) cborValue {
+func csilEncEgressSecretRulesRequest(csilV EgressSecretRulesRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 2)
-	csilEntries = append(csilEntries, cborEntry{cborText("flow"), csilEncEgressFlow(csilV.Flow)})
+	csilEntries = append(csilEntries, cborEntry{cborText("flow"), csilE.val(csilEncEgressFlow(csilV.Flow, csilDepth+1))})
 	csilEntries = append(csilEntries, cborEntry{cborText("plugin"), cborText(csilV.Plugin)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecEgressSecretRulesRequest reconstructs a EgressSecretRulesRequest from a decoded CBOR value tree.
@@ -12467,8 +13191,8 @@ func csilDecEgressSecretRulesRequest(csilRoot cborValue) (EgressSecretRulesReque
 }
 
 // EncodeEgressSecretRulesRequest encodes a EgressSecretRulesRequest to canonical CSIL CBOR bytes.
-func EncodeEgressSecretRulesRequest(csilV EgressSecretRulesRequest) []byte {
-	return cborEncode(csilEncEgressSecretRulesRequest(csilV))
+func EncodeEgressSecretRulesRequest(csilV EgressSecretRulesRequest) ([]byte, error) {
+	return cborEncodeE(csilEncEgressSecretRulesRequest(csilV, 0))
 }
 
 // DecodeEgressSecretRulesRequest decodes canonical CSIL CBOR bytes into a EgressSecretRulesRequest.
@@ -12482,16 +13206,20 @@ func DecodeEgressSecretRulesRequest(csilData []byte) (EgressSecretRulesRequest, 
 }
 
 // csilEncEgressSecretRule builds the canonical CBOR value tree for a EgressSecretRule.
-func csilEncEgressSecretRule(csilV EgressSecretRule) cborValue {
+func csilEncEgressSecretRule(csilV EgressSecretRule, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 5)
 	if csilV.Path != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("path"), cborText((*csilV.Path))})
 	}
-	csilEntries = append(csilEntries, cborEntry{cborText("hosts"), cborEncArray(csilV.Hosts, func(csilElem string) cborValue { return cborText(csilElem) })})
+	csilEntries = append(csilEntries, cborEntry{cborText("hosts"), csilE.val(cborEncArray(csilV.Hosts, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	csilEntries = append(csilEntries, cborEntry{cborText("place"), cborText(csilV.Place)})
 	csilEntries = append(csilEntries, cborEntry{cborText("secret"), cborText(csilV.Secret)})
 	csilEntries = append(csilEntries, cborEntry{cborText("placeholder"), cborText(csilV.Placeholder)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecEgressSecretRule reconstructs a EgressSecretRule from a decoded CBOR value tree.
@@ -12552,8 +13280,8 @@ func csilDecEgressSecretRule(csilRoot cborValue) (EgressSecretRule, error) {
 }
 
 // EncodeEgressSecretRule encodes a EgressSecretRule to canonical CSIL CBOR bytes.
-func EncodeEgressSecretRule(csilV EgressSecretRule) []byte {
-	return cborEncode(csilEncEgressSecretRule(csilV))
+func EncodeEgressSecretRule(csilV EgressSecretRule) ([]byte, error) {
+	return cborEncodeE(csilEncEgressSecretRule(csilV, 0))
 }
 
 // DecodeEgressSecretRule decodes canonical CSIL CBOR bytes into a EgressSecretRule.
@@ -12567,10 +13295,16 @@ func DecodeEgressSecretRule(csilData []byte) (EgressSecretRule, error) {
 }
 
 // csilEncEgressSecretRulesResponse builds the canonical CBOR value tree for a EgressSecretRulesResponse.
-func csilEncEgressSecretRulesResponse(csilV EgressSecretRulesResponse) cborValue {
+func csilEncEgressSecretRulesResponse(csilV EgressSecretRulesResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
-	csilEntries = append(csilEntries, cborEntry{cborText("rules"), cborEncArray(csilV.Rules, func(csilElem EgressSecretRule) cborValue { return csilEncEgressSecretRule(csilElem) })})
-	return csilEntries
+	csilEntries = append(csilEntries, cborEntry{cborText("rules"), csilE.val(cborEncArray(csilV.Rules, func(csilElem EgressSecretRule) (cborValue, error) {
+		return csilEncEgressSecretRule(csilElem, csilDepth+1)
+	}))})
+	return csilE.result(csilEntries)
 }
 
 // csilDecEgressSecretRulesResponse reconstructs a EgressSecretRulesResponse from a decoded CBOR value tree.
@@ -12591,8 +13325,8 @@ func csilDecEgressSecretRulesResponse(csilRoot cborValue) (EgressSecretRulesResp
 }
 
 // EncodeEgressSecretRulesResponse encodes a EgressSecretRulesResponse to canonical CSIL CBOR bytes.
-func EncodeEgressSecretRulesResponse(csilV EgressSecretRulesResponse) []byte {
-	return cborEncode(csilEncEgressSecretRulesResponse(csilV))
+func EncodeEgressSecretRulesResponse(csilV EgressSecretRulesResponse) ([]byte, error) {
+	return cborEncodeE(csilEncEgressSecretRulesResponse(csilV, 0))
 }
 
 // DecodeEgressSecretRulesResponse decodes canonical CSIL CBOR bytes into a EgressSecretRulesResponse.
@@ -12606,13 +13340,17 @@ func DecodeEgressSecretRulesResponse(csilData []byte) (EgressSecretRulesResponse
 }
 
 // csilEncEgressReportRequest builds the canonical CBOR value tree for a EgressReportRequest.
-func csilEncEgressReportRequest(csilV EgressReportRequest) cborValue {
+func csilEncEgressReportRequest(csilV EgressReportRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 4)
 	csilEntries = append(csilEntries, cborEntry{cborText("by"), cborText(csilV.By)})
-	csilEntries = append(csilEntries, cborEntry{cborText("flow"), csilEncEgressFlow(csilV.Flow)})
+	csilEntries = append(csilEntries, cborEntry{cborText("flow"), csilE.val(csilEncEgressFlow(csilV.Flow, csilDepth+1))})
 	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
 	csilEntries = append(csilEntries, cborEntry{cborText("reason"), cborText(csilV.Reason)})
-	return csilEntries
+	return csilE.result(csilEntries)
 }
 
 // csilDecEgressReportRequest reconstructs a EgressReportRequest from a decoded CBOR value tree.
@@ -12666,8 +13404,8 @@ func csilDecEgressReportRequest(csilRoot cborValue) (EgressReportRequest, error)
 }
 
 // EncodeEgressReportRequest encodes a EgressReportRequest to canonical CSIL CBOR bytes.
-func EncodeEgressReportRequest(csilV EgressReportRequest) []byte {
-	return cborEncode(csilEncEgressReportRequest(csilV))
+func EncodeEgressReportRequest(csilV EgressReportRequest) ([]byte, error) {
+	return cborEncodeE(csilEncEgressReportRequest(csilV, 0))
 }
 
 // DecodeEgressReportRequest decodes canonical CSIL CBOR bytes into a EgressReportRequest.
@@ -12681,10 +13419,13 @@ func DecodeEgressReportRequest(csilData []byte) (EgressReportRequest, error) {
 }
 
 // csilEncEgressReportResponse builds the canonical CBOR value tree for a EgressReportResponse.
-func csilEncEgressReportResponse(csilV EgressReportResponse) cborValue {
+func csilEncEgressReportResponse(csilV EgressReportResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 1)
 	csilEntries = append(csilEntries, cborEntry{cborText("review"), cborText(csilV.Review)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecEgressReportResponse reconstructs a EgressReportResponse from a decoded CBOR value tree.
@@ -12705,8 +13446,8 @@ func csilDecEgressReportResponse(csilRoot cborValue) (EgressReportResponse, erro
 }
 
 // EncodeEgressReportResponse encodes a EgressReportResponse to canonical CSIL CBOR bytes.
-func EncodeEgressReportResponse(csilV EgressReportResponse) []byte {
-	return cborEncode(csilEncEgressReportResponse(csilV))
+func EncodeEgressReportResponse(csilV EgressReportResponse) ([]byte, error) {
+	return cborEncodeE(csilEncEgressReportResponse(csilV, 0))
 }
 
 // DecodeEgressReportResponse decodes canonical CSIL CBOR bytes into a EgressReportResponse.
@@ -12720,11 +13461,14 @@ func DecodeEgressReportResponse(csilData []byte) (EgressReportResponse, error) {
 }
 
 // csilEncEgressDestinationRequest builds the canonical CBOR value tree for a EgressDestinationRequest.
-func csilEncEgressDestinationRequest(csilV EgressDestinationRequest) cborValue {
+func csilEncEgressDestinationRequest(csilV EgressDestinationRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	csilEntries = append(csilEntries, cborEntry{cborText("destination"), cborText(csilV.Destination)})
 	csilEntries = append(csilEntries, cborEntry{cborText("environment"), cborText(csilV.Environment)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecEgressDestinationRequest reconstructs a EgressDestinationRequest from a decoded CBOR value tree.
@@ -12756,8 +13500,8 @@ func csilDecEgressDestinationRequest(csilRoot cborValue) (EgressDestinationReque
 }
 
 // EncodeEgressDestinationRequest encodes a EgressDestinationRequest to canonical CSIL CBOR bytes.
-func EncodeEgressDestinationRequest(csilV EgressDestinationRequest) []byte {
-	return cborEncode(csilEncEgressDestinationRequest(csilV))
+func EncodeEgressDestinationRequest(csilV EgressDestinationRequest) ([]byte, error) {
+	return cborEncodeE(csilEncEgressDestinationRequest(csilV, 0))
 }
 
 // DecodeEgressDestinationRequest decodes canonical CSIL CBOR bytes into a EgressDestinationRequest.
@@ -12771,13 +13515,16 @@ func DecodeEgressDestinationRequest(csilData []byte) (EgressDestinationRequest, 
 }
 
 // csilEncEgressDestinationResponse builds the canonical CBOR value tree for a EgressDestinationResponse.
-func csilEncEgressDestinationResponse(csilV EgressDestinationResponse) cborValue {
+func csilEncEgressDestinationResponse(csilV EgressDestinationResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	csilEntries := make(cborMap, 0, 2)
 	if csilV.Layer4 != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("layer4"), cborBool((*csilV.Layer4))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("allowed"), cborBool(csilV.Allowed)})
-	return csilEntries
+	return csilEntries, nil
 }
 
 // csilDecEgressDestinationResponse reconstructs a EgressDestinationResponse from a decoded CBOR value tree.
@@ -12805,8 +13552,8 @@ func csilDecEgressDestinationResponse(csilRoot cborValue) (EgressDestinationResp
 }
 
 // EncodeEgressDestinationResponse encodes a EgressDestinationResponse to canonical CSIL CBOR bytes.
-func EncodeEgressDestinationResponse(csilV EgressDestinationResponse) []byte {
-	return cborEncode(csilEncEgressDestinationResponse(csilV))
+func EncodeEgressDestinationResponse(csilV EgressDestinationResponse) ([]byte, error) {
+	return cborEncodeE(csilEncEgressDestinationResponse(csilV, 0))
 }
 
 // DecodeEgressDestinationResponse decodes canonical CSIL CBOR bytes into a EgressDestinationResponse.

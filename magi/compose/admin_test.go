@@ -88,7 +88,7 @@ func TestAdminEnv(t *testing.T) {
 	// fake into the client, not only that it fills a URL field.
 	models := map[string]func(context.Context, []byte) ([]byte, error){
 		"list_models": func(context.Context, []byte) ([]byte, error) {
-			return modelsapi.EncodeListModelsResponse(modelsapi.ListModelsResponse{Models: []modelsapi.Model{{Name: "m1"}}}), nil
+			return modelsapi.EncodeListModelsResponse(modelsapi.ListModelsResponse{Models: []modelsapi.Model{{Name: "m1"}}})
 		},
 	}
 	ops := map[string]func(context.Context, []byte) ([]byte, error){}

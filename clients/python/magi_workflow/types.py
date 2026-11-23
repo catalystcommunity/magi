@@ -80,13 +80,13 @@ class Definition:
         if hasattr(self, 'start') and self.start is not None:
             result['start'] = self.start
         if hasattr(self, 'steps') and self.steps is not None:
-            result['steps'] = self.steps
+            result['steps'] = [item0.to_dict() for item0 in self.steps]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Definition':
         """Create instance from dictionary."""
-        return cls(name=data.get('name'), revision=data.get('revision'), description=data.get('description'), start=data.get('start'), steps=data.get('steps'))
+        return cls(name=data.get('name'), revision=data.get('revision'), description=data.get('description'), start=data.get('start'), steps=(None if data.get('steps') is None else [Step.from_dict(item0) for item0 in data['steps']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -159,7 +159,7 @@ class StepState:
         if hasattr(self, 'decided_by') and self.decided_by is not None:
             result['decided_by'] = self.decided_by
         if hasattr(self, 'progress') and self.progress is not None:
-            result['progress'] = self.progress
+            result['progress'] = [item0.to_dict() for item0 in self.progress]
         if hasattr(self, 'started_ms') and self.started_ms is not None:
             result['started_ms'] = self.started_ms
         if hasattr(self, 'ended_ms') and self.ended_ms is not None:
@@ -169,7 +169,7 @@ class StepState:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'StepState':
         """Create instance from dictionary."""
-        return cls(step=data.get('step'), attempt=data.get('attempt'), status=data.get('status'), outcome=data.get('outcome'), worker=data.get('worker'), comment=data.get('comment'), decided_by=data.get('decided_by'), progress=data.get('progress'), started_ms=data.get('started_ms'), ended_ms=data.get('ended_ms'))
+        return cls(step=data.get('step'), attempt=data.get('attempt'), status=data.get('status'), outcome=data.get('outcome'), worker=data.get('worker'), comment=data.get('comment'), decided_by=data.get('decided_by'), progress=(None if data.get('progress') is None else [Progress.from_dict(item0) for item0 in data['progress']]), started_ms=data.get('started_ms'), ended_ms=data.get('ended_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -214,7 +214,7 @@ class Run:
         if hasattr(self, 'vars') and self.vars is not None:
             result['vars'] = self.vars
         if hasattr(self, 'history') and self.history is not None:
-            result['history'] = self.history
+            result['history'] = [item0.to_dict() for item0 in self.history]
         if hasattr(self, 'waiting_for') and self.waiting_for is not None:
             result['waiting_for'] = self.waiting_for
         if hasattr(self, 'wait_until_ms') and self.wait_until_ms is not None:
@@ -230,7 +230,7 @@ class Run:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Run':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), definition=data.get('definition'), revision=data.get('revision'), owner=data.get('owner'), status=data.get('status'), current_step=data.get('current_step'), vars=data.get('vars'), history=data.get('history'), waiting_for=data.get('waiting_for'), wait_until_ms=data.get('wait_until_ms'), error=data.get('error'), created_ms=data.get('created_ms'), updated_ms=data.get('updated_ms'))
+        return cls(id=data.get('id'), definition=data.get('definition'), revision=data.get('revision'), owner=data.get('owner'), status=data.get('status'), current_step=data.get('current_step'), vars=data.get('vars'), history=(None if data.get('history') is None else [StepState.from_dict(item0) for item0 in data['history']]), waiting_for=data.get('waiting_for'), wait_until_ms=data.get('wait_until_ms'), error=data.get('error'), created_ms=data.get('created_ms'), updated_ms=data.get('updated_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -367,13 +367,13 @@ class ListRunsResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'runs') and self.runs is not None:
-            result['runs'] = self.runs
+            result['runs'] = [item0.to_dict() for item0 in self.runs]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListRunsResponse':
         """Create instance from dictionary."""
-        return cls(runs=data.get('runs'))
+        return cls(runs=(None if data.get('runs') is None else [Run.from_dict(item0) for item0 in data['runs']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -497,13 +497,13 @@ class ClaimResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'assignment') and self.assignment is not None:
-            result['assignment'] = self.assignment
+            result['assignment'] = self.assignment.to_dict()
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ClaimResponse':
         """Create instance from dictionary."""
-        return cls(assignment=data.get('assignment'))
+        return cls(assignment=(None if data.get('assignment') is None else Assignment.from_dict(data['assignment'])))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

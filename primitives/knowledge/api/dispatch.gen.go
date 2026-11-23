@@ -16,7 +16,7 @@ func KnowledgeServiceOps(impl KnowledgeService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeEntity(resp), nil
+			return EncodeEntity(resp)
 		},
 		"self": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeSelfRequest(b)
@@ -27,7 +27,7 @@ func KnowledgeServiceOps(impl KnowledgeService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeEntity(resp), nil
+			return EncodeEntity(resp)
 		},
 		"assert": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeAssertRequest(b)
@@ -38,7 +38,7 @@ func KnowledgeServiceOps(impl KnowledgeService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeClaim(resp), nil
+			return EncodeClaim(resp)
 		},
 		"change": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeChangeRequest(b)
@@ -49,7 +49,7 @@ func KnowledgeServiceOps(impl KnowledgeService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeChangeResponse(resp), nil
+			return EncodeChangeResponse(resp)
 		},
 		"merge": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeMergeRequest(b)
@@ -60,7 +60,7 @@ func KnowledgeServiceOps(impl KnowledgeService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeChange(resp), nil
+			return EncodeChange(resp)
 		},
 		"unmerge": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeUnmergeRequest(b)
@@ -71,7 +71,7 @@ func KnowledgeServiceOps(impl KnowledgeService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeChange(resp), nil
+			return EncodeChange(resp)
 		},
 		"record-episode": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeRecordEpisodeRequest(b)
@@ -82,7 +82,7 @@ func KnowledgeServiceOps(impl KnowledgeService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeEpisode(resp), nil
+			return EncodeEpisode(resp)
 		},
 		"put-procedure": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodePutProcedureRequest(b)
@@ -93,7 +93,7 @@ func KnowledgeServiceOps(impl KnowledgeService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeProcedure(resp), nil
+			return EncodeProcedure(resp)
 		},
 		"link-evidence": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeLinkEvidenceRequest(b)
@@ -104,7 +104,7 @@ func KnowledgeServiceOps(impl KnowledgeService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeEvidence(resp), nil
+			return EncodeEvidence(resp)
 		},
 		"dispute": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeDisputeRequest(b)
@@ -115,7 +115,7 @@ func KnowledgeServiceOps(impl KnowledgeService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeDispute(resp), nil
+			return EncodeDispute(resp)
 		},
 		"resolve-dispute": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeResolveDisputeRequest(b)
@@ -126,7 +126,7 @@ func KnowledgeServiceOps(impl KnowledgeService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeDispute(resp), nil
+			return EncodeDispute(resp)
 		},
 		"list-disputes": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListDisputesRequest(b)
@@ -137,7 +137,7 @@ func KnowledgeServiceOps(impl KnowledgeService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListDisputesResponse(resp), nil
+			return EncodeListDisputesResponse(resp)
 		},
 		"put-group": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodePutGroupRequest(b)
@@ -148,7 +148,7 @@ func KnowledgeServiceOps(impl KnowledgeService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeGroup(resp), nil
+			return EncodeGroup(resp)
 		},
 		"search": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeSearchRequest(b)
@@ -159,7 +159,7 @@ func KnowledgeServiceOps(impl KnowledgeService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeSearchResponse(resp), nil
+			return EncodeSearchResponse(resp)
 		},
 		"about": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeAboutRequest(b)
@@ -170,7 +170,7 @@ func KnowledgeServiceOps(impl KnowledgeService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeAboutResponse(resp), nil
+			return EncodeAboutResponse(resp)
 		},
 		"neighbors": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeNeighborsRequest(b)
@@ -181,7 +181,7 @@ func KnowledgeServiceOps(impl KnowledgeService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeNeighborsResponse(resp), nil
+			return EncodeNeighborsResponse(resp)
 		},
 		"timeline": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeTimelineRequest(b)
@@ -192,7 +192,7 @@ func KnowledgeServiceOps(impl KnowledgeService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeTimelineResponse(resp), nil
+			return EncodeTimelineResponse(resp)
 		},
 		"history": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeHistoryRequest(b)
@@ -203,7 +203,7 @@ func KnowledgeServiceOps(impl KnowledgeService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeHistoryResponse(resp), nil
+			return EncodeHistoryResponse(resp)
 		},
 		"get": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetRequest(b)
@@ -214,7 +214,7 @@ func KnowledgeServiceOps(impl KnowledgeService) map[string]func(context.Context,
 			if err != nil {
 				return nil, err
 			}
-			return EncodeGetResponse(resp), nil
+			return EncodeGetResponse(resp)
 		},
 	}
 }

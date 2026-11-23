@@ -16,7 +16,11 @@ func TestRefreshAt(t *testing.T) {
 	var auth, path string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth, path = r.Header.Get("Authorization"), r.URL.Path
-		w.Write(identityapi.EncodeTokenResponse(identityapi.TokenResponse{Token: "magi1.new.sig", Subject: "inference:box", ExpiresMs: uint64(exp.UnixMilli())}))
+		b, err := identityapi.EncodeTokenResponse(identityapi.TokenResponse{Token: "magi1.new.sig", Subject: "inference:box", ExpiresMs: uint64(exp.UnixMilli())})
+		if err != nil {
+			t.Error(err)
+		}
+		w.Write(b)
 	}))
 	defer srv.Close()
 	got, err := refreshAt(srv.URL)(context.Background(), "magi1.old.sig")

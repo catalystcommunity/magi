@@ -45,7 +45,11 @@ func NewConversationClient(transport Transport) *ConversationClient {
 
 func (c *ConversationClient) PutPersona(ctx context.Context, req PutPersonaRequest) (Persona, error) {
 	var csilZero Persona
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "put-persona", EncodePutPersonaRequest(req))
+	csilReq, csilErr := EncodePutPersonaRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "put-persona", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -54,7 +58,11 @@ func (c *ConversationClient) PutPersona(ctx context.Context, req PutPersonaReque
 
 func (c *ConversationClient) GetPersona(ctx context.Context, req GetPersonaRequest) (Persona, error) {
 	var csilZero Persona
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "get-persona", EncodeGetPersonaRequest(req))
+	csilReq, csilErr := EncodeGetPersonaRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "get-persona", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -63,7 +71,11 @@ func (c *ConversationClient) GetPersona(ctx context.Context, req GetPersonaReque
 
 func (c *ConversationClient) ListPersonas(ctx context.Context, req ListPersonasRequest) (ListPersonasResponse, error) {
 	var csilZero ListPersonasResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-personas", EncodeListPersonasRequest(req))
+	csilReq, csilErr := EncodeListPersonasRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-personas", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -72,7 +84,11 @@ func (c *ConversationClient) ListPersonas(ctx context.Context, req ListPersonasR
 
 func (c *ConversationClient) OpenStream(ctx context.Context, req OpenStreamRequest) (Stream, error) {
 	var csilZero Stream
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "open-stream", EncodeOpenStreamRequest(req))
+	csilReq, csilErr := EncodeOpenStreamRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "open-stream", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -81,7 +97,11 @@ func (c *ConversationClient) OpenStream(ctx context.Context, req OpenStreamReque
 
 func (c *ConversationClient) ListStreams(ctx context.Context, req ListStreamsRequest) (ListStreamsResponse, error) {
 	var csilZero ListStreamsResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-streams", EncodeListStreamsRequest(req))
+	csilReq, csilErr := EncodeListStreamsRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-streams", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -90,7 +110,11 @@ func (c *ConversationClient) ListStreams(ctx context.Context, req ListStreamsReq
 
 func (c *ConversationClient) GetStream(ctx context.Context, req GetStreamRequest) (Stream, error) {
 	var csilZero Stream
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "get-stream", EncodeGetStreamRequest(req))
+	csilReq, csilErr := EncodeGetStreamRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "get-stream", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -99,7 +123,11 @@ func (c *ConversationClient) GetStream(ctx context.Context, req GetStreamRequest
 
 func (c *ConversationClient) Post(ctx context.Context, req PostRequest) (Utterance, error) {
 	var csilZero Utterance
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "post", EncodePostRequest(req))
+	csilReq, csilErr := EncodePostRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "post", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -108,7 +136,11 @@ func (c *ConversationClient) Post(ctx context.Context, req PostRequest) (Utteran
 
 func (c *ConversationClient) ListUtterances(ctx context.Context, req ListUtterancesRequest) (ListUtterancesResponse, error) {
 	var csilZero ListUtterancesResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-utterances", EncodeListUtterancesRequest(req))
+	csilReq, csilErr := EncodeListUtterancesRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-utterances", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -117,7 +149,11 @@ func (c *ConversationClient) ListUtterances(ctx context.Context, req ListUtteran
 
 func (c *ConversationClient) GetUtterance(ctx context.Context, req GetUtteranceRequest) (Utterance, error) {
 	var csilZero Utterance
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "get-utterance", EncodeGetUtteranceRequest(req))
+	csilReq, csilErr := EncodeGetUtteranceRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "get-utterance", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -126,7 +162,11 @@ func (c *ConversationClient) GetUtterance(ctx context.Context, req GetUtteranceR
 
 func (c *ConversationClient) GetUtterances(ctx context.Context, req GetUtterancesRequest) (GetUtterancesResponse, error) {
 	var csilZero GetUtterancesResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "get-utterances", EncodeGetUtterancesRequest(req))
+	csilReq, csilErr := EncodeGetUtterancesRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "get-utterances", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -135,7 +175,11 @@ func (c *ConversationClient) GetUtterances(ctx context.Context, req GetUtterance
 
 func (c *ConversationClient) Search(ctx context.Context, req SearchRequest) (SearchResponse, error) {
 	var csilZero SearchResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "search", EncodeSearchRequest(req))
+	csilReq, csilErr := EncodeSearchRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "search", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -144,7 +188,11 @@ func (c *ConversationClient) Search(ctx context.Context, req SearchRequest) (Sea
 
 func (c *ConversationClient) Trace(ctx context.Context, req TraceRequest) (TraceResponse, error) {
 	var csilZero TraceResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "trace", EncodeTraceRequest(req))
+	csilReq, csilErr := EncodeTraceRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "trace", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -153,7 +201,11 @@ func (c *ConversationClient) Trace(ctx context.Context, req TraceRequest) (Trace
 
 func (c *ConversationClient) PutLink(ctx context.Context, req PutLinkRequest) (PutLinkResponse, error) {
 	var csilZero PutLinkResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "put-link", EncodePutLinkRequest(req))
+	csilReq, csilErr := EncodePutLinkRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "put-link", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -162,7 +214,11 @@ func (c *ConversationClient) PutLink(ctx context.Context, req PutLinkRequest) (P
 
 func (c *ConversationClient) RetractLink(ctx context.Context, req RetractLinkRequest) (Link, error) {
 	var csilZero Link
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "retract-link", EncodeRetractLinkRequest(req))
+	csilReq, csilErr := EncodeRetractLinkRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "retract-link", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -171,7 +227,11 @@ func (c *ConversationClient) RetractLink(ctx context.Context, req RetractLinkReq
 
 func (c *ConversationClient) ListLinks(ctx context.Context, req ListLinksRequest) (ListLinksResponse, error) {
 	var csilZero ListLinksResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-links", EncodeListLinksRequest(req))
+	csilReq, csilErr := EncodeListLinksRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-links", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -180,7 +240,11 @@ func (c *ConversationClient) ListLinks(ctx context.Context, req ListLinksRequest
 
 func (c *ConversationClient) SetVisibility(ctx context.Context, req SetVisibilityRequest) (SetVisibilityResponse, error) {
 	var csilZero SetVisibilityResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "set-visibility", EncodeSetVisibilityRequest(req))
+	csilReq, csilErr := EncodeSetVisibilityRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "set-visibility", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -189,7 +253,11 @@ func (c *ConversationClient) SetVisibility(ctx context.Context, req SetVisibilit
 
 func (c *ConversationClient) ListReviews(ctx context.Context, req ListReviewsRequest) (ListReviewsResponse, error) {
 	var csilZero ListReviewsResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-reviews", EncodeListReviewsRequest(req))
+	csilReq, csilErr := EncodeListReviewsRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-reviews", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -198,7 +266,11 @@ func (c *ConversationClient) ListReviews(ctx context.Context, req ListReviewsReq
 
 func (c *ConversationClient) AnswerReview(ctx context.Context, req AnswerReviewRequest) (Review, error) {
 	var csilZero Review
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "answer-review", EncodeAnswerReviewRequest(req))
+	csilReq, csilErr := EncodeAnswerReviewRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "answer-review", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -207,7 +279,11 @@ func (c *ConversationClient) AnswerReview(ctx context.Context, req AnswerReviewR
 
 func (c *ConversationClient) ListExamples(ctx context.Context, req ListExamplesRequest) (ListExamplesResponse, error) {
 	var csilZero ListExamplesResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-examples", EncodeListExamplesRequest(req))
+	csilReq, csilErr := EncodeListExamplesRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-examples", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -216,7 +292,11 @@ func (c *ConversationClient) ListExamples(ctx context.Context, req ListExamplesR
 
 func (c *ConversationClient) GetCalibration(ctx context.Context, req GetCalibrationRequest) (Calibration, error) {
 	var csilZero Calibration
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "get-calibration", EncodeGetCalibrationRequest(req))
+	csilReq, csilErr := EncodeGetCalibrationRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "get-calibration", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -225,7 +305,11 @@ func (c *ConversationClient) GetCalibration(ctx context.Context, req GetCalibrat
 
 func (c *ConversationClient) ClaimUnclassified(ctx context.Context, req ClaimUnclassifiedRequest) (ClaimUnclassifiedResponse, error) {
 	var csilZero ClaimUnclassifiedResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "claim-unclassified", EncodeClaimUnclassifiedRequest(req))
+	csilReq, csilErr := EncodeClaimUnclassifiedRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "claim-unclassified", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -234,7 +318,11 @@ func (c *ConversationClient) ClaimUnclassified(ctx context.Context, req ClaimUnc
 
 func (c *ConversationClient) MarkClassified(ctx context.Context, req MarkClassifiedRequest) (Utterance, error) {
 	var csilZero Utterance
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "mark-classified", EncodeMarkClassifiedRequest(req))
+	csilReq, csilErr := EncodeMarkClassifiedRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "mark-classified", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -243,7 +331,11 @@ func (c *ConversationClient) MarkClassified(ctx context.Context, req MarkClassif
 
 func (c *ConversationClient) SetAudio(ctx context.Context, req SetAudioRequest) (Utterance, error) {
 	var csilZero Utterance
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "set-audio", EncodeSetAudioRequest(req))
+	csilReq, csilErr := EncodeSetAudioRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "set-audio", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -252,7 +344,11 @@ func (c *ConversationClient) SetAudio(ctx context.Context, req SetAudioRequest) 
 
 func (c *ConversationClient) Annotate(ctx context.Context, req AnnotateRequest) (Annotation, error) {
 	var csilZero Annotation
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "annotate", EncodeAnnotateRequest(req))
+	csilReq, csilErr := EncodeAnnotateRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "annotate", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -261,7 +357,11 @@ func (c *ConversationClient) Annotate(ctx context.Context, req AnnotateRequest) 
 
 func (c *ConversationClient) ListAnnotations(ctx context.Context, req ListAnnotationsRequest) (ListAnnotationsResponse, error) {
 	var csilZero ListAnnotationsResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-annotations", EncodeListAnnotationsRequest(req))
+	csilReq, csilErr := EncodeListAnnotationsRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-annotations", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -270,7 +370,11 @@ func (c *ConversationClient) ListAnnotations(ctx context.Context, req ListAnnota
 
 func (c *ConversationClient) ImportLegacy(ctx context.Context, req ImportLegacyRequest) (ImportLegacyResponse, error) {
 	var csilZero ImportLegacyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "import-legacy", EncodeImportLegacyRequest(req))
+	csilReq, csilErr := EncodeImportLegacyRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "import-legacy", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -279,7 +383,11 @@ func (c *ConversationClient) ImportLegacy(ctx context.Context, req ImportLegacyR
 
 func (c *ConversationClient) PutDevice(ctx context.Context, req PutDeviceRequest) (Device, error) {
 	var csilZero Device
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "put-device", EncodePutDeviceRequest(req))
+	csilReq, csilErr := EncodePutDeviceRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "put-device", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -288,7 +396,11 @@ func (c *ConversationClient) PutDevice(ctx context.Context, req PutDeviceRequest
 
 func (c *ConversationClient) ListDevices(ctx context.Context, req ListDevicesRequest) (ListDevicesResponse, error) {
 	var csilZero ListDevicesResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-devices", EncodeListDevicesRequest(req))
+	csilReq, csilErr := EncodeListDevicesRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-devices", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -297,7 +409,11 @@ func (c *ConversationClient) ListDevices(ctx context.Context, req ListDevicesReq
 
 func (c *ConversationClient) RemoveDevice(ctx context.Context, req RemoveDeviceRequest) (Device, error) {
 	var csilZero Device
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "remove-device", EncodeRemoveDeviceRequest(req))
+	csilReq, csilErr := EncodeRemoveDeviceRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "remove-device", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -306,7 +422,11 @@ func (c *ConversationClient) RemoveDevice(ctx context.Context, req RemoveDeviceR
 
 func (c *ConversationClient) Notify(ctx context.Context, req NotifyRequest) (Notice, error) {
 	var csilZero Notice
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "notify", EncodeNotifyRequest(req))
+	csilReq, csilErr := EncodeNotifyRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "notify", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -315,7 +435,11 @@ func (c *ConversationClient) Notify(ctx context.Context, req NotifyRequest) (Not
 
 func (c *ConversationClient) WaitNotices(ctx context.Context, req WaitNoticesRequest) (WaitNoticesResponse, error) {
 	var csilZero WaitNoticesResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "wait-notices", EncodeWaitNoticesRequest(req))
+	csilReq, csilErr := EncodeWaitNoticesRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "wait-notices", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -324,7 +448,11 @@ func (c *ConversationClient) WaitNotices(ctx context.Context, req WaitNoticesReq
 
 func (c *ConversationClient) DeliverNotice(ctx context.Context, req DeliverNoticeRequest) (Notice, error) {
 	var csilZero Notice
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "deliver-notice", EncodeDeliverNoticeRequest(req))
+	csilReq, csilErr := EncodeDeliverNoticeRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "deliver-notice", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -333,7 +461,11 @@ func (c *ConversationClient) DeliverNotice(ctx context.Context, req DeliverNotic
 
 func (c *ConversationClient) AckNotice(ctx context.Context, req AckNoticeRequest) (Notice, error) {
 	var csilZero Notice
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "ack-notice", EncodeAckNoticeRequest(req))
+	csilReq, csilErr := EncodeAckNoticeRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "ack-notice", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -342,7 +474,11 @@ func (c *ConversationClient) AckNotice(ctx context.Context, req AckNoticeRequest
 
 func (c *ConversationClient) ListNotices(ctx context.Context, req ListNoticesRequest) (ListNoticesResponse, error) {
 	var csilZero ListNoticesResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-notices", EncodeListNoticesRequest(req))
+	csilReq, csilErr := EncodeListNoticesRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-notices", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}

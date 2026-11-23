@@ -6,6 +6,20 @@ from typing import Optional, List, Dict, Any, Union
 import json
 
 
+def _csil_json_bytes_out(value: Any) -> str:
+    import base64
+
+    return base64.b64encode(bytes(value)).decode("ascii")
+
+
+def _csil_json_bytes_in(value: Any) -> bytes:
+    import base64
+
+    if not isinstance(value, str):
+        raise ValueError(f"expected base64 text, got {type(value).__name__}")
+    return base64.b64decode(value, validate=True)
+
+
 @dataclass
 class Ref:
     kind: str
@@ -60,7 +74,7 @@ class MessageLink:
         if hasattr(self, 'kind') and self.kind is not None:
             result['kind'] = self.kind
         if hasattr(self, 'target') and self.target is not None:
-            result['target'] = self.target
+            result['target'] = self.target.to_dict()
         if hasattr(self, 'snippet') and self.snippet is not None:
             result['snippet'] = self.snippet
         if hasattr(self, 'target_ms') and self.target_ms is not None:
@@ -86,7 +100,7 @@ class MessageLink:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'MessageLink':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), kind=data.get('kind'), target=data.get('target'), snippet=data.get('snippet'), target_ms=data.get('target_ms'), span_start=data.get('span_start'), span_end=data.get('span_end'), target_start=data.get('target_start'), target_end=data.get('target_end'), weight=data.get('weight'), confidence=data.get('confidence'), author=data.get('author'), state=data.get('state'))
+        return cls(id=data.get('id'), kind=data.get('kind'), target=(None if data.get('target') is None else Ref.from_dict(data['target'])), snippet=data.get('snippet'), target_ms=data.get('target_ms'), span_start=data.get('span_start'), span_end=data.get('span_end'), target_start=data.get('target_start'), target_end=data.get('target_end'), weight=data.get('weight'), confidence=data.get('confidence'), author=data.get('author'), state=data.get('state'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -137,9 +151,9 @@ class Message:
         if hasattr(self, 'audio') and self.audio is not None:
             result['audio'] = self.audio
         if hasattr(self, 'refs') and self.refs is not None:
-            result['refs'] = self.refs
+            result['refs'] = [item0.to_dict() for item0 in self.refs]
         if hasattr(self, 'links') and self.links is not None:
-            result['links'] = self.links
+            result['links'] = [item0.to_dict() for item0 in self.links]
         if hasattr(self, 'visibility') and self.visibility is not None:
             result['visibility'] = self.visibility
         if hasattr(self, 'visibility_by') and self.visibility_by is not None:
@@ -153,7 +167,7 @@ class Message:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Message':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), stream=data.get('stream'), persona=data.get('persona'), seq=data.get('seq'), author=data.get('author'), author_kind=data.get('author_kind'), modality=data.get('modality'), text=data.get('text'), audio=data.get('audio'), refs=data.get('refs'), links=data.get('links'), visibility=data.get('visibility'), visibility_by=data.get('visibility_by'), generated_by=data.get('generated_by'), created_ms=data.get('created_ms'))
+        return cls(id=data.get('id'), stream=data.get('stream'), persona=data.get('persona'), seq=data.get('seq'), author=data.get('author'), author_kind=data.get('author_kind'), modality=data.get('modality'), text=data.get('text'), audio=data.get('audio'), refs=(None if data.get('refs') is None else [Ref.from_dict(item0) for item0 in data['refs']]), links=(None if data.get('links') is None else [MessageLink.from_dict(item0) for item0 in data['links']]), visibility=data.get('visibility'), visibility_by=data.get('visibility_by'), generated_by=data.get('generated_by'), created_ms=data.get('created_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -210,13 +224,13 @@ class ListPersonasResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'personas') and self.personas is not None:
-            result['personas'] = self.personas
+            result['personas'] = [item0.to_dict() for item0 in self.personas]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListPersonasResponse':
         """Create instance from dictionary."""
-        return cls(personas=data.get('personas'))
+        return cls(personas=(None if data.get('personas') is None else [PersonaInfo.from_dict(item0) for item0 in data['personas']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -280,7 +294,7 @@ class SayRequest:
         if hasattr(self, 'text') and self.text is not None:
             result['text'] = self.text
         if hasattr(self, 'audio') and self.audio is not None:
-            result['audio'] = self.audio
+            result['audio'] = _csil_json_bytes_out(self.audio)
         if hasattr(self, 'audio_type') and self.audio_type is not None:
             result['audio_type'] = self.audio_type
         if hasattr(self, 'speak_reply') and self.speak_reply is not None:
@@ -290,13 +304,13 @@ class SayRequest:
         if hasattr(self, 'wake_word') and self.wake_word is not None:
             result['wake_word'] = self.wake_word
         if hasattr(self, 'model') and self.model is not None:
-            result['model'] = self.model
+            result['model'] = self.model.to_dict()
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'SayRequest':
         """Create instance from dictionary."""
-        return cls(persona=data.get('persona'), text=data.get('text'), audio=data.get('audio'), audio_type=data.get('audio_type'), speak_reply=data.get('speak_reply'), voice=data.get('voice'), wake_word=data.get('wake_word'), model=data.get('model'))
+        return cls(persona=data.get('persona'), text=data.get('text'), audio=(None if data.get('audio') is None else _csil_json_bytes_in(data['audio'])), audio_type=data.get('audio_type'), speak_reply=data.get('speak_reply'), voice=data.get('voice'), wake_word=data.get('wake_word'), model=(None if data.get('model') is None else ModelSelector.from_dict(data['model'])))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -365,7 +379,7 @@ class SayResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'message') and self.message is not None:
-            result['message'] = self.message
+            result['message'] = self.message.to_dict()
         if hasattr(self, 'ignored') and self.ignored is not None:
             result['ignored'] = self.ignored
         return result
@@ -373,7 +387,7 @@ class SayResponse:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'SayResponse':
         """Create instance from dictionary."""
-        return cls(message=data.get('message'), ignored=data.get('ignored'))
+        return cls(message=(None if data.get('message') is None else Message.from_dict(data['message'])), ignored=data.get('ignored'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -431,7 +445,7 @@ class ReadResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'messages') and self.messages is not None:
-            result['messages'] = self.messages
+            result['messages'] = [item0.to_dict() for item0 in self.messages]
         if hasattr(self, 'last_seq') and self.last_seq is not None:
             result['last_seq'] = self.last_seq
         if hasattr(self, 'stream') and self.stream is not None:
@@ -441,7 +455,7 @@ class ReadResponse:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ReadResponse':
         """Create instance from dictionary."""
-        return cls(messages=data.get('messages'), last_seq=data.get('last_seq'), stream=data.get('stream'))
+        return cls(messages=(None if data.get('messages') is None else [Message.from_dict(item0) for item0 in data['messages']]), last_seq=data.get('last_seq'), stream=data.get('stream'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -488,13 +502,13 @@ class SearchResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'messages') and self.messages is not None:
-            result['messages'] = self.messages
+            result['messages'] = [item0.to_dict() for item0 in self.messages]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'SearchResponse':
         """Create instance from dictionary."""
-        return cls(messages=data.get('messages'))
+        return cls(messages=(None if data.get('messages') is None else [Message.from_dict(item0) for item0 in data['messages']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -548,15 +562,15 @@ class TraceResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'messages') and self.messages is not None:
-            result['messages'] = self.messages
+            result['messages'] = [item0.to_dict() for item0 in self.messages]
         if hasattr(self, 'links') and self.links is not None:
-            result['links'] = self.links
+            result['links'] = [item0.to_dict() for item0 in self.links]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'TraceResponse':
         """Create instance from dictionary."""
-        return cls(messages=data.get('messages'), links=data.get('links'))
+        return cls(messages=(None if data.get('messages') is None else [Message.from_dict(item0) for item0 in data['messages']]), links=(None if data.get('links') is None else [MessageLink.from_dict(item0) for item0 in data['links']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -603,13 +617,13 @@ class ListLinksResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'links') and self.links is not None:
-            result['links'] = self.links
+            result['links'] = [item0.to_dict() for item0 in self.links]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListLinksResponse':
         """Create instance from dictionary."""
-        return cls(links=data.get('links'))
+        return cls(links=(None if data.get('links') is None else [MessageLink.from_dict(item0) for item0 in data['links']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -639,7 +653,7 @@ class LinkRequest:
         if hasattr(self, 'kind') and self.kind is not None:
             result['kind'] = self.kind
         if hasattr(self, 'target') and self.target is not None:
-            result['target'] = self.target
+            result['target'] = self.target.to_dict()
         if hasattr(self, 'replaces') and self.replaces is not None:
             result['replaces'] = self.replaces
         if hasattr(self, 'span_start') and self.span_start is not None:
@@ -655,7 +669,7 @@ class LinkRequest:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'LinkRequest':
         """Create instance from dictionary."""
-        return cls(message=data.get('message'), kind=data.get('kind'), target=data.get('target'), replaces=data.get('replaces'), span_start=data.get('span_start'), span_end=data.get('span_end'), weight=data.get('weight'), note=data.get('note'))
+        return cls(message=data.get('message'), kind=data.get('kind'), target=(None if data.get('target') is None else Ref.from_dict(data['target'])), replaces=data.get('replaces'), span_start=data.get('span_start'), span_end=data.get('span_end'), weight=data.get('weight'), note=data.get('note'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -753,9 +767,9 @@ class ReviewItem:
         if hasattr(self, 'confidence') and self.confidence is not None:
             result['confidence'] = self.confidence
         if hasattr(self, 'message') and self.message is not None:
-            result['message'] = self.message
+            result['message'] = self.message.to_dict()
         if hasattr(self, 'target') and self.target is not None:
-            result['target'] = self.target
+            result['target'] = self.target.to_dict()
         if hasattr(self, 'created_ms') and self.created_ms is not None:
             result['created_ms'] = self.created_ms
         return result
@@ -763,7 +777,7 @@ class ReviewItem:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ReviewItem':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), task=data.get('task'), question=data.get('question'), proposed=data.get('proposed'), choices=data.get('choices'), confidence=data.get('confidence'), message=data.get('message'), target=data.get('target'), created_ms=data.get('created_ms'))
+        return cls(id=data.get('id'), task=data.get('task'), question=data.get('question'), proposed=data.get('proposed'), choices=data.get('choices'), confidence=data.get('confidence'), message=(None if data.get('message') is None else Message.from_dict(data['message'])), target=(None if data.get('target') is None else Message.from_dict(data['target'])), created_ms=data.get('created_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -807,13 +821,13 @@ class ListReviewsResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'reviews') and self.reviews is not None:
-            result['reviews'] = self.reviews
+            result['reviews'] = [item0.to_dict() for item0 in self.reviews]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListReviewsResponse':
         """Create instance from dictionary."""
-        return cls(reviews=data.get('reviews'))
+        return cls(reviews=(None if data.get('reviews') is None else [ReviewItem.from_dict(item0) for item0 in data['reviews']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -914,7 +928,7 @@ class AudioResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'body') and self.body is not None:
-            result['body'] = self.body
+            result['body'] = _csil_json_bytes_out(self.body)
         if hasattr(self, 'media_type') and self.media_type is not None:
             result['media_type'] = self.media_type
         return result
@@ -922,7 +936,7 @@ class AudioResponse:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'AudioResponse':
         """Create instance from dictionary."""
-        return cls(body=data.get('body'), media_type=data.get('media_type'))
+        return cls(body=(None if data.get('body') is None else _csil_json_bytes_in(data['body'])), media_type=data.get('media_type'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -996,13 +1010,13 @@ class SpeechPart:
         if hasattr(self, 'audio_ms') and self.audio_ms is not None:
             result['audio_ms'] = self.audio_ms
         if hasattr(self, 'words') and self.words is not None:
-            result['words'] = self.words
+            result['words'] = [item0.to_dict() for item0 in self.words]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'SpeechPart':
         """Create instance from dictionary."""
-        return cls(index=data.get('index'), audio=data.get('audio'), media_type=data.get('media_type'), start=data.get('start'), end=data.get('end'), audio_ms=data.get('audio_ms'), words=data.get('words'))
+        return cls(index=data.get('index'), audio=data.get('audio'), media_type=data.get('media_type'), start=data.get('start'), end=data.get('end'), audio_ms=data.get('audio_ms'), words=(None if data.get('words') is None else [WordTime.from_dict(item0) for item0 in data['words']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -1054,7 +1068,7 @@ class ListenResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'parts') and self.parts is not None:
-            result['parts'] = self.parts
+            result['parts'] = [item0.to_dict() for item0 in self.parts]
         if hasattr(self, 'done') and self.done is not None:
             result['done'] = self.done
         if hasattr(self, 'stopped') and self.stopped is not None:
@@ -1064,7 +1078,7 @@ class ListenResponse:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListenResponse':
         """Create instance from dictionary."""
-        return cls(parts=data.get('parts'), done=data.get('done'), stopped=data.get('stopped'))
+        return cls(parts=(None if data.get('parts') is None else [SpeechPart.from_dict(item0) for item0 in data['parts']]), done=data.get('done'), stopped=data.get('stopped'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -1183,7 +1197,7 @@ class CheckOverlapRequest:
         if hasattr(self, 'message') and self.message is not None:
             result['message'] = self.message
         if hasattr(self, 'audio') and self.audio is not None:
-            result['audio'] = self.audio
+            result['audio'] = _csil_json_bytes_out(self.audio)
         if hasattr(self, 'audio_type') and self.audio_type is not None:
             result['audio_type'] = self.audio_type
         if hasattr(self, 'heard_until') and self.heard_until is not None:
@@ -1195,7 +1209,7 @@ class CheckOverlapRequest:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'CheckOverlapRequest':
         """Create instance from dictionary."""
-        return cls(message=data.get('message'), audio=data.get('audio'), audio_type=data.get('audio_type'), heard_until=data.get('heard_until'), final=data.get('final'))
+        return cls(message=data.get('message'), audio=(None if data.get('audio') is None else _csil_json_bytes_in(data['audio'])), audio_type=data.get('audio_type'), heard_until=data.get('heard_until'), final=data.get('final'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -1341,13 +1355,13 @@ class ListDevicesResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'devices') and self.devices is not None:
-            result['devices'] = self.devices
+            result['devices'] = [item0.to_dict() for item0 in self.devices]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListDevicesResponse':
         """Create instance from dictionary."""
-        return cls(devices=data.get('devices'))
+        return cls(devices=(None if data.get('devices') is None else [Device.from_dict(item0) for item0 in data['devices']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -1449,13 +1463,13 @@ class Notice:
         if hasattr(self, 'acked_ms') and self.acked_ms is not None:
             result['acked_ms'] = self.acked_ms
         if hasattr(self, 'deliveries') and self.deliveries is not None:
-            result['deliveries'] = self.deliveries
+            result['deliveries'] = [item0.to_dict() for item0 in self.deliveries]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Notice':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), persona=data.get('persona'), message=data.get('message'), title=data.get('title'), text=data.get('text'), urgency=data.get('urgency'), device=data.get('device'), created_ms=data.get('created_ms'), acked_ms=data.get('acked_ms'), deliveries=data.get('deliveries'))
+        return cls(id=data.get('id'), persona=data.get('persona'), message=data.get('message'), title=data.get('title'), text=data.get('text'), urgency=data.get('urgency'), device=data.get('device'), created_ms=data.get('created_ms'), acked_ms=data.get('acked_ms'), deliveries=(None if data.get('deliveries') is None else [NoticeDelivery.from_dict(item0) for item0 in data['deliveries']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -1507,7 +1521,7 @@ class WaitNoticesResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'notices') and self.notices is not None:
-            result['notices'] = self.notices
+            result['notices'] = [item0.to_dict() for item0 in self.notices]
         if hasattr(self, 'closed') and self.closed is not None:
             result['closed'] = self.closed
         if hasattr(self, 'now_ms') and self.now_ms is not None:
@@ -1517,7 +1531,7 @@ class WaitNoticesResponse:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'WaitNoticesResponse':
         """Create instance from dictionary."""
-        return cls(notices=data.get('notices'), closed=data.get('closed'), now_ms=data.get('now_ms'))
+        return cls(notices=(None if data.get('notices') is None else [Notice.from_dict(item0) for item0 in data['notices']]), closed=data.get('closed'), now_ms=data.get('now_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -1623,13 +1637,13 @@ class ListNoticesResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'notices') and self.notices is not None:
-            result['notices'] = self.notices
+            result['notices'] = [item0.to_dict() for item0 in self.notices]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListNoticesResponse':
         """Create instance from dictionary."""
-        return cls(notices=data.get('notices'))
+        return cls(notices=(None if data.get('notices') is None else [Notice.from_dict(item0) for item0 in data['notices']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -1720,9 +1734,9 @@ class Task:
         if hasattr(self, 'repo') and self.repo is not None:
             result['repo'] = self.repo
         if hasattr(self, 'steps') and self.steps is not None:
-            result['steps'] = self.steps
+            result['steps'] = [item0.to_dict() for item0 in self.steps]
         if hasattr(self, 'refs') and self.refs is not None:
-            result['refs'] = self.refs
+            result['refs'] = [item0.to_dict() for item0 in self.refs]
         if hasattr(self, 'error') and self.error is not None:
             result['error'] = self.error
         if hasattr(self, 'created_ms') and self.created_ms is not None:
@@ -1736,7 +1750,7 @@ class Task:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Task':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), kind=data.get('kind'), title=data.get('title'), status=data.get('status'), current_step=data.get('current_step'), waiting_for=data.get('waiting_for'), decisions=data.get('decisions'), branch=data.get('branch'), repo=data.get('repo'), steps=data.get('steps'), refs=data.get('refs'), error=data.get('error'), created_ms=data.get('created_ms'), updated_ms=data.get('updated_ms'), terminal=data.get('terminal'))
+        return cls(id=data.get('id'), kind=data.get('kind'), title=data.get('title'), status=data.get('status'), current_step=data.get('current_step'), waiting_for=data.get('waiting_for'), decisions=data.get('decisions'), branch=data.get('branch'), repo=data.get('repo'), steps=(None if data.get('steps') is None else [TaskStep.from_dict(item0) for item0 in data['steps']]), refs=(None if data.get('refs') is None else [Ref.from_dict(item0) for item0 in data['refs']]), error=data.get('error'), created_ms=data.get('created_ms'), updated_ms=data.get('updated_ms'), terminal=data.get('terminal'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -1851,13 +1865,13 @@ class ListTasksResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'tasks') and self.tasks is not None:
-            result['tasks'] = self.tasks
+            result['tasks'] = [item0.to_dict() for item0 in self.tasks]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListTasksResponse':
         """Create instance from dictionary."""
-        return cls(tasks=data.get('tasks'))
+        return cls(tasks=(None if data.get('tasks') is None else [Task.from_dict(item0) for item0 in data['tasks']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -1956,13 +1970,13 @@ class ListTodosResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'todos') and self.todos is not None:
-            result['todos'] = self.todos
+            result['todos'] = [item0.to_dict() for item0 in self.todos]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListTodosResponse':
         """Create instance from dictionary."""
-        return cls(todos=data.get('todos'))
+        return cls(todos=(None if data.get('todos') is None else [Todo.from_dict(item0) for item0 in data['todos']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -2047,7 +2061,7 @@ class TaskDiff:
         if hasattr(self, 'patch') and self.patch is not None:
             result['patch'] = self.patch
         if hasattr(self, 'files') and self.files is not None:
-            result['files'] = self.files
+            result['files'] = [item0.to_dict() for item0 in self.files]
         if hasattr(self, 'truncated') and self.truncated is not None:
             result['truncated'] = self.truncated
         return result
@@ -2055,7 +2069,7 @@ class TaskDiff:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'TaskDiff':
         """Create instance from dictionary."""
-        return cls(task=data.get('task'), patch=data.get('patch'), files=data.get('files'), truncated=data.get('truncated'))
+        return cls(task=data.get('task'), patch=data.get('patch'), files=(None if data.get('files') is None else [FileChange.from_dict(item0) for item0 in data['files']]), truncated=data.get('truncated'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -2312,7 +2326,7 @@ class KnowledgeItem:
         if hasattr(self, 'locator') and self.locator is not None:
             result['locator'] = self.locator
         if hasattr(self, 'facts') and self.facts is not None:
-            result['facts'] = self.facts
+            result['facts'] = [item0.to_dict() for item0 in self.facts]
         if hasattr(self, 'mine') and self.mine is not None:
             result['mine'] = self.mine
         return result
@@ -2320,7 +2334,7 @@ class KnowledgeItem:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'KnowledgeItem':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), kind=data.get('kind'), label=data.get('label'), aliases=data.get('aliases'), summary=data.get('summary'), properties=data.get('properties'), system=data.get('system'), locator=data.get('locator'), facts=data.get('facts'), mine=data.get('mine'))
+        return cls(id=data.get('id'), kind=data.get('kind'), label=data.get('label'), aliases=data.get('aliases'), summary=data.get('summary'), properties=data.get('properties'), system=data.get('system'), locator=data.get('locator'), facts=(None if data.get('facts') is None else [KnowledgeFact.from_dict(item0) for item0 in data['facts']]), mine=data.get('mine'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -2414,15 +2428,15 @@ class QueryKnowledgeResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'items') and self.items is not None:
-            result['items'] = self.items
+            result['items'] = [item0.to_dict() for item0 in self.items]
         if hasattr(self, 'records') and self.records is not None:
-            result['records'] = self.records
+            result['records'] = [item0.to_dict() for item0 in self.records]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'QueryKnowledgeResponse':
         """Create instance from dictionary."""
-        return cls(items=data.get('items'), records=data.get('records'))
+        return cls(items=(None if data.get('items') is None else [KnowledgeItem.from_dict(item0) for item0 in data['items']]), records=(None if data.get('records') is None else [KnowledgeRecord.from_dict(item0) for item0 in data['records']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -2493,13 +2507,13 @@ class RememberResponse:
         if hasattr(self, 'note') and self.note is not None:
             result['note'] = self.note
         if hasattr(self, 'item') and self.item is not None:
-            result['item'] = self.item
+            result['item'] = self.item.to_dict()
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'RememberResponse':
         """Create instance from dictionary."""
-        return cls(recorded=data.get('recorded'), note=data.get('note'), item=data.get('item'))
+        return cls(recorded=data.get('recorded'), note=data.get('note'), item=(None if data.get('item') is None else KnowledgeItem.from_dict(data['item'])))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -2605,15 +2619,15 @@ class ChangeKnowledgeResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'change') and self.change is not None:
-            result['change'] = self.change
+            result['change'] = self.change.to_dict()
         if hasattr(self, 'item') and self.item is not None:
-            result['item'] = self.item
+            result['item'] = self.item.to_dict()
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ChangeKnowledgeResponse':
         """Create instance from dictionary."""
-        return cls(change=data.get('change'), item=data.get('item'))
+        return cls(change=(None if data.get('change') is None else KnowledgeChange.from_dict(data['change'])), item=(None if data.get('item') is None else KnowledgeItem.from_dict(data['item'])))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -2713,13 +2727,13 @@ class KnowledgeHistoryResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'changes') and self.changes is not None:
-            result['changes'] = self.changes
+            result['changes'] = [item0.to_dict() for item0 in self.changes]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'KnowledgeHistoryResponse':
         """Create instance from dictionary."""
-        return cls(changes=data.get('changes'))
+        return cls(changes=(None if data.get('changes') is None else [KnowledgeChange.from_dict(item0) for item0 in data['changes']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -2794,13 +2808,13 @@ class ListVoicesResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'voices') and self.voices is not None:
-            result['voices'] = self.voices
+            result['voices'] = [item0.to_dict() for item0 in self.voices]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListVoicesResponse':
         """Create instance from dictionary."""
-        return cls(voices=data.get('voices'))
+        return cls(voices=(None if data.get('voices') is None else [VoiceInfo.from_dict(item0) for item0 in data['voices']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -2867,7 +2881,7 @@ class ListLexiconResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'words') and self.words is not None:
-            result['words'] = self.words
+            result['words'] = [item0.to_dict() for item0 in self.words]
         if hasattr(self, 'can_edit') and self.can_edit is not None:
             result['can_edit'] = self.can_edit
         return result
@@ -2875,7 +2889,7 @@ class ListLexiconResponse:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListLexiconResponse':
         """Create instance from dictionary."""
-        return cls(words=data.get('words'), can_edit=data.get('can_edit'))
+        return cls(words=(None if data.get('words') is None else [LexiconWord.from_dict(item0) for item0 in data['words']]), can_edit=data.get('can_edit'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -3013,7 +3027,7 @@ class SpeakResponse:
         if hasattr(self, 'spoken') and self.spoken is not None:
             result['spoken'] = self.spoken
         if hasattr(self, 'audio') and self.audio is not None:
-            result['audio'] = self.audio
+            result['audio'] = _csil_json_bytes_out(self.audio)
         if hasattr(self, 'media_type') and self.media_type is not None:
             result['media_type'] = self.media_type
         return result
@@ -3021,7 +3035,7 @@ class SpeakResponse:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'SpeakResponse':
         """Create instance from dictionary."""
-        return cls(spoken=data.get('spoken'), audio=data.get('audio'), media_type=data.get('media_type'))
+        return cls(spoken=data.get('spoken'), audio=(None if data.get('audio') is None else _csil_json_bytes_in(data['audio'])), media_type=data.get('media_type'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -3094,7 +3108,7 @@ class ListRunnersResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'runners') and self.runners is not None:
-            result['runners'] = self.runners
+            result['runners'] = [item0.to_dict() for item0 in self.runners]
         if hasattr(self, 'release') and self.release is not None:
             result['release'] = self.release
         return result
@@ -3102,7 +3116,7 @@ class ListRunnersResponse:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListRunnersResponse':
         """Create instance from dictionary."""
-        return cls(runners=data.get('runners'), release=data.get('release'))
+        return cls(runners=(None if data.get('runners') is None else [RunnerInfo.from_dict(item0) for item0 in data['runners']]), release=data.get('release'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -3233,13 +3247,13 @@ class AdminListRunsResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'runs') and self.runs is not None:
-            result['runs'] = self.runs
+            result['runs'] = [item0.to_dict() for item0 in self.runs]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'AdminListRunsResponse':
         """Create instance from dictionary."""
-        return cls(runs=data.get('runs'))
+        return cls(runs=(None if data.get('runs') is None else [AdminRunSummary.from_dict(item0) for item0 in data['runs']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -3260,17 +3274,17 @@ class AdminRun:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'summary') and self.summary is not None:
-            result['summary'] = self.summary
+            result['summary'] = self.summary.to_dict()
         if hasattr(self, 'vars') and self.vars is not None:
             result['vars'] = self.vars
         if hasattr(self, 'steps') and self.steps is not None:
-            result['steps'] = self.steps
+            result['steps'] = [item0.to_dict() for item0 in self.steps]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'AdminRun':
         """Create instance from dictionary."""
-        return cls(summary=data.get('summary'), vars=data.get('vars'), steps=data.get('steps'))
+        return cls(summary=(None if data.get('summary') is None else AdminRunSummary.from_dict(data['summary'])), vars=data.get('vars'), steps=(None if data.get('steps') is None else [TaskStep.from_dict(item0) for item0 in data['steps']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -3410,13 +3424,13 @@ class AdminListChatsResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'chats') and self.chats is not None:
-            result['chats'] = self.chats
+            result['chats'] = [item0.to_dict() for item0 in self.chats]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'AdminListChatsResponse':
         """Create instance from dictionary."""
-        return cls(chats=data.get('chats'))
+        return cls(chats=(None if data.get('chats') is None else [AdminChat.from_dict(item0) for item0 in data['chats']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -3467,15 +3481,15 @@ class AdminReadChatResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'chat') and self.chat is not None:
-            result['chat'] = self.chat
+            result['chat'] = self.chat.to_dict()
         if hasattr(self, 'messages') and self.messages is not None:
-            result['messages'] = self.messages
+            result['messages'] = [item0.to_dict() for item0 in self.messages]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'AdminReadChatResponse':
         """Create instance from dictionary."""
-        return cls(chat=data.get('chat'), messages=data.get('messages'))
+        return cls(chat=(None if data.get('chat') is None else AdminChat.from_dict(data['chat'])), messages=(None if data.get('messages') is None else [Message.from_dict(item0) for item0 in data['messages']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -3556,13 +3570,13 @@ class PutRunnerPackageRequest:
         if hasattr(self, 'arch') and self.arch is not None:
             result['arch'] = self.arch
         if hasattr(self, 'body') and self.body is not None:
-            result['body'] = self.body
+            result['body'] = _csil_json_bytes_out(self.body)
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'PutRunnerPackageRequest':
         """Create instance from dictionary."""
-        return cls(version=data.get('version'), os=data.get('os'), arch=data.get('arch'), body=data.get('body'))
+        return cls(version=data.get('version'), os=data.get('os'), arch=data.get('arch'), body=(None if data.get('body') is None else _csil_json_bytes_in(data['body'])))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -3699,13 +3713,13 @@ class PutAppReleaseRequest:
         if hasattr(self, 'version_name') and self.version_name is not None:
             result['version_name'] = self.version_name
         if hasattr(self, 'body') and self.body is not None:
-            result['body'] = self.body
+            result['body'] = _csil_json_bytes_out(self.body)
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'PutAppReleaseRequest':
         """Create instance from dictionary."""
-        return cls(version_code=data.get('version_code'), version_name=data.get('version_name'), body=data.get('body'))
+        return cls(version_code=data.get('version_code'), version_name=data.get('version_name'), body=(None if data.get('body') is None else _csil_json_bytes_in(data['body'])))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -3728,13 +3742,13 @@ class GetAppReleaseResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'release') and self.release is not None:
-            result['release'] = self.release
+            result['release'] = self.release.to_dict()
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'GetAppReleaseResponse':
         """Create instance from dictionary."""
-        return cls(release=data.get('release'))
+        return cls(release=(None if data.get('release') is None else AppRelease.from_dict(data['release'])))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -3778,13 +3792,13 @@ class GetAppPackageResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'body') and self.body is not None:
-            result['body'] = self.body
+            result['body'] = _csil_json_bytes_out(self.body)
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'GetAppPackageResponse':
         """Create instance from dictionary."""
-        return cls(body=data.get('body'))
+        return cls(body=(None if data.get('body') is None else _csil_json_bytes_in(data['body'])))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -3864,9 +3878,9 @@ class EgressReview:
         if hasattr(self, 'url') and self.url is not None:
             result['url'] = self.url
         if hasattr(self, 'headers') and self.headers is not None:
-            result['headers'] = self.headers
+            result['headers'] = [item0.to_dict() for item0 in self.headers]
         if hasattr(self, 'body') and self.body is not None:
-            result['body'] = self.body
+            result['body'] = _csil_json_bytes_out(self.body)
         if hasattr(self, 'reason') and self.reason is not None:
             result['reason'] = self.reason
         if hasattr(self, 'by') and self.by is not None:
@@ -3888,7 +3902,7 @@ class EgressReview:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'EgressReview':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), kind=data.get('kind'), state=data.get('state'), owner=data.get('owner'), environment=data.get('environment'), destination=data.get('destination'), method=data.get('method'), url=data.get('url'), headers=data.get('headers'), body=data.get('body'), reason=data.get('reason'), by=data.get('by'), count=data.get('count'), first_ms=data.get('first_ms'), last_ms=data.get('last_ms'), decision=data.get('decision'), decided_by=data.get('decided_by'), note=data.get('note'))
+        return cls(id=data.get('id'), kind=data.get('kind'), state=data.get('state'), owner=data.get('owner'), environment=data.get('environment'), destination=data.get('destination'), method=data.get('method'), url=data.get('url'), headers=(None if data.get('headers') is None else [EgressReviewHeader.from_dict(item0) for item0 in data['headers']]), body=(None if data.get('body') is None else _csil_json_bytes_in(data['body'])), reason=data.get('reason'), by=data.get('by'), count=data.get('count'), first_ms=data.get('first_ms'), last_ms=data.get('last_ms'), decision=data.get('decision'), decided_by=data.get('decided_by'), note=data.get('note'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -3935,13 +3949,13 @@ class ListEgressReviewsResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'reviews') and self.reviews is not None:
-            result['reviews'] = self.reviews
+            result['reviews'] = [item0.to_dict() for item0 in self.reviews]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListEgressReviewsResponse':
         """Create instance from dictionary."""
-        return cls(reviews=data.get('reviews'))
+        return cls(reviews=(None if data.get('reviews') is None else [EgressReview.from_dict(item0) for item0 in data['reviews']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -4122,13 +4136,13 @@ class ListConnectionsResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'connections') and self.connections is not None:
-            result['connections'] = self.connections
+            result['connections'] = [item0.to_dict() for item0 in self.connections]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListConnectionsResponse':
         """Create instance from dictionary."""
-        return cls(connections=data.get('connections'))
+        return cls(connections=(None if data.get('connections') is None else [Connection.from_dict(item0) for item0 in data['connections']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -4203,13 +4217,13 @@ class ImportHistoryRequest:
         if hasattr(self, 'persona') and self.persona is not None:
             result['persona'] = self.persona
         if hasattr(self, 'messages') and self.messages is not None:
-            result['messages'] = self.messages
+            result['messages'] = [item0.to_dict() for item0 in self.messages]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ImportHistoryRequest':
         """Create instance from dictionary."""
-        return cls(persona=data.get('persona'), messages=data.get('messages'))
+        return cls(persona=data.get('persona'), messages=(None if data.get('messages') is None else [HistoryMessage.from_dict(item0) for item0 in data['messages']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -4265,13 +4279,13 @@ class ImportHistoryResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'messages') and self.messages is not None:
-            result['messages'] = self.messages
+            result['messages'] = [item0.to_dict() for item0 in self.messages]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ImportHistoryResponse':
         """Create instance from dictionary."""
-        return cls(messages=data.get('messages'))
+        return cls(messages=(None if data.get('messages') is None else [ImportedMessage.from_dict(item0) for item0 in data['messages']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -4442,13 +4456,13 @@ class ListPagesResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'pages') and self.pages is not None:
-            result['pages'] = self.pages
+            result['pages'] = [item0.to_dict() for item0 in self.pages]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListPagesResponse':
         """Create instance from dictionary."""
-        return cls(pages=data.get('pages'))
+        return cls(pages=(None if data.get('pages') is None else [Page.from_dict(item0) for item0 in data['pages']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -4512,17 +4526,17 @@ class DecisionRequest:
         if hasattr(self, 'state') and self.state is not None:
             result['state'] = self.state
         if hasattr(self, 'questions') and self.questions is not None:
-            result['questions'] = self.questions
+            result['questions'] = [item0.to_dict() for item0 in self.questions]
         if hasattr(self, 'task') and self.task is not None:
             result['task'] = self.task
         if hasattr(self, 'model') and self.model is not None:
-            result['model'] = self.model
+            result['model'] = self.model.to_dict()
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'DecisionRequest':
         """Create instance from dictionary."""
-        return cls(state=data.get('state'), questions=data.get('questions'), task=data.get('task'), model=data.get('model'))
+        return cls(state=data.get('state'), questions=(None if data.get('questions') is None else [DecisionQuestion.from_dict(item0) for item0 in data['questions']]), task=data.get('task'), model=(None if data.get('model') is None else ModelSelector.from_dict(data['model'])))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -4649,13 +4663,13 @@ class ListLessonsResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'lessons') and self.lessons is not None:
-            result['lessons'] = self.lessons
+            result['lessons'] = [item0.to_dict() for item0 in self.lessons]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListLessonsResponse':
         """Create instance from dictionary."""
-        return cls(lessons=data.get('lessons'))
+        return cls(lessons=(None if data.get('lessons') is None else [Lesson.from_dict(item0) for item0 in data['lessons']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -4753,7 +4767,7 @@ class DecisionResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'answers') and self.answers is not None:
-            result['answers'] = self.answers
+            result['answers'] = [item0.to_dict() for item0 in self.answers]
         if hasattr(self, 'model') and self.model is not None:
             result['model'] = self.model
         if hasattr(self, 'ms') and self.ms is not None:
@@ -4763,7 +4777,7 @@ class DecisionResponse:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'DecisionResponse':
         """Create instance from dictionary."""
-        return cls(answers=data.get('answers'), model=data.get('model'), ms=data.get('ms'))
+        return cls(answers=(None if data.get('answers') is None else [DecisionAnswer.from_dict(item0) for item0 in data['answers']]), model=data.get('model'), ms=data.get('ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -4850,13 +4864,13 @@ class RunnerClaimResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'assignment') and self.assignment is not None:
-            result['assignment'] = self.assignment
+            result['assignment'] = self.assignment.to_dict()
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'RunnerClaimResponse':
         """Create instance from dictionary."""
-        return cls(assignment=data.get('assignment'))
+        return cls(assignment=(None if data.get('assignment') is None else RunnerAssignment.from_dict(data['assignment'])))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -4908,7 +4922,7 @@ class RunnerProgressRequest:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'step') and self.step is not None:
-            result['step'] = self.step
+            result['step'] = self.step.to_dict()
         if hasattr(self, 'note') and self.note is not None:
             result['note'] = self.note
         if hasattr(self, 'ref') and self.ref is not None:
@@ -4918,7 +4932,7 @@ class RunnerProgressRequest:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'RunnerProgressRequest':
         """Create instance from dictionary."""
-        return cls(step=data.get('step'), note=data.get('note'), ref=data.get('ref'))
+        return cls(step=(None if data.get('step') is None else RunnerStep.from_dict(data['step'])), note=data.get('note'), ref=data.get('ref'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -4940,7 +4954,7 @@ class RunnerCompleteRequest:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'step') and self.step is not None:
-            result['step'] = self.step
+            result['step'] = self.step.to_dict()
         if hasattr(self, 'outcome') and self.outcome is not None:
             result['outcome'] = self.outcome
         if hasattr(self, 'outputs') and self.outputs is not None:
@@ -4952,7 +4966,7 @@ class RunnerCompleteRequest:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'RunnerCompleteRequest':
         """Create instance from dictionary."""
-        return cls(step=data.get('step'), outcome=data.get('outcome'), outputs=data.get('outputs'), error=data.get('error'))
+        return cls(step=(None if data.get('step') is None else RunnerStep.from_dict(data['step'])), outcome=data.get('outcome'), outputs=data.get('outputs'), error=data.get('error'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -4974,11 +4988,11 @@ class RunnerPutArtifactRequest:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'step') and self.step is not None:
-            result['step'] = self.step
+            result['step'] = self.step.to_dict()
         if hasattr(self, 'media_type') and self.media_type is not None:
             result['media_type'] = self.media_type
         if hasattr(self, 'body') and self.body is not None:
-            result['body'] = self.body
+            result['body'] = _csil_json_bytes_out(self.body)
         if hasattr(self, 'labels') and self.labels is not None:
             result['labels'] = self.labels
         return result
@@ -4986,7 +5000,7 @@ class RunnerPutArtifactRequest:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'RunnerPutArtifactRequest':
         """Create instance from dictionary."""
-        return cls(step=data.get('step'), media_type=data.get('media_type'), body=data.get('body'), labels=data.get('labels'))
+        return cls(step=(None if data.get('step') is None else RunnerStep.from_dict(data['step'])), media_type=data.get('media_type'), body=(None if data.get('body') is None else _csil_json_bytes_in(data['body'])), labels=data.get('labels'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -5033,7 +5047,7 @@ class RunnerPostRequest:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'step') and self.step is not None:
-            result['step'] = self.step
+            result['step'] = self.step.to_dict()
         if hasattr(self, 'text') and self.text is not None:
             result['text'] = self.text
         if hasattr(self, 'notice') and self.notice is not None:
@@ -5045,7 +5059,7 @@ class RunnerPostRequest:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'RunnerPostRequest':
         """Create instance from dictionary."""
-        return cls(step=data.get('step'), text=data.get('text'), notice=data.get('notice'), urgency=data.get('urgency'))
+        return cls(step=(None if data.get('step') is None else RunnerStep.from_dict(data['step'])), text=data.get('text'), notice=data.get('notice'), urgency=data.get('urgency'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -5213,13 +5227,13 @@ class RunnerHelloResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'update') and self.update is not None:
-            result['update'] = self.update
+            result['update'] = self.update.to_dict()
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'RunnerHelloResponse':
         """Create instance from dictionary."""
-        return cls(update=data.get('update'))
+        return cls(update=(None if data.get('update') is None else RunnerUpdate.from_dict(data['update'])))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -5272,13 +5286,13 @@ class RunnerGetPackageResponse:
         if hasattr(self, 'digest') and self.digest is not None:
             result['digest'] = self.digest
         if hasattr(self, 'body') and self.body is not None:
-            result['body'] = self.body
+            result['body'] = _csil_json_bytes_out(self.body)
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'RunnerGetPackageResponse':
         """Create instance from dictionary."""
-        return cls(digest=data.get('digest'), body=data.get('body'))
+        return cls(digest=data.get('digest'), body=(None if data.get('body') is None else _csil_json_bytes_in(data['body'])))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -5298,7 +5312,7 @@ class RunnerGetArtifactRequest:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'step') and self.step is not None:
-            result['step'] = self.step
+            result['step'] = self.step.to_dict()
         if hasattr(self, 'digest') and self.digest is not None:
             result['digest'] = self.digest
         return result
@@ -5306,7 +5320,7 @@ class RunnerGetArtifactRequest:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'RunnerGetArtifactRequest':
         """Create instance from dictionary."""
-        return cls(step=data.get('step'), digest=data.get('digest'))
+        return cls(step=(None if data.get('step') is None else RunnerStep.from_dict(data['step'])), digest=data.get('digest'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -5328,13 +5342,13 @@ class RunnerGetArtifactResponse:
         if hasattr(self, 'media_type') and self.media_type is not None:
             result['media_type'] = self.media_type
         if hasattr(self, 'body') and self.body is not None:
-            result['body'] = self.body
+            result['body'] = _csil_json_bytes_out(self.body)
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'RunnerGetArtifactResponse':
         """Create instance from dictionary."""
-        return cls(media_type=data.get('media_type'), body=data.get('body'))
+        return cls(media_type=data.get('media_type'), body=(None if data.get('body') is None else _csil_json_bytes_in(data['body'])))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -5361,7 +5375,7 @@ class RunnerEgressProxy:
         if hasattr(self, 'credential') and self.credential is not None:
             result['credential'] = self.credential
         if hasattr(self, 'ca') and self.ca is not None:
-            result['ca'] = self.ca
+            result['ca'] = _csil_json_bytes_out(self.ca)
         if hasattr(self, 'ssh_known_hosts') and self.ssh_known_hosts is not None:
             result['ssh_known_hosts'] = self.ssh_known_hosts
         if hasattr(self, 'env') and self.env is not None:
@@ -5371,7 +5385,7 @@ class RunnerEgressProxy:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'RunnerEgressProxy':
         """Create instance from dictionary."""
-        return cls(environment=data.get('environment'), credential=data.get('credential'), ca=data.get('ca'), ssh_known_hosts=data.get('ssh_known_hosts'), env=data.get('env'))
+        return cls(environment=data.get('environment'), credential=data.get('credential'), ca=(None if data.get('ca') is None else _csil_json_bytes_in(data['ca'])), ssh_known_hosts=data.get('ssh_known_hosts'), env=data.get('env'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -5390,13 +5404,13 @@ class RunnerEgressAccessResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'proxy') and self.proxy is not None:
-            result['proxy'] = self.proxy
+            result['proxy'] = self.proxy.to_dict()
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'RunnerEgressAccessResponse':
         """Create instance from dictionary."""
-        return cls(proxy=data.get('proxy'))
+        return cls(proxy=(None if data.get('proxy') is None else RunnerEgressProxy.from_dict(data['proxy'])))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -5480,13 +5494,13 @@ class RunnerTerminalsResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'terminals') and self.terminals is not None:
-            result['terminals'] = self.terminals
+            result['terminals'] = [item0.to_dict() for item0 in self.terminals]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'RunnerTerminalsResponse':
         """Create instance from dictionary."""
-        return cls(terminals=data.get('terminals'))
+        return cls(terminals=(None if data.get('terminals') is None else [RunnerTerminal.from_dict(item0) for item0 in data['terminals']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -5558,15 +5572,15 @@ class EgressFlow:
         if hasattr(self, 'status') and self.status is not None:
             result['status'] = self.status
         if hasattr(self, 'headers') and self.headers is not None:
-            result['headers'] = self.headers
+            result['headers'] = [item0.to_dict() for item0 in self.headers]
         if hasattr(self, 'body') and self.body is not None:
-            result['body'] = self.body
+            result['body'] = _csil_json_bytes_out(self.body)
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'EgressFlow':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), environment=data.get('environment'), owner=data.get('owner'), direction=data.get('direction'), destination=data.get('destination'), method=data.get('method'), url=data.get('url'), status=data.get('status'), headers=data.get('headers'), body=data.get('body'))
+        return cls(id=data.get('id'), environment=data.get('environment'), owner=data.get('owner'), direction=data.get('direction'), destination=data.get('destination'), method=data.get('method'), url=data.get('url'), status=data.get('status'), headers=(None if data.get('headers') is None else [EgressFlowHeader.from_dict(item0) for item0 in data['headers']]), body=(None if data.get('body') is None else _csil_json_bytes_in(data['body'])))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -5648,7 +5662,7 @@ class EgressEvaluateRequest:
         if hasattr(self, 'plugin') and self.plugin is not None:
             result['plugin'] = self.plugin
         if hasattr(self, 'flow') and self.flow is not None:
-            result['flow'] = self.flow
+            result['flow'] = self.flow.to_dict()
         if hasattr(self, 'question') and self.question is not None:
             result['question'] = self.question
         return result
@@ -5656,7 +5670,7 @@ class EgressEvaluateRequest:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'EgressEvaluateRequest':
         """Create instance from dictionary."""
-        return cls(plugin=data.get('plugin'), flow=data.get('flow'), question=data.get('question'))
+        return cls(plugin=data.get('plugin'), flow=(None if data.get('flow') is None else EgressFlow.from_dict(data['flow'])), question=data.get('question'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -5710,7 +5724,7 @@ class EgressDetectRequest:
         if hasattr(self, 'plugin') and self.plugin is not None:
             result['plugin'] = self.plugin
         if hasattr(self, 'flow') and self.flow is not None:
-            result['flow'] = self.flow
+            result['flow'] = self.flow.to_dict()
         if hasattr(self, 'texts') and self.texts is not None:
             result['texts'] = self.texts
         return result
@@ -5718,7 +5732,7 @@ class EgressDetectRequest:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'EgressDetectRequest':
         """Create instance from dictionary."""
-        return cls(plugin=data.get('plugin'), flow=data.get('flow'), texts=data.get('texts'))
+        return cls(plugin=data.get('plugin'), flow=(None if data.get('flow') is None else EgressFlow.from_dict(data['flow'])), texts=data.get('texts'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -5740,13 +5754,13 @@ class EgressSecretRulesRequest:
         if hasattr(self, 'plugin') and self.plugin is not None:
             result['plugin'] = self.plugin
         if hasattr(self, 'flow') and self.flow is not None:
-            result['flow'] = self.flow
+            result['flow'] = self.flow.to_dict()
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'EgressSecretRulesRequest':
         """Create instance from dictionary."""
-        return cls(plugin=data.get('plugin'), flow=data.get('flow'))
+        return cls(plugin=data.get('plugin'), flow=(None if data.get('flow') is None else EgressFlow.from_dict(data['flow'])))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -5802,13 +5816,13 @@ class EgressSecretRulesResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'rules') and self.rules is not None:
-            result['rules'] = self.rules
+            result['rules'] = [item0.to_dict() for item0 in self.rules]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'EgressSecretRulesResponse':
         """Create instance from dictionary."""
-        return cls(rules=data.get('rules'))
+        return cls(rules=(None if data.get('rules') is None else [EgressSecretRule.from_dict(item0) for item0 in data['rules']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -5832,7 +5846,7 @@ class EgressReportRequest:
         if hasattr(self, 'kind') and self.kind is not None:
             result['kind'] = self.kind
         if hasattr(self, 'flow') and self.flow is not None:
-            result['flow'] = self.flow
+            result['flow'] = self.flow.to_dict()
         if hasattr(self, 'reason') and self.reason is not None:
             result['reason'] = self.reason
         if hasattr(self, 'by') and self.by is not None:
@@ -5842,7 +5856,7 @@ class EgressReportRequest:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'EgressReportRequest':
         """Create instance from dictionary."""
-        return cls(kind=data.get('kind'), flow=data.get('flow'), reason=data.get('reason'), by=data.get('by'))
+        return cls(kind=data.get('kind'), flow=(None if data.get('flow') is None else EgressFlow.from_dict(data['flow'])), reason=data.get('reason'), by=data.get('by'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

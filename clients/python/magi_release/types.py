@@ -132,7 +132,7 @@ class Release:
         if hasattr(self, 'reason') and self.reason is not None:
             result['reason'] = self.reason
         if hasattr(self, 'items') and self.items is not None:
-            result['items'] = self.items
+            result['items'] = [item0.to_dict() for item0 in self.items]
         if hasattr(self, 'created_ms') and self.created_ms is not None:
             result['created_ms'] = self.created_ms
         if hasattr(self, 'updated_ms') and self.updated_ms is not None:
@@ -142,7 +142,7 @@ class Release:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Release':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), owner=data.get('owner'), status=data.get('status'), reason=data.get('reason'), items=data.get('items'), created_ms=data.get('created_ms'), updated_ms=data.get('updated_ms'))
+        return cls(id=data.get('id'), owner=data.get('owner'), status=data.get('status'), reason=data.get('reason'), items=(None if data.get('items') is None else [ReleaseItem.from_dict(item0) for item0 in data['items']]), created_ms=data.get('created_ms'), updated_ms=data.get('updated_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -162,7 +162,7 @@ class CreateReleaseRequest:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'images') and self.images is not None:
-            result['images'] = self.images
+            result['images'] = [item0.to_dict() for item0 in self.images]
         if hasattr(self, 'reason') and self.reason is not None:
             result['reason'] = self.reason
         return result
@@ -170,7 +170,7 @@ class CreateReleaseRequest:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'CreateReleaseRequest':
         """Create instance from dictionary."""
-        return cls(images=data.get('images'), reason=data.get('reason'))
+        return cls(images=(None if data.get('images') is None else [TargetImage.from_dict(item0) for item0 in data['images']]), reason=data.get('reason'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -239,13 +239,13 @@ class ListReleasesResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'releases') and self.releases is not None:
-            result['releases'] = self.releases
+            result['releases'] = [item0.to_dict() for item0 in self.releases]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListReleasesResponse':
         """Create instance from dictionary."""
-        return cls(releases=data.get('releases'))
+        return cls(releases=(None if data.get('releases') is None else [Release.from_dict(item0) for item0 in data['releases']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -314,13 +314,13 @@ class ListTargetsResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'targets') and self.targets is not None:
-            result['targets'] = self.targets
+            result['targets'] = [item0.to_dict() for item0 in self.targets]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListTargetsResponse':
         """Create instance from dictionary."""
-        return cls(targets=data.get('targets'))
+        return cls(targets=(None if data.get('targets') is None else [Target.from_dict(item0) for item0 in data['targets']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

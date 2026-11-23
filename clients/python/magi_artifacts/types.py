@@ -6,6 +6,20 @@ from typing import Optional, List, Dict, Any, Union
 import json
 
 
+def _csil_json_bytes_out(value: Any) -> str:
+    import base64
+
+    return base64.b64encode(bytes(value)).decode("ascii")
+
+
+def _csil_json_bytes_in(value: Any) -> bytes:
+    import base64
+
+    if not isinstance(value, str):
+        raise ValueError(f"expected base64 text, got {type(value).__name__}")
+    return base64.b64decode(value, validate=True)
+
+
 @dataclass
 class Artifact:
     digest: str
@@ -58,7 +72,7 @@ class PutRequest:
         if hasattr(self, 'media_type') and self.media_type is not None:
             result['media_type'] = self.media_type
         if hasattr(self, 'body') and self.body is not None:
-            result['body'] = self.body
+            result['body'] = _csil_json_bytes_out(self.body)
         if hasattr(self, 'labels') and self.labels is not None:
             result['labels'] = self.labels
         if hasattr(self, 'owner') and self.owner is not None:
@@ -68,7 +82,7 @@ class PutRequest:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'PutRequest':
         """Create instance from dictionary."""
-        return cls(media_type=data.get('media_type'), body=data.get('body'), labels=data.get('labels'), owner=data.get('owner'))
+        return cls(media_type=data.get('media_type'), body=(None if data.get('body') is None else _csil_json_bytes_in(data['body'])), labels=data.get('labels'), owner=data.get('owner'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -113,15 +127,15 @@ class GetResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'artifact') and self.artifact is not None:
-            result['artifact'] = self.artifact
+            result['artifact'] = self.artifact.to_dict()
         if hasattr(self, 'body') and self.body is not None:
-            result['body'] = self.body
+            result['body'] = _csil_json_bytes_out(self.body)
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'GetResponse':
         """Create instance from dictionary."""
-        return cls(artifact=data.get('artifact'), body=data.get('body'))
+        return cls(artifact=(None if data.get('artifact') is None else Artifact.from_dict(data['artifact'])), body=(None if data.get('body') is None else _csil_json_bytes_in(data['body'])))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -199,13 +213,13 @@ class ListResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'artifacts') and self.artifacts is not None:
-            result['artifacts'] = self.artifacts
+            result['artifacts'] = [item0.to_dict() for item0 in self.artifacts]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListResponse':
         """Create instance from dictionary."""
-        return cls(artifacts=data.get('artifacts'))
+        return cls(artifacts=(None if data.get('artifacts') is None else [Artifact.from_dict(item0) for item0 in data['artifacts']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

@@ -42,6 +42,15 @@ fn decode<T>(r: Result<T, api::CsilCborError>) -> Result<T, ServiceError> {
     r.map_err(|e| ServiceError { code: 400, message: format!("decode request: {e}") })
 }
 
+/// An answer that the codec refuses is a fault of this server. The caller
+/// gets status 500 without the detail, and the log has the cause.
+fn encode(r: Result<Vec<u8>, api::CsilCborError>) -> Result<Vec<u8>, ServiceError> {
+    r.map_err(|e| {
+        tracing::error!(err = %e, "encode response");
+        ServiceError { code: 500, message: "internal error".into() }
+    })
+}
+
 async fn call(State(s): State<Arc<Server>>, Path((service, op)): Path<(String, String)>, headers: HeaderMap, body: Bytes) -> Response {
     if service != SERVICE || !OPS.contains(&op.as_str()) {
         return error(404, &format!("unknown operation {service}/{op}"));
@@ -59,11 +68,11 @@ async fn call(State(s): State<Arc<Server>>, Path((service, op)): Path<(String, S
     let app = &s.app;
     let b = &body[..];
     let res: Result<Vec<u8>, ServiceError> = match op.as_str() {
-        "create" => decode(api::decode_create_release_request(b)).and_then(|r| app.create(&principal, r)).map(|r| api::encode_release(&r)),
-        "get" => decode(api::decode_get_release_request(b)).and_then(|r| app.get(&principal, r)).map(|r| api::encode_release(&r)),
-        "list" => decode(api::decode_list_releases_request(b)).and_then(|r| app.list(&principal, r)).map(|r| api::encode_list_releases_response(&r)),
-        "rollback" => decode(api::decode_rollback_request(b)).and_then(|r| app.rollback(&principal, r)).map(|r| api::encode_release(&r)),
-        _ => decode(api::decode_list_targets_request(b)).and_then(|r| app.list_targets(&principal, r)).map(|r| api::encode_list_targets_response(&r)),
+        "create" => decode(api::decode_create_release_request(b)).and_then(|r| app.create(&principal, r)).and_then(|r| encode(api::encode_release(&r))),
+        "get" => decode(api::decode_get_release_request(b)).and_then(|r| app.get(&principal, r)).and_then(|r| encode(api::encode_release(&r))),
+        "list" => decode(api::decode_list_releases_request(b)).and_then(|r| app.list(&principal, r)).and_then(|r| encode(api::encode_list_releases_response(&r))),
+        "rollback" => decode(api::decode_rollback_request(b)).and_then(|r| app.rollback(&principal, r)).and_then(|r| encode(api::encode_release(&r))),
+        _ => decode(api::decode_list_targets_request(b)).and_then(|r| app.list_targets(&principal, r)).and_then(|r| encode(api::encode_list_targets_response(&r))),
     };
     let code = res.as_ref().err().map_or(0, |e| e.code);
     tracing::info!(op = format!("{service}/{op}"), ms = start.elapsed().as_millis() as u64, code, sub = %principal.sub, "rpc");

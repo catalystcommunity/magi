@@ -45,7 +45,11 @@ func NewWorkflowClient(transport Transport) *WorkflowClient {
 
 func (c *WorkflowClient) PutDefinition(ctx context.Context, req Definition) (Definition, error) {
 	var csilZero Definition
-	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "put-definition", EncodeDefinition(req))
+	csilReq, csilErr := EncodeDefinition(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "put-definition", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -54,7 +58,11 @@ func (c *WorkflowClient) PutDefinition(ctx context.Context, req Definition) (Def
 
 func (c *WorkflowClient) GetDefinition(ctx context.Context, req GetDefinitionRequest) (Definition, error) {
 	var csilZero Definition
-	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "get-definition", EncodeGetDefinitionRequest(req))
+	csilReq, csilErr := EncodeGetDefinitionRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "get-definition", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -63,7 +71,11 @@ func (c *WorkflowClient) GetDefinition(ctx context.Context, req GetDefinitionReq
 
 func (c *WorkflowClient) Start(ctx context.Context, req StartRequest) (Run, error) {
 	var csilZero Run
-	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "start", EncodeStartRequest(req))
+	csilReq, csilErr := EncodeStartRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "start", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -72,7 +84,11 @@ func (c *WorkflowClient) Start(ctx context.Context, req StartRequest) (Run, erro
 
 func (c *WorkflowClient) GetRun(ctx context.Context, req GetRunRequest) (Run, error) {
 	var csilZero Run
-	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "get-run", EncodeGetRunRequest(req))
+	csilReq, csilErr := EncodeGetRunRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "get-run", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -81,7 +97,11 @@ func (c *WorkflowClient) GetRun(ctx context.Context, req GetRunRequest) (Run, er
 
 func (c *WorkflowClient) ListRuns(ctx context.Context, req ListRunsRequest) (ListRunsResponse, error) {
 	var csilZero ListRunsResponse
-	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "list-runs", EncodeListRunsRequest(req))
+	csilReq, csilErr := EncodeListRunsRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "list-runs", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -90,7 +110,11 @@ func (c *WorkflowClient) ListRuns(ctx context.Context, req ListRunsRequest) (Lis
 
 func (c *WorkflowClient) WatchRun(ctx context.Context, req WatchRunRequest) (Run, error) {
 	var csilZero Run
-	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "watch-run", EncodeWatchRunRequest(req))
+	csilReq, csilErr := EncodeWatchRunRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "watch-run", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -99,7 +123,11 @@ func (c *WorkflowClient) WatchRun(ctx context.Context, req WatchRunRequest) (Run
 
 func (c *WorkflowClient) Claim(ctx context.Context, req ClaimRequest) (ClaimResponse, error) {
 	var csilZero ClaimResponse
-	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "claim", EncodeClaimRequest(req))
+	csilReq, csilErr := EncodeClaimRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "claim", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -108,7 +136,11 @@ func (c *WorkflowClient) Claim(ctx context.Context, req ClaimRequest) (ClaimResp
 
 func (c *WorkflowClient) Heartbeat(ctx context.Context, req HeartbeatRequest) (Ack, error) {
 	var csilZero Ack
-	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "heartbeat", EncodeHeartbeatRequest(req))
+	csilReq, csilErr := EncodeHeartbeatRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "heartbeat", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -117,7 +149,11 @@ func (c *WorkflowClient) Heartbeat(ctx context.Context, req HeartbeatRequest) (A
 
 func (c *WorkflowClient) Progress(ctx context.Context, req ProgressRequest) (Ack, error) {
 	var csilZero Ack
-	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "progress", EncodeProgressRequest(req))
+	csilReq, csilErr := EncodeProgressRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "progress", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -126,7 +162,11 @@ func (c *WorkflowClient) Progress(ctx context.Context, req ProgressRequest) (Ack
 
 func (c *WorkflowClient) Complete(ctx context.Context, req CompleteRequest) (Run, error) {
 	var csilZero Run
-	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "complete", EncodeCompleteRequest(req))
+	csilReq, csilErr := EncodeCompleteRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "complete", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -135,7 +175,11 @@ func (c *WorkflowClient) Complete(ctx context.Context, req CompleteRequest) (Run
 
 func (c *WorkflowClient) Decide(ctx context.Context, req DecideRequest) (Run, error) {
 	var csilZero Run
-	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "decide", EncodeDecideRequest(req))
+	csilReq, csilErr := EncodeDecideRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "decide", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -144,7 +188,11 @@ func (c *WorkflowClient) Decide(ctx context.Context, req DecideRequest) (Run, er
 
 func (c *WorkflowClient) Cancel(ctx context.Context, req CancelRequest) (Run, error) {
 	var csilZero Run
-	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "cancel", EncodeCancelRequest(req))
+	csilReq, csilErr := EncodeCancelRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "WorkflowService", "cancel", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}

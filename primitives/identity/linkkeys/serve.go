@@ -82,7 +82,7 @@ func dispatch(ctx context.Context, impl Rp, name string, b []byte) ([]byte, erro
 	return nil, errors.New("unknown operation " + name)
 }
 
-func call[Q, R any](ctx context.Context, b []byte, dec func([]byte) (Q, error), f func(context.Context, Q) (R, error), enc func(R) []byte) ([]byte, error) {
+func call[Q, R any](ctx context.Context, b []byte, dec func([]byte) (Q, error), f func(context.Context, Q) (R, error), enc func(R) ([]byte, error)) ([]byte, error) {
 	q, err := dec(b)
 	if err != nil {
 		return nil, err
@@ -91,5 +91,5 @@ func call[Q, R any](ctx context.Context, b []byte, dec func([]byte) (Q, error), 
 	if err != nil {
 		return nil, err
 	}
-	return enc(r), nil
+	return enc(r)
 }

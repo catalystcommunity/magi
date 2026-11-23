@@ -4,7 +4,7 @@
 //! wire (a CBOR map keyed by the verbatim CSIL field name in canonical RFC
 //! 8949 order) so the generated types need no serde derive. One
 //! `encode_`/`decode_` pair is emitted per record type.
-#![allow(dead_code, clippy::vec_init_then_push)]
+#![allow(dead_code, clippy::vec_init_then_push, clippy::let_unit_value)]
 
 use super::types::*;
 
@@ -159,11 +159,12 @@ fn cbor_read_arg(b: &[u8], pos: &mut usize, low: u8) -> Result<u64, CsilCborErro
             )))
         }
     };
-    if *pos >= b.len() || width > b.len() - *pos - 1 {
-        return Err(CsilCborError("csil cbor: truncated argument".to_string()));
-    }
+    let bytes = pos
+        .checked_add(1)
+        .and_then(|start| b.get(start..start.checked_add(width)?))
+        .ok_or_else(|| CsilCborError("csil cbor: truncated argument".to_string()))?;
     let mut v = 0u64;
-    for &byte in &b[*pos + 1..*pos + 1 + width] {
+    for &byte in bytes {
         v = (v << 8) | byte as u64;
     }
     *pos += 1 + width;
@@ -177,18 +178,41 @@ fn cbor_read_arg(b: &[u8], pos: &mut usize, low: u8) -> Result<u64, CsilCborErro
 /// bound, the vector grows only as elements are actually read.
 const CSIL_CBOR_PREALLOC_LIMIT: usize = 1024;
 
+/// The `len` bytes at `start`, or `None` when the input is shorter. `get` is
+/// used instead of indexing so a bad length can never panic.
+fn cbor_take(b: &[u8], start: usize, len: u64) -> Option<&[u8]> {
+    let end = start.checked_add(usize::try_from(len).ok()?)?;
+    b.get(start..end)
+}
+
+/// Widen an IEEE 754 half-precision value (RFC 8949 Appendix D) exactly to binary64.
+fn cbor_half_to_f64(half: u16) -> f64 {
+    let exp = (half >> 10) & 0x1f;
+    let mant = f64::from(half & 0x3ff);
+    let magnitude = match exp {
+        0 => mant * 2f64.powi(-24),
+        31 if mant == 0.0 => f64::INFINITY,
+        31 => f64::NAN,
+        _ => (mant + 1024.0) * 2f64.powi(i32::from(exp) - 25),
+    };
+    if half & 0x8000 != 0 {
+        -magnitude
+    } else {
+        magnitude
+    }
+}
+
 fn cbor_dec(b: &[u8], pos: &mut usize, depth: usize) -> Result<CsilCborValue, CsilCborError> {
     if depth > 64 {
         return Err(CsilCborError(
             "csil cbor: nesting limit exceeded".to_string(),
         ));
     }
-    if *pos >= b.len() {
+    let Some(&ib) = b.get(*pos) else {
         return Err(CsilCborError(
             "csil cbor: unexpected end of input".to_string(),
         ));
-    }
-    let ib = b[*pos];
+    };
     let major = ib >> 5;
     let low = ib & 0x1f;
     if major == 7 {
@@ -204,6 +228,10 @@ fn cbor_dec(b: &[u8], pos: &mut usize, depth: usize) -> Result<CsilCborValue, Cs
             22 | 23 => {
                 *pos += 1;
                 Ok(CsilCborValue::Null)
+            }
+            25 => {
+                let bits = cbor_read_arg(b, pos, low)?;
+                Ok(CsilCborValue::Float(cbor_half_to_f64(bits as u16)))
             }
             26 => {
                 let bits = cbor_read_arg(b, pos, low)?;
@@ -230,31 +258,22 @@ fn cbor_dec(b: &[u8], pos: &mut usize, depth: usize) -> Result<CsilCborValue, Cs
             Ok(CsilCborValue::Int(-1 - arg as i64))
         }
         2 => {
-            if arg > (b.len() - *pos) as u64 {
-                return Err(CsilCborError(
-                    "csil cbor: truncated byte string".to_string(),
-                ));
-            }
-            let n = arg as usize;
-            let slice = b[*pos..*pos + n].to_vec();
-            *pos += n;
-            Ok(CsilCborValue::Bytes(slice))
+            let slice = cbor_take(b, *pos, arg)
+                .ok_or_else(|| CsilCborError("csil cbor: truncated byte string".to_string()))?;
+            *pos += slice.len();
+            Ok(CsilCborValue::Bytes(slice.to_vec()))
         }
         3 => {
-            if arg > (b.len() - *pos) as u64 {
-                return Err(CsilCborError(
-                    "csil cbor: truncated text string".to_string(),
-                ));
-            }
-            let n = arg as usize;
-            let s = std::str::from_utf8(&b[*pos..*pos + n])
+            let slice = cbor_take(b, *pos, arg)
+                .ok_or_else(|| CsilCborError("csil cbor: truncated text string".to_string()))?;
+            let s = std::str::from_utf8(slice)
                 .map_err(|e| CsilCborError(format!("csil cbor: invalid utf-8: {e}")))?
                 .to_string();
-            *pos += n;
+            *pos += slice.len();
             Ok(CsilCborValue::Text(s))
         }
         4 => {
-            if arg > (b.len() - *pos) as u64 {
+            if arg > b.len().saturating_sub(*pos) as u64 {
                 return Err(CsilCborError(
                     "csil cbor: array length exceeds remaining input".to_string(),
                 ));
@@ -267,7 +286,7 @@ fn cbor_dec(b: &[u8], pos: &mut usize, depth: usize) -> Result<CsilCborValue, Cs
             Ok(CsilCborValue::Array(items))
         }
         5 => {
-            if arg > (b.len() - *pos) as u64 {
+            if arg > b.len().saturating_sub(*pos) as u64 {
                 return Err(CsilCborError(
                     "csil cbor: map length exceeds remaining input".to_string(),
                 ));
@@ -292,8 +311,14 @@ fn cbor_dec(b: &[u8], pos: &mut usize, depth: usize) -> Result<CsilCborValue, Cs
 }
 
 /// Map a typed slice to a CBOR array via the per-element encoder.
-fn cbor_enc_array<E>(xs: &[E], f: impl Fn(&E) -> CsilCborValue) -> CsilCborValue {
-    CsilCborValue::Array(xs.iter().map(f).collect())
+fn cbor_enc_array<E>(
+    xs: &[E],
+    f: impl Fn(&E) -> Result<CsilCborValue, CsilCborError>,
+) -> Result<CsilCborValue, CsilCborError> {
+    xs.iter()
+        .map(f)
+        .collect::<Result<Vec<_>, _>>()
+        .map(CsilCborValue::Array)
 }
 
 /// Map a typed map to a CBOR map. Rust `HashMap` iteration is unordered, so the inner
@@ -301,10 +326,13 @@ fn cbor_enc_array<E>(xs: &[E], f: impl Fn(&E) -> CsilCborValue) -> CsilCborValue
 /// generation time) are what the cross-language wire contract pins.
 fn cbor_enc_map<K, V>(
     m: &std::collections::HashMap<K, V>,
-    kf: impl Fn(&K) -> CsilCborValue,
-    vf: impl Fn(&V) -> CsilCborValue,
-) -> CsilCborValue {
-    CsilCborValue::Map(m.iter().map(|(k, v)| (kf(k), vf(v))).collect())
+    kf: impl Fn(&K) -> Result<CsilCborValue, CsilCborError>,
+    vf: impl Fn(&V) -> Result<CsilCborValue, CsilCborError>,
+) -> Result<CsilCborValue, CsilCborError> {
+    m.iter()
+        .map(|(k, v)| Ok((kf(k)?, vf(v)?)))
+        .collect::<Result<Vec<_>, _>>()
+        .map(CsilCborValue::Map)
 }
 
 fn cbor_dec_array<E>(
@@ -419,7 +447,7 @@ fn cbor_as_map(v: &CsilCborValue) -> Result<&[(CsilCborValue, CsilCborValue)], C
 }
 
 /// Build the canonical CBOR value tree for a Target.
-fn csil_enc_target(csil_v: &Target) -> CsilCborValue {
+fn csil_enc_target(csil_v: &Target) -> Result<CsilCborValue, CsilCborError> {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(6);
     csil_entries.push((cbor_text("name"), cbor_text(&csil_v.name)));
     csil_entries.push((cbor_text("container"), cbor_text(&csil_v.container)));
@@ -431,7 +459,7 @@ fn csil_enc_target(csil_v: &Target) -> CsilCborValue {
     if let Some(csil_inner) = &csil_v.health_port {
         csil_entries.push((cbor_text("health_port"), cbor_uint(*csil_inner)));
     }
-    CsilCborValue::Map(csil_entries)
+    Ok(CsilCborValue::Map(csil_entries))
 }
 
 /// Reconstruct a Target from a decoded CBOR value tree.
@@ -481,8 +509,9 @@ fn csil_dec_target(csil_root: &CsilCborValue) -> Result<Target, CsilCborError> {
 }
 
 /// Encode a Target to canonical CSIL CBOR bytes.
-pub fn encode_target(csil_v: &Target) -> Vec<u8> {
-    cbor_encode(&csil_enc_target(csil_v))
+pub fn encode_target(csil_v: &Target) -> Result<Vec<u8>, CsilCborError> {
+    let csil_tree = csil_enc_target(csil_v)?;
+    Ok(cbor_encode(&csil_tree))
 }
 
 /// Decode canonical CSIL CBOR bytes into a Target.
@@ -492,11 +521,11 @@ pub fn decode_target(csil_data: &[u8]) -> Result<Target, CsilCborError> {
 }
 
 /// Build the canonical CBOR value tree for a TargetImage.
-fn csil_enc_target_image(csil_v: &TargetImage) -> CsilCborValue {
+fn csil_enc_target_image(csil_v: &TargetImage) -> Result<CsilCborValue, CsilCborError> {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(2);
     csil_entries.push((cbor_text("image"), cbor_text(&csil_v.image)));
     csil_entries.push((cbor_text("target"), cbor_text(&csil_v.target)));
-    CsilCborValue::Map(csil_entries)
+    Ok(CsilCborValue::Map(csil_entries))
 }
 
 /// Reconstruct a TargetImage from a decoded CBOR value tree.
@@ -515,8 +544,9 @@ fn csil_dec_target_image(csil_root: &CsilCborValue) -> Result<TargetImage, CsilC
 }
 
 /// Encode a TargetImage to canonical CSIL CBOR bytes.
-pub fn encode_target_image(csil_v: &TargetImage) -> Vec<u8> {
-    cbor_encode(&csil_enc_target_image(csil_v))
+pub fn encode_target_image(csil_v: &TargetImage) -> Result<Vec<u8>, CsilCborError> {
+    let csil_tree = csil_enc_target_image(csil_v)?;
+    Ok(cbor_encode(&csil_tree))
 }
 
 /// Decode canonical CSIL CBOR bytes into a TargetImage.
@@ -526,7 +556,7 @@ pub fn decode_target_image(csil_data: &[u8]) -> Result<TargetImage, CsilCborErro
 }
 
 /// Build the canonical CBOR value tree for a ReleaseItem.
-fn csil_enc_release_item(csil_v: &ReleaseItem) -> CsilCborValue {
+fn csil_enc_release_item(csil_v: &ReleaseItem) -> Result<CsilCborValue, CsilCborError> {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(5);
     csil_entries.push((cbor_text("image"), cbor_text(&csil_v.image)));
     csil_entries.push((cbor_text("status"), cbor_text(&csil_v.status)));
@@ -538,7 +568,7 @@ fn csil_enc_release_item(csil_v: &ReleaseItem) -> CsilCborValue {
         cbor_text("previous_image"),
         cbor_text(&csil_v.previous_image),
     ));
-    CsilCborValue::Map(csil_entries)
+    Ok(CsilCborValue::Map(csil_entries))
 }
 
 /// Reconstruct a ReleaseItem from a decoded CBOR value tree.
@@ -580,8 +610,9 @@ fn csil_dec_release_item(csil_root: &CsilCborValue) -> Result<ReleaseItem, CsilC
 }
 
 /// Encode a ReleaseItem to canonical CSIL CBOR bytes.
-pub fn encode_release_item(csil_v: &ReleaseItem) -> Vec<u8> {
-    cbor_encode(&csil_enc_release_item(csil_v))
+pub fn encode_release_item(csil_v: &ReleaseItem) -> Result<Vec<u8>, CsilCborError> {
+    let csil_tree = csil_enc_release_item(csil_v)?;
+    Ok(cbor_encode(&csil_tree))
 }
 
 /// Decode canonical CSIL CBOR bytes into a ReleaseItem.
@@ -591,12 +622,12 @@ pub fn decode_release_item(csil_data: &[u8]) -> Result<ReleaseItem, CsilCborErro
 }
 
 /// Build the canonical CBOR value tree for a Release.
-fn csil_enc_release(csil_v: &Release) -> CsilCborValue {
+fn csil_enc_release(csil_v: &Release) -> Result<CsilCborValue, CsilCborError> {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(7);
     csil_entries.push((cbor_text("id"), cbor_text(&csil_v.id)));
     csil_entries.push((
         cbor_text("items"),
-        cbor_enc_array(&csil_v.items, csil_enc_release_item),
+        cbor_enc_array(&csil_v.items, csil_enc_release_item)?,
     ));
     csil_entries.push((cbor_text("owner"), cbor_text(&csil_v.owner)));
     if let Some(csil_inner) = &csil_v.reason {
@@ -605,7 +636,7 @@ fn csil_enc_release(csil_v: &Release) -> CsilCborValue {
     csil_entries.push((cbor_text("status"), cbor_text(&csil_v.status)));
     csil_entries.push((cbor_text("created_ms"), cbor_uint(csil_v.created_ms)));
     csil_entries.push((cbor_text("updated_ms"), cbor_uint(csil_v.updated_ms)));
-    CsilCborValue::Map(csil_entries)
+    Ok(CsilCborValue::Map(csil_entries))
 }
 
 /// Reconstruct a Release from a decoded CBOR value tree.
@@ -659,8 +690,9 @@ fn csil_dec_release(csil_root: &CsilCborValue) -> Result<Release, CsilCborError>
 }
 
 /// Encode a Release to canonical CSIL CBOR bytes.
-pub fn encode_release(csil_v: &Release) -> Vec<u8> {
-    cbor_encode(&csil_enc_release(csil_v))
+pub fn encode_release(csil_v: &Release) -> Result<Vec<u8>, CsilCborError> {
+    let csil_tree = csil_enc_release(csil_v)?;
+    Ok(cbor_encode(&csil_tree))
 }
 
 /// Decode canonical CSIL CBOR bytes into a Release.
@@ -670,16 +702,18 @@ pub fn decode_release(csil_data: &[u8]) -> Result<Release, CsilCborError> {
 }
 
 /// Build the canonical CBOR value tree for a CreateReleaseRequest.
-fn csil_enc_create_release_request(csil_v: &CreateReleaseRequest) -> CsilCborValue {
+fn csil_enc_create_release_request(
+    csil_v: &CreateReleaseRequest,
+) -> Result<CsilCborValue, CsilCborError> {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(2);
     csil_entries.push((
         cbor_text("images"),
-        cbor_enc_array(&csil_v.images, csil_enc_target_image),
+        cbor_enc_array(&csil_v.images, csil_enc_target_image)?,
     ));
     if let Some(csil_inner) = &csil_v.reason {
         csil_entries.push((cbor_text("reason"), cbor_text(csil_inner)));
     }
-    CsilCborValue::Map(csil_entries)
+    Ok(CsilCborValue::Map(csil_entries))
 }
 
 /// Reconstruct a CreateReleaseRequest from a decoded CBOR value tree.
@@ -702,8 +736,11 @@ fn csil_dec_create_release_request(
 }
 
 /// Encode a CreateReleaseRequest to canonical CSIL CBOR bytes.
-pub fn encode_create_release_request(csil_v: &CreateReleaseRequest) -> Vec<u8> {
-    cbor_encode(&csil_enc_create_release_request(csil_v))
+pub fn encode_create_release_request(
+    csil_v: &CreateReleaseRequest,
+) -> Result<Vec<u8>, CsilCborError> {
+    let csil_tree = csil_enc_create_release_request(csil_v)?;
+    Ok(cbor_encode(&csil_tree))
 }
 
 /// Decode canonical CSIL CBOR bytes into a CreateReleaseRequest.
@@ -715,10 +752,12 @@ pub fn decode_create_release_request(
 }
 
 /// Build the canonical CBOR value tree for a GetReleaseRequest.
-fn csil_enc_get_release_request(csil_v: &GetReleaseRequest) -> CsilCborValue {
+fn csil_enc_get_release_request(
+    csil_v: &GetReleaseRequest,
+) -> Result<CsilCborValue, CsilCborError> {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(1);
     csil_entries.push((cbor_text("id"), cbor_text(&csil_v.id)));
-    CsilCborValue::Map(csil_entries)
+    Ok(CsilCborValue::Map(csil_entries))
 }
 
 /// Reconstruct a GetReleaseRequest from a decoded CBOR value tree.
@@ -734,8 +773,9 @@ fn csil_dec_get_release_request(
 }
 
 /// Encode a GetReleaseRequest to canonical CSIL CBOR bytes.
-pub fn encode_get_release_request(csil_v: &GetReleaseRequest) -> Vec<u8> {
-    cbor_encode(&csil_enc_get_release_request(csil_v))
+pub fn encode_get_release_request(csil_v: &GetReleaseRequest) -> Result<Vec<u8>, CsilCborError> {
+    let csil_tree = csil_enc_get_release_request(csil_v)?;
+    Ok(cbor_encode(&csil_tree))
 }
 
 /// Decode canonical CSIL CBOR bytes into a GetReleaseRequest.
@@ -745,12 +785,14 @@ pub fn decode_get_release_request(csil_data: &[u8]) -> Result<GetReleaseRequest,
 }
 
 /// Build the canonical CBOR value tree for a ListReleasesRequest.
-fn csil_enc_list_releases_request(csil_v: &ListReleasesRequest) -> CsilCborValue {
+fn csil_enc_list_releases_request(
+    csil_v: &ListReleasesRequest,
+) -> Result<CsilCborValue, CsilCborError> {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(1);
     if let Some(csil_inner) = &csil_v.limit {
         csil_entries.push((cbor_text("limit"), cbor_uint(*csil_inner)));
     }
-    CsilCborValue::Map(csil_entries)
+    Ok(CsilCborValue::Map(csil_entries))
 }
 
 /// Reconstruct a ListReleasesRequest from a decoded CBOR value tree.
@@ -768,8 +810,11 @@ fn csil_dec_list_releases_request(
 }
 
 /// Encode a ListReleasesRequest to canonical CSIL CBOR bytes.
-pub fn encode_list_releases_request(csil_v: &ListReleasesRequest) -> Vec<u8> {
-    cbor_encode(&csil_enc_list_releases_request(csil_v))
+pub fn encode_list_releases_request(
+    csil_v: &ListReleasesRequest,
+) -> Result<Vec<u8>, CsilCborError> {
+    let csil_tree = csil_enc_list_releases_request(csil_v)?;
+    Ok(cbor_encode(&csil_tree))
 }
 
 /// Decode canonical CSIL CBOR bytes into a ListReleasesRequest.
@@ -781,13 +826,15 @@ pub fn decode_list_releases_request(
 }
 
 /// Build the canonical CBOR value tree for a ListReleasesResponse.
-fn csil_enc_list_releases_response(csil_v: &ListReleasesResponse) -> CsilCborValue {
+fn csil_enc_list_releases_response(
+    csil_v: &ListReleasesResponse,
+) -> Result<CsilCborValue, CsilCborError> {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(1);
     csil_entries.push((
         cbor_text("releases"),
-        cbor_enc_array(&csil_v.releases, csil_enc_release),
+        cbor_enc_array(&csil_v.releases, csil_enc_release)?,
     ));
-    CsilCborValue::Map(csil_entries)
+    Ok(CsilCborValue::Map(csil_entries))
 }
 
 /// Reconstruct a ListReleasesResponse from a decoded CBOR value tree.
@@ -803,8 +850,11 @@ fn csil_dec_list_releases_response(
 }
 
 /// Encode a ListReleasesResponse to canonical CSIL CBOR bytes.
-pub fn encode_list_releases_response(csil_v: &ListReleasesResponse) -> Vec<u8> {
-    cbor_encode(&csil_enc_list_releases_response(csil_v))
+pub fn encode_list_releases_response(
+    csil_v: &ListReleasesResponse,
+) -> Result<Vec<u8>, CsilCborError> {
+    let csil_tree = csil_enc_list_releases_response(csil_v)?;
+    Ok(cbor_encode(&csil_tree))
 }
 
 /// Decode canonical CSIL CBOR bytes into a ListReleasesResponse.
@@ -816,10 +866,10 @@ pub fn decode_list_releases_response(
 }
 
 /// Build the canonical CBOR value tree for a RollbackRequest.
-fn csil_enc_rollback_request(csil_v: &RollbackRequest) -> CsilCborValue {
+fn csil_enc_rollback_request(csil_v: &RollbackRequest) -> Result<CsilCborValue, CsilCborError> {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(1);
     csil_entries.push((cbor_text("id"), cbor_text(&csil_v.id)));
-    CsilCborValue::Map(csil_entries)
+    Ok(CsilCborValue::Map(csil_entries))
 }
 
 /// Reconstruct a RollbackRequest from a decoded CBOR value tree.
@@ -833,8 +883,9 @@ fn csil_dec_rollback_request(csil_root: &CsilCborValue) -> Result<RollbackReques
 }
 
 /// Encode a RollbackRequest to canonical CSIL CBOR bytes.
-pub fn encode_rollback_request(csil_v: &RollbackRequest) -> Vec<u8> {
-    cbor_encode(&csil_enc_rollback_request(csil_v))
+pub fn encode_rollback_request(csil_v: &RollbackRequest) -> Result<Vec<u8>, CsilCborError> {
+    let csil_tree = csil_enc_rollback_request(csil_v)?;
+    Ok(cbor_encode(&csil_tree))
 }
 
 /// Decode canonical CSIL CBOR bytes into a RollbackRequest.
@@ -844,12 +895,14 @@ pub fn decode_rollback_request(csil_data: &[u8]) -> Result<RollbackRequest, Csil
 }
 
 /// Build the canonical CBOR value tree for a ListTargetsRequest.
-fn csil_enc_list_targets_request(csil_v: &ListTargetsRequest) -> CsilCborValue {
+fn csil_enc_list_targets_request(
+    csil_v: &ListTargetsRequest,
+) -> Result<CsilCborValue, CsilCborError> {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(1);
     if let Some(csil_inner) = &csil_v.name {
         csil_entries.push((cbor_text("name"), cbor_text(csil_inner)));
     }
-    CsilCborValue::Map(csil_entries)
+    Ok(CsilCborValue::Map(csil_entries))
 }
 
 /// Reconstruct a ListTargetsRequest from a decoded CBOR value tree.
@@ -867,8 +920,9 @@ fn csil_dec_list_targets_request(
 }
 
 /// Encode a ListTargetsRequest to canonical CSIL CBOR bytes.
-pub fn encode_list_targets_request(csil_v: &ListTargetsRequest) -> Vec<u8> {
-    cbor_encode(&csil_enc_list_targets_request(csil_v))
+pub fn encode_list_targets_request(csil_v: &ListTargetsRequest) -> Result<Vec<u8>, CsilCborError> {
+    let csil_tree = csil_enc_list_targets_request(csil_v)?;
+    Ok(cbor_encode(&csil_tree))
 }
 
 /// Decode canonical CSIL CBOR bytes into a ListTargetsRequest.
@@ -878,13 +932,15 @@ pub fn decode_list_targets_request(csil_data: &[u8]) -> Result<ListTargetsReques
 }
 
 /// Build the canonical CBOR value tree for a ListTargetsResponse.
-fn csil_enc_list_targets_response(csil_v: &ListTargetsResponse) -> CsilCborValue {
+fn csil_enc_list_targets_response(
+    csil_v: &ListTargetsResponse,
+) -> Result<CsilCborValue, CsilCborError> {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(1);
     csil_entries.push((
         cbor_text("targets"),
-        cbor_enc_array(&csil_v.targets, csil_enc_target),
+        cbor_enc_array(&csil_v.targets, csil_enc_target)?,
     ));
-    CsilCborValue::Map(csil_entries)
+    Ok(CsilCborValue::Map(csil_entries))
 }
 
 /// Reconstruct a ListTargetsResponse from a decoded CBOR value tree.
@@ -900,8 +956,11 @@ fn csil_dec_list_targets_response(
 }
 
 /// Encode a ListTargetsResponse to canonical CSIL CBOR bytes.
-pub fn encode_list_targets_response(csil_v: &ListTargetsResponse) -> Vec<u8> {
-    cbor_encode(&csil_enc_list_targets_response(csil_v))
+pub fn encode_list_targets_response(
+    csil_v: &ListTargetsResponse,
+) -> Result<Vec<u8>, CsilCborError> {
+    let csil_tree = csil_enc_list_targets_response(csil_v)?;
+    Ok(cbor_encode(&csil_tree))
 }
 
 /// Decode canonical CSIL CBOR bytes into a ListTargetsResponse.

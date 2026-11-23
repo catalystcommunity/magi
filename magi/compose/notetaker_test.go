@@ -75,10 +75,14 @@ func TestRecordChanges(t *testing.T) {
 	after := `{"records":["ent_cal","clm_loc"],"erased":false}`
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/cbor")
-		w.Write(knowledgeapi.EncodeTimelineResponse(knowledgeapi.TimelineResponse{Episodes: []knowledgeapi.Episode{}, Claims: []knowledgeapi.Claim{},
+		b, err := knowledgeapi.EncodeTimelineResponse(knowledgeapi.TimelineResponse{Episodes: []knowledgeapi.Episode{}, Claims: []knowledgeapi.Claim{},
 			Changes: []knowledgeapi.Change{{Id: "c1", Record: "clm_new", Operation: "create", AtMs: 50},
 				{Id: "c2", Record: "ent_cal", Operation: "retract", After: &after, AtMs: 9},
-				{Id: "c3", Record: "clm_x", Operation: "dispute", AtMs: 70}, {Id: "c4", Record: "clm_y", Operation: "fix", AtMs: 30}}}))
+				{Id: "c3", Record: "clm_x", Operation: "dispute", AtMs: 70}, {Id: "c4", Record: "clm_y", Operation: "fix", AtMs: 30}}})
+		if err != nil {
+			t.Error(err)
+		}
+		w.Write(b)
 	}))
 	defer srv.Close()
 	sys := New(Config{Knowledge: srv.URL, ServiceToken: "t"}, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))

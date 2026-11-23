@@ -6,6 +6,20 @@ from typing import Optional, List, Dict, Any, Union
 import json
 
 
+def _csil_json_bytes_out(value: Any) -> str:
+    import base64
+
+    return base64.b64encode(bytes(value)).decode("ascii")
+
+
+def _csil_json_bytes_in(value: Any) -> bytes:
+    import base64
+
+    if not isinstance(value, str):
+        raise ValueError(f"expected base64 text, got {type(value).__name__}")
+    return base64.b64decode(value, validate=True)
+
+
 @dataclass
 class Repository:
     name: str
@@ -88,7 +102,7 @@ class CreateRepoRequest:
         if hasattr(self, 'owner') and self.owner is not None:
             result['owner'] = self.owner
         if hasattr(self, 'seed_bundle') and self.seed_bundle is not None:
-            result['seed_bundle'] = self.seed_bundle
+            result['seed_bundle'] = _csil_json_bytes_out(self.seed_bundle)
         if hasattr(self, 'upstream') and self.upstream is not None:
             result['upstream'] = self.upstream
         return result
@@ -96,7 +110,7 @@ class CreateRepoRequest:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'CreateRepoRequest':
         """Create instance from dictionary."""
-        return cls(name=data.get('name'), default_branch=data.get('default_branch'), owner=data.get('owner'), seed_bundle=data.get('seed_bundle'), upstream=data.get('upstream'))
+        return cls(name=data.get('name'), default_branch=data.get('default_branch'), owner=data.get('owner'), seed_bundle=(None if data.get('seed_bundle') is None else _csil_json_bytes_in(data['seed_bundle'])), upstream=data.get('upstream'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -168,13 +182,13 @@ class ListReposResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'repositories') and self.repositories is not None:
-            result['repositories'] = self.repositories
+            result['repositories'] = [item0.to_dict() for item0 in self.repositories]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListReposResponse':
         """Create instance from dictionary."""
-        return cls(repositories=data.get('repositories'))
+        return cls(repositories=(None if data.get('repositories') is None else [Repository.from_dict(item0) for item0 in data['repositories']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -218,13 +232,13 @@ class ListRefsResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'refs') and self.refs is not None:
-            result['refs'] = self.refs
+            result['refs'] = [item0.to_dict() for item0 in self.refs]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListRefsResponse':
         """Create instance from dictionary."""
-        return cls(refs=data.get('refs'))
+        return cls(refs=(None if data.get('refs') is None else [Ref.from_dict(item0) for item0 in data['refs']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -318,7 +332,7 @@ class DiffResult:
         if hasattr(self, 'patch') and self.patch is not None:
             result['patch'] = self.patch
         if hasattr(self, 'files') and self.files is not None:
-            result['files'] = self.files
+            result['files'] = [item0.to_dict() for item0 in self.files]
         if hasattr(self, 'truncated') and self.truncated is not None:
             result['truncated'] = self.truncated
         return result
@@ -326,7 +340,7 @@ class DiffResult:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'DiffResult':
         """Create instance from dictionary."""
-        return cls(base_commit=data.get('base_commit'), head_commit=data.get('head_commit'), patch=data.get('patch'), files=data.get('files'), truncated=data.get('truncated'))
+        return cls(base_commit=data.get('base_commit'), head_commit=data.get('head_commit'), patch=data.get('patch'), files=(None if data.get('files') is None else [FileChange.from_dict(item0) for item0 in data['files']]), truncated=data.get('truncated'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -494,13 +508,13 @@ class BundleResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'bundle') and self.bundle is not None:
-            result['bundle'] = self.bundle
+            result['bundle'] = _csil_json_bytes_out(self.bundle)
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'BundleResponse':
         """Create instance from dictionary."""
-        return cls(bundle=data.get('bundle'))
+        return cls(bundle=(None if data.get('bundle') is None else _csil_json_bytes_in(data['bundle'])))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -523,7 +537,7 @@ class PushBundleRequest:
         if hasattr(self, 'repo') and self.repo is not None:
             result['repo'] = self.repo
         if hasattr(self, 'bundle') and self.bundle is not None:
-            result['bundle'] = self.bundle
+            result['bundle'] = _csil_json_bytes_out(self.bundle)
         if hasattr(self, 'force') and self.force is not None:
             result['force'] = self.force
         return result
@@ -531,7 +545,7 @@ class PushBundleRequest:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'PushBundleRequest':
         """Create instance from dictionary."""
-        return cls(repo=data.get('repo'), bundle=data.get('bundle'), force=data.get('force'))
+        return cls(repo=data.get('repo'), bundle=(None if data.get('bundle') is None else _csil_json_bytes_in(data['bundle'])), force=data.get('force'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -550,13 +564,13 @@ class PushBundleResponse:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'updated') and self.updated is not None:
-            result['updated'] = self.updated
+            result['updated'] = [item0.to_dict() for item0 in self.updated]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'PushBundleResponse':
         """Create instance from dictionary."""
-        return cls(updated=data.get('updated'))
+        return cls(updated=(None if data.get('updated') is None else [Ref.from_dict(item0) for item0 in data['updated']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

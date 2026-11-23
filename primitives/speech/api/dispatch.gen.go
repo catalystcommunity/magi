@@ -16,7 +16,7 @@ func SpeechServiceOps(impl SpeechService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeTranscript(resp), nil
+			return EncodeTranscript(resp)
 		},
 		"synthesize": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeSynthesizeRequest(b)
@@ -27,7 +27,7 @@ func SpeechServiceOps(impl SpeechService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeAudio(resp), nil
+			return EncodeAudio(resp)
 		},
 		"list-voices": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListVoicesRequest(b)
@@ -38,7 +38,7 @@ func SpeechServiceOps(impl SpeechService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListVoicesResponse(resp), nil
+			return EncodeListVoicesResponse(resp)
 		},
 		"list-lexicon": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListLexiconRequest(b)
@@ -49,7 +49,7 @@ func SpeechServiceOps(impl SpeechService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListLexiconResponse(resp), nil
+			return EncodeListLexiconResponse(resp)
 		},
 		"put-lexicon-entry": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodePutLexiconEntryRequest(b)
@@ -60,7 +60,7 @@ func SpeechServiceOps(impl SpeechService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeLexiconEntry(resp), nil
+			return EncodeLexiconEntry(resp)
 		},
 		"delete-lexicon-entry": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeDeleteLexiconEntryRequest(b)
@@ -71,7 +71,7 @@ func SpeechServiceOps(impl SpeechService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeDeleteLexiconEntryResponse(resp), nil
+			return EncodeDeleteLexiconEntryResponse(resp)
 		},
 		"prepare-text": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodePrepareTextRequest(b)
@@ -82,7 +82,7 @@ func SpeechServiceOps(impl SpeechService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodePrepareTextResponse(resp), nil
+			return EncodePrepareTextResponse(resp)
 		},
 		"detect-speech": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeDetectSpeechRequest(b)
@@ -93,7 +93,7 @@ func SpeechServiceOps(impl SpeechService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeDetectSpeechResponse(resp), nil
+			return EncodeDetectSpeechResponse(resp)
 		},
 		"classify-turn": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeClassifyTurnRequest(b)
@@ -104,7 +104,7 @@ func SpeechServiceOps(impl SpeechService) map[string]func(context.Context, []byt
 			if err != nil {
 				return nil, err
 			}
-			return EncodeClassifyTurnResponse(resp), nil
+			return EncodeClassifyTurnResponse(resp)
 		},
 	}
 }

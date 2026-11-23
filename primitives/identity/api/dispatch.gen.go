@@ -16,7 +16,7 @@ func IdentityServiceOps(impl IdentityService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeBeginLoginResponse(resp), nil
+			return EncodeBeginLoginResponse(resp)
 		},
 		"poll-login": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodePollLoginRequest(b)
@@ -27,7 +27,7 @@ func IdentityServiceOps(impl IdentityService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodePollLoginResponse(resp), nil
+			return EncodePollLoginResponse(resp)
 		},
 		"who-am-i": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeWhoAmIRequest(b)
@@ -38,7 +38,7 @@ func IdentityServiceOps(impl IdentityService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeWhoAmIResponse(resp), nil
+			return EncodeWhoAmIResponse(resp)
 		},
 		"issue-service-token": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeIssueServiceTokenRequest(b)
@@ -49,7 +49,7 @@ func IdentityServiceOps(impl IdentityService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeTokenResponse(resp), nil
+			return EncodeTokenResponse(resp)
 		},
 		"refresh": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeRefreshRequest(b)
@@ -60,7 +60,7 @@ func IdentityServiceOps(impl IdentityService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeTokenResponse(resp), nil
+			return EncodeTokenResponse(resp)
 		},
 		"application": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeApplicationRequest(b)
@@ -71,7 +71,7 @@ func IdentityServiceOps(impl IdentityService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeAppRef(resp), nil
+			return EncodeAppRef(resp)
 		},
 		"begin-grant": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeBeginGrantRequest(b)
@@ -82,7 +82,7 @@ func IdentityServiceOps(impl IdentityService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeBeginGrantResponse(resp), nil
+			return EncodeBeginGrantResponse(resp)
 		},
 		"list-grants": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListGrantsRequest(b)
@@ -93,7 +93,7 @@ func IdentityServiceOps(impl IdentityService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListGrantsResponse(resp), nil
+			return EncodeListGrantsResponse(resp)
 		},
 		"expiring-grants": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeExpiringGrantsRequest(b)
@@ -104,7 +104,7 @@ func IdentityServiceOps(impl IdentityService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListGrantsResponse(resp), nil
+			return EncodeListGrantsResponse(resp)
 		},
 		"present-grant": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodePresentGrantRequest(b)
@@ -115,7 +115,7 @@ func IdentityServiceOps(impl IdentityService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodePresentGrantResponse(resp), nil
+			return EncodePresentGrantResponse(resp)
 		},
 		"forget-grant": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeForgetGrantRequest(b)
@@ -126,7 +126,7 @@ func IdentityServiceOps(impl IdentityService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeEmptyResponse(resp), nil
+			return EncodeEmptyResponse(resp)
 		},
 		"put-credential": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodePutCredentialRequest(b)
@@ -137,7 +137,7 @@ func IdentityServiceOps(impl IdentityService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeCredential(resp), nil
+			return EncodeCredential(resp)
 		},
 		"get-credential": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeCredentialRef(b)
@@ -148,7 +148,7 @@ func IdentityServiceOps(impl IdentityService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeCredential(resp), nil
+			return EncodeCredential(resp)
 		},
 		"list-credentials": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListCredentialsRequest(b)
@@ -159,7 +159,7 @@ func IdentityServiceOps(impl IdentityService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListCredentialsResponse(resp), nil
+			return EncodeListCredentialsResponse(resp)
 		},
 		"forget-credential": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeCredentialRef(b)
@@ -170,7 +170,7 @@ func IdentityServiceOps(impl IdentityService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeEmptyResponse(resp), nil
+			return EncodeEmptyResponse(resp)
 		},
 		"list-roles": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListRolesRequest(b)
@@ -181,7 +181,7 @@ func IdentityServiceOps(impl IdentityService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListRolesResponse(resp), nil
+			return EncodeListRolesResponse(resp)
 		},
 		"set-subject-roles": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeSetSubjectRolesRequest(b)
@@ -192,7 +192,7 @@ func IdentityServiceOps(impl IdentityService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListRolesResponse(resp), nil
+			return EncodeListRolesResponse(resp)
 		},
 		"set-role-subjects": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeSetRoleSubjectsRequest(b)
@@ -203,7 +203,7 @@ func IdentityServiceOps(impl IdentityService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListRolesResponse(resp), nil
+			return EncodeListRolesResponse(resp)
 		},
 		"list-users": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListUsersRequest(b)
@@ -214,7 +214,7 @@ func IdentityServiceOps(impl IdentityService) map[string]func(context.Context, [
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListUsersResponse(resp), nil
+			return EncodeListUsersResponse(resp)
 		},
 	}
 }

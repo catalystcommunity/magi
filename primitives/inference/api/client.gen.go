@@ -45,7 +45,11 @@ func NewInferenceClient(transport Transport) *InferenceClient {
 
 func (c *InferenceClient) Status(ctx context.Context, req StatusRequest) (Status, error) {
 	var csilZero Status
-	csilResp, csilErr := c.transport.Call(ctx, "InferenceService", "status", EncodeStatusRequest(req))
+	csilReq, csilErr := EncodeStatusRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "InferenceService", "status", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -54,7 +58,11 @@ func (c *InferenceClient) Status(ctx context.Context, req StatusRequest) (Status
 
 func (c *InferenceClient) Warm(ctx context.Context, req WarmRequest) (Status, error) {
 	var csilZero Status
-	csilResp, csilErr := c.transport.Call(ctx, "InferenceService", "warm", EncodeWarmRequest(req))
+	csilReq, csilErr := EncodeWarmRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "InferenceService", "warm", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -63,7 +71,11 @@ func (c *InferenceClient) Warm(ctx context.Context, req WarmRequest) (Status, er
 
 func (c *InferenceClient) Decide(ctx context.Context, req DecideRequest) (DecideResponse, error) {
 	var csilZero DecideResponse
-	csilResp, csilErr := c.transport.Call(ctx, "InferenceService", "decide", EncodeDecideRequest(req))
+	csilReq, csilErr := EncodeDecideRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "InferenceService", "decide", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}

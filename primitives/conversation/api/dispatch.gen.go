@@ -16,7 +16,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodePersona(resp), nil
+			return EncodePersona(resp)
 		},
 		"get-persona": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetPersonaRequest(b)
@@ -27,7 +27,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodePersona(resp), nil
+			return EncodePersona(resp)
 		},
 		"list-personas": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListPersonasRequest(b)
@@ -38,7 +38,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListPersonasResponse(resp), nil
+			return EncodeListPersonasResponse(resp)
 		},
 		"open-stream": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeOpenStreamRequest(b)
@@ -49,7 +49,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeStream(resp), nil
+			return EncodeStream(resp)
 		},
 		"list-streams": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListStreamsRequest(b)
@@ -60,7 +60,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListStreamsResponse(resp), nil
+			return EncodeListStreamsResponse(resp)
 		},
 		"get-stream": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetStreamRequest(b)
@@ -71,7 +71,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeStream(resp), nil
+			return EncodeStream(resp)
 		},
 		"post": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodePostRequest(b)
@@ -82,7 +82,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeUtterance(resp), nil
+			return EncodeUtterance(resp)
 		},
 		"list-utterances": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListUtterancesRequest(b)
@@ -93,7 +93,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListUtterancesResponse(resp), nil
+			return EncodeListUtterancesResponse(resp)
 		},
 		"get-utterance": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetUtteranceRequest(b)
@@ -104,7 +104,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeUtterance(resp), nil
+			return EncodeUtterance(resp)
 		},
 		"get-utterances": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetUtterancesRequest(b)
@@ -115,7 +115,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeGetUtterancesResponse(resp), nil
+			return EncodeGetUtterancesResponse(resp)
 		},
 		"search": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeSearchRequest(b)
@@ -126,7 +126,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeSearchResponse(resp), nil
+			return EncodeSearchResponse(resp)
 		},
 		"trace": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeTraceRequest(b)
@@ -137,7 +137,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeTraceResponse(resp), nil
+			return EncodeTraceResponse(resp)
 		},
 		"put-link": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodePutLinkRequest(b)
@@ -148,7 +148,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodePutLinkResponse(resp), nil
+			return EncodePutLinkResponse(resp)
 		},
 		"retract-link": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeRetractLinkRequest(b)
@@ -159,7 +159,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeLink(resp), nil
+			return EncodeLink(resp)
 		},
 		"list-links": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListLinksRequest(b)
@@ -170,7 +170,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListLinksResponse(resp), nil
+			return EncodeListLinksResponse(resp)
 		},
 		"set-visibility": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeSetVisibilityRequest(b)
@@ -181,7 +181,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeSetVisibilityResponse(resp), nil
+			return EncodeSetVisibilityResponse(resp)
 		},
 		"list-reviews": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListReviewsRequest(b)
@@ -192,7 +192,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListReviewsResponse(resp), nil
+			return EncodeListReviewsResponse(resp)
 		},
 		"answer-review": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeAnswerReviewRequest(b)
@@ -203,7 +203,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeReview(resp), nil
+			return EncodeReview(resp)
 		},
 		"list-examples": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListExamplesRequest(b)
@@ -214,7 +214,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListExamplesResponse(resp), nil
+			return EncodeListExamplesResponse(resp)
 		},
 		"get-calibration": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeGetCalibrationRequest(b)
@@ -225,7 +225,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeCalibration(resp), nil
+			return EncodeCalibration(resp)
 		},
 		"claim-unclassified": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeClaimUnclassifiedRequest(b)
@@ -236,7 +236,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeClaimUnclassifiedResponse(resp), nil
+			return EncodeClaimUnclassifiedResponse(resp)
 		},
 		"mark-classified": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeMarkClassifiedRequest(b)
@@ -247,7 +247,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeUtterance(resp), nil
+			return EncodeUtterance(resp)
 		},
 		"set-audio": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeSetAudioRequest(b)
@@ -258,7 +258,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeUtterance(resp), nil
+			return EncodeUtterance(resp)
 		},
 		"annotate": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeAnnotateRequest(b)
@@ -269,7 +269,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeAnnotation(resp), nil
+			return EncodeAnnotation(resp)
 		},
 		"list-annotations": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListAnnotationsRequest(b)
@@ -280,7 +280,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListAnnotationsResponse(resp), nil
+			return EncodeListAnnotationsResponse(resp)
 		},
 		"import-legacy": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeImportLegacyRequest(b)
@@ -291,7 +291,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeImportLegacyResponse(resp), nil
+			return EncodeImportLegacyResponse(resp)
 		},
 		"put-device": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodePutDeviceRequest(b)
@@ -302,7 +302,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeDevice(resp), nil
+			return EncodeDevice(resp)
 		},
 		"list-devices": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListDevicesRequest(b)
@@ -313,7 +313,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListDevicesResponse(resp), nil
+			return EncodeListDevicesResponse(resp)
 		},
 		"remove-device": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeRemoveDeviceRequest(b)
@@ -324,7 +324,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeDevice(resp), nil
+			return EncodeDevice(resp)
 		},
 		"notify": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeNotifyRequest(b)
@@ -335,7 +335,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeNotice(resp), nil
+			return EncodeNotice(resp)
 		},
 		"wait-notices": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeWaitNoticesRequest(b)
@@ -346,7 +346,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeWaitNoticesResponse(resp), nil
+			return EncodeWaitNoticesResponse(resp)
 		},
 		"deliver-notice": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeDeliverNoticeRequest(b)
@@ -357,7 +357,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeNotice(resp), nil
+			return EncodeNotice(resp)
 		},
 		"ack-notice": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeAckNoticeRequest(b)
@@ -368,7 +368,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeNotice(resp), nil
+			return EncodeNotice(resp)
 		},
 		"list-notices": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListNoticesRequest(b)
@@ -379,7 +379,7 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			if err != nil {
 				return nil, err
 			}
-			return EncodeListNoticesResponse(resp), nil
+			return EncodeListNoticesResponse(resp)
 		},
 	}
 }

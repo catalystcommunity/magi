@@ -45,7 +45,11 @@ func NewSpeechClient(transport Transport) *SpeechClient {
 
 func (c *SpeechClient) Transcribe(ctx context.Context, req TranscribeRequest) (Transcript, error) {
 	var csilZero Transcript
-	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "transcribe", EncodeTranscribeRequest(req))
+	csilReq, csilErr := EncodeTranscribeRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "transcribe", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -54,7 +58,11 @@ func (c *SpeechClient) Transcribe(ctx context.Context, req TranscribeRequest) (T
 
 func (c *SpeechClient) Synthesize(ctx context.Context, req SynthesizeRequest) (Audio, error) {
 	var csilZero Audio
-	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "synthesize", EncodeSynthesizeRequest(req))
+	csilReq, csilErr := EncodeSynthesizeRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "synthesize", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -63,7 +71,11 @@ func (c *SpeechClient) Synthesize(ctx context.Context, req SynthesizeRequest) (A
 
 func (c *SpeechClient) ListVoices(ctx context.Context, req ListVoicesRequest) (ListVoicesResponse, error) {
 	var csilZero ListVoicesResponse
-	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "list-voices", EncodeListVoicesRequest(req))
+	csilReq, csilErr := EncodeListVoicesRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "list-voices", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -72,7 +84,11 @@ func (c *SpeechClient) ListVoices(ctx context.Context, req ListVoicesRequest) (L
 
 func (c *SpeechClient) ListLexicon(ctx context.Context, req ListLexiconRequest) (ListLexiconResponse, error) {
 	var csilZero ListLexiconResponse
-	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "list-lexicon", EncodeListLexiconRequest(req))
+	csilReq, csilErr := EncodeListLexiconRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "list-lexicon", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -81,7 +97,11 @@ func (c *SpeechClient) ListLexicon(ctx context.Context, req ListLexiconRequest) 
 
 func (c *SpeechClient) PutLexiconEntry(ctx context.Context, req PutLexiconEntryRequest) (LexiconEntry, error) {
 	var csilZero LexiconEntry
-	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "put-lexicon-entry", EncodePutLexiconEntryRequest(req))
+	csilReq, csilErr := EncodePutLexiconEntryRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "put-lexicon-entry", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -90,7 +110,11 @@ func (c *SpeechClient) PutLexiconEntry(ctx context.Context, req PutLexiconEntryR
 
 func (c *SpeechClient) DeleteLexiconEntry(ctx context.Context, req DeleteLexiconEntryRequest) (DeleteLexiconEntryResponse, error) {
 	var csilZero DeleteLexiconEntryResponse
-	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "delete-lexicon-entry", EncodeDeleteLexiconEntryRequest(req))
+	csilReq, csilErr := EncodeDeleteLexiconEntryRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "delete-lexicon-entry", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -99,7 +123,11 @@ func (c *SpeechClient) DeleteLexiconEntry(ctx context.Context, req DeleteLexicon
 
 func (c *SpeechClient) PrepareText(ctx context.Context, req PrepareTextRequest) (PrepareTextResponse, error) {
 	var csilZero PrepareTextResponse
-	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "prepare-text", EncodePrepareTextRequest(req))
+	csilReq, csilErr := EncodePrepareTextRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "prepare-text", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -108,7 +136,11 @@ func (c *SpeechClient) PrepareText(ctx context.Context, req PrepareTextRequest) 
 
 func (c *SpeechClient) DetectSpeech(ctx context.Context, req DetectSpeechRequest) (DetectSpeechResponse, error) {
 	var csilZero DetectSpeechResponse
-	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "detect-speech", EncodeDetectSpeechRequest(req))
+	csilReq, csilErr := EncodeDetectSpeechRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "detect-speech", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -117,7 +149,11 @@ func (c *SpeechClient) DetectSpeech(ctx context.Context, req DetectSpeechRequest
 
 func (c *SpeechClient) ClassifyTurn(ctx context.Context, req ClassifyTurnRequest) (ClassifyTurnResponse, error) {
 	var csilZero ClassifyTurnResponse
-	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "classify-turn", EncodeClassifyTurnRequest(req))
+	csilReq, csilErr := EncodeClassifyTurnRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "classify-turn", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}

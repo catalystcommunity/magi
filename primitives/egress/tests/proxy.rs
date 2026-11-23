@@ -565,11 +565,11 @@ async fn reviews_block_now_and_report_to_magi() {
     let o = w.curl("127.0.0.1", "/ok", &[]).await;
     assert_eq!(o.code, 200, "{o:?}");
 
-    let (s, b) = w.rpc("list-flows", &reader, api::encode_list_flows_request(&api::ListFlowsRequest { environment: Some("env_test".into()), owner: None, limit: Some(20) })).await;
+    let (s, b) = w.rpc("list-flows", &reader, api::encode_list_flows_request(&api::ListFlowsRequest { environment: Some("env_test".into()), owner: None, limit: Some(20) }).unwrap()).await;
     assert_eq!(s, 200);
     let flows = api::decode_list_flows_response(&b).unwrap().flows;
     assert_eq!(flows.iter().filter(|f| f.outcome == "review").count(), 4, "{flows:?}");
-    let (s, _) = w.rpc("list-flows", &w.token("service:x", &[]), api::encode_list_flows_request(&api::ListFlowsRequest { environment: None, owner: None, limit: None })).await;
+    let (s, _) = w.rpc("list-flows", &w.token("service:x", &[]), api::encode_list_flows_request(&api::ListFlowsRequest { environment: None, owner: None, limit: None }).unwrap()).await;
     assert_eq!(s, 403);
 }
 

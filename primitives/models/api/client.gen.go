@@ -45,7 +45,11 @@ func NewModelClient(transport Transport) *ModelClient {
 
 func (c *ModelClient) PutModel(ctx context.Context, req PutModelRequest) (Model, error) {
 	var csilZero Model
-	csilResp, csilErr := c.transport.Call(ctx, "ModelService", "put_model", EncodePutModelRequest(req))
+	csilReq, csilErr := EncodePutModelRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ModelService", "put_model", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -54,7 +58,11 @@ func (c *ModelClient) PutModel(ctx context.Context, req PutModelRequest) (Model,
 
 func (c *ModelClient) GetModel(ctx context.Context, req GetModelRequest) (Model, error) {
 	var csilZero Model
-	csilResp, csilErr := c.transport.Call(ctx, "ModelService", "get_model", EncodeGetModelRequest(req))
+	csilReq, csilErr := EncodeGetModelRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ModelService", "get_model", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -63,7 +71,11 @@ func (c *ModelClient) GetModel(ctx context.Context, req GetModelRequest) (Model,
 
 func (c *ModelClient) DeleteModel(ctx context.Context, req DeleteModelRequest) (DeleteResponse, error) {
 	var csilZero DeleteResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ModelService", "delete_model", EncodeDeleteModelRequest(req))
+	csilReq, csilErr := EncodeDeleteModelRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ModelService", "delete_model", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -72,7 +84,11 @@ func (c *ModelClient) DeleteModel(ctx context.Context, req DeleteModelRequest) (
 
 func (c *ModelClient) ListModels(ctx context.Context, req ListModelsRequest) (ListModelsResponse, error) {
 	var csilZero ListModelsResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ModelService", "list_models", EncodeListModelsRequest(req))
+	csilReq, csilErr := EncodeListModelsRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ModelService", "list_models", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -81,7 +97,11 @@ func (c *ModelClient) ListModels(ctx context.Context, req ListModelsRequest) (Li
 
 func (c *ModelClient) Score(ctx context.Context, req ScoreRequest) (Model, error) {
 	var csilZero Model
-	csilResp, csilErr := c.transport.Call(ctx, "ModelService", "score", EncodeScoreRequest(req))
+	csilReq, csilErr := EncodeScoreRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ModelService", "score", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -90,7 +110,11 @@ func (c *ModelClient) Score(ctx context.Context, req ScoreRequest) (Model, error
 
 func (c *ModelClient) PutTask(ctx context.Context, req PutTaskRequest) (TaskDefault, error) {
 	var csilZero TaskDefault
-	csilResp, csilErr := c.transport.Call(ctx, "ModelService", "put_task", EncodePutTaskRequest(req))
+	csilReq, csilErr := EncodePutTaskRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ModelService", "put_task", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -99,7 +123,11 @@ func (c *ModelClient) PutTask(ctx context.Context, req PutTaskRequest) (TaskDefa
 
 func (c *ModelClient) GetTask(ctx context.Context, req GetTaskRequest) (TaskDefault, error) {
 	var csilZero TaskDefault
-	csilResp, csilErr := c.transport.Call(ctx, "ModelService", "get_task", EncodeGetTaskRequest(req))
+	csilReq, csilErr := EncodeGetTaskRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ModelService", "get_task", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -108,7 +136,11 @@ func (c *ModelClient) GetTask(ctx context.Context, req GetTaskRequest) (TaskDefa
 
 func (c *ModelClient) ListTasks(ctx context.Context, req ListTasksRequest) (ListTasksResponse, error) {
 	var csilZero ListTasksResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ModelService", "list_tasks", EncodeListTasksRequest(req))
+	csilReq, csilErr := EncodeListTasksRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ModelService", "list_tasks", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -117,7 +149,11 @@ func (c *ModelClient) ListTasks(ctx context.Context, req ListTasksRequest) (List
 
 func (c *ModelClient) Select(ctx context.Context, req SelectRequest) (SelectResponse, error) {
 	var csilZero SelectResponse
-	csilResp, csilErr := c.transport.Call(ctx, "ModelService", "select", EncodeSelectRequest(req))
+	csilReq, csilErr := EncodeSelectRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ModelService", "select", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}

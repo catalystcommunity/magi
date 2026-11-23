@@ -78,14 +78,14 @@ async fn success_then_manual_rollback() {
     assert_eq!(r.items[0].previous_image, "web:1");
     assert_eq!((f.image("web"), f.image("api")), ("web:2".into(), "api:2".into()));
 
-    let b = s.call(&op, "rollback", api::encode_rollback_request(&api::RollbackRequest { id: r.id.clone() })).await.unwrap();
+    let b = s.call(&op, "rollback", api::encode_rollback_request(&api::RollbackRequest { id: r.id.clone() }).unwrap()).await.unwrap();
     let rb = api::decode_release(&b).unwrap();
     assert_eq!(rb.items[0].image, "web:1");
     assert_eq!(s.wait(&op, &rb.id, LONG).await.status, "succeeded");
     assert_eq!(f.image("web"), "web:1");
     assert_eq!(s.wait(&op, &r.id, LONG).await.status, "rolled-back");
     // A rolled-back release cannot be rolled back again.
-    let e = s.call(&op, "rollback", api::encode_rollback_request(&api::RollbackRequest { id: r.id.clone() })).await.unwrap_err();
+    let e = s.call(&op, "rollback", api::encode_rollback_request(&api::RollbackRequest { id: r.id.clone() }).unwrap()).await.unwrap_err();
     assert_eq!(e.0, 409);
 }
 
@@ -190,19 +190,19 @@ async fn validation_and_authorization() {
     let r = s.create(&op, &[("web", "web:2")]).await.unwrap();
     // Reader sees everything; a principal without scopes sees only its own records.
     assert_eq!(s.get(&rd, &r.id).await.id, r.id);
-    let e = s.call(&none, "get", api::encode_get_release_request(&api::GetReleaseRequest { id: r.id.clone() })).await.unwrap_err();
+    let e = s.call(&none, "get", api::encode_get_release_request(&api::GetReleaseRequest { id: r.id.clone() }).unwrap()).await.unwrap_err();
     assert_eq!(e.0, 404);
     let list = |t: String| {
         let s = &s;
-        async move { api::decode_list_releases_response(&s.call(&t, "list", api::encode_list_releases_request(&api::ListReleasesRequest { limit: None })).await.unwrap()).unwrap() }
+        async move { api::decode_list_releases_response(&s.call(&t, "list", api::encode_list_releases_request(&api::ListReleasesRequest { limit: None }).unwrap()).await.unwrap()).unwrap() }
     };
     assert_eq!(list(rd.clone()).await.releases.len(), 1);
     assert_eq!(list(none.clone()).await.releases.len(), 0);
-    let b = s.call(&rd, "list-targets", api::encode_list_targets_request(&api::ListTargetsRequest { name: Some("web".into()) })).await.unwrap();
+    let b = s.call(&rd, "list-targets", api::encode_list_targets_request(&api::ListTargetsRequest { name: Some("web".into()) }).unwrap()).await.unwrap();
     let t = api::decode_list_targets_response(&b).unwrap();
     assert_eq!(t.targets.len(), 1);
     assert_eq!(t.targets[0].health_port, Some(8080));
-    assert_eq!(s.call(&none, "list-targets", api::encode_list_targets_request(&api::ListTargetsRequest { name: None })).await.unwrap_err().0, 403);
+    assert_eq!(s.call(&none, "list-targets", api::encode_list_targets_request(&api::ListTargetsRequest { name: None }).unwrap()).await.unwrap_err().0, 403);
     let h = reqwest::get(format!("{}/healthz", s.base)).await.unwrap();
     assert_eq!(h.status(), 200);
 }

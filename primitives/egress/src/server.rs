@@ -43,6 +43,15 @@ fn decode<T>(r: Result<T, api::CsilCborError>) -> Result<T, ServiceError> {
     r.map_err(|e| ServiceError { code: 400, message: format!("decode request: {e}") })
 }
 
+/// An answer that the codec refuses is a fault of this server. The caller
+/// gets status 500 without the detail, and the log has the cause.
+fn encode(r: Result<Vec<u8>, api::CsilCborError>) -> Result<Vec<u8>, ServiceError> {
+    r.map_err(|e| {
+        tracing::error!(err = %e, "encode response");
+        ServiceError { code: 500, message: "internal error".into() }
+    })
+}
+
 fn need(p: &Principal, scope: &str) -> Result<(), ServiceError> {
     if p.has(scope) || p.has(SCOPE_ADMIN) {
         Ok(())
@@ -78,7 +87,7 @@ async fn call(State(s): State<Arc<Server>>, Path((service, op)): Path<(String, S
     let start = std::time::Instant::now();
     let b = &body[..];
     let res: Result<Vec<u8>, ServiceError> =
-        decode(api::decode_list_flows_request(b)).and_then(|r| s.list_flows(&principal, r)).map(|r| api::encode_list_flows_response(&r));
+        decode(api::decode_list_flows_request(b)).and_then(|r| s.list_flows(&principal, r)).and_then(|r| encode(api::encode_list_flows_response(&r)));
     let code = res.as_ref().err().map_or(0, |e| e.code);
     tracing::info!(op = format!("{service}/{op}"), ms = start.elapsed().as_millis() as u64, code, sub = %principal.sub, "rpc");
     match res {
