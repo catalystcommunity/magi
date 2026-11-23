@@ -32,6 +32,8 @@ import java.security.MessageDigest
 object Updater {
     private const val TAG = "MagiUpdater"
     private const val JOB_ID = 4201
+    /** The tries of one build that the app starts by itself. */
+    private const val MAX_TRIES = 2
     const val ACTION_STATUS = "community.catalyst.magi.UPDATE_STATUS"
 
     /** The activity in the foreground, which can show a confirmation. */
@@ -50,7 +52,13 @@ object Updater {
     }
 
     /** Checks for a newer build and installs it. Call it off the main thread. */
-    fun check(context: Context): String {
+    /**
+     * manual: the person asked for the check. A check that the app starts
+     * by itself does not try a build again that did not install: a refusal
+     * of the phone (for example of Google Play Protect) shows a dialog, and
+     * each new try would show it again.
+     */
+    fun check(context: Context, manual: Boolean = false): String {
         val settings = Settings(context)
         if (settings.server.isEmpty() || settings.token == null) return "not signed in"
         val rpc = HttpCarrier(settings.server) { settings.token }
@@ -61,20 +69,31 @@ object Updater {
         val rel = rpc.magi.getAppRelease(GetAppReleaseRequest()).release ?: return "no release"
         val installed = installedVersion(context)
         if (rel.versionCode.toLong() <= installed) return "up to date ($installed)"
+        val code = rel.versionCode.toLong()
+        if (!manual && settings.failedBuild == code) return "build $code did not install: ${settings.updateError}"
+        // A refusal can come with no answer to the app: two tries, then the person decides.
+        val tries = if (settings.updateBuild == code) settings.updateTries else 0
+        if (!manual && tries >= MAX_TRIES) {
+            if (settings.updateError.isEmpty()) settings.updateError = "The phone did not install build $code after $tries tries. Use \"Check for updates\" to try again."
+            return "build $code did not install after $tries tries"
+        }
         val apk = rpc.magi.getAppPackage(GetAppPackageRequest(rel.digest)).body
         val sum = "sha256:" + MessageDigest.getInstance("SHA-256").digest(apk).joinToString("") { "%02x".format(it) }
         if (sum != rel.digest) throw IllegalStateException("the app build digest is $sum, not ${rel.digest}")
         install(context, apk)
         // A new process starts after the install. It knows from this that
         // the update installed, and removes an old failure.
-        settings.updateBuild = rel.versionCode.toLong()
+        settings.updateBuild = code
+        settings.updateTries = if (manual) 1 else tries + 1
         Log.i(TAG, "installing ${rel.versionName} (${rel.versionCode}) over $installed")
         return "installing ${rel.versionName}"
     }
 
     /** Records why an update did not install. The next put-device tells Magi. */
     fun failed(context: Context, reason: String) {
-        Settings(context).updateError = reason.take(400)
+        val settings = Settings(context)
+        settings.updateError = reason.take(400)
+        settings.failedBuild = settings.updateBuild
         Log.w(TAG, "update failed: $reason")
     }
 
@@ -131,7 +150,8 @@ class UpdateReceiver : BroadcastReceiver() {
                     else @Suppress("DEPRECATION") intent.getParcelableExtra(Intent.EXTRA_INTENT)
                 val activity = Updater.foreground
                 if (confirm != null && activity != null) activity.runOnUiThread { activity.startActivity(confirm) }
-                else Updater.failed(context, "Android asks for a confirmation of the update. Open the app.")
+                // Not a failure of the build: the next start of the app asks again.
+                else Settings(context).updateError = "Android asks for a confirmation of the update. Open the app."
             }
             PackageInstaller.STATUS_SUCCESS -> Log.i("MagiUpdater", "update installed")
             else -> Updater.failed(context, "Android did not install the update (status $status): ${intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: "no reason"}")

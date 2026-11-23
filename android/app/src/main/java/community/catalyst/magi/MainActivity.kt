@@ -400,7 +400,7 @@ class MainActivity : Activity() {
     private fun checkForUpdates() {
         Toast.makeText(this, "Checking for updates...", Toast.LENGTH_SHORT).show()
         work.execute {
-            val result = runCatching { Updater.check(applicationContext) }
+            val result = runCatching { Updater.check(applicationContext, manual = true) }
             val text = result.fold({ r ->
                 when {
                     r.startsWith("up to date") -> "This is the newest build."
