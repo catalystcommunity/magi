@@ -26,11 +26,13 @@ like the web and command-line clients.
 | Screen | Use |
 | --- | --- |
 | Sign in | Server URL and LinkKeys identity. The browser opens for LinkKeys and then comes back to the app. |
-| Talk | One conversation with each persona (Magi, Engineering manager, and others); no chats. Text messages, and Talk for hands-free talk: the microphone stays on, you talk at any time, and you can talk over a persona to stop it (a short "mm-hm" does not stop it). A reply to a voice message is spoken. "Speak replies" also speaks replies to text. A message that relates to an earlier one shows an "about" line; tap it to go to that message. Long-press a message to see its links and who can read it, and to correct them. |
+| Talk | One conversation with each persona (Magi, Engineering manager, and others); no chats. Text messages, and the microphone button for hands-free talk: the microphone stays on, you talk at any time, and you can talk over a persona to stop it (a short "mm-hm" does not stop it). A reply to a voice message is spoken. "Speak replies" also speaks replies to text. A message that relates to an earlier one shows an "about" line; tap it to go to that message. Long-press a message to copy it, to see its links and who can read it, and to correct them. |
 | Notices | Notices of the personas and of tasks (docs/attention.md). While the app is open, a notice shows at the top, and Magi says it after a tone: at once when it is urgent, else at the next pause. While the app is closed, a background service shows it as a system notification; tap opens the conversation, swipe dismisses it on all devices. |
 | Review | The questions of the librarian, when it is not sure how a message relates to an earlier one or who can read it |
 | Network | Admins only: requests of tasks that the egress proxy blocked for review. Each decision (allow the host, allow the path, block, or dismiss) is a rule for the next such requests. |
 | Tasks | Status of tasks, the diff, and the decisions of a waiting task (for example approve or reject) |
+| Admin | Admins only: the runs of all people with their steps, data, diff, and outputs; the conversations of all people, with the turn log of a reply; your knowledge graph; the runners. Magi checks the role for each call. |
+| Menu | Speak replies, the wake word, the theme, "Check for updates" (asks Magi for a newer build now), "About" (the version, the time of the build, the server, and your identity), and the sign out. |
 
 ## Sign in
 

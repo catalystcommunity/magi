@@ -21,6 +21,12 @@ class ChatTimeTest {
     }
 
     @Test
+    fun buildTimeFromTheVersionCode() {
+        // 2026-11-23 22:35 UTC, the minute of a real build.
+        assertEquals(1_795_473_300_000L, ChatTime.buildMs(3_627_275L))
+    }
+
+    @Test
     fun otherDayIsOfTheLocalCalendar() {
         assertFalse(ChatTime.otherDay(at(23, 0, 1), at(23, 23, 59)))
         assertTrue(ChatTime.otherDay(at(22, 23, 59), at(23, 0, 1)))

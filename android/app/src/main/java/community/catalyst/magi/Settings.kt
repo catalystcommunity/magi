@@ -33,6 +33,11 @@ class Settings(context: Context) {
         get() = p.getString("theme", "dark") ?: "dark"
         set(v) = p.edit().putString("theme", v).apply()
 
+    /** The role of the last visit (get-access): the tabs show the admin views. Magi checks each call. */
+    var operator: Boolean
+        get() = p.getBoolean("operator", false)
+        set(v) = p.edit().putBoolean("operator", v).apply()
+
     val token: String? get() = p.getString("token", null)?.takeIf { System.currentTimeMillis() < tokenExpiresMs }
     val tokenExpiresMs: Long get() = p.getLong("token_expires", 0)
     var subject: String
@@ -44,7 +49,7 @@ class Settings(context: Context) {
     }
 
     fun clearToken() {
-        p.edit().remove("token").remove("subject").remove("token_expires").apply()
+        p.edit().remove("token").remove("subject").remove("token_expires").remove("operator").apply()
     }
 
     /** The login that this app started and waits to finish. Keep login_id secret. */

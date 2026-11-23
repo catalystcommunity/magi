@@ -23,6 +23,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.res.ColorStateList
@@ -41,6 +42,7 @@ import community.catalyst.magi.client.magi.CancelTaskRequest
 import community.catalyst.magi.client.magi.DecideEgressReviewRequest
 import community.catalyst.magi.client.magi.DecideRequest
 import community.catalyst.magi.client.magi.EgressReview
+import community.catalyst.magi.client.magi.GetAccessRequest
 import community.catalyst.magi.client.magi.GetAudioRequest
 import community.catalyst.magi.client.magi.GetTaskDiffRequest
 import community.catalyst.magi.client.magi.AnswerReviewRequest
@@ -94,13 +96,13 @@ class MainActivity : Activity() {
         const val WORKING_MS = 3 * 60 * 1000L
     }
 
-    private lateinit var settings: Settings
+    internal lateinit var settings: Settings
     private lateinit var player: Player
     private lateinit var handsFree: HandsFree
     private val main = Handler(Looper.getMainLooper())
     @Volatile private var hearing = false
     private var micButton: ImageView? = null
-    private lateinit var ui: Ui
+    internal lateinit var ui: Ui
     /** The tabs at the bottom. The keyboard hides them. */
     private var navBar: View? = null
     private var barTitle: TextView? = null
@@ -109,6 +111,20 @@ class MainActivity : Activity() {
     private var lastAuthor: String? = null
     private var lastShownMs = 0L
     private var lastId: String? = null
+    /** Where the back button goes. Without it, the back button leaves the app. */
+    internal var back: (() -> Unit)? = null
+        set(v) {
+            field = v
+            // Since Android 13 the platform asks a callback, and an app for
+            // Android 16 does not get onBackPressed.
+            if (Build.VERSION.SDK_INT >= 33) {
+                val callback = backCallback as android.window.OnBackInvokedCallback
+                onBackInvokedDispatcher.unregisterOnBackInvokedCallback(callback)
+                if (v != null) onBackInvokedDispatcher.registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback)
+            }
+        }
+    private val backCallback: Any? =
+        if (Build.VERSION.SDK_INT >= 33) android.window.OnBackInvokedCallback { back?.let { readGen++; it() } } else null
     private var noticeBar: LinearLayout? = null
     private val work = Executors.newCachedThreadPool()
     private var rpc: HttpCarrier? = null
@@ -165,6 +181,18 @@ class MainActivity : Activity() {
         super.onPause()
     }
 
+    @Deprecated("The platform has a newer callback; this one works on each version that the app supports.")
+    override fun onBackPressed() {
+        val b = back
+        if (b == null) {
+            @Suppress("DEPRECATION")
+            super.onBackPressed()
+        } else {
+            readGen++
+            b()
+        }
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (!handleReturn(intent)) openNotice(intent)
@@ -180,11 +208,11 @@ class MainActivity : Activity() {
         super.onDestroy()
     }
 
-    private fun client(): HttpCarrier =
+    internal fun client(): HttpCarrier =
         rpc ?: HttpCarrier(settings.server) { settings.token }.also { rpc = it }
 
     /** Runs block on a worker thread and shows a failure in status. */
-    private fun background(status: TextView?, block: () -> Unit) {
+    internal fun background(status: TextView?, block: () -> Unit) {
         work.execute {
             try {
                 block()
@@ -219,6 +247,7 @@ class MainActivity : Activity() {
 
     private fun showLogin(message: String) {
         navBar = null
+        back = null
         val server = ui.field("magi.example.com", settings.server, InputType.TYPE_TEXT_VARIATION_URI)
         val identity = ui.field("name@example.com", settings.identity, InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS)
         val status = ui.text(message, 14f, ui.p.muted).apply { setPadding(0, ui.dp(14), 0, ui.dp(14)) }
@@ -312,7 +341,9 @@ class MainActivity : Activity() {
             Triple("Review", R.drawable.ic_review, { showReviews() }),
             Triple("Network", R.drawable.ic_network, { showNetwork() }),
             Triple("Tasks", R.drawable.ic_tasks, { showTasks() }),
-        )
+            Triple("Admin", R.drawable.ic_admin, { showAdmin() }),
+        // Only an operator sees the network reviews and the admin views.
+        ).filter { settings.operator || (it.first != "Network" && it.first != "Admin") }
         for ((name, icon, action) in tabs) {
             val color = if (name == current) ui.p.accent else ui.p.muted
             val item = ui.column().apply {
@@ -356,16 +387,54 @@ class MainActivity : Activity() {
             theme.add(label).apply { isCheckable = true; isChecked = settings.theme == value }
                 .setOnMenuItemClickListener { settings.theme = value; recreate(); true }
         }
+        m.menu.add("Check for updates").setOnMenuItemClickListener { checkForUpdates(); true }
+        m.menu.add("About").setOnMenuItemClickListener { about(); true }
         m.menu.add("Sign out").setOnMenuItemClickListener { signOut(""); true }
         m.show()
     }
 
-    private fun personaName(id: String) = personas.firstOrNull { it.id == id }?.name ?: id.removePrefix("persona:").replaceFirstChar { it.uppercase() }
+    /** Asks Magi for a newer build now and tells the result. */
+    private fun checkForUpdates() {
+        Toast.makeText(this, "Checking for updates...", Toast.LENGTH_SHORT).show()
+        work.execute {
+            val result = runCatching { Updater.check(applicationContext) }
+            val text = result.fold({ r ->
+                when {
+                    r.startsWith("up to date") -> "This is the newest build."
+                    r.startsWith("installing") -> "A newer build installs now. The app starts again."
+                    r == "no release" -> "The server has no app build."
+                    r == "not signed in" -> "Sign in to check for updates."
+                    else -> r
+                }
+            }, { e -> "The check failed: ${e.message ?: e}" })
+            runOnUiThread { Toast.makeText(this, text, Toast.LENGTH_LONG).show() }
+        }
+    }
 
-    private fun day(ms: ULong) = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(ms.toLong()))
+    /** The version of the app, the time of its build, and the server. */
+    private fun about() {
+        val info = packageManager.getPackageInfo(packageName, 0)
+        val built = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(ChatTime.buildMs(info.longVersionCode)))
+        val col = ui.column(20)
+        for ((name, value) in listOf(
+            "Version" to "${info.versionName} (${info.longVersionCode})",
+            "Built" to built,
+            "Server" to settings.server.ifEmpty { "not set" },
+            "Signed in as" to settings.identity.ifEmpty { "not signed in" },
+        )) {
+            col.addView(ui.text(name, 12f, ui.p.muted).apply { setPadding(0, ui.dp(8), 0, 0) })
+            col.addView(ui.text(value, 16f).apply { setTextIsSelectable(true) })
+        }
+        AlertDialog.Builder(this).setTitle("Magi").setView(col).setPositiveButton("Close", null).show()
+    }
+
+    internal fun personaName(id: String) = personas.firstOrNull { it.id == id }?.name ?: id.removePrefix("persona:").replaceFirstChar { it.uppercase() }
+
+    internal fun day(ms: ULong) = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(ms.toLong()))
 
     private fun showConversation(id: String = persona) {
         readGen++
+        back = null
         persona = id
         lastSeq = 0UL
         shown.clear()
@@ -444,6 +513,13 @@ class MainActivity : Activity() {
         val gen = readGen
         background(status) {
             personas = runCatching { client().magi.listPersonas(ListPersonasRequest()).personas }.getOrDefault(emptyList())
+            // The tabs come from the role of the last visit. A changed role builds the page again.
+            val operator = runCatching { client().magi.getAccess(GetAccessRequest()).operator }.getOrDefault(settings.operator)
+            if (operator != settings.operator) {
+                settings.operator = operator
+                runOnUiThread { if (gen == readGen) showConversation() }
+                return@background
+            }
             val first = client().magi.read(ReadRequest(persona = persona, beforeSeq = 1UL shl 52, limit = 50UL))
             runOnUiThread {
                 if (gen != readGen) return@runOnUiThread
@@ -542,10 +618,12 @@ class MainActivity : Activity() {
      * text. A compact bubble is for a dialog or a card: it has the author
      * and the date, and no actions.
      */
-    private fun messageView(m: Message, compact: Boolean = false, named: Boolean = true, onPlay: (() -> Unit)? = null): LinearLayout {
-        val mine = m.authorKind == "human" && m.author == settings.subject
+    internal fun messageView(m: Message, compact: Boolean = false, named: Boolean = true, right: Boolean? = null, onPlay: (() -> Unit)? = null): LinearLayout {
+        val own = m.authorKind == "human" && m.author == settings.subject
+        // right puts a bubble on a side by a rule of the caller (an admin view).
+        val mine = right ?: own
         val who = when (m.authorKind) {
-            "human" -> if (mine) "You" else m.author.removePrefix("user:")
+            "human" -> if (own) "You" else m.author.removePrefix("user:")
             "persona" -> personaName(m.persona.ifEmpty { m.author })
             else -> m.author
         }
@@ -1098,15 +1176,17 @@ class MainActivity : Activity() {
     private fun label(text: String) = ui.text(text, 13f, ui.p.muted, bold = true).apply { setPadding(ui.dp(4), ui.dp(14), 0, ui.dp(6)) }
 
     /** The line of a list page that tells its state or a failure. */
-    private fun note(text: String) = ui.text(text, 14f, ui.p.muted).apply { setPadding(ui.dp(2), 0, ui.dp(2), ui.dp(10)) }
+    internal fun note(text: String) = ui.text(text, 14f, ui.p.muted).apply { setPadding(ui.dp(2), 0, ui.dp(2), ui.dp(10)) }
 
     /** A row of buttons that can be wider than the card. */
-    private fun actions(row: LinearLayout) = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(row) }
+    internal fun actions(row: LinearLayout) = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(row) }
 
     /** A list page: the title, the views in a scroll, and the tabs. */
-    private fun page(tab: String, title: String, vararg views: View) {
+    internal fun page(tab: String, title: String, vararg views: View) {
         val col = ui.column(14)
         views.forEach { col.addView(it) }
+        // The back button of a list page goes to the conversation.
+        back = { showConversation() }
         show(ui.column().apply {
             addView(topBar(title))
             addView(ScrollView(this@MainActivity).apply { addView(col) }, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))

@@ -64,6 +64,12 @@ object ChatTime {
         }
     }
 
+    /**
+     * The time of a build from its version code. The code is the minute of
+     * the build since 2020 (tools/build-android.sh).
+     */
+    fun buildMs(versionCode: Long): Long = (versionCode * 60 + 1_577_836_800L) * 1000
+
     /** True when two times are on different days of the local calendar. */
     fun otherDay(a: Long, b: Long): Boolean = dayNumber(a) != dayNumber(b)
 
