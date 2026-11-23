@@ -57,6 +57,17 @@ The question text is also in `magi/compose/egressauto.go`
   half (`split`), so the halves are the same as in `corpus1.json`. Use
   the second versions for new work.
 
+- `corpus3.json` and `train3.json`: the entries of `either` are official
+  hosts. The owner decided that the documentation host of a vendor API
+  passes. `train3.json` also has 2000 popular domains that are not
+  sources, with the label of a second model. Use the third versions for
+  new work.
+
+The state of the question has a popularity line: the rank of the domain
+of the host in a public list of the 1,000,000 most visited domains
+(`magi/compose/popularity/`, written by `tools/popularity-list.py`). The
+scripts of this directory read the same files as the server.
+
 The labels come from two models, not from a person. A host of the list of
 official hosts can be wrong. Look at the hosts that a trained model
 refuses with a high probability: some of them are label errors.

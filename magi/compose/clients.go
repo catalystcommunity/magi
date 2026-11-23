@@ -276,6 +276,9 @@ type System struct {
 	EgressProxy *EgressProxy
 	// egressReviews caches decided egress reviews (egressreview.go).
 	egressReviews *egressReviews
+	// Popularity replaces the list of the most visited domains of the
+	// binary (popularity.go) in a test.
+	Popularity *Popularity
 	// egressAsked keeps the hosts that the model did not permit (egressauto.go).
 	egressAsked egressAutoAsked
 	// hostDecide replaces the decision model of the automatic destination

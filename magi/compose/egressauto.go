@@ -136,6 +136,31 @@ func editDistance(a, b string) int {
 	return prev[len(b)]
 }
 
+// neverAutoHosts are host patterns of popular sites that take content from
+// anyone, run code of anyone, or follow users: document and file services,
+// code playgrounds, trackers. Their domains are in each popularity list and
+// in the text that a model learned from, so a model gives some of them a
+// high probability. A person decides them.
+var neverAutoHosts = []string{
+	// Documents, files, and forms of anyone
+	"docs.google.com", "drive.google.com", "forms.google.com", "sheets.google.com", "sites.google.com", "script.google.com",
+	"colab.research.google.com", "*.googleusercontent.com", "dropbox.com", "*.dropbox.com", "*.dropboxusercontent.com",
+	"onedrive.live.com", "*.sharepoint.com", "notion.so", "*.notion.so", "*.notion.site", "airtable.com", "*.airtable.com",
+	// Trackers and tag managers
+	"*.google-analytics.com", "google-analytics.com", "*.googletagmanager.com", "googletagmanager.com", "*.doubleclick.net",
+	"*.googlesyndication.com", "*.clarity.ms", "clarity.ms", "*.hotjar.com", "*.segment.io", "*.segment.com", "*.mixpanel.com",
+	// Sites that run or show the code of anyone
+	"godbolt.org", "*.godbolt.org", "observablehq.com", "*.observablehq.com", "play.rust-lang.org", "play.golang.org",
+	"replit.com", "*.replit.com", "*.repl.co", "codepen.io", "*.codepen.io", "jsfiddle.net", "*.jsfiddle.net",
+	"codesandbox.io", "*.codesandbox.io", "*.csb.app", "stackblitz.com", "*.stackblitz.io", "glitch.com", "*.glitch.me",
+	"dotnetfiddle.net", "onecompiler.com", "ideone.com", "tio.run",
+	// Chat
+	"matrix.org", "*.matrix.org", "web.telegram.org", "api.telegram.org", "discord.com", "*.discord.com", "*.slack.com",
+}
+
+// neverAuto reports whether a person must decide the host.
+func neverAuto(host string) bool { return anyHost(neverAutoHosts, host) }
+
 // reservedSuffixes are more name endings that are not public web names
 // (privateSuffixes of search.go has the private ones). Magi never permits
 // them automatically.
@@ -209,6 +234,10 @@ func (e *Egress) autoDestination(ctx context.Context, req magiapi.EgressDestinat
 	if !auto.Model || (e.S.Router == nil && e.S.hostDecide == nil) {
 		return ""
 	}
+	if neverAuto(host) {
+		e.S.Log.Info("egress automatic decision: the host is in the list that a person decides", "host", host)
+		return ""
+	}
 	if lookAlike(host) {
 		e.S.Log.Info("egress automatic decision: the name looks like a known name", "host", host)
 		return ""
@@ -248,7 +277,8 @@ func (e *Egress) autoDestination(ctx context.Context, req magiapi.EgressDestinat
 const hostQuestion = "Is this host the official site of a well-known public source of software, documentation, or reference data? " +
 	"Answer no for a host that you do not know, for a host that can receive data from anyone (a paste site, a file " +
 	"share, a webhook or request collector, a tunnel, a URL shortener, a chat or mail service), for a name that looks " +
-	"like a known name but has different letters or a different domain, and for the host of one person or one small company."
+	"like a known name but has different letters or a different domain, and for the host of one person or one small company. " +
+	"The popularity line is evidence: an invented or look-alike host is not in the list, but many popular sites are not sources."
 
 // hostQuestionID names the question for the calibration of the catalog.
 const hostQuestionID = "egress-known-source"
@@ -256,11 +286,12 @@ const hostQuestionID = "egress-known-source"
 // autoLimit is the default least probability of "yes" that permits a host.
 const autoLimit = 0.95
 
-// hostState is the state of the question. It has the host and the title of
-// the task, and no data from the environment but the host name.
-func hostState(host, title string) string {
-	return fmt.Sprintf("A task environment wants to connect to a host that the network policy does not list.\nHost: %s\nPort: 443\nTask: %s",
-		host, trunc(title, 200))
+// hostState is the state of the question. It has the host, the line of
+// the popularity list, and the title of the task, and no data from the
+// environment but the host name.
+func hostState(host, popularity, title string) string {
+	return fmt.Sprintf("A task environment wants to connect to a host that the network policy does not list.\nHost: %s\nPort: 443\n%s\nTask: %s",
+		host, popularity, trunc(title, 200))
 }
 
 // autoModel asks the decision model (task "decide") about a host. It gives
@@ -283,7 +314,13 @@ func (e *Egress) autoModel(ctx context.Context, host string, run workflowapi.Run
 			return res.Answers[0].Probs[0], res.Model, nil
 		}
 	}
-	yes, mdl, err := decide(ctx, hostState(host, run.Vars["title"]))
+	pop, err := e.S.popularity()
+	if err != nil {
+		// The model was trained with the popularity line. Without the list
+		// its probability has no measured meaning: a person decides.
+		return "", err
+	}
+	yes, mdl, err := decide(ctx, hostState(host, pop.line(host), run.Vars["title"]))
 	if err != nil {
 		return "", err
 	}

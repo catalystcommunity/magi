@@ -5,7 +5,7 @@
 
 Each host of the train file becomes one record: the prompt of the decision
 model (evals/decide/decide.py) with the state and the question of
-magi/compose/egressauto.go, and the label ("A" yes, "B" no) as the answer.
+magi/compose/egressauto.go (with the line of the popularity list), and the label ("A" yes, "B" no) as the answer.
 The records have the plain prompt of llama-server for Gemma 4, as
 evals/decide/export_train.py --format gemma4 writes it, so train_lora.py
 of evals/notetaker trains on them together with the note questions.
@@ -30,7 +30,7 @@ sys.path.insert(0, str(HERE.parent / "decide"))
 import decide as D  # noqa: E402
 
 sys.path.insert(0, str(HERE))
-from decide_destinations import QUESTION  # noqa: E402
+from decide_destinations import QUESTION, load_popularity, popularity_line  # noqa: E402
 
 GEMMA4 = "<bos><|turn>system\n{system}<turn|>\n<|turn>user\n{user}<turn|>\n<|turn>model\n<|channel>thought\n<channel|>"
 Q = {"id": "egress-known-source", "type": "noul", "question": QUESTION}
@@ -91,19 +91,23 @@ def look_alikes(host, rnd, n):
     return sorted(out)
 
 
+RANK = {}
+
+
 def record(host, title, yes):
-    state = f"A task environment wants to connect to a host that the network policy does not list.\nHost: {host}\nPort: 443\nTask: {title}"
+    state = f"A task environment wants to connect to a host that the network policy does not list.\nHost: {host}\nPort: 443\n{popularity_line(RANK, host)}\nTask: {title}"
     return {"prompt": GEMMA4.format(system=D.SYSTEM, user=D.user_prompt(state, Q)), "completion": ("A" if yes else "B") + "<turn|>"}
 
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--train", default=str(HERE / "train2.json"))
+    p.add_argument("--train", default=str(HERE / "train3.json"))
     p.add_argument("--out", required=True)
     p.add_argument("--seed", type=int, default=1)
     p.add_argument("--look-alikes", type=int, default=2, help="names that look like each known host")
     p.add_argument("--per-file", type=int, default=5000)
     a = p.parse_args()
+    RANK.update(load_popularity())
     rnd = random.Random(a.seed)
     d = json.load(open(a.train))
     known = {x["host"] for x in d["allow"]}

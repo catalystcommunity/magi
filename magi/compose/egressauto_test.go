@@ -115,6 +115,11 @@ func TestEgressAutoDestination(t *testing.T) {
 		EgressRules: rules, ServiceToken: svcTok, Admins: []string{"user:admin@example.local"}}, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	fm := &hostModel{}
 	sys.hostDecide = fm.decide
+	pop, err := readPopularity(strings.NewReader("1,example.org\n7,docs.example.org\n3,google.com\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sys.Popularity = pop
 	srv := &rpc.Server{Verifier: ver, Log: sys.Log}
 	srv.Register("MagiService", magiapi.MagiServiceOps(&Service{S: sys}))
 	srv.Register("EgressAskService", magiapi.EgressAskServiceOps(&Egress{S: sys}))
@@ -153,10 +158,20 @@ func TestEgressAutoDestination(t *testing.T) {
 		}
 	}
 
+	// A popular site that takes the content of anyone does not go to the model.
+	for _, d := range []string{"docs.google.com:443", "www.googletagmanager.com:443", "godbolt.org:443"} {
+		if allowed("env_1", d) || fm.calls != 0 {
+			t.Fatalf("%s: permitted, or the model was asked (%d calls)", d, fm.calls)
+		}
+	}
+
 	// The model: only a probability of the limit or more permits.
 	fm.yes = 0.89
 	if allowed("env_1", "yaml.example.org:443") || fm.calls != 1 {
 		t.Fatalf("a probability below the limit permitted (%d calls)", fm.calls)
+	}
+	if !strings.Contains(fm.got, "\nPopularity: the domain example.org has rank 1 in a public list of the 1,000,000 most visited domains.\n") {
+		t.Fatalf("the popularity line: %s", fm.got)
 	}
 	if !strings.Contains(fm.got, "Host: yaml.example.org\n") || !strings.Contains(fm.got, "Task: Add a parser") || strings.Contains(fm.got, "Use the yaml package") {
 		t.Fatalf("the model must get the host and the title of the task only: %s", fm.got)
@@ -209,5 +224,41 @@ func TestEgressAutoDestination(t *testing.T) {
 	sys.EgressRules = &EgressRules{Default: "review"}
 	if allowed("env_1", "crates.io:443") {
 		t.Fatal("permitted with no auto rules")
+	}
+}
+
+func TestPopularityOfTheBinary(t *testing.T) {
+	p, err := (&System{}).popularity()
+	if err != nil || p.Len() < 900000 {
+		t.Fatal(err)
+	}
+	if d, r := p.rank("docs.python.org"); d != "python.org" || r == 0 {
+		t.Fatalf("docs.python.org: %s %d", d, r)
+	}
+	if _, r := p.rank("pyth0n-mirror-downloads.example"); r != 0 {
+		t.Fatal("an invented host has a rank")
+	}
+}
+
+func TestPopularity(t *testing.T) {
+	p, err := readPopularity(strings.NewReader("2,example.org\n1,pages.example.org\n9,example.co.uk\n\n"))
+	if err != nil || p.Len() != 3 {
+		t.Fatal(p, err)
+	}
+	for host, want := range map[string]string{
+		"example.org":         "the domain example.org has rank 2 ",
+		"A.Pages.Example.org": "the domain pages.example.org has rank 1 ",
+		"x.example.co.uk":     "the domain example.co.uk has rank 9 ",
+		"examp1e.org":         "no domain of this host is in a public list",
+		"org":                 "no domain of this host is in a public list",
+	} {
+		if got := p.line(host); !strings.Contains(got, want) || !strings.HasPrefix(got, "Popularity: ") {
+			t.Errorf("%s: %s", host, got)
+		}
+	}
+	for _, bad := range []string{"", "example.org\n", "x,example.org\n", "0,example.org\n"} {
+		if _, err := readPopularity(strings.NewReader(bad)); err == nil {
+			t.Errorf("%q: no error", bad)
+		}
 	}
 }

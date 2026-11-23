@@ -14,10 +14,17 @@ decides a new host itself when the answer is not in doubt:
    probability that the host is a known public source of software,
    documentation, or reference data. A name that looks like a known name
    does not go to the model: code sends it to an admin.
-3. Code refuses the automatic decision for an address, a private or
+   The model gets the host name, the title of the task, and the rank of
+   the domain in a public list of the 1,000,000 most visited domains
+   (`magi/compose/popularity/`). An invented name is not in the list.
+3. Code sends a popular site that takes the content of anyone, runs the
+   code of anyone, or follows users to an admin (`neverAutoHosts`): a
+   document or file service, a code playground, a tracker, a chat
+   service. A model gives some of these sites a high probability.
+4. Code refuses the automatic decision for an address, a private or
    reserved name, a punycode name, and a port that is not 80 or 443. The
    model cannot change this.
-4. All other hosts go to an admin, as before.
+5. All other hosts go to an admin, as before.
 
 The decision permits the destination only. Each request to it goes through
 the same inspection as before: secret removal, the plugins, and the
@@ -91,3 +98,11 @@ of the decision model on it, and calibration of the question in the
 catalog. The development installation did not yet run code changes with
 this setting for a period, and two runs are a small sample for the hosts
 that need a person.
+
+The popularity line (2026-11-23): on a corpus of 377 official hosts and
+449 hosts that need a person, the same small model permits 160 official
+hosts without the line and 309 with it, with no wrong host in both
+cases. `evals/egress/README.md` has the table. The documentation host of
+a vendor API is an official host (decision of the owner, 2026-11-23).
+The list `neverAutoHosts` has the wrong hosts of these measurements, so
+the corpus is not an independent test of it.
