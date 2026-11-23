@@ -48,6 +48,14 @@ like the web and command-line clients.
 The code is useless without `login_id`. Thus another app that claims the
 same scheme cannot sign in as the person.
 
+## Look
+
+- The theme is dark. The menu of a page has the choice: dark, light, or
+  the theme of the phone.
+- `Ui.kt` has the colors (`Palette`) and the widgets. New pages use them.
+- The conversation is a list of bubbles. The bubbles of the person are on
+  the right. A long press on a bubble copies the text and shows its links.
+
 ## Updates
 
 Magi keeps the newest app build. The app checks for it when it opens and

@@ -28,6 +28,11 @@ class Settings(context: Context) {
         get() = p.getBoolean("speak", true)
         set(v) = p.edit().putBoolean("speak", v).apply()
 
+    /** "dark" (the default), "light", or "system". */
+    var theme: String
+        get() = p.getString("theme", "dark") ?: "dark"
+        set(v) = p.edit().putString("theme", v).apply()
+
     val token: String? get() = p.getString("token", null)?.takeIf { System.currentTimeMillis() < tokenExpiresMs }
     val tokenExpiresMs: Long get() = p.getLong("token_expires", 0)
     var subject: String
