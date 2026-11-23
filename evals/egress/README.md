@@ -134,7 +134,9 @@ of the test part: 377 official hosts and 449 hosts that need a person.
   (`docs.google.com`) gets a lower probability from it.
 - The limit with no wrong host comes from one or two hosts, thus small
   differences between the rows are not significant.
-- The scoring head has no GGUF form. A llama.cpp server cannot serve it.
+- The scoring head on Gemma 4 has no GGUF form. A llama.cpp server cannot
+  serve it. The library (2026.11.9) reports that it can export the head
+  on Qwen3.5 to GGUF. That export is not measured.
 - The first row is the measurement through the server. The other rows
   are of the model only.
 

@@ -91,6 +91,10 @@ def main():
     write("logo-horizontal.svg", 920, 360, "Magi logo and name", lockup)
     write("logo-horizontal-reversed.svg", 920, 360, "Magi logo and name on dark backgrounds", lockup.replace(NAVY, WHITE))
     write("app-icon.svg", 512, 512, "Magi app icon", f'<path fill="{IVORY}" d="M0 0H512V512H0Z"/>' + mark)
+    # Android adaptive icon: the system crops the 108 dp layer to a shape.
+    # The scale 0.75 keeps the mark in the circle that each shape shows.
+    write("android-foreground.svg", 512, 512, "Magi Android icon foreground", placed(mark, 64, 64, 0.75))
+    write("android-monochrome.svg", 512, 512, "Magi Android icon, one color", placed(mono, 64, 64, 0.75))
     social = (
         f'<path fill="{NAVY}" d="M0 0H1200V630H0Z"/>'
         + placed(lockup.replace(NAVY, WHITE), 140, 137)
@@ -126,6 +130,11 @@ def main():
         render(name + ".svg", f"png/{name}.png", 1840, 720)
     for size in (180, 192, 512):
         render("app-icon.svg", f"png/app-icon-{size}.png", size)
+    res = "../android/app/src/main/res"
+    for density, size in (("mdpi", 108), ("hdpi", 162), ("xhdpi", 216), ("xxhdpi", 324), ("xxxhdpi", 432)):
+        (ROOT / res / f"mipmap-{density}").mkdir(parents=True, exist_ok=True)
+        render("android-foreground.svg", f"{res}/mipmap-{density}/ic_launcher_foreground.png", size)
+        render("android-monochrome.svg", f"{res}/mipmap-{density}/ic_launcher_monochrome.png", size)
     for size in (16, 32, 48):
         render("favicon.svg", f"png/favicon-{size}.png", size)
     render("social-card.svg", "png/social-card.png", 1200, 630)

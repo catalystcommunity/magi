@@ -74,5 +74,6 @@ for that visual context.
 
 ## Next Actions
 
-The design review is complete. Connect the assets to the web and Android
-clients when requested. Check the final display sizes during that work.
+The design review is complete. The Android app uses the mark as its icon
+(`android-foreground.svg`, `android-monochrome.svg`). Connect the assets to the web
+client when requested. Check the final display sizes during that work.
