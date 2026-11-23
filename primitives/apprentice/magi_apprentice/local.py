@@ -6,6 +6,7 @@ isolation: commands run as the current user on this host.
 from __future__ import annotations
 
 import os
+import re
 import signal
 import subprocess
 import time
@@ -15,8 +16,15 @@ from ._clients import RpcError, execution as ex
 from .transcript import SECRET_NAME
 
 
+# git reads GIT_CONFIG_COUNT pairs of GIT_CONFIG_KEY_n and GIT_CONFIG_VALUE_n.
+# The secret rule removes the KEY names, and git stops with an error when the
+# count stays without them. So the three go together.
+GIT_CONFIG_PAIRS = re.compile(r"^GIT_CONFIG_(COUNT$|KEY_|VALUE_)")
+
+
 def scrubbed_env() -> dict[str, str]:
-    return {k: v for k, v in os.environ.items() if not SECRET_NAME.search(k)}
+    return {k: v for k, v in os.environ.items()
+            if not SECRET_NAME.search(k) and not GIT_CONFIG_PAIRS.search(k)}
 
 
 class LocalExecution:

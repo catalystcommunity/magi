@@ -189,7 +189,11 @@ STATUS_MAX_LINES = 50
 # header line, so a part whose command failed is left out.
 REPOSITORY_SCRIPT = "\n".join([
     "echo '--- git status --short ---'",
-    f"git status --short 2>/dev/null | head -n {STATUS_MAX_LINES}",
+    # A clean work tree gives a line, so that it is different from a failed
+    # command, which gives no part.
+    "if s=$(git status --short 2>/dev/null); then",
+    f"  if [ -n \"$s\" ]; then printf '%s\\n' \"$s\" | head -n {STATUS_MAX_LINES}; else echo '(no changes)'; fi",
+    "fi",
     "echo '--- git log --oneline -5 ---'",
     "git log --oneline -5 2>/dev/null",
     "echo '--- top-level entries ---'",
@@ -622,14 +626,16 @@ class Apprentice:
         left = lim.max_steps - steps
         note = BUDGET_NOTE.format(calls=left, max_calls=lim.max_steps,
                                   seconds=max(0, int(lim.max_seconds - elapsed)))
+        due = False
         if steps and not self._noted_steps and left <= 5:
-            self._noted_steps = True
-            self._send_note(ctx, note)
+            self._noted_steps = due = True
         if not self._noted_eighty and steps >= lim.max_steps * 0.8:
-            self._noted_eighty = True
-            self._send_note(ctx, note)
+            self._noted_eighty = due = True
         if not self._noted_time and elapsed >= lim.max_seconds * 0.8:
-            self._noted_time = True
+            self._noted_time = due = True
+        # Two limits can come due before the same call: the text is the same,
+        # so the model gets it one time.
+        if due:
             self._send_note(ctx, note)
 
     def _send_note(self, ctx: Context, text: str) -> None:
@@ -653,7 +659,16 @@ class Apprentice:
         self.transcript.record("model_response", step=steps, content=reply.content,
                                finish_reason=reply.finish_reason, tool_calls=[], usage=reply.usage,
                                last_call=True, **reasoning_fields(reply.reasoning))
-        return reply.content.strip() or summary
+        # The call has no tools, but a model can write a finish call as text,
+        # and the parser makes a tool call of it. Its summary is the answer.
+        text = reply.content.strip()
+        for c in reply.tool_calls if not text else []:
+            if c.name == "finish":
+                try:
+                    text = str(json.loads(c.arguments or "{}").get("summary") or "").strip()
+                except (ValueError, AttributeError):
+                    pass
+        return text or summary
 
     def _complete(self, ctx: Context, msgs: list[dict]) -> Reply:
         chars = ctx.chars()

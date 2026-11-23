@@ -37,6 +37,7 @@ sections to the first user message:
 - **Repository.** The output of `git status --short` (at most 50 lines), of
   `git log --oneline -5`, and the top-level entries of the work directory on one
   line. One `exec` call gives all three. A part whose command failed is left out.
+  A clean work tree gives the line `(no changes)`.
 - **Lessons.** The review lessons of this repository that relate to the task,
   from the `lessons` var. The section is left out when the var is empty.
 

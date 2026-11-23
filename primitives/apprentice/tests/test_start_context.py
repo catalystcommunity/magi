@@ -193,6 +193,32 @@ class LocalStartContextTest(unittest.TestCase):
         self.assertIn("AGENTS.md", user)            # top-level entries
         self.assertIn("src", user)
 
+    def test_clean_repository(self):
+        # A clean work tree has a status part: it is not a failed command.
+        env = {k: v for k, v in os.environ.items() if "GIT_" not in k}
+        subprocess.run(["git", "add", "-A"], cwd=self.dir.name, check=True, env=env)
+        subprocess.run(["git", "-c", "user.email=a@b", "-c", "user.name=t", "commit", "-qm", "second"],
+                       cwd=self.dir.name, check=True, env=env)
+        self.a.run(Task("t"))
+        self.assertIn("git status --short\n(no changes)", first_user(self.model))
+
+    def test_no_repository(self):
+        import shutil
+        shutil.rmtree(Path(self.dir.name, ".git"))
+        self.a.run(Task("t"))
+        user = first_user(self.model)
+        self.assertNotIn("git status --short", user)
+        self.assertIn("top-level entries", user)
+
+    def test_scrubbed_env_keeps_git_config_pairs_together(self):
+        from unittest import mock
+        from magi_apprentice.local import scrubbed_env
+        with mock.patch.dict(os.environ, {"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "a.b",
+                                          "GIT_CONFIG_VALUE_0": "c", "GIT_CONFIG_NOSYSTEM": "1"}):
+            env = scrubbed_env()
+        self.assertFalse([k for k in env if k.startswith(("GIT_CONFIG_COUNT", "GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_"))])
+        self.assertEqual(env["GIT_CONFIG_NOSYSTEM"], "1")
+
 
 class LocalDiffTest(unittest.TestCase):
     """The self-review diff script against a real git repository on this host."""

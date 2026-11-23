@@ -447,6 +447,23 @@ class BudgetTest(unittest.TestCase):
         self.assertEqual(r.status, "step_limit")
         self.assertEqual(r.summary, "Stopped after 3 model calls (step limit).")
 
+    def test_last_call_written_as_a_finish_call(self):
+        # The last call has no tools, but the parser makes a tool call of a
+        # finish that the model wrote as text. Its summary is the answer.
+        script = [reply(call("bash", command="true"))] * 3 + [reply(call("finish", summary="I changed a.py."))]
+        a, _, _, _ = apprentice(script, limits=Limits(max_steps=3))
+        r = a.run(Task("t"))
+        self.assertEqual((r.status, r.summary), ("step_limit", "I changed a.py."))
+
+    def test_two_step_limits_at_one_step_give_one_note(self):
+        # With 25 steps, 80% used and 5 left are the same step.
+        a, model, _, tr = apprentice([reply(call("bash", command=f"echo {i}")) for i in range(21)]
+                                     + [reply(call("finish", summary="s"))],
+                                     limits=Limits(max_steps=25, self_review=False))
+        a.run(Task("t"))
+        self.assertEqual(len(self.notes(tr)), 1)
+        self.assertIn("Budget: 5 of 25 model calls are left", self.notes(tr)[0]["note"])
+
     def test_no_notes_in_a_short_task(self):
         a, model, _, tr = apprentice([reply(call("write_file", path="x", content="1")),
                                       reply(call("finish", summary="s"))],
