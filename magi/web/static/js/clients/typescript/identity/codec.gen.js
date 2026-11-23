@@ -129,8 +129,26 @@ function readArg(st, low) {
 function smallInt(arg) {
     return arg <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(arg) : arg;
 }
+/** Widen an IEEE 754 half-precision value (RFC 8949 Appendix D) exactly to binary64. */
+function csilHalfToFloat64(half) {
+    const exp = (half >> 10) & 0x1f;
+    const mant = half & 0x3ff;
+    let magnitude;
+    if (exp === 0)
+        magnitude = mant * 2 ** -24;
+    else if (exp === 31)
+        magnitude = mant === 0 ? Infinity : NaN;
+    else
+        magnitude = (mant + 1024) * 2 ** (exp - 25);
+    return half & 0x8000 ? -magnitude : magnitude;
+}
 function readFloat(st, low) {
     const bits = readArg(st, low);
+    if (low === 25) {
+        const view = new DataView(new ArrayBuffer(2));
+        view.setUint16(0, Number(bits), false);
+        return csilHalfToFloat64(view.getUint16(0, false));
+    }
     if (low === 26) {
         const view = new DataView(new ArrayBuffer(4));
         view.setUint32(0, Number(bits), false);
@@ -161,7 +179,7 @@ function decInto(st, depth) {
             st.pos += 1;
             return null;
         }
-        if (low === 26 || low === 27)
+        if (low === 25 || low === 26 || low === 27)
             return readFloat(st, low);
         throw new Error("malformed CBOR simple value");
     }
@@ -281,6 +299,34 @@ export function asLiteral(value, expected) {
 /** Validate a decoded scalar against a literal-enum's declared vocabulary, erroring
  * on an unknown value. The caller reads through `asNumber`/`asString`/`asBool`, which
  * already normalize a decoded `bigint` to `number`, so a plain membership check suffices. */
+/** CBOR orders unsigned integer keys first, then negative keys by magnitude. */
+export function enumNumberMap(entries) {
+    return new Map(entries.sort(([a], [b]) => {
+        if (a === b)
+            return 0;
+        if ((a < 0n) !== (b < 0n))
+            return a < 0n ? 1 : -1;
+        if (a < 0n)
+            return a > b ? -1 : 1;
+        return a < b ? -1 : 1;
+    }));
+}
+export function enumToNumber(label, entries) {
+    for (const [name, number] of entries) {
+        if (name === label)
+            return number;
+    }
+    throw new Error("unknown enum label");
+}
+export function enumFromNumber(value, entries) {
+    if (typeof value === "bigint" || (typeof value === "number" && Number.isSafeInteger(value))) {
+        for (const [name, number] of entries) {
+            if (BigInt(value) === number)
+                return name;
+        }
+    }
+    throw new Error("unknown enum number");
+}
 export function asEnumMember(value, members) {
     if (!members.includes(value)) {
         throw new Error(`unknown enum value: ${JSON.stringify(value)}`);
@@ -316,7 +362,91 @@ function asTagged(value, tag) {
 }
 /** Decode a tag-0 (RFC 3339, UTC) timestamp into a `Date`. */
 export function asTimestamp(value) {
-    return new Date(asString(asTagged(value, 0)));
+    return csilTsFromText(asString(asTagged(value, 0)));
+}
+// `Date` parsing accepts many shapes the wire contract forbids (a space for `T`, no
+// offset, leap seconds rolled over), so the grammar is checked by hand. `[0-9]` stays
+// ASCII-only, and `$` without the `m` flag matches only at the true end of input.
+const CSIL_TS_PATTERN = /^([0-9]{4})-([0-9]{2})-([0-9]{2})[Tt]([0-9]{2}):([0-9]{2}):([0-9]{2})(?:\.([0-9]{1,9}))?(?:[Zz]|([+-])([0-9]{2}):([0-9]{2}))$/;
+/** Parse canonical tag-0 text strictly. `Date` holds milliseconds, so a nonzero digit
+ * past the third fraction digit is an error rather than a silent rounding. */
+export function csilTsFromText(text) {
+    const m = CSIL_TS_PATTERN.exec(text);
+    if (m === null)
+        throw new Error(`invalid RFC 3339 timestamp ${JSON.stringify(text)}`);
+    const [year, month, day, hour, minute, second] = m.slice(1, 7).map(Number);
+    const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    const monthDays = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    if (year < 1 || month < 1 || month > 12 || day < 1 || day > monthDays[month - 1]) {
+        throw new Error(`invalid calendar date in timestamp ${JSON.stringify(text)}`);
+    }
+    if (hour > 23 || minute > 59 || second > 59) {
+        throw new Error(`invalid time of day in timestamp ${JSON.stringify(text)}`);
+    }
+    const fraction = m[7] ?? "";
+    if (/[1-9]/.test(fraction.slice(3))) {
+        throw new Error(`timestamp ${JSON.stringify(text)} is finer than milliseconds`);
+    }
+    let offsetMinutes = 0;
+    if (m[8] !== undefined) {
+        const offsetHour = Number(m[9]);
+        const offsetMinute = Number(m[10]);
+        if (offsetHour > 23 || offsetMinute > 59) {
+            throw new Error(`invalid offset in timestamp ${JSON.stringify(text)}`);
+        }
+        offsetMinutes = (m[8] === "-" ? -1 : 1) * (offsetHour * 60 + offsetMinute);
+    }
+    // `Date.UTC` maps years 0-99 to 1900-1999, so the year is set on its own.
+    const local = new Date(0);
+    local.setUTCFullYear(year, month - 1, day);
+    local.setUTCHours(hour, minute, second, Number(fraction.padEnd(3, "0").slice(0, 3)));
+    const instant = new Date(local.getTime() - offsetMinutes * 60000);
+    const utcYear = instant.getUTCFullYear();
+    if (utcYear < 1 || utcYear > 9999) {
+        throw new Error(`timestamp ${JSON.stringify(text)} is outside years 0001-9999 in UTC`);
+    }
+    return instant;
+}
+const CSIL_EPOCH_FIRST = -62135596800;
+const CSIL_EPOCH_LAST = 253402300799;
+/** Decode tag-1 epoch seconds (`cddl_time`) into a `Date`. A `Date` holds
+ * milliseconds, so a float fraction is rounded to three digits by the shared rule. */
+export function asCddlTime(value) {
+    const inner = asTagged(value, 1);
+    // An integer past 2^53 decodes as a `bigint`; every one of those is out of range.
+    if (typeof inner === "bigint")
+        throw new Error("cddl_time is outside years 0001-9999");
+    if (typeof inner !== "number")
+        throw new Error("cddl_time content must be a number");
+    if (!Number.isFinite(inner))
+        throw new Error("cddl_time must be finite");
+    if (inner < CSIL_EPOCH_FIRST - 1 || inner > CSIL_EPOCH_LAST + 1) {
+        throw new Error("cddl_time is outside years 0001-9999");
+    }
+    // An integer and a float with the same value decode to the same `number`, and the
+    // rule gives an integer a zero fraction, so one path serves both.
+    let seconds = Math.floor(inner);
+    let units = Math.floor((inner - seconds) * 1000 + 0.5);
+    if (units === 1000) {
+        seconds += 1;
+        units = 0;
+    }
+    if (seconds < CSIL_EPOCH_FIRST || seconds > CSIL_EPOCH_LAST) {
+        throw new Error("cddl_time is outside years 0001-9999");
+    }
+    return new Date(seconds * 1000 + units);
+}
+/** A `Date` as tag-1 content: whole seconds as an integer, else a binary64 float. */
+export function csilEpochFromDate(d) {
+    if (!(d instanceof Date) || Number.isNaN(d.getTime()))
+        throw new Error("expected a valid Date");
+    const millis = d.getTime();
+    const seconds = Math.floor(millis / 1000);
+    if (seconds < CSIL_EPOCH_FIRST || seconds > CSIL_EPOCH_LAST) {
+        throw new Error("cddl_time is outside years 0001-9999");
+    }
+    const units = millis - seconds * 1000;
+    return units === 0 ? seconds : seconds + units / 1000;
 }
 /** Decode a tag-4 decimal fraction into its `[exponent, mantissa]` payload. */
 export function asDecimalPayload(value) {
@@ -330,6 +460,13 @@ export function asDecimalPayload(value) {
 }
 /** A `Date` rendered as the canonical tag-0 text: RFC 3339, UTC, `Z` offset. */
 export function csilTsToText(d) {
+    // An Invalid Date or a year outside 0001-9999 has no canonical text, and
+    // `toISOString` would write an expanded `+YYYYYY` year for the latter.
+    if (!(d instanceof Date) || Number.isNaN(d.getTime()))
+        throw new Error("expected a valid Date");
+    const year = d.getUTCFullYear();
+    if (year < 1 || year > 9999)
+        throw new Error("timestamp is outside years 0001-9999");
     return d.toISOString().replace(/\.000Z$/, "Z");
 }
 export function toBeginLoginRequestCborValue(v) {
@@ -873,4 +1010,152 @@ export function toListCredentialsResponseCbor(v) {
 }
 export function fromListCredentialsResponseCbor(bytes) {
     return fromListCredentialsResponseCborValue(decode(bytes));
+}
+export function toRoleAssignmentCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("role", v.role);
+    csilMap.set("subject", v.subject);
+    csilMap.set("granted_by", v.grantedBy);
+    csilMap.set("granted_ms", v.grantedMs);
+    return csilMap;
+}
+export function fromRoleAssignmentCborValue(value) {
+    return {
+        subject: asString(requireKey(value, "subject")),
+        role: asString(requireKey(value, "role")),
+        grantedBy: asString(requireKey(value, "granted_by")),
+        grantedMs: asNumber(requireKey(value, "granted_ms")),
+    };
+}
+export function toRoleAssignmentCbor(v) {
+    return encodeValue(toRoleAssignmentCborValue(v));
+}
+export function fromRoleAssignmentCbor(bytes) {
+    return fromRoleAssignmentCborValue(decode(bytes));
+}
+export function toListRolesRequestCborValue(v) {
+    const csilMap = new Map();
+    if (v.role !== undefined)
+        csilMap.set("role", v.role);
+    if (v.subject !== undefined)
+        csilMap.set("subject", v.subject);
+    return csilMap;
+}
+export function fromListRolesRequestCborValue(value) {
+    return {
+        subject: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "subject")),
+        role: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "role")),
+    };
+}
+export function toListRolesRequestCbor(v) {
+    return encodeValue(toListRolesRequestCborValue(v));
+}
+export function fromListRolesRequestCbor(bytes) {
+    return fromListRolesRequestCborValue(decode(bytes));
+}
+export function toListRolesResponseCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("assignments", v.assignments.map((csilE) => toRoleAssignmentCborValue(csilE)));
+    return csilMap;
+}
+export function fromListRolesResponseCborValue(value) {
+    return {
+        assignments: asArray(requireKey(value, "assignments")).map((csilE) => fromRoleAssignmentCborValue(csilE)),
+    };
+}
+export function toListRolesResponseCbor(v) {
+    return encodeValue(toListRolesResponseCborValue(v));
+}
+export function fromListRolesResponseCbor(bytes) {
+    return fromListRolesResponseCborValue(decode(bytes));
+}
+export function toSetSubjectRolesRequestCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("roles", v.roles);
+    csilMap.set("subject", v.subject);
+    return csilMap;
+}
+export function fromSetSubjectRolesRequestCborValue(value) {
+    return {
+        subject: asString(requireKey(value, "subject")),
+        roles: asArray(requireKey(value, "roles")).map((csilE) => asString(csilE)),
+    };
+}
+export function toSetSubjectRolesRequestCbor(v) {
+    return encodeValue(toSetSubjectRolesRequestCborValue(v));
+}
+export function fromSetSubjectRolesRequestCbor(bytes) {
+    return fromSetSubjectRolesRequestCborValue(decode(bytes));
+}
+export function toSetRoleSubjectsRequestCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("role", v.role);
+    csilMap.set("subjects", v.subjects);
+    return csilMap;
+}
+export function fromSetRoleSubjectsRequestCborValue(value) {
+    return {
+        role: asString(requireKey(value, "role")),
+        subjects: asArray(requireKey(value, "subjects")).map((csilE) => asString(csilE)),
+    };
+}
+export function toSetRoleSubjectsRequestCbor(v) {
+    return encodeValue(toSetRoleSubjectsRequestCborValue(v));
+}
+export function fromSetRoleSubjectsRequestCbor(bytes) {
+    return fromSetRoleSubjectsRequestCborValue(decode(bytes));
+}
+export function toListUsersRequestCborValue(v) {
+    const csilMap = new Map();
+    if (v.limit !== undefined)
+        csilMap.set("limit", v.limit);
+    return csilMap;
+}
+export function fromListUsersRequestCborValue(value) {
+    return {
+        limit: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
+    };
+}
+export function toListUsersRequestCbor(v) {
+    return encodeValue(toListUsersRequestCborValue(v));
+}
+export function fromListUsersRequestCbor(bytes) {
+    return fromListUsersRequestCborValue(decode(bytes));
+}
+export function toKnownUserCborValue(v) {
+    const csilMap = new Map();
+    if (v.name !== undefined)
+        csilMap.set("name", v.name);
+    csilMap.set("subject", v.subject);
+    csilMap.set("last_seen_ms", v.lastSeenMs);
+    return csilMap;
+}
+export function fromKnownUserCborValue(value) {
+    return {
+        subject: asString(requireKey(value, "subject")),
+        lastSeenMs: asNumber(requireKey(value, "last_seen_ms")),
+        name: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "name")),
+    };
+}
+export function toKnownUserCbor(v) {
+    return encodeValue(toKnownUserCborValue(v));
+}
+export function fromKnownUserCbor(bytes) {
+    return fromKnownUserCborValue(decode(bytes));
+}
+export function toListUsersResponseCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("users", v.users.map((csilE) => toKnownUserCborValue(csilE)));
+    return csilMap;
+}
+export function fromListUsersResponseCborValue(value) {
+    return {
+        users: asArray(requireKey(value, "users")).map((csilE) => fromKnownUserCborValue(csilE)),
+    };
+}
+export function toListUsersResponseCbor(v) {
+    return encodeValue(toListUsersResponseCborValue(v));
+}
+export function fromListUsersResponseCbor(bytes) {
+    return fromListUsersResponseCborValue(decode(bytes));
 }

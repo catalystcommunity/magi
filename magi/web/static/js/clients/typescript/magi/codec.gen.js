@@ -129,8 +129,26 @@ function readArg(st, low) {
 function smallInt(arg) {
     return arg <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(arg) : arg;
 }
+/** Widen an IEEE 754 half-precision value (RFC 8949 Appendix D) exactly to binary64. */
+function csilHalfToFloat64(half) {
+    const exp = (half >> 10) & 0x1f;
+    const mant = half & 0x3ff;
+    let magnitude;
+    if (exp === 0)
+        magnitude = mant * 2 ** -24;
+    else if (exp === 31)
+        magnitude = mant === 0 ? Infinity : NaN;
+    else
+        magnitude = (mant + 1024) * 2 ** (exp - 25);
+    return half & 0x8000 ? -magnitude : magnitude;
+}
 function readFloat(st, low) {
     const bits = readArg(st, low);
+    if (low === 25) {
+        const view = new DataView(new ArrayBuffer(2));
+        view.setUint16(0, Number(bits), false);
+        return csilHalfToFloat64(view.getUint16(0, false));
+    }
     if (low === 26) {
         const view = new DataView(new ArrayBuffer(4));
         view.setUint32(0, Number(bits), false);
@@ -161,7 +179,7 @@ function decInto(st, depth) {
             st.pos += 1;
             return null;
         }
-        if (low === 26 || low === 27)
+        if (low === 25 || low === 26 || low === 27)
             return readFloat(st, low);
         throw new Error("malformed CBOR simple value");
     }
@@ -281,6 +299,34 @@ export function asLiteral(value, expected) {
 /** Validate a decoded scalar against a literal-enum's declared vocabulary, erroring
  * on an unknown value. The caller reads through `asNumber`/`asString`/`asBool`, which
  * already normalize a decoded `bigint` to `number`, so a plain membership check suffices. */
+/** CBOR orders unsigned integer keys first, then negative keys by magnitude. */
+export function enumNumberMap(entries) {
+    return new Map(entries.sort(([a], [b]) => {
+        if (a === b)
+            return 0;
+        if ((a < 0n) !== (b < 0n))
+            return a < 0n ? 1 : -1;
+        if (a < 0n)
+            return a > b ? -1 : 1;
+        return a < b ? -1 : 1;
+    }));
+}
+export function enumToNumber(label, entries) {
+    for (const [name, number] of entries) {
+        if (name === label)
+            return number;
+    }
+    throw new Error("unknown enum label");
+}
+export function enumFromNumber(value, entries) {
+    if (typeof value === "bigint" || (typeof value === "number" && Number.isSafeInteger(value))) {
+        for (const [name, number] of entries) {
+            if (BigInt(value) === number)
+                return name;
+        }
+    }
+    throw new Error("unknown enum number");
+}
 export function asEnumMember(value, members) {
     if (!members.includes(value)) {
         throw new Error(`unknown enum value: ${JSON.stringify(value)}`);
@@ -316,7 +362,91 @@ function asTagged(value, tag) {
 }
 /** Decode a tag-0 (RFC 3339, UTC) timestamp into a `Date`. */
 export function asTimestamp(value) {
-    return new Date(asString(asTagged(value, 0)));
+    return csilTsFromText(asString(asTagged(value, 0)));
+}
+// `Date` parsing accepts many shapes the wire contract forbids (a space for `T`, no
+// offset, leap seconds rolled over), so the grammar is checked by hand. `[0-9]` stays
+// ASCII-only, and `$` without the `m` flag matches only at the true end of input.
+const CSIL_TS_PATTERN = /^([0-9]{4})-([0-9]{2})-([0-9]{2})[Tt]([0-9]{2}):([0-9]{2}):([0-9]{2})(?:\.([0-9]{1,9}))?(?:[Zz]|([+-])([0-9]{2}):([0-9]{2}))$/;
+/** Parse canonical tag-0 text strictly. `Date` holds milliseconds, so a nonzero digit
+ * past the third fraction digit is an error rather than a silent rounding. */
+export function csilTsFromText(text) {
+    const m = CSIL_TS_PATTERN.exec(text);
+    if (m === null)
+        throw new Error(`invalid RFC 3339 timestamp ${JSON.stringify(text)}`);
+    const [year, month, day, hour, minute, second] = m.slice(1, 7).map(Number);
+    const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    const monthDays = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    if (year < 1 || month < 1 || month > 12 || day < 1 || day > monthDays[month - 1]) {
+        throw new Error(`invalid calendar date in timestamp ${JSON.stringify(text)}`);
+    }
+    if (hour > 23 || minute > 59 || second > 59) {
+        throw new Error(`invalid time of day in timestamp ${JSON.stringify(text)}`);
+    }
+    const fraction = m[7] ?? "";
+    if (/[1-9]/.test(fraction.slice(3))) {
+        throw new Error(`timestamp ${JSON.stringify(text)} is finer than milliseconds`);
+    }
+    let offsetMinutes = 0;
+    if (m[8] !== undefined) {
+        const offsetHour = Number(m[9]);
+        const offsetMinute = Number(m[10]);
+        if (offsetHour > 23 || offsetMinute > 59) {
+            throw new Error(`invalid offset in timestamp ${JSON.stringify(text)}`);
+        }
+        offsetMinutes = (m[8] === "-" ? -1 : 1) * (offsetHour * 60 + offsetMinute);
+    }
+    // `Date.UTC` maps years 0-99 to 1900-1999, so the year is set on its own.
+    const local = new Date(0);
+    local.setUTCFullYear(year, month - 1, day);
+    local.setUTCHours(hour, minute, second, Number(fraction.padEnd(3, "0").slice(0, 3)));
+    const instant = new Date(local.getTime() - offsetMinutes * 60000);
+    const utcYear = instant.getUTCFullYear();
+    if (utcYear < 1 || utcYear > 9999) {
+        throw new Error(`timestamp ${JSON.stringify(text)} is outside years 0001-9999 in UTC`);
+    }
+    return instant;
+}
+const CSIL_EPOCH_FIRST = -62135596800;
+const CSIL_EPOCH_LAST = 253402300799;
+/** Decode tag-1 epoch seconds (`cddl_time`) into a `Date`. A `Date` holds
+ * milliseconds, so a float fraction is rounded to three digits by the shared rule. */
+export function asCddlTime(value) {
+    const inner = asTagged(value, 1);
+    // An integer past 2^53 decodes as a `bigint`; every one of those is out of range.
+    if (typeof inner === "bigint")
+        throw new Error("cddl_time is outside years 0001-9999");
+    if (typeof inner !== "number")
+        throw new Error("cddl_time content must be a number");
+    if (!Number.isFinite(inner))
+        throw new Error("cddl_time must be finite");
+    if (inner < CSIL_EPOCH_FIRST - 1 || inner > CSIL_EPOCH_LAST + 1) {
+        throw new Error("cddl_time is outside years 0001-9999");
+    }
+    // An integer and a float with the same value decode to the same `number`, and the
+    // rule gives an integer a zero fraction, so one path serves both.
+    let seconds = Math.floor(inner);
+    let units = Math.floor((inner - seconds) * 1000 + 0.5);
+    if (units === 1000) {
+        seconds += 1;
+        units = 0;
+    }
+    if (seconds < CSIL_EPOCH_FIRST || seconds > CSIL_EPOCH_LAST) {
+        throw new Error("cddl_time is outside years 0001-9999");
+    }
+    return new Date(seconds * 1000 + units);
+}
+/** A `Date` as tag-1 content: whole seconds as an integer, else a binary64 float. */
+export function csilEpochFromDate(d) {
+    if (!(d instanceof Date) || Number.isNaN(d.getTime()))
+        throw new Error("expected a valid Date");
+    const millis = d.getTime();
+    const seconds = Math.floor(millis / 1000);
+    if (seconds < CSIL_EPOCH_FIRST || seconds > CSIL_EPOCH_LAST) {
+        throw new Error("cddl_time is outside years 0001-9999");
+    }
+    const units = millis - seconds * 1000;
+    return units === 0 ? seconds : seconds + units / 1000;
 }
 /** Decode a tag-4 decimal fraction into its `[exponent, mantissa]` payload. */
 export function asDecimalPayload(value) {
@@ -330,6 +460,13 @@ export function asDecimalPayload(value) {
 }
 /** A `Date` rendered as the canonical tag-0 text: RFC 3339, UTC, `Z` offset. */
 export function csilTsToText(d) {
+    // An Invalid Date or a year outside 0001-9999 has no canonical text, and
+    // `toISOString` would write an expanded `+YYYYYY` year for the latter.
+    if (!(d instanceof Date) || Number.isNaN(d.getTime()))
+        throw new Error("expected a valid Date");
+    const year = d.getUTCFullYear();
+    if (year < 1 || year > 9999)
+        throw new Error("timestamp is outside years 0001-9999");
     return d.toISOString().replace(/\.000Z$/, "Z");
 }
 export function toRefCborValue(v) {
@@ -2689,6 +2826,143 @@ export function toAdminGetRunOutputRequestCbor(v) {
 export function fromAdminGetRunOutputRequestCbor(bytes) {
     return fromAdminGetRunOutputRequestCborValue(decode(bytes));
 }
+export function toAdminChatCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("person", v.person);
+    csilMap.set("stream", v.stream);
+    csilMap.set("persona", v.persona);
+    csilMap.set("last_seq", v.lastSeq);
+    csilMap.set("created_ms", v.createdMs);
+    csilMap.set("updated_ms", v.updatedMs);
+    return csilMap;
+}
+export function fromAdminChatCborValue(value) {
+    return {
+        stream: asString(requireKey(value, "stream")),
+        person: asString(requireKey(value, "person")),
+        persona: asString(requireKey(value, "persona")),
+        lastSeq: asNumber(requireKey(value, "last_seq")),
+        createdMs: asNumber(requireKey(value, "created_ms")),
+        updatedMs: asNumber(requireKey(value, "updated_ms")),
+    };
+}
+export function toAdminChatCbor(v) {
+    return encodeValue(toAdminChatCborValue(v));
+}
+export function fromAdminChatCbor(bytes) {
+    return fromAdminChatCborValue(decode(bytes));
+}
+export function toAdminListChatsRequestCborValue(v) {
+    const csilMap = new Map();
+    if (v.person !== undefined)
+        csilMap.set("person", v.person);
+    if (v.persona !== undefined)
+        csilMap.set("persona", v.persona);
+    return csilMap;
+}
+export function fromAdminListChatsRequestCborValue(value) {
+    return {
+        person: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "person")),
+        persona: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "persona")),
+    };
+}
+export function toAdminListChatsRequestCbor(v) {
+    return encodeValue(toAdminListChatsRequestCborValue(v));
+}
+export function fromAdminListChatsRequestCbor(bytes) {
+    return fromAdminListChatsRequestCborValue(decode(bytes));
+}
+export function toAdminListChatsResponseCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("chats", v.chats.map((csilE) => toAdminChatCborValue(csilE)));
+    return csilMap;
+}
+export function fromAdminListChatsResponseCborValue(value) {
+    return {
+        chats: asArray(requireKey(value, "chats")).map((csilE) => fromAdminChatCborValue(csilE)),
+    };
+}
+export function toAdminListChatsResponseCbor(v) {
+    return encodeValue(toAdminListChatsResponseCborValue(v));
+}
+export function fromAdminListChatsResponseCbor(bytes) {
+    return fromAdminListChatsResponseCborValue(decode(bytes));
+}
+export function toAdminReadChatRequestCborValue(v) {
+    const csilMap = new Map();
+    if (v.limit !== undefined)
+        csilMap.set("limit", v.limit);
+    csilMap.set("stream", v.stream);
+    if (v.beforeSeq !== undefined)
+        csilMap.set("before_seq", v.beforeSeq);
+    return csilMap;
+}
+export function fromAdminReadChatRequestCborValue(value) {
+    return {
+        stream: asString(requireKey(value, "stream")),
+        beforeSeq: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "before_seq")),
+        limit: ((csilV) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
+    };
+}
+export function toAdminReadChatRequestCbor(v) {
+    return encodeValue(toAdminReadChatRequestCborValue(v));
+}
+export function fromAdminReadChatRequestCbor(bytes) {
+    return fromAdminReadChatRequestCborValue(decode(bytes));
+}
+export function toAdminReadChatResponseCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("chat", toAdminChatCborValue(v.chat));
+    csilMap.set("messages", v.messages.map((csilE) => toMessageCborValue(csilE)));
+    return csilMap;
+}
+export function fromAdminReadChatResponseCborValue(value) {
+    return {
+        chat: fromAdminChatCborValue(requireKey(value, "chat")),
+        messages: asArray(requireKey(value, "messages")).map((csilE) => fromMessageCborValue(csilE)),
+    };
+}
+export function toAdminReadChatResponseCbor(v) {
+    return encodeValue(toAdminReadChatResponseCborValue(v));
+}
+export function fromAdminReadChatResponseCbor(bytes) {
+    return fromAdminReadChatResponseCborValue(decode(bytes));
+}
+export function toAdminTurnLogRequestCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("message", v.message);
+    return csilMap;
+}
+export function fromAdminTurnLogRequestCborValue(value) {
+    return {
+        message: asString(requireKey(value, "message")),
+    };
+}
+export function toAdminTurnLogRequestCbor(v) {
+    return encodeValue(toAdminTurnLogRequestCborValue(v));
+}
+export function fromAdminTurnLogRequestCbor(bytes) {
+    return fromAdminTurnLogRequestCborValue(decode(bytes));
+}
+export function toAdminTurnLogResponseCborValue(v) {
+    const csilMap = new Map();
+    if (v.log !== undefined)
+        csilMap.set("log", v.log);
+    csilMap.set("message", v.message);
+    return csilMap;
+}
+export function fromAdminTurnLogResponseCborValue(value) {
+    return {
+        message: asString(requireKey(value, "message")),
+        log: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "log")),
+    };
+}
+export function toAdminTurnLogResponseCbor(v) {
+    return encodeValue(toAdminTurnLogResponseCborValue(v));
+}
+export function fromAdminTurnLogResponseCbor(bytes) {
+    return fromAdminTurnLogResponseCborValue(decode(bytes));
+}
 export function toPutRunnerPackageRequestCborValue(v) {
     const csilMap = new Map();
     csilMap.set("os", v.os);
@@ -3377,6 +3651,121 @@ export function toDecisionRequestCbor(v) {
 }
 export function fromDecisionRequestCbor(bytes) {
     return fromDecisionRequestCborValue(decode(bytes));
+}
+export function toLessonCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("id", v.id);
+    csilMap.set("area", v.area);
+    csilMap.set("text", v.text);
+    csilMap.set("title", v.title);
+    csilMap.set("origin", v.origin);
+    csilMap.set("source", v.source);
+    csilMap.set("status", v.status);
+    csilMap.set("created_ms", v.createdMs);
+    if (v.decidedBy !== undefined)
+        csilMap.set("decided_by", v.decidedBy);
+    return csilMap;
+}
+export function fromLessonCborValue(value) {
+    return {
+        id: asString(requireKey(value, "id")),
+        title: asString(requireKey(value, "title")),
+        area: asString(requireKey(value, "area")),
+        source: asString(requireKey(value, "source")),
+        text: asString(requireKey(value, "text")),
+        origin: asString(requireKey(value, "origin")),
+        status: asString(requireKey(value, "status")),
+        decidedBy: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "decided_by")),
+        createdMs: asNumber(requireKey(value, "created_ms")),
+    };
+}
+export function toLessonCbor(v) {
+    return encodeValue(toLessonCborValue(v));
+}
+export function fromLessonCbor(bytes) {
+    return fromLessonCborValue(decode(bytes));
+}
+export function toProposeLessonRequestCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("area", v.area);
+    csilMap.set("text", v.text);
+    csilMap.set("title", v.title);
+    csilMap.set("source", v.source);
+    return csilMap;
+}
+export function fromProposeLessonRequestCborValue(value) {
+    return {
+        title: asString(requireKey(value, "title")),
+        area: asString(requireKey(value, "area")),
+        source: asString(requireKey(value, "source")),
+        text: asString(requireKey(value, "text")),
+    };
+}
+export function toProposeLessonRequestCbor(v) {
+    return encodeValue(toProposeLessonRequestCborValue(v));
+}
+export function fromProposeLessonRequestCbor(bytes) {
+    return fromProposeLessonRequestCborValue(decode(bytes));
+}
+export function toListLessonsRequestCborValue(v) {
+    const csilMap = new Map();
+    if (v.status !== undefined)
+        csilMap.set("status", v.status);
+    return csilMap;
+}
+export function fromListLessonsRequestCborValue(value) {
+    return {
+        status: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "status")),
+    };
+}
+export function toListLessonsRequestCbor(v) {
+    return encodeValue(toListLessonsRequestCborValue(v));
+}
+export function fromListLessonsRequestCbor(bytes) {
+    return fromListLessonsRequestCborValue(decode(bytes));
+}
+export function toListLessonsResponseCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("lessons", v.lessons.map((csilE) => toLessonCborValue(csilE)));
+    return csilMap;
+}
+export function fromListLessonsResponseCborValue(value) {
+    return {
+        lessons: asArray(requireKey(value, "lessons")).map((csilE) => fromLessonCborValue(csilE)),
+    };
+}
+export function toListLessonsResponseCbor(v) {
+    return encodeValue(toListLessonsResponseCborValue(v));
+}
+export function fromListLessonsResponseCbor(bytes) {
+    return fromListLessonsResponseCborValue(decode(bytes));
+}
+export function toDecideLessonRequestCborValue(v) {
+    const csilMap = new Map();
+    csilMap.set("id", v.id);
+    if (v.area !== undefined)
+        csilMap.set("area", v.area);
+    if (v.text !== undefined)
+        csilMap.set("text", v.text);
+    if (v.title !== undefined)
+        csilMap.set("title", v.title);
+    csilMap.set("decision", v.decision);
+    return csilMap;
+}
+export function fromDecideLessonRequestCborValue(value) {
+    return {
+        id: asString(requireKey(value, "id")),
+        decision: asString(requireKey(value, "decision")),
+        title: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "title")),
+        area: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "area")),
+        text: ((csilV) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "text")),
+    };
+}
+export function toDecideLessonRequestCbor(v) {
+    return encodeValue(toDecideLessonRequestCborValue(v));
+}
+export function fromDecideLessonRequestCbor(bytes) {
+    return fromDecideLessonRequestCborValue(decode(bytes));
 }
 export function toDecisionAnswerCborValue(v) {
     const csilMap = new Map();
