@@ -160,6 +160,7 @@ class MainActivity : Activity() {
         runCatching { Updater.settled(this) }
         if (!handleReturn(intent)) start()
         openNotice(intent)
+        openUpdate(intent)
     }
 
     override fun onResume() {
@@ -167,7 +168,10 @@ class MainActivity : Activity() {
         Updater.foreground = this
         Attention.foreground = ::onNotice
         Attention.closed = { ids -> runOnUiThread { ids.forEach { removeNotice(it) } } }
-        work.execute { runCatching { Updater.check(applicationContext) } }
+        work.execute {
+            runCatching { Updater.check(applicationContext) }
+            runOnUiThread { showUpdateReady() }
+        }
         if (settings.token != null) background(null) { Attention.hello(this, client()) }
     }
 
@@ -197,6 +201,7 @@ class MainActivity : Activity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (!handleReturn(intent)) openNotice(intent)
+        openUpdate(intent)
     }
 
     override fun onDestroy() {
@@ -396,22 +401,70 @@ class MainActivity : Activity() {
         m.show()
     }
 
-    /** Asks Magi for a newer build now and tells the result. */
+    /** Asks Magi for a newer build now. A build that is ready gives the question to install it. */
     private fun checkForUpdates() {
         Toast.makeText(this, "Checking for updates...", Toast.LENGTH_SHORT).show()
         work.execute {
-            val result = runCatching { Updater.check(applicationContext, manual = true) }
-            val text = result.fold({ r ->
-                when {
-                    r.startsWith("up to date") -> "This is the newest build."
-                    r.startsWith("installing") -> "A newer build installs now. The app starts again."
-                    r == "no release" -> "The server has no app build."
-                    r == "not signed in" -> "Sign in to check for updates."
-                    else -> r
-                }
-            }, { e -> "The check failed: ${e.message ?: e}" })
-            runOnUiThread { Toast.makeText(this, text, Toast.LENGTH_LONG).show() }
+            val result = runCatching { Updater.check(applicationContext) }
+            runOnUiThread {
+                val text = result.fold({ r ->
+                    when (r) {
+                        "ready" -> { askInstall(); showUpdateReady(); null }
+                        "up to date" -> "This is the newest build."
+                        "no release" -> "The server has no app build."
+                        "not signed in" -> "Sign in to check for updates."
+                        else -> r
+                    }
+                }, { e -> "The check failed: ${e.message ?: e}" })
+                if (text != null) Toast.makeText(this, text, Toast.LENGTH_LONG).show()
+            }
         }
+    }
+
+    /** Opened from the notification of a ready update: ask the person. */
+    private fun openUpdate(intent: Intent?) {
+        if (intent?.getBooleanExtra(Updater.EXTRA_INSTALL, false) != true) return
+        intent.removeExtra(Updater.EXTRA_INSTALL)
+        askInstall()
+    }
+
+    /**
+     * Asks the person to install the downloaded build. The app installs
+     * nothing without this answer: the phone can show a question or a
+     * warning at an install, and the person must expect it.
+     */
+    private fun askInstall() {
+        val r = Updater.ready(this) ?: return
+        val built = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(ChatTime.buildMs(r.code)))
+        AlertDialog.Builder(this)
+            .setTitle("Install the update?")
+            .setMessage("Build ${r.name}, made $built.\n\nThe phone can ask you to confirm the install, or show a warning of Google Play Protect. The app starts again after the install.")
+            .setPositiveButton("Install") { _, _ ->
+                work.execute {
+                    val result = runCatching { Updater.install(applicationContext) }
+                    result.exceptionOrNull()?.let { e ->
+                        Updater.failed(applicationContext, e.message ?: e.toString())
+                        runOnUiThread { Toast.makeText(this, "The install did not start: ${e.message ?: e}", Toast.LENGTH_LONG).show() }
+                    }
+                }
+            }
+            .setNegativeButton("Later", null)
+            .show()
+    }
+
+    private var updateBanner: View? = null
+
+    /** Shows a line at the top of the conversation while a downloaded build waits. */
+    private fun showUpdateReady() {
+        val bar = noticeBar ?: return
+        updateBanner?.let { (it.parent as? LinearLayout)?.removeView(it) }
+        updateBanner = null
+        val r = Updater.ready(this) ?: return
+        val box = ui.card(ui.text("An update is ready", 14f, bold = true), ui.text("Build ${r.name}. The app installs it when you say so.", 13f, ui.p.muted))
+        box.background = ui.shape(ui.p.notice, 14)
+        box.addView(ui.button("Install", Kind.LINK) { askInstall() }.apply { gravity = Gravity.END; minHeight = 0; setPadding(0, ui.dp(6), 0, 0) })
+        updateBanner = box
+        bar.addView(box, 0)
     }
 
     /** The version of the app, the time of its build, and the server. */

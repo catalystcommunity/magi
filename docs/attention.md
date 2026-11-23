@@ -158,7 +158,8 @@ A client app tells its version with `put-device` (`app_version`,
 
 - `put-app-release` sends a notice to each phone that told an older
   build. The answer of `wait-notices` has the newest build
-  (`app_build`), so the app installs the update when the notice comes.
+  (`app_build`), so the app downloads the build when the notice comes.
+  The app installs it only when the person says so.
 - A release can name the task that made it (`task`). When a device of the
   owner of that task tells the new build, or a new `update_error`, Magi
   starts a turn of the persona of the task (an event,

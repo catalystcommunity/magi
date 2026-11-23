@@ -291,7 +291,7 @@ WaitNoticesRequest = { device: text, ? wait_ms: uint, ? closed_after: uint }
 ;;; acknowledged after closed_after (ms): remove them. Send now_ms as
 ;;; closed_after in the next call.
 ;;; app_build is the version code of the newest app release: a client app
-;;; with a lower code updates now.
+;;; with a lower code downloads that release now.
 WaitNoticesResponse = { notices: [* Notice], closed: [* text], now_ms: uint, ? app_build: uint }
 DeliverNoticeRequest = { id: text, device: text, how: text }
 AckNoticeRequest = { id: text, ? device: text }

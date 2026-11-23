@@ -60,20 +60,23 @@ same scheme cannot sign in as the person.
 
 ## Updates
 
-Magi keeps the newest app build. The app checks for it when it opens and
-about once an hour in the background (a `JobScheduler` job, any network).
-Magi also sends a notice for a new build, and the app then installs it at
-once. The app tells Magi its version, and why an update did not install
-(`docs/attention.md`, section 7).
-A build with a higher version code is downloaded, checked against its
-SHA-256 digest, and installed with `PackageInstaller`.
+Magi keeps the newest app build. The app asks for it when it opens, about
+once an hour in the background (a `JobScheduler` job, any network), and
+when Magi sends the notice of a new build.
 
-- An update that waits for a confirmation keeps an install session open.
-  The app abandons its old sessions before each new one. Android refuses
-  a new session when an app has too many open sessions.
-- Updates install without a question only when the app is the installer
-  of record of itself. Install the first build over USB with the app as
-  the installer, and let it install apps:
+- The app downloads a build with a higher version code and checks it
+  against its SHA-256 digest. It does not install the build.
+- The app then shows a system notification ("Magi update is ready") and a
+  line at the top of the conversation. "Check for updates" in the menu
+  does the same check at once.
+- The person confirms, and only then the app installs the build with
+  `PackageInstaller`. The phone can ask for one more confirmation, or
+  show a warning of Google Play Protect, because the build is not from an
+  app store. The person expects it at that moment.
+- The app tells Magi its version, and why an install failed
+  (`docs/attention.md`, section 7).
+- The app is the installer of record of itself when the first build was
+  installed that way, and then Android asks no question of its own:
 
   ```sh
   P=community.catalyst.magi.dev
@@ -84,11 +87,7 @@ SHA-256 digest, and installed with `PackageInstaller`.
   ```
 
   `pm install -i` needs a build of the app already on the phone. On a new
-  phone, use `adb install` first, then the commands above. With a plain
-  `adb install -r`, Android asks you to confirm the first update; after
-  that update, the app is the installer of record.
-- A confirmation that Android asks for while the app is in the background
-  waits until you open the app.
+  phone, use `adb install` first, then the commands above.
 - Updates keep the signing key: build on the same machine (the debug key in
   `~/.android/debug.keystore`), or Android refuses the update.
 - Publish a build (operator, see `magi/README.md`):

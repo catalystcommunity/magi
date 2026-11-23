@@ -147,7 +147,7 @@ class NoticeService : Service() {
         val settings = Settings(this)
         var closedAfter = 0UL
         var lastHello = 0L
-        // The build that this loop tried to install: one try for each build.
+        // The build that this loop asked for: one download for each build.
         var triedBuild = 0L
         while (running) {
             val token = settings.token
@@ -169,14 +169,13 @@ class NoticeService : Service() {
                 val dev = Attention.deviceId(this)
                 val r = client.magi.waitNotices(WaitNoticesRequest(device = dev, waitMs = 25_000UL, closedAfter = closedAfter))
                 closedAfter = r.nowMs
-                // A notice of a new build wakes this call: update now, not at the next hour.
+                // A notice of a new build wakes this call: download it now, not
+                // at the next hour, and tell the person that it is ready.
                 val newest = r.appBuild?.toLong() ?: 0L
                 if (newest > Updater.installedVersion(this) && newest != triedBuild) {
                     triedBuild = newest
                     val result = runCatching { Updater.check(applicationContext) }
                     Log.i("MagiUpdater", "check after a notice: ${result.getOrElse { it.toString() }}")
-                    result.exceptionOrNull()?.let { Updater.failed(this, it.message ?: it.toString()) }
-                    lastHello = 0
                 }
                 if (r.closed.isNotEmpty()) {
                     val nm = getSystemService(NotificationManager::class.java)

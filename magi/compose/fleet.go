@@ -225,8 +225,9 @@ func (s *System) putAppRelease(ctx context.Context, req magiapi.PutAppReleaseReq
 
 // announceAppRelease sends a notice to each phone that reported an older
 // build. The notice wakes the phone, and the answer of wait-notices has the
-// new build, so the app updates at once. A phone that never reported a
-// build gets no notice: it can be a client that is not this app.
+// new build, so the app downloads it at once. A phone that never reported a
+// build gets no notice: it can be a client that is not this app. The app
+// installs the build only when the person says so.
 func (s *System) announceAppRelease(ctx context.Context, rel magiapi.AppRelease) {
 	res, err := s.Conversation.ListDevices(s.AsService(ctx), conversationapi.ListDevicesRequest{All: ptr(true)})
 	if err != nil {
@@ -239,7 +240,7 @@ func (s *System) announceAppRelease(ctx context.Context, rel magiapi.AppRelease)
 		}
 		_, err := s.sendNotice(ctx, noticeReq{owner: d.Person, persona: Engineering, urgency: "low", device: d.Id,
 			title: "App update",
-			text:  fmt.Sprintf("A new build of the Magi app is ready (%s). Your phone %q installs it now. If it does not, open the app.", rel.VersionName, d.Name),
+			text:  fmt.Sprintf("A new build of the Magi app is ready (%s). Your phone %q downloads it and then asks you to install it.", rel.VersionName, d.Name),
 			key:   fmt.Sprintf("app-release:%d/%s/%s", rel.VersionCode, d.Person, d.Id)})
 		if err != nil {
 			s.Log.Warn("app release: notice", "device", d.Id, "err", err)

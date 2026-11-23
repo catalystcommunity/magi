@@ -1,6 +1,9 @@
 package community.catalyst.magi
 
 import android.app.Activity
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.job.JobInfo
 import android.app.job.JobParameters
@@ -16,28 +19,32 @@ import android.util.Log
 import community.catalyst.magi.client.identity.RefreshRequest
 import community.catalyst.magi.client.magi.GetAppPackageRequest
 import community.catalyst.magi.client.magi.GetAppReleaseRequest
+import java.io.File
 import java.security.MessageDigest
 
 /**
  * Self-update from Magi. Magi keeps the newest app build (put-app-release).
- * A periodic job and each start of the app ask for it; a build with a
- * higher version code is downloaded, checked against its SHA-256 digest,
- * and installed with PackageInstaller.
- *
- * Android asks the person to confirm the first update. After that this app
- * is the installer of record of itself, and updates install without a
- * question (USER_ACTION_NOT_REQUIRED). A confirmation that Android asks for
- * while the app is in the background waits until the app is open.
+ * A periodic job, each start of the app, and a notice of a new build ask
+ * for it. A build with a higher version code is downloaded and checked
+ * against its SHA-256 digest. The app then tells the person that an update
+ * is ready. It installs the build only when the person says so: the phone
+ * can ask for a confirmation or show a warning (Google Play Protect) at an
+ * install, and the person must expect that.
  */
 object Updater {
     private const val TAG = "MagiUpdater"
     private const val JOB_ID = 4201
-    /** The tries of one build that the app starts by itself. */
-    private const val MAX_TRIES = 2
+    private const val CHANNEL = "updates"
+    private const val NOTIFICATION = 4202
     const val ACTION_STATUS = "community.catalyst.magi.UPDATE_STATUS"
+    /** The person opened the notification of a ready update. */
+    const val EXTRA_INSTALL = "community.catalyst.magi.INSTALL_UPDATE"
 
     /** The activity in the foreground, which can show a confirmation. */
     @Volatile var foreground: Activity? = null
+
+    /** A downloaded build that waits for the person. */
+    data class Ready(val code: Long, val name: String)
 
     /** Schedules the periodic check (about once an hour, on any network). */
     fun schedule(context: Context) {
@@ -51,14 +58,24 @@ object Updater {
         js.schedule(job)
     }
 
-    /** Checks for a newer build and installs it. Call it off the main thread. */
+    private fun file(context: Context) = File(context.filesDir, "update.apk")
+
+    /** The downloaded build that is newer than the app, or null. */
+    fun ready(context: Context): Ready? {
+        val settings = Settings(context)
+        val code = settings.readyBuild
+        if (code <= installedVersion(context) || !file(context).isFile) return null
+        return Ready(code, settings.readyName)
+    }
+
     /**
-     * manual: the person asked for the check. A check that the app starts
-     * by itself does not try a build again that did not install: a refusal
-     * of the phone (for example of Google Play Protect) shows a dialog, and
-     * each new try would show it again.
+     * Asks Magi for a newer build and downloads it. It installs nothing.
+     * The result is "up to date", "ready" (a build waits for the person),
+     * "no release", or "not signed in". A build that is new to the phone
+     * gives a system notification. Call it off the main thread.
      */
-    fun check(context: Context, manual: Boolean = false): String {
+    @Synchronized
+    fun check(context: Context): String {
         val settings = Settings(context)
         if (settings.server.isEmpty() || settings.token == null) return "not signed in"
         val rpc = HttpCarrier(settings.server) { settings.token }
@@ -68,45 +85,77 @@ object Updater {
         }
         val rel = rpc.magi.getAppRelease(GetAppReleaseRequest()).release ?: return "no release"
         val installed = installedVersion(context)
-        if (rel.versionCode.toLong() <= installed) return "up to date ($installed)"
         val code = rel.versionCode.toLong()
-        if (!manual && settings.failedBuild == code) return "build $code did not install: ${settings.updateError}"
-        // A refusal can come with no answer to the app: two tries, then the person decides.
-        val tries = if (settings.updateBuild == code) settings.updateTries else 0
-        if (!manual && tries >= MAX_TRIES) {
-            if (settings.updateError.isEmpty()) settings.updateError = "The phone did not install build $code after $tries tries. Use \"Check for updates\" to try again."
-            return "build $code did not install after $tries tries"
+        if (code <= installed) {
+            clear(context)
+            return "up to date"
         }
+        if (ready(context)?.code == code) return "ready"
         val apk = rpc.magi.getAppPackage(GetAppPackageRequest(rel.digest)).body
         val sum = "sha256:" + MessageDigest.getInstance("SHA-256").digest(apk).joinToString("") { "%02x".format(it) }
         if (sum != rel.digest) throw IllegalStateException("the app build digest is $sum, not ${rel.digest}")
-        install(context, apk)
-        // A new process starts after the install. It knows from this that
-        // the update installed, and removes an old failure.
-        settings.updateBuild = code
-        settings.updateTries = if (manual) 1 else tries + 1
-        Log.i(TAG, "installing ${rel.versionName} (${rel.versionCode}) over $installed")
-        return "installing ${rel.versionName}"
+        val tmp = File(context.filesDir, "update.apk.part")
+        tmp.writeBytes(apk)
+        if (!tmp.renameTo(file(context))) throw IllegalStateException("the app could not keep the download")
+        settings.readyBuild = code
+        settings.readyName = rel.versionName
+        Log.i(TAG, "downloaded ${rel.versionName} ($code); the app runs $installed")
+        notifyReady(context, Ready(code, rel.versionName))
+        return "ready"
     }
 
-    /** Records why an update did not install. The next put-device tells Magi. */
-    fun failed(context: Context, reason: String) {
+    /** Tells the person that an update waits. A touch opens the app with the question. */
+    private fun notifyReady(context: Context, r: Ready) {
+        val nm = context.getSystemService(NotificationManager::class.java)
+        nm.createNotificationChannel(NotificationChannel(CHANNEL, "App updates", NotificationManager.IMPORTANCE_DEFAULT))
+        val open = Intent(context, MainActivity::class.java).putExtra(EXTRA_INSTALL, true)
+        val pi = PendingIntent.getActivity(context, NOTIFICATION, open, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        nm.notify(NOTIFICATION, Notification.Builder(context, CHANNEL)
+            .setSmallIcon(android.R.drawable.stat_sys_download_done)
+            .setContentTitle("Magi update is ready")
+            .setContentText("Touch to install build ${r.name}.")
+            .setContentIntent(pi)
+            .setAutoCancel(true)
+            .build())
+    }
+
+    /** Installs the downloaded build. The person asked for it. */
+    fun install(context: Context): String {
+        val r = ready(context) ?: return "no update is ready"
         val settings = Settings(context)
-        settings.updateError = reason.take(400)
-        settings.failedBuild = settings.updateBuild
+        settings.updateBuild = r.code
+        settings.updateError = ""
+        commit(context, file(context).readBytes())
+        Log.i(TAG, "installing ${r.name} (${r.code}) over ${installedVersion(context)}")
+        return "installing ${r.name}"
+    }
+
+    /** Records why an update did not install. The next put-device tells Magi. The download stays for a new try. */
+    fun failed(context: Context, reason: String) {
+        Settings(context).updateError = reason.take(400)
         Log.w(TAG, "update failed: $reason")
     }
 
-    /** Removes the failure when the app runs the build that the update gave. */
+    /** After an update that installed: no failure, no download, no notification. */
     fun settled(context: Context) {
         val settings = Settings(context)
-        if (settings.updateError.isNotEmpty() && installedVersion(context) >= settings.updateBuild) settings.updateError = ""
+        if (settings.updateBuild > 0 && installedVersion(context) >= settings.updateBuild) {
+            settings.updateError = ""
+            settings.updateBuild = 0
+        }
+        if (settings.readyBuild > 0 && installedVersion(context) >= settings.readyBuild) clear(context)
+    }
+
+    private fun clear(context: Context) {
+        file(context).delete()
+        Settings(context).readyBuild = 0
+        context.getSystemService(NotificationManager::class.java).cancel(NOTIFICATION)
     }
 
     fun installedVersion(context: Context): Long =
         context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode
 
-    private fun install(context: Context, apk: ByteArray) {
+    private fun commit(context: Context, apk: ByteArray) {
         val pi = context.packageManager.packageInstaller
         // A session that waits for a confirmation stays open. Android permits
         // a fixed number of open sessions for each app, and then refuses a
@@ -144,14 +193,12 @@ class UpdateReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         when (val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)) {
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
-                // The first update: Android asks the person. Only an open app
-                // can show the question; otherwise the next start asks again.
+                // Android asks the person. The person started the install, so the app is open.
                 val confirm = if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)
                     else @Suppress("DEPRECATION") intent.getParcelableExtra(Intent.EXTRA_INTENT)
                 val activity = Updater.foreground
                 if (confirm != null && activity != null) activity.runOnUiThread { activity.startActivity(confirm) }
-                // Not a failure of the build: the next start of the app asks again.
-                else Settings(context).updateError = "Android asks for a confirmation of the update. Open the app."
+                else Updater.failed(context, "Android asked for a confirmation of the update, and the app was not open.")
             }
             PackageInstaller.STATUS_SUCCESS -> Log.i("MagiUpdater", "update installed")
             else -> Updater.failed(context, "Android did not install the update (status $status): ${intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: "no reason"}")

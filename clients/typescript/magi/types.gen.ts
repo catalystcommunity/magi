@@ -463,7 +463,7 @@ export interface WaitNoticesRequest {
  * acknowledged after closed_after (ms): remove them. Send now_ms as
  * closed_after in the next call.
  * app_build is the version code of the newest app release: a client app
- * with a lower code updates now.
+ * with a lower code downloads that release now.
  */
 export interface WaitNoticesResponse {
   notices: Notice[];

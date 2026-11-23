@@ -32,15 +32,14 @@ class Settings(context: Context) {
     var updateError: String
         get() = p.getString("update_error", "") ?: ""
         set(v) = p.edit().putString("update_error", v).apply()
-    /** How many times the app started the install of updateBuild. */
-    var updateTries: Int
-        get() = p.getInt("update_tries", 0)
-        set(v) = p.edit().putInt("update_tries", v).apply()
-    /** The build that did not install. The app does not try it again by itself. */
-    var failedBuild: Long
-        get() = p.getLong("failed_build", 0)
-        set(v) = p.edit().putLong("failed_build", v).apply()
-    /** The build that updateError is about, or that the app expects to run after an update. */
+    /** The build that the app downloaded and that waits for the person, and its version name. */
+    var readyBuild: Long
+        get() = p.getLong("ready_build", 0)
+        set(v) = p.edit().putLong("ready_build", v).apply()
+    var readyName: String
+        get() = p.getString("ready_name", "") ?: ""
+        set(v) = p.edit().putString("ready_name", v).apply()
+    /** The build of the install that the person started. */
     var updateBuild: Long
         get() = p.getLong("update_build", 0)
         set(v) = p.edit().putLong("update_build", v).apply()
