@@ -74,6 +74,9 @@ VOLATILE = re.compile(r"/tmp/\S+|0x[0-9a-f]+|\b[0-9a-f]{12,}\b|\d+(\.\d+)*", re.
 # asks a person (later the supervisor): the endpoint or the money is gone, or
 # the run went wrong. The work stays in the environment. A guard stop does not
 # go to the check, because a check failure would start another work round.
+# One exception is in the runner (magi/runner/steps.go): a "loop" stop with a
+# change in the work tree goes to the check, and a failed check then goes to
+# a person.
 BLOCKED_STATUSES = {"blocked_provider", "model_unavailable", "loop", "no_progress", "stalled",
                     "supervisor_stop", "escalated"}
 

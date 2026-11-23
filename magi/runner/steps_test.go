@@ -90,6 +90,7 @@ func workStepConfig(t *testing.T, result string, vars map[string]string, cfg Con
 	r := &Runner{Cfg: cfg, Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Magi: magiapi.NewRunnerClient(rpc.NewClient(ts.URL, rpc.StaticToken(tok)))}
 	r.Cfg.Apprentice.Python, r.Cfg.Apprentice.Path = python, path
+	r.changedHook = func(a magiapi.RunnerAssignment) bool { return a.Vars["test.changed"] == "true" }
 	if vars == nil {
 		vars = map[string]string{}
 	}
@@ -125,6 +126,32 @@ func TestWorkStepBlocked(t *testing.T) {
 	res, _, _ = workStepResult(t, `{"status": "finished", "outcome": "done", "summary": "done", "steps": 2, "tool_calls": 2}`,
 		map[string]string{"apprentice.blocked": "true"})
 	if v, ok := res.Outputs["apprentice.blocked"]; res.Outcome != "done" || !ok || v != "" {
+		t.Fatalf("result = %+v", res)
+	}
+}
+
+// A loop stop with a change in the work tree goes to the check. With no
+// change, and for each other guard stop, a person decides.
+func TestWorkStepLoopWithChangeGoesToCheck(t *testing.T) {
+	const loop = `{"status": "loop", "outcome": "blocked", "summary": "The same call 5 times.", "steps": 9, "tool_calls": 9}`
+	res, notes, _ := workStepResult(t, loop, map[string]string{"test.changed": "true"})
+	if res.Outcome != "done" || res.Outputs["apprentice.loop_stop"] != "true" || res.Outputs["apprentice.blocked"] != "" ||
+		!hasNote(notes, "The apprentice stopped in a loop, and the environment has a change. The checks decide about the change.") {
+		t.Fatalf("result = %+v, notes = %q", res, notes)
+	}
+	res, _, _ = workStepResult(t, loop, nil)
+	if res.Outcome != "blocked" || res.Outputs["apprentice.loop_stop"] != "" {
+		t.Fatalf("a loop with no change: %+v", res)
+	}
+	res, _, _ = workStepResult(t, `{"status": "stalled", "outcome": "blocked", "summary": "s", "steps": 9, "tool_calls": 9}`,
+		map[string]string{"test.changed": "true"})
+	if res.Outcome != "blocked" {
+		t.Fatalf("a different guard stop with a change: %+v", res)
+	}
+	// A finished round clears the mark of an earlier round.
+	res, _, _ = workStepResult(t, `{"status": "finished", "outcome": "done", "summary": "done", "steps": 2, "tool_calls": 2}`,
+		map[string]string{"apprentice.loop_stop": "true"})
+	if v, ok := res.Outputs["apprentice.loop_stop"]; !ok || v != "" {
 		t.Fatalf("result = %+v", res)
 	}
 }

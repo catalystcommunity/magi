@@ -27,7 +27,33 @@ func fakeChecker(t *testing.T, result string) (command []string, seen string) {
 	return []string{script, "{out}", "{diff}", "{schema}"}, seen
 }
 
+// After a loop stop, a failed check goes to a person and not to a new
+// work round. A passed check goes on as after a finish.
+func TestCheckAfterLoopStop(t *testing.T) {
+	res, _, _ := checkWithVars(t, `{"verdict": "approve", "findings": []}`, map[string]string{"apprentice.loop_stop": "true", "check_command": "false"})
+	if res.Outcome != "blocked" || res.Outputs["apprentice.blocked"] != "true" {
+		t.Fatalf("a failed check after a loop stop: %+v", res)
+	}
+	res, _, _ = checkWithVars(t, `{"verdict": "approve", "findings": []}`, map[string]string{"check_command": "false"})
+	if res.Outcome != "fail-checks" {
+		t.Fatalf("a failed check after a finish: %+v", res)
+	}
+	res, _, _ = checkWithVars(t, `{"verdict": "approve", "findings": []}`, map[string]string{"apprentice.loop_stop": "true"})
+	if res.Outcome != "pass" {
+		t.Fatalf("a passed check after a loop stop: %+v", res)
+	}
+}
+
 func checkWithChecker(t *testing.T, result string, rounds string) (Result, string, *fakeMagi) {
+	t.Helper()
+	more := map[string]string{}
+	if rounds != "" {
+		more["checker.rounds"] = rounds
+	}
+	return checkWithVars(t, result, more)
+}
+
+func checkWithVars(t *testing.T, result string, more map[string]string) (Result, string, *fakeMagi) {
 	t.Helper()
 	up, base, _ := evalUpstream(t)
 	r, out, fake, err := prepareVars(t, up, map[string]string{"repo": "r", "title": "Say hello", "base": base[:7]})
@@ -46,8 +72,8 @@ func checkWithChecker(t *testing.T, result string, rounds string) (Result, strin
 	for k, v := range out {
 		vars[k] = v
 	}
-	if rounds != "" {
-		vars["checker.rounds"] = rounds
+	for k, v := range more {
+		vars[k] = v
 	}
 	a := magiapi.RunnerAssignment{Run: "run_1", Step: "check", Claim: "c", Owner: "user:x@example.local", Vars: vars}
 	res, err := r.check(context.Background(), a, magiapi.RunnerStep{Run: "run_1", Step: "check", Claim: "c"})

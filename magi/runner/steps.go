@@ -276,7 +276,15 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 	r.note(ctx, st, fmt.Sprintf("apprentice %s after %d steps, %d tool calls%s: %s",
 		out.Status, out.Steps, out.ToolCalls, cost, out.Summary))
 	// Each round sets it, so that a later round does not see an old value.
-	outputs["apprentice.blocked"] = ""
+	outputs["apprentice.blocked"], outputs["apprentice.loop_stop"] = "", ""
+	if out.Status == "loop" && r.changed(ctx, a) {
+		// The model made a change and then sent the same call again and
+		// again. The change can be complete, so the check decides. A change
+		// that fails the check goes to a person (check), not to a new round.
+		outputs["apprentice.loop_stop"] = "true"
+		r.note(ctx, st, "The apprentice stopped in a loop, and the environment has a change. The checks decide about the change.")
+		return Result{Outcome: "done", Outputs: outputs}, nil
+	}
 	switch out.Outcome {
 	case "fail", "":
 		if out.Status == "error" || out.Outcome == "fail" {
@@ -395,6 +403,18 @@ func (r *Runner) preflight(ctx context.Context, env, workdir string) (string, er
 	return fmt.Sprintf("%s: %s: %s", cmd, exitText(res), tail(strings.TrimSpace(string(res.Stdout)+string(res.Stderr)), 500)), nil
 }
 
+// changed reports whether the work tree of the task has a change against
+// the base commit: a file that git does not ignore, or a commit. An error
+// is "no change": the stop then goes to a person, as before.
+func (r *Runner) changed(ctx context.Context, a magiapi.RunnerAssignment) bool {
+	if r.changedHook != nil {
+		return r.changedHook(a)
+	}
+	res, err := r.exec(ctx, a.Vars["environment"], a.Vars["workdir"],
+		"git status --porcelain | head -n 1; git rev-list --max-count=1 "+shellQuote(a.Vars["base_commit"])+"..HEAD", 60000)
+	return err == nil && res.ExitCode == 0 && strings.TrimSpace(string(res.Stdout)) != ""
+}
+
 // roundComment is the comment of a person for the next work round: after a
 // blocked round, the comment of the "blocked" decision (resume); otherwise
 // the review comment (revise). The apprentice worker has the same rule
@@ -437,6 +457,13 @@ func (r *Runner) check(ctx context.Context, a magiapi.RunnerAssignment, st magia
 	out := map[string]string{"check.output": art.Digest, "check.attempts": strconv.Itoa(attempts), "apprentice.blocked": ""}
 	failed := func(why string) (Result, error) {
 		out["check_output"] = why
+		if a.Vars["apprentice.loop_stop"] == "true" {
+			// The work round ended in a loop, not with a finish. One more
+			// round of the same model has a small chance: a person decides.
+			out["apprentice.blocked"] = "true"
+			r.report(ctx, st, "normal", "Task blocked", "The apprentice stopped in a loop, and the checks failed on the change that it left. The work is kept. Resume it, run the checks again, or reject it.")
+			return Result{Outcome: "blocked", Outputs: out}, nil
+		}
 		if attempts >= maxCheckAttempts {
 			out["task.result"] = "gave-up"
 			r.report(ctx, st, "normal", "Task stopped", fmt.Sprintf("The checks failed %d times. I stopped the task. The last output is in artifact %s.", attempts, art.Digest))

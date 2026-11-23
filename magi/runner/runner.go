@@ -240,6 +240,8 @@ type Runner struct {
 	version  string
 	busy     atomic.Int64 // steps that run now
 	updating atomic.Bool  // no new claims during an update
+	// changedHook replaces the look into the work tree (changed) in a test.
+	changedHook func(magiapi.RunnerAssignment) bool
 	// proxies are the proxy sockets of the environments (egress.go).
 	mu      sync.Mutex
 	proxies map[string]net.Listener
