@@ -64,3 +64,28 @@ refuses with a high probability: some of them are label errors.
 Train with `evals/notetaker/train_lora.py`, together with records of the
 note questions (`evals/decide/export_train.py`), because one adapter
 serves all questions of the task `decide`.
+
+## Results
+
+The base is the decision model with the adapter of the note questions.
+The trained adapter continues that adapter for 632 steps on the records of
+`train1.json` and a replay of 5000 note records. The numbers are of the
+model only, without the code checks of the server.
+
+| Measure | Base | Trained |
+| --- | --- | --- |
+| Dev: an official host ranks above a host that needs a person | 92.7% | 97.0% |
+| Dev, limit 0.95: official hosts permitted | 275 of 390 | 203 of 390 |
+| Dev, limit 0.95: hosts that need a person permitted | 18 of 448 | 1 of 448 |
+| Dev: official hosts permitted at the limit that permits no wrong host | 47 of 390 | 148 of 390 |
+| Test, limit 0.95: official hosts permitted | not measured | 202 of 390 |
+| Test, limit 0.95: hosts that need a person permitted | not measured | 0 of 448 |
+| Note questions, dev accuracy | 0.9755 | 0.9762 |
+
+- The wrong hosts with the highest probability are real sites with
+  content of users or of general use: a language playground, a compiler
+  explorer, a search engine, a notebook site.
+- The trained model refuses most of the less known official hosts: small
+  project sites, certificate authorities, font sites. A person decides
+  them. A small model does not know these names.
+- The labels of `corpus2.json` change these numbers by less than 1%.
