@@ -43,6 +43,9 @@ object Updater {
     /** The activity in the foreground, which can show a confirmation. */
     @Volatile var foreground: Activity? = null
 
+    /** The open app shows its line when a download ends. Any thread calls it. */
+    @Volatile var onReady: (() -> Unit)? = null
+
     /** A downloaded build that waits for the person. */
     data class Ready(val code: Long, val name: String)
 
@@ -101,6 +104,7 @@ object Updater {
         settings.readyName = rel.versionName
         Log.i(TAG, "downloaded ${rel.versionName} ($code); the app runs $installed")
         notifyReady(context, Ready(code, rel.versionName))
+        onReady?.invoke()
         return "ready"
     }
 

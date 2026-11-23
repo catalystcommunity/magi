@@ -166,6 +166,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         Updater.foreground = this
+        Updater.onReady = { runOnUiThread { showUpdateReady() } }
         Attention.foreground = ::onNotice
         Attention.closed = { ids -> runOnUiThread { ids.forEach { removeNotice(it) } } }
         work.execute {
@@ -176,7 +177,10 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() {
-        if (Updater.foreground === this) Updater.foreground = null
+        if (Updater.foreground === this) {
+            Updater.foreground = null
+            Updater.onReady = null
+        }
         // Hands-free talk keeps the notices here: the person still talks with the app.
         if (!handsFree.on) {
             Attention.foreground = null
