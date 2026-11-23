@@ -98,7 +98,7 @@ def record(host, title, yes):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--train", default=str(HERE / "train1.json"))
+    p.add_argument("--train", default=str(HERE / "train2.json"))
     p.add_argument("--out", required=True)
     p.add_argument("--seed", type=int, default=1)
     p.add_argument("--look-alikes", type=int, default=2, help="names that look like each known host")

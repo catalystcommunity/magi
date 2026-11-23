@@ -48,7 +48,16 @@ The question text is also in `magi/compose/egressauto.go`
 - `decide_destinations.py --server URL --split dev|test` scores a
   llama-server directly, for the checkpoints of a training run.
 
-The labels come from a model, not from a person. A host of the list of
+- `corpus2.json` and `train2.json`: the same hosts after a blind check.
+  Twelve runs of a second model labeled each host from the name only. The
+  check and the writer agreed on 4043 of 4130 hosts. An official host
+  that the check refused is in `either` (a real vendor site, the policy
+  is not clear) or in `ask` (the check does not know the host). No command
+  scores or trains on `either`. Each entry of `corpus2.json` names its
+  half (`split`), so the halves are the same as in `corpus1.json`. Use
+  the second versions for new work.
+
+The labels come from two models, not from a person. A host of the list of
 official hosts can be wrong. Look at the hosts that a trained model
 refuses with a high probability: some of them are label errors.
 

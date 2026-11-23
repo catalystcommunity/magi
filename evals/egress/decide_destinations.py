@@ -38,7 +38,9 @@ def main():
     a = p.parse_args()
     hosts = json.load(open(a.hosts))
     if a.split:
-        hosts = {k: v[(0 if a.split == "dev" else 1)::2] for k, v in hosts.items()}
+        # An entry can name its half. Without a name, the even entries are dev.
+        hosts = {k: [e for i, e in enumerate(v) if e.get("split", "dev" if i % 2 == 0 else "test") == a.split]
+                 for k, v in hosts.items()}
     q = {"id": "egress-known-source", "type": "noul", "question": QUESTION}
     if a.server:
         sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "decide"))
