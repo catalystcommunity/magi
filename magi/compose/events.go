@@ -124,6 +124,7 @@ func (s *System) wakeFor(ctx context.Context, a workflowapi.Assignment, report, 
 	au, err := s.restore(a.Owner, a.Vars)
 	stream := a.Vars["stream"]
 	if err != nil || au.Persona == "" || stream == "" || !(principal{subject: au.Principal}).person() {
+		s.Log.Debug("event: no persona of a person started this work", "run", a.Run, "report", report, "err", err)
 		return
 	}
 	ctx = s.AsService(ctx)

@@ -277,9 +277,15 @@ func (s *System) appUpdated(ctx context.Context, before, after conversationapi.D
 		return
 	}
 	run, err := s.Workflow.GetRun(s.AsService(ctx), workflowapi.GetRunRequest{Id: task})
-	if err != nil || run.Owner != after.Person {
+	if err != nil {
+		s.Log.Warn("app update: the task of the release", "task", task, "err", err)
 		return
 	}
+	if run.Owner != after.Person {
+		// The phone of a different person: the notice of the release was enough.
+		return
+	}
+	s.Log.Info("app update", "task", task, "device", after.Id, "event", report)
 	s.wakeFor(ctx, workflowapi.Assignment{Run: run.Id, Owner: run.Owner, Vars: run.Vars}, fmt.Sprintf("%s %d %s", report, rel.VersionCode, after.Id), what)
 }
 
