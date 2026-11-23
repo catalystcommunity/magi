@@ -100,6 +100,15 @@ class ModelTest(unittest.TestCase):
         self.assertEqual(len(slept), 4)
         self.assertEqual(slept[0], 2.0)
 
+    def test_retries_an_answer_that_stops_in_the_middle(self):
+        import http.client
+        m, slept = model(Opener([http.client.IncompleteRead(b"{"), OK]))
+        self.assertEqual(m.complete([], []).tool_calls[0].id, "x1")
+        self.assertEqual(len(slept), 1)
+        m, _ = model(Opener([http.client.IncompleteRead(b"{")] * 10))
+        with self.assertRaises(ModelError):
+            m.complete([], [])
+
     def test_joins_a_streamed_answer(self):
         m, _ = model(Opener([STREAM]))
         r = m.complete([], [{"type": "function"}])

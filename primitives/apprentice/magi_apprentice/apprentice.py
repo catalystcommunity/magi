@@ -273,8 +273,11 @@ def add_start_context(task: Task, tools: Tools, transcript: Transcript) -> Task:
     """Give the task the project instructions and the repository picture.
     The harness calls this once, before the first model call."""
     text, name = read_project_instructions(tools)
-    task.project_instructions, task.project_instructions_file = text, name
-    task.repository = repository_picture(tools)
+    # The redactor removes known secrets from each tool result before the
+    # model gets it. These texts are also from the environment.
+    redact = transcript.redactor.text
+    task.project_instructions, task.project_instructions_file = (redact(text) if text else text), name
+    task.repository = redact(repository_picture(tools))
     transcript.record("start_context", file=name, instructions_chars=len(text or ""),
                       repository_chars=len(task.repository or ""))
     return task

@@ -5,6 +5,7 @@ the same API. Only configuration differs.
 """
 from __future__ import annotations
 
+import http.client
 import json
 import random
 import re
@@ -297,8 +298,9 @@ class ChatModel:
                     continue
                 if ra and ra.isdigit():
                     delay = min(60.0, float(ra))
-            except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError) as e:
-                last = f"connection: {getattr(e, 'reason', e)}"
+            except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError, http.client.HTTPException) as e:
+                # HTTPException: the answer stopped in the middle (IncompleteRead).
+                last = f"connection: {getattr(e, 'reason', None) or repr(e)}"
             except ValueError as e:
                 last = f"bad response: {e}"
             except CallTimeout as e:

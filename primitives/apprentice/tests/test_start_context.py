@@ -40,6 +40,15 @@ class ProjectInstructionsTest(unittest.TestCase):
         # before the task instructions
         self.assertLess(user.index("Project instructions"), user.index("Task instructions:"))
 
+    def test_a_known_secret_in_the_instructions_does_not_reach_the_model(self):
+        a, model, _, tr = apprentice([reply(call("finish", summary="s"))],
+                                     files={"/work/repo/AGENTS.md": "Deploy with the key sk-test-abcdef123456.\n"})
+        tr.redactor.add("sk-test-abcdef123456")
+        a.run(Task("t"))
+        user = first_user(model)
+        self.assertIn("Deploy with the key ", user)
+        self.assertNotIn("sk-test-abcdef123456", user)
+
     def test_claude_md_when_no_agents_md(self):
         a, model, _, _ = apprentice([reply(call("finish", summary="s"))],
                                     files={"/work/repo/CLAUDE.md": "Use Rust.\n"})
