@@ -114,7 +114,7 @@ var usage = `usage: magi [--server URL] <command> [args]
   runner-release VERSION DIR   operator: upload DIR/magi-runner-<os>-<arch>.tar.gz
                              (from go run ./cmd/runner-package) and make VERSION
                              the release; runners update when idle
-  app-release CODE NAME APK  operator: publish an Android app build
+  app-release CODE NAME APK [TASK]  operator: publish an Android app build (TASK: the task that made it)
 ` + attentionUsage[1:] + `
 
 The server comes from --server, MAGI_SERVER, or the login profile.
@@ -454,8 +454,12 @@ func (c *cli) run(cmd string, args []string) error {
 		}
 		fmt.Printf("runner release %s: %s\n", res.Version, strings.Join(res.Packages, ", "))
 	case "app-release":
-		if len(args) != 3 {
-			return errors.New("app-release VERSION_CODE VERSION_NAME APK")
+		if len(args) != 3 && len(args) != 4 {
+			return errors.New("app-release VERSION_CODE VERSION_NAME APK [TASK]")
+		}
+		var task *string
+		if len(args) == 4 {
+			task = &args[3]
 		}
 		code, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
@@ -465,7 +469,7 @@ func (c *cli) run(cmd string, args []string) error {
 		if err != nil {
 			return err
 		}
-		rel, err := c.magi.PutAppRelease(c.ctx, magiapi.PutAppReleaseRequest{VersionCode: code, VersionName: args[1], Body: b})
+		rel, err := c.magi.PutAppRelease(c.ctx, magiapi.PutAppReleaseRequest{VersionCode: code, VersionName: args[1], Body: b, Task: task})
 		if err != nil {
 			return err
 		}

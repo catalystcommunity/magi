@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -71,7 +72,7 @@ func (m *Service) Say(ctx context.Context, req magiapi.SayRequest) (magiapi.SayR
 	persona := personaOr(req.Persona)
 	// "Computer, ..." and "Engineering, ...": the person names the persona
 	// that they talk to, as on the bridge of a starship.
-	p := s.addressed(uctx, text)
+	p := s.addressed(uctx, text, modality == "voice")
 	if p != "" {
 		persona = p
 	} else if deref(req.WakeWord) {
@@ -256,7 +257,7 @@ func (m *Service) ListPersonas(ctx context.Context, req magiapi.ListPersonasRequ
 	}
 	out := magiapi.ListPersonasResponse{Personas: []magiapi.PersonaInfo{}}
 	for _, p := range res.Personas {
-		out.Personas = append(out.Personas, magiapi.PersonaInfo{Id: p.Id, Name: p.Name, Sharing: p.Sharing, Members: p.Members})
+		out.Personas = append(out.Personas, magiapi.PersonaInfo{Id: p.Id, Name: p.Name, Sharing: p.Sharing, Members: p.Members, Voice: p.Voice})
 	}
 	return out, nil
 }
@@ -268,11 +269,11 @@ func (m *Service) PutPersona(ctx context.Context, req magiapi.PutPersonaRequest)
 	if !strings.HasPrefix(req.Id, "persona:") {
 		return magiapi.PersonaInfo{}, rpc.Invalid("a persona id starts with persona:")
 	}
-	p, err := m.S.Conversation.PutPersona(m.S.AsService(ctx), conversationapi.PutPersonaRequest{Id: req.Id, Name: req.Name, Sharing: req.Sharing, Members: req.Members})
+	p, err := m.S.Conversation.PutPersona(m.S.AsService(ctx), conversationapi.PutPersonaRequest{Id: req.Id, Name: req.Name, Sharing: req.Sharing, Members: req.Members, Voice: req.Voice})
 	if err != nil {
 		return magiapi.PersonaInfo{}, err
 	}
-	return magiapi.PersonaInfo{Id: p.Id, Name: p.Name, Sharing: p.Sharing, Members: p.Members}, nil
+	return magiapi.PersonaInfo{Id: p.Id, Name: p.Name, Sharing: p.Sharing, Members: p.Members, Voice: p.Voice}, nil
 }
 
 func msgIndex(us []conversationapi.Utterance) map[string]conversationapi.Utterance {
@@ -408,18 +409,26 @@ var aliases = map[string][]string{
 	Assistant:   {"assistant", "executive assistant"},
 }
 
+// greeting is a word that people put before the name of a persona, with
+// the marks that speech to text writes after it ("Hey, Archimedes").
+var greeting = regexp.MustCompile(`^(hey|hi|hello|ok|okay)[\s,.!]+`)
+
 // addressed returns the persona that text calls by name at its start
-// ("Computer, what time is it?"), or "". The name must come first. After a
-// word that people also use in other sentences ("computer", "engineering")
-// a comma, colon, or exclamation mark must follow, so that "computer
-// science is hard" does not call a persona. A proper name of a persona
-// ("Beatrice", "Archimedes") needs no mark: speech to text often writes
-// "Beatrice remind me" with no comma.
-func (s *System) addressed(ctx context.Context, text string) string {
+// ("Computer, what time is it?"), or "". The name must come first, after
+// an optional greeting. After a word that people also use in other
+// sentences ("computer", "engineering") a comma, colon, or exclamation
+// mark must follow, so that "computer science is hard" does not call a
+// persona. A proper name of a persona ("Beatrice", "Archimedes") needs no
+// mark: speech to text often writes "Beatrice remind me" with no comma.
+//
+// spoken: the text is from speech to text, which writes a proper name in
+// more than one way ("Archimedies"). Then a first word that is almost the
+// proper name also calls the persona. A text that a person wrote must
+// have the name.
+func (s *System) addressed(ctx context.Context, text string, spoken bool) string {
 	t := strings.ToLower(strings.TrimSpace(text))
-	for _, hey := range []string{"hey ", "ok ", "okay "} {
-		t = strings.TrimPrefix(t, hey)
-	}
+	greeted := greeting.MatchString(t)
+	t = greeting.ReplaceAllString(t, "")
 	name := ""
 	if end := strings.IndexAny(t, ",:!.?"); end > 0 && end <= 40 {
 		name = strings.TrimSpace(t[:end])
@@ -435,6 +444,7 @@ func (s *System) addressed(ctx context.Context, text string) string {
 	}
 	first, _, _ := strings.Cut(t, " ")
 	first = strings.TrimRight(first, ",:!.?")
+	near, nearCount := "", 0
 	for _, p := range res.Personas {
 		n := strings.ToLower(strings.TrimSpace(p.Name))
 		if n == "" {
@@ -443,6 +453,19 @@ func (s *System) addressed(ctx context.Context, text string) string {
 		if n == name || properName(p.Name) && n == first && first != t {
 			return p.Id
 		}
+		// One different letter for a name of 5 letters, two for 8 or more.
+		if spoken && properName(p.Name) && first != t && len(n) >= 5 && editDistance(n, first) <= (len(n)+2)/5 {
+			near, nearCount = p.Id, nearCount+1
+		}
+	}
+	if nearCount == 1 {
+		return near
+	}
+	if spoken && greeted && first != "" {
+		// A greeting and then a word that is not a name: the name was
+		// probably heard wrong. The log has only that word, for the
+		// household lexicon (docs/attention.md).
+		s.Log.Info("spoken name not known", "word", first)
 	}
 	return ""
 }

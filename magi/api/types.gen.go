@@ -52,6 +52,7 @@ type PersonaInfo struct {
 	Name    string   `json:"name" yaml:"name"`
 	Sharing string   `json:"sharing" yaml:"sharing"`
 	Members []string `json:"members" yaml:"members"`
+	Voice   *string  `json:"voice,omitempty" yaml:"voice,omitempty"`
 }
 
 // ListPersonasRequest represents a structured data type
@@ -69,6 +70,7 @@ type PutPersonaRequest struct {
 	Name    string   `json:"name" yaml:"name"`
 	Sharing string   `json:"sharing" yaml:"sharing"`
 	Members []string `json:"members,omitempty" yaml:"members,omitempty"`
+	Voice   *string  `json:"voice,omitempty" yaml:"voice,omitempty"`
 }
 
 // SayRequest represents a structured data type
@@ -304,23 +306,29 @@ type CheckOverlapResponse struct {
 
 // Device represents a structured data type
 type Device struct {
-	Id        string   `json:"id" yaml:"id"`
-	Kind      string   `json:"kind" yaml:"kind"`
-	Name      string   `json:"name" yaml:"name"`
-	Can       []string `json:"can" yaml:"can"`
-	Active    bool     `json:"active" yaml:"active"`
-	HandsFree bool     `json:"hands_free" yaml:"hands_free"`
-	SeenMs    uint64   `json:"seen_ms" yaml:"seen_ms"`
+	Id          string   `json:"id" yaml:"id"`
+	Kind        string   `json:"kind" yaml:"kind"`
+	Name        string   `json:"name" yaml:"name"`
+	Can         []string `json:"can" yaml:"can"`
+	Active      bool     `json:"active" yaml:"active"`
+	HandsFree   bool     `json:"hands_free" yaml:"hands_free"`
+	SeenMs      uint64   `json:"seen_ms" yaml:"seen_ms"`
+	AppVersion  *string  `json:"app_version,omitempty" yaml:"app_version,omitempty"`
+	AppBuild    *uint64  `json:"app_build,omitempty" yaml:"app_build,omitempty"`
+	UpdateError *string  `json:"update_error,omitempty" yaml:"update_error,omitempty"`
 }
 
 // PutDeviceRequest represents a structured data type
 type PutDeviceRequest struct {
-	Id        string   `json:"id" yaml:"id"`
-	Kind      string   `json:"kind" yaml:"kind"`
-	Name      string   `json:"name" yaml:"name"`
-	Can       []string `json:"can,omitempty" yaml:"can,omitempty"`
-	Active    *bool    `json:"active,omitempty" yaml:"active,omitempty"`
-	HandsFree *bool    `json:"hands_free,omitempty" yaml:"hands_free,omitempty"`
+	Id          string   `json:"id" yaml:"id"`
+	Kind        string   `json:"kind" yaml:"kind"`
+	Name        string   `json:"name" yaml:"name"`
+	Can         []string `json:"can,omitempty" yaml:"can,omitempty"`
+	Active      *bool    `json:"active,omitempty" yaml:"active,omitempty"`
+	HandsFree   *bool    `json:"hands_free,omitempty" yaml:"hands_free,omitempty"`
+	AppVersion  *string  `json:"app_version,omitempty" yaml:"app_version,omitempty"`
+	AppBuild    *uint64  `json:"app_build,omitempty" yaml:"app_build,omitempty"`
+	UpdateError *string  `json:"update_error,omitempty" yaml:"update_error,omitempty"`
 }
 
 // ListDevicesRequest represents a structured data type
@@ -367,9 +375,10 @@ type WaitNoticesRequest struct {
 
 // WaitNoticesResponse represents a structured data type
 type WaitNoticesResponse struct {
-	Notices []Notice `json:"notices" yaml:"notices"`
-	Closed  []string `json:"closed" yaml:"closed"`
-	NowMs   uint64   `json:"now_ms" yaml:"now_ms"`
+	Notices  []Notice `json:"notices" yaml:"notices"`
+	Closed   []string `json:"closed" yaml:"closed"`
+	NowMs    uint64   `json:"now_ms" yaml:"now_ms"`
+	AppBuild *uint64  `json:"app_build,omitempty" yaml:"app_build,omitempty"`
 }
 
 // DeliverNoticeRequest represents a structured data type
@@ -881,9 +890,10 @@ type AppRelease struct {
 
 // PutAppReleaseRequest represents a structured data type
 type PutAppReleaseRequest struct {
-	VersionCode uint64 `json:"version_code" yaml:"version_code"`
-	VersionName string `json:"version_name" yaml:"version_name"`
-	Body        []byte `json:"body" yaml:"body"`
+	VersionCode uint64  `json:"version_code" yaml:"version_code"`
+	VersionName string  `json:"version_name" yaml:"version_name"`
+	Body        []byte  `json:"body" yaml:"body"`
+	Task        *string `json:"task,omitempty" yaml:"task,omitempty"`
 }
 
 // GetAppReleaseRequest represents a structured data type

@@ -15,7 +15,12 @@ import community.catalyst.magi.client.magi.AdminListChatsRequest
 import community.catalyst.magi.client.magi.AdminListRunsRequest
 import community.catalyst.magi.client.magi.AdminReadChatRequest
 import community.catalyst.magi.client.magi.AdminTurnLogRequest
+import android.widget.Toast
+import community.catalyst.magi.client.magi.ListPersonasRequest
 import community.catalyst.magi.client.magi.ListRunnersRequest
+import community.catalyst.magi.client.magi.ListVoicesRequest
+import community.catalyst.magi.client.magi.PutPersonaRequest
+import community.catalyst.magi.client.magi.SpeakRequest
 import community.catalyst.magi.client.magi.QueryKnowledgeRequest
 
 // The admin views: what an operator sees (get-access). Magi checks the role
@@ -254,4 +259,45 @@ private fun MainActivity.textDialog(title: String, text: String) {
         setPadding(ui.dp(16), ui.dp(12), ui.dp(16), ui.dp(12))
     }
     AlertDialog.Builder(this).setTitle(title).setView(ScrollView(this).apply { addView(view) }).setPositiveButton("Close", null).show()
+}
+
+/** The voices of the speech engine for the persona on the page: try one, then use it. */
+internal fun MainActivity.showVoices() {
+    val id = persona
+    background(null) {
+        val voices = runCatching { client().magi.listVoices(ListVoicesRequest()).voices }
+        val current = runCatching { client().magi.listPersonas(ListPersonasRequest()).personas.firstOrNull { it.id == id } }.getOrNull()
+        runOnUiThread {
+            val list = voices.getOrNull()
+            if (list == null || current == null) {
+                textDialog("Voice", "Magi did not give the voices: ${voices.exceptionOrNull()?.message ?: "the persona is not there"}")
+                return@runOnUiThread
+            }
+            val col = ui.column(16)
+            lateinit var dialog: AlertDialog
+            val status = ui.text("All people hear ${current.name} with this voice. Try a voice, then use it.", 13f, ui.p.muted).apply { setPadding(0, 0, 0, ui.dp(8)) }
+            col.addView(status)
+            fun use(voice: String) = background(status) {
+                client().magi.putPersona(PutPersonaRequest(id = current.id, name = current.name, sharing = current.sharing, members = current.members, voice = voice))
+                runOnUiThread { dialog.dismiss(); Toast.makeText(this, "${current.name} has a new voice.", Toast.LENGTH_SHORT).show() }
+            }
+            fun row(label: String, voice: String, selected: Boolean) {
+                val r = ui.row().apply { setPadding(0, ui.dp(4), 0, ui.dp(4)) }
+                r.addView(ui.text(label, 15f, if (selected) ui.p.accent else ui.p.text, bold = selected), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                r.addView(ui.button("Try") {
+                    status.text = "Making the sample..."
+                    background(status) {
+                        val a = client().magi.speak(SpeakRequest(text = "Hello. I am ${current.name}. This is how I sound.", voice = voice.ifEmpty { null }))
+                        runOnUiThread { status.text = ""; playSample(a.audio, a.mediaType) }
+                    }
+                })
+                r.addView(ui.gap(8))
+                r.addView(ui.button(if (selected) "In use" else "Use", if (selected) Kind.LINK else Kind.PRIMARY) { if (!selected) use(voice) })
+                col.addView(r)
+            }
+            row("Default voice", "", current.voice.isNullOrEmpty())
+            for (v in list.sortedBy { it.name }) row("${v.name} (${v.language})", v.id, v.id == current.voice)
+            dialog = AlertDialog.Builder(this).setTitle("Voice of ${current.name}").setView(ScrollView(this).apply { addView(col) }).setPositiveButton("Close", null).show()
+        }
+    }
 }

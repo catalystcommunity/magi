@@ -13,6 +13,7 @@ class Persona:
     sharing: str
     members: List[str]
     updated_ms: int
+    voice: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -26,12 +27,14 @@ class Persona:
             result['members'] = self.members
         if hasattr(self, 'updated_ms') and self.updated_ms is not None:
             result['updated_ms'] = self.updated_ms
+        if hasattr(self, 'voice') and self.voice is not None:
+            result['voice'] = self.voice
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Persona':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), name=data.get('name'), sharing=data.get('sharing'), members=data.get('members'), updated_ms=data.get('updated_ms'))
+        return cls(id=data.get('id'), name=data.get('name'), sharing=data.get('sharing'), members=data.get('members'), updated_ms=data.get('updated_ms'), voice=data.get('voice'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -462,6 +465,9 @@ class Device:
     hands_free: bool
     seen_ms: int
     created_ms: int
+    app_version: Optional[str] = None
+    app_build: Optional[int] = None
+    update_error: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -483,12 +489,18 @@ class Device:
             result['seen_ms'] = self.seen_ms
         if hasattr(self, 'created_ms') and self.created_ms is not None:
             result['created_ms'] = self.created_ms
+        if hasattr(self, 'app_version') and self.app_version is not None:
+            result['app_version'] = self.app_version
+        if hasattr(self, 'app_build') and self.app_build is not None:
+            result['app_build'] = self.app_build
+        if hasattr(self, 'update_error') and self.update_error is not None:
+            result['update_error'] = self.update_error
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Device':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), person=data.get('person'), kind=data.get('kind'), name=data.get('name'), can=data.get('can'), active=data.get('active'), hands_free=data.get('hands_free'), seen_ms=data.get('seen_ms'), created_ms=data.get('created_ms'))
+        return cls(id=data.get('id'), person=data.get('person'), kind=data.get('kind'), name=data.get('name'), can=data.get('can'), active=data.get('active'), hands_free=data.get('hands_free'), seen_ms=data.get('seen_ms'), created_ms=data.get('created_ms'), app_version=data.get('app_version'), app_build=data.get('app_build'), update_error=data.get('update_error'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -598,6 +610,7 @@ class PutPersonaRequest:
     name: str
     sharing: str
     members: Optional[List[str]] = None
+    voice: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -609,12 +622,14 @@ class PutPersonaRequest:
             result['sharing'] = self.sharing
         if hasattr(self, 'members') and self.members is not None:
             result['members'] = self.members
+        if hasattr(self, 'voice') and self.voice is not None:
+            result['voice'] = self.voice
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'PutPersonaRequest':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), name=data.get('name'), sharing=data.get('sharing'), members=data.get('members'))
+        return cls(id=data.get('id'), name=data.get('name'), sharing=data.get('sharing'), members=data.get('members'), voice=data.get('voice'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -1851,6 +1866,9 @@ class PutDeviceRequest:
     can: Optional[List[str]] = None
     active: Optional[bool] = None
     hands_free: Optional[bool] = None
+    app_version: Optional[str] = None
+    app_build: Optional[int] = None
+    update_error: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -1866,12 +1884,18 @@ class PutDeviceRequest:
             result['active'] = self.active
         if hasattr(self, 'hands_free') and self.hands_free is not None:
             result['hands_free'] = self.hands_free
+        if hasattr(self, 'app_version') and self.app_version is not None:
+            result['app_version'] = self.app_version
+        if hasattr(self, 'app_build') and self.app_build is not None:
+            result['app_build'] = self.app_build
+        if hasattr(self, 'update_error') and self.update_error is not None:
+            result['update_error'] = self.update_error
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'PutDeviceRequest':
         """Create instance from dictionary."""
-        return cls(id=data.get('id'), kind=data.get('kind'), name=data.get('name'), can=data.get('can'), active=data.get('active'), hands_free=data.get('hands_free'))
+        return cls(id=data.get('id'), kind=data.get('kind'), name=data.get('name'), can=data.get('can'), active=data.get('active'), hands_free=data.get('hands_free'), app_version=data.get('app_version'), app_build=data.get('app_build'), update_error=data.get('update_error'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -1886,17 +1910,20 @@ class PutDeviceRequest:
 @dataclass
 class ListDevicesRequest:
     person: Optional[str] = None
+    all: Optional[bool] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'person') and self.person is not None:
             result['person'] = self.person
+        if hasattr(self, 'all') and self.all is not None:
+            result['all'] = self.all
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListDevicesRequest':
         """Create instance from dictionary."""
-        return cls(person=data.get('person'))
+        return cls(person=data.get('person'), all=data.get('all'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

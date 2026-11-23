@@ -14,13 +14,16 @@ options {
 
 ;;; sharing: "never", "private" (private by default), or "public" (shared
 ;;; with the audience by default). members is the audience: the subjects
-;;; that can read the utterances that are shared with this persona.
+;;; that can read the utterances that are shared with this persona. voice
+;;; is the voice id of the speech of this persona; absent: the default
+;;; voice of the speech engine.
 Persona = {
   id: text,
   name: text,
   sharing: text,
   members: [* text],
   updated_ms: uint,
+  ? voice: text,
 }
 
 Stream = {
@@ -165,6 +168,9 @@ Device = {
   hands_free: bool,
   seen_ms: uint,
   created_ms: uint,
+  ? app_version: text,
+  ? app_build: uint,
+  ? update_error: text,
 }
 
 ;;; A notice tells the person about an utterance of a persona (the text
@@ -192,7 +198,8 @@ Notice = {
 NoticeDelivery = { device: text, how: text, at_ms: uint }
 
 ;;; Operator call (scope "conversation:admin").
-PutPersonaRequest = { id: text, name: text, sharing: text, ? members: [* text] }
+;;; voice absent: the persona keeps its voice. voice "": the default voice.
+PutPersonaRequest = { id: text, name: text, sharing: text, ? members: [* text], ? voice: text }
 GetPersonaRequest = { id: text }
 ListPersonasRequest = { }
 ListPersonasResponse = { personas: [* Persona] }
@@ -352,9 +359,13 @@ PutDeviceRequest = {
   ? can: [* text],
   ? active: bool,
   ? hands_free: bool,
+  ? app_version: text,
+  ? app_build: uint,
+  ? update_error: text,
 }
-;;; Devices of the caller, or of person (needs act-as), newest first.
-ListDevicesRequest = { ? person: text }
+;;; Devices of the caller, or of person (needs act-as), newest first. all:
+;;; the devices of all people (needs the admin scope).
+ListDevicesRequest = { ? person: text, ? all: bool }
 ListDevicesResponse = { devices: [* Device] }
 RemoveDeviceRequest = { id: text }
 

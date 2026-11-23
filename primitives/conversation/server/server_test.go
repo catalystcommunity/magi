@@ -138,6 +138,22 @@ func TestPersonasAndStreams(t *testing.T) {
 	if len(list.Personas) != 3 {
 		t.Fatalf("personas = %+v", list)
 	}
+	// A persona keeps its voice when a change does not name one. An empty
+	// voice is the default voice again.
+	first := list.Personas[0]
+	change := api.PutPersonaRequest{Id: first.Id, Name: first.Name, Sharing: first.Sharing, Members: first.Members}
+	change.Voice = ptr("af_bella")
+	if p := must[api.Persona](t)(w.admin.PutPersona(ctx, change)); p.Voice == nil || *p.Voice != "af_bella" {
+		t.Fatalf("persona = %+v", p)
+	}
+	change.Voice = nil
+	if p := must[api.Persona](t)(w.admin.PutPersona(ctx, change)); p.Voice == nil || *p.Voice != "af_bella" {
+		t.Fatalf("a change with no voice: %+v", p)
+	}
+	change.Voice = ptr("")
+	if p := must[api.Persona](t)(w.admin.PutPersona(ctx, change)); p.Voice != nil {
+		t.Fatalf("an empty voice: %+v", p)
+	}
 
 	s1, s2 := w.stream(w.alice, magi), w.stream(w.alice, magi)
 	if s1.Id != s2.Id || s1.Person != alice || s1.Persona != magi {

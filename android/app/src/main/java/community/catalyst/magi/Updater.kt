@@ -65,8 +65,23 @@ object Updater {
         val sum = "sha256:" + MessageDigest.getInstance("SHA-256").digest(apk).joinToString("") { "%02x".format(it) }
         if (sum != rel.digest) throw IllegalStateException("the app build digest is $sum, not ${rel.digest}")
         install(context, apk)
+        // A new process starts after the install. It knows from this that
+        // the update installed, and removes an old failure.
+        settings.updateBuild = rel.versionCode.toLong()
         Log.i(TAG, "installing ${rel.versionName} (${rel.versionCode}) over $installed")
         return "installing ${rel.versionName}"
+    }
+
+    /** Records why an update did not install. The next put-device tells Magi. */
+    fun failed(context: Context, reason: String) {
+        Settings(context).updateError = reason.take(400)
+        Log.w(TAG, "update failed: $reason")
+    }
+
+    /** Removes the failure when the app runs the build that the update gave. */
+    fun settled(context: Context) {
+        val settings = Settings(context)
+        if (settings.updateError.isNotEmpty() && installedVersion(context) >= settings.updateBuild) settings.updateError = ""
     }
 
     fun installedVersion(context: Context): Long =
@@ -116,10 +131,10 @@ class UpdateReceiver : BroadcastReceiver() {
                     else @Suppress("DEPRECATION") intent.getParcelableExtra(Intent.EXTRA_INTENT)
                 val activity = Updater.foreground
                 if (confirm != null && activity != null) activity.runOnUiThread { activity.startActivity(confirm) }
-                else Log.i("MagiUpdater", "the update waits for the app to be open")
+                else Updater.failed(context, "Android asks for a confirmation of the update. Open the app.")
             }
             PackageInstaller.STATUS_SUCCESS -> Log.i("MagiUpdater", "update installed")
-            else -> Log.w("MagiUpdater", "update failed ($status): ${intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)}")
+            else -> Updater.failed(context, "Android did not install the update (status $status): ${intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: "no reason"}")
         }
     }
 }

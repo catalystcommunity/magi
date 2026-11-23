@@ -14,28 +14,49 @@ import (
 // of person.
 func NoticeKey(person string) string { return "notice:" + person }
 
-const devCols = "person, id, kind, name, can, active, hands_free, seen_ms, created_ms"
+const devCols = "person, id, kind, name, can, active, hands_free, seen_ms, created_ms, app_version, app_build, update_error"
 
 func scanDevice(r pgx.Row) (api.Device, error) {
 	var d api.Device
-	var seen, created int64
-	err := r.Scan(&d.Person, &d.Id, &d.Kind, &d.Name, &d.Can, &d.Active, &d.HandsFree, &seen, &created)
+	var seen, created, build int64
+	var version, failure string
+	err := r.Scan(&d.Person, &d.Id, &d.Kind, &d.Name, &d.Can, &d.Active, &d.HandsFree, &seen, &created, &version, &build, &failure)
 	d.SeenMs, d.CreatedMs = uint64(seen), uint64(created)
+	if version != "" {
+		d.AppVersion = &version
+	}
+	if build > 0 {
+		b := uint64(build)
+		d.AppBuild = &b
+	}
+	if failure != "" {
+		d.UpdateError = &failure
+	}
 	if d.Can == nil {
 		d.Can = []string{}
 	}
 	return d, err
 }
 
-// PutDevice adds the device or updates it; created_ms stays.
+// PutDevice adds the device or updates it; created_ms stays. A nil
+// version field keeps the value of a device that is there: a client that
+// does not send its version does not remove it.
 func (db *DB) PutDevice(ctx context.Context, d api.Device) (api.Device, error) {
 	if d.Can == nil {
 		d.Can = []string{}
 	}
-	return one(scanDevice(db.pool.QueryRow(ctx, `INSERT INTO devices (`+devCols+`) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+	var build *int64
+	if d.AppBuild != nil {
+		b := int64(*d.AppBuild)
+		build = &b
+	}
+	return one(scanDevice(db.pool.QueryRow(ctx, `INSERT INTO devices (`+devCols+`)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, COALESCE($9, ''), COALESCE($10, 0), COALESCE($11, ''))
 ON CONFLICT (person, id) DO UPDATE SET kind = EXCLUDED.kind, name = EXCLUDED.name, can = EXCLUDED.can,
-  active = EXCLUDED.active, hands_free = EXCLUDED.hands_free, seen_ms = EXCLUDED.seen_ms
-RETURNING `+devCols, d.Person, d.Id, d.Kind, d.Name, d.Can, d.Active, d.HandsFree, int64(d.SeenMs))))
+  active = EXCLUDED.active, hands_free = EXCLUDED.hands_free, seen_ms = EXCLUDED.seen_ms,
+  app_version = COALESCE($9, devices.app_version), app_build = COALESCE($10, devices.app_build),
+  update_error = COALESCE($11, devices.update_error)
+RETURNING `+devCols, d.Person, d.Id, d.Kind, d.Name, d.Can, d.Active, d.HandsFree, int64(d.SeenMs), d.AppVersion, build, d.UpdateError)))
 }
 
 // TouchDevice sets seen_ms of a device that waits for notices.
@@ -50,6 +71,12 @@ func (db *DB) GetDevice(ctx context.Context, person, id string) (api.Device, err
 
 func (db *DB) ListDevices(ctx context.Context, person string) ([]api.Device, error) {
 	rows, err := db.pool.Query(ctx, `SELECT `+devCols+` FROM devices WHERE person = $1 ORDER BY seen_ms DESC, id`, person)
+	return many(rows, err, scanDevice)
+}
+
+// AllDevices returns the devices of all people.
+func (db *DB) AllDevices(ctx context.Context) ([]api.Device, error) {
+	rows, err := db.pool.Query(ctx, `SELECT `+devCols+` FROM devices ORDER BY person, seen_ms DESC, id`)
 	return many(rows, err, scanDevice)
 }
 

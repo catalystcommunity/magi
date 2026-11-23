@@ -179,6 +179,9 @@ func readers(st api.Stream, visibility string) []string {
 
 // Personas
 
+// maxVoice is the longest voice id of a persona.
+const maxVoice = 64
+
 func (s *Service) PutPersona(ctx context.Context, req api.PutPersonaRequest) (api.Persona, error) {
 	p, err := rpc.Caller(ctx)
 	if err != nil {
@@ -195,7 +198,10 @@ func (s *Service) PutPersona(ctx context.Context, req api.PutPersonaRequest) (ap
 	case len(req.Members) > maxMembers:
 		return api.Persona{}, rpc.Invalid("at most %d members", maxMembers)
 	}
-	return s.DB.PutPersona(ctx, api.Persona{Id: req.Id, Name: req.Name, Sharing: req.Sharing, Members: req.Members, UpdatedMs: s.nowMs()})
+	if req.Voice != nil && len(*req.Voice) > maxVoice {
+		return api.Persona{}, rpc.Invalid("voice has at most %d bytes", maxVoice)
+	}
+	return s.DB.PutPersona(ctx, api.Persona{Id: req.Id, Name: req.Name, Sharing: req.Sharing, Members: req.Members, UpdatedMs: s.nowMs(), Voice: req.Voice})
 }
 
 func (s *Service) GetPersona(ctx context.Context, req api.GetPersonaRequest) (api.Persona, error) {

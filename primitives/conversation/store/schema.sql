@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS personas (
   updated_ms bigint NOT NULL
 );
 
+ALTER TABLE personas ADD COLUMN IF NOT EXISTS voice text NOT NULL DEFAULT '';
+
 CREATE TABLE IF NOT EXISTS streams (
   id         text   PRIMARY KEY,
   person     text   NOT NULL,
@@ -164,6 +166,11 @@ CREATE TABLE IF NOT EXISTS devices (
   created_ms bigint  NOT NULL,
   PRIMARY KEY (person, id)
 );
+
+-- The version of the client app, and why its last update did not install.
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS app_version text NOT NULL DEFAULT '';
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS app_build bigint NOT NULL DEFAULT 0;
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS update_error text NOT NULL DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS notices (
   id         text   PRIMARY KEY,

@@ -14,6 +14,8 @@ import (
 	"github.com/catalystcommunity/magi/lib/rpc"
 	magiapi "github.com/catalystcommunity/magi/magi/api"
 	artifactsapi "github.com/catalystcommunity/magi/primitives/artifacts/api"
+	conversationapi "github.com/catalystcommunity/magi/primitives/conversation/api"
+	workflowapi "github.com/catalystcommunity/magi/primitives/workflow/api"
 )
 
 // ScopeOperate lets a caller make operator calls: runner and app releases.
@@ -207,29 +209,103 @@ func (s *System) putAppRelease(ctx context.Context, req magiapi.PutAppReleaseReq
 	} else if ok && cur.VersionCode >= req.VersionCode {
 		return magiapi.AppRelease{}, rpc.Conflict("version_code %d is not newer than %d", req.VersionCode, cur.VersionCode)
 	}
-	a, err := s.Artifacts.Put(s.AsService(ctx), artifactsapi.PutRequest{MediaType: "application/vnd.android.package-archive", Body: req.Body,
-		Labels: map[string]string{"kind": kindAppRelease, "version_code": strconv.FormatUint(req.VersionCode, 10), "version_name": req.VersionName}})
+	labels := map[string]string{"kind": kindAppRelease, "version_code": strconv.FormatUint(req.VersionCode, 10), "version_name": req.VersionName}
+	if t := deref(req.Task); t != "" {
+		labels["task"] = t
+	}
+	a, err := s.Artifacts.Put(s.AsService(ctx), artifactsapi.PutRequest{MediaType: "application/vnd.android.package-archive", Body: req.Body, Labels: labels})
 	if err != nil {
 		return magiapi.AppRelease{}, err
 	}
-	s.Log.Info("app release", "version_code", req.VersionCode, "version_name", req.VersionName, "size", a.Size)
-	return magiapi.AppRelease{VersionCode: req.VersionCode, VersionName: req.VersionName, Digest: a.Digest, Size: a.Size}, nil
+	s.Log.Info("app release", "version_code", req.VersionCode, "version_name", req.VersionName, "size", a.Size, "task", deref(req.Task))
+	rel := magiapi.AppRelease{VersionCode: req.VersionCode, VersionName: req.VersionName, Digest: a.Digest, Size: a.Size}
+	s.announceAppRelease(ctx, rel)
+	return rel, nil
+}
+
+// announceAppRelease sends a notice to each phone that reported an older
+// build. The notice wakes the phone, and the answer of wait-notices has the
+// new build, so the app updates at once. A phone that never reported a
+// build gets no notice: it can be a client that is not this app.
+func (s *System) announceAppRelease(ctx context.Context, rel magiapi.AppRelease) {
+	res, err := s.Conversation.ListDevices(s.AsService(ctx), conversationapi.ListDevicesRequest{All: ptr(true)})
+	if err != nil {
+		s.Log.Warn("app release: list devices", "err", err)
+		return
+	}
+	for _, d := range res.Devices {
+		if d.Kind != "phone" || deref(d.AppBuild) == 0 || deref(d.AppBuild) >= rel.VersionCode {
+			continue
+		}
+		_, err := s.sendNotice(ctx, noticeReq{owner: d.Person, persona: Engineering, urgency: "low", device: d.Id,
+			title: "App update",
+			text:  fmt.Sprintf("A new build of the Magi app is ready (%s). Your phone %q installs it now. If it does not, open the app.", rel.VersionName, d.Name),
+			key:   fmt.Sprintf("app-release:%d/%s/%s", rel.VersionCode, d.Person, d.Id)})
+		if err != nil {
+			s.Log.Warn("app release: notice", "device", d.Id, "err", err)
+		}
+	}
+}
+
+// appUpdateEvent tells what changed on a device for the newest app
+// release: the device runs the build now ("App installed"), or it gives a
+// new reason that the update did not install ("App not installed"). what
+// is the end of the sentence "Task ... ...". The reason is text of a
+// client, so it is cut and has no marks of the prompt.
+func appUpdateEvent(before, after conversationapi.Device, rel magiapi.AppRelease) (report, what string) {
+	switch {
+	case deref(before.AppBuild) < rel.VersionCode && deref(after.AppBuild) >= rel.VersionCode:
+		return "App installed", fmt.Sprintf("has its app build on the %s %q: it runs build %d (%s) now",
+			after.Kind, neutralize(after.Name), deref(after.AppBuild), neutralize(deref(after.AppVersion)))
+	case deref(after.UpdateError) != "" && deref(after.UpdateError) != deref(before.UpdateError) && deref(after.AppBuild) < rel.VersionCode:
+		return "App not installed", fmt.Sprintf("has an app build that did not install on the %s %q. The phone gives this reason: %s",
+			after.Kind, neutralize(after.Name), clip(neutralize(deref(after.UpdateError)), 300))
+	}
+	return "", ""
+}
+
+// appUpdated starts a turn of the persona of the task that made the newest
+// app release, when a device of the owner of that task runs the build or
+// fails to install it.
+func (s *System) appUpdated(ctx context.Context, before, after conversationapi.Device) {
+	rel, task, ok, err := s.appReleaseTask(ctx)
+	if err != nil || !ok || task == "" {
+		return
+	}
+	report, what := appUpdateEvent(before, after, rel)
+	if report == "" {
+		return
+	}
+	run, err := s.Workflow.GetRun(s.AsService(ctx), workflowapi.GetRunRequest{Id: task})
+	if err != nil || run.Owner != after.Person {
+		return
+	}
+	s.wakeFor(ctx, workflowapi.Assignment{Run: run.Id, Owner: run.Owner, Vars: run.Vars}, fmt.Sprintf("%s %d %s", report, rel.VersionCode, after.Id), what)
 }
 
 // appRelease returns the app release with the highest version code.
 func (s *System) appRelease(ctx context.Context) (magiapi.AppRelease, bool, error) {
+	rel, _, ok, err := s.appReleaseTask(ctx)
+	return rel, ok, err
+}
+
+// appReleaseTask is appRelease with the task that made the release ("" for
+// a release of an operator).
+func (s *System) appReleaseTask(ctx context.Context) (magiapi.AppRelease, string, bool, error) {
 	res, err := s.Artifacts.List(s.AsService(ctx), artifactsapi.ListRequest{LabelKey: ptr("kind"), LabelValue: ptr(kindAppRelease), Limit: ptr(uint64(20))})
 	if err != nil {
-		return magiapi.AppRelease{}, false, err
+		return magiapi.AppRelease{}, "", false, err
 	}
 	var best magiapi.AppRelease
+	task := ""
 	for _, a := range res.Artifacts {
 		vc, _ := strconv.ParseUint(a.Labels["version_code"], 10, 64)
 		if vc > best.VersionCode {
 			best = magiapi.AppRelease{VersionCode: vc, VersionName: a.Labels["version_name"], Digest: a.Digest, Size: a.Size}
+			task = a.Labels["task"]
 		}
 	}
-	return best, best.VersionCode > 0, nil
+	return best, task, best.VersionCode > 0, nil
 }
 
 // fleetArtifact returns the body of a fleet artifact of the given kind.

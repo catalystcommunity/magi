@@ -47,8 +47,12 @@ object Attention {
     }
 
     fun hello(context: Context, client: HttpCarrier) {
+        // The version tells Magi which phones need an update, and that an
+        // update installed. The failure is "" when the last update installed.
+        val info = context.packageManager.getPackageInfo(context.packageName, 0)
         client.magi.putDevice(PutDeviceRequest(id = deviceId(context), kind = "phone", name = Build.MODEL.take(80).ifEmpty { "Android phone" },
-            can = listOf("speak", "notify", "show"), active = foreground != null, handsFree = handsFree))
+            can = listOf("speak", "notify", "show"), active = foreground != null, handsFree = handsFree,
+            appVersion = info.versionName?.take(80), appBuild = info.longVersionCode.toULong(), updateError = Settings(context).updateError))
     }
 
     const val EXTRA_MIC = "community.catalyst.magi.MIC"
@@ -143,6 +147,8 @@ class NoticeService : Service() {
         val settings = Settings(this)
         var closedAfter = 0UL
         var lastHello = 0L
+        // The build that this loop tried to install: one try for each build.
+        var triedBuild = 0L
         while (running) {
             val token = settings.token
             if (token == null) {
@@ -163,6 +169,15 @@ class NoticeService : Service() {
                 val dev = Attention.deviceId(this)
                 val r = client.magi.waitNotices(WaitNoticesRequest(device = dev, waitMs = 25_000UL, closedAfter = closedAfter))
                 closedAfter = r.nowMs
+                // A notice of a new build wakes this call: update now, not at the next hour.
+                val newest = r.appBuild?.toLong() ?: 0L
+                if (newest > Updater.installedVersion(this) && newest != triedBuild) {
+                    triedBuild = newest
+                    val result = runCatching { Updater.check(applicationContext) }
+                    Log.i("MagiUpdater", "check after a notice: ${result.getOrElse { it.toString() }}")
+                    result.exceptionOrNull()?.let { Updater.failed(this, it.message ?: it.toString()) }
+                    lastHello = 0
+                }
                 if (r.closed.isNotEmpty()) {
                     val nm = getSystemService(NotificationManager::class.java)
                     r.closed.forEach { nm.cancel(it, 0) }

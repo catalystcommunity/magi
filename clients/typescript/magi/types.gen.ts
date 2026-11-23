@@ -68,12 +68,15 @@ export interface Message {
 /**
  * sharing: "never", "private" (private by default), or "public" (shared
  * with the audience by default).
+ * voice is the voice id of the speech of the persona (list-voices);
+ * absent: the default voice.
  */
 export interface PersonaInfo {
   id: string;
   name: string;
   sharing: string;
   members: string[];
+  voice?: string;
 }
 
 export interface ListPersonasRequest {
@@ -84,13 +87,15 @@ export interface ListPersonasResponse {
 }
 
 /**
- * Operator call.
+ * Operator call. voice absent: the persona keeps its voice. voice "":
+ * the default voice.
  */
 export interface PutPersonaRequest {
   id: string;
   name: string;
   sharing: string;
   members?: string[];
+  voice?: string;
 }
 
 /**
@@ -393,8 +398,18 @@ export interface Device {
   active: boolean;
   handsFree: boolean;
   seenMs: number;
+  appVersion?: string;
+  appBuild?: number;
+  updateError?: string;
 }
 
+/**
+ * app_version and app_build: the version name and the version code of
+ * the client app. update_error: why the last update of the app did not
+ * install; "" after an update that installed. When app_build or
+ * update_error changes after an app release of a task, Magi tells the
+ * persona of that task (docs/attention.md).
+ */
 export interface PutDeviceRequest {
   id: string;
   kind: string;
@@ -402,6 +417,9 @@ export interface PutDeviceRequest {
   can?: string[];
   active?: boolean;
   handsFree?: boolean;
+  appVersion?: string;
+  appBuild?: number;
+  updateError?: string;
 }
 
 export interface ListDevicesRequest {
@@ -444,11 +462,14 @@ export interface WaitNoticesRequest {
  * closed has the ids of notices that this device got and that were
  * acknowledged after closed_after (ms): remove them. Send now_ms as
  * closed_after in the next call.
+ * app_build is the version code of the newest app release: a client app
+ * with a lower code updates now.
  */
 export interface WaitNoticesResponse {
   notices: Notice[];
   closed: string[];
   nowMs: number;
+  appBuild?: number;
 }
 
 export interface DeliverNoticeRequest {
@@ -1036,10 +1057,17 @@ export interface AppRelease {
   size: number;
 }
 
+/**
+ * task: the code-change task that made this build. Magi sends a notice
+ * to each phone with an older build, and tells the persona of the task
+ * when a phone of the owner of the task runs the build or fails to
+ * install it.
+ */
 export interface PutAppReleaseRequest {
   versionCode: number;
   versionName: string;
   body: Uint8Array;
+  task?: string;
 }
 
 export interface GetAppReleaseRequest {

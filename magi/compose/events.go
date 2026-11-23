@@ -109,8 +109,16 @@ func (s *System) eventRuns(ctx context.Context, owner string) ([]workflowapi.Run
 // turn acts with the dispatch of the work. A run with no persona, or of no
 // person, starts no turn.
 func (s *System) wake(ctx context.Context, a workflowapi.Assignment, report string) {
-	what, ok := eventTitles[report]
-	if !ok || s.Cfg.Events.Off {
+	if what, ok := eventTitles[report]; ok {
+		s.wakeFor(ctx, a, report, what)
+	}
+}
+
+// wakeFor is wake for an event that is not a report of a step: what is the
+// end of the sentence "Task ... ...", and report is the name of the event
+// (one turn for each name of one run).
+func (s *System) wakeFor(ctx context.Context, a workflowapi.Assignment, report, what string) {
+	if s.Cfg.Events.Off {
 		return
 	}
 	au, err := s.restore(a.Owner, a.Vars)

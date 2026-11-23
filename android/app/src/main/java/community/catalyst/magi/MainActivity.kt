@@ -129,7 +129,7 @@ class MainActivity : Activity() {
     private val work = Executors.newCachedThreadPool()
     private var rpc: HttpCarrier? = null
 
-    private var persona = "persona:magi"
+    internal var persona = "persona:magi"
     private var personas: List<PersonaInfo> = emptyList()
     private val shown = HashMap<String, View>()
     @Volatile private var lastSeq = 0UL
@@ -157,6 +157,7 @@ class MainActivity : Activity() {
         player.onIdle = { speechEnded("done") }
         handsFree = HandsFree(this, voice)
         runCatching { Updater.schedule(this) }.onFailure { android.util.Log.w("MagiUpdater", "schedule: $it") }
+        runCatching { Updater.settled(this) }
         if (!handleReturn(intent)) start()
         openNotice(intent)
     }
@@ -387,6 +388,8 @@ class MainActivity : Activity() {
             theme.add(label).apply { isCheckable = true; isChecked = settings.theme == value }
                 .setOnMenuItemClickListener { settings.theme = value; recreate(); true }
         }
+        // The voice of a persona is for all people of the household: an operator sets it.
+        if (settings.operator && barAvatar != null) m.menu.add("Voice of ${personaName(persona)}").setOnMenuItemClickListener { showVoices(); true }
         m.menu.add("Check for updates").setOnMenuItemClickListener { checkForUpdates(); true }
         m.menu.add("About").setOnMenuItemClickListener { about(); true }
         m.menu.add("Sign out").setOnMenuItemClickListener { signOut(""); true }
@@ -1069,6 +1072,9 @@ class MainActivity : Activity() {
         background(null) { Attention.ack(this, client(), id) }
         if (p != null && p != persona) showConversation(p)
     }
+
+    /** Plays a sample of a voice (the voice dialog). */
+    internal fun playSample(body: ByteArray, mediaType: String) = player.play(body, mediaType)
 
     private fun playAudio(digest: String) {
         background(null) {

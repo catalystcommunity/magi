@@ -476,6 +476,7 @@ export function toPersonaCborValue(v: Persona): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("id", v.id);
   csilMap.set("name", v.name);
+  if (v.voice !== undefined) csilMap.set("voice", v.voice);
   csilMap.set("members", v.members);
   csilMap.set("sharing", v.sharing);
   csilMap.set("updated_ms", v.updatedMs);
@@ -489,6 +490,7 @@ export function fromPersonaCborValue(value: CborValue): Persona {
     sharing: asString(requireKey(value, "sharing")),
     members: asArray(requireKey(value, "members")).map((csilE) => asString(csilE)),
     updatedMs: asNumber(requireKey(value, "updated_ms")),
+    voice: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "voice")),
   };
 }
 
@@ -811,8 +813,11 @@ export function toDeviceCborValue(v: Device): CborValue {
   csilMap.set("active", v.active);
   csilMap.set("person", v.person);
   csilMap.set("seen_ms", v.seenMs);
+  if (v.appBuild !== undefined) csilMap.set("app_build", v.appBuild);
   csilMap.set("created_ms", v.createdMs);
   csilMap.set("hands_free", v.handsFree);
+  if (v.appVersion !== undefined) csilMap.set("app_version", v.appVersion);
+  if (v.updateError !== undefined) csilMap.set("update_error", v.updateError);
   return csilMap;
 }
 
@@ -827,6 +832,9 @@ export function fromDeviceCborValue(value: CborValue): Device {
     handsFree: asBool(requireKey(value, "hands_free")),
     seenMs: asNumber(requireKey(value, "seen_ms")),
     createdMs: asNumber(requireKey(value, "created_ms")),
+    appVersion: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "app_version")),
+    appBuild: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "app_build")),
+    updateError: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "update_error")),
   };
 }
 
@@ -910,6 +918,7 @@ export function toPutPersonaRequestCborValue(v: PutPersonaRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("id", v.id);
   csilMap.set("name", v.name);
+  if (v.voice !== undefined) csilMap.set("voice", v.voice);
   if (v.members !== undefined) csilMap.set("members", v.members);
   csilMap.set("sharing", v.sharing);
   return csilMap;
@@ -921,6 +930,7 @@ export function fromPutPersonaRequestCborValue(value: CborValue): PutPersonaRequ
     name: asString(requireKey(value, "name")),
     sharing: asString(requireKey(value, "sharing")),
     members: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "members")),
+    voice: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "voice")),
   };
 }
 
@@ -1899,7 +1909,10 @@ export function toPutDeviceRequestCborValue(v: PutDeviceRequest): CborValue {
   csilMap.set("kind", v.kind);
   csilMap.set("name", v.name);
   if (v.active !== undefined) csilMap.set("active", v.active);
+  if (v.appBuild !== undefined) csilMap.set("app_build", v.appBuild);
   if (v.handsFree !== undefined) csilMap.set("hands_free", v.handsFree);
+  if (v.appVersion !== undefined) csilMap.set("app_version", v.appVersion);
+  if (v.updateError !== undefined) csilMap.set("update_error", v.updateError);
   return csilMap;
 }
 
@@ -1911,6 +1924,9 @@ export function fromPutDeviceRequestCborValue(value: CborValue): PutDeviceReques
     can: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "can")),
     active: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "active")),
     handsFree: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "hands_free")),
+    appVersion: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "app_version")),
+    appBuild: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "app_build")),
+    updateError: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "update_error")),
   };
 }
 
@@ -1924,6 +1940,7 @@ export function fromPutDeviceRequestCbor(bytes: Uint8Array): PutDeviceRequest {
 
 export function toListDevicesRequestCborValue(v: ListDevicesRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
+  if (v.all !== undefined) csilMap.set("all", v.all);
   if (v.person !== undefined) csilMap.set("person", v.person);
   return csilMap;
 }
@@ -1931,6 +1948,7 @@ export function toListDevicesRequestCborValue(v: ListDevicesRequest): CborValue 
 export function fromListDevicesRequestCborValue(value: CborValue): ListDevicesRequest {
   return {
     person: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "person")),
+    all: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "all")),
   };
 }
 

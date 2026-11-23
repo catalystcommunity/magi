@@ -10,6 +10,7 @@ type Persona struct {
 	Sharing   string   `json:"sharing" yaml:"sharing"`
 	Members   []string `json:"members" yaml:"members"`
 	UpdatedMs uint64   `json:"updated_ms" yaml:"updated_ms"`
+	Voice     *string  `json:"voice,omitempty" yaml:"voice,omitempty"`
 }
 
 // Stream represents a structured data type
@@ -120,15 +121,18 @@ type Calibration struct {
 
 // Device represents a structured data type
 type Device struct {
-	Id        string   `json:"id" yaml:"id"`
-	Person    string   `json:"person" yaml:"person"`
-	Kind      string   `json:"kind" yaml:"kind"`
-	Name      string   `json:"name" yaml:"name"`
-	Can       []string `json:"can" yaml:"can"`
-	Active    bool     `json:"active" yaml:"active"`
-	HandsFree bool     `json:"hands_free" yaml:"hands_free"`
-	SeenMs    uint64   `json:"seen_ms" yaml:"seen_ms"`
-	CreatedMs uint64   `json:"created_ms" yaml:"created_ms"`
+	Id          string   `json:"id" yaml:"id"`
+	Person      string   `json:"person" yaml:"person"`
+	Kind        string   `json:"kind" yaml:"kind"`
+	Name        string   `json:"name" yaml:"name"`
+	Can         []string `json:"can" yaml:"can"`
+	Active      bool     `json:"active" yaml:"active"`
+	HandsFree   bool     `json:"hands_free" yaml:"hands_free"`
+	SeenMs      uint64   `json:"seen_ms" yaml:"seen_ms"`
+	CreatedMs   uint64   `json:"created_ms" yaml:"created_ms"`
+	AppVersion  *string  `json:"app_version,omitempty" yaml:"app_version,omitempty"`
+	AppBuild    *uint64  `json:"app_build,omitempty" yaml:"app_build,omitempty"`
+	UpdateError *string  `json:"update_error,omitempty" yaml:"update_error,omitempty"`
 }
 
 // Notice represents a structured data type
@@ -161,6 +165,7 @@ type PutPersonaRequest struct {
 	Name    string   `json:"name" yaml:"name"`
 	Sharing string   `json:"sharing" yaml:"sharing"`
 	Members []string `json:"members,omitempty" yaml:"members,omitempty"`
+	Voice   *string  `json:"voice,omitempty" yaml:"voice,omitempty"`
 }
 
 // GetPersonaRequest represents a structured data type
@@ -440,17 +445,21 @@ type ImportLegacyResponse struct {
 
 // PutDeviceRequest represents a structured data type
 type PutDeviceRequest struct {
-	Id        string   `json:"id" yaml:"id"`
-	Kind      string   `json:"kind" yaml:"kind"`
-	Name      string   `json:"name" yaml:"name"`
-	Can       []string `json:"can,omitempty" yaml:"can,omitempty"`
-	Active    *bool    `json:"active,omitempty" yaml:"active,omitempty"`
-	HandsFree *bool    `json:"hands_free,omitempty" yaml:"hands_free,omitempty"`
+	Id          string   `json:"id" yaml:"id"`
+	Kind        string   `json:"kind" yaml:"kind"`
+	Name        string   `json:"name" yaml:"name"`
+	Can         []string `json:"can,omitempty" yaml:"can,omitempty"`
+	Active      *bool    `json:"active,omitempty" yaml:"active,omitempty"`
+	HandsFree   *bool    `json:"hands_free,omitempty" yaml:"hands_free,omitempty"`
+	AppVersion  *string  `json:"app_version,omitempty" yaml:"app_version,omitempty"`
+	AppBuild    *uint64  `json:"app_build,omitempty" yaml:"app_build,omitempty"`
+	UpdateError *string  `json:"update_error,omitempty" yaml:"update_error,omitempty"`
 }
 
 // ListDevicesRequest represents a structured data type
 type ListDevicesRequest struct {
 	Person *string `json:"person,omitempty" yaml:"person,omitempty"`
+	All    *bool   `json:"all,omitempty" yaml:"all,omitempty"`
 }
 
 // ListDevicesResponse represents a structured data type

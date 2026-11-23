@@ -589,9 +589,12 @@ func csilEncPersona(csilV Persona, csilDepth int) (cborValue, error) {
 		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
 	}
 	var csilE csilEncErr
-	csilEntries := make(cborMap, 0, 5)
+	csilEntries := make(cborMap, 0, 6)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
+	if csilV.Voice != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("voice"), cborText((*csilV.Voice))})
+	}
 	csilEntries = append(csilEntries, cborEntry{cborText("members"), csilE.val(cborEncArray(csilV.Members, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	csilEntries = append(csilEntries, cborEntry{cborText("sharing"), cborText(csilV.Sharing)})
 	csilEntries = append(csilEntries, cborEntry{cborText("updated_ms"), cborUint(csilV.UpdatedMs)})
@@ -655,6 +658,13 @@ func csilDecPersona(csilRoot cborValue) (Persona, error) {
 			return csilOut, csilErr
 		}
 		csilOut.UpdatedMs = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "voice"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Voice = &csilVal
 	}
 	return csilOut, nil
 }
@@ -1765,7 +1775,7 @@ func csilEncDevice(csilV Device, csilDepth int) (cborValue, error) {
 		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
 	}
 	var csilE csilEncErr
-	csilEntries := make(cborMap, 0, 9)
+	csilEntries := make(cborMap, 0, 12)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("can"), csilE.val(cborEncArray(csilV.Can, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
@@ -1773,8 +1783,17 @@ func csilEncDevice(csilV Device, csilDepth int) (cborValue, error) {
 	csilEntries = append(csilEntries, cborEntry{cborText("active"), cborBool(csilV.Active)})
 	csilEntries = append(csilEntries, cborEntry{cborText("person"), cborText(csilV.Person)})
 	csilEntries = append(csilEntries, cborEntry{cborText("seen_ms"), cborUint(csilV.SeenMs)})
+	if csilV.AppBuild != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("app_build"), cborUint((*csilV.AppBuild))})
+	}
 	csilEntries = append(csilEntries, cborEntry{cborText("created_ms"), cborUint(csilV.CreatedMs)})
 	csilEntries = append(csilEntries, cborEntry{cborText("hands_free"), cborBool(csilV.HandsFree)})
+	if csilV.AppVersion != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("app_version"), cborText((*csilV.AppVersion))})
+	}
+	if csilV.UpdateError != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("update_error"), cborText((*csilV.UpdateError))})
+	}
 	return csilE.result(csilEntries)
 }
 
@@ -1879,6 +1898,27 @@ func csilDecDevice(csilRoot cborValue) (Device, error) {
 			return csilOut, csilErr
 		}
 		csilOut.CreatedMs = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "app_version"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.AppVersion = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "app_build"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.AppBuild = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "update_error"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.UpdateError = &csilVal
 	}
 	return csilOut, nil
 }
@@ -2151,9 +2191,12 @@ func csilEncPutPersonaRequest(csilV PutPersonaRequest, csilDepth int) (cborValue
 		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
 	}
 	var csilE csilEncErr
-	csilEntries := make(cborMap, 0, 4)
+	csilEntries := make(cborMap, 0, 5)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
+	if csilV.Voice != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("voice"), cborText((*csilV.Voice))})
+	}
 	if csilV.Members != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("members"), csilE.val(cborEncArray(csilV.Members, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	}
@@ -2203,6 +2246,13 @@ func csilDecPutPersonaRequest(csilRoot cborValue) (PutPersonaRequest, error) {
 			return csilOut, csilErr
 		}
 		csilOut.Members = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "voice"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Voice = &csilVal
 	}
 	return csilOut, nil
 }
@@ -4689,7 +4739,7 @@ func csilEncPutDeviceRequest(csilV PutDeviceRequest, csilDepth int) (cborValue, 
 		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
 	}
 	var csilE csilEncErr
-	csilEntries := make(cborMap, 0, 6)
+	csilEntries := make(cborMap, 0, 9)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	if csilV.Can != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("can"), csilE.val(cborEncArray(csilV.Can, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
@@ -4699,8 +4749,17 @@ func csilEncPutDeviceRequest(csilV PutDeviceRequest, csilDepth int) (cborValue, 
 	if csilV.Active != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("active"), cborBool((*csilV.Active))})
 	}
+	if csilV.AppBuild != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("app_build"), cborUint((*csilV.AppBuild))})
+	}
 	if csilV.HandsFree != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("hands_free"), cborBool((*csilV.HandsFree))})
+	}
+	if csilV.AppVersion != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("app_version"), cborText((*csilV.AppVersion))})
+	}
+	if csilV.UpdateError != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("update_error"), cborText((*csilV.UpdateError))})
 	}
 	return csilE.result(csilEntries)
 }
@@ -4762,6 +4821,27 @@ func csilDecPutDeviceRequest(csilRoot cborValue) (PutDeviceRequest, error) {
 		}
 		csilOut.HandsFree = &csilVal
 	}
+	if csilField, csilOk := cborMapGet(csilRoot, "app_version"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.AppVersion = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "app_build"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.AppBuild = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "update_error"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.UpdateError = &csilVal
+	}
 	return csilOut, nil
 }
 
@@ -4785,7 +4865,10 @@ func csilEncListDevicesRequest(csilV ListDevicesRequest, csilDepth int) (cborVal
 	if csilDepth > csilEncDepthLimit {
 		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
 	}
-	csilEntries := make(cborMap, 0, 1)
+	csilEntries := make(cborMap, 0, 2)
+	if csilV.All != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("all"), cborBool((*csilV.All))})
+	}
 	if csilV.Person != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("person"), cborText((*csilV.Person))})
 	}
@@ -4801,6 +4884,13 @@ func csilDecListDevicesRequest(csilRoot cborValue) (ListDevicesRequest, error) {
 			return csilOut, csilErr
 		}
 		csilOut.Person = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "all"); csilOk {
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.All = &csilVal
 	}
 	return csilOut, nil
 }

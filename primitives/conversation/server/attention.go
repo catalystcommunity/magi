@@ -25,7 +25,11 @@ var (
 
 const (
 	maxDeviceName = 80
-	maxTitle      = 120
+	// maxAppVersion and maxUpdateError: the version name of a client app,
+	// and the reason that its update did not install (cut to this size).
+	maxAppVersion  = 80
+	maxUpdateError = 500
+	maxTitle       = 120
 	// noticeWindow is how long a notice that nobody acknowledged goes to
 	// devices.
 	noticeWindow = 24 * time.Hour
@@ -66,12 +70,31 @@ func (s *Service) PutDevice(ctx context.Context, req api.PutDeviceRequest) (api.
 			return api.Device{}, rpc.Invalid("can must be from %v", deviceCan)
 		}
 	}
+	if req.AppVersion != nil && len(*req.AppVersion) > maxAppVersion {
+		return api.Device{}, rpc.Invalid("app_version has at most %d bytes", maxAppVersion)
+	}
+	if req.UpdateError != nil && len(*req.UpdateError) > maxUpdateError {
+		e := (*req.UpdateError)[:maxUpdateError]
+		req.UpdateError = &e
+	}
 	now := s.nowMs()
 	return s.DB.PutDevice(ctx, api.Device{Person: who, Id: req.Id, Kind: req.Kind, Name: req.Name, Can: req.Can,
-		Active: deref(req.Active), HandsFree: deref(req.HandsFree), SeenMs: now})
+		Active: deref(req.Active), HandsFree: deref(req.HandsFree), SeenMs: now,
+		AppVersion: req.AppVersion, AppBuild: req.AppBuild, UpdateError: req.UpdateError})
 }
 
 func (s *Service) ListDevices(ctx context.Context, req api.ListDevicesRequest) (api.ListDevicesResponse, error) {
+	if deref(req.All) {
+		p, err := rpc.Caller(ctx)
+		if err != nil {
+			return api.ListDevicesResponse{}, err
+		}
+		if !p.Has(ScopeAdmin) {
+			return api.ListDevicesResponse{}, rpc.Denied("the devices of all people need %s", ScopeAdmin)
+		}
+		list, err := s.DB.AllDevices(ctx)
+		return api.ListDevicesResponse{Devices: list}, err
+	}
 	who, err := s.person(ctx, req.Person)
 	if err != nil {
 		return api.ListDevicesResponse{}, err

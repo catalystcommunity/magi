@@ -10,7 +10,9 @@ export interface ServiceError {
 /**
  * sharing: "never", "private" (private by default), or "public" (shared
  * with the audience by default). members is the audience: the subjects
- * that can read the utterances that are shared with this persona.
+ * that can read the utterances that are shared with this persona. voice
+ * is the voice id of the speech of this persona; absent: the default
+ * voice of the speech engine.
  */
 export interface Persona {
   id: string;
@@ -18,6 +20,7 @@ export interface Persona {
   sharing: string;
   members: string[];
   updatedMs: number;
+  voice?: string;
 }
 
 export interface Stream {
@@ -183,6 +186,9 @@ export interface Device {
   handsFree: boolean;
   seenMs: number;
   createdMs: number;
+  appVersion?: string;
+  appBuild?: number;
+  updateError?: string;
 }
 
 /**
@@ -220,12 +226,14 @@ export interface NoticeDelivery {
 
 /**
  * Operator call (scope "conversation:admin").
+ * voice absent: the persona keeps its voice. voice "": the default voice.
  */
 export interface PutPersonaRequest {
   id: string;
   name: string;
   sharing: string;
   members?: string[];
+  voice?: string;
 }
 
 export interface GetPersonaRequest {
@@ -548,13 +556,18 @@ export interface PutDeviceRequest {
   can?: string[];
   active?: boolean;
   handsFree?: boolean;
+  appVersion?: string;
+  appBuild?: number;
+  updateError?: string;
 }
 
 /**
- * Devices of the caller, or of person (needs act-as), newest first.
+ * Devices of the caller, or of person (needs act-as), newest first. all:
+ * the devices of all people (needs the admin scope).
  */
 export interface ListDevicesRequest {
   person?: string;
+  all?: boolean;
 }
 
 export interface ListDevicesResponse {

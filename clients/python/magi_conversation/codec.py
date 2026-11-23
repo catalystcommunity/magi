@@ -442,6 +442,9 @@ def _encode_persona_value(v: "Persona") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["id"] = v.id
     csil_m["name"] = v.name
+    csil_x = v.voice
+    if csil_x is not None:
+        csil_m["voice"] = csil_x
     csil_m["members"] = v.members
     csil_m["sharing"] = v.sharing
     csil_m["updated_ms"] = v.updated_ms
@@ -455,6 +458,7 @@ def _decode_persona_value(tree: Any) -> "Persona":
         sharing=_csil_expect_text(tree["sharing"]),
         members=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["members"])],
         updated_ms=_csil_expect_uint(tree["updated_ms"]),
+        voice=(None if tree.get("voice") is None else _csil_expect_text(tree["voice"])),
     )
 
 
@@ -835,8 +839,17 @@ def _encode_device_value(v: "Device") -> Dict[Any, Any]:
     csil_m["active"] = v.active
     csil_m["person"] = v.person
     csil_m["seen_ms"] = v.seen_ms
+    csil_x = v.app_build
+    if csil_x is not None:
+        csil_m["app_build"] = csil_x
     csil_m["created_ms"] = v.created_ms
     csil_m["hands_free"] = v.hands_free
+    csil_x = v.app_version
+    if csil_x is not None:
+        csil_m["app_version"] = csil_x
+    csil_x = v.update_error
+    if csil_x is not None:
+        csil_m["update_error"] = csil_x
     return csil_m
 
 def _decode_device_value(tree: Any) -> "Device":
@@ -851,6 +864,9 @@ def _decode_device_value(tree: Any) -> "Device":
         hands_free=_csil_expect_bool(tree["hands_free"]),
         seen_ms=_csil_expect_uint(tree["seen_ms"]),
         created_ms=_csil_expect_uint(tree["created_ms"]),
+        app_version=(None if tree.get("app_version") is None else _csil_expect_text(tree["app_version"])),
+        app_build=(None if tree.get("app_build") is None else _csil_expect_uint(tree["app_build"])),
+        update_error=(None if tree.get("update_error") is None else _csil_expect_text(tree["update_error"])),
     )
 
 
@@ -949,6 +965,9 @@ def _encode_put_persona_request_value(v: "PutPersonaRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["id"] = v.id
     csil_m["name"] = v.name
+    csil_x = v.voice
+    if csil_x is not None:
+        csil_m["voice"] = csil_x
     csil_x = v.members
     if csil_x is not None:
         csil_m["members"] = csil_x
@@ -962,6 +981,7 @@ def _decode_put_persona_request_value(tree: Any) -> "PutPersonaRequest":
         name=_csil_expect_text(tree["name"]),
         sharing=_csil_expect_text(tree["sharing"]),
         members=(None if tree.get("members") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["members"])]),
+        voice=(None if tree.get("voice") is None else _csil_expect_text(tree["voice"])),
     )
 
 
@@ -2189,9 +2209,18 @@ def _encode_put_device_request_value(v: "PutDeviceRequest") -> Dict[Any, Any]:
     csil_x = v.active
     if csil_x is not None:
         csil_m["active"] = csil_x
+    csil_x = v.app_build
+    if csil_x is not None:
+        csil_m["app_build"] = csil_x
     csil_x = v.hands_free
     if csil_x is not None:
         csil_m["hands_free"] = csil_x
+    csil_x = v.app_version
+    if csil_x is not None:
+        csil_m["app_version"] = csil_x
+    csil_x = v.update_error
+    if csil_x is not None:
+        csil_m["update_error"] = csil_x
     return csil_m
 
 def _decode_put_device_request_value(tree: Any) -> "PutDeviceRequest":
@@ -2203,6 +2232,9 @@ def _decode_put_device_request_value(tree: Any) -> "PutDeviceRequest":
         can=(None if tree.get("can") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["can"])]),
         active=(None if tree.get("active") is None else _csil_expect_bool(tree["active"])),
         hands_free=(None if tree.get("hands_free") is None else _csil_expect_bool(tree["hands_free"])),
+        app_version=(None if tree.get("app_version") is None else _csil_expect_text(tree["app_version"])),
+        app_build=(None if tree.get("app_build") is None else _csil_expect_uint(tree["app_build"])),
+        update_error=(None if tree.get("update_error") is None else _csil_expect_text(tree["update_error"])),
     )
 
 
@@ -2219,6 +2251,9 @@ PutDeviceRequest.from_cbor = staticmethod(_put_device_request_from_cbor)
 
 def _encode_list_devices_request_value(v: "ListDevicesRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
+    csil_x = v.all
+    if csil_x is not None:
+        csil_m["all"] = csil_x
     csil_x = v.person
     if csil_x is not None:
         csil_m["person"] = csil_x
@@ -2228,6 +2263,7 @@ def _decode_list_devices_request_value(tree: Any) -> "ListDevicesRequest":
     tree = _csil_expect_map(tree)
     return ListDevicesRequest(
         person=(None if tree.get("person") is None else _csil_expect_text(tree["person"])),
+        all=(None if tree.get("all") is None else _csil_expect_bool(tree["all"])),
     )
 
 

@@ -28,6 +28,15 @@ class Settings(context: Context) {
         get() = p.getBoolean("speak", true)
         set(v) = p.edit().putBoolean("speak", v).apply()
 
+    /** Why the last update of the app did not install; "" after an update that installed. Magi gets it (put-device). */
+    var updateError: String
+        get() = p.getString("update_error", "") ?: ""
+        set(v) = p.edit().putString("update_error", v).apply()
+    /** The build that updateError is about, or that the app expects to run after an update. */
+    var updateBuild: Long
+        get() = p.getLong("update_build", 0)
+        set(v) = p.edit().putLong("update_build", v).apply()
+
     /** "dark" (the default), "light", or "system". */
     var theme: String
         get() = p.getString("theme", "dark") ?: "dark"

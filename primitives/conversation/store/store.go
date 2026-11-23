@@ -137,26 +137,32 @@ func parseRefs(b []byte) ([]api.Ref, error) {
 
 // Personas
 
-const personaCols = "id, name, sharing, members, updated_ms"
+const personaCols = "id, name, sharing, members, updated_ms, voice"
 
 func scanPersona(r pgx.Row) (api.Persona, error) {
 	var p api.Persona
 	var updated int64
-	err := r.Scan(&p.Id, &p.Name, &p.Sharing, &p.Members, &updated)
+	var voice string
+	err := r.Scan(&p.Id, &p.Name, &p.Sharing, &p.Members, &updated, &voice)
 	p.UpdatedMs = uint64(updated)
+	if voice != "" {
+		p.Voice = &voice
+	}
 	if p.Members == nil {
 		p.Members = []string{}
 	}
 	return p, err
 }
 
+// PutPersona adds the persona or changes it. A nil voice keeps the voice
+// of a persona that is there.
 func (db *DB) PutPersona(ctx context.Context, p api.Persona) (api.Persona, error) {
 	if p.Members == nil {
 		p.Members = []string{}
 	}
-	return scanPersona(db.pool.QueryRow(ctx, `INSERT INTO personas (`+personaCols+`) VALUES ($1, $2, $3, $4, $5)
-ON CONFLICT (id) DO UPDATE SET name = $2, sharing = $3, members = $4, updated_ms = $5 RETURNING `+personaCols,
-		p.Id, p.Name, p.Sharing, p.Members, int64(p.UpdatedMs)))
+	return scanPersona(db.pool.QueryRow(ctx, `INSERT INTO personas (`+personaCols+`) VALUES ($1, $2, $3, $4, $5, COALESCE($6, ''))
+ON CONFLICT (id) DO UPDATE SET name = $2, sharing = $3, members = $4, updated_ms = $5, voice = COALESCE($6, personas.voice)
+RETURNING `+personaCols, p.Id, p.Name, p.Sharing, p.Members, int64(p.UpdatedMs), p.Voice))
 }
 
 func (db *DB) GetPersona(ctx context.Context, id string) (api.Persona, error) {

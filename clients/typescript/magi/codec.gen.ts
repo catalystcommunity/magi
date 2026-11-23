@@ -592,6 +592,7 @@ export function toPersonaInfoCborValue(v: PersonaInfo): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("id", v.id);
   csilMap.set("name", v.name);
+  if (v.voice !== undefined) csilMap.set("voice", v.voice);
   csilMap.set("members", v.members);
   csilMap.set("sharing", v.sharing);
   return csilMap;
@@ -603,6 +604,7 @@ export function fromPersonaInfoCborValue(value: CborValue): PersonaInfo {
     name: asString(requireKey(value, "name")),
     sharing: asString(requireKey(value, "sharing")),
     members: asArray(requireKey(value, "members")).map((csilE) => asString(csilE)),
+    voice: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "voice")),
   };
 }
 
@@ -656,6 +658,7 @@ export function toPutPersonaRequestCborValue(v: PutPersonaRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("id", v.id);
   csilMap.set("name", v.name);
+  if (v.voice !== undefined) csilMap.set("voice", v.voice);
   if (v.members !== undefined) csilMap.set("members", v.members);
   csilMap.set("sharing", v.sharing);
   return csilMap;
@@ -667,6 +670,7 @@ export function fromPutPersonaRequestCborValue(value: CborValue): PutPersonaRequ
     name: asString(requireKey(value, "name")),
     sharing: asString(requireKey(value, "sharing")),
     members: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "members")),
+    voice: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "voice")),
   };
 }
 
@@ -1458,7 +1462,10 @@ export function toDeviceCborValue(v: Device): CborValue {
   csilMap.set("name", v.name);
   csilMap.set("active", v.active);
   csilMap.set("seen_ms", v.seenMs);
+  if (v.appBuild !== undefined) csilMap.set("app_build", v.appBuild);
   csilMap.set("hands_free", v.handsFree);
+  if (v.appVersion !== undefined) csilMap.set("app_version", v.appVersion);
+  if (v.updateError !== undefined) csilMap.set("update_error", v.updateError);
   return csilMap;
 }
 
@@ -1471,6 +1478,9 @@ export function fromDeviceCborValue(value: CborValue): Device {
     active: asBool(requireKey(value, "active")),
     handsFree: asBool(requireKey(value, "hands_free")),
     seenMs: asNumber(requireKey(value, "seen_ms")),
+    appVersion: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "app_version")),
+    appBuild: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "app_build")),
+    updateError: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "update_error")),
   };
 }
 
@@ -1489,7 +1499,10 @@ export function toPutDeviceRequestCborValue(v: PutDeviceRequest): CborValue {
   csilMap.set("kind", v.kind);
   csilMap.set("name", v.name);
   if (v.active !== undefined) csilMap.set("active", v.active);
+  if (v.appBuild !== undefined) csilMap.set("app_build", v.appBuild);
   if (v.handsFree !== undefined) csilMap.set("hands_free", v.handsFree);
+  if (v.appVersion !== undefined) csilMap.set("app_version", v.appVersion);
+  if (v.updateError !== undefined) csilMap.set("update_error", v.updateError);
   return csilMap;
 }
 
@@ -1501,6 +1514,9 @@ export function fromPutDeviceRequestCborValue(value: CborValue): PutDeviceReques
     can: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "can")),
     active: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "active")),
     handsFree: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "hands_free")),
+    appVersion: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "app_version")),
+    appBuild: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "app_build")),
+    updateError: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "update_error")),
   };
 }
 
@@ -1661,6 +1677,7 @@ export function toWaitNoticesResponseCborValue(v: WaitNoticesResponse): CborValu
   csilMap.set("closed", v.closed);
   csilMap.set("now_ms", v.nowMs);
   csilMap.set("notices", v.notices.map((csilE): CborValue => toNoticeCborValue(csilE)));
+  if (v.appBuild !== undefined) csilMap.set("app_build", v.appBuild);
   return csilMap;
 }
 
@@ -1669,6 +1686,7 @@ export function fromWaitNoticesResponseCborValue(value: CborValue): WaitNoticesR
     notices: asArray(requireKey(value, "notices")).map((csilE) => fromNoticeCborValue(csilE)),
     closed: asArray(requireKey(value, "closed")).map((csilE) => asString(csilE)),
     nowMs: asNumber(requireKey(value, "now_ms")),
+    appBuild: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "app_build")),
   };
 }
 
@@ -3387,6 +3405,7 @@ export function fromAppReleaseCbor(bytes: Uint8Array): AppRelease {
 export function toPutAppReleaseRequestCborValue(v: PutAppReleaseRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("body", v.body);
+  if (v.task !== undefined) csilMap.set("task", v.task);
   csilMap.set("version_code", v.versionCode);
   csilMap.set("version_name", v.versionName);
   return csilMap;
@@ -3397,6 +3416,7 @@ export function fromPutAppReleaseRequestCborValue(value: CborValue): PutAppRelea
     versionCode: asNumber(requireKey(value, "version_code")),
     versionName: asString(requireKey(value, "version_name")),
     body: asBytes(requireKey(value, "body")),
+    task: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "task")),
   };
 }
 

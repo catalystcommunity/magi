@@ -135,8 +135,8 @@ of the test part: 377 official hosts and 449 hosts that need a person.
 - The limit with no wrong host comes from one or two hosts, thus small
   differences between the rows are not significant.
 - The scoring head on Gemma 4 has no GGUF form. A llama.cpp server cannot
-  serve it. The library (2026.11.9) reports that it can export the head
-  on Qwen3.5 to GGUF. That export is not measured.
+  serve it. The head on Qwen3.5 has one: see "A scoring head through
+  llama.cpp".
 - The first row is the measurement through the server. The other rows
   are of the model only.
 
@@ -181,3 +181,36 @@ is not better than the adapter above.
   `theupdateframework.io`. The name and the popularity do not show that
   such a host is official. More training on the same evidence does not
   help. The model needs more evidence about the host.
+
+### A scoring head through llama.cpp
+
+The library that trains the scoring head (Unsloth 2026.11.9) exports a
+head on Qwen3.5 to GGUF. A llama.cpp server (build b11443 or later) serves
+it on `/v1/systemone`. The request has the state and the question. The
+answer has the probability of "yes".
+
+A head on Qwen3.5-4B was trained on `train3.json` plus the 400 invented
+university hosts (2 epochs, 40 minutes on one 16 GB GPU). The numbers are
+of the exported model (Q8_0, 4.5 GB) through llama.cpp on `corpus3.json`.
+The hosts of `neverAutoHosts` go to a person, as in the server.
+
+| Model | Limit | Dev: official hosts | Dev: wrong hosts | Test: official hosts | Test: wrong hosts |
+| --- | --- | --- | --- | --- | --- |
+| Adapter in use (Gemma 4 E4B) | 0.97 | 295 of 388 | 0 | 298 of 389 | 0 |
+| Adapter in use (Gemma 4 E4B) | 0.95 | 314 of 388 | 2 | 316 of 389 | 0 |
+| Scoring head (Qwen3.5-4B) | 0.97 | 298 of 388 | 0 | 306 of 389 | 0 |
+| Scoring head (Qwen3.5-4B) | 0.95 | 326 of 388 | 0 | 334 of 389 | 0 |
+
+- The two models rank the hosts equally well (0.991 and 0.993 on dev).
+  The head gives the hosts that need a person a lower probability, so
+  its limit can be lower.
+- At the limit 0.95 the head permits 86% of the official hosts of the
+  test half and no wrong host of each half. The adapter in use permits
+  77% at its limit 0.97.
+- One decision takes about 40 ms on that GPU.
+- The exported model and the model in the training library do not give
+  the same probability for each host. The mean difference is 0.01. Set
+  the limit from the scores of the exported model.
+- The head serves only the questions that it was trained on. The note
+  questions stay on the adapter.
+- The server does not use the head yet.

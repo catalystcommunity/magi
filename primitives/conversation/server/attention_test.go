@@ -37,6 +37,27 @@ func TestDevicesAndNotices(t *testing.T) {
 	_, err = a.ListDevices(ctx, api.ListDevicesRequest{Person: ptr(bob)})
 	wantCode(t, err, http.StatusForbidden)
 
+	t.Run("the version of the client app", func(t *testing.T) {
+		put := api.PutDeviceRequest{Id: "phone-0001", Kind: "phone", Name: "Pixel", AppVersion: ptr("0.1.0-abc"), AppBuild: ptr(uint64(41)), UpdateError: ptr("no space")}
+		d := must[api.Device](t)(a.PutDevice(ctx, put))
+		if deref(d.AppVersion) != "0.1.0-abc" || deref(d.AppBuild) != 41 || deref(d.UpdateError) != "no space" {
+			t.Fatalf("device = %+v", d)
+		}
+		// A client that does not send its version keeps the record. An
+		// empty update_error removes the failure.
+		d = must[api.Device](t)(a.PutDevice(ctx, api.PutDeviceRequest{Id: "phone-0001", Kind: "phone", Name: "Pixel", UpdateError: ptr("")}))
+		if deref(d.AppVersion) != "0.1.0-abc" || deref(d.AppBuild) != 41 || d.UpdateError != nil {
+			t.Fatalf("device = %+v", d)
+		}
+		// The devices of all people are for the admin scope.
+		_, err := a.ListDevices(ctx, api.ListDevicesRequest{All: ptr(true)})
+		wantCode(t, err, http.StatusForbidden)
+		all := must[api.ListDevicesResponse](t)(e.client(0, "service:magi", server.ScopeAdmin).ListDevices(ctx, api.ListDevicesRequest{All: ptr(true)}))
+		if len(all.Devices) != 3 {
+			t.Fatalf("all devices = %+v", all)
+		}
+	})
+
 	t.Run("notify needs act-as", func(t *testing.T) {
 		_, err := a.Notify(ctx, api.NotifyRequest{Utterance: msg.Id, Title: "Report"})
 		wantCode(t, err, http.StatusForbidden)

@@ -60,7 +60,8 @@ data class PersonaInfo(
     val id: String,
     val name: String,
     val sharing: String,
-    val members: List<String>
+    val members: List<String>,
+    val voice: String? = null
 )
 
 /** ListPersonasRequest record. */
@@ -76,7 +77,8 @@ data class PutPersonaRequest(
     val id: String,
     val name: String,
     val sharing: String,
-    val members: List<String>? = null
+    val members: List<String>? = null,
+    val voice: String? = null
 )
 
 /** SayRequest record. */
@@ -406,7 +408,13 @@ data class Device(
     // wire key: hands_free
     val handsFree: Boolean,
     // wire key: seen_ms
-    val seenMs: ULong
+    val seenMs: ULong,
+    // wire key: app_version
+    val appVersion: String? = null,
+    // wire key: app_build
+    val appBuild: ULong? = null,
+    // wire key: update_error
+    val updateError: String? = null
 )
 
 /** PutDeviceRequest record. */
@@ -417,7 +425,13 @@ data class PutDeviceRequest(
     val can: List<String>? = null,
     val active: Boolean? = null,
     // wire key: hands_free
-    val handsFree: Boolean? = null
+    val handsFree: Boolean? = null,
+    // wire key: app_version
+    val appVersion: String? = null,
+    // wire key: app_build
+    val appBuild: ULong? = null,
+    // wire key: update_error
+    val updateError: String? = null
 )
 
 /** ListDevicesRequest record. */
@@ -471,7 +485,9 @@ data class WaitNoticesResponse(
     val notices: List<Notice>,
     val closed: List<String>,
     // wire key: now_ms
-    val nowMs: ULong
+    val nowMs: ULong,
+    // wire key: app_build
+    val appBuild: ULong? = null
 )
 
 /** DeliverNoticeRequest record. */
@@ -1056,7 +1072,8 @@ data class PutAppReleaseRequest(
     val versionCode: ULong,
     // wire key: version_name
     val versionName: String,
-    val body: ByteArray
+    val body: ByteArray,
+    val task: String? = null
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -1064,6 +1081,7 @@ data class PutAppReleaseRequest(
         if (versionCode != other.versionCode) return false
         if (versionName != other.versionName) return false
         if (!body.contentEquals(other.body)) return false
+        if (task != other.task) return false
         return true
     }
 
@@ -1071,6 +1089,7 @@ data class PutAppReleaseRequest(
         var result = versionCode.hashCode()
         result = 31 * result + versionName.hashCode()
         result = 31 * result + body.contentHashCode()
+        result = 31 * result + task.hashCode()
         return result
     }
 }

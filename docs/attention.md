@@ -120,6 +120,19 @@ name of any persona calls that persona. The reply of `say` has the
 persona, and the clients then show that conversation. "computer science is
 hard" calls nobody, because no comma follows the name.
 
+A greeting can come before the name: "Hey, Archimedes, what is running?"
+("hey", "hi", "hello", "ok", "okay", with or without a mark after it). A
+proper name of a persona ("Beatrice", "Archimedes") needs no mark after
+it.
+
+Speech to text does not always write a proper name the same way. For a
+spoken message, a first word that is almost the proper name also calls the
+persona: one different letter for a name of 5 letters, two for a name of
+8 letters or more. A message that a person wrote must have the name. When
+a spoken message has a greeting and then a word that is no name, the log
+of Magi has that one word (`spoken name not known`). Add such a word to
+the household lexicon as a form that speech to text hears.
+
 ### 5.1 Wake word
 
 In hands-free talk, the microphone hears all talk in the room. With the
@@ -130,7 +143,31 @@ store the audio or the text, and the response has `ignored` true. In the 8
 seconds after a spoken reply ends, the client sends the turn without
 `wake_word`, so the person can answer without the name.
 
-## 6. Status
+## 6. The voice of a persona
+
+A persona has one voice for all people. An operator sets it with
+`put-persona` (`voice`, an id of `list-voices`). A spoken reply and a
+spoken notice of the persona use it. A `say` call with `voice` uses that
+voice for its reply. A persona with no voice uses the default voice of
+the speech engine.
+
+## 7. The version of a client app
+
+A client app tells its version with `put-device` (`app_version`,
+`app_build`) and why its last update did not install (`update_error`).
+
+- `put-app-release` sends a notice to each phone that told an older
+  build. The answer of `wait-notices` has the newest build
+  (`app_build`), so the app installs the update when the notice comes.
+- A release can name the task that made it (`task`). When a device of the
+  owner of that task tells the new build, or a new `update_error`, Magi
+  starts a turn of the persona of the task (an event,
+  `docs/decisions/0009-events-wake-personas.md`). The persona then tells
+  the person that the phone runs the build, or what went wrong.
+- Not done: a step of a task that builds the app and makes the release.
+  An operator makes the release (`magi app-release CODE NAME APK TASK`).
+
+## 8. Status
 
 Done: devices and notices in the conversation service and the Magi API,
 the tools `send_notice` and `list_devices`, task notices, the engineering

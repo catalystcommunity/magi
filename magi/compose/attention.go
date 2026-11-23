@@ -20,7 +20,8 @@ import (
 const maxNoticeWait = 25 * time.Second
 
 func device(d conversationapi.Device) magiapi.Device {
-	return magiapi.Device{Id: d.Id, Kind: d.Kind, Name: d.Name, Can: d.Can, Active: d.Active, HandsFree: d.HandsFree, SeenMs: d.SeenMs}
+	return magiapi.Device{Id: d.Id, Kind: d.Kind, Name: d.Name, Can: d.Can, Active: d.Active, HandsFree: d.HandsFree, SeenMs: d.SeenMs,
+		AppVersion: d.AppVersion, AppBuild: d.AppBuild, UpdateError: d.UpdateError}
 }
 
 func notice(n conversationapi.Notice) magiapi.Notice {
@@ -41,8 +42,23 @@ func notices(ns []conversationapi.Notice) []magiapi.Notice {
 }
 
 func (m *Service) PutDevice(ctx context.Context, req magiapi.PutDeviceRequest) (magiapi.Device, error) {
+	// The record before this call shows a new build or a new failure.
+	var before *conversationapi.Device
+	if req.AppBuild != nil || req.UpdateError != nil {
+		if res, err := m.S.Conversation.ListDevices(AsCaller(ctx), conversationapi.ListDevicesRequest{}); err == nil {
+			for _, d := range res.Devices {
+				if d.Id == req.Id {
+					before = &d
+				}
+			}
+		}
+	}
 	d, err := m.S.Conversation.PutDevice(AsCaller(ctx), conversationapi.PutDeviceRequest{Id: req.Id, Kind: req.Kind, Name: req.Name,
-		Can: req.Can, Active: req.Active, HandsFree: req.HandsFree})
+		Can: req.Can, Active: req.Active, HandsFree: req.HandsFree, AppVersion: req.AppVersion, AppBuild: req.AppBuild, UpdateError: req.UpdateError})
+	if err == nil && before != nil {
+		// The client does not wait for the turn of the persona.
+		go m.S.appUpdated(context.WithoutCancel(ctx), *before, d)
+	}
 	return device(d), err
 }
 
@@ -68,7 +84,11 @@ func (m *Service) WaitNotices(ctx context.Context, req magiapi.WaitNoticesReques
 	if res.Closed == nil {
 		res.Closed = []string{}
 	}
-	return magiapi.WaitNoticesResponse{Notices: notices(res.Notices), Closed: res.Closed, NowMs: res.NowMs}, err
+	out := magiapi.WaitNoticesResponse{Notices: notices(res.Notices), Closed: res.Closed, NowMs: res.NowMs}
+	if rel, _, ok, rerr := m.S.appReleaseTask(ctx); rerr == nil && ok {
+		out.AppBuild = &rel.VersionCode
+	}
+	return out, err
 }
 
 func (m *Service) DeliverNotice(ctx context.Context, req magiapi.DeliverNoticeRequest) (magiapi.Notice, error) {

@@ -106,7 +106,15 @@ func speechSpans(text string) []span {
 // speakParts makes the audio of a posted persona reply, part by part. It
 // stops early when a person stops the speech. At the end the message gets
 // the whole audio, for clients that do not listen.
+//
+// voice "" is the voice of the persona that wrote u (put-persona), or the
+// default voice of the engine when that persona has none.
 func (s *System) speakParts(ctx context.Context, owner string, u conversationapi.Utterance, voice string) error {
+	if voice == "" && u.AuthorKind == "persona" {
+		if p, err := s.Conversation.GetPersona(s.AsService(ctx), conversationapi.GetPersonaRequest{Id: u.Author}); err == nil {
+			voice = deref(p.Voice)
+		}
+	}
 	var wavs [][]byte
 	parts, stopped := 0, false
 	var failure error

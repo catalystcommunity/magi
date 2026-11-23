@@ -57,11 +57,14 @@ Message = {
 
 ;;; sharing: "never", "private" (private by default), or "public" (shared
 ;;; with the audience by default).
-PersonaInfo = { id: text, name: text, sharing: text, members: [* text] }
+;;; voice is the voice id of the speech of the persona (list-voices);
+;;; absent: the default voice.
+PersonaInfo = { id: text, name: text, sharing: text, members: [* text], ? voice: text }
 ListPersonasRequest = { }
 ListPersonasResponse = { personas: [* PersonaInfo] }
-;;; Operator call.
-PutPersonaRequest = { id: text, name: text, sharing: text, ? members: [* text] }
+;;; Operator call. voice absent: the persona keeps its voice. voice "":
+;;; the default voice.
+PutPersonaRequest = { id: text, name: text, sharing: text, ? members: [* text], ? voice: text }
 
 ;;; Says something to a persona (default "persona:magi"). There are no
 ;;; chats: each person has one stream with each persona.
@@ -247,7 +250,15 @@ Device = {
   active: bool,
   hands_free: bool,
   seen_ms: uint,
+  ? app_version: text,
+  ? app_build: uint,
+  ? update_error: text,
 }
+;;; app_version and app_build: the version name and the version code of
+;;; the client app. update_error: why the last update of the app did not
+;;; install; "" after an update that installed. When app_build or
+;;; update_error changes after an app release of a task, Magi tells the
+;;; persona of that task (docs/attention.md).
 PutDeviceRequest = {
   id: text,
   kind: text,
@@ -255,6 +266,9 @@ PutDeviceRequest = {
   ? can: [* text],
   ? active: bool,
   ? hands_free: bool,
+  ? app_version: text,
+  ? app_build: uint,
+  ? update_error: text,
 }
 ListDevicesRequest = { }
 ListDevicesResponse = { devices: [* Device] }
@@ -276,7 +290,9 @@ WaitNoticesRequest = { device: text, ? wait_ms: uint, ? closed_after: uint }
 ;;; closed has the ids of notices that this device got and that were
 ;;; acknowledged after closed_after (ms): remove them. Send now_ms as
 ;;; closed_after in the next call.
-WaitNoticesResponse = { notices: [* Notice], closed: [* text], now_ms: uint }
+;;; app_build is the version code of the newest app release: a client app
+;;; with a lower code updates now.
+WaitNoticesResponse = { notices: [* Notice], closed: [* text], now_ms: uint, ? app_build: uint }
 DeliverNoticeRequest = { id: text, device: text, how: text }
 AckNoticeRequest = { id: text, ? device: text }
 ListNoticesRequest = { ? open: bool, ? limit: uint }
@@ -566,7 +582,11 @@ SetRunnerReleaseResponse = { version: text, packages: [* text] }
 
 ;;; The newest Android app. version_code increases with each build.
 AppRelease = { version_code: uint, version_name: text, digest: text, size: uint }
-PutAppReleaseRequest = { version_code: uint, version_name: text, body: bytes }
+;;; task: the code-change task that made this build. Magi sends a notice
+;;; to each phone with an older build, and tells the persona of the task
+;;; when a phone of the owner of the task runs the build or fails to
+;;; install it.
+PutAppReleaseRequest = { version_code: uint, version_name: text, body: bytes, ? task: text }
 GetAppReleaseRequest = { }
 GetAppReleaseResponse = { ? release: AppRelease }
 GetAppPackageRequest = { digest: text }

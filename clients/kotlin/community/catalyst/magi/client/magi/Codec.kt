@@ -619,6 +619,7 @@ fun PersonaInfo.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
     csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
     csilEntries.add(CborValue.CText("name") to CborValue.CText(this.name))
+    this.voice?.let { csilV -> csilEntries.add(CborValue.CText("voice") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("members") to CborValue.CArray((this.members).map { csilE -> CborValue.CText(csilE) }))
     csilEntries.add(CborValue.CText("sharing") to CborValue.CText(this.sharing))
     return CborValue.CMap(csilEntries)
@@ -633,7 +634,8 @@ fun personaInfoFromCborValue(cbor: CborValue): PersonaInfo {
     val name = CsilCbor.asText(CsilCbor.require(cbor, "name"))
     val sharing = CsilCbor.asText(CsilCbor.require(cbor, "sharing"))
     val members = CsilCbor.asArray(CsilCbor.require(cbor, "members")).map { csilE -> CsilCbor.asText(csilE) }
-    return PersonaInfo(id = id, name = name, sharing = sharing, members = members)
+    val voice = CsilCbor.mapGet(cbor, "voice")?.let { csilV -> CsilCbor.asText(csilV) }
+    return PersonaInfo(id = id, name = name, sharing = sharing, members = members, voice = voice)
 }
 
 /** Decode CSIL CBOR bytes into a PersonaInfo. */
@@ -680,6 +682,7 @@ fun PutPersonaRequest.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
     csilEntries.add(CborValue.CText("id") to CborValue.CText(this.id))
     csilEntries.add(CborValue.CText("name") to CborValue.CText(this.name))
+    this.voice?.let { csilV -> csilEntries.add(CborValue.CText("voice") to CborValue.CText(csilV)) }
     this.members?.let { csilV -> csilEntries.add(CborValue.CText("members") to CborValue.CArray((csilV).map { csilE -> CborValue.CText(csilE) })) }
     csilEntries.add(CborValue.CText("sharing") to CborValue.CText(this.sharing))
     return CborValue.CMap(csilEntries)
@@ -694,7 +697,8 @@ fun putPersonaRequestFromCborValue(cbor: CborValue): PutPersonaRequest {
     val name = CsilCbor.asText(CsilCbor.require(cbor, "name"))
     val sharing = CsilCbor.asText(CsilCbor.require(cbor, "sharing"))
     val members = CsilCbor.mapGet(cbor, "members")?.let { csilV -> CsilCbor.asArray(csilV).map { csilE -> CsilCbor.asText(csilE) } }
-    return PutPersonaRequest(id = id, name = name, sharing = sharing, members = members)
+    val voice = CsilCbor.mapGet(cbor, "voice")?.let { csilV -> CsilCbor.asText(csilV) }
+    return PutPersonaRequest(id = id, name = name, sharing = sharing, members = members, voice = voice)
 }
 
 /** Decode CSIL CBOR bytes into a PutPersonaRequest. */
@@ -1450,7 +1454,10 @@ fun Device.toCborValue(): CborValue {
     csilEntries.add(CborValue.CText("name") to CborValue.CText(this.name))
     csilEntries.add(CborValue.CText("active") to CborValue.CBool(this.active))
     csilEntries.add(CborValue.CText("seen_ms") to CborValue.CUint(this.seenMs))
+    this.appBuild?.let { csilV -> csilEntries.add(CborValue.CText("app_build") to CborValue.CUint(csilV)) }
     csilEntries.add(CborValue.CText("hands_free") to CborValue.CBool(this.handsFree))
+    this.appVersion?.let { csilV -> csilEntries.add(CborValue.CText("app_version") to CborValue.CText(csilV)) }
+    this.updateError?.let { csilV -> csilEntries.add(CborValue.CText("update_error") to CborValue.CText(csilV)) }
     return CborValue.CMap(csilEntries)
 }
 
@@ -1466,7 +1473,10 @@ fun deviceFromCborValue(cbor: CborValue): Device {
     val active = CsilCbor.asBoolean(CsilCbor.require(cbor, "active"))
     val handsFree = CsilCbor.asBoolean(CsilCbor.require(cbor, "hands_free"))
     val seenMs = CsilCbor.asULong(CsilCbor.require(cbor, "seen_ms"))
-    return Device(id = id, kind = kind, name = name, can = can, active = active, handsFree = handsFree, seenMs = seenMs)
+    val appVersion = CsilCbor.mapGet(cbor, "app_version")?.let { csilV -> CsilCbor.asText(csilV) }
+    val appBuild = CsilCbor.mapGet(cbor, "app_build")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val updateError = CsilCbor.mapGet(cbor, "update_error")?.let { csilV -> CsilCbor.asText(csilV) }
+    return Device(id = id, kind = kind, name = name, can = can, active = active, handsFree = handsFree, seenMs = seenMs, appVersion = appVersion, appBuild = appBuild, updateError = updateError)
 }
 
 /** Decode CSIL CBOR bytes into a Device. */
@@ -1480,7 +1490,10 @@ fun PutDeviceRequest.toCborValue(): CborValue {
     csilEntries.add(CborValue.CText("kind") to CborValue.CText(this.kind))
     csilEntries.add(CborValue.CText("name") to CborValue.CText(this.name))
     this.active?.let { csilV -> csilEntries.add(CborValue.CText("active") to CborValue.CBool(csilV)) }
+    this.appBuild?.let { csilV -> csilEntries.add(CborValue.CText("app_build") to CborValue.CUint(csilV)) }
     this.handsFree?.let { csilV -> csilEntries.add(CborValue.CText("hands_free") to CborValue.CBool(csilV)) }
+    this.appVersion?.let { csilV -> csilEntries.add(CborValue.CText("app_version") to CborValue.CText(csilV)) }
+    this.updateError?.let { csilV -> csilEntries.add(CborValue.CText("update_error") to CborValue.CText(csilV)) }
     return CborValue.CMap(csilEntries)
 }
 
@@ -1495,7 +1508,10 @@ fun putDeviceRequestFromCborValue(cbor: CborValue): PutDeviceRequest {
     val can = CsilCbor.mapGet(cbor, "can")?.let { csilV -> CsilCbor.asArray(csilV).map { csilE -> CsilCbor.asText(csilE) } }
     val active = CsilCbor.mapGet(cbor, "active")?.let { csilV -> CsilCbor.asBoolean(csilV) }
     val handsFree = CsilCbor.mapGet(cbor, "hands_free")?.let { csilV -> CsilCbor.asBoolean(csilV) }
-    return PutDeviceRequest(id = id, kind = kind, name = name, can = can, active = active, handsFree = handsFree)
+    val appVersion = CsilCbor.mapGet(cbor, "app_version")?.let { csilV -> CsilCbor.asText(csilV) }
+    val appBuild = CsilCbor.mapGet(cbor, "app_build")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val updateError = CsilCbor.mapGet(cbor, "update_error")?.let { csilV -> CsilCbor.asText(csilV) }
+    return PutDeviceRequest(id = id, kind = kind, name = name, can = can, active = active, handsFree = handsFree, appVersion = appVersion, appBuild = appBuild, updateError = updateError)
 }
 
 /** Decode CSIL CBOR bytes into a PutDeviceRequest. */
@@ -1645,6 +1661,7 @@ fun WaitNoticesResponse.toCborValue(): CborValue {
     csilEntries.add(CborValue.CText("closed") to CborValue.CArray((this.closed).map { csilE -> CborValue.CText(csilE) }))
     csilEntries.add(CborValue.CText("now_ms") to CborValue.CUint(this.nowMs))
     csilEntries.add(CborValue.CText("notices") to CborValue.CArray((this.notices).map { csilE -> csilE.toCborValue() }))
+    this.appBuild?.let { csilV -> csilEntries.add(CborValue.CText("app_build") to CborValue.CUint(csilV)) }
     return CborValue.CMap(csilEntries)
 }
 
@@ -1656,7 +1673,8 @@ fun waitNoticesResponseFromCborValue(cbor: CborValue): WaitNoticesResponse {
     val notices = CsilCbor.asArray(CsilCbor.require(cbor, "notices")).map { csilE -> noticeFromCborValue(csilE) }
     val closed = CsilCbor.asArray(CsilCbor.require(cbor, "closed")).map { csilE -> CsilCbor.asText(csilE) }
     val nowMs = CsilCbor.asULong(CsilCbor.require(cbor, "now_ms"))
-    return WaitNoticesResponse(notices = notices, closed = closed, nowMs = nowMs)
+    val appBuild = CsilCbor.mapGet(cbor, "app_build")?.let { csilV -> CsilCbor.asULong(csilV) }
+    return WaitNoticesResponse(notices = notices, closed = closed, nowMs = nowMs, appBuild = appBuild)
 }
 
 /** Decode CSIL CBOR bytes into a WaitNoticesResponse. */
@@ -3301,6 +3319,7 @@ fun appReleaseFromCbor(bytes: ByteArray): AppRelease = appReleaseFromCborValue(C
 fun PutAppReleaseRequest.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
     csilEntries.add(CborValue.CText("body") to CborValue.CBytes(this.body))
+    this.task?.let { csilV -> csilEntries.add(CborValue.CText("task") to CborValue.CText(csilV)) }
     csilEntries.add(CborValue.CText("version_code") to CborValue.CUint(this.versionCode))
     csilEntries.add(CborValue.CText("version_name") to CborValue.CText(this.versionName))
     return CborValue.CMap(csilEntries)
@@ -3314,7 +3333,8 @@ fun putAppReleaseRequestFromCborValue(cbor: CborValue): PutAppReleaseRequest {
     val versionCode = CsilCbor.asULong(CsilCbor.require(cbor, "version_code"))
     val versionName = CsilCbor.asText(CsilCbor.require(cbor, "version_name"))
     val body = CsilCbor.asBytes(CsilCbor.require(cbor, "body"))
-    return PutAppReleaseRequest(versionCode = versionCode, versionName = versionName, body = body)
+    val task = CsilCbor.mapGet(cbor, "task")?.let { csilV -> CsilCbor.asText(csilV) }
+    return PutAppReleaseRequest(versionCode = versionCode, versionName = versionName, body = body, task = task)
 }
 
 /** Decode CSIL CBOR bytes into a PutAppReleaseRequest. */

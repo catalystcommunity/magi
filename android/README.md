@@ -32,7 +32,7 @@ like the web and command-line clients.
 | Network | Admins only: requests of tasks that the egress proxy blocked for review. Each decision (allow the host, allow the path, block, or dismiss) is a rule for the next such requests. |
 | Tasks | Status of tasks, the diff, and the decisions of a waiting task (for example approve or reject) |
 | Admin | Admins only: the runs of all people with their steps, data, diff, and outputs; the conversations of all people, with the turn log of a reply; your knowledge graph; the runners. Magi checks the role for each call. |
-| Menu | Speak replies, the wake word, the theme, "Check for updates" (asks Magi for a newer build now), "About" (the version, the time of the build, the server, and your identity), and the sign out. |
+| Menu | Speak replies, the wake word, the voice of the persona (admins), the theme, "Check for updates" (asks Magi for a newer build now), "About" (the version, the time of the build, the server, and your identity), and the sign out. |
 
 ## Sign in
 
@@ -62,6 +62,9 @@ same scheme cannot sign in as the person.
 
 Magi keeps the newest app build. The app checks for it when it opens and
 about once an hour in the background (a `JobScheduler` job, any network).
+Magi also sends a notice for a new build, and the app then installs it at
+once. The app tells Magi its version, and why an update did not install
+(`docs/attention.md`, section 7).
 A build with a higher version code is downloaded, checked against its
 SHA-256 digest, and installed with `PackageInstaller`.
 
