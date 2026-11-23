@@ -33,6 +33,7 @@ def main():
     p.add_argument("--quiet", action="store_true", help="print only the result")
     p.add_argument("--hosts", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "hosts.json"))
     p.add_argument("--task", default="decide")
+    p.add_argument("--model", help="the name of a model of the catalog, in place of the model of the task")
     p.add_argument("--work", default="Add a parser for a configuration file to a Go service.")
     p.add_argument("--out")
     a = p.parse_args()
@@ -54,7 +55,7 @@ def main():
         magi = MagiClient(HttpTransport(a.url, open(a.token_file).read().strip(), timeout=120))
 
         def ask(state):
-            r = magi.decision(T.DecisionRequest(state=state, task=a.task, questions=[T.DecisionQuestion(id=q["id"], type="noul", question=QUESTION)]))
+            r = magi.decision(T.DecisionRequest(state=state, task=a.task, model=T.ModelSelector(name=a.model) if a.model else None, questions=[T.DecisionQuestion(id=q["id"], type="noul", question=QUESTION)]))
             return r.answers[0].probs[0], r.model, r.ms
     rows = []
     for want in ("allow", "either", "ask"):

@@ -89,3 +89,40 @@ model only, without the code checks of the server.
   project sites, certificate authorities, font sites. A person decides
   them. A small model does not know these names.
 - The labels of `corpus2.json` change these numbers by less than 1%.
+
+### A popularity line and a scoring head
+
+One experiment added a line to the state: the rank of the domain of the
+host in a public list of the 1,000,000 most visited domains, or a
+statement that the list does not have the domain. The training set was
+`train2.json`, two generated look-alike hosts for each official host, and
+2000 popular domains that are not sources. The experiment compared two
+methods on two base models. The first method reads the probability from
+the log-probabilities of the answer labels (`evals/decide`). The second
+method trains a scoring head on the last hidden state (the decision
+models of Unsloth). The limit of each row is the lowest limit that
+permits no wrong host on the dev part of `corpus2.json`. The numbers are
+of the test part: 377 official hosts and 449 hosts that need a person.
+
+| Method | Base | Popularity line | Dev rank | Official hosts permitted | Wrong hosts permitted |
+| --- | --- | --- | --- | --- | --- |
+| Label log-probabilities (the adapter in use) | Gemma 4 E4B | no | 97.0% | 197 | 0 |
+| Label log-probabilities | Gemma 4 E4B | yes | 99.2% | 287 | 2 |
+| Label log-probabilities | Qwen3.5-4B | yes | 99.3% | 213 | 0 |
+| Scoring head | Gemma 4 E4B | yes | 98.5% | 321 | 4 |
+| Scoring head | Qwen3.5-4B | yes | 99.2% | 309 | 0 |
+| Scoring head | Qwen3.5-4B | no | 99.0% | 160 | 0 |
+
+- The popularity line is the largest gain. It almost doubles the
+  official hosts that the same model permits with no wrong host.
+- No model permitted an invented host or a look-alike host. Each wrong
+  host is a real, popular site: two trackers, a tag manager, a compiler
+  explorer, a notebook site.
+- The two methods rank the hosts equally well on Qwen3.5-4B. The scoring
+  head is better at the limit with no wrong host, because one dev host
+  (`docs.google.com`) gets a lower probability from it.
+- The limit with no wrong host comes from one or two hosts, thus small
+  differences between the rows are not significant.
+- The scoring head has no GGUF form. A llama.cpp server cannot serve it.
+- The first row is the measurement through the server. The other rows
+  are of the model only.
