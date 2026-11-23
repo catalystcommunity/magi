@@ -100,17 +100,14 @@ type Config struct {
 	// directory with its sign-in). ReadOnly are paths that it can read
 	// (toolchains, a module cache). Env are its variables; the variables of
 	// the runner do not go to it.
-	Checker struct {
-		Command        []string          `json:"command"`
-		TimeoutMinutes int               `json:"timeout_minutes"`
-		Writable       []string          `json:"writable"`
-		ReadOnly       []string          `json:"read_only"`
-		Env            map[string]string `json:"env"`
-		// EnvFiles are variables whose value is the text of a file of this
-		// host (a token of the coding agent). The runner reads the file
-		// when the checker starts and gives the value only to the command.
-		EnvFiles map[string]string `json:"env_files"`
-	} `json:"checker"`
+	Checker AgentCommand `json:"checker"`
+	// Planner is a command of this host that reads the repository before
+	// the first work round and writes acceptance checks and a plan for the
+	// apprentice (planner.go). "{dir}" is the copy of the tree and "{out}"
+	// the file where the command writes the text. The task comes on
+	// standard input. The command runs in the same view as the checker.
+	// Empty: no planner.
+	Planner AgentCommand `json:"planner"`
 	Sandbox struct {
 		// Preflight is a shell command that runs in the sandbox before each
 		// work round, for example an HTTPS request through the egress proxy.
@@ -168,19 +165,21 @@ func LoadConfig(path string) (Config, error) {
 	fix(&c.Sandbox.VM.Template)
 	fix(&c.Sandbox.VM.Hypervisor)
 	fix(&c.Sandbox.VM.Virtiofsd)
-	for i := range c.Checker.Writable {
-		fix(&c.Checker.Writable[i])
-	}
-	for i := range c.Checker.ReadOnly {
-		fix(&c.Checker.ReadOnly[i])
-	}
-	for k, v := range c.Checker.EnvFiles {
-		fix(&v)
-		c.Checker.EnvFiles[k] = v
-	}
-	for k, v := range c.Checker.Env {
-		// A path list can have more than one home path.
-		c.Checker.Env[k] = strings.ReplaceAll(":"+v, ":~/", ":"+home+"/")[1:]
+	for _, ac := range []*AgentCommand{&c.Checker, &c.Planner} {
+		for i := range ac.Writable {
+			fix(&ac.Writable[i])
+		}
+		for i := range ac.ReadOnly {
+			fix(&ac.ReadOnly[i])
+		}
+		for k, v := range ac.EnvFiles {
+			fix(&v)
+			ac.EnvFiles[k] = v
+		}
+		for k, v := range ac.Env {
+			// A path list can have more than one home path.
+			ac.Env[k] = strings.ReplaceAll(":"+v, ":~/", ":"+home+"/")[1:]
+		}
 	}
 	for k, v := range c.Sandbox.Env {
 		fix(&v)
@@ -250,6 +249,21 @@ type Runner struct {
 // New returns a runner for the configuration file at cfgPath.
 func New(cfgPath string, cfg Config, log *slog.Logger, m *magiapi.RunnerClient, boxes *sandbox.Sandboxes, src *sourceserver.Service) *Runner {
 	return &Runner{Cfg: cfg, Log: log, Magi: m, Boxes: boxes, Source: src, cfgPath: cfgPath, version: Version()}
+}
+
+// AgentCommand is a command of the runner host that starts a coding agent
+// of the person who owns the runner, and the view of the host that it
+// gets (checkerview.go).
+type AgentCommand struct {
+	Command        []string          `json:"command"`
+	TimeoutMinutes int               `json:"timeout_minutes"`
+	Writable       []string          `json:"writable"`
+	ReadOnly       []string          `json:"read_only"`
+	Env            map[string]string `json:"env"`
+	// EnvFiles are variables whose value is the text of a file of this
+	// host (a token of the coding agent). The runner reads the file when
+	// the command starts and gives the value only to the command.
+	EnvFiles map[string]string `json:"env_files"`
 }
 
 // Result is the outcome of one step.

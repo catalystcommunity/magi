@@ -173,7 +173,12 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 	}
 	defer os.RemoveAll(dir)
 	instr := filepath.Join(dir, "instructions")
-	if err := os.WriteFile(instr, []byte(a.Vars["instructions"]), 0o600); err != nil {
+	plan, planTried := r.plan(ctx, a, st)
+	instructions := a.Vars["instructions"]
+	if plan != "" {
+		instructions += "\n\n" + planNote + plan
+	}
+	if err := os.WriteFile(instr, []byte(instructions), 0o600); err != nil {
 		return Result{}, err
 	}
 	transcript := filepath.Join(dir, "transcript.jsonl")
@@ -255,6 +260,10 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 	}
 	outputs := map[string]string{"apprentice.summary": out.Summary, "apprentice.steps": strconv.Itoa(out.Steps),
 		"apprentice.status": out.Status, "apprentice.tool_calls": strconv.Itoa(out.ToolCalls)}
+	if planTried {
+		// The later rounds get the same plan and start no planner.
+		outputs["plan"], outputs["plan.tried"] = plan, "true"
+	}
 	if out.CheckPassed != nil {
 		outputs["apprentice.check_passed"] = strconv.FormatBool(*out.CheckPassed)
 	}

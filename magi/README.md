@@ -250,17 +250,26 @@ runner starts the command in a view of the host (bubblewrap):
 - A Linux host with no bubblewrap does not run the checker. macOS has no
   view yet: there the command runs with the small environment only.
 
-A coding agent that prints its result needs a shell around it. This
-example gives the agent a token from a file, and only tools that read:
+A coding agent with no option for a result file prints the result. The
+runner reads the printed JSON when the file `{out}` is not there. The
+result can be the object of the schema, or an object that has it in the
+field `structured_output`. `{schema_json}` is the text of the schema. This
+example gives Claude Code a token from a file, and only tools that read:
 
 ```json
 "checker": {
-  "command": ["sh", "-c", "claude -p --model MODEL --effort high --tools Read,Grep,Glob --output-format json --json-schema \"$(cat {schema})\" | jq .structured_output > {out}"],
+  "command": ["claude", "-p", "--model", "MODEL", "--effort", "high", "--tools", "Read,Grep,Glob", "--add-dir", "{dir}/..",
+              "--output-format", "json", "--json-schema", "{schema_json}"],
   "read_only": ["~/.local/bin/claude"],
   "env": {"PATH": "~/.local/bin:/usr/bin:/bin"},
   "env_files": {"CLAUDE_CODE_OAUTH_TOKEN": "~/.config/magi-runner/claude-token"}
 }
 ```
+
+- `--add-dir` lets the agent read the diff, which is next to the tree.
+- This checker reads the change and does not run it. It gives its token
+  to each command that it starts, and the view has the network, so do not
+  give it a tool that runs commands.
 
 An agent that gets its token in a variable gives the token to each command
 that it starts. Give such an agent no tool that runs commands, or a
@@ -269,6 +278,37 @@ sandbox with no network for them.
 The code of the change can read the paths of `writable`, which have the
 sign-in of the coding agent. It has no network in the sandbox of the
 coding agent, and the result of the checker has a fixed form.
+
+### Planner
+
+A runner can run a planner: a command of the runner host that reads the
+repository before the first work round of a task. As the checker, it is a
+coding agent of the person who owns the runner, and the runner only starts
+it.
+
+```json
+"planner": {
+  "command": ["claude", "-p", "--model", "MODEL", "--effort", "high", "--tools", "Read,Grep,Glob", "--output-format", "json"],
+  "timeout_minutes": 10,
+  "read_only": ["~/.local/bin/claude"],
+  "env": {"PATH": "~/.local/bin:/usr/bin:/bin"},
+  "env_files": {"CLAUDE_CODE_OAUTH_TOKEN": "~/.config/magi-runner/claude-token"}
+}
+```
+
+- The command runs in a copy of the tree of the work directory, in the
+  same view of the host as the checker. `{dir}` is that directory and
+  `{out}` is a file where the command can write the text.
+- The task and the instructions for the planner come on standard input
+  (`runner/planner-prompt.md`).
+- The result is text: acceptance checks with exact values, and a plan
+  with the real names of the repository. The runner reads the file
+  `{out}`, or the printed text, or the field `result` of a printed JSON
+  object.
+- The apprentice gets the text after the task, in each work round. The
+  task decides when the two do not agree. The checker does not get it.
+- The planner runs one time for a task. A planner that fails does not
+  stop the task: the work starts without a plan.
 
 ### Runner updates
 

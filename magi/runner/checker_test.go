@@ -262,3 +262,24 @@ exit 0
 		t.Error("a relative path was accepted")
 	}
 }
+
+// A checker with no result file prints the result. Claude Code prints an
+// object with the result in "structured_output".
+func TestParseCheckerResult(t *testing.T) {
+	res, err := parseCheckerResult([]byte(`{"type": "result", "is_error": false, "result": "done",
+		"structured_output": {"verdict": "revise", "findings": [{"severity": "requirement", "file": "a.go", "line": 3,
+		"sentence": "s", "problem": "p", "evidence": "e"}]}}`))
+	if err != nil || res.Verdict != "revise" || len(res.Findings) != 1 || res.Findings[0].File != "a.go" {
+		t.Fatalf("%+v %v", res, err)
+	}
+	res, err = parseCheckerResult([]byte(`{"verdict": "approve", "findings": []}`))
+	if err != nil || res.Verdict != "approve" {
+		t.Fatalf("%+v %v", res, err)
+	}
+	if _, err := parseCheckerResult([]byte(`{"is_error": true, "result": "Credit balance is too low"}`)); err == nil || !strings.Contains(err.Error(), "Credit balance") {
+		t.Fatalf("an error result: %v", err)
+	}
+	if _, err := parseCheckerResult([]byte("I checked the change.")); err == nil {
+		t.Fatal("text is not a result")
+	}
+}

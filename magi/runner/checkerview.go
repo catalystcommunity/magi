@@ -108,8 +108,12 @@ func checkerEnv(home string, more, files map[string]string) ([]string, error) {
 // not a command with no view. macOS has no view yet: the command runs as
 // it is, with the small environment.
 func (r *Runner) checkerCommand(dir string, argv []string) ([]string, []string, error) {
+	return agentCommand(r.Cfg.Checker, dir, argv)
+}
+
+// agentCommand is checkerCommand for the checker or the planner.
+func agentCommand(c AgentCommand, dir string, argv []string) ([]string, []string, error) {
 	home, _ := os.UserHomeDir()
-	c := r.Cfg.Checker
 	env, err := checkerEnv(home, c.Env, c.EnvFiles)
 	if err != nil {
 		return nil, nil, err

@@ -284,7 +284,10 @@ const hostQuestion = "Is this host the official site of a well-known public sour
 const hostQuestionID = "egress-known-source"
 
 // autoLimit is the default least probability of "yes" that permits a host.
-const autoLimit = 0.95
+// It is the measured limit of the adapter that was trained with the
+// popularity line: no wrong host in the two halves of the corpus
+// (evals/egress/README.md). Measure again after a new training.
+const autoLimit = 0.97
 
 // hostState is the state of the question. It has the host, the line of
 // the popularity list, and the title of the task, and no data from the

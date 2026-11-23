@@ -137,3 +137,26 @@ of the test part: 377 official hosts and 449 hosts that need a person.
 - The scoring head has no GGUF form. A llama.cpp server cannot serve it.
 - The first row is the measurement through the server. The other rows
   are of the model only.
+
+### In use
+
+The server uses the second row of the table (label log-probabilities,
+Gemma 4 E4B, popularity line): a llama.cpp server can serve it, and one
+adapter serves the note questions too. The numbers below are of the
+server on `corpus3.json` (the vendor documentation hosts are official),
+with the list of code that sends some popular sites to a person
+(`neverAutoHosts`).
+
+| Limit | Dev: official hosts permitted | Dev: wrong hosts | Test: official hosts permitted | Test: wrong hosts |
+| --- | --- | --- | --- | --- |
+| 0.95 | 314 of 388 | 1 | 318 of 389 | 1 |
+| 0.97 (the default) | 296 of 388 | 0 | 301 of 389 | 0 |
+| 0.99 | 255 of 388 | 0 | 255 of 389 | 0 |
+
+- The wrong host of the test half at 0.95 is an invented department of
+  a real university. Its domain is in the popularity list.
+- `neverAutoHosts` has wrong hosts of these measurements, thus the corpus
+  is not an independent test of that list.
+- End to end with `hosts.json` at the limit 0.97: 17 of 18 known hosts
+  permitted, 0 of 46 hosts that need a person, about 0.3 seconds for
+  each host.

@@ -76,6 +76,31 @@ func (c checkerResult) text(severity string) string {
 	return b.String()
 }
 
+// parseCheckerResult reads the result of the checker: the object of the
+// schema, or an object that has it in the field "structured_output" (the
+// JSON output of Claude Code).
+func parseCheckerResult(body []byte) (checkerResult, error) {
+	var res checkerResult
+	var wrap struct {
+		Structured json.RawMessage `json:"structured_output"`
+		IsError    bool            `json:"is_error"`
+		Result     string          `json:"result"`
+	}
+	if err := json.Unmarshal(body, &wrap); err != nil {
+		return res, fmt.Errorf("the result of the checker is not JSON: %v: %s", err, tail(string(body), 200))
+	}
+	if wrap.IsError {
+		return res, fmt.Errorf("the checker reported an error: %s", tail(wrap.Result, 300))
+	}
+	if len(wrap.Structured) > 0 {
+		body = wrap.Structured
+	}
+	if err := json.Unmarshal(body, &res); err != nil {
+		return res, fmt.Errorf("the result of the checker is not JSON: %v", err)
+	}
+	return res, nil
+}
+
 // runChecker runs the checker command on a copy of the tree of the change.
 // tree is a gzip tar of the files at the head of the branch; patch is the
 // diff from the base.
@@ -109,7 +134,8 @@ func (r *Runner) runChecker(ctx context.Context, a magiapi.RunnerAssignment, tre
 	}
 	argv := make([]string, len(r.Cfg.Checker.Command))
 	for i, arg := range r.Cfg.Checker.Command {
-		argv[i] = strings.NewReplacer("{dir}", work, "{schema}", schema, "{out}", out, "{diff}", filepath.Join(dir, "CHANGE.diff")).Replace(arg)
+		argv[i] = strings.NewReplacer("{dir}", work, "{schema_json}", checkerSchema, "{schema}", schema, "{out}", out,
+			"{diff}", filepath.Join(dir, "CHANGE.diff")).Replace(arg)
 	}
 	timeout := time.Duration(r.Cfg.Checker.TimeoutMinutes) * time.Minute
 	if timeout <= 0 {
@@ -124,15 +150,22 @@ func (r *Runner) runChecker(ctx context.Context, a magiapi.RunnerAssignment, tre
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	cmd.Dir, cmd.Env = work, env
 	cmd.Stdin = strings.NewReader(strings.ReplaceAll(checkerPrompt, "{diff}", filepath.Join(dir, "CHANGE.diff")) + "\n" + task + "\n")
-	if b, err := cmd.CombinedOutput(); err != nil {
-		return res, fmt.Errorf("%s: %v: %s", argv[0], err, tail(string(b), 300))
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if err := cmd.Run(); err != nil {
+		return res, fmt.Errorf("%s: %v: %s", argv[0], err, tail(stderr.String()+stdout.String(), 300))
 	}
 	body, err := os.ReadFile(out)
+	if os.IsNotExist(err) {
+		// A command with no option for a result file prints the result.
+		body, err = stdout.Bytes(), nil
+	}
 	if err != nil {
 		return res, fmt.Errorf("the checker wrote no result: %v", err)
 	}
-	if err := json.Unmarshal(body, &res); err != nil {
-		return res, fmt.Errorf("the result of the checker is not JSON: %v", err)
+	res, err = parseCheckerResult(body)
+	if err != nil {
+		return res, err
 	}
 	if res.Verdict != "approve" && res.Verdict != "revise" {
 		return res, fmt.Errorf("the checker gave the verdict %q", res.Verdict)
