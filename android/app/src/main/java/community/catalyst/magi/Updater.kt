@@ -74,6 +74,10 @@ object Updater {
 
     private fun install(context: Context, apk: ByteArray) {
         val pi = context.packageManager.packageInstaller
+        // A session that waits for a confirmation stays open. Android permits
+        // a fixed number of open sessions for each app, and then refuses a
+        // new one ("Too many active sessions"). Only the newest build counts.
+        pi.mySessions.forEach { old -> runCatching { pi.abandonSession(old.sessionId) } }
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
         params.setAppPackageName(context.packageName)
         if (Build.VERSION.SDK_INT >= 31) params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)

@@ -55,6 +55,9 @@ about once an hour in the background (a `JobScheduler` job, any network).
 A build with a higher version code is downloaded, checked against its
 SHA-256 digest, and installed with `PackageInstaller`.
 
+- An update that waits for a confirmation keeps an install session open.
+  The app abandons its old sessions before each new one. Android refuses
+  a new session when an app has too many open sessions.
 - Updates install without a question only when the app is the installer
   of record of itself. Install the first build over USB with the app as
   the installer, and let it install apps:

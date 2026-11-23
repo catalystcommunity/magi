@@ -4,6 +4,8 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Self-update from Magi (Updater.kt). -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Android installs an update with no question only for an installer with this permission. -->
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- The update job has a network constraint; JobScheduler needs this. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
