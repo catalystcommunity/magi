@@ -207,7 +207,11 @@ class Tools:
                   replace_all: bool = False) -> ToolResult:
         p = self.ws.path(path)
         if old_string == new_string:
-            raise ToolError("old_string and new_string are the same")
+            # A model that wants to add lines often sends the text of the
+            # file two times. The words tell it what the next call needs.
+            raise ToolError("old_string and new_string are the same, so the file does not change. "
+                            "The file has this text already. To add text, send new_string with the "
+                            "added text in it. If the file needs no change, go to the next step.")
         if old_string == "":
             raise ToolError("old_string is empty; use write_file to create a file")
         text = self.ws.read(p)

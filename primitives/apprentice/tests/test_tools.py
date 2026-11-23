@@ -65,7 +65,10 @@ class EditFileTest(unittest.TestCase):
         self.assertIn("whitespace", r.content)
 
     def test_same_strings(self):
-        self.assertFalse(run(self.t, "edit_file", path="a.py", old_string="y", new_string="y").ok)
+        r = run(self.t, "edit_file", path="a.py", old_string="y", new_string="y")
+        self.assertFalse(r.ok)
+        # The error tells the model that the text is in the file already.
+        self.assertIn("The file has this text already", r.content)
 
     def test_missing_file(self):
         r = run(self.t, "edit_file", path="nope.py", old_string="a", new_string="b")
