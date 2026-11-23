@@ -275,6 +275,42 @@ An agent that gets its token in a variable gives the token to each command
 that it starts. Give such an agent no tool that runs commands, or a
 sandbox with no network for them.
 
+This example gives Claude Code a shell in its own sandbox, so that it can
+run small tests of the change:
+
+```json
+"checker": {
+  "command": ["claude", "-p", "--model", "MODEL", "--effort", "high", "--tools", "Read,Grep,Glob,Bash,Write,Edit",
+              "--allowedTools", "Read,Grep,Glob,Write,Edit,Bash", "--add-dir", "{dir}/..",
+              "--settings", "SETTINGS",
+              "--output-format", "json", "--json-schema", "{schema_json}"],
+  "timeout_minutes": 20,
+  "read_only": ["~/.local/bin/claude", "~/.config/magi-runner/checker-settings.json", "~/.cache/gomod"],
+  "env": {"PATH": "~/.local/bin:/usr/bin:/bin", "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB": "1",
+          "GOMODCACHE": "~/.cache/gomod", "GOPROXY": "off", "GOCACHE": "/tmp/gocache"},
+  "env_files": {"CLAUDE_CODE_OAUTH_TOKEN": "~/.config/magi-runner/claude-token"}
+}
+```
+
+`SETTINGS` is the full path of the settings file: the runner does not
+change `~/` in the command. The settings file starts the sandbox of Claude
+Code and refuses a command that cannot run in it:
+
+```json
+{"sandbox": {"enabled": true, "failIfUnavailable": true, "autoAllowBashIfSandboxed": true, "allowUnsandboxedCommands": false,
+  "network": {"allowedDomains": [], "strictAllowlist": true},
+  "filesystem": {"allowWrite": ["/tmp"]},
+  "credentials": {"envVars": [{"name": "CLAUDE_CODE_OAUTH_TOKEN", "mode": "deny"}, {"name": "ANTHROPIC_API_KEY", "mode": "deny"}]}},
+ "permissions": {"blockWritesOutsideWorkingDirectories": true}}
+```
+
+- The sandbox of Claude Code starts in the view of the runner. Its
+  commands have no network and no token. They can write only in the
+  directory of the check and in `/tmp`.
+- The sandbox needs `bwrap` and `socat` on the host.
+- On 10 fixed changes (2026-11-23), this checker approved the 3 changes
+  that a person had approved and sent back the 7 changes with a defect.
+
 The code of the change can read the paths of `writable`, which have the
 sign-in of the coding agent. It has no network in the sandbox of the
 coding agent, and the result of the checker has a fixed form.

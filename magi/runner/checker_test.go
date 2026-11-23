@@ -30,7 +30,7 @@ func fakeChecker(t *testing.T, result string) (command []string, seen string) {
 // After a loop stop, a failed check goes to a person and not to a new
 // work round. A passed check goes on as after a finish.
 func TestCheckAfterLoopStop(t *testing.T) {
-	res, _, _ := checkWithVars(t, `{"verdict": "approve", "findings": []}`, map[string]string{"apprentice.loop_stop": "true", "check_command": "false"})
+	res, _, _ := checkWithVars(t, `{"verdict": "approve", "findings": []}`, map[string]string{"apprentice.guard_stop": "true", "check_command": "false"})
 	if res.Outcome != "blocked" || res.Outputs["apprentice.blocked"] != "true" {
 		t.Fatalf("a failed check after a loop stop: %+v", res)
 	}
@@ -38,7 +38,7 @@ func TestCheckAfterLoopStop(t *testing.T) {
 	if res.Outcome != "fail-checks" {
 		t.Fatalf("a failed check after a finish: %+v", res)
 	}
-	res, _, _ = checkWithVars(t, `{"verdict": "approve", "findings": []}`, map[string]string{"apprentice.loop_stop": "true"})
+	res, _, _ = checkWithVars(t, `{"verdict": "approve", "findings": []}`, map[string]string{"apprentice.guard_stop": "true"})
 	if res.Outcome != "pass" {
 		t.Fatalf("a passed check after a loop stop: %+v", res)
 	}

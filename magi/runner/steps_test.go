@@ -130,28 +130,32 @@ func TestWorkStepBlocked(t *testing.T) {
 	}
 }
 
-// A loop stop with a change in the work tree goes to the check. With no
-// change, and for each other guard stop, a person decides.
+// A loop stop or a stall with a change in the work tree goes to the check. With no
+// change, a person decides.
 func TestWorkStepLoopWithChangeGoesToCheck(t *testing.T) {
 	const loop = `{"status": "loop", "outcome": "blocked", "summary": "The same call 5 times.", "steps": 9, "tool_calls": 9}`
 	res, notes, _ := workStepResult(t, loop, map[string]string{"test.changed": "true"})
-	if res.Outcome != "done" || res.Outputs["apprentice.loop_stop"] != "true" || res.Outputs["apprentice.blocked"] != "" ||
+	if res.Outcome != "done" || res.Outputs["apprentice.guard_stop"] != "true" || res.Outputs["apprentice.blocked"] != "" ||
 		!hasNote(notes, "The apprentice stopped in a loop, and the environment has a change. The checks decide about the change.") {
 		t.Fatalf("result = %+v, notes = %q", res, notes)
 	}
 	res, _, _ = workStepResult(t, loop, nil)
-	if res.Outcome != "blocked" || res.Outputs["apprentice.loop_stop"] != "" {
+	if res.Outcome != "blocked" || res.Outputs["apprentice.guard_stop"] != "" {
 		t.Fatalf("a loop with no change: %+v", res)
 	}
 	res, _, _ = workStepResult(t, `{"status": "stalled", "outcome": "blocked", "summary": "s", "steps": 9, "tool_calls": 9}`,
 		map[string]string{"test.changed": "true"})
-	if res.Outcome != "blocked" {
-		t.Fatalf("a different guard stop with a change: %+v", res)
+	if res.Outcome != "done" || res.Outputs["apprentice.guard_stop"] != "true" {
+		t.Fatalf("a stall with a change: %+v", res)
+	}
+	res, _, _ = workStepResult(t, `{"status": "stalled", "outcome": "blocked", "summary": "s", "steps": 9, "tool_calls": 9}`, nil)
+	if res.Outcome != "blocked" || res.Outputs["apprentice.guard_stop"] != "" {
+		t.Fatalf("a stall with no change: %+v", res)
 	}
 	// A finished round clears the mark of an earlier round.
 	res, _, _ = workStepResult(t, `{"status": "finished", "outcome": "done", "summary": "done", "steps": 2, "tool_calls": 2}`,
-		map[string]string{"apprentice.loop_stop": "true"})
-	if v, ok := res.Outputs["apprentice.loop_stop"]; !ok || v != "" {
+		map[string]string{"apprentice.guard_stop": "true"})
+	if v, ok := res.Outputs["apprentice.guard_stop"]; !ok || v != "" {
 		t.Fatalf("result = %+v", res)
 	}
 }

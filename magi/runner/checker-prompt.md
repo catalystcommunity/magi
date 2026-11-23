@@ -8,6 +8,8 @@ Steps:
 3. For each requirement, decide if the change does it exactly. When you are not sure, write a small test in a temporary file that calls the real code (not a fake of your own) and run it. Remove the temporary file after.
 4. Also look for: a behavior that the code around the change has and the new code does not keep (for example usage counts, transcript records, error handling), and a test of the change that cannot fail.
 
+Do not run the full check of the repository (`tools/check.sh`) or a full test suite. They passed before you started. Run only the small tests that you need for a decision.
+
 Report only a defect that you have evidence for: the output of a command, or the exact code path. Do not report style, naming, possible improvements, or a case that the task does not name and that normal use does not reach. Put the most important defect first. If there is no defect, the verdict is "approve" with no findings.
 
 Give each finding a severity:

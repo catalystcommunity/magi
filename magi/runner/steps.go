@@ -285,13 +285,18 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 	r.note(ctx, st, fmt.Sprintf("apprentice %s after %d steps, %d tool calls%s: %s",
 		out.Status, out.Steps, out.ToolCalls, cost, out.Summary))
 	// Each round sets it, so that a later round does not see an old value.
-	outputs["apprentice.blocked"], outputs["apprentice.loop_stop"] = "", ""
-	if out.Status == "loop" && r.changed(ctx, a) {
+	outputs["apprentice.blocked"], outputs["apprentice.guard_stop"] = "", ""
+	if (out.Status == "loop" || out.Status == "stalled") && r.changed(ctx, a) {
 		// The model made a change and then sent the same call again and
-		// again. The change can be complete, so the check decides. A change
-		// that fails the check goes to a person (check), not to a new round.
-		outputs["apprentice.loop_stop"] = "true"
-		r.note(ctx, st, "The apprentice stopped in a loop, and the environment has a change. The checks decide about the change.")
+		// again, or gave replies with no call. The change can be complete,
+		// so the check decides. A change that fails the check goes to a
+		// person (check), not to a new round.
+		outputs["apprentice.guard_stop"] = "true"
+		how := "in a loop"
+		if out.Status == "stalled" {
+			how = "with no progress"
+		}
+		r.note(ctx, st, "The apprentice stopped "+how+", and the environment has a change. The checks decide about the change.")
 		return Result{Outcome: "done", Outputs: outputs}, nil
 	}
 	switch out.Outcome {
@@ -466,11 +471,11 @@ func (r *Runner) check(ctx context.Context, a magiapi.RunnerAssignment, st magia
 	out := map[string]string{"check.output": art.Digest, "check.attempts": strconv.Itoa(attempts), "apprentice.blocked": ""}
 	failed := func(why string) (Result, error) {
 		out["check_output"] = why
-		if a.Vars["apprentice.loop_stop"] == "true" {
-			// The work round ended in a loop, not with a finish. One more
+		if a.Vars["apprentice.guard_stop"] == "true" {
+			// The work round ended in a loop or a stall, not with a finish. One more
 			// round of the same model has a small chance: a person decides.
 			out["apprentice.blocked"] = "true"
-			r.report(ctx, st, "normal", "Task blocked", "The apprentice stopped in a loop, and the checks failed on the change that it left. The work is kept. Resume it, run the checks again, or reject it.")
+			r.report(ctx, st, "normal", "Task blocked", "The apprentice stopped before it finished, and the checks failed on the change that it left. The work is kept. Resume it, run the checks again, or reject it.")
 			return Result{Outcome: "blocked", Outputs: out}, nil
 		}
 		if attempts >= maxCheckAttempts {
