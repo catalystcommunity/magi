@@ -160,3 +160,22 @@ with the list of code that sends some popular sites to a person
 - End to end with `hosts.json` at the limit 0.97: 17 of 18 known hosts
   permitted, 0 of 46 hosts that need a person, about 0.3 seconds for
   each host.
+
+### A second training on corpus 3
+
+A second adapter was trained from the same start on `train3.json` plus
+400 invented hosts below real university domains. It is not in use: it
+is not better than the adapter above.
+
+| Adapter | Rank value on dev | Test: official hosts permitted at the limit with no wrong host on dev | Test: wrong hosts |
+| --- | --- | --- | --- |
+| In use | 0.9927 | 313 of 388 | 0 |
+| Second training, best checkpoint | 0.9905 | 317 of 388 | 0 |
+
+- The difference of four hosts comes from one host of the dev half that
+  sets the limit.
+- The official hosts that no adapter permits are mostly sites of small
+  projects with their own domain, for example `sapling-scm.com` and
+  `theupdateframework.io`. The name and the popularity do not show that
+  such a host is official. More training on the same evidence does not
+  help. The model needs more evidence about the host.
