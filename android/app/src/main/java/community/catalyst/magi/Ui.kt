@@ -19,6 +19,8 @@ import android.widget.TextView
 import java.text.DateFormat
 import java.util.Calendar
 import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 /** The colors of a theme. The dark theme is the default (brand/colors.css). */
 class Palette(val dark: Boolean) {
@@ -69,6 +71,17 @@ object ChatTime {
      * the build since 2020 (tools/build-android.sh).
      */
     fun buildMs(versionCode: Long): Long = (versionCode * 60 + 1_577_836_800L) * 1000
+
+    /**
+     * The build time as a readable string in the given zone and locale.
+     * zone and locale are parameters for the tests, as day does for now.
+     */
+    fun built(versionCode: Long, zone: TimeZone = TimeZone.getDefault(), locale: Locale = Locale.getDefault()): String {
+        val ms = buildMs(versionCode)
+        val dateFmt = DateFormat.getDateInstance(DateFormat.MEDIUM, locale).apply { timeZone = zone }
+        val timeFmt = DateFormat.getTimeInstance(DateFormat.SHORT, locale).apply { timeZone = zone }
+        return "${dateFmt.format(Date(ms))} at ${timeFmt.format(Date(ms))} (local time)"
+    }
 
     /** True when two times are on different days of the local calendar. */
     fun otherDay(a: Long, b: Long): Boolean = dayNumber(a) != dayNumber(b)
