@@ -527,6 +527,22 @@ func planWrite(t any) bool {
 // to-do, not of a fact.
 var aboutTodos = regexp.MustCompile(`(?i)\b(reminders?|to-?dos?|plans?|lists?|due|steps?)\b`)
 
+// promise is a last sentence that says what the persona will do now.
+// later is a promise for a later time or event ("I'll tell you when it is
+// ready"), which Magi keeps with an event turn.
+var (
+	promise      = regexp.MustCompile(`(?i)^(?:I'll|I will|I'm going to|I am going to|let me)\b`)
+	later        = regexp.MustCompile(`(?i)\b(when|once|after|as soon as|if|until|tomorrow|later|let me know)\b`)
+	lastSentence = regexp.MustCompile(`[^.!?\n]+[.!?]*\s*$`)
+)
+
+// emptyPromise: the reply ends with a statement that the persona will do
+// something now. A turn ends with its reply, so that does not happen.
+func emptyPromise(reply string) bool {
+	last := strings.TrimSpace(lastSentence.FindString(checkNote.ReplaceAllString(reply, "")))
+	return promise.MatchString(last) && !strings.HasSuffix(last, "?") && !later.MatchString(last)
+}
+
 // runningTask: the result of a status tool names a task that runs.
 var runningTask = regexp.MustCompile(`(?i)\b(running|step work|claimed)\b`)
 

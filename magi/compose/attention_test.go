@@ -399,3 +399,20 @@ func TestSpokenText(t *testing.T) {
 		t.Errorf("now is at %q", got)
 	}
 }
+
+func TestEmptyPromise(t *testing.T) {
+	for reply, want := range map[string]bool{
+		"The pull request is open. I'll merge it now.":                                                true,
+		"Let me check the task status to see where things stand.":                                     true,
+		"It's still waiting at the review step. Let me try again. I'll approve and merge the change.": true,
+		"I'll approve and merge it now. Want me to go ahead?":                                         false,
+		"Task started. I'll tell you when it's ready.":                                                false,
+		"Done. Let me know if you want a change.":                                                     false,
+		"I approved it. Magi will tell you when it's released.":                                       false,
+		"I'll merge it now.\n\n(Magi check: that is not done yet. Ask again, please.)":                true,
+	} {
+		if got := emptyPromise(reply); got != want {
+			t.Errorf("emptyPromise(%q) = %v, want %v", reply, got, want)
+		}
+	}
+}

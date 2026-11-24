@@ -380,6 +380,16 @@ func (s *System) personaTurnOnce(ctx context.Context, a workflowapi.Assignment, 
 				reply = ""
 				continue
 			}
+			// A reply that ends with "I'll merge it now" or "Let me check":
+			// the turn ends with the reply, so nothing follows.
+			if emptyPromise(reply) && !corrected {
+				corrected = true
+				msgs = append(msgs, model.Message{Role: "user", Content: "(Magi check) Your reply ends with something that you will do now. " +
+					"A turn ends with your reply: you cannot act after it. Do it now with a tool call and then tell the result. " +
+					"If it needs the agreement of the person, ask for it in a question. Do not apologize, and do not mention this check."})
+				reply = ""
+				continue
+			}
 			// A reply that says that the persona cannot answer, when it did
 			// not search: one push to look it up (cantAnswerNote). Not when
 			// recall found nothing: that is a private fact that Magi does
@@ -421,6 +431,9 @@ func (s *System) personaTurnOnce(ctx context.Context, a workflowapi.Assignment, 
 	// The claim is still there after the correction: say what is true.
 	if tool := falseClaim(reply, log.Calls, prof.tools); tool != "" && corrected {
 		reply += "\n\n(Magi check: " + claimNote[tool] + " Ask again, please.)"
+	}
+	if emptyPromise(reply) && corrected {
+		reply += "\n\n(Magi check: that is not done yet. Ask again, please.)"
 	}
 	log.Reply = reply
 	served, ms := "", int64(0)
