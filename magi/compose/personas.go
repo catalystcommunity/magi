@@ -487,6 +487,8 @@ var claims = []struct {
 	{"set_reminder", regexp.MustCompile(`(?i)\bI(?:'ve| have)? set (?:up )?(?:a |the |your )?reminders?\b|\bI(?:'ll| will) remind you\b`)},
 	{"finish_todo", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (?:marked|checked off|crossed off|cancell?ed (?:the |that |your )?(?:reminder|to-?do))\b`)},
 	{"create_event", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (?:added|put|booked|scheduled|created|set up)\b[^.!?\n]{0,40}\b(calendar|meeting|event|appointment)\b|\b(?:is|are) now on (?:\w+'s |the |your |my )?(?:\w+ )?calendar\b|^\s*(?:done|all set)\b[^.!?\n]{0,80}\bcalendar\b`)},
+	// "Merging the change." with no call: the person thinks that it is done.
+	{"decide_task", regexp.MustCompile(`(?i)(?:^|[.!?\n]\s*|\bI(?:'m| am) )(?:merging|approving|rejecting) (?:it|this|that|the)\b`)},
 	{"decide_task", regexp.MustCompile(`(?i)\bI(?:'ve| have)? merged\b|\b(?:PR|pull request)[^.!?\n]{0,30}\b(?:is|was|has been) merged\b`)},
 	{"add_longhouse_task", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (?:added|created)\b[^.!?\n]{0,30}\btask\b[^.!?\n]{0,30}\b(Longhouse|project)\b`)},
 	{"change_todo", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (?:moved|rescheduled|pushed back)\b[^.!?\n]{0,40}\b(reminder|to-?do|due|it)\b`)},

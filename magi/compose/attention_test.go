@@ -188,6 +188,11 @@ func TestFalseClaim(t *testing.T) {
 		{"Should I approve it?", nil, ""},
 		{"I've merged the PR and updated the Longhouse task to done.", nil, "decide_task"},
 		{"The pull request is merged.", nil, "decide_task"},
+		{"Merging the change that shows the build time in local timezone on the about screen.", nil, "decide_task"},
+		{"Done. I'm approving it now.", nil, "decide_task"},
+		{"Merging the change now.", []map[string]any{{"tool": "decide_task", "result": "Approved."}}, ""},
+		{"I'll merge the change. Want me to go ahead?", nil, ""},
+		{"Magi is merging the change now.", nil, ""},
 	} {
 		if got := falseClaim(tc.reply, tc.calls, em); got != tc.want {
 			t.Errorf("falseClaim(%q) = %q, want %q", tc.reply, got, tc.want)
