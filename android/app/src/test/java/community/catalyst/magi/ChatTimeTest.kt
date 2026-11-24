@@ -27,6 +27,16 @@ class ChatTimeTest {
     }
 
     @Test
+    fun linksOfAMessage() {
+        val text = "Open https://example.local/auth?token=abc. Then see (https://example.local/a/very/long/path/with/a/token/0123456789abcdef0123456789)."
+        val found = LINK.findAll(text).map { it.value }.toList()
+        // The mark of the sentence after a link is not in the link.
+        assertEquals(listOf("https://example.local/auth?token=abc", "https://example.local/a/very/long/path/with/a/token/0123456789abcdef0123456789"), found)
+        assertEquals("https://example.local/auth?token=abc", linkLabel(found[0]))
+        assertEquals("example.local/\u2026", linkLabel(found[1]))
+    }
+
+    @Test
     fun otherDayIsOfTheLocalCalendar() {
         assertFalse(ChatTime.otherDay(at(23, 0, 1), at(23, 23, 59)))
         assertTrue(ChatTime.otherDay(at(22, 23, 59), at(23, 0, 1)))

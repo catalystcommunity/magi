@@ -78,7 +78,17 @@ func (m *Service) Say(ctx context.Context, req magiapi.SayRequest) (magiapi.SayR
 	persona := personaOr(req.Persona)
 	if modality == "voice" && endsConversation(text) {
 		// The person ends the conversation. No persona answers, and Magi
-		// keeps nothing: the client stops its turns until the next name.
+		// keeps no audio: the client stops its turns until the next name.
+		// A line in the conversation shows the end and the words that
+		// ended it.
+		s.Log.Info("conversation ended", "persona", persona)
+		if st, err := s.Conversation.OpenStream(uctx, conversationapi.OpenStreamRequest{Persona: persona}); err == nil {
+			line := fmt.Sprintf("Conversation ended (\u201c%s\u201d).", strings.TrimRight(strings.TrimSpace(text), ".!"))
+			if _, err := s.Conversation.Post(s.AsService(ctx), conversationapi.PostRequest{Stream: st.Id, Text: line,
+				Author: ptr("magi"), AuthorKind: ptr("system"), Modality: ptr("text")}); err != nil {
+				s.Log.Warn("conversation end line", "err", err)
+			}
+		}
 		return magiapi.SayResponse{Ignored: ptr(true), Ended: ptr(true), Message: magiapi.Message{Refs: []magiapi.Ref{}, Links: []magiapi.MessageLink{}}}, nil
 	}
 	if modality == "voice" && s.echo(uctx, persona, text) {

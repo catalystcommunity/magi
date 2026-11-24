@@ -50,6 +50,16 @@ class Palette(val dark: Boolean) {
     }
 }
 
+/** A web link in a message. A mark of the sentence at its end is not a part of it (the same rule as the speech of Magi). */
+val LINK = Regex("""https?://[^\s<>"]+[^\s<>".,;:!?)\]]""")
+
+/** What a bubble shows for a link: all of a short link, the host and "/…" of a long one. */
+fun linkLabel(url: String): String {
+    if (url.length <= 48) return url
+    val host = url.substringAfter("://").substringBefore('/').substringBefore('?')
+    return "$host/\u2026"
+}
+
 /** The words of a chat for a time: the clock time in a bubble, the day between bubbles. */
 object ChatTime {
     fun clock(ms: Long): String = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(ms))
@@ -110,6 +120,28 @@ class Ui(private val c: Context, val p: Palette) {
         setTextColor(color)
         setLinkTextColor(p.accent)
         if (bold) setTypeface(typeface, Typeface.BOLD)
+    }
+
+    /**
+     * The text of a message with its web links as links. A long link shows
+     * as its host and "/…", so that a link with a long token does not fill
+     * the bubble. Text with no link comes back as it is.
+     */
+    fun linked(text: String): CharSequence {
+        val found = LINK.findAll(text).toList()
+        if (found.isEmpty()) return text
+        val out = android.text.SpannableStringBuilder()
+        var last = 0
+        for (m in found) {
+            out.append(text, last, m.range.first)
+            val url = m.value
+            val start = out.length
+            out.append(linkLabel(url))
+            out.setSpan(android.text.style.URLSpan(url), start, out.length, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            last = m.range.last + 1
+        }
+        out.append(text, last, text.length)
+        return out
     }
 
     enum class Kind { PRIMARY, TONAL, DANGER, LINK }

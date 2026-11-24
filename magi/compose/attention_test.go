@@ -361,3 +361,36 @@ func TestEndsConversation(t *testing.T) {
 		}
 	}
 }
+
+func TestSpokenText(t *testing.T) {
+	part := "Here is the link: https://example.local/auth?x=abc_DEF-123. Open it, then tell me."
+	spoken, offset := spokenText(part)
+	if spoken != "Here is the link: the link. Open it, then tell me." {
+		t.Fatalf("spoken = %q", spoken)
+	}
+	rs, ps := []rune(spoken), []rune(part)
+	// A word before the link keeps its place. A word after the link is at
+	// its place in the text that the person reads.
+	for _, word := range []string{"Here", "Open", "tell"} {
+		i := strings.Index(spoken, word)
+		if got := string(ps[offset(uint64(i)):][:len(word)]); got != word {
+			t.Errorf("%s is at %q", word, got)
+		}
+	}
+	// The words of the link end where the link ends.
+	in := strings.Index(spoken, "the link.") + 4
+	if got := string(ps[offset(uint64(in)):][:6]); got != ". Open" {
+		t.Errorf("an offset in the link gives %q", got)
+	}
+	_ = rs
+	if s, _ := spokenText("No link here."); s != "No link here." {
+		t.Errorf("spoken = %q", s)
+	}
+	two, off := spokenText("See http://a.example.local/1 and http://b.example.local/2 now")
+	if two != "See the link and the link now" {
+		t.Fatalf("spoken = %q", two)
+	}
+	if got := string([]rune("See http://a.example.local/1 and http://b.example.local/2 now")[off(uint64(strings.Index(two, "now"))):]); got != "now" {
+		t.Errorf("now is at %q", got)
+	}
+}

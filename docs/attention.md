@@ -145,15 +145,19 @@ The name opens a conversation. After Magi takes a turn with a name, the
 client sends the next turns without `wake_word`, so the person talks with
 no name. Magi ends the conversation: a spoken message that is only "Thank
 you", "End of conversation", "Goodbye", or "End of line" gives `ended`
-true, and Magi keeps nothing of it. The client then sends `wake_word`
-again. The end of a conversation is a decision. A decision model will
+true. Magi keeps no audio of it, and writes one line in the conversation
+("Conversation ended", with the words that ended it), so that the person
+sees the end. The client then sends `wake_word` again. The end of a conversation is a decision. A decision model will
 replace the list of phrases. The client also ends a conversation that
 had no turn and no reply for 5 minutes.
 
 While a persona speaks, only speech that starts with a name stops it
 (`check-overlap` with `wake_word`). A turn that the microphone heard while
-a reply played to its end is the voice of the persona from the
-loudspeaker: the client does not send it.
+a reply played is the voice of the persona from the loudspeaker: the
+client does not send it.
+
+The voice says "the link" for a web link in a reply, not its letters
+(`spokenText` in `magi/compose/speech.go`). The clients show the link.
 
 A loudspeaker next to a microphone sends the voice of the persona back.
 Magi does not take a spoken message that repeats the words of a spoken

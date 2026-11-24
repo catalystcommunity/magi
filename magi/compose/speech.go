@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -42,6 +43,52 @@ const (
 
 // span is a part of a text as code point offsets [start, end).
 type span struct{ start, end int }
+
+// linkText is a web link in a message. A mark of the sentence at its end is
+// not a part of it.
+var linkText = regexp.MustCompile(`https?://[^\s<>"]+[^\s<>".,;:!?)\]]`)
+
+// linkWords is what the voice says for a link.
+const linkWords = "the link"
+
+// spokenText gives the text of a part for the speech engine: each link
+// becomes linkWords. offset changes a code point offset in the spoken text
+// to the offset in part, so that the times of the words stay with the text
+// that the person reads. An offset in the words of a link is the end of
+// the link.
+func spokenText(part string) (string, func(uint64) uint64) {
+	locs := linkText.FindAllStringIndex(part, -1)
+	if len(locs) == 0 {
+		return part, func(o uint64) uint64 { return o }
+	}
+	type cut struct{ spoken, end, shift int } // start in the spoken text, end in part, growth of the offsets after it
+	var cuts []cut
+	var b strings.Builder
+	last, runes, shift := 0, 0, 0
+	for _, l := range locs {
+		b.WriteString(part[last:l[0]])
+		runes += utf8.RuneCountInString(part[last:l[0]])
+		b.WriteString(linkWords)
+		n := utf8.RuneCountInString(part[l[0]:l[1]])
+		shift += n - len(linkWords)
+		cuts = append(cuts, cut{spoken: runes, end: runes + len(linkWords) + shift, shift: shift})
+		runes += len(linkWords)
+		last = l[1]
+	}
+	b.WriteString(part[last:])
+	return b.String(), func(o uint64) uint64 {
+		out := int(o)
+		for _, c := range cuts {
+			switch {
+			case int(o) >= c.spoken+len(linkWords):
+				out = int(o) + c.shift
+			case int(o) > c.spoken:
+				out = c.end
+			}
+		}
+		return uint64(out)
+	}
+}
 
 // speechSpans divides text into the parts that Magi speaks. The first
 // part ends at the first end of a clause; each later part ends at the first
@@ -123,7 +170,8 @@ func (s *System) speakParts(ctx context.Context, owner string, u conversationapi
 			stopped = true
 			break
 		}
-		part := string([]rune(u.Text)[sp.start:sp.end])
+		// A link is for the eyes: the voice says "the link", not its letters.
+		part, offset := spokenText(string([]rune(u.Text)[sp.start:sp.end]))
 		req := speechapi.SynthesizeRequest{Text: part, Timings: ptr(true)}
 		if voice != "" {
 			req.Voice = ptr(voice)
@@ -146,7 +194,7 @@ func (s *System) speakParts(ctx context.Context, owner string, u conversationapi
 			End: uint64(sp.end), AudioMs: a.AudioMs, Words: []magiapi.WordTime{}}
 		for _, w := range a.Words {
 			p.Words = append(p.Words, magiapi.WordTime{Word: w.Word, StartMs: w.StartMs, EndMs: w.EndMs,
-				Start: w.Start + uint64(sp.start), End: w.End + uint64(sp.start)})
+				Start: offset(w.Start) + uint64(sp.start), End: offset(w.End) + uint64(sp.start)})
 		}
 		b, _ := json.Marshal(p)
 		if _, err := s.Conversation.Annotate(ctx, conversationapi.AnnotateRequest{Utterance: u.Id, Kind: annSpeechPart, Body: string(b)}); err != nil {

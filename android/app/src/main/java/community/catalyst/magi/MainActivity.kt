@@ -724,6 +724,17 @@ class MainActivity : Activity() {
         val own = m.authorKind == "human" && m.author == settings.subject
         // right puts a bubble on a side by a rule of the caller (an admin view).
         val mine = right ?: own
+        // A line of Magi itself ("Conversation ended") is not a turn: it is in the middle, as a day line.
+        if (m.authorKind == "system" && !compact) {
+            return LinearLayout(this).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+                addView(ui.text(m.text, 12f, ui.p.muted).apply {
+                    background = ui.shape(ui.p.surface, 12)
+                    setPadding(ui.dp(12), ui.dp(4), ui.dp(12), ui.dp(4))
+                    maxWidth = (resources.displayMetrics.widthPixels * 0.86f).toInt()
+                })
+            }
+        }
         val who = when (m.authorKind) {
             "human" -> if (own) "You" else m.author.removePrefix("user:")
             "persona" -> personaName(m.persona.ifEmpty { m.author })
@@ -743,7 +754,15 @@ class MainActivity : Activity() {
             if (!compact && l.target.kind == "utterance" && l.target.ref == lastId) continue
             box.addView(aboutView(l, soft, width))
         }
-        val text = ui.text(m.text, 16f, fg).apply { maxWidth = width }
+        val text = ui.text(ui.linked(m.text), 16f, fg).apply {
+            maxWidth = width
+            // A touch on a link opens it. A long touch on the text is the long touch on the bubble.
+            if (!compact && text is android.text.Spanned) {
+                movementMethod = android.text.method.LinkMovementMethod.getInstance()
+                setLinkTextColor(if (mine) ui.p.onMine else ui.p.accent)
+                setOnLongClickListener { audit(m); true }
+            }
+        }
         if (onPlay == null) box.addView(text) else box.addView(ui.row().apply {
             gravity = Gravity.TOP
             addView(ui.icon(R.drawable.ic_play, "Play", tint = fg, bg = if (mine || ui.p.dark) 0x22FFFFFF else 0x14000000, size = 34) { onPlay() })
@@ -1046,8 +1065,8 @@ class MainActivity : Activity() {
 
     /** The spoken message ended: played to the end ("done") or stopped. Main thread. */
     private var lastReplyEnd = 0L
-    /** The last reply played to its end; false when the person or a notice stopped it. */
-    private var lastReplyDone = false
+    /** The person stopped the last reply with speech (check-overlap gave "stop"). */
+    private var lastReplyStopped = false
 
     /** A conversation that the name of a persona opened. Its turns need no name. */
     private var conversationOpen = false
@@ -1084,7 +1103,7 @@ class MainActivity : Activity() {
     private fun speechEnded(reason: String) {
         val id = speakingId ?: return
         lastReplyEnd = System.currentTimeMillis()
-        lastReplyDone = reason == "done"
+        lastReplyStopped = reason == "interrupted"
         if (conversationOpen) conversationSeen = lastReplyEnd
         val heard = if (reason == "done") speakingText.codePointCount(0, speakingText.length) else heardUntil()
         speakingId = null
@@ -1131,13 +1150,14 @@ class MainActivity : Activity() {
         } catch (e: Exception) { "error" }
         override fun turn(wav: ByteArray) {
             main.post {
-                // A turn that the microphone heard while a reply played to its
-                // end is the voice of the persona from the loudspeaker, not a
-                // turn of the person. (A reply that the person stopped is
-                // different: Magi found the name of a persona in the speech.)
+                // A turn that the microphone heard while a reply played is the
+                // voice of the persona from the loudspeaker, not a turn of the
+                // person: also when the reply ended with a failure of the
+                // speech. (A reply that the person stopped is different: Magi
+                // found the name of a persona in the speech.)
                 val now = System.currentTimeMillis()
                 val turnMs = (wav.size - 44).coerceAtLeast(0) / 32L // 16 kHz, 16 bit, one channel
-                if (speakingId != null || (lastReplyDone && now - lastReplyEnd < turnMs + 300)) return@post
+                if (speakingId != null || (!lastReplyStopped && now - lastReplyEnd < turnMs + 300)) return@post
                 voiceTurn = true
                 val status = TextView(this@MainActivity)
                 // The name of a persona opens a conversation. In it, a turn
