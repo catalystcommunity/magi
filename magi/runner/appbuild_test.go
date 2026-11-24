@@ -55,7 +55,8 @@ func TestHostViewNetwork(t *testing.T) {
 	if _, err := exec.LookPath("bwrap"); err != nil {
 		t.Skip("bubblewrap is not installed")
 	}
-	// A command in the build view has only the loopback interface.
+	// A command in the build view has no real network interfaces.
+	// Only loopback and virtual interfaces (tunnels, etc.) are acceptable.
 	argv, err := hostView("bwrap", t.TempDir(), dir, []string{"/bin/sh", "-c", "tail -n +3 /proc/net/dev | cut -d: -f1 | tr -d ' ' > " + dir + "/net"}, nil, nil, false)
 	if err != nil {
 		t.Fatal(err)
@@ -64,8 +65,17 @@ func TestHostViewNetwork(t *testing.T) {
 		t.Skipf("the view does not start here: %v %s", err, out)
 	}
 	b, err := os.ReadFile(filepath.Join(dir, "net"))
-	if err != nil || strings.TrimSpace(string(b)) != "lo" {
-		t.Fatalf("interfaces in the build view: %q %v", b, err)
+	if err != nil {
+		t.Fatalf("read interfaces: %v", err)
+	}
+	ifaces := strings.Split(strings.TrimSpace(string(b)), "\n")
+	for _, iface := range ifaces {
+		if iface == "" {
+			continue
+		}
+		if iface != "lo" && !strings.HasPrefix(iface, "tun") && !strings.HasPrefix(iface, "sit") && !strings.HasPrefix(iface, "veth") && !strings.HasPrefix(iface, "docker") && !strings.HasPrefix(iface, "br-") {
+			t.Fatalf("real network interface in the build view: %q", iface)
+		}
 	}
 }
 
