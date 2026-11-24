@@ -202,6 +202,12 @@ class MainActivity : Activity() {
         }
     }
 
+    override fun onRequestPermissionsResult(code: Int, permissions: Array<out String>, results: IntArray) {
+        super.onRequestPermissionsResult(code, permissions, results)
+        // The person permitted the microphone for the wake word: listen now.
+        if (code == MIC_REQUEST && results.firstOrNull() == PackageManager.PERMISSION_GRANTED) listenForWakeWord()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (!handleReturn(intent)) openNotice(intent)
@@ -390,8 +396,14 @@ class MainActivity : Activity() {
         val m = PopupMenu(this, anchor)
         m.menu.add("Speak replies").apply { isCheckable = true; isChecked = settings.speakReplies }
             .setOnMenuItemClickListener { settings.speakReplies = !settings.speakReplies; true }
-        m.menu.add("Wake word (“Computer, …”)").apply { isCheckable = true; isChecked = settings.wakeWord }
-            .setOnMenuItemClickListener { settings.wakeWord = !settings.wakeWord; true }
+        m.menu.add("Wake word (“Hey, ${personaName(persona)}, …”)").apply { isCheckable = true; isChecked = settings.wakeWord }
+            .setOnMenuItemClickListener {
+                settings.wakeWord = !settings.wakeWord
+                // On: listen now. Off: the microphone stops, so that the app does not take all talk in the room.
+                val status = chatStatus
+                if (settings.wakeWord) listenForWakeWord() else if (handsFree.on && status != null) toggleHandsFree(status)
+                true
+            }
         val theme = m.menu.addSubMenu("Theme")
         for ((label, value) in listOf("Dark" to "dark", "Light" to "light", "As the phone" to "system")) {
             theme.add(label).apply { isCheckable = true; isChecked = settings.theme == value }
@@ -457,6 +469,8 @@ class MainActivity : Activity() {
     }
 
     private var updateBanner: View? = null
+    /** The status line of the conversation page. */
+    private var chatStatus: TextView? = null
 
     /** Shows a line at the top of the conversation while a downloaded build waits. */
     private fun showUpdateReady() {
@@ -534,6 +548,7 @@ class MainActivity : Activity() {
         }
         workingRow = workingWrap
         waitingSince = 0L
+        chatStatus = status
         val mic = ui.icon(R.drawable.ic_mic, "Hands-free talk", bg = ui.p.raised) { toggleHandsFree(status) }
         val send = ui.icon(R.drawable.ic_send, "Send", tint = ui.p.onAccent, bg = ui.p.accent) {
             val text = input.text.toString().trim()
@@ -595,8 +610,28 @@ class MainActivity : Activity() {
                 first.messages.forEach { show(it, false) }
                 lastSeq = first.lastSeq
                 follow(gen)
+                listenForWakeWord()
             }
         }
+    }
+
+    /** The line that tells what the microphone waits for. */
+    private fun listeningText(): String =
+        if (settings.wakeWord) "Listening for a name: \u201cHey, ${personaName(persona)}, \u2026\u201d. Magi keeps nothing of other talk."
+        else "Hands-free: talk at any time. Talk over Magi to stop it."
+
+    /**
+     * The wake word needs the microphone: with the option on, the app
+     * listens from its start, with no touch of the microphone button. An
+     * update of the app starts the app again, and the app listens again.
+     */
+    private fun listenForWakeWord() {
+        val status = chatStatus ?: return
+        if (!settings.wakeWord || handsFree.on) {
+            if (handsFree.on) status.text = listeningText()
+            return
+        }
+        toggleHandsFree(status)
     }
 
     /** Starts or stops hands-free talk. */
@@ -617,7 +652,7 @@ class MainActivity : Activity() {
                 handsFree.start()
                 Attention.handsFree = true
                 Attention.start(this, mic = true)
-                status.text = "Hands-free: talk at any time. Talk over Magi to stop it."
+                status.text = listeningText()
             } catch (e: Exception) {
                 player.communication = false
                 status.text = "The microphone did not start: ${e.message}"

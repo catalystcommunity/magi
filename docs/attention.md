@@ -143,6 +143,10 @@ store the audio or the text, and the response has `ignored` true. In the 8
 seconds after a spoken reply ends, the client sends the turn without
 `wake_word`, so the person can answer without the name.
 
+The Android app listens from its start when the option is on. The person
+does not touch the microphone button. The option off stops the
+microphone.
+
 ## 6. The voice of a persona
 
 A persona has one voice for all people. An operator sets it with
