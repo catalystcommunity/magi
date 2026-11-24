@@ -67,6 +67,10 @@ func (m *Service) Say(ctx context.Context, req magiapi.SayRequest) (magiapi.SayR
 			transcriber = &tr.Engine
 		}
 	}
+	if text == "" && modality == "voice" {
+		// The audio has no words (a noise in the room): nothing to keep.
+		return magiapi.SayResponse{Ignored: ptr(true), Message: magiapi.Message{Refs: []magiapi.Ref{}, Links: []magiapi.MessageLink{}}}, nil
+	}
 	if text == "" {
 		return magiapi.SayResponse{}, rpc.Invalid("text or audio is required")
 	}
