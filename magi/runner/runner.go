@@ -108,6 +108,8 @@ type Config struct {
 	// standard input. The command runs in the same view as the checker.
 	// Empty: no planner.
 	Planner AgentCommand `json:"planner"`
+	// App lets the merge step build the Android app (appbuild.go).
+	App     AppBuild `json:"app"`
 	Sandbox struct {
 		// Preflight is a shell command that runs in the sandbox before each
 		// work round, for example an HTTPS request through the egress proxy.
@@ -165,6 +167,9 @@ func LoadConfig(path string) (Config, error) {
 	fix(&c.Sandbox.VM.Template)
 	fix(&c.Sandbox.VM.Hypervisor)
 	fix(&c.Sandbox.VM.Virtiofsd)
+	for _, p := range []*string{&c.App.Sdk, &c.App.Gradle, &c.App.JavaHome, &c.App.DepCache, &c.App.Keystore, &c.App.KeystorePassFile} {
+		fix(p)
+	}
 	for _, ac := range []*AgentCommand{&c.Checker, &c.Planner} {
 		for i := range ac.Writable {
 			fix(&ac.Writable[i])

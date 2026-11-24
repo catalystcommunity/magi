@@ -165,8 +165,11 @@ A client app tells its version with `put-device` (`app_version`,
   starts a turn of the persona of the task (an event,
   `docs/decisions/0009-events-wake-personas.md`). The persona then tells
   the person that the phone runs the build, or what went wrong.
-- Not done: a step of a task that builds the app and makes the release.
-  An operator makes the release (`magi app-release CODE NAME APK TASK`).
+- A task that changes the app makes the release itself: the merge step
+  of a runner with the Android toolchains builds the app (`app` in the
+  runner configuration, `magi/README.md`), and the rollout step makes the
+  build the release, with the task as its source. An operator can also
+  make a release (`magi app-release CODE NAME APK TASK`).
 
 ## 8. Status
 

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/catalystcommunity/magi/lib/rpc"
+	magiapi "github.com/catalystcommunity/magi/magi/api"
 	artifactsapi "github.com/catalystcommunity/magi/primitives/artifacts/api"
 	conversationapi "github.com/catalystcommunity/magi/primitives/conversation/api"
 	executionapi "github.com/catalystcommunity/magi/primitives/execution/api"
@@ -463,7 +464,58 @@ func lastLine(s string) string {
 // rollout makes the runner packages that the merge built the runner
 // release, when they differ from the current release. Each runner tests
 // the new release and goes back to its old one if the test fails.
+//
+// It also makes the app package that the merge built the app release
+// (appRollout).
 func (s *System) rollout(ctx context.Context, a workflowapi.Assignment, note func(string)) (Result, error) {
+	app, err := s.appRollout(ctx, a, note)
+	if err != nil {
+		return Result{}, err
+	}
+	res, err := s.runnerRollout(ctx, a, note)
+	if err != nil {
+		return Result{}, err
+	}
+	if app != "" {
+		if res.Outputs == nil {
+			res.Outputs = map[string]string{}
+		}
+		res.Outcome, res.Outputs["rollout.app"] = "done", app
+	}
+	return res, nil
+}
+
+// appRollout makes the Android app package of the merged change the app
+// release, with the task as its source: Magi then tells the persona of the
+// task when a phone of the owner runs the build (appUpdated). It returns
+// the version code, or "" when the merge built no app.
+func (s *System) appRollout(ctx context.Context, a workflowapi.Assignment, note func(string)) (string, error) {
+	digest := a.Vars["app.package"]
+	code, _ := strconv.ParseUint(a.Vars["app.version_code"], 10, 64)
+	if digest == "" || code == 0 {
+		return "", nil
+	}
+	if cur, ok, err := s.appRelease(ctx); err != nil {
+		return "", err
+	} else if ok && cur.VersionCode >= code {
+		// A second attempt of this step, or a newer build of a different task.
+		note(fmt.Sprintf("App build %d is not newer than the app release %d.", code, cur.VersionCode))
+		return "", nil
+	}
+	g, err := s.Artifacts.Get(ctx, artifactsapi.GetRequest{Digest: digest})
+	if err != nil {
+		return "", fmt.Errorf("app package: %w", err)
+	}
+	rel, err := s.putAppRelease(ctx, magiapi.PutAppReleaseRequest{VersionCode: code, VersionName: a.Vars["app.version_name"], Body: g.Body, Task: ptr(a.Run)})
+	if err != nil {
+		return "", err
+	}
+	note(fmt.Sprintf("App release %d (%s).", rel.VersionCode, rel.VersionName))
+	s.post(ctx, a, fmt.Sprintf("The Android app changed, so I published app build %s. A phone with an older build downloads it and asks its owner to install it.", rel.VersionName))
+	return strconv.FormatUint(rel.VersionCode, 10), nil
+}
+
+func (s *System) runnerRollout(ctx context.Context, a workflowapi.Assignment, note func(string)) (Result, error) {
 	version := a.Vars["runner.version"]
 	var built map[string]string
 	if version == "" || json.Unmarshal([]byte(a.Vars["runner.packages"]), &built) != nil || len(built) == 0 {

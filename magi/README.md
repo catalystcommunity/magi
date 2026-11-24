@@ -183,6 +183,44 @@ To see the log of a runner, run `journalctl --user -u magi-runner@<magi
 host>` (Linux) or read `~/Library/Logs/magi-runner-<magi host>.log`
 (macOS).
 
+### App build
+
+A runner with the Android toolchains can build the Android app of a
+merged change. Set `app` in the configuration of the runner:
+
+```json
+"app": {
+  "sdk": "~/Android/Sdk",
+  "gradle": "~/gradle-8.11.1",
+  "java_home": "~/jdk17",
+  "dep_cache": "~/.gradle/caches",
+  "keystore": "~/.android/debug.keystore"
+}
+```
+
+- The merge step builds the app when the change touched `android/` or
+  `clients/kotlin/`. The rollout step of Magi makes the build the app
+  release. A phone with an older build then downloads it and asks its
+  owner to install it (`docs/attention.md`, section 7).
+- The build runs code of the change (Gradle scripts). It runs in a view
+  of the host with no network and an empty home directory, as the checker
+  does. The view has `sdk`, `gradle`, `java_home`, and the directory
+  `modules-2` of `dep_cache`, all read-only.
+- The build is offline. `dep_cache` is a Gradle cache directory that has
+  the dependencies of the app. Build the app one time on the host to fill
+  it (`tools/build-android.sh`).
+- The signing key is not in the view. The runner signs the package after
+  the build. An update of an installed app needs the same key each time,
+  so one runner builds the app. `keystore_pass_file` names a file with
+  the password of the keystore. Without it, the password is that of an
+  Android debug keystore. `key_alias` defaults to `androiddebugkey`.
+- A change that touches the app on a runner with no `app` gets a note,
+  and no app build.
+- A build that fails does not stop the merge. The person gets the notice
+  "App not built".
+- `MAGI_TEST_APP_BUILD` (a JSON object as above) runs a real build in the
+  tests of `magi/runner`.
+
 ### Checker
 
 A runner can run a checker: a command of the runner host that checks a

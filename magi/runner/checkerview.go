@@ -30,6 +30,12 @@ var checkerEtc = []string{"resolv.conf", "hosts", "nsswitch.conf", "passwd", "gr
 // process, so the caller gives that process only the checker environment:
 // a value in the argument list of bubblewrap is public on the host.
 func checkerView(bwrap, home, dir string, argv, writable, readOnly []string) ([]string, error) {
+	return hostView(bwrap, home, dir, argv, writable, readOnly, true)
+}
+
+// hostView is checkerView with a choice for the network. A command that
+// only builds code of a change gets no network.
+func hostView(bwrap, home, dir string, argv, writable, readOnly []string, network bool) ([]string, error) {
 	bin, err := exec.LookPath(argv[0])
 	if err != nil {
 		return nil, err
@@ -42,8 +48,12 @@ func checkerView(bwrap, home, dir string, argv, writable, readOnly []string) ([]
 	if bin, err = filepath.Abs(bin); err != nil {
 		return nil, err
 	}
-	a := []string{bwrap, "--unshare-all", "--share-net", "--die-with-parent", "--new-session",
-		"--ro-bind", "/usr", "/usr", "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--tmpfs", "/run"}
+	a := []string{bwrap, "--unshare-all"}
+	if network {
+		a = append(a, "--share-net")
+	}
+	a = append(a, "--die-with-parent", "--new-session",
+		"--ro-bind", "/usr", "/usr", "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--tmpfs", "/run")
 	for _, p := range []string{"/bin", "/sbin", "/lib", "/lib32", "/lib64", "/opt"} {
 		fi, err := os.Lstat(p)
 		switch {

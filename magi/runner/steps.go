@@ -681,6 +681,7 @@ git rev-parse HEAD`, repo.DefaultBranch, branch, strings.NewReplacer(`"`, `'`, "
 			return Result{Outcome: "build-failed", Outputs: out}, nil
 		}
 	}
+	r.buildApp(ctx, env, workdir, "refs/remotes/upstream/"+repo.DefaultBranch, commit, st, out)
 	r.report(ctx, st, "low", "Merged", fmt.Sprintf("I merged %s onto the newest %s as %.12s.", branch, repo.DefaultBranch, commit))
 	out["task.result"] = "merged"
 	return Result{Outcome: "done", Outputs: out}, nil
