@@ -177,6 +177,10 @@ func TestFalseClaim(t *testing.T) {
 		{`Task started: "Add a note". I'll tell you when it's ready.`, nil, "start_code_change"},
 		{`Task started: "Add a note".`, started, ""},
 		{`Task started: "Add a note".`, failed, "start_code_change"},
+		// The state of a task that runs is a report, not a claim of a new task.
+		{"The apprentice is in the work step now — it claimed the work and is getting started.",
+			[]map[string]any{{"tool": "task_status", "result": `Task run_1 "Add a note": running, step work.`}}, ""},
+		{"The work has started.", []map[string]any{{"tool": "task_status", "result": `Task run_1 "Add a note": succeeded.`}}, "start_code_change"},
 		{"I've sent the summary to your phone.", nil, "send_notice"},
 		{"Three tasks are running and one waits for review.", nil, ""},
 		{"I approved it.", nil, "decide_task"},
@@ -247,6 +251,22 @@ func TestFalseClaimTodos(t *testing.T) {
 	} {
 		if got := falseClaim(tc.reply, tc.calls, at); got != tc.want {
 			t.Errorf("falseClaim(%q) = %q, want %q", tc.reply, got, tc.want)
+		}
+	}
+}
+
+func TestEchoOf(t *testing.T) {
+	reply := "Yes, the apprentice just started on branch task/run__fqMZ. I'll let you know when it's ready for review."
+	for words, want := range map[string]bool{
+		"The apprentice just started on branch task slash run.": true,
+		"Apprentice just started":                               true,
+		"The apprentice.":                                       true,
+		"Archimedes, stop the task":                             false,
+		"What is ready for the review of the branch tomorrow?":  false,
+		"Yes.": false,
+	} {
+		if got := echoOf(words, reply); got != want {
+			t.Errorf("echoOf(%q) = %v, want %v", words, got, want)
 		}
 	}
 }

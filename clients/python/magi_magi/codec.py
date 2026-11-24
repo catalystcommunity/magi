@@ -1589,6 +1589,9 @@ def _encode_check_overlap_request_value(v: "CheckOverlapRequest") -> Dict[Any, A
     if csil_x is not None:
         csil_m["final"] = csil_x
     csil_m["message"] = v.message
+    csil_x = v.wake_word
+    if csil_x is not None:
+        csil_m["wake_word"] = csil_x
     csil_x = v.audio_type
     if csil_x is not None:
         csil_m["audio_type"] = csil_x
@@ -1605,6 +1608,7 @@ def _decode_check_overlap_request_value(tree: Any) -> "CheckOverlapRequest":
         audio_type=(None if tree.get("audio_type") is None else _csil_expect_text(tree["audio_type"])),
         heard_until=(None if tree.get("heard_until") is None else _csil_expect_uint(tree["heard_until"])),
         final=(None if tree.get("final") is None else _csil_expect_bool(tree["final"])),
+        wake_word=(None if tree.get("wake_word") is None else _csil_expect_bool(tree["wake_word"])),
     )
 
 

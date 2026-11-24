@@ -1197,6 +1197,7 @@ class CheckOverlapRequest:
     audio_type: Optional[str] = None
     heard_until: Optional[int] = None
     final: Optional[bool] = None
+    wake_word: Optional[bool] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -1210,12 +1211,14 @@ class CheckOverlapRequest:
             result['heard_until'] = self.heard_until
         if hasattr(self, 'final') and self.final is not None:
             result['final'] = self.final
+        if hasattr(self, 'wake_word') and self.wake_word is not None:
+            result['wake_word'] = self.wake_word
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'CheckOverlapRequest':
         """Create instance from dictionary."""
-        return cls(message=data.get('message'), audio=(None if data.get('audio') is None else _csil_json_bytes_in(data['audio'])), audio_type=data.get('audio_type'), heard_until=data.get('heard_until'), final=data.get('final'))
+        return cls(message=data.get('message'), audio=(None if data.get('audio') is None else _csil_json_bytes_in(data['audio'])), audio_type=data.get('audio_type'), heard_until=data.get('heard_until'), final=data.get('final'), wake_word=data.get('wake_word'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

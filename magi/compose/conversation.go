@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/catalystcommunity/magi/lib/rpc"
 	magiapi "github.com/catalystcommunity/magi/magi/api"
@@ -70,6 +71,10 @@ func (m *Service) Say(ctx context.Context, req magiapi.SayRequest) (magiapi.SayR
 		return magiapi.SayResponse{}, rpc.Invalid("text or audio is required")
 	}
 	persona := personaOr(req.Persona)
+	if modality == "voice" && s.echo(uctx, persona, text) {
+		// The microphone heard the persona: keep nothing of it.
+		return magiapi.SayResponse{Ignored: ptr(true), Message: magiapi.Message{Refs: []magiapi.Ref{}, Links: []magiapi.MessageLink{}}}, nil
+	}
 	// "Computer, ..." and "Engineering, ...": the person names the persona
 	// that they talk to, as on the bridge of a starship.
 	p := s.addressed(uctx, text, modality == "voice")
@@ -407,6 +412,34 @@ var aliases = map[string][]string{
 	Persona:     {"computer", "magi"},
 	Engineering: {"engineering", "engineering manager"},
 	Assistant:   {"assistant", "executive assistant"},
+}
+
+// echoWindow is how long after a spoken reply of a persona a spoken
+// message with the words of that reply is its echo.
+const echoWindow = 90 * time.Second
+
+// echo reports whether the spoken text repeats a spoken message of the
+// persona of the last echoWindow in the stream of the caller (echoOf). A
+// client with a loudspeaker and no good echo canceller sends the voice of
+// the persona back as a message of the person. Magi must not answer it:
+// the answer is spoken, and the client sends that back too.
+func (s *System) echo(ctx context.Context, persona, text string) bool {
+	st, err := s.Conversation.OpenStream(ctx, conversationapi.OpenStreamRequest{Persona: persona})
+	if err != nil {
+		return false
+	}
+	res, err := s.Conversation.ListUtterances(ctx, conversationapi.ListUtterancesRequest{Stream: st.Id, BeforeSeq: ptr(st.LastSeq + 1), Limit: ptr(uint64(6))})
+	if err != nil {
+		return false
+	}
+	since := uint64(time.Now().Add(-echoWindow).UnixMilli())
+	for _, u := range res.Utterances {
+		if u.AuthorKind == "persona" && (u.Modality == "voice" || u.Modality == "notice") && u.CreatedMs >= since && echoOf(text, u.Text) {
+			s.Log.Info("spoken message is the echo of the persona", "persona", persona)
+			return true
+		}
+	}
+	return false
 }
 
 // greeting is a word that people put before the name of a persona, with

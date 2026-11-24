@@ -108,6 +108,9 @@ export interface PutPersonaRequest {
  * a persona; else Magi keeps nothing of it (no text, no audio) and the
  * response has ignored true and an empty message. Hands-free clients use
  * it so that talk in the room that is not for Magi stays private.
+ * A spoken message that repeats words of the last spoken reply of the
+ * persona (the last 90 seconds) is the echo of a loudspeaker: Magi keeps
+ * nothing of it, and the response has ignored true.
  */
 export interface SayRequest {
   persona?: string;
@@ -361,7 +364,8 @@ export interface ReportDeliveryResponse {
  * - "stop": the person takes the turn. Stop the speech.
  * - "wait": not clear yet. Send more audio.
  * final is true when the person stopped speaking: then "wait" does not
- * come back.
+ * come back. wake_word: only speech that starts with the name of a
+ * persona stops the persona (the client has the wake word option).
  */
 export interface CheckOverlapRequest {
   message: string;
@@ -369,6 +373,7 @@ export interface CheckOverlapRequest {
   audioType?: string;
   heardUntil?: number;
   final?: boolean;
+  wakeWord?: boolean;
 }
 
 export interface CheckOverlapResponse {

@@ -1082,7 +1082,7 @@ class MainActivity : Activity() {
         override fun interrupt() { main.post { interruptSpeech() } }
         override fun check(message: String, wav: ByteArray, heardUntil: Int, final: Boolean): String = try {
             client().magi.checkOverlap(CheckOverlapRequest(message = message, audio = wav, audioType = "audio/wav",
-                heardUntil = heardUntil.toULong(), final = final)).decision
+                heardUntil = heardUntil.toULong(), final = final, wakeWord = if (settings.wakeWord) true else null)).decision
         } catch (e: RpcException) {
             if (e.code == 404 || e.code == 501 || e.code == 503) "missing" else "error"
         } catch (e: Exception) { "error" }
@@ -1090,8 +1090,11 @@ class MainActivity : Activity() {
             main.post {
                 voiceTurn = true
                 val status = TextView(this@MainActivity)
-                // The answer to a reply in the 8 s after it needs no name.
-                val needName = settings.wakeWord && System.currentTimeMillis() - lastReplyEnd > 8_000
+                // With the wake word, each turn needs the name. A time after a
+                // reply with no name let the voice of the persona from the
+                // loudspeaker in as a turn of the person, and the persona
+                // then answered itself.
+                val needName = settings.wakeWord
                 say(SayRequest(persona = persona, audio = wav, audioType = "audio/wav", speakReply = true, wakeWord = if (needName) true else null), status)
             }
         }

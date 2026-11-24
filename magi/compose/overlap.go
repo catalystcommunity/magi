@@ -108,7 +108,15 @@ func (m *Service) CheckOverlap(ctx context.Context, req magiapi.CheckOverlapRequ
 		s.noteOverlap(ctx, caller.Subject, u.Id, out, final)
 		return out, nil
 	}
-	if isEcho(words, u.Text, int(deref(req.HeardUntil))) {
+	if deref(req.WakeWord) && s.addressed(uctx, words, true) == "" {
+		// The client takes only speech that starts with the name of a
+		// persona. Other speech does not stop the persona: it can be the
+		// voice of the persona from the loudspeaker, written as other words.
+		out.Decision = "continue"
+		s.noteOverlap(ctx, caller.Subject, u.Id, out, final)
+		return out, nil
+	}
+	if isEcho(words, u.Text, int(deref(req.HeardUntil))) || echoOf(words, u.Text) {
 		// The microphone heard the persona: the echo canceller missed it.
 		out.Decision = "continue"
 		s.noteOverlap(ctx, caller.Subject, u.Id, out, final)
@@ -173,6 +181,31 @@ func lastWords(text string, at, n int) string {
 		f = f[len(f)-n:]
 	}
 	return strings.Join(f, " ")
+}
+
+// echoOf reports whether the words of a spoken message are words that the
+// persona said in text: at least two words, and 70% of them in the text. A
+// loudspeaker next to a microphone gives such a message when the echo
+// canceller of the device does not remove the voice of the persona.
+func echoOf(words, text string) bool {
+	key := func(s string) []string {
+		return strings.FieldsFunc(strings.ToLower(s), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '\'' })
+	}
+	heard := key(words)
+	if len(heard) < 2 {
+		return false
+	}
+	said := map[string]bool{}
+	for _, w := range key(text) {
+		said[w] = true
+	}
+	in := 0
+	for _, w := range heard {
+		if said[w] {
+			in++
+		}
+	}
+	return float64(in) >= 0.7*float64(len(heard))
 }
 
 // isEcho reports whether the words are the persona's own words near the

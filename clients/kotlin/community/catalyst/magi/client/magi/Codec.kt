@@ -1395,6 +1395,7 @@ fun CheckOverlapRequest.toCborValue(): CborValue {
     csilEntries.add(CborValue.CText("audio") to CborValue.CBytes(this.audio))
     this.final?.let { csilV -> csilEntries.add(CborValue.CText("final") to CborValue.CBool(csilV)) }
     csilEntries.add(CborValue.CText("message") to CborValue.CText(this.message))
+    this.wakeWord?.let { csilV -> csilEntries.add(CborValue.CText("wake_word") to CborValue.CBool(csilV)) }
     this.audioType?.let { csilV -> csilEntries.add(CborValue.CText("audio_type") to CborValue.CText(csilV)) }
     this.heardUntil?.let { csilV -> csilEntries.add(CborValue.CText("heard_until") to CborValue.CUint(csilV)) }
     return CborValue.CMap(csilEntries)
@@ -1410,7 +1411,8 @@ fun checkOverlapRequestFromCborValue(cbor: CborValue): CheckOverlapRequest {
     val audioType = CsilCbor.mapGet(cbor, "audio_type")?.let { csilV -> CsilCbor.asText(csilV) }
     val heardUntil = CsilCbor.mapGet(cbor, "heard_until")?.let { csilV -> CsilCbor.asULong(csilV) }
     val final = CsilCbor.mapGet(cbor, "final")?.let { csilV -> CsilCbor.asBoolean(csilV) }
-    return CheckOverlapRequest(message = message, audio = audio, audioType = audioType, heardUntil = heardUntil, final = final)
+    val wakeWord = CsilCbor.mapGet(cbor, "wake_word")?.let { csilV -> CsilCbor.asBoolean(csilV) }
+    return CheckOverlapRequest(message = message, audio = audio, audioType = audioType, heardUntil = heardUntil, final = final, wakeWord = wakeWord)
 }
 
 /** Decode CSIL CBOR bytes into a CheckOverlapRequest. */

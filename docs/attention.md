@@ -139,9 +139,16 @@ In hands-free talk, the microphone hears all talk in the room. With the
 option "Wake word", the client sends each turn with `wake_word` true. Magi
 then takes only a turn that starts with the name of a persona ("Computer,
 ...", "Engineering, ..."). For other turns, Magi keeps nothing: it does not
-store the audio or the text, and the response has `ignored` true. In the 8
-seconds after a spoken reply ends, the client sends the turn without
-`wake_word`, so the person can answer without the name.
+store the audio or the text, and the response has `ignored` true. Each
+turn needs the name, also the answer to a reply: a time with no name
+after a reply let the voice of the persona from the loudspeaker in as a
+turn of the person. While a persona speaks, only speech that starts with
+a name stops it (`check-overlap` with `wake_word`).
+
+A loudspeaker next to a microphone sends the voice of the persona back.
+Magi does not take a spoken message that repeats the words of a spoken
+reply of the last 90 seconds, with or without the wake word (`echo` in
+`magi/compose/conversation.go`).
 
 The Android app listens from its start when the option is on. The person
 does not touch the microphone button. The option off stops the

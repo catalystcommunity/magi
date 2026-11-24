@@ -525,6 +525,9 @@ func planWrite(t any) bool {
 // to-do, not of a fact.
 var aboutTodos = regexp.MustCompile(`(?i)\b(reminders?|to-?dos?|plans?|lists?|due|steps?)\b`)
 
+// runningTask: the result of a status tool names a task that runs.
+var runningTask = regexp.MustCompile(`(?i)\b(running|step work|claimed)\b`)
+
 // falseClaim returns the tool of an action that reply says was done, when
 // that tool (of the persona) did not succeed in this turn, or "".
 func falseClaim(reply string, calls []map[string]any, tools []string) string {
@@ -537,6 +540,12 @@ func falseClaim(reply string, calls []map[string]any, tools []string) string {
 			res, _ := call["result"].(string)
 			ok := !toolFailed(res)
 			if ok && (sameAction(call["tool"], c.tool) || planWrite(call["tool"]) && (c.tool == "change_knowledge" || c.tool == "remember") && aboutTodos.MatchString(reply)) {
+				done = true
+			}
+			// A reply that tells the state of a task that runs ("the work
+			// step started") is a report of what the status tool gave, not
+			// a claim of a new task.
+			if ok && c.tool == "start_code_change" && (call["tool"] == "task_status" || call["tool"] == "list_tasks") && runningTask.MatchString(res) {
 				done = true
 			}
 		}

@@ -363,7 +363,9 @@ data class CheckOverlapRequest(
     val audioType: String? = null,
     // wire key: heard_until
     val heardUntil: ULong? = null,
-    val final: Boolean? = null
+    val final: Boolean? = null,
+    // wire key: wake_word
+    val wakeWord: Boolean? = null
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -373,6 +375,7 @@ data class CheckOverlapRequest(
         if (audioType != other.audioType) return false
         if (heardUntil != other.heardUntil) return false
         if (final != other.final) return false
+        if (wakeWord != other.wakeWord) return false
         return true
     }
 
@@ -382,6 +385,7 @@ data class CheckOverlapRequest(
         result = 31 * result + audioType.hashCode()
         result = 31 * result + heardUntil.hashCode()
         result = 31 * result + final.hashCode()
+        result = 31 * result + wakeWord.hashCode()
         return result
     }
 }

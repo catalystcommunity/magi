@@ -292,6 +292,7 @@ type CheckOverlapRequest struct {
 	AudioType  *string `json:"audio_type,omitempty" yaml:"audio_type,omitempty"`
 	HeardUntil *uint64 `json:"heard_until,omitempty" yaml:"heard_until,omitempty"`
 	Final      *bool   `json:"final,omitempty" yaml:"final,omitempty"`
+	WakeWord   *bool   `json:"wake_word,omitempty" yaml:"wake_word,omitempty"`
 }
 
 // CheckOverlapResponse represents a structured data type

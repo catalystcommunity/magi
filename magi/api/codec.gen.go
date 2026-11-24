@@ -3227,12 +3227,15 @@ func csilEncCheckOverlapRequest(csilV CheckOverlapRequest, csilDepth int) (cborV
 	if csilDepth > csilEncDepthLimit {
 		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
 	}
-	csilEntries := make(cborMap, 0, 5)
+	csilEntries := make(cborMap, 0, 6)
 	csilEntries = append(csilEntries, cborEntry{cborText("audio"), cborBytes(csilV.Audio)})
 	if csilV.Final != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("final"), cborBool((*csilV.Final))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("message"), cborText(csilV.Message)})
+	if csilV.WakeWord != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("wake_word"), cborBool((*csilV.WakeWord))})
+	}
 	if csilV.AudioType != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("audio_type"), cborText((*csilV.AudioType))})
 	}
@@ -3287,6 +3290,13 @@ func csilDecCheckOverlapRequest(csilRoot cborValue) (CheckOverlapRequest, error)
 			return csilOut, csilErr
 		}
 		csilOut.Final = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "wake_word"); csilOk {
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.WakeWord = &csilVal
 	}
 	return csilOut, nil
 }

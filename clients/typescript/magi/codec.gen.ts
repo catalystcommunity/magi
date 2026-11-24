@@ -1401,6 +1401,7 @@ export function toCheckOverlapRequestCborValue(v: CheckOverlapRequest): CborValu
   csilMap.set("audio", v.audio);
   if (v.final !== undefined) csilMap.set("final", v.final);
   csilMap.set("message", v.message);
+  if (v.wakeWord !== undefined) csilMap.set("wake_word", v.wakeWord);
   if (v.audioType !== undefined) csilMap.set("audio_type", v.audioType);
   if (v.heardUntil !== undefined) csilMap.set("heard_until", v.heardUntil);
   return csilMap;
@@ -1413,6 +1414,7 @@ export function fromCheckOverlapRequestCborValue(value: CborValue): CheckOverlap
     audioType: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "audio_type")),
     heardUntil: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "heard_until")),
     final: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "final")),
+    wakeWord: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "wake_word")),
   };
 }
 
