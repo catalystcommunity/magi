@@ -105,7 +105,11 @@ ModelSelector = {
   ? rank_by: text,
   ? only_name: bool,
 }
-SayResponse = { message: Message, ? ignored: bool }
+;;; ended: the spoken message ends the conversation ("Goodbye", "End of
+;;; line", alone). Magi keeps nothing of it (ignored is true too). A
+;;; hands-free client with the wake word then needs the name of a persona
+;;; again before it sends a turn without wake_word (docs/attention.md).
+SayResponse = { message: Message, ? ignored: bool, ? ended: bool }
 
 ;;; Reads the stream of the caller with a persona (default
 ;;; "persona:magi"). Without before_seq, returns messages after after_seq

@@ -804,6 +804,9 @@ ModelSelector.from_cbor = staticmethod(_model_selector_from_cbor)
 
 def _encode_say_response_value(v: "SayResponse") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
+    csil_x = v.ended
+    if csil_x is not None:
+        csil_m["ended"] = csil_x
     csil_x = v.ignored
     if csil_x is not None:
         csil_m["ignored"] = csil_x
@@ -815,6 +818,7 @@ def _decode_say_response_value(tree: Any) -> "SayResponse":
     return SayResponse(
         message=_decode_message_value(tree["message"]),
         ignored=(None if tree.get("ignored") is None else _csil_expect_bool(tree["ignored"])),
+        ended=(None if tree.get("ended") is None else _csil_expect_bool(tree["ended"])),
     )
 
 

@@ -139,11 +139,21 @@ In hands-free talk, the microphone hears all talk in the room. With the
 option "Wake word", the client sends each turn with `wake_word` true. Magi
 then takes only a turn that starts with the name of a persona ("Computer,
 ...", "Engineering, ..."). For other turns, Magi keeps nothing: it does not
-store the audio or the text, and the response has `ignored` true. Each
-turn needs the name, also the answer to a reply: a time with no name
-after a reply let the voice of the persona from the loudspeaker in as a
-turn of the person. While a persona speaks, only speech that starts with
-a name stops it (`check-overlap` with `wake_word`).
+store the audio or the text, and the response has `ignored` true.
+
+The name opens a conversation. After Magi takes a turn with a name, the
+client sends the next turns without `wake_word`, so the person talks with
+no name. Magi ends the conversation: a spoken message that is only "Thank
+you", "End of conversation", "Goodbye", or "End of line" gives `ended`
+true, and Magi keeps nothing of it. The client then sends `wake_word`
+again. The end of a conversation is a decision. A decision model will
+replace the list of phrases. The client also ends a conversation that
+had no turn and no reply for 5 minutes.
+
+While a persona speaks, only speech that starts with a name stops it
+(`check-overlap` with `wake_word`). A turn that the microphone heard while
+a reply played to its end is the voice of the persona from the
+loudspeaker: the client does not send it.
 
 A loudspeaker next to a microphone sends the voice of the persona back.
 Magi does not take a spoken message that repeats the words of a spoken

@@ -142,9 +142,16 @@ export interface ModelSelector {
   onlyName?: boolean;
 }
 
+/**
+ * ended: the spoken message ends the conversation ("Goodbye", "End of
+ * line", alone). Magi keeps nothing of it (ignored is true too). A
+ * hands-free client with the wake word then needs the name of a persona
+ * again before it sends a turn without wake_word (docs/attention.md).
+ */
 export interface SayResponse {
   message: Message;
   ignored?: boolean;
+  ended?: boolean;
 }
 
 /**

@@ -1516,7 +1516,10 @@ func csilEncSayResponse(csilV SayResponse, csilDepth int) (cborValue, error) {
 		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
 	}
 	var csilE csilEncErr
-	csilEntries := make(cborMap, 0, 2)
+	csilEntries := make(cborMap, 0, 3)
+	if csilV.Ended != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("ended"), cborBool((*csilV.Ended))})
+	}
 	if csilV.Ignored != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("ignored"), cborBool((*csilV.Ignored))})
 	}
@@ -1544,6 +1547,13 @@ func csilDecSayResponse(csilRoot cborValue) (SayResponse, error) {
 			return csilOut, csilErr
 		}
 		csilOut.Ignored = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "ended"); csilOk {
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Ended = &csilVal
 	}
 	return csilOut, nil
 }

@@ -343,3 +343,21 @@ func TestEchoOfTheLastReply(t *testing.T) {
 		t.Error("the words of an old reply are an echo")
 	}
 }
+
+func TestEndsConversation(t *testing.T) {
+	for text, want := range map[string]bool{
+		"Thank you.":          true,
+		"End of conversation": true,
+		"Goodbye!":            true,
+		"Good bye.":           true,
+		"End of line.":        true,
+		"Thank you, that helps a lot. What about tomorrow?": false,
+		"Say goodbye to the old runner":                     false,
+		"Thanks":                                            false,
+		"":                                                  false,
+	} {
+		if got := endsConversation(text); got != want {
+			t.Errorf("endsConversation(%q) = %v, want %v", text, got, want)
+		}
+	}
+}

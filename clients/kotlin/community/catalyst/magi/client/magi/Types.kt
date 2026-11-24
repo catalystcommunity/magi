@@ -142,7 +142,8 @@ data class ModelSelector(
 /** SayResponse record. */
 data class SayResponse(
     val message: Message,
-    val ignored: Boolean? = null
+    val ignored: Boolean? = null,
+    val ended: Boolean? = null
 )
 
 /** ReadRequest record. */

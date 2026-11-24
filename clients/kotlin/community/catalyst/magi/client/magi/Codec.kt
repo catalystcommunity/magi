@@ -775,6 +775,7 @@ fun modelSelectorFromCbor(bytes: ByteArray): ModelSelector = modelSelectorFromCb
 /** The CBOR value tree for a SayResponse (deep, canonical key order). */
 fun SayResponse.toCborValue(): CborValue {
     val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.ended?.let { csilV -> csilEntries.add(CborValue.CText("ended") to CborValue.CBool(csilV)) }
     this.ignored?.let { csilV -> csilEntries.add(CborValue.CText("ignored") to CborValue.CBool(csilV)) }
     csilEntries.add(CborValue.CText("message") to this.message.toCborValue())
     return CborValue.CMap(csilEntries)
@@ -787,7 +788,8 @@ fun SayResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
 fun sayResponseFromCborValue(cbor: CborValue): SayResponse {
     val message = messageFromCborValue(CsilCbor.require(cbor, "message"))
     val ignored = CsilCbor.mapGet(cbor, "ignored")?.let { csilV -> CsilCbor.asBoolean(csilV) }
-    return SayResponse(message = message, ignored = ignored)
+    val ended = CsilCbor.mapGet(cbor, "ended")?.let { csilV -> CsilCbor.asBoolean(csilV) }
+    return SayResponse(message = message, ignored = ignored, ended = ended)
 }
 
 /** Decode CSIL CBOR bytes into a SayResponse. */

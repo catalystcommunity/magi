@@ -754,6 +754,7 @@ export function fromModelSelectorCbor(bytes: Uint8Array): ModelSelector {
 
 export function toSayResponseCborValue(v: SayResponse): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
+  if (v.ended !== undefined) csilMap.set("ended", v.ended);
   if (v.ignored !== undefined) csilMap.set("ignored", v.ignored);
   csilMap.set("message", toMessageCborValue(v.message));
   return csilMap;
@@ -763,6 +764,7 @@ export function fromSayResponseCborValue(value: CborValue): SayResponse {
   return {
     message: fromMessageCborValue(requireKey(value, "message")),
     ignored: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "ignored")),
+    ended: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "ended")),
   };
 }
 

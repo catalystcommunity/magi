@@ -381,6 +381,7 @@ class ModelSelector:
 class SayResponse:
     message: Message
     ignored: Optional[bool] = None
+    ended: Optional[bool] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -388,12 +389,14 @@ class SayResponse:
             result['message'] = self.message.to_dict()
         if hasattr(self, 'ignored') and self.ignored is not None:
             result['ignored'] = self.ignored
+        if hasattr(self, 'ended') and self.ended is not None:
+            result['ended'] = self.ended
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'SayResponse':
         """Create instance from dictionary."""
-        return cls(message=(None if data.get('message') is None else Message.from_dict(data['message'])), ignored=data.get('ignored'))
+        return cls(message=(None if data.get('message') is None else Message.from_dict(data['message'])), ignored=data.get('ignored'), ended=data.get('ended'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

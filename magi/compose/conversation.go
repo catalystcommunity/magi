@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/catalystcommunity/magi/lib/rpc"
 	magiapi "github.com/catalystcommunity/magi/magi/api"
@@ -75,6 +76,11 @@ func (m *Service) Say(ctx context.Context, req magiapi.SayRequest) (magiapi.SayR
 		return magiapi.SayResponse{}, rpc.Invalid("text or audio is required")
 	}
 	persona := personaOr(req.Persona)
+	if modality == "voice" && endsConversation(text) {
+		// The person ends the conversation. No persona answers, and Magi
+		// keeps nothing: the client stops its turns until the next name.
+		return magiapi.SayResponse{Ignored: ptr(true), Ended: ptr(true), Message: magiapi.Message{Refs: []magiapi.Ref{}, Links: []magiapi.MessageLink{}}}, nil
+	}
 	if modality == "voice" && s.echo(uctx, persona, text) {
 		// The microphone heard the persona: keep nothing of it.
 		return magiapi.SayResponse{Ignored: ptr(true), Message: magiapi.Message{Refs: []magiapi.Ref{}, Links: []magiapi.MessageLink{}}}, nil
@@ -416,6 +422,17 @@ var aliases = map[string][]string{
 	Persona:     {"computer", "magi"},
 	Engineering: {"engineering", "engineering manager"},
 	Assistant:   {"assistant", "executive assistant"},
+}
+
+// closings are the spoken messages that end a conversation when they are
+// the whole message. A decision model replaces this list later: the end of
+// a conversation is a decision, not a word.
+var closings = map[string]bool{"thank you": true, "end of conversation": true, "goodbye": true, "good bye": true, "end of line": true}
+
+// endsConversation reports whether the spoken text is only a closing.
+func endsConversation(text string) bool {
+	words := strings.FieldsFunc(strings.ToLower(text), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '\'' })
+	return closings[strings.Join(words, " ")]
 }
 
 // echoWindow is how long after a spoken reply of a persona a spoken

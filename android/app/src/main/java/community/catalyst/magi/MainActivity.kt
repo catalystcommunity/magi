@@ -94,6 +94,8 @@ class MainActivity : Activity() {
         const val MIC_REQUEST = 1
         const val NOTIFY_REQUEST = 2
         const val WORKING_MS = 3 * 60 * 1000L
+        /** A conversation with no turn and no reply for this time ends by itself. */
+        const val CONVERSATION_IDLE_MS = 5 * 60 * 1000L
     }
 
     internal lateinit var settings: Settings
@@ -616,9 +618,11 @@ class MainActivity : Activity() {
     }
 
     /** The line that tells what the microphone waits for. */
-    private fun listeningText(): String =
-        if (settings.wakeWord) "Listening for a name: \u201cHey, ${personaName(persona)}, \u2026\u201d. Magi keeps nothing of other talk."
-        else "Hands-free: talk at any time. Talk over Magi to stop it."
+    private fun listeningText(): String = when {
+        !settings.wakeWord -> "Hands-free: talk at any time. Talk over Magi to stop it."
+        conversationOpen -> "In a conversation: talk with no name. \u201cGoodbye\u201d or \u201cEnd of line\u201d ends it."
+        else -> "Listening for a name: \u201cHey, ${personaName(persona)}, \u2026\u201d. Magi keeps nothing of other talk."
+    }
 
     /**
      * The wake word needs the microphone: with the option on, the app
@@ -675,7 +679,10 @@ class MainActivity : Activity() {
         status.text = "Sending..."
         background(status) {
             val r = client().magi.say(req)
+            if (r.ended == true) { runOnUiThread { status.text = ""; endConversation() }; return@background }
             if (r.ignored == true) { runOnUiThread { status.text = "" }; return@background }
+            // Magi took a spoken turn: the conversation is open, and the next turns need no name.
+            if (req.audio != null) runOnUiThread { openConversation() }
             // The tone says that Magi heard the person and builds the reply:
             // for speech, and for text when replies are spoken.
             if (req.audio != null || req.speakReply == true) runOnUiThread { Ack.play(player.communication) }
@@ -1039,10 +1046,46 @@ class MainActivity : Activity() {
 
     /** The spoken message ended: played to the end ("done") or stopped. Main thread. */
     private var lastReplyEnd = 0L
+    /** The last reply played to its end; false when the person or a notice stopped it. */
+    private var lastReplyDone = false
+
+    /** A conversation that the name of a persona opened. Its turns need no name. */
+    private var conversationOpen = false
+    /** The time of the last turn or the end of the last reply of the conversation. */
+    private var conversationSeen = 0L
+    private val idleClose = Runnable { closeIdleConversation() }
+
+    private fun openConversation() {
+        conversationOpen = true
+        conversationSeen = System.currentTimeMillis()
+        main.removeCallbacks(idleClose)
+        main.postDelayed(idleClose, CONVERSATION_IDLE_MS)
+        if (handsFree.on) chatStatus?.text = listeningText()
+    }
+
+    /** Magi said that the conversation ended, or nobody talked for a long time. */
+    private fun endConversation() {
+        if (!conversationOpen) return
+        conversationOpen = false
+        main.removeCallbacks(idleClose)
+        if (handsFree.on) {
+            runCatching { ToneGenerator(if (player.communication) AudioManager.STREAM_VOICE_CALL else AudioManager.STREAM_MUSIC, 60).startTone(ToneGenerator.TONE_PROP_NACK, 200) }
+            chatStatus?.text = listeningText()
+        }
+    }
+
+    /** A microphone that nobody talks to does not stay open: the name is needed again. */
+    private fun closeIdleConversation() {
+        if (!conversationOpen) return
+        val left = conversationSeen + CONVERSATION_IDLE_MS - System.currentTimeMillis()
+        if (left > 0 || speakingId != null) main.postDelayed(idleClose, maxOf(left, 10_000L)) else endConversation()
+    }
 
     private fun speechEnded(reason: String) {
         val id = speakingId ?: return
         lastReplyEnd = System.currentTimeMillis()
+        lastReplyDone = reason == "done"
+        if (conversationOpen) conversationSeen = lastReplyEnd
         val heard = if (reason == "done") speakingText.codePointCount(0, speakingText.length) else heardUntil()
         speakingId = null
         val done = speakingDone
@@ -1088,13 +1131,20 @@ class MainActivity : Activity() {
         } catch (e: Exception) { "error" }
         override fun turn(wav: ByteArray) {
             main.post {
+                // A turn that the microphone heard while a reply played to its
+                // end is the voice of the persona from the loudspeaker, not a
+                // turn of the person. (A reply that the person stopped is
+                // different: Magi found the name of a persona in the speech.)
+                val now = System.currentTimeMillis()
+                val turnMs = (wav.size - 44).coerceAtLeast(0) / 32L // 16 kHz, 16 bit, one channel
+                if (speakingId != null || (lastReplyDone && now - lastReplyEnd < turnMs + 300)) return@post
                 voiceTurn = true
                 val status = TextView(this@MainActivity)
-                // With the wake word, each turn needs the name. A time after a
-                // reply with no name let the voice of the persona from the
-                // loudspeaker in as a turn of the person, and the persona
-                // then answered itself.
-                val needName = settings.wakeWord
+                // The name of a persona opens a conversation. In it, a turn
+                // needs no name. Magi ends it (a closing phrase alone), and
+                // then the next turn needs the name again.
+                if (conversationOpen && now - conversationSeen >= CONVERSATION_IDLE_MS) endConversation()
+                val needName = settings.wakeWord && !conversationOpen
                 say(SayRequest(persona = persona, audio = wav, audioType = "audio/wav", speakReply = true, wakeWord = if (needName) true else null), status)
             }
         }

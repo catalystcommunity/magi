@@ -102,6 +102,7 @@ type ModelSelector struct {
 type SayResponse struct {
 	Message Message `json:"message" yaml:"message"`
 	Ignored *bool   `json:"ignored,omitempty" yaml:"ignored,omitempty"`
+	Ended   *bool   `json:"ended,omitempty" yaml:"ended,omitempty"`
 }
 
 // ReadRequest represents a structured data type
