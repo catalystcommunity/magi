@@ -214,3 +214,43 @@ The hosts of `neverAutoHosts` go to a person, as in the server.
 - The head serves only the questions that it was trained on. The note
   questions stay on the adapter.
 - The server does not use the head yet.
+
+### One head for all decision questions
+
+One experiment trained one head on Qwen3.5-4B for the host question and
+the five note questions (`evals/decide`). The training set was the
+records of the note questions of the adapter in use (4,737 states) and the
+host records of the head above (7,464 states), 2 epochs, 86 minutes on
+one 16 GB GPU. The numbers are of the model in the training library, not
+of an exported model.
+
+| Question | Adapter in use (test) | One head (test) |
+| --- | --- | --- |
+| record | 98.8% | 99.7% |
+| asks | 98.9% | 92.7% |
+| task | 100.0% | 96.8% |
+| about | 99.8% | 100.0% |
+| kind | 97.9% | 99.2% |
+
+| Host question | Limit | Dev: official hosts | Dev: wrong hosts | Test: official hosts | Test: wrong hosts |
+| --- | --- | --- | --- | --- | --- |
+| One head | 0.80 (no wrong host on dev) | 344 of 388 | 0 | 349 of 389 | 0 |
+| One head | 0.90 | 337 of 388 | 0 | 341 of 389 | 0 |
+| One head | 0.95 | 323 of 388 | 0 | 322 of 389 | 0 |
+| Head for the host question only | 0.95 | 326 of 388 | 0 | 334 of 389 | 0 |
+
+- The one head is not a replacement for the adapter. It misses 70 of
+  242 messages of the test set that ask a question (`asks`), and 31 of 270
+  that give a task (`task`). Almost all errors are of this kind: the
+  answer is "yes" and the head says "no". For `asks`, 41 of the 70
+  errors have a probability of "yes" below 0.05.
+- A limit from the dev set for each question helps, but not enough:
+  `asks` 96.3% and `task` 98.9% on the test set.
+- On records that were held out of the training set, the head has an
+  accuracy of 99.3% for all questions together. Thus the head does not
+  carry these two questions over to the messages of the test set as well
+  as the adapter does from the same records.
+- The other three note questions are equal or better.
+- The host question is not worse with the note questions in the same
+  head. Its probabilities are lower, so its limit is lower.
+- The one head was not exported, because it does not pass on `asks`.
