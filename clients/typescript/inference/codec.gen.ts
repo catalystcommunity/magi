@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { Answer, DecideRequest, DecideResponse, Question, Status, StatusRequest, WarmRequest } from "./types.gen.ts";
+import type { Answer, DecideRequest, DecideResponse, Gpu, Question, Status, StatusRequest, WarmRequest } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -472,12 +472,41 @@ export function csilTsToText(d: Date): string {
   return d.toISOString().replace(/\.000Z$/, "Z");
 }
 
+export function toGpuCborValue(v: Gpu): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("name", v.name);
+  if (v.util !== undefined) csilMap.set("util", v.util);
+  if (v.usedMib !== undefined) csilMap.set("used_mib", v.usedMib);
+  if (v.totalMib !== undefined) csilMap.set("total_mib", v.totalMib);
+  return csilMap;
+}
+
+export function fromGpuCborValue(value: CborValue): Gpu {
+  return {
+    name: asString(requireKey(value, "name")),
+    totalMib: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "total_mib")),
+    usedMib: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "used_mib")),
+    util: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "util")),
+  };
+}
+
+export function toGpuCbor(v: Gpu): Uint8Array {
+  return encodeValue(toGpuCborValue(v));
+}
+
+export function fromGpuCbor(bytes: Uint8Array): Gpu {
+  return fromGpuCborValue(decode(bytes));
+}
+
 export function toStatusCborValue(v: Status): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
+  if (v.gpus !== undefined) csilMap.set("gpus", v.gpus.map((csilE): CborValue => toGpuCborValue(csilE)));
   csilMap.set("model", v.model);
   csilMap.set("state", v.state);
+  if (v.models !== undefined) csilMap.set("models", v.models);
   if (v.reason !== undefined) csilMap.set("reason", v.reason);
   csilMap.set("in_flight", v.inFlight);
+  if (v.engineMib !== undefined) csilMap.set("engine_mib", v.engineMib);
   if (v.startedMs !== undefined) csilMap.set("started_ms", v.startedMs);
   if (v.lastUsedMs !== undefined) csilMap.set("last_used_ms", v.lastUsedMs);
   return csilMap;
@@ -491,6 +520,9 @@ export function fromStatusCborValue(value: CborValue): Status {
     inFlight: asNumber(requireKey(value, "in_flight")),
     lastUsedMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "last_used_ms")),
     startedMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "started_ms")),
+    gpus: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => fromGpuCborValue(csilE)))(mapGet(value, "gpus")),
+    engineMib: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "engine_mib")),
+    models: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "models")),
   };
 }
 

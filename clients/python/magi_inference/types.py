@@ -7,6 +7,40 @@ import json
 
 
 @dataclass
+class Gpu:
+    name: str
+    total_mib: Optional[int] = None
+    used_mib: Optional[int] = None
+    util: Optional[int] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'name') and self.name is not None:
+            result['name'] = self.name
+        if hasattr(self, 'total_mib') and self.total_mib is not None:
+            result['total_mib'] = self.total_mib
+        if hasattr(self, 'used_mib') and self.used_mib is not None:
+            result['used_mib'] = self.used_mib
+        if hasattr(self, 'util') and self.util is not None:
+            result['util'] = self.util
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Gpu':
+        """Create instance from dictionary."""
+        return cls(name=data.get('name'), total_mib=data.get('total_mib'), used_mib=data.get('used_mib'), util=data.get('util'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'Gpu':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
 class Status:
     state: str
     model: str
@@ -14,6 +48,9 @@ class Status:
     reason: Optional[str] = None
     last_used_ms: Optional[int] = None
     started_ms: Optional[int] = None
+    gpus: Optional[List[Gpu]] = None
+    engine_mib: Optional[int] = None
+    models: Optional[List[str]] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -29,12 +66,18 @@ class Status:
             result['last_used_ms'] = self.last_used_ms
         if hasattr(self, 'started_ms') and self.started_ms is not None:
             result['started_ms'] = self.started_ms
+        if hasattr(self, 'gpus') and self.gpus is not None:
+            result['gpus'] = [item0.to_dict() for item0 in self.gpus]
+        if hasattr(self, 'engine_mib') and self.engine_mib is not None:
+            result['engine_mib'] = self.engine_mib
+        if hasattr(self, 'models') and self.models is not None:
+            result['models'] = self.models
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Status':
         """Create instance from dictionary."""
-        return cls(state=data.get('state'), reason=data.get('reason'), model=data.get('model'), in_flight=data.get('in_flight'), last_used_ms=data.get('last_used_ms'), started_ms=data.get('started_ms'))
+        return cls(state=data.get('state'), reason=data.get('reason'), model=data.get('model'), in_flight=data.get('in_flight'), last_used_ms=data.get('last_used_ms'), started_ms=data.get('started_ms'), gpus=(None if data.get('gpus') is None else [Gpu.from_dict(item0) for item0 in data['gpus']]), engine_mib=data.get('engine_mib'), models=data.get('models'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

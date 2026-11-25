@@ -15,6 +15,14 @@ options {
 ;;;
 ;;; state: "off", "starting", "ready", or "busy".
 ;;; reason: why the host is busy, or why the engine stopped.
+;;; One GPU of the machine. A value that the host cannot read is absent.
+;;; used_mib is the memory that all processes use, also the engine.
+Gpu = { name: text, ? total_mib: uint, ? used_mib: uint, ? util: uint }
+
+;;; With detail in the request, the status also has the GPUs of the
+;;; machine, the GPU memory of the engine, and the model names that the
+;;; engine serves. Magi places the models with these facts
+;;; (docs/decisions/0016-placement.md).
 Status = {
   state: text,
   ? reason: text,
@@ -22,6 +30,9 @@ Status = {
   in_flight: uint,
   ? last_used_ms: uint,
   ? started_ms: uint,
+  ? gpus: [* Gpu],
+  ? engine_mib: uint,
+  ? models: [* text],
 }
 
 StatusRequest = { ? detail: bool }

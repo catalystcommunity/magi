@@ -438,14 +438,58 @@ def _csil_decimal_from_tree(node: Any) -> Any:
     mantissa = _csil_expect_int(pair[1])
     return Decimal(mantissa).scaleb(exponent)
 
+def _encode_gpu_value(v: "Gpu") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["name"] = v.name
+    csil_x = v.util
+    if csil_x is not None:
+        csil_m["util"] = csil_x
+    csil_x = v.used_mib
+    if csil_x is not None:
+        csil_m["used_mib"] = csil_x
+    csil_x = v.total_mib
+    if csil_x is not None:
+        csil_m["total_mib"] = csil_x
+    return csil_m
+
+def _decode_gpu_value(tree: Any) -> "Gpu":
+    tree = _csil_expect_map(tree)
+    return Gpu(
+        name=_csil_expect_text(tree["name"]),
+        total_mib=(None if tree.get("total_mib") is None else _csil_expect_uint(tree["total_mib"])),
+        used_mib=(None if tree.get("used_mib") is None else _csil_expect_uint(tree["used_mib"])),
+        util=(None if tree.get("util") is None else _csil_expect_uint(tree["util"])),
+    )
+
+
+def _gpu_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_gpu_value(self))
+
+
+def _gpu_from_cbor(data: bytes) -> "Gpu":
+    return _decode_gpu_value(cbor_decode(data))
+
+
+Gpu.to_cbor = _gpu_to_cbor
+Gpu.from_cbor = staticmethod(_gpu_from_cbor)
+
 def _encode_status_value(v: "Status") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
+    csil_x = v.gpus
+    if csil_x is not None:
+        csil_m["gpus"] = [_encode_gpu_value(csil_e) for csil_e in csil_x]
     csil_m["model"] = v.model
     csil_m["state"] = v.state
+    csil_x = v.models
+    if csil_x is not None:
+        csil_m["models"] = csil_x
     csil_x = v.reason
     if csil_x is not None:
         csil_m["reason"] = csil_x
     csil_m["in_flight"] = v.in_flight
+    csil_x = v.engine_mib
+    if csil_x is not None:
+        csil_m["engine_mib"] = csil_x
     csil_x = v.started_ms
     if csil_x is not None:
         csil_m["started_ms"] = csil_x
@@ -463,6 +507,9 @@ def _decode_status_value(tree: Any) -> "Status":
         in_flight=_csil_expect_uint(tree["in_flight"]),
         last_used_ms=(None if tree.get("last_used_ms") is None else _csil_expect_uint(tree["last_used_ms"])),
         started_ms=(None if tree.get("started_ms") is None else _csil_expect_uint(tree["started_ms"])),
+        gpus=(None if tree.get("gpus") is None else [_decode_gpu_value(csil_e) for csil_e in _csil_expect_array(tree["gpus"])]),
+        engine_mib=(None if tree.get("engine_mib") is None else _csil_expect_uint(tree["engine_mib"])),
+        models=(None if tree.get("models") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["models"])]),
     )
 
 

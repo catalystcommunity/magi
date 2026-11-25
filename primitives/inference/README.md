@@ -36,6 +36,15 @@ error with one of these types:
 
 States: `off`, `starting`, `ready`, `busy`.
 
+## Report for a placement
+
+`status` with `detail` adds the facts that Magi needs to place models
+(`docs/decisions/0016-placement.md`): each GPU of the machine with its
+total and used memory, the GPU memory of the engine, and the model names
+that the engine serves. NVIDIA GPUs come from `nvidia-smi`. On Linux, AMD
+and Intel GPUs come from `/sys/class/drm`. A value that the host cannot
+read is absent. The busy rules use the first NVIDIA GPU only.
+
 ## Models
 
 One engine can serve more than one model name: the base model, and the

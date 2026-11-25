@@ -21,6 +21,21 @@ export interface ServiceError {
  * 
  * state: "off", "starting", "ready", or "busy".
  * reason: why the host is busy, or why the engine stopped.
+ * One GPU of the machine. A value that the host cannot read is absent.
+ * used_mib is the memory that all processes use, also the engine.
+ */
+export interface Gpu {
+  name: string;
+  totalMib?: number;
+  usedMib?: number;
+  util?: number;
+}
+
+/**
+ * With detail in the request, the status also has the GPUs of the
+ * machine, the GPU memory of the engine, and the model names that the
+ * engine serves. Magi places the models with these facts
+ * (docs/decisions/0016-placement.md).
  */
 export interface Status {
   state: string;
@@ -29,6 +44,9 @@ export interface Status {
   inFlight: number;
   lastUsedMs?: number;
   startedMs?: number;
+  gpus?: Gpu[];
+  engineMib?: number;
+  models?: string[];
 }
 
 export interface StatusRequest {

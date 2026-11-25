@@ -18,6 +18,17 @@ type Sample struct {
 	GPUTotalMiB int
 	EngineMiB   int      // GPU memory that the engine process uses
 	Processes   []string // command names (/proc/<pid>/comm; on Windows the image name without ".exe")
+	// GPUs has all GPUs of the machine, for the report of the host. The
+	// busy rules use the values above, which are of the first NVIDIA GPU.
+	GPUs []GPU
+}
+
+// GPU is one GPU of the machine. A value below zero is unknown.
+type GPU struct {
+	Name     string
+	TotalMiB int
+	UsedMiB  int
+	Util     int // percent
 }
 
 // Sampler takes samples. enginePID is 0 when the engine does not run.
@@ -80,9 +91,18 @@ func (sys System) Sample(ctx context.Context, enginePID int) Sample {
 	if smi == "" {
 		smi = "nvidia-smi"
 	}
-	if rows := csvCmd(ctx, smi, "--query-gpu=utilization.gpu,memory.used,memory.total", "--format=csv,noheader,nounits"); len(rows) > 0 && len(rows[0]) == 3 {
-		s.GPUUtil, s.GPUUsedMiB, s.GPUTotalMiB = atoi(rows[0][0]), atoi(rows[0][1]), atoi(rows[0][2])
+	for i, r := range csvCmd(ctx, smi, "--query-gpu=name,utilization.gpu,memory.used,memory.total", "--format=csv,noheader,nounits") {
+		if len(r) != 4 {
+			continue
+		}
+		g := GPU{Name: strings.TrimSpace(r[0]), Util: atoi(r[1]), UsedMiB: atoi(r[2]), TotalMiB: atoi(r[3])}
+		if i == 0 {
+			s.GPUUtil, s.GPUUsedMiB, s.GPUTotalMiB = g.Util, g.UsedMiB, g.TotalMiB
+		}
+		s.GPUs = append(s.GPUs, g)
 	}
+	// A GPU of another maker has no nvidia-smi. Linux tells its memory.
+	s.GPUs = append(s.GPUs, sysGPUs(sysDRM)...)
 	if enginePID > 0 {
 		for _, r := range csvCmd(ctx, smi, "--query-compute-apps=pid,used_memory", "--format=csv,noheader,nounits") {
 			if len(r) == 2 && atoi(r[0]) == enginePID {

@@ -5,6 +5,8 @@ import (
 	"crypto/ed25519"
 	"encoding/json"
 	"fmt"
+	"github.com/catalystcommunity/magi/lib/rpc"
+	api "github.com/catalystcommunity/magi/primitives/inference/api"
 	"io"
 	"log/slog"
 	"math/rand/v2"
@@ -12,6 +14,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -304,4 +307,71 @@ func TestKeepWarm(t *testing.T) {
 	e.advance(31 * time.Second)
 	e.h.check(context.Background())
 	waitState(t, e, "ready")
+}
+
+// The status with detail has the facts for a placement: the GPUs, the GPU
+// memory of the engine, and the model names. Without detail it has none.
+func TestStatusDetail(t *testing.T) {
+	e := setup(t, 5*time.Second, func(c *Config) {
+		c.Engine.Models = map[string]Variant{"local-notes": {}, "local-decide": {}}
+	})
+	e.s.set(Sample{GPUUtil: 3, GPUUsedMiB: 9000, GPUTotalMiB: 16000, EngineMiB: 7000, GPUs: []GPU{
+		{Name: "NVIDIA RTX 4080", TotalMiB: 16000, UsedMiB: 9000, Util: 3},
+		{Name: "AMD 7480", TotalMiB: 8176, UsedMiB: 7069, Util: -1},
+	}})
+	e.h.check(context.Background())
+	rs := &rpc.Server{Verifier: e.h.ver}
+	rs.Register("InferenceService", api.InferenceServiceOps(e.h))
+	hs := httptest.NewServer(rpc.Mux(rs, nil))
+	t.Cleanup(hs.Close)
+	c := api.NewInferenceClient(rpc.NewClient(hs.URL, rpc.StaticToken(e.tok(Scope))))
+	ctx := context.Background()
+	plain, err := c.Status(ctx, api.StatusRequest{})
+	if err != nil || plain.Gpus != nil || plain.Models != nil {
+		t.Fatalf("plain status = %+v, %v", plain, err)
+	}
+	st, err := c.Status(ctx, api.StatusRequest{Detail: ptr(true)})
+	if err != nil || len(st.Gpus) != 2 {
+		t.Fatalf("status = %+v, %v", st, err)
+	}
+	if g := st.Gpus[0]; g.Name != "NVIDIA RTX 4080" || *g.TotalMib != 16000 || *g.UsedMib != 9000 || *g.Util != 3 {
+		t.Fatalf("first GPU = %+v", g)
+	}
+	// A value that the host cannot read is absent.
+	if g := st.Gpus[1]; *g.TotalMib != 8176 || g.Util != nil {
+		t.Fatalf("second GPU = %+v", g)
+	}
+	if strings.Join(st.Models, ",") != "local,local-decide,local-notes" {
+		t.Fatalf("models = %v", st.Models)
+	}
+	// The engine does not run: its memory is not in the status.
+	if st.EngineMib != nil {
+		t.Fatalf("engine memory with no engine: %d", *st.EngineMib)
+	}
+}
+
+// Linux tells the memory of a GPU that has no nvidia-smi.
+func TestSysGPUs(t *testing.T) {
+	root := t.TempDir()
+	card := func(name string, files map[string]string) {
+		dir := filepath.Join(root, name, "device")
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		for f, v := range files {
+			os.WriteFile(filepath.Join(dir, f), []byte(v+"\n"), 0o644)
+		}
+	}
+	card("card0", map[string]string{"vendor": "0x1002", "device": "0x7480", "mem_info_vram_total": "8573157376", "mem_info_vram_used": "7412670464", "gpu_busy_percent": "12"})
+	card("card0-DP-1", map[string]string{"vendor": "0x1002"})
+	card("card1", map[string]string{"vendor": "0x8086", "device": "0x46a6"})
+	card("card2", map[string]string{"vendor": "0x10de", "device": "0x2704", "mem_info_vram_total": "1"})
+	got := sysGPUs(root)
+	want := []GPU{{Name: "AMD 7480", TotalMiB: 8176, UsedMiB: 7069, Util: 12}, {Name: "Intel 46a6", TotalMiB: -1, UsedMiB: -1, Util: -1}}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("GPUs = %+v, want %+v", got, want)
+	}
+	if len(sysGPUs(filepath.Join(root, "none"))) != 0 {
+		t.Fatal("a directory that is not there")
+	}
 }

@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -70,9 +71,11 @@ type Config struct {
 type Host struct {
 	cfg     Config
 	sampler Sampler
-	ver     *authn.Verifier
-	log     *slog.Logger
-	now     func() time.Time
+	// sample is the last look at the machine, for the detail of the status.
+	sample Sample
+	ver    *authn.Verifier
+	log    *slog.Logger
+	now    func() time.Time
 
 	mu        sync.Mutex
 	cmd       *exec.Cmd
@@ -140,6 +143,7 @@ func (h *Host) check(ctx context.Context) {
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	h.sample = s
 	now := h.now()
 	switch {
 	case why != "":
@@ -295,13 +299,42 @@ func (h *Host) statusLocked() api.Status {
 }
 
 // Status and Warm implement InferenceService.
-func (h *Host) Status(ctx context.Context, _ api.StatusRequest) (api.Status, error) {
+func (h *Host) Status(ctx context.Context, req api.StatusRequest) (api.Status, error) {
 	if err := h.allowed(ctx); err != nil {
 		return api.Status{}, err
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return h.statusLocked(), nil
+	st := h.statusLocked()
+	if req.Detail != nil && *req.Detail {
+		h.detailLocked(&st)
+	}
+	return st, nil
+}
+
+// detailLocked adds the facts for a placement: the GPUs, the GPU memory of
+// the engine, and the model names that the engine serves.
+func (h *Host) detailLocked(st *api.Status) {
+	known := func(v int) *uint64 {
+		if v < 0 {
+			return nil
+		}
+		return ptr(uint64(v))
+	}
+	st.Gpus = []api.Gpu{}
+	for _, g := range h.sample.GPUs {
+		st.Gpus = append(st.Gpus, api.Gpu{Name: g.Name, TotalMib: known(g.TotalMiB), UsedMib: known(g.UsedMiB), Util: known(g.Util)})
+	}
+	if h.cmd != nil && h.sample.EngineMiB > 0 {
+		st.EngineMib = ptr(uint64(h.sample.EngineMiB))
+	}
+	st.Models = []string{h.cfg.Engine.Model}
+	names := make([]string, 0, len(h.cfg.Engine.Models))
+	for n := range h.cfg.Engine.Models {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	st.Models = append(st.Models, names...)
 }
 
 func (h *Host) Warm(ctx context.Context, _ api.WarmRequest) (api.Status, error) {

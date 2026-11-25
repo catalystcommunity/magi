@@ -583,25 +583,107 @@ func cborAsMap(v cborValue) (cborMap, error) {
 	return nil, fmt.Errorf("csil cbor: expected map, got %T", v)
 }
 
+// csilEncGpu builds the canonical CBOR value tree for a Gpu.
+func csilEncGpu(csilV Gpu, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	csilEntries := make(cborMap, 0, 4)
+	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
+	if csilV.Util != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("util"), cborUint((*csilV.Util))})
+	}
+	if csilV.UsedMib != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("used_mib"), cborUint((*csilV.UsedMib))})
+	}
+	if csilV.TotalMib != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("total_mib"), cborUint((*csilV.TotalMib))})
+	}
+	return csilEntries, nil
+}
+
+// csilDecGpu reconstructs a Gpu from a decoded CBOR value tree.
+func csilDecGpu(csilRoot cborValue) (Gpu, error) {
+	var csilOut Gpu
+	{
+		csilField, csilErr := cborRequire(csilRoot, "name")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Name = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "total_mib"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.TotalMib = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "used_mib"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.UsedMib = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "util"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Util = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeGpu encodes a Gpu to canonical CSIL CBOR bytes.
+func EncodeGpu(csilV Gpu) ([]byte, error) {
+	return cborEncodeE(csilEncGpu(csilV, 0))
+}
+
+// DecodeGpu decodes canonical CSIL CBOR bytes into a Gpu.
+func DecodeGpu(csilData []byte) (Gpu, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero Gpu
+		return csilZero, csilErr
+	}
+	return csilDecGpu(csilRoot)
+}
+
 // csilEncStatus builds the canonical CBOR value tree for a Status.
 func csilEncStatus(csilV Status, csilDepth int) (cborValue, error) {
 	if csilDepth > csilEncDepthLimit {
 		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
 	}
-	csilEntries := make(cborMap, 0, 6)
+	var csilE csilEncErr
+	csilEntries := make(cborMap, 0, 9)
+	if csilV.Gpus != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("gpus"), csilE.val(cborEncArray(csilV.Gpus, func(csilElem Gpu) (cborValue, error) { return csilEncGpu(csilElem, csilDepth+1) }))})
+	}
 	csilEntries = append(csilEntries, cborEntry{cborText("model"), cborText(csilV.Model)})
 	csilEntries = append(csilEntries, cborEntry{cborText("state"), cborText(csilV.State)})
+	if csilV.Models != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("models"), csilE.val(cborEncArray(csilV.Models, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
+	}
 	if csilV.Reason != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("reason"), cborText((*csilV.Reason))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("in_flight"), cborUint(csilV.InFlight)})
+	if csilV.EngineMib != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("engine_mib"), cborUint((*csilV.EngineMib))})
+	}
 	if csilV.StartedMs != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("started_ms"), cborUint((*csilV.StartedMs))})
 	}
 	if csilV.LastUsedMs != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("last_used_ms"), cborUint((*csilV.LastUsedMs))})
 	}
-	return csilEntries, nil
+	return csilE.result(csilEntries)
 }
 
 // csilDecStatus reconstructs a Status from a decoded CBOR value tree.
@@ -660,6 +742,27 @@ func csilDecStatus(csilRoot cborValue) (Status, error) {
 			return csilOut, csilErr
 		}
 		csilOut.StartedMs = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "gpus"); csilOk {
+		csilVal, csilErr := (func(csilV cborValue) ([]Gpu, error) { return cborDecArray(csilV, csilDecGpu) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Gpus = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "engine_mib"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.EngineMib = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "models"); csilOk {
+		csilVal, csilErr := (func(csilV cborValue) ([]string, error) { return cborDecArray(csilV, cborAsText) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Models = csilVal
 	}
 	return csilOut, nil
 }

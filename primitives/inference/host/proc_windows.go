@@ -85,3 +85,8 @@ func processes(ctx context.Context) []string {
 // GPU use (the gpu_util rule).
 var defaultProcesses = []string{"cl", "link", "rustc", "compile", "javac", "msbuild",
 	"vrserver", "vrcompositor"}
+
+// sysDRM is not on Windows: nvidia-smi reports the GPUs.
+const sysDRM = ""
+
+func sysGPUs(string) []GPU { return nil }

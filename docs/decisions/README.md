@@ -27,6 +27,7 @@ obeys the record), `replaced` (a later record replaces it).
 | [0013](0013-not-done.md) | Things that Magi does not do | accepted |
 | [0014](0014-automatic-destinations.md) | Magi permits known public destinations with no person | accepted |
 | [0015](0015-health.md) | Magi keeps itself healthy: the platform, code rules, then a model | accepted |
+| [0016](0016-placement.md) | Magi places the models on the hosts | accepted |
 
 ## Who decides
 
@@ -45,6 +46,7 @@ content. A person decides what cannot be undone.
 | Is a code change merged? | A person | the decision step |
 | Is a prompt or harness change kept? | Code: the comparison verdict. A person for a change that fails it | record 0006 |
 | Which model serves a role? | Code, from measured results | `docs/models.md` |
+| Which host runs a model? | Code, from the roles, the memory that a model needs, and the reports of the hosts. The rules of the owner of a machine come first | record 0016 |
 | Does a persona start work with no message from a person? | Code: the event rules and the loop limit | record 0009 |
 | Is a task stopped because it makes no progress? | Code | record 0012 |
 | Can a task environment connect to a new host? | Code for known software sources and for private names; the review model for a host that it knows with high confidence; a person for the rest | record 0014 |
