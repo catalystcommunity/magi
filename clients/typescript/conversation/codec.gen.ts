@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { AckNoticeRequest, AnnotateRequest, Annotation, AnswerReviewRequest, Calibration, ClaimUnclassifiedRequest, ClaimUnclassifiedResponse, DeliverNoticeRequest, Device, Example, GetCalibrationRequest, GetPersonaRequest, GetStreamRequest, GetUtteranceRequest, GetUtterancesRequest, GetUtterancesResponse, ImportLegacyRequest, ImportLegacyResponse, Link, ListAnnotationsRequest, ListAnnotationsResponse, ListDevicesRequest, ListDevicesResponse, ListExamplesRequest, ListExamplesResponse, ListLinksRequest, ListLinksResponse, ListNoticesRequest, ListNoticesResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListStreamsRequest, ListStreamsResponse, ListUtterancesRequest, ListUtterancesResponse, MarkClassifiedRequest, NewLink, Notice, NoticeDelivery, NotifyRequest, OpenStreamRequest, Persona, PostRequest, PutDeviceRequest, PutLinkRequest, PutLinkResponse, PutPersonaRequest, Ref, RemoveDeviceRequest, RetractLinkRequest, Review, SearchHit, SearchRequest, SearchResponse, SetAudioRequest, SetVisibilityRequest, SetVisibilityResponse, Span, Stream, TraceRequest, TraceResponse, Utterance, WaitNoticesRequest, WaitNoticesResponse } from "./types.gen.ts";
+import type { AckNoticeRequest, AnnotateRequest, Annotation, AnswerReviewRequest, Calibration, ClaimUnclassifiedRequest, ClaimUnclassifiedResponse, DeliverNoticeRequest, Device, DeviceHealth, DeviceReport, Example, GetCalibrationRequest, GetPersonaRequest, GetStreamRequest, GetUtteranceRequest, GetUtterancesRequest, GetUtterancesResponse, ImportLegacyRequest, ImportLegacyResponse, Link, ListAnnotationsRequest, ListAnnotationsResponse, ListDeviceReportsRequest, ListDeviceReportsResponse, ListDevicesRequest, ListDevicesResponse, ListExamplesRequest, ListExamplesResponse, ListLinksRequest, ListLinksResponse, ListNoticesRequest, ListNoticesResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListStreamsRequest, ListStreamsResponse, ListUtterancesRequest, ListUtterancesResponse, MarkClassifiedRequest, NewLink, Notice, NoticeDelivery, NotifyRequest, OpenStreamRequest, Persona, PostRequest, PutDeviceRequest, PutLinkRequest, PutLinkResponse, PutPersonaRequest, Ref, RemoveDeviceRequest, RetractLinkRequest, Review, SearchHit, SearchRequest, SearchResponse, SetAudioRequest, SetVisibilityRequest, SetVisibilityResponse, Span, Stream, TraceRequest, TraceResponse, Utterance, WaitNoticesRequest, WaitNoticesResponse } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -811,6 +811,7 @@ export function toDeviceCborValue(v: Device): CborValue {
   csilMap.set("kind", v.kind);
   csilMap.set("name", v.name);
   csilMap.set("active", v.active);
+  if (v.health !== undefined) csilMap.set("health", toDeviceHealthCborValue(v.health));
   csilMap.set("person", v.person);
   csilMap.set("seen_ms", v.seenMs);
   if (v.appBuild !== undefined) csilMap.set("app_build", v.appBuild);
@@ -835,6 +836,7 @@ export function fromDeviceCborValue(value: CborValue): Device {
     appVersion: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "app_version")),
     appBuild: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "app_build")),
     updateError: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "update_error")),
+    health: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromDeviceHealthCborValue(csilV))(mapGet(value, "health")),
   };
 }
 
@@ -844,6 +846,62 @@ export function toDeviceCbor(v: Device): Uint8Array {
 
 export function fromDeviceCbor(bytes: Uint8Array): Device {
   return fromDeviceCborValue(decode(bytes));
+}
+
+export function toDeviceHealthCborValue(v: DeviceHealth): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.turns !== undefined) csilMap.set("turns", v.turns);
+  if (v.wakes !== undefined) csilMap.set("wakes", v.wakes);
+  if (v.battery !== undefined) csilMap.set("battery", v.battery);
+  if (v.dropped !== undefined) csilMap.set("dropped", v.dropped);
+  if (v.soundS !== undefined) csilMap.set("sound_s", v.soundS);
+  if (v.charging !== undefined) csilMap.set("charging", v.charging);
+  if (v.listenS !== undefined) csilMap.set("listen_s", v.listenS);
+  if (v.windowS !== undefined) csilMap.set("window_s", v.windowS);
+  return csilMap;
+}
+
+export function fromDeviceHealthCborValue(value: CborValue): DeviceHealth {
+  return {
+    battery: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "battery")),
+    charging: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "charging")),
+    windowS: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "window_s")),
+    listenS: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "listen_s")),
+    soundS: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "sound_s")),
+    wakes: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "wakes")),
+    turns: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "turns")),
+    dropped: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "dropped")),
+  };
+}
+
+export function toDeviceHealthCbor(v: DeviceHealth): Uint8Array {
+  return encodeValue(toDeviceHealthCborValue(v));
+}
+
+export function fromDeviceHealthCbor(bytes: Uint8Array): DeviceHealth {
+  return fromDeviceHealthCborValue(decode(bytes));
+}
+
+export function toDeviceReportCborValue(v: DeviceReport): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("at_ms", v.atMs);
+  csilMap.set("health", toDeviceHealthCborValue(v.health));
+  return csilMap;
+}
+
+export function fromDeviceReportCborValue(value: CborValue): DeviceReport {
+  return {
+    atMs: asNumber(requireKey(value, "at_ms")),
+    health: fromDeviceHealthCborValue(requireKey(value, "health")),
+  };
+}
+
+export function toDeviceReportCbor(v: DeviceReport): Uint8Array {
+  return encodeValue(toDeviceReportCborValue(v));
+}
+
+export function fromDeviceReportCbor(bytes: Uint8Array): DeviceReport {
+  return fromDeviceReportCborValue(decode(bytes));
 }
 
 export function toNoticeCborValue(v: Notice): CborValue {
@@ -1909,6 +1967,7 @@ export function toPutDeviceRequestCborValue(v: PutDeviceRequest): CborValue {
   csilMap.set("kind", v.kind);
   csilMap.set("name", v.name);
   if (v.active !== undefined) csilMap.set("active", v.active);
+  if (v.health !== undefined) csilMap.set("health", toDeviceHealthCborValue(v.health));
   if (v.appBuild !== undefined) csilMap.set("app_build", v.appBuild);
   if (v.handsFree !== undefined) csilMap.set("hands_free", v.handsFree);
   if (v.appVersion !== undefined) csilMap.set("app_version", v.appVersion);
@@ -1927,6 +1986,7 @@ export function fromPutDeviceRequestCborValue(value: CborValue): PutDeviceReques
     appVersion: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "app_version")),
     appBuild: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "app_build")),
     updateError: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "update_error")),
+    health: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromDeviceHealthCborValue(csilV))(mapGet(value, "health")),
   };
 }
 
@@ -1936,6 +1996,52 @@ export function toPutDeviceRequestCbor(v: PutDeviceRequest): Uint8Array {
 
 export function fromPutDeviceRequestCbor(bytes: Uint8Array): PutDeviceRequest {
   return fromPutDeviceRequestCborValue(decode(bytes));
+}
+
+export function toListDeviceReportsRequestCborValue(v: ListDeviceReportsRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.limit !== undefined) csilMap.set("limit", v.limit);
+  csilMap.set("device", v.device);
+  if (v.person !== undefined) csilMap.set("person", v.person);
+  if (v.sinceMs !== undefined) csilMap.set("since_ms", v.sinceMs);
+  return csilMap;
+}
+
+export function fromListDeviceReportsRequestCborValue(value: CborValue): ListDeviceReportsRequest {
+  return {
+    device: asString(requireKey(value, "device")),
+    sinceMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "since_ms")),
+    limit: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
+    person: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "person")),
+  };
+}
+
+export function toListDeviceReportsRequestCbor(v: ListDeviceReportsRequest): Uint8Array {
+  return encodeValue(toListDeviceReportsRequestCborValue(v));
+}
+
+export function fromListDeviceReportsRequestCbor(bytes: Uint8Array): ListDeviceReportsRequest {
+  return fromListDeviceReportsRequestCborValue(decode(bytes));
+}
+
+export function toListDeviceReportsResponseCborValue(v: ListDeviceReportsResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("reports", v.reports.map((csilE): CborValue => toDeviceReportCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromListDeviceReportsResponseCborValue(value: CborValue): ListDeviceReportsResponse {
+  return {
+    reports: asArray(requireKey(value, "reports")).map((csilE) => fromDeviceReportCborValue(csilE)),
+  };
+}
+
+export function toListDeviceReportsResponseCbor(v: ListDeviceReportsResponse): Uint8Array {
+  return encodeValue(toListDeviceReportsResponseCborValue(v));
+}
+
+export function fromListDeviceReportsResponseCbor(bytes: Uint8Array): ListDeviceReportsResponse {
+  return fromListDeviceReportsResponseCborValue(decode(bytes));
 }
 
 export function toListDevicesRequestCborValue(v: ListDevicesRequest): CborValue {

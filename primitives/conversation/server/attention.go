@@ -30,6 +30,8 @@ const (
 	maxAppVersion  = 80
 	maxUpdateError = 500
 	maxTitle       = 120
+	// maxReports is the most reports of a device in one answer.
+	maxReports = 5000
 	// noticeWindow is how long a notice that nobody acknowledged goes to
 	// devices.
 	noticeWindow = 24 * time.Hour
@@ -77,10 +79,49 @@ func (s *Service) PutDevice(ctx context.Context, req api.PutDeviceRequest) (api.
 		e := (*req.UpdateError)[:maxUpdateError]
 		req.UpdateError = &e
 	}
+	if err := validHealth(req.Health); err != nil {
+		return api.Device{}, err
+	}
 	now := s.nowMs()
 	return s.DB.PutDevice(ctx, api.Device{Person: who, Id: req.Id, Kind: req.Kind, Name: req.Name, Can: req.Can,
 		Active: deref(req.Active), HandsFree: deref(req.HandsFree), SeenMs: now,
-		AppVersion: req.AppVersion, AppBuild: req.AppBuild, UpdateError: req.UpdateError})
+		AppVersion: req.AppVersion, AppBuild: req.AppBuild, UpdateError: req.UpdateError, Health: req.Health})
+}
+
+// validHealth checks the report of a device: a battery in percent, and
+// counters that fit in the window of the report.
+func validHealth(h *api.DeviceHealth) error {
+	if h == nil {
+		return nil
+	}
+	const day = 24 * 3600
+	window := deref(h.WindowS)
+	switch {
+	case deref(h.Battery) > 100:
+		return rpc.Invalid("health.battery is a percentage (0 to 100)")
+	case window > day:
+		return rpc.Invalid("health.window_s is at most %d (one day)", day)
+	case deref(h.ListenS) > day || deref(h.SoundS) > day:
+		return rpc.Invalid("health.listen_s and health.sound_s are at most %d (one day)", day)
+	case deref(h.Wakes) > day || deref(h.Turns) > day || deref(h.Dropped) > day:
+		return rpc.Invalid("health.wakes, health.turns, and health.dropped are at most %d", day)
+	}
+	return nil
+}
+
+func (s *Service) ListDeviceReports(ctx context.Context, req api.ListDeviceReportsRequest) (api.ListDeviceReportsResponse, error) {
+	who, err := s.person(ctx, req.Person)
+	if err != nil {
+		return api.ListDeviceReportsResponse{}, err
+	}
+	limit := int(deref(req.Limit))
+	if limit <= 0 || limit > maxReports {
+		limit = maxReports
+	}
+	// A device of a different person has no reports for this person, so
+	// the answer does not tell if the device is there.
+	list, err := s.DB.DeviceReports(ctx, who, req.Device, deref(req.SinceMs), limit)
+	return api.ListDeviceReportsResponse{Reports: list}, err
 }
 
 func (s *Service) ListDevices(ctx context.Context, req api.ListDevicesRequest) (api.ListDevicesResponse, error) {

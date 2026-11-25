@@ -1,8 +1,9 @@
 // Package server implements SpeechService on top of HTTP speech engines.
 //
-// Speech keeps one kind of record: the household lexicon. Any
-// authenticated caller can use the service and read the lexicon. Changes
-// to the lexicon need ScopeLexicon.
+// Speech keeps two kinds of record: the household lexicon, and the voice
+// prints of each person (speaker.go). Any authenticated caller can use the
+// service and read the lexicon. Changes to the lexicon need ScopeLexicon.
+// A caller reads and changes only its own voice prints.
 package server
 
 import (
@@ -43,12 +44,16 @@ type Lexicon interface {
 
 // Service implements api.SpeechService. STT serves transcribe; TTS serves
 // synthesize and list-voices; Turn serves detect-speech and classify-turn
-// (optional: without it they are unavailable). Without Lexicon, the
-// lexicon is empty and cannot change.
+// (optional: without it they are unavailable); Speaker serves
+// verify-speaker (optional: without it that operation is unavailable for
+// a person who has a profile). Without Lexicon, the lexicon is empty and
+// cannot change. Without Profiles, the speaker profile operations are
+// unavailable.
 type Service struct {
-	STT, TTS, Turn *Engine
-	Lexicon        Lexicon
-	Log            *slog.Logger
+	STT, TTS, Turn, Speaker *Engine
+	Lexicon                 Lexicon
+	Profiles                Profiles
+	Log                     *slog.Logger
 }
 
 // MaxTurnItems is the largest classify-turn batch; MaxTurnText is the

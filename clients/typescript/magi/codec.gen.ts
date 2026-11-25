@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { Access, AckNoticeRequest, Activity, ActivityRequest, AdminChat, AdminGetRunOutputRequest, AdminGetRunRequest, AdminListChatsRequest, AdminListChatsResponse, AdminListRunsRequest, AdminListRunsResponse, AdminReadChatRequest, AdminReadChatResponse, AdminRun, AdminRunSummary, AdminTurnLogRequest, AdminTurnLogResponse, AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, ChangeKnowledgeRequest, ChangeKnowledgeResponse, CheckOverlapRequest, CheckOverlapResponse, ConnectRequest, ConnectResponse, Connection, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideLessonRequest, DecideRequest, DecisionAnswer, DecisionQuestion, DecisionRequest, DecisionResponse, DeleteLexiconWordRequest, DeleteLexiconWordResponse, DeliverNoticeRequest, Device, DisconnectRequest, EgressDestinationRequest, EgressDestinationResponse, EgressDetectRequest, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressFlow, EgressFlowHeader, EgressReportRequest, EgressReportResponse, EgressReview, EgressReviewHeader, EgressSecretRule, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, FileChange, FinishTodoRequest, GetAccessRequest, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetPageRequest, GetTaskDiffRequest, GetTaskOutputRequest, GetTaskRequest, HistoryMessage, ImportHistoryRequest, ImportHistoryResponse, ImportedMessage, KnowledgeChange, KnowledgeFact, KnowledgeHistoryRequest, KnowledgeHistoryResponse, KnowledgeItem, KnowledgeRecord, Lesson, LexiconWord, LinkRequest, ListConnectionsRequest, ListConnectionsResponse, ListDevicesRequest, ListDevicesResponse, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLessonsRequest, ListLessonsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListNoticesRequest, ListNoticesResponse, ListPagesRequest, ListPagesResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListTodosRequest, ListTodosResponse, ListVoicesRequest, ListVoicesResponse, ListenRequest, ListenResponse, MergeKnowledgeRequest, Message, MessageLink, ModelSelector, Notice, NoticeDelivery, Page, PersonaInfo, ProposeLessonRequest, PutAppReleaseRequest, PutDeviceRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, RememberResponse, RemoveDeviceRequest, ReportDeliveryRequest, ReportDeliveryResponse, ReviewItem, RunnerAck, RunnerAssignment, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerEgressProxy, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerInfo, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, RunnerTerminal, RunnerTerminalsRequest, RunnerTerminalsResponse, RunnerUpdate, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, SpeechPart, StartTaskRequest, StopSpeechRequest, StopSpeechResponse, Task, TaskDiff, TaskOutput, TaskStep, Todo, TraceRequest, TraceResponse, UnlinkRequest, UnmergeKnowledgeRequest, VoiceInfo, WaitNoticesRequest, WaitNoticesResponse, WordTime } from "./types.gen.ts";
+import type { Access, AckNoticeRequest, Activity, ActivityRequest, AdminChat, AdminGetRunOutputRequest, AdminGetRunRequest, AdminListChatsRequest, AdminListChatsResponse, AdminListRunsRequest, AdminListRunsResponse, AdminReadChatRequest, AdminReadChatResponse, AdminRun, AdminRunSummary, AdminTurnLogRequest, AdminTurnLogResponse, AnswerReviewRequest, AnswerReviewResponse, AppRelease, AudioResponse, CancelTaskRequest, ChangeKnowledgeRequest, ChangeKnowledgeResponse, CheckOverlapRequest, CheckOverlapResponse, ConnectRequest, ConnectResponse, Connection, DecideEgressReviewRequest, DecideEgressReviewResponse, DecideLessonRequest, DecideRequest, DecisionAnswer, DecisionQuestion, DecisionRequest, DecisionResponse, DeleteLexiconWordRequest, DeleteLexiconWordResponse, DeleteVoiceProfileRequest, DeleteVoiceProfileResponse, DeliverNoticeRequest, Device, DeviceHealth, DisconnectRequest, EgressDestinationRequest, EgressDestinationResponse, EgressDetectRequest, EgressEnvironmentRequest, EgressEnvironmentResponse, EgressEvaluateRequest, EgressFlow, EgressFlowHeader, EgressReportRequest, EgressReportResponse, EgressReview, EgressReviewHeader, EgressSecretRule, EgressSecretRulesRequest, EgressSecretRulesResponse, EgressVerdict, FileChange, FinishTodoRequest, GetAccessRequest, GetAppPackageRequest, GetAppPackageResponse, GetAppReleaseRequest, GetAppReleaseResponse, GetAudioRequest, GetPageRequest, GetTaskDiffRequest, GetTaskOutputRequest, GetTaskRequest, GetVoiceProfileRequest, HistoryMessage, ImportHistoryRequest, ImportHistoryResponse, ImportedMessage, KnowledgeChange, KnowledgeFact, KnowledgeHistoryRequest, KnowledgeHistoryResponse, KnowledgeItem, KnowledgeRecord, Lesson, LexiconWord, LinkRequest, ListConnectionsRequest, ListConnectionsResponse, ListDevicesRequest, ListDevicesResponse, ListEgressReviewsRequest, ListEgressReviewsResponse, ListLessonsRequest, ListLessonsResponse, ListLexiconRequest, ListLexiconResponse, ListLinksRequest, ListLinksResponse, ListNoticesRequest, ListNoticesResponse, ListPagesRequest, ListPagesResponse, ListPersonasRequest, ListPersonasResponse, ListReviewsRequest, ListReviewsResponse, ListRunnersRequest, ListRunnersResponse, ListTasksRequest, ListTasksResponse, ListTodosRequest, ListTodosResponse, ListVoicesRequest, ListVoicesResponse, ListenRequest, ListenResponse, MergeKnowledgeRequest, Message, MessageLink, ModelSelector, Notice, NoticeDelivery, Page, PersonaInfo, ProposeLessonRequest, PutAppReleaseRequest, PutDeviceRequest, PutLexiconWordRequest, PutPersonaRequest, PutRunnerPackageRequest, PutRunnerPackageResponse, PutVoiceProfileRequest, QueryKnowledgeRequest, QueryKnowledgeResponse, ReadRequest, ReadResponse, Ref, RememberRequest, RememberResponse, RemoveDeviceRequest, ReportDeliveryRequest, ReportDeliveryResponse, ReviewItem, RunnerAck, RunnerAssignment, RunnerClaimRequest, RunnerClaimResponse, RunnerCompleteRequest, RunnerEgressAccessResponse, RunnerEgressProxy, RunnerGetArtifactRequest, RunnerGetArtifactResponse, RunnerGetPackageRequest, RunnerGetPackageResponse, RunnerHelloRequest, RunnerHelloResponse, RunnerInfo, RunnerPostRequest, RunnerProgressRequest, RunnerPutArtifactRequest, RunnerPutArtifactResponse, RunnerRunStatusRequest, RunnerRunStatusResponse, RunnerStep, RunnerTerminal, RunnerTerminalsRequest, RunnerTerminalsResponse, RunnerUpdate, SayRequest, SayResponse, SearchRequest, SearchResponse, SetRunnerReleaseRequest, SetRunnerReleaseResponse, SetVisibilityRequest, SpeakRequest, SpeakResponse, SpeakerCheck, SpeechPart, StartTaskRequest, StopSpeechRequest, StopSpeechResponse, Task, TaskDiff, TaskOutput, TaskStep, Todo, TraceRequest, TraceResponse, UnlinkRequest, UnmergeKnowledgeRequest, VoiceInfo, VoicePrint, VoiceProfile, WaitNoticesRequest, WaitNoticesResponse, WordTime } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -689,6 +689,7 @@ export function toSayRequestCborValue(v: SayRequest): CborValue {
   if (v.model !== undefined) csilMap.set("model", toModelSelectorCborValue(v.model));
   if (v.voice !== undefined) csilMap.set("voice", v.voice);
   if (v.persona !== undefined) csilMap.set("persona", v.persona);
+  if (v.speaker !== undefined) csilMap.set("speaker", toSpeakerCheckCborValue(v.speaker));
   if (v.wakeWord !== undefined) csilMap.set("wake_word", v.wakeWord);
   if (v.audioType !== undefined) csilMap.set("audio_type", v.audioType);
   if (v.speakReply !== undefined) csilMap.set("speak_reply", v.speakReply);
@@ -705,6 +706,7 @@ export function fromSayRequestCborValue(value: CborValue): SayRequest {
     voice: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "voice")),
     wakeWord: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "wake_word")),
     model: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromModelSelectorCborValue(csilV))(mapGet(value, "model")),
+    speaker: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromSpeakerCheckCborValue(csilV))(mapGet(value, "speaker")),
   };
 }
 
@@ -714,6 +716,168 @@ export function toSayRequestCbor(v: SayRequest): Uint8Array {
 
 export function fromSayRequestCbor(bytes: Uint8Array): SayRequest {
   return fromSayRequestCborValue(decode(bytes));
+}
+
+export function toSpeakerCheckCborValue(v: SpeakerCheck): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.wake !== undefined) csilMap.set("wake", v.wake);
+  csilMap.set("model", v.model);
+  csilMap.set("score", v.score);
+  csilMap.set("state", v.state);
+  return csilMap;
+}
+
+export function fromSpeakerCheckCborValue(value: CborValue): SpeakerCheck {
+  return {
+    state: asString(requireKey(value, "state")),
+    score: asNumber(requireKey(value, "score")),
+    model: asString(requireKey(value, "model")),
+    wake: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "wake")),
+  };
+}
+
+export function toSpeakerCheckCbor(v: SpeakerCheck): Uint8Array {
+  return encodeValue(toSpeakerCheckCborValue(v));
+}
+
+export function fromSpeakerCheckCbor(bytes: Uint8Array): SpeakerCheck {
+  return fromSpeakerCheckCborValue(decode(bytes));
+}
+
+export function toVoicePrintCborValue(v: VoicePrint): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.source !== undefined) csilMap.set("source", v.source);
+  csilMap.set("vector", v.vector);
+  csilMap.set("created_ms", v.createdMs);
+  return csilMap;
+}
+
+export function fromVoicePrintCborValue(value: CborValue): VoicePrint {
+  return {
+    vector: asBytes(requireKey(value, "vector")),
+    source: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "source")),
+    createdMs: asNumber(requireKey(value, "created_ms")),
+  };
+}
+
+export function toVoicePrintCbor(v: VoicePrint): Uint8Array {
+  return encodeValue(toVoicePrintCborValue(v));
+}
+
+export function fromVoicePrintCbor(bytes: Uint8Array): VoicePrint {
+  return fromVoicePrintCborValue(decode(bytes));
+}
+
+export function toVoiceProfileCborValue(v: VoiceProfile): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("model", v.model);
+  csilMap.set("prints", v.prints.map((csilE): CborValue => toVoicePrintCborValue(csilE)));
+  csilMap.set("has_sample", v.hasSample);
+  csilMap.set("updated_ms", v.updatedMs);
+  return csilMap;
+}
+
+export function fromVoiceProfileCborValue(value: CborValue): VoiceProfile {
+  return {
+    model: asString(requireKey(value, "model")),
+    prints: asArray(requireKey(value, "prints")).map((csilE) => fromVoicePrintCborValue(csilE)),
+    hasSample: asBool(requireKey(value, "has_sample")),
+    updatedMs: asNumber(requireKey(value, "updated_ms")),
+  };
+}
+
+export function toVoiceProfileCbor(v: VoiceProfile): Uint8Array {
+  return encodeValue(toVoiceProfileCborValue(v));
+}
+
+export function fromVoiceProfileCbor(bytes: Uint8Array): VoiceProfile {
+  return fromVoiceProfileCborValue(decode(bytes));
+}
+
+export function toGetVoiceProfileRequestCborValue(v: GetVoiceProfileRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("model", v.model);
+  return csilMap;
+}
+
+export function fromGetVoiceProfileRequestCborValue(value: CborValue): GetVoiceProfileRequest {
+  return {
+    model: asString(requireKey(value, "model")),
+  };
+}
+
+export function toGetVoiceProfileRequestCbor(v: GetVoiceProfileRequest): Uint8Array {
+  return encodeValue(toGetVoiceProfileRequestCborValue(v));
+}
+
+export function fromGetVoiceProfileRequestCbor(bytes: Uint8Array): GetVoiceProfileRequest {
+  return fromGetVoiceProfileRequestCborValue(decode(bytes));
+}
+
+export function toPutVoiceProfileRequestCborValue(v: PutVoiceProfileRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("model", v.model);
+  csilMap.set("prints", v.prints.map((csilE): CborValue => toVoicePrintCborValue(csilE)));
+  if (v.sample !== undefined) csilMap.set("sample", v.sample);
+  if (v.sampleType !== undefined) csilMap.set("sample_type", v.sampleType);
+  return csilMap;
+}
+
+export function fromPutVoiceProfileRequestCborValue(value: CborValue): PutVoiceProfileRequest {
+  return {
+    model: asString(requireKey(value, "model")),
+    prints: asArray(requireKey(value, "prints")).map((csilE) => fromVoicePrintCborValue(csilE)),
+    sample: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBytes(csilV))(mapGet(value, "sample")),
+    sampleType: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "sample_type")),
+  };
+}
+
+export function toPutVoiceProfileRequestCbor(v: PutVoiceProfileRequest): Uint8Array {
+  return encodeValue(toPutVoiceProfileRequestCborValue(v));
+}
+
+export function fromPutVoiceProfileRequestCbor(bytes: Uint8Array): PutVoiceProfileRequest {
+  return fromPutVoiceProfileRequestCborValue(decode(bytes));
+}
+
+export function toDeleteVoiceProfileRequestCborValue(v: DeleteVoiceProfileRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.model !== undefined) csilMap.set("model", v.model);
+  return csilMap;
+}
+
+export function fromDeleteVoiceProfileRequestCborValue(value: CborValue): DeleteVoiceProfileRequest {
+  return {
+    model: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "model")),
+  };
+}
+
+export function toDeleteVoiceProfileRequestCbor(v: DeleteVoiceProfileRequest): Uint8Array {
+  return encodeValue(toDeleteVoiceProfileRequestCborValue(v));
+}
+
+export function fromDeleteVoiceProfileRequestCbor(bytes: Uint8Array): DeleteVoiceProfileRequest {
+  return fromDeleteVoiceProfileRequestCborValue(decode(bytes));
+}
+
+export function toDeleteVoiceProfileResponseCborValue(v: DeleteVoiceProfileResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("deleted", v.deleted);
+  return csilMap;
+}
+
+export function fromDeleteVoiceProfileResponseCborValue(value: CborValue): DeleteVoiceProfileResponse {
+  return {
+    deleted: asNumber(requireKey(value, "deleted")),
+  };
+}
+
+export function toDeleteVoiceProfileResponseCbor(v: DeleteVoiceProfileResponse): Uint8Array {
+  return encodeValue(toDeleteVoiceProfileResponseCborValue(v));
+}
+
+export function fromDeleteVoiceProfileResponseCbor(bytes: Uint8Array): DeleteVoiceProfileResponse {
+  return fromDeleteVoiceProfileResponseCborValue(decode(bytes));
 }
 
 export function toModelSelectorCborValue(v: ModelSelector): CborValue {
@@ -1465,6 +1629,7 @@ export function toDeviceCborValue(v: Device): CborValue {
   csilMap.set("kind", v.kind);
   csilMap.set("name", v.name);
   csilMap.set("active", v.active);
+  if (v.health !== undefined) csilMap.set("health", toDeviceHealthCborValue(v.health));
   csilMap.set("seen_ms", v.seenMs);
   if (v.appBuild !== undefined) csilMap.set("app_build", v.appBuild);
   csilMap.set("hands_free", v.handsFree);
@@ -1485,6 +1650,7 @@ export function fromDeviceCborValue(value: CborValue): Device {
     appVersion: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "app_version")),
     appBuild: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "app_build")),
     updateError: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "update_error")),
+    health: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromDeviceHealthCborValue(csilV))(mapGet(value, "health")),
   };
 }
 
@@ -1496,6 +1662,40 @@ export function fromDeviceCbor(bytes: Uint8Array): Device {
   return fromDeviceCborValue(decode(bytes));
 }
 
+export function toDeviceHealthCborValue(v: DeviceHealth): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.turns !== undefined) csilMap.set("turns", v.turns);
+  if (v.wakes !== undefined) csilMap.set("wakes", v.wakes);
+  if (v.battery !== undefined) csilMap.set("battery", v.battery);
+  if (v.dropped !== undefined) csilMap.set("dropped", v.dropped);
+  if (v.soundS !== undefined) csilMap.set("sound_s", v.soundS);
+  if (v.charging !== undefined) csilMap.set("charging", v.charging);
+  if (v.listenS !== undefined) csilMap.set("listen_s", v.listenS);
+  if (v.windowS !== undefined) csilMap.set("window_s", v.windowS);
+  return csilMap;
+}
+
+export function fromDeviceHealthCborValue(value: CborValue): DeviceHealth {
+  return {
+    battery: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "battery")),
+    charging: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "charging")),
+    windowS: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "window_s")),
+    listenS: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "listen_s")),
+    soundS: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "sound_s")),
+    wakes: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "wakes")),
+    turns: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "turns")),
+    dropped: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "dropped")),
+  };
+}
+
+export function toDeviceHealthCbor(v: DeviceHealth): Uint8Array {
+  return encodeValue(toDeviceHealthCborValue(v));
+}
+
+export function fromDeviceHealthCbor(bytes: Uint8Array): DeviceHealth {
+  return fromDeviceHealthCborValue(decode(bytes));
+}
+
 export function toPutDeviceRequestCborValue(v: PutDeviceRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("id", v.id);
@@ -1503,6 +1703,7 @@ export function toPutDeviceRequestCborValue(v: PutDeviceRequest): CborValue {
   csilMap.set("kind", v.kind);
   csilMap.set("name", v.name);
   if (v.active !== undefined) csilMap.set("active", v.active);
+  if (v.health !== undefined) csilMap.set("health", toDeviceHealthCborValue(v.health));
   if (v.appBuild !== undefined) csilMap.set("app_build", v.appBuild);
   if (v.handsFree !== undefined) csilMap.set("hands_free", v.handsFree);
   if (v.appVersion !== undefined) csilMap.set("app_version", v.appVersion);
@@ -1521,6 +1722,7 @@ export function fromPutDeviceRequestCborValue(value: CborValue): PutDeviceReques
     appVersion: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "app_version")),
     appBuild: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "app_build")),
     updateError: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "update_error")),
+    health: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromDeviceHealthCborValue(csilV))(mapGet(value, "health")),
   };
 }
 

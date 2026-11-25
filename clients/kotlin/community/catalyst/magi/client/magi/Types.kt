@@ -93,7 +93,8 @@ data class SayRequest(
     val voice: String? = null,
     // wire key: wake_word
     val wakeWord: Boolean? = null,
-    val model: ModelSelector? = null
+    val model: ModelSelector? = null,
+    val speaker: SpeakerCheck? = null
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -106,6 +107,7 @@ data class SayRequest(
         if (voice != other.voice) return false
         if (wakeWord != other.wakeWord) return false
         if (model != other.model) return false
+        if (speaker != other.speaker) return false
         return true
     }
 
@@ -118,9 +120,94 @@ data class SayRequest(
         result = 31 * result + voice.hashCode()
         result = 31 * result + wakeWord.hashCode()
         result = 31 * result + model.hashCode()
+        result = 31 * result + speaker.hashCode()
         return result
     }
 }
+
+/** SpeakerCheck record. */
+data class SpeakerCheck(
+    val state: String,
+    val score: Double,
+    val model: String,
+    val wake: String? = null
+)
+
+/** VoicePrint record. */
+data class VoicePrint(
+    val vector: ByteArray,
+    val source: String? = null,
+    // wire key: created_ms
+    val createdMs: ULong
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is VoicePrint) return false
+        if (!vector.contentEquals(other.vector)) return false
+        if (source != other.source) return false
+        if (createdMs != other.createdMs) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = vector.contentHashCode()
+        result = 31 * result + source.hashCode()
+        result = 31 * result + createdMs.hashCode()
+        return result
+    }
+}
+
+/** VoiceProfile record. */
+data class VoiceProfile(
+    val model: String,
+    val prints: List<VoicePrint>,
+    // wire key: has_sample
+    val hasSample: Boolean,
+    // wire key: updated_ms
+    val updatedMs: ULong
+)
+
+/** GetVoiceProfileRequest record. */
+data class GetVoiceProfileRequest(
+    val model: String
+)
+
+/** PutVoiceProfileRequest record. */
+data class PutVoiceProfileRequest(
+    val model: String,
+    val prints: List<VoicePrint>,
+    val sample: ByteArray? = null,
+    // wire key: sample_type
+    val sampleType: String? = null
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is PutVoiceProfileRequest) return false
+        if (model != other.model) return false
+        if (prints != other.prints) return false
+        if (!(sample?.contentEquals(other.sample) ?: (other.sample == null))) return false
+        if (sampleType != other.sampleType) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = model.hashCode()
+        result = 31 * result + prints.hashCode()
+        result = 31 * result + (sample?.contentHashCode() ?: 0)
+        result = 31 * result + sampleType.hashCode()
+        return result
+    }
+}
+
+/** DeleteVoiceProfileRequest record. */
+data class DeleteVoiceProfileRequest(
+    val model: String? = null
+)
+
+/** DeleteVoiceProfileResponse record. */
+data class DeleteVoiceProfileResponse(
+    val deleted: ULong
+)
 
 /** ModelSelector record. */
 data class ModelSelector(
@@ -419,7 +506,23 @@ data class Device(
     // wire key: app_build
     val appBuild: ULong? = null,
     // wire key: update_error
-    val updateError: String? = null
+    val updateError: String? = null,
+    val health: DeviceHealth? = null
+)
+
+/** DeviceHealth record. */
+data class DeviceHealth(
+    val battery: ULong? = null,
+    val charging: Boolean? = null,
+    // wire key: window_s
+    val windowS: ULong? = null,
+    // wire key: listen_s
+    val listenS: ULong? = null,
+    // wire key: sound_s
+    val soundS: ULong? = null,
+    val wakes: ULong? = null,
+    val turns: ULong? = null,
+    val dropped: ULong? = null
 )
 
 /** PutDeviceRequest record. */
@@ -436,7 +539,8 @@ data class PutDeviceRequest(
     // wire key: app_build
     val appBuild: ULong? = null,
     // wire key: update_error
-    val updateError: String? = null
+    val updateError: String? = null,
+    val health: DeviceHealth? = null
 )
 
 /** ListDevicesRequest record. */

@@ -189,6 +189,33 @@ export interface Device {
   appVersion?: string;
   appBuild?: number;
   updateError?: string;
+  health?: DeviceHealth;
+}
+
+/**
+ * What a device reports about itself. battery is the charge in percent
+ * (0 to 100). The counters are for the last window_s seconds (the time
+ * since the report before): listen_s the microphone was on, sound_s the
+ * sound gate was open (the models of the device ran), wakes the wake
+ * names that the device heard from the person, turns the spoken turns
+ * that it sent, dropped the turns that the voice print rejected. A
+ * device has its last report (health); the service keeps each report for
+ * 14 days (list-device-reports).
+ */
+export interface DeviceHealth {
+  battery?: number;
+  charging?: boolean;
+  windowS?: number;
+  listenS?: number;
+  soundS?: number;
+  wakes?: number;
+  turns?: number;
+  dropped?: number;
+}
+
+export interface DeviceReport {
+  atMs: number;
+  health: DeviceHealth;
 }
 
 /**
@@ -559,6 +586,23 @@ export interface PutDeviceRequest {
   appVersion?: string;
   appBuild?: number;
   updateError?: string;
+  health?: DeviceHealth;
+}
+
+/**
+ * The reports of a device of the caller (or of person, which needs
+ * act-as) with at_ms of since_ms or later, oldest first. limit is at
+ * most 5000 (the default).
+ */
+export interface ListDeviceReportsRequest {
+  device: string;
+  sinceMs?: number;
+  limit?: number;
+  person?: string;
+}
+
+export interface ListDeviceReportsResponse {
+  reports: DeviceReport[];
 }
 
 /**

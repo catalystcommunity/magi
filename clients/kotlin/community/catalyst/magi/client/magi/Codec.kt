@@ -712,6 +712,7 @@ fun SayRequest.toCborValue(): CborValue {
     this.model?.let { csilV -> csilEntries.add(CborValue.CText("model") to csilV.toCborValue()) }
     this.voice?.let { csilV -> csilEntries.add(CborValue.CText("voice") to CborValue.CText(csilV)) }
     this.persona?.let { csilV -> csilEntries.add(CborValue.CText("persona") to CborValue.CText(csilV)) }
+    this.speaker?.let { csilV -> csilEntries.add(CborValue.CText("speaker") to csilV.toCborValue()) }
     this.wakeWord?.let { csilV -> csilEntries.add(CborValue.CText("wake_word") to CborValue.CBool(csilV)) }
     this.audioType?.let { csilV -> csilEntries.add(CborValue.CText("audio_type") to CborValue.CText(csilV)) }
     this.speakReply?.let { csilV -> csilEntries.add(CborValue.CText("speak_reply") to CborValue.CBool(csilV)) }
@@ -731,11 +732,167 @@ fun sayRequestFromCborValue(cbor: CborValue): SayRequest {
     val voice = CsilCbor.mapGet(cbor, "voice")?.let { csilV -> CsilCbor.asText(csilV) }
     val wakeWord = CsilCbor.mapGet(cbor, "wake_word")?.let { csilV -> CsilCbor.asBoolean(csilV) }
     val model = CsilCbor.mapGet(cbor, "model")?.let { csilV -> modelSelectorFromCborValue(csilV) }
-    return SayRequest(persona = persona, text = text, audio = audio, audioType = audioType, speakReply = speakReply, voice = voice, wakeWord = wakeWord, model = model)
+    val speaker = CsilCbor.mapGet(cbor, "speaker")?.let { csilV -> speakerCheckFromCborValue(csilV) }
+    return SayRequest(persona = persona, text = text, audio = audio, audioType = audioType, speakReply = speakReply, voice = voice, wakeWord = wakeWord, model = model, speaker = speaker)
 }
 
 /** Decode CSIL CBOR bytes into a SayRequest. */
 fun sayRequestFromCbor(bytes: ByteArray): SayRequest = sayRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a SpeakerCheck (deep, canonical key order). */
+fun SpeakerCheck.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.wake?.let { csilV -> csilEntries.add(CborValue.CText("wake") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("model") to CborValue.CText(this.model))
+    csilEntries.add(CborValue.CText("score") to CborValue.CFloat(this.score))
+    csilEntries.add(CborValue.CText("state") to CborValue.CText(this.state))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a SpeakerCheck to canonical CSIL CBOR bytes. */
+fun SpeakerCheck.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a SpeakerCheck from a decoded CBOR value tree. */
+fun speakerCheckFromCborValue(cbor: CborValue): SpeakerCheck {
+    val state = CsilCbor.asText(CsilCbor.require(cbor, "state"))
+    val score = CsilCbor.asDouble(CsilCbor.require(cbor, "score"))
+    val model = CsilCbor.asText(CsilCbor.require(cbor, "model"))
+    val wake = CsilCbor.mapGet(cbor, "wake")?.let { csilV -> CsilCbor.asText(csilV) }
+    return SpeakerCheck(state = state, score = score, model = model, wake = wake)
+}
+
+/** Decode CSIL CBOR bytes into a SpeakerCheck. */
+fun speakerCheckFromCbor(bytes: ByteArray): SpeakerCheck = speakerCheckFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a VoicePrint (deep, canonical key order). */
+fun VoicePrint.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.source?.let { csilV -> csilEntries.add(CborValue.CText("source") to CborValue.CText(csilV)) }
+    csilEntries.add(CborValue.CText("vector") to CborValue.CBytes(this.vector))
+    csilEntries.add(CborValue.CText("created_ms") to CborValue.CUint(this.createdMs))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a VoicePrint to canonical CSIL CBOR bytes. */
+fun VoicePrint.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a VoicePrint from a decoded CBOR value tree. */
+fun voicePrintFromCborValue(cbor: CborValue): VoicePrint {
+    val vector = CsilCbor.asBytes(CsilCbor.require(cbor, "vector"))
+    val source = CsilCbor.mapGet(cbor, "source")?.let { csilV -> CsilCbor.asText(csilV) }
+    val createdMs = CsilCbor.asULong(CsilCbor.require(cbor, "created_ms"))
+    return VoicePrint(vector = vector, source = source, createdMs = createdMs)
+}
+
+/** Decode CSIL CBOR bytes into a VoicePrint. */
+fun voicePrintFromCbor(bytes: ByteArray): VoicePrint = voicePrintFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a VoiceProfile (deep, canonical key order). */
+fun VoiceProfile.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("model") to CborValue.CText(this.model))
+    csilEntries.add(CborValue.CText("prints") to CborValue.CArray((this.prints).map { csilE -> csilE.toCborValue() }))
+    csilEntries.add(CborValue.CText("has_sample") to CborValue.CBool(this.hasSample))
+    csilEntries.add(CborValue.CText("updated_ms") to CborValue.CUint(this.updatedMs))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a VoiceProfile to canonical CSIL CBOR bytes. */
+fun VoiceProfile.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a VoiceProfile from a decoded CBOR value tree. */
+fun voiceProfileFromCborValue(cbor: CborValue): VoiceProfile {
+    val model = CsilCbor.asText(CsilCbor.require(cbor, "model"))
+    val prints = CsilCbor.asArray(CsilCbor.require(cbor, "prints")).map { csilE -> voicePrintFromCborValue(csilE) }
+    val hasSample = CsilCbor.asBoolean(CsilCbor.require(cbor, "has_sample"))
+    val updatedMs = CsilCbor.asULong(CsilCbor.require(cbor, "updated_ms"))
+    return VoiceProfile(model = model, prints = prints, hasSample = hasSample, updatedMs = updatedMs)
+}
+
+/** Decode CSIL CBOR bytes into a VoiceProfile. */
+fun voiceProfileFromCbor(bytes: ByteArray): VoiceProfile = voiceProfileFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a GetVoiceProfileRequest (deep, canonical key order). */
+fun GetVoiceProfileRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("model") to CborValue.CText(this.model))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a GetVoiceProfileRequest to canonical CSIL CBOR bytes. */
+fun GetVoiceProfileRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a GetVoiceProfileRequest from a decoded CBOR value tree. */
+fun getVoiceProfileRequestFromCborValue(cbor: CborValue): GetVoiceProfileRequest {
+    val model = CsilCbor.asText(CsilCbor.require(cbor, "model"))
+    return GetVoiceProfileRequest(model = model)
+}
+
+/** Decode CSIL CBOR bytes into a GetVoiceProfileRequest. */
+fun getVoiceProfileRequestFromCbor(bytes: ByteArray): GetVoiceProfileRequest = getVoiceProfileRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a PutVoiceProfileRequest (deep, canonical key order). */
+fun PutVoiceProfileRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("model") to CborValue.CText(this.model))
+    csilEntries.add(CborValue.CText("prints") to CborValue.CArray((this.prints).map { csilE -> csilE.toCborValue() }))
+    this.sample?.let { csilV -> csilEntries.add(CborValue.CText("sample") to CborValue.CBytes(csilV)) }
+    this.sampleType?.let { csilV -> csilEntries.add(CborValue.CText("sample_type") to CborValue.CText(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a PutVoiceProfileRequest to canonical CSIL CBOR bytes. */
+fun PutVoiceProfileRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a PutVoiceProfileRequest from a decoded CBOR value tree. */
+fun putVoiceProfileRequestFromCborValue(cbor: CborValue): PutVoiceProfileRequest {
+    val model = CsilCbor.asText(CsilCbor.require(cbor, "model"))
+    val prints = CsilCbor.asArray(CsilCbor.require(cbor, "prints")).map { csilE -> voicePrintFromCborValue(csilE) }
+    val sample = CsilCbor.mapGet(cbor, "sample")?.let { csilV -> CsilCbor.asBytes(csilV) }
+    val sampleType = CsilCbor.mapGet(cbor, "sample_type")?.let { csilV -> CsilCbor.asText(csilV) }
+    return PutVoiceProfileRequest(model = model, prints = prints, sample = sample, sampleType = sampleType)
+}
+
+/** Decode CSIL CBOR bytes into a PutVoiceProfileRequest. */
+fun putVoiceProfileRequestFromCbor(bytes: ByteArray): PutVoiceProfileRequest = putVoiceProfileRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a DeleteVoiceProfileRequest (deep, canonical key order). */
+fun DeleteVoiceProfileRequest.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.model?.let { csilV -> csilEntries.add(CborValue.CText("model") to CborValue.CText(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a DeleteVoiceProfileRequest to canonical CSIL CBOR bytes. */
+fun DeleteVoiceProfileRequest.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a DeleteVoiceProfileRequest from a decoded CBOR value tree. */
+fun deleteVoiceProfileRequestFromCborValue(cbor: CborValue): DeleteVoiceProfileRequest {
+    val model = CsilCbor.mapGet(cbor, "model")?.let { csilV -> CsilCbor.asText(csilV) }
+    return DeleteVoiceProfileRequest(model = model)
+}
+
+/** Decode CSIL CBOR bytes into a DeleteVoiceProfileRequest. */
+fun deleteVoiceProfileRequestFromCbor(bytes: ByteArray): DeleteVoiceProfileRequest = deleteVoiceProfileRequestFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a DeleteVoiceProfileResponse (deep, canonical key order). */
+fun DeleteVoiceProfileResponse.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    csilEntries.add(CborValue.CText("deleted") to CborValue.CUint(this.deleted))
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a DeleteVoiceProfileResponse to canonical CSIL CBOR bytes. */
+fun DeleteVoiceProfileResponse.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a DeleteVoiceProfileResponse from a decoded CBOR value tree. */
+fun deleteVoiceProfileResponseFromCborValue(cbor: CborValue): DeleteVoiceProfileResponse {
+    val deleted = CsilCbor.asULong(CsilCbor.require(cbor, "deleted"))
+    return DeleteVoiceProfileResponse(deleted = deleted)
+}
+
+/** Decode CSIL CBOR bytes into a DeleteVoiceProfileResponse. */
+fun deleteVoiceProfileResponseFromCbor(bytes: ByteArray): DeleteVoiceProfileResponse = deleteVoiceProfileResponseFromCborValue(CsilCbor.decode(bytes))
 
 /** The CBOR value tree for a ModelSelector (deep, canonical key order). */
 fun ModelSelector.toCborValue(): CborValue {
@@ -1457,6 +1614,7 @@ fun Device.toCborValue(): CborValue {
     csilEntries.add(CborValue.CText("kind") to CborValue.CText(this.kind))
     csilEntries.add(CborValue.CText("name") to CborValue.CText(this.name))
     csilEntries.add(CborValue.CText("active") to CborValue.CBool(this.active))
+    this.health?.let { csilV -> csilEntries.add(CborValue.CText("health") to csilV.toCborValue()) }
     csilEntries.add(CborValue.CText("seen_ms") to CborValue.CUint(this.seenMs))
     this.appBuild?.let { csilV -> csilEntries.add(CborValue.CText("app_build") to CborValue.CUint(csilV)) }
     csilEntries.add(CborValue.CText("hands_free") to CborValue.CBool(this.handsFree))
@@ -1480,11 +1638,45 @@ fun deviceFromCborValue(cbor: CborValue): Device {
     val appVersion = CsilCbor.mapGet(cbor, "app_version")?.let { csilV -> CsilCbor.asText(csilV) }
     val appBuild = CsilCbor.mapGet(cbor, "app_build")?.let { csilV -> CsilCbor.asULong(csilV) }
     val updateError = CsilCbor.mapGet(cbor, "update_error")?.let { csilV -> CsilCbor.asText(csilV) }
-    return Device(id = id, kind = kind, name = name, can = can, active = active, handsFree = handsFree, seenMs = seenMs, appVersion = appVersion, appBuild = appBuild, updateError = updateError)
+    val health = CsilCbor.mapGet(cbor, "health")?.let { csilV -> deviceHealthFromCborValue(csilV) }
+    return Device(id = id, kind = kind, name = name, can = can, active = active, handsFree = handsFree, seenMs = seenMs, appVersion = appVersion, appBuild = appBuild, updateError = updateError, health = health)
 }
 
 /** Decode CSIL CBOR bytes into a Device. */
 fun deviceFromCbor(bytes: ByteArray): Device = deviceFromCborValue(CsilCbor.decode(bytes))
+
+/** The CBOR value tree for a DeviceHealth (deep, canonical key order). */
+fun DeviceHealth.toCborValue(): CborValue {
+    val csilEntries = ArrayList<Pair<CborValue, CborValue>>()
+    this.turns?.let { csilV -> csilEntries.add(CborValue.CText("turns") to CborValue.CUint(csilV)) }
+    this.wakes?.let { csilV -> csilEntries.add(CborValue.CText("wakes") to CborValue.CUint(csilV)) }
+    this.battery?.let { csilV -> csilEntries.add(CborValue.CText("battery") to CborValue.CUint(csilV)) }
+    this.dropped?.let { csilV -> csilEntries.add(CborValue.CText("dropped") to CborValue.CUint(csilV)) }
+    this.soundS?.let { csilV -> csilEntries.add(CborValue.CText("sound_s") to CborValue.CUint(csilV)) }
+    this.charging?.let { csilV -> csilEntries.add(CborValue.CText("charging") to CborValue.CBool(csilV)) }
+    this.listenS?.let { csilV -> csilEntries.add(CborValue.CText("listen_s") to CborValue.CUint(csilV)) }
+    this.windowS?.let { csilV -> csilEntries.add(CborValue.CText("window_s") to CborValue.CUint(csilV)) }
+    return CborValue.CMap(csilEntries)
+}
+
+/** Encode a DeviceHealth to canonical CSIL CBOR bytes. */
+fun DeviceHealth.toCbor(): ByteArray = CsilCbor.encode(this.toCborValue())
+
+/** Reconstruct a DeviceHealth from a decoded CBOR value tree. */
+fun deviceHealthFromCborValue(cbor: CborValue): DeviceHealth {
+    val battery = CsilCbor.mapGet(cbor, "battery")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val charging = CsilCbor.mapGet(cbor, "charging")?.let { csilV -> CsilCbor.asBoolean(csilV) }
+    val windowS = CsilCbor.mapGet(cbor, "window_s")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val listenS = CsilCbor.mapGet(cbor, "listen_s")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val soundS = CsilCbor.mapGet(cbor, "sound_s")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val wakes = CsilCbor.mapGet(cbor, "wakes")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val turns = CsilCbor.mapGet(cbor, "turns")?.let { csilV -> CsilCbor.asULong(csilV) }
+    val dropped = CsilCbor.mapGet(cbor, "dropped")?.let { csilV -> CsilCbor.asULong(csilV) }
+    return DeviceHealth(battery = battery, charging = charging, windowS = windowS, listenS = listenS, soundS = soundS, wakes = wakes, turns = turns, dropped = dropped)
+}
+
+/** Decode CSIL CBOR bytes into a DeviceHealth. */
+fun deviceHealthFromCbor(bytes: ByteArray): DeviceHealth = deviceHealthFromCborValue(CsilCbor.decode(bytes))
 
 /** The CBOR value tree for a PutDeviceRequest (deep, canonical key order). */
 fun PutDeviceRequest.toCborValue(): CborValue {
@@ -1494,6 +1686,7 @@ fun PutDeviceRequest.toCborValue(): CborValue {
     csilEntries.add(CborValue.CText("kind") to CborValue.CText(this.kind))
     csilEntries.add(CborValue.CText("name") to CborValue.CText(this.name))
     this.active?.let { csilV -> csilEntries.add(CborValue.CText("active") to CborValue.CBool(csilV)) }
+    this.health?.let { csilV -> csilEntries.add(CborValue.CText("health") to csilV.toCborValue()) }
     this.appBuild?.let { csilV -> csilEntries.add(CborValue.CText("app_build") to CborValue.CUint(csilV)) }
     this.handsFree?.let { csilV -> csilEntries.add(CborValue.CText("hands_free") to CborValue.CBool(csilV)) }
     this.appVersion?.let { csilV -> csilEntries.add(CborValue.CText("app_version") to CborValue.CText(csilV)) }
@@ -1515,7 +1708,8 @@ fun putDeviceRequestFromCborValue(cbor: CborValue): PutDeviceRequest {
     val appVersion = CsilCbor.mapGet(cbor, "app_version")?.let { csilV -> CsilCbor.asText(csilV) }
     val appBuild = CsilCbor.mapGet(cbor, "app_build")?.let { csilV -> CsilCbor.asULong(csilV) }
     val updateError = CsilCbor.mapGet(cbor, "update_error")?.let { csilV -> CsilCbor.asText(csilV) }
-    return PutDeviceRequest(id = id, kind = kind, name = name, can = can, active = active, handsFree = handsFree, appVersion = appVersion, appBuild = appBuild, updateError = updateError)
+    val health = CsilCbor.mapGet(cbor, "health")?.let { csilV -> deviceHealthFromCborValue(csilV) }
+    return PutDeviceRequest(id = id, kind = kind, name = name, can = can, active = active, handsFree = handsFree, appVersion = appVersion, appBuild = appBuild, updateError = updateError, health = health)
 }
 
 /** Decode CSIL CBOR bytes into a PutDeviceRequest. */
@@ -5030,6 +5224,13 @@ private fun csilToCborValue(value: Any?): CborValue = when (value) {
     is ListPersonasResponse -> value.toCborValue()
     is PutPersonaRequest -> value.toCborValue()
     is SayRequest -> value.toCborValue()
+    is SpeakerCheck -> value.toCborValue()
+    is VoicePrint -> value.toCborValue()
+    is VoiceProfile -> value.toCborValue()
+    is GetVoiceProfileRequest -> value.toCborValue()
+    is PutVoiceProfileRequest -> value.toCborValue()
+    is DeleteVoiceProfileRequest -> value.toCborValue()
+    is DeleteVoiceProfileResponse -> value.toCborValue()
     is ModelSelector -> value.toCborValue()
     is SayResponse -> value.toCborValue()
     is ReadRequest -> value.toCborValue()
@@ -5061,6 +5262,7 @@ private fun csilToCborValue(value: Any?): CborValue = when (value) {
     is CheckOverlapRequest -> value.toCborValue()
     is CheckOverlapResponse -> value.toCborValue()
     is Device -> value.toCborValue()
+    is DeviceHealth -> value.toCborValue()
     is PutDeviceRequest -> value.toCborValue()
     is ListDevicesRequest -> value.toCborValue()
     is ListDevicesResponse -> value.toCborValue()
@@ -5228,6 +5430,13 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     ListPersonasResponse::class -> listPersonasResponseFromCborValue(cbor)
     PutPersonaRequest::class -> putPersonaRequestFromCborValue(cbor)
     SayRequest::class -> sayRequestFromCborValue(cbor)
+    SpeakerCheck::class -> speakerCheckFromCborValue(cbor)
+    VoicePrint::class -> voicePrintFromCborValue(cbor)
+    VoiceProfile::class -> voiceProfileFromCborValue(cbor)
+    GetVoiceProfileRequest::class -> getVoiceProfileRequestFromCborValue(cbor)
+    PutVoiceProfileRequest::class -> putVoiceProfileRequestFromCborValue(cbor)
+    DeleteVoiceProfileRequest::class -> deleteVoiceProfileRequestFromCborValue(cbor)
+    DeleteVoiceProfileResponse::class -> deleteVoiceProfileResponseFromCborValue(cbor)
     ModelSelector::class -> modelSelectorFromCborValue(cbor)
     SayResponse::class -> sayResponseFromCborValue(cbor)
     ReadRequest::class -> readRequestFromCborValue(cbor)
@@ -5259,6 +5468,7 @@ fun csilFromCborValue(type: kotlin.reflect.KClass<*>, cbor: CborValue): Any = wh
     CheckOverlapRequest::class -> checkOverlapRequestFromCborValue(cbor)
     CheckOverlapResponse::class -> checkOverlapResponseFromCborValue(cbor)
     Device::class -> deviceFromCborValue(cbor)
+    DeviceHealth::class -> deviceHealthFromCborValue(cbor)
     PutDeviceRequest::class -> putDeviceRequestFromCborValue(cbor)
     ListDevicesRequest::class -> listDevicesRequestFromCborValue(cbor)
     ListDevicesResponse::class -> listDevicesResponseFromCborValue(cbor)

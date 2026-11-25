@@ -342,6 +342,45 @@ func (c *MagiClient) RemoveDevice(ctx context.Context, req RemoveDeviceRequest) 
 	return DecodeDevice(csilResp)
 }
 
+func (c *MagiClient) GetVoiceProfile(ctx context.Context, req GetVoiceProfileRequest) (VoiceProfile, error) {
+	var csilZero VoiceProfile
+	csilReq, csilErr := EncodeGetVoiceProfileRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "get-voice-profile", csilReq)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeVoiceProfile(csilResp)
+}
+
+func (c *MagiClient) PutVoiceProfile(ctx context.Context, req PutVoiceProfileRequest) (VoiceProfile, error) {
+	var csilZero VoiceProfile
+	csilReq, csilErr := EncodePutVoiceProfileRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "put-voice-profile", csilReq)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeVoiceProfile(csilResp)
+}
+
+func (c *MagiClient) DeleteVoiceProfile(ctx context.Context, req DeleteVoiceProfileRequest) (DeleteVoiceProfileResponse, error) {
+	var csilZero DeleteVoiceProfileResponse
+	csilReq, csilErr := EncodeDeleteVoiceProfileRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "MagiService", "delete-voice-profile", csilReq)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeDeleteVoiceProfileResponse(csilResp)
+}
+
 func (c *MagiClient) WaitNotices(ctx context.Context, req WaitNoticesRequest) (WaitNoticesResponse, error) {
 	var csilZero WaitNoticesResponse
 	csilReq, csilErr := EncodeWaitNoticesRequest(req)

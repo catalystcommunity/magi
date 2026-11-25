@@ -1,0 +1,5 @@
+# Engine "speaker" (voice prints with the 3D-Speaker ERes2Net model, and
+# target speaker extraction with VoxLock; sherpa-onnx on the CPU). Python
+# 3.13. sherpa-onnx has the VoxLock model from 2.0.1.
+sherpa-onnx==2.0.1
+numpy==2.3.4

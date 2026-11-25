@@ -278,11 +278,63 @@ and relatives with similar voices are the risk.
 - Store `speaker_estimate {person, score, method}` on the utterance. Never
   store it as a confirmed identity.
 
+#### What is built (2026-11-25)
+
+The voice print selects the speech of the person of a device. It is a
+filter, and it is never an authorization (section 4.3).
+
+- **Model.** The 3D-Speaker ERes2Net model for English (VoxCeleb, 16 kHz,
+  26 MB, 192 numbers), with sherpa-onnx, on the device and in the speech
+  service. The name on the wire is `3dspeaker-eres2net-en-voxceleb-16k`.
+  A print of one model has no meaning for a different model.
+- **Measured** on speech of one person from a phone (22 turns), 26 other
+  speakers of LibriSpeech, and the voices of the personas. The score is
+  the cosine of a print and the mean print of the person.
+
+  | Model | Errors, whole turns | Errors, first 1.5 s |
+  | --- | --- | --- |
+  | 3D-Speaker ERes2Net (English) | 0.2% | 0.0% (person 0.36 or more, others 0.34 or less) |
+  | TitaNet small | 0.1% | 0.8% |
+  | 3D-Speaker CAM++ (English) | 3.7% | 1.1% |
+
+  The set is small and the audio is quiet. In babble at 10 dB the score of
+  the person stays above the scores of others. At 5 dB it does not.
+- **Profile.** A person reads some lines on a device. The device makes the
+  prints and puts the profile (`put-voice-profile`). The speech service
+  keeps it (1 to 40 prints for each model, and some seconds of speech of
+  the person for the extraction), so each device of the person gets the
+  same profile (`get-voice-profile`). `source` of a print is `enroll` or
+  `turn`.
+- **The device** compares each turn with the profile. It sends a turn that
+  it is sure about with `speaker.state` "verified", a turn between its
+  limits with "unsure", and it does not send a turn that it rejects.
+- **Magi** checks an "unsure" turn again (`verify-speaker` with
+  `extract`). The speech service removes the other voices from the audio
+  with the sample of the person (section 5) and gives the score of the
+  audio and the score of the extracted audio. Magi takes the turn when
+  the better score is 0.40 or more, and it reads and keeps the audio with
+  the better score. When the check fails, or the person has no profile,
+  Magi keeps nothing of the turn: no text, no audio, and no message. The
+  log has the scores only.
+- **No speaker engine.** Magi takes an "unsure" turn of an open
+  conversation, and it drops an "unsure" turn that must start one
+  (`wake_word`).
+- **Record.** A spoken message that came with a check has the annotation
+  `speaker`: the state, the score, and the model of the device, the scores
+  of Magi, and if the message has the extracted audio. It is an estimate.
+  It is never a confirmed identity.
+- **Who decides.** Code, with fixed limits. A model does not decide who
+  spoke (`docs/decisions/README.md`).
+
+Not built: prints of more than one person on a shared device, a check of
+each turn with a larger model in the speech service, and prints of the
+voices of the personas in the speech service.
+
 Where to run:
 
 | Place | Diarization | Embeddings |
 | --- | --- | --- |
-| Android phone | Usually not necessary (one owner) | CAM++ int8 (sherpa-onnx) |
+| Android phone | Usually not necessary (one owner) | 3D-Speaker ERes2Net (sherpa-onnx) |
 | lab-nas CPU | pyannote community-1, after the conversation | ERes2NetV2 or ResNet34 |
 | RTX 4080 | Nemotron-3-Diarization, streaming | Same as lab-nas |
 
@@ -304,7 +356,10 @@ speakers fires first. Then it compares a speaker vector with the profile of
 the user. The result was 1 false accept each month, 5.2% false rejects, and
 3.2% accepts of other people.
 
-The flow for Magi:
+The flow for Magi. Steps 1, 2, 3, and 5 are built for the person of a
+device (section 3.2): the device does steps 1 to 3, and Magi does step 5
+for a turn that the device was not sure about. The policy of step 4 is a
+plan: there is no guest mode, and a turn that is not verified is dropped.
 
 1. The wake-word model of persona P fires.
 2. Magi takes the wake phrase plus a maximum of 1.5 s of the speech after
@@ -375,12 +430,35 @@ the time.
 | --- | --- |
 | Overlap detection (in pyannote, Sortformer, Nemotron diarization) | Works. Use it to mark spans. |
 | Separation of one channel (MossFormer2, TF-GridNet, SepFormer) | Good on synthetic mixtures. Bad in real rooms. |
-| Extraction of one enrolled speaker | Research. No proven open real-time model. |
+| Extraction of one enrolled speaker | VoxLock (sherpa-onnx 2.0.1, October 2026) runs on a CPU and takes about a quarter of the length of the audio. Magi uses it for one turn at a time, not as a stream (below). |
 | ASR for one target speaker (DiCoW) | Good in CHiME-8. Its licence needs an agreement. |
 | Streaming multi-talker Parakeet with Sortformer | Works on GPU. One ASR instance for each speaker. cpWER 37% on AMI far-field. |
 | Microphone array with beamforming | Works. Much better than one channel. Needs fixed hardware. |
 
-Rules for Magi:
+Extraction, as built (2026-11-25): the speech service runs VoxLock only
+for a turn that the device was not sure about (section 3.2). Measured on
+synthetic mixtures of speech of one person with LibriSpeech speakers (7
+turns for each condition; median score of the person, limit 0.40):
+
+| Condition | The mixture | After the extraction |
+| --- | --- | --- |
+| Babble of 6 speakers, 10 dB | 0.57 | 0.62 |
+| Babble of 6 speakers, 5 dB | 0.43 | 0.48 |
+| Babble of 6 speakers, 0 dB | 0.18 | 0.39 |
+| One other speaker, 10 dB | 0.44 | 0.65 |
+| One other speaker, 5 dB | 0.40 | 0.63 |
+| One other speaker, 0 dB | 0.33 | 0.15 |
+
+- The extraction helps when the person is louder than the other voices.
+  It does not help when one other speaker is as loud as the person.
+- It damages some turns (the lowest score after the extraction was near
+  0). Thus Magi compares the two scores and uses the better one.
+- Two denoisers (GTCRN, DPDFNet) did not improve the score.
+- VoxLock needs 3 seconds of speech of the person. With a shorter sample
+  it keeps the loudest voice of the audio. The speech service refuses a
+  shorter sample.
+
+Rules for Magi (a plan, except the extraction above):
 
 1. Mark overlapped spans in the utterance graph.
 2. Do not run a command from an overlapped span with no confirmation.
@@ -557,7 +635,9 @@ Moonshine v2, Chatterbox (MIT); Smart Turn v3 (BSD-2); Parakeet v3, pyannote
 community-1, TitaNet, WeSpeaker VoxCeleb weights (CC-BY-4.0).
 
 Read before use: NVIDIA Open Model License (custom), OpenMDW-1.1 (permissive,
-not OSI approved yet), 3D-Speaker weights (licence not stated).
+not OSI approved yet). In use with a note: the 3D-Speaker and VoxLock
+repositories are Apache-2.0, and the weights have no licence statement of
+their own.
 
 Do not use: openWakeWord stock models, DiariZen weights, Fish and OpenAudio
 weights (non-commercial); LiveKit turn-detector weights (custom); Piper and
@@ -598,7 +678,7 @@ streaming STT about 2 GB, diarization about 0.5 GB, Qwen3-TTS 0.6B 2–3 GB.
 | 0. Correct speech | **Done:** range rule, Markdown removal, household lexicon with editors, `heard_as` match. **To do:** regression prompts in the live round-trip test. | People hear these errors every day. No new model. |
 | 1. Low latency | Clauses to Kokoro, streamed to the client with word times. A voice session in the API. Silero VAD and Smart Turn. Barge-in and the interruption record (section 2.3.1). Time for each stage. | The largest gain for the least work. |
 | 2. Streaming STT | Measure nemotron-speech-streaming-en int8 on the lab-nas CPU. Use the GPU if it is too slow. | No published CPU number. |
-| 3. Who speaks | Device attestation on voice calls (LinkKeys). Enrollment on Android. Speaker estimates on utterances. Wake word for each persona. Tiers. Second factor with a time limit on the device. | The household must agree to the tiers first. |
+| 3. Who speaks | **Done:** the voice profile of a person in Magi, the check of an "unsure" turn with extraction, and the speaker annotation of a spoken message (section 3.2). **To do:** device attestation on voice calls (LinkKeys). Enrollment and the wake word on Android. Tiers. Second factor with a time limit on the device. | The household must agree to the tiers first. |
 | 4. Many people, precision | Diarization. Overlap marks. Second pass, LLM selection, read-back. | Needs phase 3 identities. |
 | 5. Expression | Hints mapped to Kokoro. Test Qwen3-TTS 0.6B on GPU. Household test set. | After speech is correct and fast. |
 

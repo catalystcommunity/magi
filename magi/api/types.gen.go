@@ -83,6 +83,53 @@ type SayRequest struct {
 	Voice      *string        `json:"voice,omitempty" yaml:"voice,omitempty"`
 	WakeWord   *bool          `json:"wake_word,omitempty" yaml:"wake_word,omitempty"`
 	Model      *ModelSelector `json:"model,omitempty" yaml:"model,omitempty"`
+	Speaker    *SpeakerCheck  `json:"speaker,omitempty" yaml:"speaker,omitempty"`
+}
+
+// SpeakerCheck represents a structured data type
+type SpeakerCheck struct {
+	State string  `json:"state" yaml:"state"`
+	Score float64 `json:"score" yaml:"score"`
+	Model string  `json:"model" yaml:"model"`
+	Wake  *string `json:"wake,omitempty" yaml:"wake,omitempty"`
+}
+
+// VoicePrint represents a structured data type
+type VoicePrint struct {
+	Vector    []byte  `json:"vector" yaml:"vector"`
+	Source    *string `json:"source,omitempty" yaml:"source,omitempty"`
+	CreatedMs uint64  `json:"created_ms" yaml:"created_ms"`
+}
+
+// VoiceProfile represents a structured data type
+type VoiceProfile struct {
+	Model     string       `json:"model" yaml:"model"`
+	Prints    []VoicePrint `json:"prints" yaml:"prints"`
+	HasSample bool         `json:"has_sample" yaml:"has_sample"`
+	UpdatedMs uint64       `json:"updated_ms" yaml:"updated_ms"`
+}
+
+// GetVoiceProfileRequest represents a structured data type
+type GetVoiceProfileRequest struct {
+	Model string `json:"model" yaml:"model"`
+}
+
+// PutVoiceProfileRequest represents a structured data type
+type PutVoiceProfileRequest struct {
+	Model      string       `json:"model" yaml:"model"`
+	Prints     []VoicePrint `json:"prints" yaml:"prints"`
+	Sample     *[]byte      `json:"sample,omitempty" yaml:"sample,omitempty"`
+	SampleType *string      `json:"sample_type,omitempty" yaml:"sample_type,omitempty"`
+}
+
+// DeleteVoiceProfileRequest represents a structured data type
+type DeleteVoiceProfileRequest struct {
+	Model *string `json:"model,omitempty" yaml:"model,omitempty"`
+}
+
+// DeleteVoiceProfileResponse represents a structured data type
+type DeleteVoiceProfileResponse struct {
+	Deleted uint64 `json:"deleted" yaml:"deleted"`
 }
 
 // ModelSelector represents a structured data type
@@ -308,29 +355,43 @@ type CheckOverlapResponse struct {
 
 // Device represents a structured data type
 type Device struct {
-	Id          string   `json:"id" yaml:"id"`
-	Kind        string   `json:"kind" yaml:"kind"`
-	Name        string   `json:"name" yaml:"name"`
-	Can         []string `json:"can" yaml:"can"`
-	Active      bool     `json:"active" yaml:"active"`
-	HandsFree   bool     `json:"hands_free" yaml:"hands_free"`
-	SeenMs      uint64   `json:"seen_ms" yaml:"seen_ms"`
-	AppVersion  *string  `json:"app_version,omitempty" yaml:"app_version,omitempty"`
-	AppBuild    *uint64  `json:"app_build,omitempty" yaml:"app_build,omitempty"`
-	UpdateError *string  `json:"update_error,omitempty" yaml:"update_error,omitempty"`
+	Id          string        `json:"id" yaml:"id"`
+	Kind        string        `json:"kind" yaml:"kind"`
+	Name        string        `json:"name" yaml:"name"`
+	Can         []string      `json:"can" yaml:"can"`
+	Active      bool          `json:"active" yaml:"active"`
+	HandsFree   bool          `json:"hands_free" yaml:"hands_free"`
+	SeenMs      uint64        `json:"seen_ms" yaml:"seen_ms"`
+	AppVersion  *string       `json:"app_version,omitempty" yaml:"app_version,omitempty"`
+	AppBuild    *uint64       `json:"app_build,omitempty" yaml:"app_build,omitempty"`
+	UpdateError *string       `json:"update_error,omitempty" yaml:"update_error,omitempty"`
+	Health      *DeviceHealth `json:"health,omitempty" yaml:"health,omitempty"`
+}
+
+// DeviceHealth represents a structured data type
+type DeviceHealth struct {
+	Battery  *uint64 `json:"battery,omitempty" yaml:"battery,omitempty"`
+	Charging *bool   `json:"charging,omitempty" yaml:"charging,omitempty"`
+	WindowS  *uint64 `json:"window_s,omitempty" yaml:"window_s,omitempty"`
+	ListenS  *uint64 `json:"listen_s,omitempty" yaml:"listen_s,omitempty"`
+	SoundS   *uint64 `json:"sound_s,omitempty" yaml:"sound_s,omitempty"`
+	Wakes    *uint64 `json:"wakes,omitempty" yaml:"wakes,omitempty"`
+	Turns    *uint64 `json:"turns,omitempty" yaml:"turns,omitempty"`
+	Dropped  *uint64 `json:"dropped,omitempty" yaml:"dropped,omitempty"`
 }
 
 // PutDeviceRequest represents a structured data type
 type PutDeviceRequest struct {
-	Id          string   `json:"id" yaml:"id"`
-	Kind        string   `json:"kind" yaml:"kind"`
-	Name        string   `json:"name" yaml:"name"`
-	Can         []string `json:"can,omitempty" yaml:"can,omitempty"`
-	Active      *bool    `json:"active,omitempty" yaml:"active,omitempty"`
-	HandsFree   *bool    `json:"hands_free,omitempty" yaml:"hands_free,omitempty"`
-	AppVersion  *string  `json:"app_version,omitempty" yaml:"app_version,omitempty"`
-	AppBuild    *uint64  `json:"app_build,omitempty" yaml:"app_build,omitempty"`
-	UpdateError *string  `json:"update_error,omitempty" yaml:"update_error,omitempty"`
+	Id          string        `json:"id" yaml:"id"`
+	Kind        string        `json:"kind" yaml:"kind"`
+	Name        string        `json:"name" yaml:"name"`
+	Can         []string      `json:"can,omitempty" yaml:"can,omitempty"`
+	Active      *bool         `json:"active,omitempty" yaml:"active,omitempty"`
+	HandsFree   *bool         `json:"hands_free,omitempty" yaml:"hands_free,omitempty"`
+	AppVersion  *string       `json:"app_version,omitempty" yaml:"app_version,omitempty"`
+	AppBuild    *uint64       `json:"app_build,omitempty" yaml:"app_build,omitempty"`
+	UpdateError *string       `json:"update_error,omitempty" yaml:"update_error,omitempty"`
+	Health      *DeviceHealth `json:"health,omitempty" yaml:"health,omitempty"`
 }
 
 // ListDevicesRequest represents a structured data type

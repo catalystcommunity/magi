@@ -50,6 +50,8 @@ content. A person decides what cannot be undone.
 | Does a persona start work with no message from a person? | Code: the event rules and the loop limit | record 0009 |
 | Is a task stopped because it makes no progress? | Code | record 0012 |
 | Does an apprentice look into the code for a question, with no confirmation of a person? | The model of the engineering persona starts it. Code sets the limits: that persona only, no change is kept, no secret, three for a person at one time, and the loop limit of events | `magi/compose/investigation.go` |
+| Is a spoken turn the speech of the person of the device? | Code: the score of the voice print against fixed limits, on the device and again in Magi for a turn that the device was not sure about. A turn that fails is dropped. A model does not decide it, and the voice never authorizes an action | `speakerGate` in `magi/compose/voiceprint.go` |
+| Does a device use too much battery? | Code computes the use from the reports of the device. A persona gets the numbers | `magi/compose/devicehealth.go` |
 | Who gets the details of the installation (parts, incident messages, log lines)? | Code: an admin. Other people get a summary | `describeSystem` in `magi/compose/lookup.go` |
 | Can a task environment connect to a new host? | Code for known software sources and for private names; the review model for a host that it knows with high confidence; a person for the rest | record 0014 |
 | Is a part of the installation that is not ready restarted? | Code: the rules of the watch. Then the model, one more time, in the limits of code | record 0015 |

@@ -121,18 +121,37 @@ type Calibration struct {
 
 // Device represents a structured data type
 type Device struct {
-	Id          string   `json:"id" yaml:"id"`
-	Person      string   `json:"person" yaml:"person"`
-	Kind        string   `json:"kind" yaml:"kind"`
-	Name        string   `json:"name" yaml:"name"`
-	Can         []string `json:"can" yaml:"can"`
-	Active      bool     `json:"active" yaml:"active"`
-	HandsFree   bool     `json:"hands_free" yaml:"hands_free"`
-	SeenMs      uint64   `json:"seen_ms" yaml:"seen_ms"`
-	CreatedMs   uint64   `json:"created_ms" yaml:"created_ms"`
-	AppVersion  *string  `json:"app_version,omitempty" yaml:"app_version,omitempty"`
-	AppBuild    *uint64  `json:"app_build,omitempty" yaml:"app_build,omitempty"`
-	UpdateError *string  `json:"update_error,omitempty" yaml:"update_error,omitempty"`
+	Id          string        `json:"id" yaml:"id"`
+	Person      string        `json:"person" yaml:"person"`
+	Kind        string        `json:"kind" yaml:"kind"`
+	Name        string        `json:"name" yaml:"name"`
+	Can         []string      `json:"can" yaml:"can"`
+	Active      bool          `json:"active" yaml:"active"`
+	HandsFree   bool          `json:"hands_free" yaml:"hands_free"`
+	SeenMs      uint64        `json:"seen_ms" yaml:"seen_ms"`
+	CreatedMs   uint64        `json:"created_ms" yaml:"created_ms"`
+	AppVersion  *string       `json:"app_version,omitempty" yaml:"app_version,omitempty"`
+	AppBuild    *uint64       `json:"app_build,omitempty" yaml:"app_build,omitempty"`
+	UpdateError *string       `json:"update_error,omitempty" yaml:"update_error,omitempty"`
+	Health      *DeviceHealth `json:"health,omitempty" yaml:"health,omitempty"`
+}
+
+// DeviceHealth represents a structured data type
+type DeviceHealth struct {
+	Battery  *uint64 `json:"battery,omitempty" yaml:"battery,omitempty"`
+	Charging *bool   `json:"charging,omitempty" yaml:"charging,omitempty"`
+	WindowS  *uint64 `json:"window_s,omitempty" yaml:"window_s,omitempty"`
+	ListenS  *uint64 `json:"listen_s,omitempty" yaml:"listen_s,omitempty"`
+	SoundS   *uint64 `json:"sound_s,omitempty" yaml:"sound_s,omitempty"`
+	Wakes    *uint64 `json:"wakes,omitempty" yaml:"wakes,omitempty"`
+	Turns    *uint64 `json:"turns,omitempty" yaml:"turns,omitempty"`
+	Dropped  *uint64 `json:"dropped,omitempty" yaml:"dropped,omitempty"`
+}
+
+// DeviceReport represents a structured data type
+type DeviceReport struct {
+	AtMs   uint64       `json:"at_ms" yaml:"at_ms"`
+	Health DeviceHealth `json:"health" yaml:"health"`
 }
 
 // Notice represents a structured data type
@@ -445,15 +464,29 @@ type ImportLegacyResponse struct {
 
 // PutDeviceRequest represents a structured data type
 type PutDeviceRequest struct {
-	Id          string   `json:"id" yaml:"id"`
-	Kind        string   `json:"kind" yaml:"kind"`
-	Name        string   `json:"name" yaml:"name"`
-	Can         []string `json:"can,omitempty" yaml:"can,omitempty"`
-	Active      *bool    `json:"active,omitempty" yaml:"active,omitempty"`
-	HandsFree   *bool    `json:"hands_free,omitempty" yaml:"hands_free,omitempty"`
-	AppVersion  *string  `json:"app_version,omitempty" yaml:"app_version,omitempty"`
-	AppBuild    *uint64  `json:"app_build,omitempty" yaml:"app_build,omitempty"`
-	UpdateError *string  `json:"update_error,omitempty" yaml:"update_error,omitempty"`
+	Id          string        `json:"id" yaml:"id"`
+	Kind        string        `json:"kind" yaml:"kind"`
+	Name        string        `json:"name" yaml:"name"`
+	Can         []string      `json:"can,omitempty" yaml:"can,omitempty"`
+	Active      *bool         `json:"active,omitempty" yaml:"active,omitempty"`
+	HandsFree   *bool         `json:"hands_free,omitempty" yaml:"hands_free,omitempty"`
+	AppVersion  *string       `json:"app_version,omitempty" yaml:"app_version,omitempty"`
+	AppBuild    *uint64       `json:"app_build,omitempty" yaml:"app_build,omitempty"`
+	UpdateError *string       `json:"update_error,omitempty" yaml:"update_error,omitempty"`
+	Health      *DeviceHealth `json:"health,omitempty" yaml:"health,omitempty"`
+}
+
+// ListDeviceReportsRequest represents a structured data type
+type ListDeviceReportsRequest struct {
+	Device  string  `json:"device" yaml:"device"`
+	SinceMs *uint64 `json:"since_ms,omitempty" yaml:"since_ms,omitempty"`
+	Limit   *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+	Person  *string `json:"person,omitempty" yaml:"person,omitempty"`
+}
+
+// ListDeviceReportsResponse represents a structured data type
+type ListDeviceReportsResponse struct {
+	Reports []DeviceReport `json:"reports" yaml:"reports"`
 }
 
 // ListDevicesRequest represents a structured data type

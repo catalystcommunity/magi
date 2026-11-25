@@ -2,8 +2,8 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { Audio, ClassifyTurnRequest, ClassifyTurnResponse, DeleteLexiconEntryRequest, DeleteLexiconEntryResponse, DetectSpeechRequest, DetectSpeechResponse, LexiconEntry, ListLexiconRequest, ListLexiconResponse, ListVoicesRequest, ListVoicesResponse, PrepareTextRequest, PrepareTextResponse, PutLexiconEntryRequest, SynthesizeRequest, TranscribeRequest, Transcript } from "./types.gen.ts";
-import { fromAudioCbor, fromClassifyTurnResponseCbor, fromDeleteLexiconEntryResponseCbor, fromDetectSpeechResponseCbor, fromLexiconEntryCbor, fromListLexiconResponseCbor, fromListVoicesResponseCbor, fromPrepareTextResponseCbor, fromTranscriptCbor, toClassifyTurnRequestCbor, toDeleteLexiconEntryRequestCbor, toDetectSpeechRequestCbor, toListLexiconRequestCbor, toListVoicesRequestCbor, toPrepareTextRequestCbor, toPutLexiconEntryRequestCbor, toSynthesizeRequestCbor, toTranscribeRequestCbor } from "./codec.gen.ts";
+import type { Audio, ClassifyTurnRequest, ClassifyTurnResponse, DeleteLexiconEntryRequest, DeleteLexiconEntryResponse, DeleteSpeakerProfileRequest, DeleteSpeakerProfileResponse, DetectSpeechRequest, DetectSpeechResponse, GetSpeakerProfileRequest, LexiconEntry, ListLexiconRequest, ListLexiconResponse, ListVoicesRequest, ListVoicesResponse, PrepareTextRequest, PrepareTextResponse, PutLexiconEntryRequest, PutSpeakerProfileRequest, SpeakerProfile, SynthesizeRequest, TranscribeRequest, Transcript, VerifySpeakerRequest, VerifySpeakerResponse } from "./types.gen.ts";
+import { fromAudioCbor, fromClassifyTurnResponseCbor, fromDeleteLexiconEntryResponseCbor, fromDeleteSpeakerProfileResponseCbor, fromDetectSpeechResponseCbor, fromLexiconEntryCbor, fromListLexiconResponseCbor, fromListVoicesResponseCbor, fromPrepareTextResponseCbor, fromSpeakerProfileCbor, fromTranscriptCbor, fromVerifySpeakerResponseCbor, toClassifyTurnRequestCbor, toDeleteLexiconEntryRequestCbor, toDeleteSpeakerProfileRequestCbor, toDetectSpeechRequestCbor, toGetSpeakerProfileRequestCbor, toListLexiconRequestCbor, toListVoicesRequestCbor, toPrepareTextRequestCbor, toPutLexiconEntryRequestCbor, toPutSpeakerProfileRequestCbor, toSynthesizeRequestCbor, toTranscribeRequestCbor, toVerifySpeakerRequestCbor } from "./codec.gen.ts";
 
 export interface AsyncServiceTransport {
   call(service: string, op: string, req: Uint8Array): Promise<Uint8Array>;
@@ -95,6 +95,42 @@ export class SpeechAsyncClient {
   async classifyTurn(req: ClassifyTurnRequest): Promise<ClassifyTurnResponse> {
     const csilResp = await this.t.call("SpeechService", "classify-turn", toClassifyTurnRequestCbor(req));
     return fromClassifyTurnResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async getSpeakerProfile(req: GetSpeakerProfileRequest): Promise<SpeakerProfile> {
+    const csilResp = await this.t.call("SpeechService", "get-speaker-profile", toGetSpeakerProfileRequestCbor(req));
+    return fromSpeakerProfileCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async putSpeakerProfile(req: PutSpeakerProfileRequest): Promise<SpeakerProfile> {
+    const csilResp = await this.t.call("SpeechService", "put-speaker-profile", toPutSpeakerProfileRequestCbor(req));
+    return fromSpeakerProfileCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async deleteSpeakerProfile(req: DeleteSpeakerProfileRequest): Promise<DeleteSpeakerProfileResponse> {
+    const csilResp = await this.t.call("SpeechService", "delete-speaker-profile", toDeleteSpeakerProfileRequestCbor(req));
+    return fromDeleteSpeakerProfileResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async verifySpeaker(req: VerifySpeakerRequest): Promise<VerifySpeakerResponse> {
+    const csilResp = await this.t.call("SpeechService", "verify-speaker", toVerifySpeakerRequestCbor(req));
+    return fromVerifySpeakerResponseCbor(csilResp);
   }
 }
 

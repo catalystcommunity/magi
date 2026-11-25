@@ -37,6 +37,61 @@ func TestDevicesAndNotices(t *testing.T) {
 	_, err = a.ListDevices(ctx, api.ListDevicesRequest{Person: ptr(bob)})
 	wantCode(t, err, http.StatusForbidden)
 
+	t.Run("the health of a device", func(t *testing.T) {
+		start := uint64(time.Now().UnixMilli())
+		put := api.PutDeviceRequest{Id: "phone-0001", Kind: "phone", Name: "Pixel", Can: []string{"speak", "notify"}}
+		put.Health = &api.DeviceHealth{Battery: ptr(uint64(81)), Charging: ptr(false), WindowS: ptr(uint64(60)), ListenS: ptr(uint64(60)), SoundS: ptr(uint64(7)), Wakes: ptr(uint64(1))}
+		d := must[api.Device](t)(a.PutDevice(ctx, put))
+		if d.Health == nil || deref(d.Health.Battery) != 81 || d.Health.Charging == nil || *d.Health.Charging || deref(d.Health.SoundS) != 7 {
+			t.Fatalf("health = %+v", d.Health)
+		}
+		time.Sleep(5 * time.Millisecond)
+		put.Health = &api.DeviceHealth{Battery: ptr(uint64(80)), Charging: ptr(false), WindowS: ptr(uint64(60))}
+		must[api.Device](t)(a.PutDevice(ctx, put))
+		time.Sleep(5 * time.Millisecond)
+		// A hello with no report keeps the last report and adds none.
+		put.Health = nil
+		d = must[api.Device](t)(a.PutDevice(ctx, put))
+		if d.Health == nil || deref(d.Health.Battery) != 80 {
+			t.Fatalf("health after a hello with no report = %+v", d.Health)
+		}
+		reports := must[api.ListDeviceReportsResponse](t)(a.ListDeviceReports(ctx, api.ListDeviceReportsRequest{Device: "phone-0001"})).Reports
+		if len(reports) != 2 || deref(reports[0].Health.Battery) != 81 || deref(reports[1].Health.Battery) != 80 ||
+			reports[0].AtMs < start || reports[1].AtMs <= reports[0].AtMs || deref(reports[0].Health.Wakes) != 1 || reports[1].Health.Wakes != nil {
+			t.Fatalf("reports = %+v", reports)
+		}
+		// since_ms and limit: the newest reports.
+		if l := must[api.ListDeviceReportsResponse](t)(a.ListDeviceReports(ctx, api.ListDeviceReportsRequest{Device: "phone-0001", SinceMs: ptr(reports[1].AtMs)})); len(l.Reports) != 1 {
+			t.Fatalf("reports since the second = %+v", l)
+		}
+		if l := must[api.ListDeviceReportsResponse](t)(a.ListDeviceReports(ctx, api.ListDeviceReportsRequest{Device: "phone-0001", Limit: ptr(uint64(1))})); len(l.Reports) != 1 || deref(l.Reports[0].Health.Battery) != 80 {
+			t.Fatalf("the newest report = %+v", l)
+		}
+		// The device with the same id of a different person has no reports,
+		// and a person does not read the reports of a different person.
+		if l := must[api.ListDeviceReportsResponse](t)(b.ListDeviceReports(ctx, api.ListDeviceReportsRequest{Device: "phone-0001"})); len(l.Reports) != 0 {
+			t.Fatalf("reports of the device of a different person = %+v", l)
+		}
+		_, err := b.ListDeviceReports(ctx, api.ListDeviceReportsRequest{Device: "phone-0001", Person: ptr(alice)})
+		wantCode(t, err, http.StatusForbidden)
+		if l := must[api.ListDeviceReportsResponse](t)(svc.ListDeviceReports(ctx, api.ListDeviceReportsRequest{Device: "phone-0001", Person: ptr(alice)})); len(l.Reports) != 2 {
+			t.Fatalf("reports for a service that acts for the person = %+v", l)
+		}
+		put.Health = &api.DeviceHealth{Battery: ptr(uint64(101))}
+		_, err = a.PutDevice(ctx, put)
+		wantCode(t, err, http.StatusBadRequest)
+		put.Health = &api.DeviceHealth{WindowS: ptr(uint64(90000))}
+		_, err = a.PutDevice(ctx, put)
+		wantCode(t, err, http.StatusBadRequest)
+		// A removed device has no reports.
+		scratch := api.PutDeviceRequest{Id: "tablet-001", Kind: "phone", Name: "Tablet", Health: &api.DeviceHealth{Battery: ptr(uint64(50))}}
+		must[api.Device](t)(a.PutDevice(ctx, scratch))
+		must[api.Device](t)(a.RemoveDevice(ctx, api.RemoveDeviceRequest{Id: "tablet-001"}))
+		if l := must[api.ListDeviceReportsResponse](t)(a.ListDeviceReports(ctx, api.ListDeviceReportsRequest{Device: "tablet-001"})); len(l.Reports) != 0 {
+			t.Fatalf("reports of a removed device = %+v", l)
+		}
+	})
+
 	t.Run("the version of the client app", func(t *testing.T) {
 		put := api.PutDeviceRequest{Id: "phone-0001", Kind: "phone", Name: "Pixel", AppVersion: ptr("0.1.0-abc"), AppBuild: ptr(uint64(41)), UpdateError: ptr("no space")}
 		d := must[api.Device](t)(a.PutDevice(ctx, put))

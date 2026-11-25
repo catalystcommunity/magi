@@ -147,6 +147,10 @@ class ConversationClient:
         """remove-device"""
         return Device.from_cbor(self._transport.call("ConversationService", "remove-device", req.to_cbor()))
 
+    def list_device_reports(self, req: ListDeviceReportsRequest) -> ListDeviceReportsResponse:
+        """list-device-reports"""
+        return ListDeviceReportsResponse.from_cbor(self._transport.call("ConversationService", "list-device-reports", req.to_cbor()))
+
     def notify(self, req: NotifyRequest) -> Notice:
         """notify"""
         return Notice.from_cbor(self._transport.call("ConversationService", "notify", req.to_cbor()))

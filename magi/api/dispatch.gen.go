@@ -332,6 +332,39 @@ func MagiServiceOps(impl MagiService) map[string]func(context.Context, []byte) (
 			}
 			return EncodeDevice(resp)
 		},
+		"get-voice-profile": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeGetVoiceProfileRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.GetVoiceProfile(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeVoiceProfile(resp)
+		},
+		"put-voice-profile": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodePutVoiceProfileRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.PutVoiceProfile(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeVoiceProfile(resp)
+		},
+		"delete-voice-profile": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeDeleteVoiceProfileRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.DeleteVoiceProfile(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeDeleteVoiceProfileResponse(resp)
+		},
 		"wait-notices": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeWaitNoticesRequest(b)
 			if err != nil {

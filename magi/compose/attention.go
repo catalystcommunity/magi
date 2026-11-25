@@ -20,8 +20,13 @@ import (
 const maxNoticeWait = 25 * time.Second
 
 func device(d conversationapi.Device) magiapi.Device {
-	return magiapi.Device{Id: d.Id, Kind: d.Kind, Name: d.Name, Can: d.Can, Active: d.Active, HandsFree: d.HandsFree, SeenMs: d.SeenMs,
+	out := magiapi.Device{Id: d.Id, Kind: d.Kind, Name: d.Name, Can: d.Can, Active: d.Active, HandsFree: d.HandsFree, SeenMs: d.SeenMs,
 		AppVersion: d.AppVersion, AppBuild: d.AppBuild, UpdateError: d.UpdateError}
+	if h := d.Health; h != nil {
+		out.Health = &magiapi.DeviceHealth{Battery: h.Battery, Charging: h.Charging, WindowS: h.WindowS, ListenS: h.ListenS,
+			SoundS: h.SoundS, Wakes: h.Wakes, Turns: h.Turns, Dropped: h.Dropped}
+	}
+	return out
 }
 
 func notice(n conversationapi.Notice) magiapi.Notice {
@@ -53,8 +58,15 @@ func (m *Service) PutDevice(ctx context.Context, req magiapi.PutDeviceRequest) (
 			}
 		}
 	}
-	d, err := m.S.Conversation.PutDevice(AsCaller(ctx), conversationapi.PutDeviceRequest{Id: req.Id, Kind: req.Kind, Name: req.Name,
-		Can: req.Can, Active: req.Active, HandsFree: req.HandsFree, AppVersion: req.AppVersion, AppBuild: req.AppBuild, UpdateError: req.UpdateError})
+	in := conversationapi.PutDeviceRequest{Id: req.Id, Kind: req.Kind, Name: req.Name,
+		Can: req.Can, Active: req.Active, HandsFree: req.HandsFree, AppVersion: req.AppVersion, AppBuild: req.AppBuild, UpdateError: req.UpdateError}
+	if h := req.Health; h != nil {
+		// The device reports about itself: the conversation service keeps
+		// the reports, and code reads them (devicehealth.go).
+		in.Health = &conversationapi.DeviceHealth{Battery: h.Battery, Charging: h.Charging, WindowS: h.WindowS, ListenS: h.ListenS,
+			SoundS: h.SoundS, Wakes: h.Wakes, Turns: h.Turns, Dropped: h.Dropped}
+	}
+	d, err := m.S.Conversation.PutDevice(AsCaller(ctx), in)
 	if err == nil && before != nil {
 		// The client does not wait for the turn of the persona.
 		go m.S.appUpdated(context.WithoutCancel(ctx), *before, d)
@@ -242,6 +254,9 @@ func (s *System) describeDevices(ctx context.Context, owner string) string {
 			state += ", hands-free"
 		}
 		fmt.Fprintf(&b, "- %s: %s (%s), %s, seen %s ago\n", d.Id, d.Name, d.Kind, state, now.Sub(time.UnixMilli(int64(d.SeenMs))).Round(time.Second))
+		if d.Health != nil {
+			b.WriteString(s.describeHealthOf(ctx, owner, d, now))
+		}
 	}
 	return b.String()
 }

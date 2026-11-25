@@ -164,3 +164,60 @@ type ClassifyTurnResponse struct {
 	Engine    string      `json:"engine" yaml:"engine"`
 	ElapsedMs uint64      `json:"elapsed_ms" yaml:"elapsed_ms"`
 }
+
+// SpeakerPrint represents a structured data type
+type SpeakerPrint struct {
+	Vector    []byte  `json:"vector" yaml:"vector"`
+	Source    *string `json:"source,omitempty" yaml:"source,omitempty"`
+	CreatedMs uint64  `json:"created_ms" yaml:"created_ms"`
+}
+
+// SpeakerProfile represents a structured data type
+type SpeakerProfile struct {
+	Owner     string         `json:"owner" yaml:"owner"`
+	Model     string         `json:"model" yaml:"model"`
+	Prints    []SpeakerPrint `json:"prints" yaml:"prints"`
+	HasSample bool           `json:"has_sample" yaml:"has_sample"`
+	UpdatedMs uint64         `json:"updated_ms" yaml:"updated_ms"`
+}
+
+// GetSpeakerProfileRequest represents a structured data type
+type GetSpeakerProfileRequest struct {
+	Model string `json:"model" yaml:"model"`
+}
+
+// PutSpeakerProfileRequest represents a structured data type
+type PutSpeakerProfileRequest struct {
+	Model      string         `json:"model" yaml:"model"`
+	Prints     []SpeakerPrint `json:"prints" yaml:"prints"`
+	Sample     *[]byte        `json:"sample,omitempty" yaml:"sample,omitempty"`
+	SampleType *string        `json:"sample_type,omitempty" yaml:"sample_type,omitempty"`
+}
+
+// DeleteSpeakerProfileRequest represents a structured data type
+type DeleteSpeakerProfileRequest struct {
+	Model *string `json:"model,omitempty" yaml:"model,omitempty"`
+}
+
+// DeleteSpeakerProfileResponse represents a structured data type
+type DeleteSpeakerProfileResponse struct {
+	Deleted uint64 `json:"deleted" yaml:"deleted"`
+}
+
+// VerifySpeakerRequest represents a structured data type
+type VerifySpeakerRequest struct {
+	Audio     []byte  `json:"audio" yaml:"audio"`
+	MediaType *string `json:"media_type,omitempty" yaml:"media_type,omitempty"`
+	Model     string  `json:"model" yaml:"model"`
+	Extract   *bool   `json:"extract,omitempty" yaml:"extract,omitempty"`
+}
+
+// VerifySpeakerResponse represents a structured data type
+type VerifySpeakerResponse struct {
+	Enrolled       bool     `json:"enrolled" yaml:"enrolled"`
+	Score          float64  `json:"score" yaml:"score"`
+	Extracted      *[]byte  `json:"extracted,omitempty" yaml:"extracted,omitempty"`
+	ExtractedScore *float64 `json:"extracted_score,omitempty" yaml:"extracted_score,omitempty"`
+	Engine         string   `json:"engine" yaml:"engine"`
+	ElapsedMs      uint64   `json:"elapsed_ms" yaml:"elapsed_ms"`
+}

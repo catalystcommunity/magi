@@ -123,6 +123,18 @@ class MagiClient:
         """remove-device"""
         return Device.from_cbor(self._transport.call("MagiService", "remove-device", req.to_cbor()))
 
+    def get_voice_profile(self, req: GetVoiceProfileRequest) -> VoiceProfile:
+        """get-voice-profile"""
+        return VoiceProfile.from_cbor(self._transport.call("MagiService", "get-voice-profile", req.to_cbor()))
+
+    def put_voice_profile(self, req: PutVoiceProfileRequest) -> VoiceProfile:
+        """put-voice-profile"""
+        return VoiceProfile.from_cbor(self._transport.call("MagiService", "put-voice-profile", req.to_cbor()))
+
+    def delete_voice_profile(self, req: DeleteVoiceProfileRequest) -> DeleteVoiceProfileResponse:
+        """delete-voice-profile"""
+        return DeleteVoiceProfileResponse.from_cbor(self._transport.call("MagiService", "delete-voice-profile", req.to_cbor()))
+
     def wait_notices(self, req: WaitNoticesRequest) -> WaitNoticesResponse:
         """wait-notices"""
         return WaitNoticesResponse.from_cbor(self._transport.call("MagiService", "wait-notices", req.to_cbor()))

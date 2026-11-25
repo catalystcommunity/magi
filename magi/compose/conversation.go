@@ -52,12 +52,26 @@ func (m *Service) Say(ctx context.Context, req magiapi.SayRequest) (magiapi.SayR
 	var audioDigest *string
 	var confidence *float64
 	var transcriber *string
+	// The audio that Magi reads and keeps: what the client sent, or the
+	// voice of the person that the speaker check took out of it.
+	var audio []byte
+	audioType := firstNonEmpty(deref(req.AudioType), "audio/wav")
+	var speaker *speakerVerdict
 	if req.Audio != nil && len(*req.Audio) > 0 {
-		audio := *req.Audio
-		mt := deref(req.AudioType)
-		if mt == "" {
-			mt = "audio/wav"
+		audio = *req.Audio
+		v, take, err := s.speakerGate(uctx, audio, audioType, req.Speaker, deref(req.WakeWord))
+		if err != nil {
+			return magiapi.SayResponse{}, err
 		}
+		if !take {
+			// Not the voice of the person, as far as Magi can tell: keep
+			// nothing of it (voiceprint.go).
+			return magiapi.SayResponse{Ignored: ptr(true), Message: magiapi.Message{Refs: []magiapi.Ref{}, Links: []magiapi.MessageLink{}}}, nil
+		}
+		if speaker = v; v != nil && v.audio != nil {
+			audio, audioType = v.audio, "audio/wav"
+		}
+		mt := audioType
 		tr, err := s.Speech.Transcribe(uctx, speechapi.TranscribeRequest{Audio: audio, MediaType: mt})
 		if err != nil {
 			return magiapi.SayResponse{}, fmt.Errorf("transcribe: %w", err)
@@ -104,9 +118,8 @@ func (m *Service) Say(ctx context.Context, req magiapi.SayRequest) (magiapi.SayR
 		// Not for Magi: keep nothing of it.
 		return magiapi.SayResponse{Ignored: ptr(true), Message: magiapi.Message{Refs: []magiapi.Ref{}, Links: []magiapi.MessageLink{}}}, nil
 	}
-	if req.Audio != nil && len(*req.Audio) > 0 {
-		mt := firstNonEmpty(deref(req.AudioType), "audio/wav")
-		art, err := s.Artifacts.Put(uctx, artifactsapi.PutRequest{MediaType: mt, Body: *req.Audio, Labels: map[string]string{"kind": "voice-input"}})
+	if len(audio) > 0 {
+		art, err := s.Artifacts.Put(uctx, artifactsapi.PutRequest{MediaType: audioType, Body: audio, Labels: map[string]string{"kind": "voice-input"}})
 		if err != nil {
 			return magiapi.SayResponse{}, err
 		}
@@ -122,6 +135,7 @@ func (m *Service) Say(ctx context.Context, req magiapi.SayRequest) (magiapi.SayR
 	if err != nil {
 		return magiapi.SayResponse{}, err
 	}
+	s.noteSpeaker(uctx, u.Id, speaker)
 	vars := map[string]string{"stream": st.Id, "utterance": u.Id, "persona": persona,
 		dispatchVar: s.newDispatch(caller.Subject, persona, st.Id, u.Id).encode()}
 	if caller.Name != "" {

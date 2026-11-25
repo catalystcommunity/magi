@@ -2,9 +2,11 @@
 
 ## Purpose
 
-The speech primitive changes speech to text and text to speech. It keeps
-one kind of record: the household lexicon. Any authenticated caller can use
-the service and read the lexicon.
+The speech primitive changes speech to text and text to speech, and it
+tells if speech is the speech of one person. It keeps two kinds of record:
+the household lexicon, and the voice prints of each person. Any
+authenticated caller can use the service and read the lexicon. A caller
+reads and changes only its own voice prints.
 
 The Go service (`cmd/speech`) implements `contracts/speech.csil`. It sends the
 work to two engine processes over HTTP. You can replace an engine with a
@@ -17,13 +19,16 @@ different process that serves the same engine API.
 | STT | Parakeet TDT 0.6B v3 INT8 (sherpa-onnx) | CC-BY-4.0 (NVIDIA); sherpa-onnx is Apache-2.0 | 8092 | 2 | CPU |
 | TTS | Kokoro 82M | Apache-2.0 | 8093 | 3 | GPU if torch sees one, else CPU |
 | turn | Silero VAD 5.1.2 and the turn classifier (MiniLM-L12, fine-tuned, int8) | MIT (Silero), Apache-2.0 (MiniLM) | 8095 | 2 | CPU |
+| speaker | 3D-Speaker ERes2Net (English, VoxCeleb, 16 kHz) and VoxLock INT8, both with sherpa-onnx 2.0.1 | Apache-2.0 (both repositories) | 8096 | 4 | CPU |
 
 CC-BY-4.0 lets you use, change, and share the model, also for commercial
 work. You must give attribution to NVIDIA when you distribute the model.
 Magi does not include the model files. The engine host downloads them.
 
-The two models use different Python environments. Thus each model has its
-own process. `engine/server.py --engine stt|tts` is the program for both.
+The models use different Python environments. Thus each engine has its
+own process. `engine/server.py --engine NAME` is the program for all of
+them. The service needs the STT and the TTS engine; the other engines are
+optional.
 
 - The engine loads the model one time. It checks the model files against
   `engine/model-pins.json` before it loads them.
@@ -52,6 +57,7 @@ All requests, except `/health`, need `Authorization: Bearer <token>`.
 | `POST /detect` | detect | `{"texts": [...]}` (at most 64 texts, 256 KiB) | `{"scores": [...], "windows", "engine", "elapsed_ms"}` |
 | `POST /vad` | turn | audio bytes | `{"speech_ms", "audio_ms", "segments": [[start_ms, end_ms]], "engine", "elapsed_ms"}` |
 | `POST /turn` | turn | `{"items": [{"context", "text"}]}` (at most 32) | `{"results": [{"ack", "turn", "unclear"}], "engine", "elapsed_ms"}` |
+| `POST /speaker` | speaker | `{"audio" (base64), "sample"? (base64)}` | `{"vector" (base64) or null, "model", "engine", "audio_ms", "elapsed_ms", "extracted"? (base64 WAV), "extracted_vector"?}` |
 
 The engine `detect` is not speech. It is the prompt injection detector of
 Magi (ProtectAI deberta v3 v2, Apache-2.0, ONNX on the CPU; pins in
@@ -62,6 +68,44 @@ the speech service does not use it. Environment: Python 3.13 with
 onnxruntime 1.31.0 (MIT), tokenizers 0.23.3 (Apache-2.0), and numpy 2.5.4,
 in `~/.local/share/magi/speech/installs/detect/venv`; the model is in
 `.../detect/models/protectai-v2`.
+
+### Speaker engine
+
+The engine `speaker` makes voice prints and removes other voices from
+audio.
+
+- A voice print is the output of the speaker model for a piece of speech:
+  192 numbers with unit length (`vector`: little-endian float32). The
+  engine drops the quiet start and end of the audio, and it reads at most
+  30 seconds. Audio with less than 0.4 seconds of sound has no print
+  (`vector` is null).
+- With `sample` (speech of one person, 3 seconds or more), the engine
+  also runs the extraction: VoxLock keeps the voice of the sample and
+  removes the other voices. `extracted` is that audio (WAV, 16 kHz, one
+  channel) and `extracted_vector` is its print.
+- The extraction can damage the speech. The caller must compare the print
+  of the result again and use the better of the two.
+- VoxLock ignores a sample that is shorter than 3 seconds. It then keeps
+  the loudest voice of the audio, which can be a different person. Thus
+  the engine does not run the extraction with a short sample, and the
+  service does not take a sample under 3.1 seconds (the margin is for a
+  sample that the engine must convert to 16 kHz).
+- The engine keeps no audio. It writes the sample to a temporary file only
+  while it makes the extraction object, and it keeps that object in memory
+  for the last two samples.
+- The VoxLock files are optional. Without the directory `voxlock` in the
+  model directory, the engine makes prints only.
+
+Measured on a desktop processor with 4 threads: a print of a 3-second clip
+takes about 0.1 s. The extraction of 4 seconds of audio takes about 0.8 s,
+and of 14 seconds about 2.9 s. The first extraction for a person takes
+about 2 s more. The engine uses about 250 MB of memory, and about 280 MB
+more for each of the two extraction objects.
+
+The speaker model is from the 3D-Speaker project and VoxLock is from the
+VoxLock project. The two repositories have the Apache-2.0 license. The
+engine host downloads the files from the sherpa-onnx releases;
+`model-pins.json` has their hashes.
 
 ### Turn engine
 
@@ -151,6 +195,44 @@ statuses are engine failures. The error does not contain the input text.
   2000 characters) to the class probabilities (engine `turn`, `/turn`).
   Without `MAGI_SPEECH_TURN_URL`, these two operations return
   `rpc.Unavailable`. `/healthz` does not check this engine.
+- `get-speaker-profile`, `put-speaker-profile`, `delete-speaker-profile`:
+  the voice prints of the caller for one speaker model (below).
+- `verify-speaker`: is the speech in the audio the speech of the caller
+  (engine `speaker`)? Without `MAGI_SPEECH_SPEAKER_URL`, it returns
+  `rpc.Unavailable` for a caller who has a profile. `/healthz` does not
+  check this engine.
+
+## Voice prints
+
+A person has one profile for each speaker model. The service knows the
+model `3dspeaker-eres2net-en-voxceleb-16k` (192 numbers). A device of the
+person makes the prints with the same model: the person reads some lines,
+and the device puts the profile. Each device of the person can get it.
+
+- A profile has 1 to 40 prints. `put-speaker-profile` replaces all prints
+  of the model. The service gives each print unit length. It refuses a
+  print with the wrong count of numbers, with a number that is not
+  finite, or with only zeros.
+- `source` of a print is `enroll` (the person read a line for it) or
+  `turn` (a turn that the device verified).
+- `sample` is speech of the person for the extraction: a WAV file with
+  PCM audio, 3.1 seconds or more, 2 MB at most. A put with no sample keeps
+  the sample that is there.
+- `verify-speaker` gives `score`: the cosine of the print of the audio and
+  the mean of the prints of the profile. A caller with no profile gets
+  `enrolled` false and the score 0, and no engine runs. With `extract`
+  and a sample in the profile, the response also has `extracted` (the
+  audio with only the voice of the person) and `extracted_score`.
+- The service does not decide if a score is enough. The caller has the
+  limit (Magi: `magi/compose/voiceprint.go`).
+- A profile is not a credential. It selects speech. A voice must never
+  authorize an action.
+
+Measured on 25 November 2026 with speech of one person from a phone and
+26 other speakers (quiet audio): 1.5 seconds of the person scored 0.36 or
+more, and the other speakers scored 0.34 or less. With other voices in the
+audio, the score of the person falls; the extraction brings a part of it
+back.
 
 ## Spoken text and the lexicon
 
@@ -196,7 +278,8 @@ Errors:
 | `-stt-url` | `MAGI_SPEECH_STT_URL` | required, such as `http://speech.example.local:8092` |
 | `-tts-url` | `MAGI_SPEECH_TTS_URL` | required, such as `http://speech.example.local:8093` |
 | `-turn-url` | `MAGI_SPEECH_TURN_URL` | optional, such as `http://speech.example.local:8095` |
-| `-database-url` | `MAGI_DATABASE_URL` | optional: PostgreSQL for the lexicon |
+| `-speaker-url` | `MAGI_SPEECH_SPEAKER_URL` | optional, such as `http://speech.example.local:8096` |
+| `-database-url` | `MAGI_DATABASE_URL` | optional: PostgreSQL for the lexicon and the voice prints |
 | `-engine-token-file` | `MAGI_SPEECH_ENGINE_TOKEN_FILE` | required |
 
 The service reads the engine token one time, at start.
@@ -221,7 +304,8 @@ primitives/speech/engine/install.sh --provision user@speech.example.local
 3. It downloads the models to `~/.local/share/magi/speech/models/` and checks
    each file against `model-pins.json`: Parakeet (from the sherpa-onnx
    release), Kokoro and the injection detector (from Hugging Face at the
-   pinned revision), and Silero VAD (from GitHub at the pinned tag).
+   pinned revision), Silero VAD (from GitHub at the pinned tag), and the
+   speaker model and VoxLock (from the sherpa-onnx releases).
 4. It trains the turn classifier (above) in the environment `train`. To
    copy a build from another host in its place, give the directory:
    `MAGI_SPEECH_PROVISION_ARGS="--turn-from DIR"`.
@@ -246,14 +330,14 @@ Then `install.sh` does these steps (also without `--provision`):
    after `--provision` the paths of `engines.env`, then the values of the
    last install, then `engines.env`, then the older layout under
    `~/.local/share/magi/speech/installs/*/`. To use other paths, set
-   `MAGI_SPEECH_{STT,TTS,DETECT,TURN}_{PYTHON,MODEL}`. Set ports and threads
-   with `MAGI_SPEECH_{STT,TTS,DETECT,TURN}_{PORT,THREADS}`.
+   `MAGI_SPEECH_{STT,TTS,DETECT,TURN,SPEAKER}_{PYTHON,MODEL}`. Set ports
+   and threads with `MAGI_SPEECH_{STT,TTS,DETECT,TURN,SPEAKER}_{PORT,THREADS}`.
 3. It makes `~/magi-speech/token` (mode 600) if the file does not exist. It
    does not show the token.
 4. It starts or restarts the engines and waits for `/health`.
 
 If user lingering is on (`loginctl enable-linger USER`, as root), systemd
-user units `magi-speech-{stt,tts,detect,turn}` run the engines. If lingering
+user units `magi-speech-{stt,tts,detect,turn,speaker}` run the engines. If lingering
 is off, a `nohup` supervisor loop runs each engine and restarts it after a
 crash. The loop does not continue after a host restart. Then run
 `install.sh` again. Logs and PID files are in `~/magi-speech/`.
@@ -264,6 +348,17 @@ Put the token in the Secret `magi-speech-engine` without showing it:
 ssh user@speech.example.local cat magi-speech/token | \
   kubectl -n magi create secret generic magi-speech-engine --from-file=token=/dev/stdin
 ```
+
+To add one engine to a host that has the others, name it. The paths of
+the other engines stay:
+
+```sh
+MAGI_SPEECH_PROVISION_ARGS="--engines speaker" \
+  primitives/speech/engine/install.sh --provision user@speech.example.local
+```
+
+Then set `SPEECH_SPEAKER_URL` (`deploy/README.md`) and deploy the speech
+service.
 
 ### TTS on a GPU
 
@@ -300,8 +395,9 @@ client:
 cd primitives/speech && go vet ./... && go test ./...
 ```
 
-The lexicon test needs PostgreSQL. It makes a database, owned by a new role,
-and drops both at the end. It skips when `MAGI_TEST_DATABASE_URL` is not set:
+The lexicon test and the voice print test need PostgreSQL. Each makes a
+database, owned by a new role, and drops both at the end. They skip when
+`MAGI_TEST_DATABASE_URL` is not set:
 
 ```sh
 MAGI_TEST_DATABASE_URL='postgres://magi:magi-test@127.0.0.1:55432/postgres?sslmode=disable' go test ./...
@@ -320,6 +416,17 @@ go test -count=1 -v -run Live ./server/
 
 Add `MAGI_SPEECH_WRITE_TESTDATA=1` to make the clips again. The test uses
 local `ffmpeg` with libopus to encode them.
+
+The test of the speaker engine uses the real models. It needs the Python
+of the engine environment, the model directory, and the test files of the
+VoxLock model package (`en-voice-sample-f.wav`, `en-combined.wav`). It
+skips without them:
+
+```sh
+MAGI_SPEAKER_TEST_MODEL_DIR=~/.local/share/magi/speech/models/speaker \
+MAGI_SPEAKER_TEST_WAVS=/path/to/sherpa-onnx-voxlock-int8/test_wavs \
+~/.local/share/magi/speech/envs/speaker/bin/python -I primitives/speech/engine/speaker_test.py
+```
 
 ### Test clips
 
@@ -342,6 +449,11 @@ Kokoro reads "README" as letters. Thus `readme.opus` uses the spoken text
 - Text: 4000 characters at most. The text must not be empty.
 - Output format: WAV only. There is no streaming.
 - One inference at a time for each engine. Other requests wait.
+- Voice prints: one speaker model, trained on English speech. The numbers
+  above are from one person and quiet audio. A print from 1 to 2 seconds
+  of speech in a noisy room has more errors.
+- VoxLock is a new project (October 2026). Its extraction runs only for a
+  turn that the device was not sure about.
 - Parakeet does not give a confidence value. `confidence` is not set.
 - The engine token is a shared secret. Engine traffic uses plain HTTP. Use
   the engines only on a trusted network.

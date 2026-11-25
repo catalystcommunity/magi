@@ -13,6 +13,7 @@ lock() { # out in python [torch index]
 }
 lock stt.txt stt.in 3.13
 lock runtime.txt runtime.in 3.13
+lock speaker.txt speaker.in 3.13
 lock tts-cpu.txt tts.in 3.12 cpu
 lock tts-cuda.txt tts.in 3.12 cu128
 lock tts-rocm.txt tts.in 3.12 rocm6.4

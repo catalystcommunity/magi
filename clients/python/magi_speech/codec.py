@@ -1099,3 +1099,237 @@ def _classify_turn_response_from_cbor(data: bytes) -> "ClassifyTurnResponse":
 
 ClassifyTurnResponse.to_cbor = _classify_turn_response_to_cbor
 ClassifyTurnResponse.from_cbor = staticmethod(_classify_turn_response_from_cbor)
+
+def _encode_speaker_print_value(v: "SpeakerPrint") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.source
+    if csil_x is not None:
+        csil_m["source"] = csil_x
+    csil_m["vector"] = v.vector
+    csil_m["created_ms"] = v.created_ms
+    return csil_m
+
+def _decode_speaker_print_value(tree: Any) -> "SpeakerPrint":
+    tree = _csil_expect_map(tree)
+    return SpeakerPrint(
+        vector=_csil_expect_bytes(tree["vector"]),
+        source=(None if tree.get("source") is None else _csil_expect_text(tree["source"])),
+        created_ms=_csil_expect_uint(tree["created_ms"]),
+    )
+
+
+def _speaker_print_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_speaker_print_value(self))
+
+
+def _speaker_print_from_cbor(data: bytes) -> "SpeakerPrint":
+    return _decode_speaker_print_value(cbor_decode(data))
+
+
+SpeakerPrint.to_cbor = _speaker_print_to_cbor
+SpeakerPrint.from_cbor = staticmethod(_speaker_print_from_cbor)
+
+def _encode_speaker_profile_value(v: "SpeakerProfile") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["model"] = v.model
+    csil_m["owner"] = v.owner
+    csil_m["prints"] = [_encode_speaker_print_value(csil_e) for csil_e in v.prints]
+    csil_m["has_sample"] = v.has_sample
+    csil_m["updated_ms"] = v.updated_ms
+    return csil_m
+
+def _decode_speaker_profile_value(tree: Any) -> "SpeakerProfile":
+    tree = _csil_expect_map(tree)
+    return SpeakerProfile(
+        owner=_csil_expect_text(tree["owner"]),
+        model=_csil_expect_text(tree["model"]),
+        prints=[_decode_speaker_print_value(csil_e) for csil_e in _csil_expect_array(tree["prints"])],
+        has_sample=_csil_expect_bool(tree["has_sample"]),
+        updated_ms=_csil_expect_uint(tree["updated_ms"]),
+    )
+
+
+def _speaker_profile_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_speaker_profile_value(self))
+
+
+def _speaker_profile_from_cbor(data: bytes) -> "SpeakerProfile":
+    return _decode_speaker_profile_value(cbor_decode(data))
+
+
+SpeakerProfile.to_cbor = _speaker_profile_to_cbor
+SpeakerProfile.from_cbor = staticmethod(_speaker_profile_from_cbor)
+
+def _encode_get_speaker_profile_request_value(v: "GetSpeakerProfileRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["model"] = v.model
+    return csil_m
+
+def _decode_get_speaker_profile_request_value(tree: Any) -> "GetSpeakerProfileRequest":
+    tree = _csil_expect_map(tree)
+    return GetSpeakerProfileRequest(
+        model=_csil_expect_text(tree["model"]),
+    )
+
+
+def _get_speaker_profile_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_get_speaker_profile_request_value(self))
+
+
+def _get_speaker_profile_request_from_cbor(data: bytes) -> "GetSpeakerProfileRequest":
+    return _decode_get_speaker_profile_request_value(cbor_decode(data))
+
+
+GetSpeakerProfileRequest.to_cbor = _get_speaker_profile_request_to_cbor
+GetSpeakerProfileRequest.from_cbor = staticmethod(_get_speaker_profile_request_from_cbor)
+
+def _encode_put_speaker_profile_request_value(v: "PutSpeakerProfileRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["model"] = v.model
+    csil_m["prints"] = [_encode_speaker_print_value(csil_e) for csil_e in v.prints]
+    csil_x = v.sample
+    if csil_x is not None:
+        csil_m["sample"] = csil_x
+    csil_x = v.sample_type
+    if csil_x is not None:
+        csil_m["sample_type"] = csil_x
+    return csil_m
+
+def _decode_put_speaker_profile_request_value(tree: Any) -> "PutSpeakerProfileRequest":
+    tree = _csil_expect_map(tree)
+    return PutSpeakerProfileRequest(
+        model=_csil_expect_text(tree["model"]),
+        prints=[_decode_speaker_print_value(csil_e) for csil_e in _csil_expect_array(tree["prints"])],
+        sample=(None if tree.get("sample") is None else _csil_expect_bytes(tree["sample"])),
+        sample_type=(None if tree.get("sample_type") is None else _csil_expect_text(tree["sample_type"])),
+    )
+
+
+def _put_speaker_profile_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_put_speaker_profile_request_value(self))
+
+
+def _put_speaker_profile_request_from_cbor(data: bytes) -> "PutSpeakerProfileRequest":
+    return _decode_put_speaker_profile_request_value(cbor_decode(data))
+
+
+PutSpeakerProfileRequest.to_cbor = _put_speaker_profile_request_to_cbor
+PutSpeakerProfileRequest.from_cbor = staticmethod(_put_speaker_profile_request_from_cbor)
+
+def _encode_delete_speaker_profile_request_value(v: "DeleteSpeakerProfileRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.model
+    if csil_x is not None:
+        csil_m["model"] = csil_x
+    return csil_m
+
+def _decode_delete_speaker_profile_request_value(tree: Any) -> "DeleteSpeakerProfileRequest":
+    tree = _csil_expect_map(tree)
+    return DeleteSpeakerProfileRequest(
+        model=(None if tree.get("model") is None else _csil_expect_text(tree["model"])),
+    )
+
+
+def _delete_speaker_profile_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_delete_speaker_profile_request_value(self))
+
+
+def _delete_speaker_profile_request_from_cbor(data: bytes) -> "DeleteSpeakerProfileRequest":
+    return _decode_delete_speaker_profile_request_value(cbor_decode(data))
+
+
+DeleteSpeakerProfileRequest.to_cbor = _delete_speaker_profile_request_to_cbor
+DeleteSpeakerProfileRequest.from_cbor = staticmethod(_delete_speaker_profile_request_from_cbor)
+
+def _encode_delete_speaker_profile_response_value(v: "DeleteSpeakerProfileResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["deleted"] = v.deleted
+    return csil_m
+
+def _decode_delete_speaker_profile_response_value(tree: Any) -> "DeleteSpeakerProfileResponse":
+    tree = _csil_expect_map(tree)
+    return DeleteSpeakerProfileResponse(
+        deleted=_csil_expect_uint(tree["deleted"]),
+    )
+
+
+def _delete_speaker_profile_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_delete_speaker_profile_response_value(self))
+
+
+def _delete_speaker_profile_response_from_cbor(data: bytes) -> "DeleteSpeakerProfileResponse":
+    return _decode_delete_speaker_profile_response_value(cbor_decode(data))
+
+
+DeleteSpeakerProfileResponse.to_cbor = _delete_speaker_profile_response_to_cbor
+DeleteSpeakerProfileResponse.from_cbor = staticmethod(_delete_speaker_profile_response_from_cbor)
+
+def _encode_verify_speaker_request_value(v: "VerifySpeakerRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["audio"] = v.audio
+    csil_m["model"] = v.model
+    csil_x = v.extract
+    if csil_x is not None:
+        csil_m["extract"] = csil_x
+    csil_x = v.media_type
+    if csil_x is not None:
+        csil_m["media_type"] = csil_x
+    return csil_m
+
+def _decode_verify_speaker_request_value(tree: Any) -> "VerifySpeakerRequest":
+    tree = _csil_expect_map(tree)
+    return VerifySpeakerRequest(
+        audio=_csil_expect_bytes(tree["audio"]),
+        media_type=(None if tree.get("media_type") is None else _csil_expect_text(tree["media_type"])),
+        model=_csil_expect_text(tree["model"]),
+        extract=(None if tree.get("extract") is None else _csil_expect_bool(tree["extract"])),
+    )
+
+
+def _verify_speaker_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_verify_speaker_request_value(self))
+
+
+def _verify_speaker_request_from_cbor(data: bytes) -> "VerifySpeakerRequest":
+    return _decode_verify_speaker_request_value(cbor_decode(data))
+
+
+VerifySpeakerRequest.to_cbor = _verify_speaker_request_to_cbor
+VerifySpeakerRequest.from_cbor = staticmethod(_verify_speaker_request_from_cbor)
+
+def _encode_verify_speaker_response_value(v: "VerifySpeakerResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["score"] = v.score
+    csil_m["engine"] = v.engine
+    csil_m["enrolled"] = v.enrolled
+    csil_x = v.extracted
+    if csil_x is not None:
+        csil_m["extracted"] = csil_x
+    csil_m["elapsed_ms"] = v.elapsed_ms
+    csil_x = v.extracted_score
+    if csil_x is not None:
+        csil_m["extracted_score"] = csil_x
+    return csil_m
+
+def _decode_verify_speaker_response_value(tree: Any) -> "VerifySpeakerResponse":
+    tree = _csil_expect_map(tree)
+    return VerifySpeakerResponse(
+        enrolled=_csil_expect_bool(tree["enrolled"]),
+        score=_csil_expect_float(tree["score"]),
+        extracted=(None if tree.get("extracted") is None else _csil_expect_bytes(tree["extracted"])),
+        extracted_score=(None if tree.get("extracted_score") is None else _csil_expect_float(tree["extracted_score"])),
+        engine=_csil_expect_text(tree["engine"]),
+        elapsed_ms=_csil_expect_uint(tree["elapsed_ms"]),
+    )
+
+
+def _verify_speaker_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_verify_speaker_response_value(self))
+
+
+def _verify_speaker_response_from_cbor(data: bytes) -> "VerifySpeakerResponse":
+    return _decode_verify_speaker_response_value(cbor_decode(data))
+
+
+VerifySpeakerResponse.to_cbor = _verify_speaker_response_to_cbor
+VerifySpeakerResponse.from_cbor = staticmethod(_verify_speaker_response_from_cbor)

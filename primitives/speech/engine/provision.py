@@ -1,7 +1,7 @@
 """Provision a model engine host: the Python environments and the models of
-the engines stt, tts, detect, and turn (primitives/speech/README.md).
+the engines stt, tts, detect, turn, and speaker (primitives/speech/README.md).
 
-  python provision.py [--engines stt,tts,detect,turn] [--torch auto|cpu|cuda|rocm]
+  python provision.py [--engines stt,tts,detect,turn,speaker] [--torch auto|cpu|cuda|rocm]
                       [--turn-from DIR] [--train-device auto|cpu|cuda]
 
 It runs on the engine host as the person, with no root. install.sh
@@ -10,10 +10,11 @@ needs uv (install.sh gets a pinned uv when the host has none) and the
 standard library only. It can run again: it skips an environment whose lock
 did not change and a model file whose hash is correct.
 
-- Environments: ROOT/envs/{stt,tts,runtime,train} from requirements/*.txt
-  (pinned, with hashes). uv gets the Python version that each needs.
-- Models: ROOT/models/{parakeet,kokoro,injection,turn}. Each file is
-  checked against model-pins.json.
+- Environments: ROOT/envs/{stt,tts,runtime,speaker,train} from
+  requirements/*.txt (pinned, with hashes). uv gets the Python version
+  that each needs.
+- Models: ROOT/models/{parakeet,kokoro,injection,turn,speaker}. Each file
+  is checked against model-pins.json.
 - The turn classifier is Magi's own model. With --turn-from DIR it copies a
   build (DIR has model.onnx or model-int8.onnx, tokenizer.json,
   config.json). Otherwise it trains one on this host with turn/train.py
@@ -142,6 +143,32 @@ def parakeet(pins):
     return out
 
 
+def speaker_models(pins):
+    """The speaker model and the VoxLock files (voxlock/) in
+    ROOT/models/speaker."""
+    out = ROOT / "models/speaker"
+    p = pins["speaker"]
+    for name, h in p["sha256"].items():
+        fetch(p["url"] + name, out / name, h)
+    v = pins["voxlock"]
+    vox = out / "voxlock"
+    if all((vox / n).exists() and sha256(vox / n) == h for n, h in v["sha256"].items()):
+        return out
+    with tempfile.TemporaryDirectory(dir=ROOT) as tmp:
+        archive = Path(tmp) / "voxlock.tar.bz2"
+        fetch(v["url"], archive, v["archive_sha256"])
+        with tarfile.open(archive) as t:
+            for m in t.getmembers():
+                name = Path(m.name).name
+                if name in v["sha256"] and m.isfile():
+                    m.name = name
+                    t.extract(m, vox, filter="data")
+    for n, h in v["sha256"].items():
+        if sha256(vox / n) != h:
+            raise SystemExit(f"voxlock {n} does not match its pin")
+    return out
+
+
 def hf_files(pins, key, out):
     p = pins[key]
     prefix = p.get("files", "")
@@ -213,14 +240,15 @@ def train(pins, args, build):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--engines", default="stt,tts,detect,turn")
+    ap.add_argument("--engines", default="stt,tts,detect,turn,speaker")
     ap.add_argument("--torch", choices=["auto", "cpu", "cuda", "rocm"], default="auto", help="torch build of the TTS engine")
     ap.add_argument("--turn-from", help="a directory with a turn classifier build to copy")
     ap.add_argument("--train-device", choices=["auto", "cpu", "cuda"], default="auto")
     args = ap.parse_args()
     engines = set(args.engines.split(","))
-    if engines - {"stt", "tts", "detect", "turn"}:
-        raise SystemExit(f"unknown engines: {sorted(engines - {'stt', 'tts', 'detect', 'turn'})}")
+    known = {"stt", "tts", "detect", "turn", "speaker"}
+    if engines - known:
+        raise SystemExit(f"unknown engines: {sorted(engines - known)}")
     if os.uname().machine != "x86_64":
         say(f"warning: the lock files are made for x86_64, not {os.uname().machine}")
     pins = json.loads((HERE / "model-pins.json").read_text())
@@ -248,7 +276,14 @@ def main():
         paths["TURN_PY"] = runtime
         train_build = "cuda" if args.train_device == "cuda" or (args.train_device == "auto" and build == "cuda") else "cpu"
         paths["TURN_MODEL"] = turn_model(pins, args, train_build)
-    (ROOT / "engines.env").write_text("".join(f"{k}={v}\n" for k, v in paths.items()))
+    if "speaker" in engines:
+        paths["SPEAKER_PY"] = environment("speaker", "3.13", "speaker.txt")
+        paths["SPEAKER_MODEL"] = speaker_models(pins)
+    # A run for some of the engines keeps the paths of the other engines.
+    env = ROOT / "engines.env"
+    old = dict(line.split("=", 1) for line in env.read_text().splitlines() if "=" in line) if env.exists() else {}
+    paths = {**old, **{k: str(v) for k, v in paths.items()}}
+    env.write_text("".join(f"{k}={v}\n" for k, v in paths.items()))
     say("ready:", ", ".join(sorted(engines)), f"(torch build {build}); paths in {ROOT}/engines.env")
 
 

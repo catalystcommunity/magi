@@ -159,3 +159,55 @@ func (c *SpeechClient) ClassifyTurn(ctx context.Context, req ClassifyTurnRequest
 	}
 	return DecodeClassifyTurnResponse(csilResp)
 }
+
+func (c *SpeechClient) GetSpeakerProfile(ctx context.Context, req GetSpeakerProfileRequest) (SpeakerProfile, error) {
+	var csilZero SpeakerProfile
+	csilReq, csilErr := EncodeGetSpeakerProfileRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "get-speaker-profile", csilReq)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeSpeakerProfile(csilResp)
+}
+
+func (c *SpeechClient) PutSpeakerProfile(ctx context.Context, req PutSpeakerProfileRequest) (SpeakerProfile, error) {
+	var csilZero SpeakerProfile
+	csilReq, csilErr := EncodePutSpeakerProfileRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "put-speaker-profile", csilReq)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeSpeakerProfile(csilResp)
+}
+
+func (c *SpeechClient) DeleteSpeakerProfile(ctx context.Context, req DeleteSpeakerProfileRequest) (DeleteSpeakerProfileResponse, error) {
+	var csilZero DeleteSpeakerProfileResponse
+	csilReq, csilErr := EncodeDeleteSpeakerProfileRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "delete-speaker-profile", csilReq)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeDeleteSpeakerProfileResponse(csilResp)
+}
+
+func (c *SpeechClient) VerifySpeaker(ctx context.Context, req VerifySpeakerRequest) (VerifySpeakerResponse, error) {
+	var csilZero VerifySpeakerResponse
+	csilReq, csilErr := EncodeVerifySpeakerRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "SpeechService", "verify-speaker", csilReq)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeVerifySpeakerResponse(csilResp)
+}

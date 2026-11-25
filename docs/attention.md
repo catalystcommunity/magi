@@ -21,6 +21,8 @@ speaker. Each client:
    - `active`: the person uses the client now (it is in the foreground, or
      hands-free talk is on).
    - `hands_free`: the microphone stays on.
+   - `health` (optional): a report of the device about itself (section
+     7.1).
 3. Waits for notices with `wait-notices` (a long poll of up to 25 s). The
    client connects out. Magi never connects to a device.
 
@@ -236,6 +238,13 @@ Magi does not take a spoken message that repeats the words of a spoken
 reply of the last 90 seconds, with or without the wake word (`echo` in
 `magi/compose/conversation.go`).
 
+A device with a voice print of its person (`docs/speech-interaction.md`,
+section 3.2) sends its check with a spoken turn (`speaker` in `say`). The
+device does not send a turn that it rejected. For a turn that the device
+was not sure about, Magi checks the audio again with the voice profile of
+the person. When that check fails, Magi keeps nothing of the turn, as for
+a turn with no name. Code decides this with a fixed limit.
+
 The Android app listens from its start when the option is on. The person
 does not touch the microphone button. The option off stops the
 microphone.
@@ -268,6 +277,36 @@ A client app tells its version with `put-device` (`app_version`,
   build the release, with the task as its source. An operator can also
   make a release (`magi app-release CODE NAME APK TASK`).
 
+### 7.1 The health of a device
+
+A device can report about itself with each `put-device` (`health`):
+
+| Field | Meaning |
+| --- | --- |
+| `battery` | The charge in percent |
+| `charging` | The device charges now |
+| `window_s` | The seconds that the counters below are for (the time since the report before) |
+| `listen_s` | The microphone of hands-free talk was on |
+| `sound_s` | The sound gate was open, so the models of the device ran |
+| `wakes` | Wake names that the device heard from the person |
+| `turns` | Spoken turns that the device sent |
+| `dropped` | Turns that the voice print rejected |
+
+- The conversation service keeps the last report on the device and each
+  report for 14 days (`list-device-reports`). Only the person, or a
+  service that acts for the person, reads them.
+- Code computes the battery use from the reports of the last 24 hours
+  (`magi/compose/devicehealth.go`): the fall of the battery in percent for
+  each hour while the device did not charge, for the time with the
+  microphone on and for the time with it off. It counts the time between
+  two reports only when they are 5 minutes or less apart, the device did
+  not charge, and the battery did not go up. It gives a rate only from 2
+  hours of such time or more.
+- The tool `list_devices` of a persona shows the battery, the two rates,
+  and the counters of hands-free talk. No model reads the reports.
+- The reports stay in the installation. They do not go to a model
+  provider outside it.
+
 ## 8. Status
 
 Done: devices and notices in the conversation service and the Magi API,
@@ -277,4 +316,4 @@ notifications), the Android client (system notifications from a
 foreground service, notices said after a tone while the app is open), and
 calling a persona by name, with an optional wake word. While hands-free talk is on, the Android
 notice service also has the foreground type `microphone`, so the
-microphone works with the screen off. Not done: a wake word on the device (today the server decides after STT, so the audio of each turn goes to Magi and Magi drops it).
+microphone works with the screen off. Also done in Magi: the voice profile of a person, the check of a spoken turn that a device was not sure about, and the health reports of a device (section 7.1). Not done: a wake word on the device (today the server decides after STT, so the audio of each turn goes to Magi and Magi drops it), and the voice print in the clients.

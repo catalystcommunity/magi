@@ -171,7 +171,28 @@ Device = {
   ? app_version: text,
   ? app_build: uint,
   ? update_error: text,
+  ? health: DeviceHealth,
 }
+
+;;; What a device reports about itself. battery is the charge in percent
+;;; (0 to 100). The counters are for the last window_s seconds (the time
+;;; since the report before): listen_s the microphone was on, sound_s the
+;;; sound gate was open (the models of the device ran), wakes the wake
+;;; names that the device heard from the person, turns the spoken turns
+;;; that it sent, dropped the turns that the voice print rejected. A
+;;; device has its last report (health); the service keeps each report for
+;;; 14 days (list-device-reports).
+DeviceHealth = {
+  ? battery: uint,
+  ? charging: bool,
+  ? window_s: uint,
+  ? listen_s: uint,
+  ? sound_s: uint,
+  ? wakes: uint,
+  ? turns: uint,
+  ? dropped: uint,
+}
+DeviceReport = { at_ms: uint, health: DeviceHealth }
 
 ;;; A notice tells the person about an utterance of a persona (the text
 ;;; is in the utterance). urgency is "low" (show it), "normal" (say it at
@@ -362,7 +383,13 @@ PutDeviceRequest = {
   ? app_version: text,
   ? app_build: uint,
   ? update_error: text,
+  ? health: DeviceHealth,
 }
+;;; The reports of a device of the caller (or of person, which needs
+;;; act-as) with at_ms of since_ms or later, oldest first. limit is at
+;;; most 5000 (the default).
+ListDeviceReportsRequest = { device: text, ? since_ms: uint, ? limit: uint, ? person: text }
+ListDeviceReportsResponse = { reports: [* DeviceReport] }
 ;;; Devices of the caller, or of person (needs act-as), newest first. all:
 ;;; the devices of all people (needs the admin scope).
 ListDevicesRequest = { ? person: text, ? all: bool }
@@ -424,6 +451,7 @@ service ConversationService {
   put-device: PutDeviceRequest -> Device,
   list-devices: ListDevicesRequest -> ListDevicesResponse,
   remove-device: RemoveDeviceRequest -> Device,
+  list-device-reports: ListDeviceReportsRequest -> ListDeviceReportsResponse,
   notify: NotifyRequest -> Notice,
   wait-notices: WaitNoticesRequest -> WaitNoticesResponse,
   deliver-notice: DeliverNoticeRequest -> Notice,

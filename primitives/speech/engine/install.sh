@@ -33,6 +33,14 @@
 # turn/). It needs onnxruntime, tokenizers, and numpy: MAGI_SPEECH_TURN_PYTHON,
 # by default the detect environment.
 #
+# Voice prints and the extraction of one voice (engine "speaker", port
+# MAGI_SPEECH_SPEAKER_PORT, default 8096, threads MAGI_SPEECH_SPEAKER_THREADS,
+# default 4) are installed when their environment and model directory are on
+# the host: MAGI_SPEECH_SPEAKER_PYTHON and MAGI_SPEECH_SPEAKER_MODEL, by
+# default the paths of the last provision. The engine uses about 250 MB of
+# memory, and about 280 MB more for each of the last two people that it
+# extracted a voice for.
+#
 # Files go to ~/magi-speech on the host. The token is ~/magi-speech/token
 # (mode 600). It is made once and never printed. With user lingering enabled,
 # systemd --user units run the engines. Otherwise a nohup supervisor loop runs
@@ -86,6 +94,8 @@ ssh "$host" \
   DETECT_PORT=$(q "${MAGI_SPEECH_DETECT_PORT:-8094}") DETECT_THREADS=$(q "${MAGI_SPEECH_DETECT_THREADS:-2}") \
   TURN_PY=$(q "${MAGI_SPEECH_TURN_PYTHON:-}") TURN_MODEL=$(q "${MAGI_SPEECH_TURN_MODEL:-}") \
   TURN_PORT=$(q "${MAGI_SPEECH_TURN_PORT:-8095}") TURN_THREADS=$(q "${MAGI_SPEECH_TURN_THREADS:-2}") \
+  SPEAKER_PY=$(q "${MAGI_SPEECH_SPEAKER_PYTHON:-}") SPEAKER_MODEL=$(q "${MAGI_SPEECH_SPEAKER_MODEL:-}") \
+  SPEAKER_PORT=$(q "${MAGI_SPEECH_SPEAKER_PORT:-8096}") SPEAKER_THREADS=$(q "${MAGI_SPEECH_SPEAKER_THREADS:-4}") \
   PROVISIONED=$provision bash -s <<'REMOTE'
 set -euo pipefail
 cd ~/magi-speech
@@ -110,6 +120,7 @@ TTS_DEVICE=${TTS_DEVICE:-$(last tts DEVICE)}; TTS_DEVICE=${TTS_DEVICE:-auto}
 TTS_ENV=${TTS_ENV:-$(last tts ENGINE_ENV)}
 DETECT_PY=${DETECT_PY:-$(last detect PYTHON)}; DETECT_MODEL=${DETECT_MODEL:-$(last detect MODEL_DIR)}
 TURN_PY=${TURN_PY:-$(last turn PYTHON)}; TURN_MODEL=${TURN_MODEL:-$(last turn MODEL_DIR)}
+SPEAKER_PY=${SPEAKER_PY:-$(last speaker PYTHON)}; SPEAKER_MODEL=${SPEAKER_MODEL:-$(last speaker MODEL_DIR)}
 from_provision
 STT_PY=${STT_PY:-$(first ~/.local/share/magi/speech/installs/*/stt/venv/bin/python)}
 STT_MODEL=${STT_MODEL:-$(first ~/.local/share/magi/speech/installs/*/stt/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8)}
@@ -122,6 +133,7 @@ TURN_MODEL=${TURN_MODEL:-$HOME/.local/share/magi/speech/installs/turn/models}
 engines="stt tts"
 [ -x "$DETECT_PY" ] && [ -d "$DETECT_MODEL" ] && engines="$engines detect"
 [ -x "$TURN_PY" ] && [ -d "$TURN_MODEL" ] && engines="$engines turn"
+[ -n "$SPEAKER_PY" ] && [ -x "$SPEAKER_PY" ] && [ -d "$SPEAKER_MODEL" ] && engines="$engines speaker"
 command -v ffmpeg >/dev/null || { echo "ffmpeg is required on the host" >&2; exit 1; }
 
 if [ ! -s token ]; then
@@ -159,9 +171,16 @@ MODEL_DIR=$TURN_MODEL
 PORT=$TURN_PORT
 THREADS=$TURN_THREADS
 EOF
+cat > speaker.env <<EOF
+ENGINE=speaker
+PYTHON=$SPEAKER_PY
+MODEL_DIR=$SPEAKER_MODEL
+PORT=$SPEAKER_PORT
+THREADS=$SPEAKER_THREADS
+EOF
 
 stop_nohup() {
-  for e in stt tts detect turn; do
+  for e in stt tts detect turn speaker; do
     if [ -s "$e.pid" ]; then kill -- "-$(cat "$e.pid")" 2>/dev/null || true; rm -f "$e.pid"; fi
   done
   sleep 1

@@ -38,6 +38,7 @@ type ConversationService interface {
 	PutDevice(ctx context.Context, req PutDeviceRequest) (Device, error)
 	ListDevices(ctx context.Context, req ListDevicesRequest) (ListDevicesResponse, error)
 	RemoveDevice(ctx context.Context, req RemoveDeviceRequest) (Device, error)
+	ListDeviceReports(ctx context.Context, req ListDeviceReportsRequest) (ListDeviceReportsResponse, error)
 	Notify(ctx context.Context, req NotifyRequest) (Notice, error)
 	WaitNotices(ctx context.Context, req WaitNoticesRequest) (WaitNoticesResponse, error)
 	DeliverNotice(ctx context.Context, req DeliverNoticeRequest) (Notice, error)

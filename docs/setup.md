@@ -88,7 +88,8 @@ details.
    classifier, and starts the engines (`primitives/speech/README.md`,
    "Deploy the engines"). Put the engine token in the Secret
    `magi-speech-engine`, and set `SPEECH_STT_URL`, `SPEECH_TTS_URL`,
-   `SPEECH_TURN_URL`, and `DETECTOR_URL` (ports 8092, 8093, 8095, 8094).
+   `SPEECH_TURN_URL`, `DETECTOR_URL`, and `SPEECH_SPEAKER_URL` (ports 8092,
+   8093, 8095, 8094, 8096).
 8. **Local model host** (optional). Make the host with `magi-host-setup`
    (`docs/host-setup.md`) or write the inference configuration by hand
    (`primitives/inference/README.md`). Run it as a user service. Mint a

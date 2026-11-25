@@ -709,6 +709,9 @@ def _encode_say_request_value(v: "SayRequest") -> Dict[Any, Any]:
     csil_x = v.persona
     if csil_x is not None:
         csil_m["persona"] = csil_x
+    csil_x = v.speaker
+    if csil_x is not None:
+        csil_m["speaker"] = _encode_speaker_check_value(csil_x)
     csil_x = v.wake_word
     if csil_x is not None:
         csil_m["wake_word"] = csil_x
@@ -731,6 +734,7 @@ def _decode_say_request_value(tree: Any) -> "SayRequest":
         voice=(None if tree.get("voice") is None else _csil_expect_text(tree["voice"])),
         wake_word=(None if tree.get("wake_word") is None else _csil_expect_bool(tree["wake_word"])),
         model=(None if tree.get("model") is None else _decode_model_selector_value(tree["model"])),
+        speaker=(None if tree.get("speaker") is None else _decode_speaker_check_value(tree["speaker"])),
     )
 
 
@@ -744,6 +748,199 @@ def _say_request_from_cbor(data: bytes) -> "SayRequest":
 
 SayRequest.to_cbor = _say_request_to_cbor
 SayRequest.from_cbor = staticmethod(_say_request_from_cbor)
+
+def _encode_speaker_check_value(v: "SpeakerCheck") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.wake
+    if csil_x is not None:
+        csil_m["wake"] = csil_x
+    csil_m["model"] = v.model
+    csil_m["score"] = v.score
+    csil_m["state"] = v.state
+    return csil_m
+
+def _decode_speaker_check_value(tree: Any) -> "SpeakerCheck":
+    tree = _csil_expect_map(tree)
+    return SpeakerCheck(
+        state=_csil_expect_text(tree["state"]),
+        score=_csil_expect_float(tree["score"]),
+        model=_csil_expect_text(tree["model"]),
+        wake=(None if tree.get("wake") is None else _csil_expect_text(tree["wake"])),
+    )
+
+
+def _speaker_check_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_speaker_check_value(self))
+
+
+def _speaker_check_from_cbor(data: bytes) -> "SpeakerCheck":
+    return _decode_speaker_check_value(cbor_decode(data))
+
+
+SpeakerCheck.to_cbor = _speaker_check_to_cbor
+SpeakerCheck.from_cbor = staticmethod(_speaker_check_from_cbor)
+
+def _encode_voice_print_value(v: "VoicePrint") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.source
+    if csil_x is not None:
+        csil_m["source"] = csil_x
+    csil_m["vector"] = v.vector
+    csil_m["created_ms"] = v.created_ms
+    return csil_m
+
+def _decode_voice_print_value(tree: Any) -> "VoicePrint":
+    tree = _csil_expect_map(tree)
+    return VoicePrint(
+        vector=_csil_expect_bytes(tree["vector"]),
+        source=(None if tree.get("source") is None else _csil_expect_text(tree["source"])),
+        created_ms=_csil_expect_uint(tree["created_ms"]),
+    )
+
+
+def _voice_print_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_voice_print_value(self))
+
+
+def _voice_print_from_cbor(data: bytes) -> "VoicePrint":
+    return _decode_voice_print_value(cbor_decode(data))
+
+
+VoicePrint.to_cbor = _voice_print_to_cbor
+VoicePrint.from_cbor = staticmethod(_voice_print_from_cbor)
+
+def _encode_voice_profile_value(v: "VoiceProfile") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["model"] = v.model
+    csil_m["prints"] = [_encode_voice_print_value(csil_e) for csil_e in v.prints]
+    csil_m["has_sample"] = v.has_sample
+    csil_m["updated_ms"] = v.updated_ms
+    return csil_m
+
+def _decode_voice_profile_value(tree: Any) -> "VoiceProfile":
+    tree = _csil_expect_map(tree)
+    return VoiceProfile(
+        model=_csil_expect_text(tree["model"]),
+        prints=[_decode_voice_print_value(csil_e) for csil_e in _csil_expect_array(tree["prints"])],
+        has_sample=_csil_expect_bool(tree["has_sample"]),
+        updated_ms=_csil_expect_uint(tree["updated_ms"]),
+    )
+
+
+def _voice_profile_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_voice_profile_value(self))
+
+
+def _voice_profile_from_cbor(data: bytes) -> "VoiceProfile":
+    return _decode_voice_profile_value(cbor_decode(data))
+
+
+VoiceProfile.to_cbor = _voice_profile_to_cbor
+VoiceProfile.from_cbor = staticmethod(_voice_profile_from_cbor)
+
+def _encode_get_voice_profile_request_value(v: "GetVoiceProfileRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["model"] = v.model
+    return csil_m
+
+def _decode_get_voice_profile_request_value(tree: Any) -> "GetVoiceProfileRequest":
+    tree = _csil_expect_map(tree)
+    return GetVoiceProfileRequest(
+        model=_csil_expect_text(tree["model"]),
+    )
+
+
+def _get_voice_profile_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_get_voice_profile_request_value(self))
+
+
+def _get_voice_profile_request_from_cbor(data: bytes) -> "GetVoiceProfileRequest":
+    return _decode_get_voice_profile_request_value(cbor_decode(data))
+
+
+GetVoiceProfileRequest.to_cbor = _get_voice_profile_request_to_cbor
+GetVoiceProfileRequest.from_cbor = staticmethod(_get_voice_profile_request_from_cbor)
+
+def _encode_put_voice_profile_request_value(v: "PutVoiceProfileRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["model"] = v.model
+    csil_m["prints"] = [_encode_voice_print_value(csil_e) for csil_e in v.prints]
+    csil_x = v.sample
+    if csil_x is not None:
+        csil_m["sample"] = csil_x
+    csil_x = v.sample_type
+    if csil_x is not None:
+        csil_m["sample_type"] = csil_x
+    return csil_m
+
+def _decode_put_voice_profile_request_value(tree: Any) -> "PutVoiceProfileRequest":
+    tree = _csil_expect_map(tree)
+    return PutVoiceProfileRequest(
+        model=_csil_expect_text(tree["model"]),
+        prints=[_decode_voice_print_value(csil_e) for csil_e in _csil_expect_array(tree["prints"])],
+        sample=(None if tree.get("sample") is None else _csil_expect_bytes(tree["sample"])),
+        sample_type=(None if tree.get("sample_type") is None else _csil_expect_text(tree["sample_type"])),
+    )
+
+
+def _put_voice_profile_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_put_voice_profile_request_value(self))
+
+
+def _put_voice_profile_request_from_cbor(data: bytes) -> "PutVoiceProfileRequest":
+    return _decode_put_voice_profile_request_value(cbor_decode(data))
+
+
+PutVoiceProfileRequest.to_cbor = _put_voice_profile_request_to_cbor
+PutVoiceProfileRequest.from_cbor = staticmethod(_put_voice_profile_request_from_cbor)
+
+def _encode_delete_voice_profile_request_value(v: "DeleteVoiceProfileRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.model
+    if csil_x is not None:
+        csil_m["model"] = csil_x
+    return csil_m
+
+def _decode_delete_voice_profile_request_value(tree: Any) -> "DeleteVoiceProfileRequest":
+    tree = _csil_expect_map(tree)
+    return DeleteVoiceProfileRequest(
+        model=(None if tree.get("model") is None else _csil_expect_text(tree["model"])),
+    )
+
+
+def _delete_voice_profile_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_delete_voice_profile_request_value(self))
+
+
+def _delete_voice_profile_request_from_cbor(data: bytes) -> "DeleteVoiceProfileRequest":
+    return _decode_delete_voice_profile_request_value(cbor_decode(data))
+
+
+DeleteVoiceProfileRequest.to_cbor = _delete_voice_profile_request_to_cbor
+DeleteVoiceProfileRequest.from_cbor = staticmethod(_delete_voice_profile_request_from_cbor)
+
+def _encode_delete_voice_profile_response_value(v: "DeleteVoiceProfileResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["deleted"] = v.deleted
+    return csil_m
+
+def _decode_delete_voice_profile_response_value(tree: Any) -> "DeleteVoiceProfileResponse":
+    tree = _csil_expect_map(tree)
+    return DeleteVoiceProfileResponse(
+        deleted=_csil_expect_uint(tree["deleted"]),
+    )
+
+
+def _delete_voice_profile_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_delete_voice_profile_response_value(self))
+
+
+def _delete_voice_profile_response_from_cbor(data: bytes) -> "DeleteVoiceProfileResponse":
+    return _decode_delete_voice_profile_response_value(cbor_decode(data))
+
+
+DeleteVoiceProfileResponse.to_cbor = _delete_voice_profile_response_to_cbor
+DeleteVoiceProfileResponse.from_cbor = staticmethod(_delete_voice_profile_response_from_cbor)
 
 def _encode_model_selector_value(v: "ModelSelector") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
@@ -1667,6 +1864,9 @@ def _encode_device_value(v: "Device") -> Dict[Any, Any]:
     csil_m["kind"] = v.kind
     csil_m["name"] = v.name
     csil_m["active"] = v.active
+    csil_x = v.health
+    if csil_x is not None:
+        csil_m["health"] = _encode_device_health_value(csil_x)
     csil_m["seen_ms"] = v.seen_ms
     csil_x = v.app_build
     if csil_x is not None:
@@ -1693,6 +1893,7 @@ def _decode_device_value(tree: Any) -> "Device":
         app_version=(None if tree.get("app_version") is None else _csil_expect_text(tree["app_version"])),
         app_build=(None if tree.get("app_build") is None else _csil_expect_uint(tree["app_build"])),
         update_error=(None if tree.get("update_error") is None else _csil_expect_text(tree["update_error"])),
+        health=(None if tree.get("health") is None else _decode_device_health_value(tree["health"])),
     )
 
 
@@ -1707,6 +1908,59 @@ def _device_from_cbor(data: bytes) -> "Device":
 Device.to_cbor = _device_to_cbor
 Device.from_cbor = staticmethod(_device_from_cbor)
 
+def _encode_device_health_value(v: "DeviceHealth") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.turns
+    if csil_x is not None:
+        csil_m["turns"] = csil_x
+    csil_x = v.wakes
+    if csil_x is not None:
+        csil_m["wakes"] = csil_x
+    csil_x = v.battery
+    if csil_x is not None:
+        csil_m["battery"] = csil_x
+    csil_x = v.dropped
+    if csil_x is not None:
+        csil_m["dropped"] = csil_x
+    csil_x = v.sound_s
+    if csil_x is not None:
+        csil_m["sound_s"] = csil_x
+    csil_x = v.charging
+    if csil_x is not None:
+        csil_m["charging"] = csil_x
+    csil_x = v.listen_s
+    if csil_x is not None:
+        csil_m["listen_s"] = csil_x
+    csil_x = v.window_s
+    if csil_x is not None:
+        csil_m["window_s"] = csil_x
+    return csil_m
+
+def _decode_device_health_value(tree: Any) -> "DeviceHealth":
+    tree = _csil_expect_map(tree)
+    return DeviceHealth(
+        battery=(None if tree.get("battery") is None else _csil_expect_uint(tree["battery"])),
+        charging=(None if tree.get("charging") is None else _csil_expect_bool(tree["charging"])),
+        window_s=(None if tree.get("window_s") is None else _csil_expect_uint(tree["window_s"])),
+        listen_s=(None if tree.get("listen_s") is None else _csil_expect_uint(tree["listen_s"])),
+        sound_s=(None if tree.get("sound_s") is None else _csil_expect_uint(tree["sound_s"])),
+        wakes=(None if tree.get("wakes") is None else _csil_expect_uint(tree["wakes"])),
+        turns=(None if tree.get("turns") is None else _csil_expect_uint(tree["turns"])),
+        dropped=(None if tree.get("dropped") is None else _csil_expect_uint(tree["dropped"])),
+    )
+
+
+def _device_health_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_device_health_value(self))
+
+
+def _device_health_from_cbor(data: bytes) -> "DeviceHealth":
+    return _decode_device_health_value(cbor_decode(data))
+
+
+DeviceHealth.to_cbor = _device_health_to_cbor
+DeviceHealth.from_cbor = staticmethod(_device_health_from_cbor)
+
 def _encode_put_device_request_value(v: "PutDeviceRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["id"] = v.id
@@ -1718,6 +1972,9 @@ def _encode_put_device_request_value(v: "PutDeviceRequest") -> Dict[Any, Any]:
     csil_x = v.active
     if csil_x is not None:
         csil_m["active"] = csil_x
+    csil_x = v.health
+    if csil_x is not None:
+        csil_m["health"] = _encode_device_health_value(csil_x)
     csil_x = v.app_build
     if csil_x is not None:
         csil_m["app_build"] = csil_x
@@ -1744,6 +2001,7 @@ def _decode_put_device_request_value(tree: Any) -> "PutDeviceRequest":
         app_version=(None if tree.get("app_version") is None else _csil_expect_text(tree["app_version"])),
         app_build=(None if tree.get("app_build") is None else _csil_expect_uint(tree["app_build"])),
         update_error=(None if tree.get("update_error") is None else _csil_expect_text(tree["update_error"])),
+        health=(None if tree.get("health") is None else _decode_device_health_value(tree["health"])),
     )
 
 

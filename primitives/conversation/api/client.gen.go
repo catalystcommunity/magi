@@ -420,6 +420,19 @@ func (c *ConversationClient) RemoveDevice(ctx context.Context, req RemoveDeviceR
 	return DecodeDevice(csilResp)
 }
 
+func (c *ConversationClient) ListDeviceReports(ctx context.Context, req ListDeviceReportsRequest) (ListDeviceReportsResponse, error) {
+	var csilZero ListDeviceReportsResponse
+	csilReq, csilErr := EncodeListDeviceReportsRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ConversationService", "list-device-reports", csilReq)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListDeviceReportsResponse(csilResp)
+}
+
 func (c *ConversationClient) Notify(ctx context.Context, req NotifyRequest) (Notice, error) {
 	var csilZero Notice
 	csilReq, csilErr := EncodeNotifyRequest(req)

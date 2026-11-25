@@ -46,6 +46,26 @@
       "tokenizer.json": "752fe5f0d5678ad563e1bd2ecc1ddf7a3ba7e2024d0ac1dba1a72975e26dff2f"
     }
   },
+  "speaker": {
+    "name": "3dspeaker-eres2net-en-voxceleb-16k",
+    "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/",
+    "source": "modelscope/3D-Speaker speech_eres2net_sv_en_voxceleb_16k, converted by k2-fsa/sherpa-onnx",
+    "license": "Apache-2.0",
+    "sha256": {
+      "3dspeaker_speech_eres2net_sv_en_voxceleb_16k.onnx": "c4947caf150b8502fdd75bbe4089b971ab1ec42e90ee3ba547faca2cde44d9ee"
+    }
+  },
+  "voxlock": {
+    "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/speech-enhancement-models/sherpa-onnx-voxlock-int8.tar.bz2",
+    "archive_sha256": "bcb947f9e8676d3e963f6048b0088505c84f0843bfdc88cb26dde3264d81570b",
+    "source": "arbazsiddiqui/voxlock (sherpa-onnx-models), packed by k2-fsa/sherpa-onnx",
+    "license": "Apache-2.0",
+    "files": "voxlock/",
+    "sha256": {
+      "enroll.onnx": "5d06048c156bb8cd422d29848e6d38fb26a7b39f6f7fd92eccf2a6ed1ce003c6",
+      "chunk_int8.onnx": "df61a9d0062b0adbcf1182302b1eb8b815f15ac47ea4923e8e164c1aff64121d"
+    }
+  },
   "silero-vad": {
     "repo": "snakers4/silero-vad",
     "revision": "v5.1.2",

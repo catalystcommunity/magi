@@ -172,6 +172,18 @@ ALTER TABLE devices ADD COLUMN IF NOT EXISTS app_version text NOT NULL DEFAULT '
 ALTER TABLE devices ADD COLUMN IF NOT EXISTS app_build bigint NOT NULL DEFAULT 0;
 ALTER TABLE devices ADD COLUMN IF NOT EXISTS update_error text NOT NULL DEFAULT '';
 
+-- What a device reports about itself (DeviceHealth as JSON: the battery,
+-- and the counters of hands-free talk): the last report on the device,
+-- and each report for 14 days.
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS health jsonb;
+CREATE TABLE IF NOT EXISTS device_reports (
+  person text   NOT NULL,
+  device text   NOT NULL,
+  at_ms  bigint NOT NULL,
+  health jsonb  NOT NULL,
+  PRIMARY KEY (person, device, at_ms)
+);
+
 CREATE TABLE IF NOT EXISTS notices (
   id         text   PRIMARY KEY,
   person     text   NOT NULL,

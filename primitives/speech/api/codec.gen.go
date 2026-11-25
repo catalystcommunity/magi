@@ -2080,3 +2080,529 @@ func DecodeClassifyTurnResponse(csilData []byte) (ClassifyTurnResponse, error) {
 	}
 	return csilDecClassifyTurnResponse(csilRoot)
 }
+
+// csilEncSpeakerPrint builds the canonical CBOR value tree for a SpeakerPrint.
+func csilEncSpeakerPrint(csilV SpeakerPrint, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	csilEntries := make(cborMap, 0, 3)
+	if csilV.Source != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("source"), cborText((*csilV.Source))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("vector"), cborBytes(csilV.Vector)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_ms"), cborUint(csilV.CreatedMs)})
+	return csilEntries, nil
+}
+
+// csilDecSpeakerPrint reconstructs a SpeakerPrint from a decoded CBOR value tree.
+func csilDecSpeakerPrint(csilRoot cborValue) (SpeakerPrint, error) {
+	var csilOut SpeakerPrint
+	{
+		csilField, csilErr := cborRequire(csilRoot, "vector")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsBytes)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Vector = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "source"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Source = &csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "created_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.CreatedMs = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeSpeakerPrint encodes a SpeakerPrint to canonical CSIL CBOR bytes.
+func EncodeSpeakerPrint(csilV SpeakerPrint) ([]byte, error) {
+	return cborEncodeE(csilEncSpeakerPrint(csilV, 0))
+}
+
+// DecodeSpeakerPrint decodes canonical CSIL CBOR bytes into a SpeakerPrint.
+func DecodeSpeakerPrint(csilData []byte) (SpeakerPrint, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero SpeakerPrint
+		return csilZero, csilErr
+	}
+	return csilDecSpeakerPrint(csilRoot)
+}
+
+// csilEncSpeakerProfile builds the canonical CBOR value tree for a SpeakerProfile.
+func csilEncSpeakerProfile(csilV SpeakerProfile, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
+	csilEntries := make(cborMap, 0, 5)
+	csilEntries = append(csilEntries, cborEntry{cborText("model"), cborText(csilV.Model)})
+	csilEntries = append(csilEntries, cborEntry{cborText("owner"), cborText(csilV.Owner)})
+	csilEntries = append(csilEntries, cborEntry{cborText("prints"), csilE.val(cborEncArray(csilV.Prints, func(csilElem SpeakerPrint) (cborValue, error) { return csilEncSpeakerPrint(csilElem, csilDepth+1) }))})
+	csilEntries = append(csilEntries, cborEntry{cborText("has_sample"), cborBool(csilV.HasSample)})
+	csilEntries = append(csilEntries, cborEntry{cborText("updated_ms"), cborUint(csilV.UpdatedMs)})
+	return csilE.result(csilEntries)
+}
+
+// csilDecSpeakerProfile reconstructs a SpeakerProfile from a decoded CBOR value tree.
+func csilDecSpeakerProfile(csilRoot cborValue) (SpeakerProfile, error) {
+	var csilOut SpeakerProfile
+	{
+		csilField, csilErr := cborRequire(csilRoot, "owner")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Owner = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "model")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Model = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "prints")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]SpeakerPrint, error) { return cborDecArray(csilV, csilDecSpeakerPrint) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Prints = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "has_sample")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.HasSample = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "updated_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.UpdatedMs = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeSpeakerProfile encodes a SpeakerProfile to canonical CSIL CBOR bytes.
+func EncodeSpeakerProfile(csilV SpeakerProfile) ([]byte, error) {
+	return cborEncodeE(csilEncSpeakerProfile(csilV, 0))
+}
+
+// DecodeSpeakerProfile decodes canonical CSIL CBOR bytes into a SpeakerProfile.
+func DecodeSpeakerProfile(csilData []byte) (SpeakerProfile, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero SpeakerProfile
+		return csilZero, csilErr
+	}
+	return csilDecSpeakerProfile(csilRoot)
+}
+
+// csilEncGetSpeakerProfileRequest builds the canonical CBOR value tree for a GetSpeakerProfileRequest.
+func csilEncGetSpeakerProfileRequest(csilV GetSpeakerProfileRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("model"), cborText(csilV.Model)})
+	return csilEntries, nil
+}
+
+// csilDecGetSpeakerProfileRequest reconstructs a GetSpeakerProfileRequest from a decoded CBOR value tree.
+func csilDecGetSpeakerProfileRequest(csilRoot cborValue) (GetSpeakerProfileRequest, error) {
+	var csilOut GetSpeakerProfileRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "model")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Model = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeGetSpeakerProfileRequest encodes a GetSpeakerProfileRequest to canonical CSIL CBOR bytes.
+func EncodeGetSpeakerProfileRequest(csilV GetSpeakerProfileRequest) ([]byte, error) {
+	return cborEncodeE(csilEncGetSpeakerProfileRequest(csilV, 0))
+}
+
+// DecodeGetSpeakerProfileRequest decodes canonical CSIL CBOR bytes into a GetSpeakerProfileRequest.
+func DecodeGetSpeakerProfileRequest(csilData []byte) (GetSpeakerProfileRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero GetSpeakerProfileRequest
+		return csilZero, csilErr
+	}
+	return csilDecGetSpeakerProfileRequest(csilRoot)
+}
+
+// csilEncPutSpeakerProfileRequest builds the canonical CBOR value tree for a PutSpeakerProfileRequest.
+func csilEncPutSpeakerProfileRequest(csilV PutSpeakerProfileRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
+	csilEntries := make(cborMap, 0, 4)
+	csilEntries = append(csilEntries, cborEntry{cborText("model"), cborText(csilV.Model)})
+	csilEntries = append(csilEntries, cborEntry{cborText("prints"), csilE.val(cborEncArray(csilV.Prints, func(csilElem SpeakerPrint) (cborValue, error) { return csilEncSpeakerPrint(csilElem, csilDepth+1) }))})
+	if csilV.Sample != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("sample"), cborBytes((*csilV.Sample))})
+	}
+	if csilV.SampleType != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("sample_type"), cborText((*csilV.SampleType))})
+	}
+	return csilE.result(csilEntries)
+}
+
+// csilDecPutSpeakerProfileRequest reconstructs a PutSpeakerProfileRequest from a decoded CBOR value tree.
+func csilDecPutSpeakerProfileRequest(csilRoot cborValue) (PutSpeakerProfileRequest, error) {
+	var csilOut PutSpeakerProfileRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "model")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Model = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "prints")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]SpeakerPrint, error) { return cborDecArray(csilV, csilDecSpeakerPrint) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Prints = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "sample"); csilOk {
+		csilVal, csilErr := (cborAsBytes)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Sample = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "sample_type"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.SampleType = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodePutSpeakerProfileRequest encodes a PutSpeakerProfileRequest to canonical CSIL CBOR bytes.
+func EncodePutSpeakerProfileRequest(csilV PutSpeakerProfileRequest) ([]byte, error) {
+	return cborEncodeE(csilEncPutSpeakerProfileRequest(csilV, 0))
+}
+
+// DecodePutSpeakerProfileRequest decodes canonical CSIL CBOR bytes into a PutSpeakerProfileRequest.
+func DecodePutSpeakerProfileRequest(csilData []byte) (PutSpeakerProfileRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero PutSpeakerProfileRequest
+		return csilZero, csilErr
+	}
+	return csilDecPutSpeakerProfileRequest(csilRoot)
+}
+
+// csilEncDeleteSpeakerProfileRequest builds the canonical CBOR value tree for a DeleteSpeakerProfileRequest.
+func csilEncDeleteSpeakerProfileRequest(csilV DeleteSpeakerProfileRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	csilEntries := make(cborMap, 0, 1)
+	if csilV.Model != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("model"), cborText((*csilV.Model))})
+	}
+	return csilEntries, nil
+}
+
+// csilDecDeleteSpeakerProfileRequest reconstructs a DeleteSpeakerProfileRequest from a decoded CBOR value tree.
+func csilDecDeleteSpeakerProfileRequest(csilRoot cborValue) (DeleteSpeakerProfileRequest, error) {
+	var csilOut DeleteSpeakerProfileRequest
+	if csilField, csilOk := cborMapGet(csilRoot, "model"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Model = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeDeleteSpeakerProfileRequest encodes a DeleteSpeakerProfileRequest to canonical CSIL CBOR bytes.
+func EncodeDeleteSpeakerProfileRequest(csilV DeleteSpeakerProfileRequest) ([]byte, error) {
+	return cborEncodeE(csilEncDeleteSpeakerProfileRequest(csilV, 0))
+}
+
+// DecodeDeleteSpeakerProfileRequest decodes canonical CSIL CBOR bytes into a DeleteSpeakerProfileRequest.
+func DecodeDeleteSpeakerProfileRequest(csilData []byte) (DeleteSpeakerProfileRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero DeleteSpeakerProfileRequest
+		return csilZero, csilErr
+	}
+	return csilDecDeleteSpeakerProfileRequest(csilRoot)
+}
+
+// csilEncDeleteSpeakerProfileResponse builds the canonical CBOR value tree for a DeleteSpeakerProfileResponse.
+func csilEncDeleteSpeakerProfileResponse(csilV DeleteSpeakerProfileResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("deleted"), cborUint(csilV.Deleted)})
+	return csilEntries, nil
+}
+
+// csilDecDeleteSpeakerProfileResponse reconstructs a DeleteSpeakerProfileResponse from a decoded CBOR value tree.
+func csilDecDeleteSpeakerProfileResponse(csilRoot cborValue) (DeleteSpeakerProfileResponse, error) {
+	var csilOut DeleteSpeakerProfileResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "deleted")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Deleted = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeDeleteSpeakerProfileResponse encodes a DeleteSpeakerProfileResponse to canonical CSIL CBOR bytes.
+func EncodeDeleteSpeakerProfileResponse(csilV DeleteSpeakerProfileResponse) ([]byte, error) {
+	return cborEncodeE(csilEncDeleteSpeakerProfileResponse(csilV, 0))
+}
+
+// DecodeDeleteSpeakerProfileResponse decodes canonical CSIL CBOR bytes into a DeleteSpeakerProfileResponse.
+func DecodeDeleteSpeakerProfileResponse(csilData []byte) (DeleteSpeakerProfileResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero DeleteSpeakerProfileResponse
+		return csilZero, csilErr
+	}
+	return csilDecDeleteSpeakerProfileResponse(csilRoot)
+}
+
+// csilEncVerifySpeakerRequest builds the canonical CBOR value tree for a VerifySpeakerRequest.
+func csilEncVerifySpeakerRequest(csilV VerifySpeakerRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	csilEntries := make(cborMap, 0, 4)
+	csilEntries = append(csilEntries, cborEntry{cborText("audio"), cborBytes(csilV.Audio)})
+	csilEntries = append(csilEntries, cborEntry{cborText("model"), cborText(csilV.Model)})
+	if csilV.Extract != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("extract"), cborBool((*csilV.Extract))})
+	}
+	if csilV.MediaType != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("media_type"), cborText((*csilV.MediaType))})
+	}
+	return csilEntries, nil
+}
+
+// csilDecVerifySpeakerRequest reconstructs a VerifySpeakerRequest from a decoded CBOR value tree.
+func csilDecVerifySpeakerRequest(csilRoot cborValue) (VerifySpeakerRequest, error) {
+	var csilOut VerifySpeakerRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "audio")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsBytes)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Audio = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "media_type"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.MediaType = &csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "model")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Model = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "extract"); csilOk {
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Extract = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeVerifySpeakerRequest encodes a VerifySpeakerRequest to canonical CSIL CBOR bytes.
+func EncodeVerifySpeakerRequest(csilV VerifySpeakerRequest) ([]byte, error) {
+	return cborEncodeE(csilEncVerifySpeakerRequest(csilV, 0))
+}
+
+// DecodeVerifySpeakerRequest decodes canonical CSIL CBOR bytes into a VerifySpeakerRequest.
+func DecodeVerifySpeakerRequest(csilData []byte) (VerifySpeakerRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero VerifySpeakerRequest
+		return csilZero, csilErr
+	}
+	return csilDecVerifySpeakerRequest(csilRoot)
+}
+
+// csilEncVerifySpeakerResponse builds the canonical CBOR value tree for a VerifySpeakerResponse.
+func csilEncVerifySpeakerResponse(csilV VerifySpeakerResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	csilEntries := make(cborMap, 0, 6)
+	csilEntries = append(csilEntries, cborEntry{cborText("score"), cborFloat(csilV.Score)})
+	csilEntries = append(csilEntries, cborEntry{cborText("engine"), cborText(csilV.Engine)})
+	csilEntries = append(csilEntries, cborEntry{cborText("enrolled"), cborBool(csilV.Enrolled)})
+	if csilV.Extracted != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("extracted"), cborBytes((*csilV.Extracted))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("elapsed_ms"), cborUint(csilV.ElapsedMs)})
+	if csilV.ExtractedScore != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("extracted_score"), cborFloat((*csilV.ExtractedScore))})
+	}
+	return csilEntries, nil
+}
+
+// csilDecVerifySpeakerResponse reconstructs a VerifySpeakerResponse from a decoded CBOR value tree.
+func csilDecVerifySpeakerResponse(csilRoot cborValue) (VerifySpeakerResponse, error) {
+	var csilOut VerifySpeakerResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "enrolled")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Enrolled = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "score")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsF64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Score = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "extracted"); csilOk {
+		csilVal, csilErr := (cborAsBytes)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Extracted = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "extracted_score"); csilOk {
+		csilVal, csilErr := (cborAsF64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.ExtractedScore = &csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "engine")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Engine = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "elapsed_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.ElapsedMs = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeVerifySpeakerResponse encodes a VerifySpeakerResponse to canonical CSIL CBOR bytes.
+func EncodeVerifySpeakerResponse(csilV VerifySpeakerResponse) ([]byte, error) {
+	return cborEncodeE(csilEncVerifySpeakerResponse(csilV, 0))
+}
+
+// DecodeVerifySpeakerResponse decodes canonical CSIL CBOR bytes into a VerifySpeakerResponse.
+func DecodeVerifySpeakerResponse(csilData []byte) (VerifySpeakerResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero VerifySpeakerResponse
+		return csilZero, csilErr
+	}
+	return csilDecVerifySpeakerResponse(csilRoot)
+}

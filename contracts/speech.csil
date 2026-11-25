@@ -115,6 +115,72 @@ ClassifyTurnRequest = { items: [* TurnText] }
 TurnClass = { ack: float, turn: float, unclear: float }
 ClassifyTurnResponse = { results: [* TurnClass], engine: text, elapsed_ms: uint }
 
+;;; The voice print of a person (docs/speech-interaction.md, 3.2). A print
+;;; is the output of a speaker model for one piece of speech: vector has
+;;; the numbers as little-endian float32, with unit length. source is
+;;; "enroll" (the person read a line for it) or "turn" (a turn that the
+;;; device verified). created_ms is the time of the speech.
+SpeakerPrint = { vector: bytes, ? source: text, created_ms: uint }
+
+;;; The prints of one person for one model. A print of one model has no
+;;; meaning for a different model. model is the name of the speaker
+;;; model, for example "3dspeaker-eres2net-en-voxceleb-16k" (192 numbers).
+;;; has_sample: the service has speech of the person for the extraction.
+;;; A profile selects speech. It is not a credential: a voice never
+;;; authorizes an action.
+SpeakerProfile = {
+  owner: text,
+  model: text,
+  prints: [* SpeakerPrint],
+  has_sample: bool,
+  updated_ms: uint,
+}
+
+;;; The profile of the caller for model. When there is none, the profile
+;;; has no prints.
+GetSpeakerProfileRequest = { model: text }
+
+;;; Replaces the prints of the caller for model (1 to 40 prints). sample
+;;; is speech of the person (some seconds, at most 2 MB; sample_type is
+;;; "audio/wav" by default). The service keeps it for the extraction.
+;;; Without sample, the sample that is there stays.
+PutSpeakerProfileRequest = {
+  model: text,
+  prints: [* SpeakerPrint],
+  ? sample: bytes,
+  ? sample_type: text,
+}
+
+;;; Deletes the profile of the caller for model, with its sample. Without
+;;; model, it deletes the profiles of the caller for all models.
+DeleteSpeakerProfileRequest = { ? model: text }
+DeleteSpeakerProfileResponse = { deleted: uint }
+
+;;; Is the speech in audio the speech of the caller? score is the cosine
+;;; of the print of the audio and the mean print of the profile (-1 to
+;;; 1). enrolled is false when the caller has no prints for model; then
+;;; score is 0 and no engine runs.
+;;; With extract and a sample in the profile, the engine also removes the
+;;; other voices from the audio (target speaker extraction). extracted is
+;;; that audio (WAV, 16 kHz, one channel) and extracted_score is its
+;;; score. The extraction can also damage the speech, so the caller uses
+;;; the better of the two scores. media_type is "audio/wav" by default.
+;;; Without a speaker engine, the operation is unavailable (503).
+VerifySpeakerRequest = {
+  audio: bytes,
+  ? media_type: text,
+  model: text,
+  ? extract: bool,
+}
+VerifySpeakerResponse = {
+  enrolled: bool,
+  score: float,
+  ? extracted: bytes,
+  ? extracted_score: float,
+  engine: text,
+  elapsed_ms: uint,
+}
+
 service SpeechService {
   transcribe: TranscribeRequest -> Transcript,
   synthesize: SynthesizeRequest -> Audio,
@@ -125,4 +191,8 @@ service SpeechService {
   prepare-text: PrepareTextRequest -> PrepareTextResponse,
   detect-speech: DetectSpeechRequest -> DetectSpeechResponse,
   classify-turn: ClassifyTurnRequest -> ClassifyTurnResponse,
+  get-speaker-profile: GetSpeakerProfileRequest -> SpeakerProfile,
+  put-speaker-profile: PutSpeakerProfileRequest -> SpeakerProfile,
+  delete-speaker-profile: DeleteSpeakerProfileRequest -> DeleteSpeakerProfileResponse,
+  verify-speaker: VerifySpeakerRequest -> VerifySpeakerResponse,
 }

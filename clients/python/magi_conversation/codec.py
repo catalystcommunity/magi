@@ -837,6 +837,9 @@ def _encode_device_value(v: "Device") -> Dict[Any, Any]:
     csil_m["kind"] = v.kind
     csil_m["name"] = v.name
     csil_m["active"] = v.active
+    csil_x = v.health
+    if csil_x is not None:
+        csil_m["health"] = _encode_device_health_value(csil_x)
     csil_m["person"] = v.person
     csil_m["seen_ms"] = v.seen_ms
     csil_x = v.app_build
@@ -867,6 +870,7 @@ def _decode_device_value(tree: Any) -> "Device":
         app_version=(None if tree.get("app_version") is None else _csil_expect_text(tree["app_version"])),
         app_build=(None if tree.get("app_build") is None else _csil_expect_uint(tree["app_build"])),
         update_error=(None if tree.get("update_error") is None else _csil_expect_text(tree["update_error"])),
+        health=(None if tree.get("health") is None else _decode_device_health_value(tree["health"])),
     )
 
 
@@ -880,6 +884,84 @@ def _device_from_cbor(data: bytes) -> "Device":
 
 Device.to_cbor = _device_to_cbor
 Device.from_cbor = staticmethod(_device_from_cbor)
+
+def _encode_device_health_value(v: "DeviceHealth") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.turns
+    if csil_x is not None:
+        csil_m["turns"] = csil_x
+    csil_x = v.wakes
+    if csil_x is not None:
+        csil_m["wakes"] = csil_x
+    csil_x = v.battery
+    if csil_x is not None:
+        csil_m["battery"] = csil_x
+    csil_x = v.dropped
+    if csil_x is not None:
+        csil_m["dropped"] = csil_x
+    csil_x = v.sound_s
+    if csil_x is not None:
+        csil_m["sound_s"] = csil_x
+    csil_x = v.charging
+    if csil_x is not None:
+        csil_m["charging"] = csil_x
+    csil_x = v.listen_s
+    if csil_x is not None:
+        csil_m["listen_s"] = csil_x
+    csil_x = v.window_s
+    if csil_x is not None:
+        csil_m["window_s"] = csil_x
+    return csil_m
+
+def _decode_device_health_value(tree: Any) -> "DeviceHealth":
+    tree = _csil_expect_map(tree)
+    return DeviceHealth(
+        battery=(None if tree.get("battery") is None else _csil_expect_uint(tree["battery"])),
+        charging=(None if tree.get("charging") is None else _csil_expect_bool(tree["charging"])),
+        window_s=(None if tree.get("window_s") is None else _csil_expect_uint(tree["window_s"])),
+        listen_s=(None if tree.get("listen_s") is None else _csil_expect_uint(tree["listen_s"])),
+        sound_s=(None if tree.get("sound_s") is None else _csil_expect_uint(tree["sound_s"])),
+        wakes=(None if tree.get("wakes") is None else _csil_expect_uint(tree["wakes"])),
+        turns=(None if tree.get("turns") is None else _csil_expect_uint(tree["turns"])),
+        dropped=(None if tree.get("dropped") is None else _csil_expect_uint(tree["dropped"])),
+    )
+
+
+def _device_health_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_device_health_value(self))
+
+
+def _device_health_from_cbor(data: bytes) -> "DeviceHealth":
+    return _decode_device_health_value(cbor_decode(data))
+
+
+DeviceHealth.to_cbor = _device_health_to_cbor
+DeviceHealth.from_cbor = staticmethod(_device_health_from_cbor)
+
+def _encode_device_report_value(v: "DeviceReport") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["at_ms"] = v.at_ms
+    csil_m["health"] = _encode_device_health_value(v.health)
+    return csil_m
+
+def _decode_device_report_value(tree: Any) -> "DeviceReport":
+    tree = _csil_expect_map(tree)
+    return DeviceReport(
+        at_ms=_csil_expect_uint(tree["at_ms"]),
+        health=_decode_device_health_value(tree["health"]),
+    )
+
+
+def _device_report_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_device_report_value(self))
+
+
+def _device_report_from_cbor(data: bytes) -> "DeviceReport":
+    return _decode_device_report_value(cbor_decode(data))
+
+
+DeviceReport.to_cbor = _device_report_to_cbor
+DeviceReport.from_cbor = staticmethod(_device_report_from_cbor)
 
 def _encode_notice_value(v: "Notice") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
@@ -2209,6 +2291,9 @@ def _encode_put_device_request_value(v: "PutDeviceRequest") -> Dict[Any, Any]:
     csil_x = v.active
     if csil_x is not None:
         csil_m["active"] = csil_x
+    csil_x = v.health
+    if csil_x is not None:
+        csil_m["health"] = _encode_device_health_value(csil_x)
     csil_x = v.app_build
     if csil_x is not None:
         csil_m["app_build"] = csil_x
@@ -2235,6 +2320,7 @@ def _decode_put_device_request_value(tree: Any) -> "PutDeviceRequest":
         app_version=(None if tree.get("app_version") is None else _csil_expect_text(tree["app_version"])),
         app_build=(None if tree.get("app_build") is None else _csil_expect_uint(tree["app_build"])),
         update_error=(None if tree.get("update_error") is None else _csil_expect_text(tree["update_error"])),
+        health=(None if tree.get("health") is None else _decode_device_health_value(tree["health"])),
     )
 
 
@@ -2248,6 +2334,64 @@ def _put_device_request_from_cbor(data: bytes) -> "PutDeviceRequest":
 
 PutDeviceRequest.to_cbor = _put_device_request_to_cbor
 PutDeviceRequest.from_cbor = staticmethod(_put_device_request_from_cbor)
+
+def _encode_list_device_reports_request_value(v: "ListDeviceReportsRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.limit
+    if csil_x is not None:
+        csil_m["limit"] = csil_x
+    csil_m["device"] = v.device
+    csil_x = v.person
+    if csil_x is not None:
+        csil_m["person"] = csil_x
+    csil_x = v.since_ms
+    if csil_x is not None:
+        csil_m["since_ms"] = csil_x
+    return csil_m
+
+def _decode_list_device_reports_request_value(tree: Any) -> "ListDeviceReportsRequest":
+    tree = _csil_expect_map(tree)
+    return ListDeviceReportsRequest(
+        device=_csil_expect_text(tree["device"]),
+        since_ms=(None if tree.get("since_ms") is None else _csil_expect_uint(tree["since_ms"])),
+        limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
+        person=(None if tree.get("person") is None else _csil_expect_text(tree["person"])),
+    )
+
+
+def _list_device_reports_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_device_reports_request_value(self))
+
+
+def _list_device_reports_request_from_cbor(data: bytes) -> "ListDeviceReportsRequest":
+    return _decode_list_device_reports_request_value(cbor_decode(data))
+
+
+ListDeviceReportsRequest.to_cbor = _list_device_reports_request_to_cbor
+ListDeviceReportsRequest.from_cbor = staticmethod(_list_device_reports_request_from_cbor)
+
+def _encode_list_device_reports_response_value(v: "ListDeviceReportsResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["reports"] = [_encode_device_report_value(csil_e) for csil_e in v.reports]
+    return csil_m
+
+def _decode_list_device_reports_response_value(tree: Any) -> "ListDeviceReportsResponse":
+    tree = _csil_expect_map(tree)
+    return ListDeviceReportsResponse(
+        reports=[_decode_device_report_value(csil_e) for csil_e in _csil_expect_array(tree["reports"])],
+    )
+
+
+def _list_device_reports_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_device_reports_response_value(self))
+
+
+def _list_device_reports_response_from_cbor(data: bytes) -> "ListDeviceReportsResponse":
+    return _decode_list_device_reports_response_value(cbor_decode(data))
+
+
+ListDeviceReportsResponse.to_cbor = _list_device_reports_response_to_cbor
+ListDeviceReportsResponse.from_cbor = staticmethod(_list_device_reports_response_from_cbor)
 
 def _encode_list_devices_request_value(v: "ListDevicesRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}

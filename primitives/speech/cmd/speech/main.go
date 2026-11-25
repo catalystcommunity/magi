@@ -30,18 +30,19 @@ func main() {
 	stt := flag.String("stt-url", env("MAGI_SPEECH_STT_URL", ""), "speech-to-text engine URL")
 	tts := flag.String("tts-url", env("MAGI_SPEECH_TTS_URL", ""), "text-to-speech engine URL")
 	turn := flag.String("turn-url", env("MAGI_SPEECH_TURN_URL", ""), "speech detection and turn classifier engine URL (optional)")
+	speaker := flag.String("speaker-url", env("MAGI_SPEECH_SPEAKER_URL", ""), "voice print and extraction engine URL (optional)")
 	tokenFile := flag.String("engine-token-file", env("MAGI_SPEECH_ENGINE_TOKEN_FILE", ""), "engine bearer token file")
-	dbURL := flag.String("database-url", env("MAGI_DATABASE_URL", ""), "PostgreSQL URL for the lexicon (optional)")
+	dbURL := flag.String("database-url", env("MAGI_DATABASE_URL", ""), "PostgreSQL URL for the lexicon and the speaker profiles (optional)")
 	flag.Parse()
 
 	log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	if err := run(*listen, *keys, *stt, *tts, *turn, *tokenFile, *dbURL, log); err != nil {
+	if err := run(*listen, *keys, *stt, *tts, *turn, *speaker, *tokenFile, *dbURL, log); err != nil {
 		log.Error("speech", "err", err)
 		os.Exit(1)
 	}
 }
 
-func run(listen, keys, stt, tts, turn, tokenFile, dbURL string, log *slog.Logger) error {
+func run(listen, keys, stt, tts, turn, speaker, tokenFile, dbURL string, log *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	if keys == "" || stt == "" || tts == "" || tokenFile == "" {
@@ -60,18 +61,21 @@ func run(listen, keys, stt, tts, turn, tokenFile, dbURL string, log *slog.Logger
 	if turn != "" {
 		svc.Turn = server.NewEngine(turn, token)
 	}
+	if speaker != "" {
+		svc.Speaker = server.NewEngine(speaker, token)
+	}
 	if dbURL != "" {
 		db, err := store.Open(ctx, dbURL)
 		if err != nil {
 			return err
 		}
 		defer db.Close()
-		svc.Lexicon = db
+		svc.Lexicon, svc.Profiles = db, db
 	} else {
-		log.Warn("no MAGI_DATABASE_URL: the lexicon is empty and cannot change")
+		log.Warn("no MAGI_DATABASE_URL: the lexicon is empty and cannot change, and there are no speaker profiles")
 	}
 	s := &rpc.Server{Verifier: v, MaxBody: server.MaxRequest, Log: log}
 	server.Register(s, svc)
-	log.Info("speech listening", "addr", listen, "stt", stt, "tts", tts)
+	log.Info("speech listening", "addr", listen, "stt", stt, "tts", tts, "turn", turn, "speaker", speaker)
 	return rpc.ListenAndServe(ctx, listen, rpc.Mux(s, func() error { return svc.Ready(ctx) }))
 }

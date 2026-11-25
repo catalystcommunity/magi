@@ -326,6 +326,17 @@ func ConversationServiceOps(impl ConversationService) map[string]func(context.Co
 			}
 			return EncodeDevice(resp)
 		},
+		"list-device-reports": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListDeviceReportsRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListDeviceReports(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListDeviceReportsResponse(resp)
+		},
 		"notify": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeNotifyRequest(b)
 			if err != nil {

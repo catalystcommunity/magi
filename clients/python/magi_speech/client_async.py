@@ -67,3 +67,19 @@ class SpeechAsyncClient:
         """classify-turn"""
         return ClassifyTurnResponse.from_cbor(await self._transport.call("SpeechService", "classify-turn", req.to_cbor()))
 
+    async def get_speaker_profile(self, req: GetSpeakerProfileRequest) -> SpeakerProfile:
+        """get-speaker-profile"""
+        return SpeakerProfile.from_cbor(await self._transport.call("SpeechService", "get-speaker-profile", req.to_cbor()))
+
+    async def put_speaker_profile(self, req: PutSpeakerProfileRequest) -> SpeakerProfile:
+        """put-speaker-profile"""
+        return SpeakerProfile.from_cbor(await self._transport.call("SpeechService", "put-speaker-profile", req.to_cbor()))
+
+    async def delete_speaker_profile(self, req: DeleteSpeakerProfileRequest) -> DeleteSpeakerProfileResponse:
+        """delete-speaker-profile"""
+        return DeleteSpeakerProfileResponse.from_cbor(await self._transport.call("SpeechService", "delete-speaker-profile", req.to_cbor()))
+
+    async def verify_speaker(self, req: VerifySpeakerRequest) -> VerifySpeakerResponse:
+        """verify-speaker"""
+        return VerifySpeakerResponse.from_cbor(await self._transport.call("SpeechService", "verify-speaker", req.to_cbor()))
+

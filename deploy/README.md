@@ -82,6 +82,7 @@ DB_INSTANCES=                 # optional: the number of PostgreSQL instances; em
 SPEECH_STT_URL=http://speech.example.local:8092
 SPEECH_TTS_URL=http://speech.example.local:8093
 SPEECH_TURN_URL=              # optional: speech detection and turn classifier engine (speech engine host, port 8095)
+SPEECH_SPEAKER_URL=           # optional: voice print and extraction engine (speech engine host, port 8096)
 ALLOWED_DOMAINS=example.local
 ENV_IMAGE=localhost:30500/magi/dev-env:TAG
 RUNNER=                       # optional: default runner for code changes

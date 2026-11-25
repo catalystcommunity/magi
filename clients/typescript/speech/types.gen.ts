@@ -195,3 +195,93 @@ export interface ClassifyTurnResponse {
   elapsedMs: number;
 }
 
+/**
+ * The voice print of a person (docs/speech-interaction.md, 3.2). A print
+ * is the output of a speaker model for one piece of speech: vector has
+ * the numbers as little-endian float32, with unit length. source is
+ * "enroll" (the person read a line for it) or "turn" (a turn that the
+ * device verified). created_ms is the time of the speech.
+ */
+export interface SpeakerPrint {
+  vector: Uint8Array;
+  source?: string;
+  createdMs: number;
+}
+
+/**
+ * The prints of one person for one model. A print of one model has no
+ * meaning for a different model. model is the name of the speaker
+ * model, for example "3dspeaker-eres2net-en-voxceleb-16k" (192 numbers).
+ * has_sample: the service has speech of the person for the extraction.
+ * A profile selects speech. It is not a credential: a voice never
+ * authorizes an action.
+ */
+export interface SpeakerProfile {
+  owner: string;
+  model: string;
+  prints: SpeakerPrint[];
+  hasSample: boolean;
+  updatedMs: number;
+}
+
+/**
+ * The profile of the caller for model. When there is none, the profile
+ * has no prints.
+ */
+export interface GetSpeakerProfileRequest {
+  model: string;
+}
+
+/**
+ * Replaces the prints of the caller for model (1 to 40 prints). sample
+ * is speech of the person (some seconds, at most 2 MB; sample_type is
+ * "audio/wav" by default). The service keeps it for the extraction.
+ * Without sample, the sample that is there stays.
+ */
+export interface PutSpeakerProfileRequest {
+  model: string;
+  prints: SpeakerPrint[];
+  sample?: Uint8Array;
+  sampleType?: string;
+}
+
+/**
+ * Deletes the profile of the caller for model, with its sample. Without
+ * model, it deletes the profiles of the caller for all models.
+ */
+export interface DeleteSpeakerProfileRequest {
+  model?: string;
+}
+
+export interface DeleteSpeakerProfileResponse {
+  deleted: number;
+}
+
+/**
+ * Is the speech in audio the speech of the caller? score is the cosine
+ * of the print of the audio and the mean print of the profile (-1 to
+ * 1). enrolled is false when the caller has no prints for model; then
+ * score is 0 and no engine runs.
+ * With extract and a sample in the profile, the engine also removes the
+ * other voices from the audio (target speaker extraction). extracted is
+ * that audio (WAV, 16 kHz, one channel) and extracted_score is its
+ * score. The extraction can also damage the speech, so the caller uses
+ * the better of the two scores. media_type is "audio/wav" by default.
+ * Without a speaker engine, the operation is unavailable (503).
+ */
+export interface VerifySpeakerRequest {
+  audio: Uint8Array;
+  mediaType?: string;
+  model: string;
+  extract?: boolean;
+}
+
+export interface VerifySpeakerResponse {
+  enrolled: boolean;
+  score: number;
+  extracted?: Uint8Array;
+  extractedScore?: number;
+  engine: string;
+  elapsedMs: number;
+}
+

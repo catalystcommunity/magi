@@ -1775,12 +1775,15 @@ func csilEncDevice(csilV Device, csilDepth int) (cborValue, error) {
 		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
 	}
 	var csilE csilEncErr
-	csilEntries := make(cborMap, 0, 12)
+	csilEntries := make(cborMap, 0, 13)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	csilEntries = append(csilEntries, cborEntry{cborText("can"), csilE.val(cborEncArray(csilV.Can, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
 	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
 	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
 	csilEntries = append(csilEntries, cborEntry{cborText("active"), cborBool(csilV.Active)})
+	if csilV.Health != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("health"), csilE.val(csilEncDeviceHealth((*csilV.Health), csilDepth+1))})
+	}
 	csilEntries = append(csilEntries, cborEntry{cborText("person"), cborText(csilV.Person)})
 	csilEntries = append(csilEntries, cborEntry{cborText("seen_ms"), cborUint(csilV.SeenMs)})
 	if csilV.AppBuild != nil {
@@ -1920,6 +1923,13 @@ func csilDecDevice(csilRoot cborValue) (Device, error) {
 		}
 		csilOut.UpdateError = &csilVal
 	}
+	if csilField, csilOk := cborMapGet(csilRoot, "health"); csilOk {
+		csilVal, csilErr := (csilDecDeviceHealth)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Health = &csilVal
+	}
 	return csilOut, nil
 }
 
@@ -1936,6 +1946,171 @@ func DecodeDevice(csilData []byte) (Device, error) {
 		return csilZero, csilErr
 	}
 	return csilDecDevice(csilRoot)
+}
+
+// csilEncDeviceHealth builds the canonical CBOR value tree for a DeviceHealth.
+func csilEncDeviceHealth(csilV DeviceHealth, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	csilEntries := make(cborMap, 0, 8)
+	if csilV.Turns != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("turns"), cborUint((*csilV.Turns))})
+	}
+	if csilV.Wakes != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("wakes"), cborUint((*csilV.Wakes))})
+	}
+	if csilV.Battery != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("battery"), cborUint((*csilV.Battery))})
+	}
+	if csilV.Dropped != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("dropped"), cborUint((*csilV.Dropped))})
+	}
+	if csilV.SoundS != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("sound_s"), cborUint((*csilV.SoundS))})
+	}
+	if csilV.Charging != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("charging"), cborBool((*csilV.Charging))})
+	}
+	if csilV.ListenS != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("listen_s"), cborUint((*csilV.ListenS))})
+	}
+	if csilV.WindowS != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("window_s"), cborUint((*csilV.WindowS))})
+	}
+	return csilEntries, nil
+}
+
+// csilDecDeviceHealth reconstructs a DeviceHealth from a decoded CBOR value tree.
+func csilDecDeviceHealth(csilRoot cborValue) (DeviceHealth, error) {
+	var csilOut DeviceHealth
+	if csilField, csilOk := cborMapGet(csilRoot, "battery"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Battery = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "charging"); csilOk {
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Charging = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "window_s"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.WindowS = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "listen_s"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.ListenS = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "sound_s"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.SoundS = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "wakes"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Wakes = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "turns"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Turns = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "dropped"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Dropped = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeDeviceHealth encodes a DeviceHealth to canonical CSIL CBOR bytes.
+func EncodeDeviceHealth(csilV DeviceHealth) ([]byte, error) {
+	return cborEncodeE(csilEncDeviceHealth(csilV, 0))
+}
+
+// DecodeDeviceHealth decodes canonical CSIL CBOR bytes into a DeviceHealth.
+func DecodeDeviceHealth(csilData []byte) (DeviceHealth, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero DeviceHealth
+		return csilZero, csilErr
+	}
+	return csilDecDeviceHealth(csilRoot)
+}
+
+// csilEncDeviceReport builds the canonical CBOR value tree for a DeviceReport.
+func csilEncDeviceReport(csilV DeviceReport, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
+	csilEntries := make(cborMap, 0, 2)
+	csilEntries = append(csilEntries, cborEntry{cborText("at_ms"), cborUint(csilV.AtMs)})
+	csilEntries = append(csilEntries, cborEntry{cborText("health"), csilE.val(csilEncDeviceHealth(csilV.Health, csilDepth+1))})
+	return csilE.result(csilEntries)
+}
+
+// csilDecDeviceReport reconstructs a DeviceReport from a decoded CBOR value tree.
+func csilDecDeviceReport(csilRoot cborValue) (DeviceReport, error) {
+	var csilOut DeviceReport
+	{
+		csilField, csilErr := cborRequire(csilRoot, "at_ms")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.AtMs = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "health")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (csilDecDeviceHealth)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Health = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeDeviceReport encodes a DeviceReport to canonical CSIL CBOR bytes.
+func EncodeDeviceReport(csilV DeviceReport) ([]byte, error) {
+	return cborEncodeE(csilEncDeviceReport(csilV, 0))
+}
+
+// DecodeDeviceReport decodes canonical CSIL CBOR bytes into a DeviceReport.
+func DecodeDeviceReport(csilData []byte) (DeviceReport, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero DeviceReport
+		return csilZero, csilErr
+	}
+	return csilDecDeviceReport(csilRoot)
 }
 
 // csilEncNotice builds the canonical CBOR value tree for a Notice.
@@ -4739,7 +4914,7 @@ func csilEncPutDeviceRequest(csilV PutDeviceRequest, csilDepth int) (cborValue, 
 		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
 	}
 	var csilE csilEncErr
-	csilEntries := make(cborMap, 0, 9)
+	csilEntries := make(cborMap, 0, 10)
 	csilEntries = append(csilEntries, cborEntry{cborText("id"), cborText(csilV.Id)})
 	if csilV.Can != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("can"), csilE.val(cborEncArray(csilV.Can, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
@@ -4748,6 +4923,9 @@ func csilEncPutDeviceRequest(csilV PutDeviceRequest, csilDepth int) (cborValue, 
 	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
 	if csilV.Active != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("active"), cborBool((*csilV.Active))})
+	}
+	if csilV.Health != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("health"), csilE.val(csilEncDeviceHealth((*csilV.Health), csilDepth+1))})
 	}
 	if csilV.AppBuild != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("app_build"), cborUint((*csilV.AppBuild))})
@@ -4842,6 +5020,13 @@ func csilDecPutDeviceRequest(csilRoot cborValue) (PutDeviceRequest, error) {
 		}
 		csilOut.UpdateError = &csilVal
 	}
+	if csilField, csilOk := cborMapGet(csilRoot, "health"); csilOk {
+		csilVal, csilErr := (csilDecDeviceHealth)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Health = &csilVal
+	}
 	return csilOut, nil
 }
 
@@ -4858,6 +5043,121 @@ func DecodePutDeviceRequest(csilData []byte) (PutDeviceRequest, error) {
 		return csilZero, csilErr
 	}
 	return csilDecPutDeviceRequest(csilRoot)
+}
+
+// csilEncListDeviceReportsRequest builds the canonical CBOR value tree for a ListDeviceReportsRequest.
+func csilEncListDeviceReportsRequest(csilV ListDeviceReportsRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	csilEntries := make(cborMap, 0, 4)
+	if csilV.Limit != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("limit"), cborUint((*csilV.Limit))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("device"), cborText(csilV.Device)})
+	if csilV.Person != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("person"), cborText((*csilV.Person))})
+	}
+	if csilV.SinceMs != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("since_ms"), cborUint((*csilV.SinceMs))})
+	}
+	return csilEntries, nil
+}
+
+// csilDecListDeviceReportsRequest reconstructs a ListDeviceReportsRequest from a decoded CBOR value tree.
+func csilDecListDeviceReportsRequest(csilRoot cborValue) (ListDeviceReportsRequest, error) {
+	var csilOut ListDeviceReportsRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "device")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Device = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "since_ms"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.SinceMs = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "limit"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Limit = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "person"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Person = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeListDeviceReportsRequest encodes a ListDeviceReportsRequest to canonical CSIL CBOR bytes.
+func EncodeListDeviceReportsRequest(csilV ListDeviceReportsRequest) ([]byte, error) {
+	return cborEncodeE(csilEncListDeviceReportsRequest(csilV, 0))
+}
+
+// DecodeListDeviceReportsRequest decodes canonical CSIL CBOR bytes into a ListDeviceReportsRequest.
+func DecodeListDeviceReportsRequest(csilData []byte) (ListDeviceReportsRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ListDeviceReportsRequest
+		return csilZero, csilErr
+	}
+	return csilDecListDeviceReportsRequest(csilRoot)
+}
+
+// csilEncListDeviceReportsResponse builds the canonical CBOR value tree for a ListDeviceReportsResponse.
+func csilEncListDeviceReportsResponse(csilV ListDeviceReportsResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("reports"), csilE.val(cborEncArray(csilV.Reports, func(csilElem DeviceReport) (cborValue, error) { return csilEncDeviceReport(csilElem, csilDepth+1) }))})
+	return csilE.result(csilEntries)
+}
+
+// csilDecListDeviceReportsResponse reconstructs a ListDeviceReportsResponse from a decoded CBOR value tree.
+func csilDecListDeviceReportsResponse(csilRoot cborValue) (ListDeviceReportsResponse, error) {
+	var csilOut ListDeviceReportsResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "reports")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]DeviceReport, error) { return cborDecArray(csilV, csilDecDeviceReport) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Reports = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeListDeviceReportsResponse encodes a ListDeviceReportsResponse to canonical CSIL CBOR bytes.
+func EncodeListDeviceReportsResponse(csilV ListDeviceReportsResponse) ([]byte, error) {
+	return cborEncodeE(csilEncListDeviceReportsResponse(csilV, 0))
+}
+
+// DecodeListDeviceReportsResponse decodes canonical CSIL CBOR bytes into a ListDeviceReportsResponse.
+func DecodeListDeviceReportsResponse(csilData []byte) (ListDeviceReportsResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ListDeviceReportsResponse
+		return csilZero, csilErr
+	}
+	return csilDecListDeviceReportsResponse(csilRoot)
 }
 
 // csilEncListDevicesRequest builds the canonical CBOR value tree for a ListDevicesRequest.

@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { Audio, ClassifyTurnRequest, ClassifyTurnResponse, DeleteLexiconEntryRequest, DeleteLexiconEntryResponse, DetectSpeechRequest, DetectSpeechResponse, LexiconEntry, ListLexiconRequest, ListLexiconResponse, ListVoicesRequest, ListVoicesResponse, PrepareTextRequest, PrepareTextResponse, PutLexiconEntryRequest, SpeechSegment, SynthesizeRequest, TranscribeRequest, Transcript, TurnClass, TurnText, Voice, WordTime } from "./types.gen.ts";
+import type { Audio, ClassifyTurnRequest, ClassifyTurnResponse, DeleteLexiconEntryRequest, DeleteLexiconEntryResponse, DeleteSpeakerProfileRequest, DeleteSpeakerProfileResponse, DetectSpeechRequest, DetectSpeechResponse, GetSpeakerProfileRequest, LexiconEntry, ListLexiconRequest, ListLexiconResponse, ListVoicesRequest, ListVoicesResponse, PrepareTextRequest, PrepareTextResponse, PutLexiconEntryRequest, PutSpeakerProfileRequest, SpeakerPrint, SpeakerProfile, SpeechSegment, SynthesizeRequest, TranscribeRequest, Transcript, TurnClass, TurnText, VerifySpeakerRequest, VerifySpeakerResponse, Voice, WordTime } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -1024,5 +1024,199 @@ export function toClassifyTurnResponseCbor(v: ClassifyTurnResponse): Uint8Array 
 
 export function fromClassifyTurnResponseCbor(bytes: Uint8Array): ClassifyTurnResponse {
   return fromClassifyTurnResponseCborValue(decode(bytes));
+}
+
+export function toSpeakerPrintCborValue(v: SpeakerPrint): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.source !== undefined) csilMap.set("source", v.source);
+  csilMap.set("vector", v.vector);
+  csilMap.set("created_ms", v.createdMs);
+  return csilMap;
+}
+
+export function fromSpeakerPrintCborValue(value: CborValue): SpeakerPrint {
+  return {
+    vector: asBytes(requireKey(value, "vector")),
+    source: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "source")),
+    createdMs: asNumber(requireKey(value, "created_ms")),
+  };
+}
+
+export function toSpeakerPrintCbor(v: SpeakerPrint): Uint8Array {
+  return encodeValue(toSpeakerPrintCborValue(v));
+}
+
+export function fromSpeakerPrintCbor(bytes: Uint8Array): SpeakerPrint {
+  return fromSpeakerPrintCborValue(decode(bytes));
+}
+
+export function toSpeakerProfileCborValue(v: SpeakerProfile): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("model", v.model);
+  csilMap.set("owner", v.owner);
+  csilMap.set("prints", v.prints.map((csilE): CborValue => toSpeakerPrintCborValue(csilE)));
+  csilMap.set("has_sample", v.hasSample);
+  csilMap.set("updated_ms", v.updatedMs);
+  return csilMap;
+}
+
+export function fromSpeakerProfileCborValue(value: CborValue): SpeakerProfile {
+  return {
+    owner: asString(requireKey(value, "owner")),
+    model: asString(requireKey(value, "model")),
+    prints: asArray(requireKey(value, "prints")).map((csilE) => fromSpeakerPrintCborValue(csilE)),
+    hasSample: asBool(requireKey(value, "has_sample")),
+    updatedMs: asNumber(requireKey(value, "updated_ms")),
+  };
+}
+
+export function toSpeakerProfileCbor(v: SpeakerProfile): Uint8Array {
+  return encodeValue(toSpeakerProfileCborValue(v));
+}
+
+export function fromSpeakerProfileCbor(bytes: Uint8Array): SpeakerProfile {
+  return fromSpeakerProfileCborValue(decode(bytes));
+}
+
+export function toGetSpeakerProfileRequestCborValue(v: GetSpeakerProfileRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("model", v.model);
+  return csilMap;
+}
+
+export function fromGetSpeakerProfileRequestCborValue(value: CborValue): GetSpeakerProfileRequest {
+  return {
+    model: asString(requireKey(value, "model")),
+  };
+}
+
+export function toGetSpeakerProfileRequestCbor(v: GetSpeakerProfileRequest): Uint8Array {
+  return encodeValue(toGetSpeakerProfileRequestCborValue(v));
+}
+
+export function fromGetSpeakerProfileRequestCbor(bytes: Uint8Array): GetSpeakerProfileRequest {
+  return fromGetSpeakerProfileRequestCborValue(decode(bytes));
+}
+
+export function toPutSpeakerProfileRequestCborValue(v: PutSpeakerProfileRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("model", v.model);
+  csilMap.set("prints", v.prints.map((csilE): CborValue => toSpeakerPrintCborValue(csilE)));
+  if (v.sample !== undefined) csilMap.set("sample", v.sample);
+  if (v.sampleType !== undefined) csilMap.set("sample_type", v.sampleType);
+  return csilMap;
+}
+
+export function fromPutSpeakerProfileRequestCborValue(value: CborValue): PutSpeakerProfileRequest {
+  return {
+    model: asString(requireKey(value, "model")),
+    prints: asArray(requireKey(value, "prints")).map((csilE) => fromSpeakerPrintCborValue(csilE)),
+    sample: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBytes(csilV))(mapGet(value, "sample")),
+    sampleType: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "sample_type")),
+  };
+}
+
+export function toPutSpeakerProfileRequestCbor(v: PutSpeakerProfileRequest): Uint8Array {
+  return encodeValue(toPutSpeakerProfileRequestCborValue(v));
+}
+
+export function fromPutSpeakerProfileRequestCbor(bytes: Uint8Array): PutSpeakerProfileRequest {
+  return fromPutSpeakerProfileRequestCborValue(decode(bytes));
+}
+
+export function toDeleteSpeakerProfileRequestCborValue(v: DeleteSpeakerProfileRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.model !== undefined) csilMap.set("model", v.model);
+  return csilMap;
+}
+
+export function fromDeleteSpeakerProfileRequestCborValue(value: CborValue): DeleteSpeakerProfileRequest {
+  return {
+    model: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "model")),
+  };
+}
+
+export function toDeleteSpeakerProfileRequestCbor(v: DeleteSpeakerProfileRequest): Uint8Array {
+  return encodeValue(toDeleteSpeakerProfileRequestCborValue(v));
+}
+
+export function fromDeleteSpeakerProfileRequestCbor(bytes: Uint8Array): DeleteSpeakerProfileRequest {
+  return fromDeleteSpeakerProfileRequestCborValue(decode(bytes));
+}
+
+export function toDeleteSpeakerProfileResponseCborValue(v: DeleteSpeakerProfileResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("deleted", v.deleted);
+  return csilMap;
+}
+
+export function fromDeleteSpeakerProfileResponseCborValue(value: CborValue): DeleteSpeakerProfileResponse {
+  return {
+    deleted: asNumber(requireKey(value, "deleted")),
+  };
+}
+
+export function toDeleteSpeakerProfileResponseCbor(v: DeleteSpeakerProfileResponse): Uint8Array {
+  return encodeValue(toDeleteSpeakerProfileResponseCborValue(v));
+}
+
+export function fromDeleteSpeakerProfileResponseCbor(bytes: Uint8Array): DeleteSpeakerProfileResponse {
+  return fromDeleteSpeakerProfileResponseCborValue(decode(bytes));
+}
+
+export function toVerifySpeakerRequestCborValue(v: VerifySpeakerRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("audio", v.audio);
+  csilMap.set("model", v.model);
+  if (v.extract !== undefined) csilMap.set("extract", v.extract);
+  if (v.mediaType !== undefined) csilMap.set("media_type", v.mediaType);
+  return csilMap;
+}
+
+export function fromVerifySpeakerRequestCborValue(value: CborValue): VerifySpeakerRequest {
+  return {
+    audio: asBytes(requireKey(value, "audio")),
+    mediaType: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "media_type")),
+    model: asString(requireKey(value, "model")),
+    extract: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "extract")),
+  };
+}
+
+export function toVerifySpeakerRequestCbor(v: VerifySpeakerRequest): Uint8Array {
+  return encodeValue(toVerifySpeakerRequestCborValue(v));
+}
+
+export function fromVerifySpeakerRequestCbor(bytes: Uint8Array): VerifySpeakerRequest {
+  return fromVerifySpeakerRequestCborValue(decode(bytes));
+}
+
+export function toVerifySpeakerResponseCborValue(v: VerifySpeakerResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("score", v.score);
+  csilMap.set("engine", v.engine);
+  csilMap.set("enrolled", v.enrolled);
+  if (v.extracted !== undefined) csilMap.set("extracted", v.extracted);
+  csilMap.set("elapsed_ms", v.elapsedMs);
+  if (v.extractedScore !== undefined) csilMap.set("extracted_score", v.extractedScore);
+  return csilMap;
+}
+
+export function fromVerifySpeakerResponseCborValue(value: CborValue): VerifySpeakerResponse {
+  return {
+    enrolled: asBool(requireKey(value, "enrolled")),
+    score: asNumber(requireKey(value, "score")),
+    extracted: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBytes(csilV))(mapGet(value, "extracted")),
+    extractedScore: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "extracted_score")),
+    engine: asString(requireKey(value, "engine")),
+    elapsedMs: asNumber(requireKey(value, "elapsed_ms")),
+  };
+}
+
+export function toVerifySpeakerResponseCbor(v: VerifySpeakerResponse): Uint8Array {
+  return encodeValue(toVerifySpeakerResponseCborValue(v));
+}
+
+export function fromVerifySpeakerResponseCbor(bytes: Uint8Array): VerifySpeakerResponse {
+  return fromVerifySpeakerResponseCborValue(decode(bytes));
 }
 

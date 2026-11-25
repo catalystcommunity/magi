@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 
 	api "github.com/catalystcommunity/magi/primitives/conversation/api"
 	"github.com/jackc/pgx/v5"
@@ -14,13 +15,23 @@ import (
 // of person.
 func NoticeKey(person string) string { return "notice:" + person }
 
-const devCols = "person, id, kind, name, can, active, hands_free, seen_ms, created_ms, app_version, app_build, update_error"
+const devCols = "person, id, kind, name, can, active, hands_free, seen_ms, created_ms, app_version, app_build, update_error, health"
+
+// reportDays is how long the reports of a device are kept.
+const reportDays = 14
 
 func scanDevice(r pgx.Row) (api.Device, error) {
 	var d api.Device
 	var seen, created, build int64
 	var version, failure string
-	err := r.Scan(&d.Person, &d.Id, &d.Kind, &d.Name, &d.Can, &d.Active, &d.HandsFree, &seen, &created, &version, &build, &failure)
+	var health []byte
+	err := r.Scan(&d.Person, &d.Id, &d.Kind, &d.Name, &d.Can, &d.Active, &d.HandsFree, &seen, &created, &version, &build, &failure, &health)
+	if len(health) > 0 {
+		var h api.DeviceHealth
+		if json.Unmarshal(health, &h) == nil {
+			d.Health = &h
+		}
+	}
 	d.SeenMs, d.CreatedMs = uint64(seen), uint64(created)
 	if version != "" {
 		d.AppVersion = &version
@@ -40,7 +51,9 @@ func scanDevice(r pgx.Row) (api.Device, error) {
 
 // PutDevice adds the device or updates it; created_ms stays. A nil
 // version field keeps the value of a device that is there: a client that
-// does not send its version does not remove it.
+// does not send its version does not remove it. With d.Health, the
+// device gets that report, and the report is also kept with the time
+// d.SeenMs for reportDays days.
 func (db *DB) PutDevice(ctx context.Context, d api.Device) (api.Device, error) {
 	if d.Can == nil {
 		d.Can = []string{}
@@ -50,13 +63,53 @@ func (db *DB) PutDevice(ctx context.Context, d api.Device) (api.Device, error) {
 		b := int64(*d.AppBuild)
 		build = &b
 	}
-	return one(scanDevice(db.pool.QueryRow(ctx, `INSERT INTO devices (`+devCols+`)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, COALESCE($9, ''), COALESCE($10, 0), COALESCE($11, ''))
+	var health []byte
+	if d.Health != nil {
+		var err error
+		if health, err = json.Marshal(d.Health); err != nil {
+			return api.Device{}, err
+		}
+	}
+	var out api.Device
+	err := pgx.BeginFunc(ctx, db.pool, func(tx pgx.Tx) error {
+		var err error
+		out, err = one(scanDevice(tx.QueryRow(ctx, `INSERT INTO devices (`+devCols+`)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, COALESCE($9, ''), COALESCE($10, 0), COALESCE($11, ''), $12)
 ON CONFLICT (person, id) DO UPDATE SET kind = EXCLUDED.kind, name = EXCLUDED.name, can = EXCLUDED.can,
   active = EXCLUDED.active, hands_free = EXCLUDED.hands_free, seen_ms = EXCLUDED.seen_ms,
   app_version = COALESCE($9, devices.app_version), app_build = COALESCE($10, devices.app_build),
-  update_error = COALESCE($11, devices.update_error)
-RETURNING `+devCols, d.Person, d.Id, d.Kind, d.Name, d.Can, d.Active, d.HandsFree, int64(d.SeenMs), d.AppVersion, build, d.UpdateError)))
+  update_error = COALESCE($11, devices.update_error), health = COALESCE($12, devices.health)
+RETURNING `+devCols, d.Person, d.Id, d.Kind, d.Name, d.Can, d.Active, d.HandsFree, int64(d.SeenMs), d.AppVersion, build, d.UpdateError, health)))
+		if err != nil || health == nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO device_reports (person, device, at_ms, health) VALUES ($1, $2, $3, $4)
+ON CONFLICT (person, device, at_ms) DO UPDATE SET health = EXCLUDED.health`, d.Person, d.Id, int64(d.SeenMs), health); err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, `DELETE FROM device_reports WHERE person = $1 AND device = $2 AND at_ms < $3`,
+			d.Person, d.Id, int64(d.SeenMs)-reportDays*24*3600*1000)
+		return err
+	})
+	return out, err
+}
+
+// DeviceReports returns the newest limit reports of a device with at_ms
+// of since or later, oldest first.
+func (db *DB) DeviceReports(ctx context.Context, person, device string, since uint64, limit int) ([]api.DeviceReport, error) {
+	rows, err := db.pool.Query(ctx, `SELECT at_ms, health FROM (
+  SELECT at_ms, health FROM device_reports WHERE person = $1 AND device = $2 AND at_ms >= $3 ORDER BY at_ms DESC LIMIT $4
+) r ORDER BY at_ms`, person, device, int64(since), limit)
+	return many(rows, err, func(r pgx.Row) (api.DeviceReport, error) {
+		var rep api.DeviceReport
+		var at int64
+		var health []byte
+		if err := r.Scan(&at, &health); err != nil {
+			return rep, err
+		}
+		rep.AtMs = uint64(at)
+		return rep, json.Unmarshal(health, &rep.Health)
+	})
 }
 
 // TouchDevice sets seen_ms of a device that waits for notices.
@@ -80,8 +133,14 @@ func (db *DB) AllDevices(ctx context.Context) ([]api.Device, error) {
 	return many(rows, err, scanDevice)
 }
 
+// RemoveDevice removes the device and its reports.
 func (db *DB) RemoveDevice(ctx context.Context, person, id string) (api.Device, error) {
-	return one(scanDevice(db.pool.QueryRow(ctx, `DELETE FROM devices WHERE person = $1 AND id = $2 RETURNING `+devCols, person, id)))
+	d, err := one(scanDevice(db.pool.QueryRow(ctx, `DELETE FROM devices WHERE person = $1 AND id = $2 RETURNING `+devCols, person, id)))
+	if err != nil {
+		return d, err
+	}
+	_, err = db.pool.Exec(ctx, `DELETE FROM device_reports WHERE person = $1 AND device = $2`, person, id)
+	return d, err
 }
 
 const noticeCols = "id, person, persona, stream, utterance, title, text, urgency, device, created_ms, acked_ms, acked_by"

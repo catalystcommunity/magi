@@ -106,6 +106,50 @@ func SpeechServiceOps(impl SpeechService) map[string]func(context.Context, []byt
 			}
 			return EncodeClassifyTurnResponse(resp)
 		},
+		"get-speaker-profile": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeGetSpeakerProfileRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.GetSpeakerProfile(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeSpeakerProfile(resp)
+		},
+		"put-speaker-profile": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodePutSpeakerProfileRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.PutSpeakerProfile(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeSpeakerProfile(resp)
+		},
+		"delete-speaker-profile": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeDeleteSpeakerProfileRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.DeleteSpeakerProfile(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeDeleteSpeakerProfileResponse(resp)
+		},
+		"verify-speaker": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeVerifySpeakerRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.VerifySpeaker(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeVerifySpeakerResponse(resp)
+		},
 	}
 }
 

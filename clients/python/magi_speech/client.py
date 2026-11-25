@@ -67,3 +67,19 @@ class SpeechClient:
         """classify-turn"""
         return ClassifyTurnResponse.from_cbor(self._transport.call("SpeechService", "classify-turn", req.to_cbor()))
 
+    def get_speaker_profile(self, req: GetSpeakerProfileRequest) -> SpeakerProfile:
+        """get-speaker-profile"""
+        return SpeakerProfile.from_cbor(self._transport.call("SpeechService", "get-speaker-profile", req.to_cbor()))
+
+    def put_speaker_profile(self, req: PutSpeakerProfileRequest) -> SpeakerProfile:
+        """put-speaker-profile"""
+        return SpeakerProfile.from_cbor(self._transport.call("SpeechService", "put-speaker-profile", req.to_cbor()))
+
+    def delete_speaker_profile(self, req: DeleteSpeakerProfileRequest) -> DeleteSpeakerProfileResponse:
+        """delete-speaker-profile"""
+        return DeleteSpeakerProfileResponse.from_cbor(self._transport.call("SpeechService", "delete-speaker-profile", req.to_cbor()))
+
+    def verify_speaker(self, req: VerifySpeakerRequest) -> VerifySpeakerResponse:
+        """verify-speaker"""
+        return VerifySpeakerResponse.from_cbor(self._transport.call("SpeechService", "verify-speaker", req.to_cbor()))
+

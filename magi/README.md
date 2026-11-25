@@ -26,7 +26,17 @@ API in `contracts/magi.csil`, two clients, and the background workers.
 ## How a message flows
 
 1. A client calls `say` with text or audio. Audio is stored as an artifact
-   and transcribed by the speech service.
+   and transcribed by the speech service. A client with a voice print of
+   its person sends its check with the audio (`speaker`). For a turn that
+   the client was not sure about, Magi checks the audio again with the
+   voice profile of the person (`compose/voiceprint.go`,
+   `docs/speech-interaction.md`, 3.2): the speech service gives the score
+   of the audio, and of the audio with the other voices removed. With a
+   score of 0.40 or more, Magi takes the turn and uses the audio with the
+   better score. Else it keeps nothing of the turn (`ignored`). The
+   message of a turn with a check has the annotation `speaker`.
+   `get-voice-profile`, `put-voice-profile`, and `delete-voice-profile`
+   read and change the profile of the caller in the speech service.
 2. Magi posts the utterance to the stream of the person with the persona
    (default `persona:magi`), with the person's token. There are no chats:
    each person has one stream with each persona. Magi then starts a

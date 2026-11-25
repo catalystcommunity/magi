@@ -111,6 +111,9 @@ export interface PutPersonaRequest {
  * A spoken message that repeats words of the last spoken reply of the
  * persona (the last 90 seconds) is the echo of a loudspeaker: Magi keeps
  * nothing of it, and the response has ignored true.
+ * speaker: the voice print check of the device for the audio (below).
+ * Without it, Magi takes the audio as before (a client with no voice
+ * print).
  */
 export interface SayRequest {
   persona?: string;
@@ -121,6 +124,77 @@ export interface SayRequest {
   voice?: string;
   wakeWord?: boolean;
   model?: ModelSelector;
+  speaker?: SpeakerCheck;
+}
+
+/**
+ * What a device found when it compared the speech of a turn with the
+ * voice print of its person (docs/speech-interaction.md, 3.2). state is
+ * "verified" (the device is sure that the person spoke) or "unsure" (the
+ * score is between the limits: noise, or more than one voice). A device
+ * does not send speech that it rejected. score is the cosine of the
+ * device, and model is the speaker model. wake is the wake name that the
+ * device heard.
+ * For "unsure", Magi checks the audio again with the profile of the
+ * person, and it removes the other voices first when it can. When the
+ * check fails, or the person has no profile, Magi keeps nothing of the
+ * audio and the response has ignored true. When Magi has no speaker
+ * engine, it takes the turn of an open conversation (no wake_word) and
+ * drops a turn that must start one (wake_word). Code decides this with a
+ * fixed limit. The voice selects speech; it never authorizes an action.
+ */
+export interface SpeakerCheck {
+  state: string;
+  score: number;
+  model: string;
+  wake?: string;
+}
+
+/**
+ * The voice profile of the caller: the prints that the devices of the
+ * person compare speech with (contracts/speech.csil, SpeakerProfile).
+ * Magi keeps it, so each device of the person can get it. A device
+ * makes the prints (the person reads some lines), puts the profile, and
+ * keeps a copy. vector: little-endian float32 with unit length. source:
+ * "enroll" or "turn". sample: speech of the person for the extraction
+ * (WAV, at most 2 MB); without it, the sample that is there stays.
+ */
+export interface VoicePrint {
+  vector: Uint8Array;
+  source?: string;
+  createdMs: number;
+}
+
+export interface VoiceProfile {
+  model: string;
+  prints: VoicePrint[];
+  hasSample: boolean;
+  updatedMs: number;
+}
+
+/**
+ * A profile with no prints when the caller has none for model.
+ */
+export interface GetVoiceProfileRequest {
+  model: string;
+}
+
+export interface PutVoiceProfileRequest {
+  model: string;
+  prints: VoicePrint[];
+  sample?: Uint8Array;
+  sampleType?: string;
+}
+
+/**
+ * Without model: the profiles of the caller for all models.
+ */
+export interface DeleteVoiceProfileRequest {
+  model?: string;
+}
+
+export interface DeleteVoiceProfileResponse {
+  deleted: number;
 }
 
 /**
@@ -413,6 +487,28 @@ export interface Device {
   appVersion?: string;
   appBuild?: number;
   updateError?: string;
+  health?: DeviceHealth;
+}
+
+/**
+ * What a device reports about itself with put-device. battery is the
+ * charge in percent (0 to 100). The counters are for the last window_s
+ * seconds (the time since the report before): listen_s the microphone
+ * was on, sound_s the sound gate was open (the models of the device
+ * ran), wakes the wake names that the device heard from the person,
+ * turns the spoken turns that it sent, dropped the turns that the voice
+ * print rejected. Magi keeps the reports for 14 days and computes the
+ * battery use from them (list_devices of a persona).
+ */
+export interface DeviceHealth {
+  battery?: number;
+  charging?: boolean;
+  windowS?: number;
+  listenS?: number;
+  soundS?: number;
+  wakes?: number;
+  turns?: number;
+  dropped?: number;
 }
 
 /**
@@ -432,6 +528,7 @@ export interface PutDeviceRequest {
   appVersion?: string;
   appBuild?: number;
   updateError?: string;
+  health?: DeviceHealth;
 }
 
 export interface ListDevicesRequest {

@@ -18,4 +18,8 @@ type SpeechService interface {
 	PrepareText(ctx context.Context, req PrepareTextRequest) (PrepareTextResponse, error)
 	DetectSpeech(ctx context.Context, req DetectSpeechRequest) (DetectSpeechResponse, error)
 	ClassifyTurn(ctx context.Context, req ClassifyTurnRequest) (ClassifyTurnResponse, error)
+	GetSpeakerProfile(ctx context.Context, req GetSpeakerProfileRequest) (SpeakerProfile, error)
+	PutSpeakerProfile(ctx context.Context, req PutSpeakerProfileRequest) (SpeakerProfile, error)
+	DeleteSpeakerProfile(ctx context.Context, req DeleteSpeakerProfileRequest) (DeleteSpeakerProfileResponse, error)
+	VerifySpeaker(ctx context.Context, req VerifySpeakerRequest) (VerifySpeakerResponse, error)
 }

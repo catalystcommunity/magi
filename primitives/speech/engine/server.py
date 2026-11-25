@@ -6,6 +6,10 @@
                                               (ProtectAI deberta v3 v2, ONNX)
   server.py --engine turn --model-dir DIR     Silero VAD and the turn
                                               classifier (turn/, ONNX)
+  server.py --engine speaker --model-dir DIR  voice prints (3D-Speaker
+                                              ERes2Net) and target speaker
+                                              extraction (VoxLock), both
+                                              with sherpa-onnx on the CPU
 
 --device auto (the default) runs Kokoro on a GPU when torch sees one (CUDA or
 ROCm), else on the CPU. Parakeet always runs on the CPU; it is fast enough.
@@ -25,6 +29,16 @@ Endpoints (all except /health need "Authorization: Bearer <token>"):
   POST /turn        JSON {items: [{context, text}, ...]} -> {results:
                     [{ack, turn, unclear}, ...]} (turn). context is what the
                     persona said last, text what the person said over it.
+  POST /speaker     JSON {audio (base64, any ffmpeg format), sample?
+                    (base64: speech of one person)} -> JSON {vector (base64:
+                    the voice print of the audio, little-endian float32 with
+                    unit length; null when the audio has too little sound),
+                    model, audio_ms} (speaker). With sample, when the
+                    extraction model is there and the sample has 3 s or
+                    more: also extracted (base64 WAV, 16 kHz mono: the audio
+                    with only the voice of the sample) and extracted_vector.
+                    The engine keeps no audio after the call, and no sample
+                    on its disk.
 
 Results carry audio_ms and elapsed_ms (JSON fields, or X-Audio-Ms and
 X-Elapsed-Ms headers for audio). The model stays loaded. One lock serializes
@@ -252,6 +266,127 @@ def load_turn(directory, threads):
     return {"vad": vad, "classify": classify}
 
 
+SPEAKER_MODEL = "3dspeaker-eres2net-en-voxceleb-16k"
+SPEAKER_FILE = "3dspeaker_speech_eres2net_sv_en_voxceleb_16k.onnx"
+# The speaker model reads at most this much of a clip. A turn is seldom
+# longer, and the time of the model grows with the length.
+SPEAKER_SECONDS = 30
+# A print from less sound than this is not reliable: the engine gives none.
+SPEAKER_MIN_SECONDS = 0.4
+# VoxLock ignores a voice sample that is shorter than 3 seconds, and then
+# it keeps the loudest voice of the audio, which can be a different person.
+# Thus there is no extraction with a shorter sample. The engine counts the
+# samples of the file that it gives to VoxLock.
+SAMPLE_MIN_SECONDS = 3
+MAX_SAMPLE = 2 << 20
+# The extraction model is built for one voice sample, so one object is kept
+# for each of the last people. One object uses about 280 MB of memory.
+EXTRACTORS = 2
+
+
+def trim_sound(samples):
+    """Drops the quiet parts at the start and the end of a clip (20 ms
+    frames under a tenth of the loudest frame), so a short clip is not
+    mostly silence for the speaker model."""
+    import numpy as np
+
+    n = 320
+    frames = samples[:samples.size - samples.size % n].reshape(-1, n)
+    if frames.shape[0] == 0:
+        return samples[:0]
+    energy = np.sqrt((frames.astype(np.float64) ** 2).mean(axis=1))
+    loud = np.nonzero(energy > max(0.1 * energy.max(), 1e-4))[0]
+    if loud.size == 0:
+        return samples[:0]
+    return samples[loud[0] * n:(loud[-1] + 1) * n]
+
+
+def wav16(samples):
+    """A 16-bit mono WAV file at 16 kHz."""
+    import numpy as np
+
+    pcm = np.round(np.clip(samples, -1, 1 - 1 / 32768) * 32768).astype("<i2")
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(STT_RATE)
+        w.writeframes(pcm.tobytes())
+    return buf.getvalue()
+
+
+def load_speaker(directory, threads):
+    """Voice prints with the 3D-Speaker ERes2Net model, and target speaker
+    extraction with VoxLock when its files are in directory/voxlock. Both
+    run on the CPU with sherpa-onnx. The extraction keeps the voice of one
+    person (the sample) and removes the other voices; it can also damage
+    the speech, so the caller compares the print of the result again."""
+    import collections
+    import tempfile
+
+    import numpy as np
+    import sherpa_onnx
+
+    ex = sherpa_onnx.SpeakerEmbeddingExtractor(sherpa_onnx.SpeakerEmbeddingExtractorConfig(
+        model=str(directory / SPEAKER_FILE), num_threads=threads, provider="cpu"))
+    vox = directory / "voxlock"
+    chunk = next(iter(sorted(vox.glob("chunk*.onnx"))), None) if vox.is_dir() else None
+    extractors = collections.OrderedDict()
+
+    def embed(samples):
+        samples = trim_sound(samples)[:SPEAKER_SECONDS * STT_RATE]
+        if samples.size < SPEAKER_MIN_SECONDS * STT_RATE:
+            return None
+        stream = ex.create_stream()
+        stream.accept_waveform(STT_RATE, samples)
+        stream.input_finished()
+        v = np.array(ex.compute(stream), dtype=np.float32)
+        norm = float(np.linalg.norm(v))
+        if not np.isfinite(norm) or norm == 0:
+            return None
+        return (v / norm).astype("<f4")
+
+    def extractor(sample):
+        """The extraction object for the voice in sample (WAV bytes). The
+        file with the sample is there only while the object is made."""
+        key = hashlib.sha256(sample).hexdigest()
+        if key in extractors:
+            extractors.move_to_end(key)
+            return extractors[key]
+        with tempfile.TemporaryDirectory(prefix="magi-speaker-") as tmp:
+            path = Path(tmp) / "sample.wav"
+            path.write_bytes(sample)
+            mc = sherpa_onnx.OfflineSpeechDenoiserModelConfig(num_threads=threads, provider="cpu")
+            mc.voxlock = sherpa_onnx.OfflineSpeechDenoiserVoxLockModelConfig(
+                enroll_model=str(vox / "enroll.onnx"), chunk_model=str(chunk), voice_sample=str(path))
+            d = sherpa_onnx.OfflineSpeechDenoiser(sherpa_onnx.OfflineSpeechDenoiserConfig(model=mc))
+        extractors[key] = d
+        while len(extractors) > EXTRACTORS:
+            extractors.popitem(last=False)
+        return d
+
+    def extract(samples, sample):
+        out = extractor(sample).run(samples, STT_RATE)
+        x = np.array(out.samples, dtype=np.float32)
+        if out.sample_rate != STT_RATE and x.size:
+            at = np.arange(0, x.size, out.sample_rate / STT_RATE)
+            x = np.interp(at, np.arange(x.size), x).astype(np.float32)
+        return x
+
+    def run(samples, sample):
+        """sample: 16 kHz samples of the speech of one person, or None."""
+        res = {"vector": embed(samples), "extracted": None, "extracted_vector": None}
+        if (sample is not None and chunk is not None and sample.size >= SAMPLE_MIN_SECONDS * STT_RATE
+                and samples.size >= SPEAKER_MIN_SECONDS * STT_RATE):
+            x = extract(samples, wav16(sample[:SPEAKER_SECONDS * STT_RATE]))
+            if x.size and np.isfinite(x).all():
+                res["extracted"], res["extracted_vector"] = x, embed(x)
+        return res
+
+    run.extraction = chunk is not None
+    return run
+
+
 def load_stt(directory, threads):
     import sherpa_onnx
 
@@ -417,6 +552,30 @@ class Handler(BaseHTTPRequestHandler):
                 results = s.run["classify"](items)
                 elapsed = int((time.monotonic() - start) * 1000)
             return self.reply(200, {"results": results, "engine": s.engine_name, "elapsed_ms": elapsed})
+        if route == ("POST", "/speaker", "speaker"):
+            try:
+                req = json.loads(self.body((MAX_AUDIO + MAX_SAMPLE) * 4 // 3 + (64 << 10)))
+                audio = base64.b64decode(req["audio"], validate=True)
+                sample = base64.b64decode(req["sample"], validate=True) if req.get("sample") else None
+            except (ValueError, TypeError, KeyError, AttributeError):
+                raise Fail(400, "invalid JSON request")
+            if not audio or len(audio) > MAX_AUDIO or (sample is not None and len(sample) > MAX_SAMPLE):
+                raise Fail(413, "audio or sample is too large")
+            samples = decode_audio(audio)
+            voice = decode_audio(sample) if sample is not None else None
+            with s.lock:
+                start = time.monotonic()
+                res = s.run(samples, voice)
+                elapsed = int((time.monotonic() - start) * 1000)
+
+            def b64(v):
+                return base64.b64encode(v.tobytes()).decode() if v is not None else None
+            out = {"vector": b64(res["vector"]), "model": SPEAKER_MODEL, "engine": s.engine_name,
+                   "audio_ms": samples.size * 1000 // STT_RATE, "elapsed_ms": elapsed}
+            if res["extracted"] is not None:
+                out["extracted"] = base64.b64encode(wav16(res["extracted"])).decode()
+                out["extracted_vector"] = b64(res["extracted_vector"])
+            return self.reply(200, out)
         if route == ("POST", "/synthesize", "tts"):
             try:
                 req = json.loads(self.body(64 << 10))
@@ -461,7 +620,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--engine", choices=["stt", "tts", "detect", "turn"], required=True)
+    ap.add_argument("--engine", choices=["stt", "tts", "detect", "turn", "speaker"], required=True)
     ap.add_argument("--model-dir", required=True)
     ap.add_argument("--token-file", required=True)
     ap.add_argument("--pins", default=str(Path(__file__).with_name("model-pins.json")))
@@ -494,6 +653,17 @@ def main():
         run, name, device = load_turn(directory, a.threads), "silero-vad-5+" + turn["name"], "cpu"
         run["classify"]([{"context": "ready", "text": "okay"}])  # warm up
         run["vad"](__import__("numpy").zeros(STT_RATE, dtype="float32"))
+    elif a.engine == "speaker":
+        verify(directory, pins["speaker"]["sha256"])
+        # The extraction is optional: a host with no VoxLock files gives
+        # voice prints only.
+        if (directory / "voxlock").is_dir():
+            verify(directory, {"voxlock/" + k: v for k, v in pins["voxlock"]["sha256"].items()})
+        run, device = load_speaker(directory, a.threads), "cpu"
+        name = SPEAKER_MODEL + ("+voxlock" if run.extraction else "")
+        np = __import__("numpy")
+        tone = (np.sin(np.arange(4 * STT_RATE, dtype="float32") / 20) * 0.1).astype("float32")
+        run(tone[:STT_RATE], tone if run.extraction else None)  # warm up
     else:
         verify(directory, pins["kokoro"]["sha256"])
         device = tts_device(a.device)

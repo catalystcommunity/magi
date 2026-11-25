@@ -28,6 +28,8 @@ Optional: SEARCH=true (with EGRESS) adds SearXNG for web_search (image
 SEARCH_IMAGE, Secret magi-search-settings); see deploy/README.md.
 Optional: SPEECH_TURN_URL is the speech detection and turn classifier engine
 (the engine "turn"), for detect-speech and classify-turn.
+Optional: SPEECH_SPEAKER_URL is the voice print and extraction engine (the
+engine "speaker"), for verify-speaker.
 Secrets are created separately (see deploy/README.md).
 """
 import argparse
@@ -273,7 +275,8 @@ def render(img, v):
     out += service(v, "speech", img["IMAGE_SPEECH"], db_env("speech") + [
         {"name": "MAGI_SPEECH_STT_URL", "value": v["SPEECH_STT_URL"]}, {"name": "MAGI_SPEECH_TTS_URL", "value": v["SPEECH_TTS_URL"]},
         {"name": "MAGI_SPEECH_ENGINE_TOKEN_FILE", "value": "/etc/magi/speech/token"}] +
-        ([{"name": "MAGI_SPEECH_TURN_URL", "value": v["SPEECH_TURN_URL"]}] if v.get("SPEECH_TURN_URL") else []),
+        ([{"name": "MAGI_SPEECH_TURN_URL", "value": v["SPEECH_TURN_URL"]}] if v.get("SPEECH_TURN_URL") else []) +
+        ([{"name": "MAGI_SPEECH_SPEAKER_URL", "value": v["SPEECH_SPEAKER_URL"]}] if v.get("SPEECH_SPEAKER_URL") else []),
         secrets=[("magi-speech-engine", "/etc/magi/speech")])
     egress = v.get("EGRESS") == "true"
     exec_env, exec_secrets = [], []

@@ -85,6 +85,15 @@ class MagiAsyncClient(private val transport: AsyncTransport) {
     suspend fun removeDevice(request: RemoveDeviceRequest): Device {
         return decode<Device>(transport.call("MagiService", "remove-device", encode(request)))
     }
+    suspend fun getVoiceProfile(request: GetVoiceProfileRequest): VoiceProfile {
+        return decode<VoiceProfile>(transport.call("MagiService", "get-voice-profile", encode(request)))
+    }
+    suspend fun putVoiceProfile(request: PutVoiceProfileRequest): VoiceProfile {
+        return decode<VoiceProfile>(transport.call("MagiService", "put-voice-profile", encode(request)))
+    }
+    suspend fun deleteVoiceProfile(request: DeleteVoiceProfileRequest): DeleteVoiceProfileResponse {
+        return decode<DeleteVoiceProfileResponse>(transport.call("MagiService", "delete-voice-profile", encode(request)))
+    }
     suspend fun waitNotices(request: WaitNoticesRequest): WaitNoticesResponse {
         return decode<WaitNoticesResponse>(transport.call("MagiService", "wait-notices", encode(request)))
     }
