@@ -6,6 +6,7 @@ pub mod auth;
 pub mod cluster;
 pub mod config;
 pub mod controller;
+pub mod database;
 pub mod server;
 pub mod store;
 

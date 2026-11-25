@@ -347,3 +347,75 @@ func TestEventTurnResumesABlockedTask(t *testing.T) {
 		t.Fatalf("resume: %s (%q)", out.Out, run.Vars["test.decided"])
 	}
 }
+
+// A message of the person that tells the decision needs no confirmation.
+func TestToldDecisionNeedsNoConfirmation(t *testing.T) {
+	for text, want := range map[string]bool{
+		"Merge it": true, "Yes, try merging it now": true, "Please go ahead and merge the pull request.": true, "Approve the flag change": true,
+		"Did that get merged?": false, "Should I merge it": false, "Don't merge it yet": false, "Merge it after the tests pass": false,
+		"Yes": false, "What does approve do": false, "": false,
+	} {
+		if got := tells(text, "approve"); got != want {
+			t.Errorf("tells(%q) = %v, want %v", text, got, want)
+		}
+	}
+	if tells("Merge it", "reject") || !tells("Reject it", "reject") {
+		t.Error("reject")
+	}
+
+	sys, _, wf := eventEnv(t, nil)
+	ctx := sys.AsService(context.Background())
+	start := func(title string) *workflowapi.Run {
+		a := taskStep(sys, "", 0)
+		a.Vars["title"] = title
+		run, err := wf.Start(ctx, workflowapi.StartRequest{Definition: CodeChange, Owner: ptr(turnOwner), Vars: a.Vars})
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := wf.byID[run.Id]
+		r.Status, r.CurrentStep = "waiting", "review"
+		return r
+	}
+	one := start("Fix the worker")
+	turn := func(text string, read bool) func(map[string]string) toolResult {
+		utt := conversationapi.Utterance{Id: "utt_p", Stream: "str_1", Author: turnOwner, AuthorKind: "human", Text: text}
+		g := &toolTurn{a: taskStep(sys, one.Id, 0), as: conversationLens{person: turnOwner, persona: Engineering}, utt: utt,
+			ts: &turnState{pages: map[string]bool{}, readTask: read}, tools: profiles[Engineering].tools}
+		return func(args map[string]string) toolResult { return sys.toolGate(ctx, g, "decide_task", args) }
+	}
+	// A summary is no instruction: the confirmation stays.
+	if out := turn("Tell me about the change", false)(map[string]string{"task": one.Id, "outcome": "approve"}); !strings.HasPrefix(out.Out, "confirmation needed") {
+		t.Fatalf("not told: %s", out.Out)
+	}
+	// "Merge it" at review is approve, with no confirm, also after the
+	// turn read the task.
+	if out := turn("Merge it", true)(map[string]string{"task": one.Id, "outcome": "merge"}); !toolDone(out.Out) || !strings.HasPrefix(one.Vars["test.decided"], "approve: ") {
+		t.Fatalf("told: %s (%q)", out.Out, one.Vars["test.decided"])
+	}
+	// Two tasks wait: "merge it" does not say which one. The title does.
+	one.Status, one.CurrentStep = "waiting", "review"
+	two := start("Show the time zone")
+	if out := turn("Merge it", false)(map[string]string{"task": two.Id, "outcome": "approve"}); !strings.HasPrefix(out.Out, "confirmation needed") {
+		t.Fatalf("two tasks: %s", out.Out)
+	}
+	if _, ok := sys.toldRun(ctx, turnOwner, conversationapi.Utterance{AuthorKind: "human", Text: "Merge it"}); ok {
+		t.Fatal("toldRun with two tasks")
+	}
+	if d, ok := sys.toldRun(ctx, turnOwner, conversationapi.Utterance{AuthorKind: "human", Text: "Merge the time zone change"}); !ok || d != (askedDecision{two.Id, "approve"}) {
+		t.Fatalf("toldRun by title: %v %v", d, ok)
+	}
+	// The model names the other task: the message did not tell that one.
+	if out := turn("Merge the time zone change", false)(map[string]string{"task": one.Id, "outcome": "approve"}); !strings.HasPrefix(out.Out, "confirmation needed") {
+		t.Fatalf("the other task: %s", out.Out)
+	}
+	if out := turn("Merge the time zone change", false)(map[string]string{"task": two.Id, "outcome": "approve"}); !toolDone(out.Out) {
+		t.Fatalf("named: %s", out.Out)
+	}
+	// A task of another person does not count, and an event is no person.
+	if _, ok := sys.toldRun(ctx, "user:b@example.local", conversationapi.Utterance{AuthorKind: "human", Text: "Merge it"}); ok {
+		t.Fatal("another person")
+	}
+	if _, ok := sys.toldRun(ctx, turnOwner, conversationapi.Utterance{AuthorKind: "system", Text: "Merge the time zone change"}); ok {
+		t.Fatal("an event")
+	}
+}

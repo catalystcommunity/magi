@@ -62,6 +62,8 @@ pub struct App {
     pub store: Arc<Store>,
     pub targets: Arc<HashMap<String, TargetConfig>>,
     pub queue: UnboundedSender<String>,
+    /// The records of the database watch.
+    pub incidents: Arc<crate::database::Incidents>,
 }
 
 fn can_operate(p: &Principal) -> bool {
@@ -169,6 +171,22 @@ impl api::ReleaseService for App {
             .map(TargetConfig::to_api).collect();
         targets.sort_by(|a, b| a.name.cmp(&b.name));
         Ok(api::ListTargetsResponse { targets })
+    }
+
+    fn database_status(&self, p: &Principal, _: api::DatabaseStatusRequest) -> Result<api::DatabaseStatusResponse, ServiceError> {
+        if !can_read_all(p) {
+            return Err(err(403, "scope release:read required"));
+        }
+        let st = self.incidents.status();
+        Ok(api::DatabaseStatusResponse { watched: st.is_some(), instances: st.unwrap_or_default() })
+    }
+
+    fn list_incidents(&self, p: &Principal, input: api::ListIncidentsRequest) -> Result<api::ListIncidentsResponse, ServiceError> {
+        if !can_read_all(p) {
+            return Err(err(403, "scope release:read required"));
+        }
+        let limit = input.limit.unwrap_or(100).clamp(1, 500) as usize;
+        Ok(api::ListIncidentsResponse { incidents: self.incidents.after(input.after.unwrap_or(0), limit) })
     }
 }
 

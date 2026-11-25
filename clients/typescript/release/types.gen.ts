@@ -80,3 +80,54 @@ export interface ListTargetsResponse {
   targets: Target[];
 }
 
+/**
+ * One instance of the database of the installation. role: "primary",
+ * "replica", or "" (not known).
+ */
+export interface DatabaseInstance {
+  name: string;
+  role: string;
+  ready: boolean;
+  restarts: number;
+}
+
+/**
+ * Something that the database watch saw or did. kind: "failover" (the
+ * primary changed), "restarted" (the controller restarted an instance
+ * that was not ready), "unhealthy" (an instance is still not ready after
+ * the restart, or the restart failed: a person must look), "recovered"
+ * (an instance of an earlier incident is ready again). seq increases by
+ * one for each incident.
+ */
+export interface DatabaseIncident {
+  seq: number;
+  kind: string;
+  instance: string;
+  message: string;
+  atMs: number;
+}
+
+/**
+ * watched is false when the controller has no database to watch.
+ */
+export interface DatabaseStatusRequest {
+  cluster?: string;
+}
+
+export interface DatabaseStatusResponse {
+  watched: boolean;
+  instances: DatabaseInstance[];
+}
+
+/**
+ * The incidents with seq greater than after, the oldest first.
+ */
+export interface ListIncidentsRequest {
+  after?: number;
+  limit?: number;
+}
+
+export interface ListIncidentsResponse {
+  incidents: DatabaseIncident[];
+}
+

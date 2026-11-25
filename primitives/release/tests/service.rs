@@ -230,3 +230,78 @@ async fn interrupted_release_is_restored_at_start() {
     assert_eq!(store.get("rel_x").unwrap().release.status, "rolled-back");
     assert_eq!(f.image("web"), "web:1");
 }
+
+/// A database with instances that the test sets. It records the restarts.
+#[derive(Clone, Default)]
+struct FakeDb {
+    instances: Arc<Mutex<Vec<api::DatabaseInstance>>>,
+    restarted: Arc<Mutex<Vec<String>>>,
+    refuse: bool,
+}
+
+impl FakeDb {
+    fn set(&self, v: &[(&str, &str, bool)]) {
+        *self.instances.lock().unwrap() = v.iter().map(|(n, r, ok)| api::DatabaseInstance { name: n.to_string(), role: r.to_string(), ready: *ok, restarts: 0 }).collect();
+    }
+}
+
+impl magi_release::database::Database for FakeDb {
+    async fn instances(&self) -> anyhow::Result<Vec<api::DatabaseInstance>> {
+        Ok(self.instances.lock().unwrap().clone())
+    }
+    async fn restart(&self, name: &str) -> anyhow::Result<()> {
+        if self.refuse {
+            anyhow::bail!("forbidden");
+        }
+        self.restarted.lock().unwrap().push(name.into());
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn database_watch_restarts_and_reports() {
+    use magi_release::database::{Watch, look_once};
+    let r = start(Fake::default(), vec![], 5, 0).await;
+    let read = token("reader");
+    let status = |b: Vec<u8>| api::decode_database_status_response(&b).unwrap();
+    let list = |b: Vec<u8>| api::decode_list_incidents_response(&b).unwrap().incidents;
+    let status_req = api::encode_database_status_request(&api::DatabaseStatusRequest { cluster: None }).unwrap();
+    let list_req = |after: u64| api::encode_list_incidents_request(&api::ListIncidentsRequest { after: Some(after), limit: None }).unwrap();
+    // No watch looked yet.
+    assert!(!status(r.call(&read, "database-status", status_req.clone()).await.unwrap()).watched);
+    assert_eq!(r.call(&token("noscope"), "list-incidents", list_req(0)).await.unwrap_err().0, 403);
+
+    let db = FakeDb::default();
+    let mut w = Watch::new(Duration::from_secs(180), Duration::from_secs(600));
+    let min = 60_000;
+    db.set(&[("db-1", "primary", true), ("db-2", "replica", true)]);
+    look_once(&db, &mut w, &r.incidents, 0).await;
+    let st = status(r.call(&read, "database-status", status_req.clone()).await.unwrap());
+    assert!(st.watched && st.instances.len() == 2 && st.instances[0].role == "primary");
+    assert!(list(r.call(&read, "list-incidents", list_req(0)).await.unwrap()).is_empty());
+
+    // The primary breaks: the standby takes over, and the old primary is
+    // restarted after three minutes.
+    db.set(&[("db-1", "primary", false), ("db-2", "primary", true)]);
+    look_once(&db, &mut w, &r.incidents, min).await;
+    look_once(&db, &mut w, &r.incidents, 4 * min).await;
+    assert_eq!(*db.restarted.lock().unwrap(), ["db-1"]);
+    db.set(&[("db-1", "replica", true), ("db-2", "primary", true)]);
+    look_once(&db, &mut w, &r.incidents, 5 * min).await;
+    let got = list(r.call(&read, "list-incidents", list_req(0)).await.unwrap());
+    assert_eq!(got.iter().map(|i| (i.seq, i.kind.as_str(), i.instance.as_str())).collect::<Vec<_>>(),
+        [(1, "failover", "db-2"), (2, "restarted", "db-1"), (3, "recovered", "db-1")]);
+    assert!(got[1].message.contains("not ready for 3 minutes"));
+    assert_eq!(list(r.call(&read, "list-incidents", list_req(2)).await.unwrap()).len(), 1);
+
+    // A restart that the cluster refuses is an incident for a person.
+    let db = FakeDb { refuse: true, ..Default::default() };
+    let mut w = Watch::new(Duration::from_secs(180), Duration::from_secs(600));
+    db.set(&[("db-1", "primary", false)]);
+    look_once(&db, &mut w, &r.incidents, 0).await;
+    look_once(&db, &mut w, &r.incidents, 3 * min).await;
+    look_once(&db, &mut w, &r.incidents, 20 * min).await;
+    let got = list(r.call(&read, "list-incidents", list_req(3)).await.unwrap());
+    assert_eq!(got.len(), 1);
+    assert!(got[0].kind == "unhealthy" && got[0].message.contains("the restart failed: forbidden"));
+}

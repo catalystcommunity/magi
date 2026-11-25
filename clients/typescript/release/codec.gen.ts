@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { CreateReleaseRequest, GetReleaseRequest, ListReleasesRequest, ListReleasesResponse, ListTargetsRequest, ListTargetsResponse, Release, ReleaseItem, RollbackRequest, Target, TargetImage } from "./types.gen.ts";
+import type { CreateReleaseRequest, DatabaseIncident, DatabaseInstance, DatabaseStatusRequest, DatabaseStatusResponse, GetReleaseRequest, ListIncidentsRequest, ListIncidentsResponse, ListReleasesRequest, ListReleasesResponse, ListTargetsRequest, ListTargetsResponse, Release, ReleaseItem, RollbackRequest, Target, TargetImage } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -724,5 +724,143 @@ export function toListTargetsResponseCbor(v: ListTargetsResponse): Uint8Array {
 
 export function fromListTargetsResponseCbor(bytes: Uint8Array): ListTargetsResponse {
   return fromListTargetsResponseCborValue(decode(bytes));
+}
+
+export function toDatabaseInstanceCborValue(v: DatabaseInstance): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("name", v.name);
+  csilMap.set("role", v.role);
+  csilMap.set("ready", v.ready);
+  csilMap.set("restarts", v.restarts);
+  return csilMap;
+}
+
+export function fromDatabaseInstanceCborValue(value: CborValue): DatabaseInstance {
+  return {
+    name: asString(requireKey(value, "name")),
+    role: asString(requireKey(value, "role")),
+    ready: asBool(requireKey(value, "ready")),
+    restarts: asNumber(requireKey(value, "restarts")),
+  };
+}
+
+export function toDatabaseInstanceCbor(v: DatabaseInstance): Uint8Array {
+  return encodeValue(toDatabaseInstanceCborValue(v));
+}
+
+export function fromDatabaseInstanceCbor(bytes: Uint8Array): DatabaseInstance {
+  return fromDatabaseInstanceCborValue(decode(bytes));
+}
+
+export function toDatabaseIncidentCborValue(v: DatabaseIncident): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("seq", v.seq);
+  csilMap.set("kind", v.kind);
+  csilMap.set("at_ms", v.atMs);
+  csilMap.set("message", v.message);
+  csilMap.set("instance", v.instance);
+  return csilMap;
+}
+
+export function fromDatabaseIncidentCborValue(value: CborValue): DatabaseIncident {
+  return {
+    seq: asNumber(requireKey(value, "seq")),
+    kind: asString(requireKey(value, "kind")),
+    instance: asString(requireKey(value, "instance")),
+    message: asString(requireKey(value, "message")),
+    atMs: asNumber(requireKey(value, "at_ms")),
+  };
+}
+
+export function toDatabaseIncidentCbor(v: DatabaseIncident): Uint8Array {
+  return encodeValue(toDatabaseIncidentCborValue(v));
+}
+
+export function fromDatabaseIncidentCbor(bytes: Uint8Array): DatabaseIncident {
+  return fromDatabaseIncidentCborValue(decode(bytes));
+}
+
+export function toDatabaseStatusRequestCborValue(v: DatabaseStatusRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.cluster !== undefined) csilMap.set("cluster", v.cluster);
+  return csilMap;
+}
+
+export function fromDatabaseStatusRequestCborValue(value: CborValue): DatabaseStatusRequest {
+  return {
+    cluster: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "cluster")),
+  };
+}
+
+export function toDatabaseStatusRequestCbor(v: DatabaseStatusRequest): Uint8Array {
+  return encodeValue(toDatabaseStatusRequestCborValue(v));
+}
+
+export function fromDatabaseStatusRequestCbor(bytes: Uint8Array): DatabaseStatusRequest {
+  return fromDatabaseStatusRequestCborValue(decode(bytes));
+}
+
+export function toDatabaseStatusResponseCborValue(v: DatabaseStatusResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("watched", v.watched);
+  csilMap.set("instances", v.instances.map((csilE): CborValue => toDatabaseInstanceCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromDatabaseStatusResponseCborValue(value: CborValue): DatabaseStatusResponse {
+  return {
+    watched: asBool(requireKey(value, "watched")),
+    instances: asArray(requireKey(value, "instances")).map((csilE) => fromDatabaseInstanceCborValue(csilE)),
+  };
+}
+
+export function toDatabaseStatusResponseCbor(v: DatabaseStatusResponse): Uint8Array {
+  return encodeValue(toDatabaseStatusResponseCborValue(v));
+}
+
+export function fromDatabaseStatusResponseCbor(bytes: Uint8Array): DatabaseStatusResponse {
+  return fromDatabaseStatusResponseCborValue(decode(bytes));
+}
+
+export function toListIncidentsRequestCborValue(v: ListIncidentsRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.after !== undefined) csilMap.set("after", v.after);
+  if (v.limit !== undefined) csilMap.set("limit", v.limit);
+  return csilMap;
+}
+
+export function fromListIncidentsRequestCborValue(value: CborValue): ListIncidentsRequest {
+  return {
+    after: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "after")),
+    limit: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
+  };
+}
+
+export function toListIncidentsRequestCbor(v: ListIncidentsRequest): Uint8Array {
+  return encodeValue(toListIncidentsRequestCborValue(v));
+}
+
+export function fromListIncidentsRequestCbor(bytes: Uint8Array): ListIncidentsRequest {
+  return fromListIncidentsRequestCborValue(decode(bytes));
+}
+
+export function toListIncidentsResponseCborValue(v: ListIncidentsResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("incidents", v.incidents.map((csilE): CborValue => toDatabaseIncidentCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromListIncidentsResponseCborValue(value: CborValue): ListIncidentsResponse {
+  return {
+    incidents: asArray(requireKey(value, "incidents")).map((csilE) => fromDatabaseIncidentCborValue(csilE)),
+  };
+}
+
+export function toListIncidentsResponseCbor(v: ListIncidentsResponse): Uint8Array {
+  return encodeValue(toListIncidentsResponseCborValue(v));
+}
+
+export function fromListIncidentsResponseCbor(bytes: Uint8Array): ListIncidentsResponse {
+  return fromListIncidentsResponseCborValue(decode(bytes));
 }
 

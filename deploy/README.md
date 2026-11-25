@@ -78,6 +78,7 @@ PERSONA_LOCAL_MODEL=          # optional: the model name on that host (default "
 PERSONA_PROVIDER_FIRST=       # optional: true puts MODEL_* before the local hosts for the persona (a model comparison); the librarian keeps the local hosts
 LIBRARIAN_PROVIDER=           # optional: true puts MODEL_* first for the librarian and the note taker (a model comparison of the knowledge import)
 STORAGE_CLASS=                # optional: the storage class of the volumes; empty: the default class of the cluster
+DB_INSTANCES=                 # optional: the number of PostgreSQL instances; empty: 2 (a primary and a standby)
 SPEECH_STT_URL=http://speech.example.local:8092
 SPEECH_TTS_URL=http://speech.example.local:8093
 SPEECH_TURN_URL=              # optional: speech detection and turn classifier engine (speech engine host, port 8095)
@@ -95,6 +96,13 @@ DETECTOR_URL=                 # optional: the prompt injection detector engine (
 DETECTOR_MODE=                # optional: flag (default; pass now, tell the person later) or review (block a finding for an admin)
 DETECTOR_THRESHOLD=           # optional: 0.98
 ```
+
+The PostgreSQL cluster has two instances. When the primary fails, the
+operator promotes the standby, and the services connect again through
+`magi-db-rw`. The release controller watches the instances
+(`MAGI_RELEASE_DATABASE`, set by `render.py`): it restarts an instance that
+stays not ready, and Magi tells the admins each incident
+(`primitives/release/README.md`, "Database watch").
 
 A database that `postgres.yaml` adds later is not made in an existing
 cluster (`postInitSQL` runs one time). Make it by hand, for example:

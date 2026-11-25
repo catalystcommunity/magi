@@ -24,6 +24,7 @@ pub struct Running {
     pub base: String,
     pub http: reqwest::Client,
     pub _dir: tempfile::TempDir,
+    pub incidents: Arc<magi_release::database::Incidents>,
 }
 
 /// Starts the controller with `cluster`. Durations are in seconds.
@@ -34,13 +35,14 @@ pub async fn start<C: Cluster>(cluster: C, targets: Vec<TargetConfig>, timeout: 
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     let w = Worker { store: store.clone(), targets: targets.clone(), cluster, timeout: Duration::from_secs(timeout), stabilize: Duration::from_secs(stabilize) };
     tokio::spawn(w.run(rx));
+    let incidents = Arc::new(magi_release::database::Incidents::open(None).unwrap());
     let mut v = Verifier::default();
     v.add(serde_json::from_value(vector()["key"].clone()).unwrap()).unwrap();
-    let srv = Arc::new(Server { app: App { store, targets, queue: tx }, verifier: Some(v) });
+    let srv = Arc::new(Server { app: App { store, targets, queue: tx, incidents: incidents.clone() }, verifier: Some(v) });
     let l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", l.local_addr().unwrap());
     tokio::spawn(async move { axum::serve(l, router(srv)).await.unwrap() });
-    Running { base, http: reqwest::Client::new(), _dir: dir }
+    Running { base, http: reqwest::Client::new(), _dir: dir, incidents }
 }
 
 impl Running {

@@ -10,6 +10,8 @@ The repository holds no private values. The values file supplies them:
   GATEWAY_NAMESPACE, GATEWAY_SECTION, ENV_IMAGE.
 Optional: STORAGE_CLASS for the volumes (empty: the default class of the
 cluster).
+Optional: DB_INSTANCES is the number of PostgreSQL instances (default 2:
+a primary and a standby).
 Optional: PERSONA_LOCAL_URL and PERSONA_LOCAL_MODEL (inference hosts that
 the persona tries first, comma-separated in order, one model for each URL;
 they need the secret magi-inference-token). http://<name>.revconn/v1 is a
@@ -217,7 +219,8 @@ def base(v):
         for line in f.read_text().splitlines():
             if "${STORAGE_CLASS}" in line and not v.get("STORAGE_CLASS"):
                 continue
-            lines.append(line.replace("${STORAGE_CLASS}", v.get("STORAGE_CLASS", "")).replace("${NAMESPACE}", v["NAMESPACE"]))
+            lines.append(line.replace("${STORAGE_CLASS}", v.get("STORAGE_CLASS", "")).replace("${NAMESPACE}", v["NAMESPACE"])
+                         .replace("${DB_INSTANCES}", v.get("DB_INSTANCES", "2")))
         out.append("\n".join(lines))
     return "\n---\n".join(out) + "\n"
 
@@ -317,7 +320,9 @@ def render(img, v):
     ]
     rel = service(v, "release", img["IMAGE_RELEASE"], [
         {"name": "MAGI_RELEASE_TARGETS", "value": "/etc/magi/release/targets.json"},
-        {"name": "MAGI_RELEASE_DATA", "value": "/var/lib/magi-release"}],
+        {"name": "MAGI_RELEASE_DATA", "value": "/var/lib/magi-release"},
+        # The database watch: deploy/base/postgres.yaml names the cluster.
+        {"name": "MAGI_RELEASE_DATABASE", "value": f"{ns}/magi-db"}],
         volumes=[("data", "/var/lib/magi-release", "release-data")], sa="release", mem="128Mi")
     pod = rel[0]["spec"]["template"]["spec"]
     pod["containers"][0]["volumeMounts"].append({"name": "targets", "mountPath": "/etc/magi/release", "readOnly": True})

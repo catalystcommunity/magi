@@ -46,10 +46,32 @@ RollbackRequest = { id: text }
 ListTargetsRequest = { ? name: text }
 ListTargetsResponse = { targets: [* Target] }
 
+;;; One instance of the database of the installation. role: "primary",
+;;; "replica", or "" (not known).
+DatabaseInstance = { name: text, role: text, ready: bool, restarts: uint }
+
+;;; Something that the database watch saw or did. kind: "failover" (the
+;;; primary changed), "restarted" (the controller restarted an instance
+;;; that was not ready), "unhealthy" (an instance is still not ready after
+;;; the restart, or the restart failed: a person must look), "recovered"
+;;; (an instance of an earlier incident is ready again). seq increases by
+;;; one for each incident.
+DatabaseIncident = { seq: uint, kind: text, instance: text, message: text, at_ms: uint }
+
+;;; watched is false when the controller has no database to watch.
+DatabaseStatusRequest = { ? cluster: text }
+DatabaseStatusResponse = { watched: bool, instances: [* DatabaseInstance] }
+
+;;; The incidents with seq greater than after, the oldest first.
+ListIncidentsRequest = { ? after: uint, ? limit: uint }
+ListIncidentsResponse = { incidents: [* DatabaseIncident] }
+
 service ReleaseService {
   create: CreateReleaseRequest -> Release,
   get: GetReleaseRequest -> Release,
   list: ListReleasesRequest -> ListReleasesResponse,
   rollback: RollbackRequest -> Release,
   list-targets: ListTargetsRequest -> ListTargetsResponse,
+  database-status: DatabaseStatusRequest -> DatabaseStatusResponse,
+  list-incidents: ListIncidentsRequest -> ListIncidentsResponse,
 }

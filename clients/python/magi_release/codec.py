@@ -738,3 +738,165 @@ def _list_targets_response_from_cbor(data: bytes) -> "ListTargetsResponse":
 
 ListTargetsResponse.to_cbor = _list_targets_response_to_cbor
 ListTargetsResponse.from_cbor = staticmethod(_list_targets_response_from_cbor)
+
+def _encode_database_instance_value(v: "DatabaseInstance") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["name"] = v.name
+    csil_m["role"] = v.role
+    csil_m["ready"] = v.ready
+    csil_m["restarts"] = v.restarts
+    return csil_m
+
+def _decode_database_instance_value(tree: Any) -> "DatabaseInstance":
+    tree = _csil_expect_map(tree)
+    return DatabaseInstance(
+        name=_csil_expect_text(tree["name"]),
+        role=_csil_expect_text(tree["role"]),
+        ready=_csil_expect_bool(tree["ready"]),
+        restarts=_csil_expect_uint(tree["restarts"]),
+    )
+
+
+def _database_instance_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_database_instance_value(self))
+
+
+def _database_instance_from_cbor(data: bytes) -> "DatabaseInstance":
+    return _decode_database_instance_value(cbor_decode(data))
+
+
+DatabaseInstance.to_cbor = _database_instance_to_cbor
+DatabaseInstance.from_cbor = staticmethod(_database_instance_from_cbor)
+
+def _encode_database_incident_value(v: "DatabaseIncident") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["seq"] = v.seq
+    csil_m["kind"] = v.kind
+    csil_m["at_ms"] = v.at_ms
+    csil_m["message"] = v.message
+    csil_m["instance"] = v.instance
+    return csil_m
+
+def _decode_database_incident_value(tree: Any) -> "DatabaseIncident":
+    tree = _csil_expect_map(tree)
+    return DatabaseIncident(
+        seq=_csil_expect_uint(tree["seq"]),
+        kind=_csil_expect_text(tree["kind"]),
+        instance=_csil_expect_text(tree["instance"]),
+        message=_csil_expect_text(tree["message"]),
+        at_ms=_csil_expect_uint(tree["at_ms"]),
+    )
+
+
+def _database_incident_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_database_incident_value(self))
+
+
+def _database_incident_from_cbor(data: bytes) -> "DatabaseIncident":
+    return _decode_database_incident_value(cbor_decode(data))
+
+
+DatabaseIncident.to_cbor = _database_incident_to_cbor
+DatabaseIncident.from_cbor = staticmethod(_database_incident_from_cbor)
+
+def _encode_database_status_request_value(v: "DatabaseStatusRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.cluster
+    if csil_x is not None:
+        csil_m["cluster"] = csil_x
+    return csil_m
+
+def _decode_database_status_request_value(tree: Any) -> "DatabaseStatusRequest":
+    tree = _csil_expect_map(tree)
+    return DatabaseStatusRequest(
+        cluster=(None if tree.get("cluster") is None else _csil_expect_text(tree["cluster"])),
+    )
+
+
+def _database_status_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_database_status_request_value(self))
+
+
+def _database_status_request_from_cbor(data: bytes) -> "DatabaseStatusRequest":
+    return _decode_database_status_request_value(cbor_decode(data))
+
+
+DatabaseStatusRequest.to_cbor = _database_status_request_to_cbor
+DatabaseStatusRequest.from_cbor = staticmethod(_database_status_request_from_cbor)
+
+def _encode_database_status_response_value(v: "DatabaseStatusResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["watched"] = v.watched
+    csil_m["instances"] = [_encode_database_instance_value(csil_e) for csil_e in v.instances]
+    return csil_m
+
+def _decode_database_status_response_value(tree: Any) -> "DatabaseStatusResponse":
+    tree = _csil_expect_map(tree)
+    return DatabaseStatusResponse(
+        watched=_csil_expect_bool(tree["watched"]),
+        instances=[_decode_database_instance_value(csil_e) for csil_e in _csil_expect_array(tree["instances"])],
+    )
+
+
+def _database_status_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_database_status_response_value(self))
+
+
+def _database_status_response_from_cbor(data: bytes) -> "DatabaseStatusResponse":
+    return _decode_database_status_response_value(cbor_decode(data))
+
+
+DatabaseStatusResponse.to_cbor = _database_status_response_to_cbor
+DatabaseStatusResponse.from_cbor = staticmethod(_database_status_response_from_cbor)
+
+def _encode_list_incidents_request_value(v: "ListIncidentsRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.after
+    if csil_x is not None:
+        csil_m["after"] = csil_x
+    csil_x = v.limit
+    if csil_x is not None:
+        csil_m["limit"] = csil_x
+    return csil_m
+
+def _decode_list_incidents_request_value(tree: Any) -> "ListIncidentsRequest":
+    tree = _csil_expect_map(tree)
+    return ListIncidentsRequest(
+        after=(None if tree.get("after") is None else _csil_expect_uint(tree["after"])),
+        limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
+    )
+
+
+def _list_incidents_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_incidents_request_value(self))
+
+
+def _list_incidents_request_from_cbor(data: bytes) -> "ListIncidentsRequest":
+    return _decode_list_incidents_request_value(cbor_decode(data))
+
+
+ListIncidentsRequest.to_cbor = _list_incidents_request_to_cbor
+ListIncidentsRequest.from_cbor = staticmethod(_list_incidents_request_from_cbor)
+
+def _encode_list_incidents_response_value(v: "ListIncidentsResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["incidents"] = [_encode_database_incident_value(csil_e) for csil_e in v.incidents]
+    return csil_m
+
+def _decode_list_incidents_response_value(tree: Any) -> "ListIncidentsResponse":
+    tree = _csil_expect_map(tree)
+    return ListIncidentsResponse(
+        incidents=[_decode_database_incident_value(csil_e) for csil_e in _csil_expect_array(tree["incidents"])],
+    )
+
+
+def _list_incidents_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_list_incidents_response_value(self))
+
+
+def _list_incidents_response_from_cbor(data: bytes) -> "ListIncidentsResponse":
+    return _decode_list_incidents_response_value(cbor_decode(data))
+
+
+ListIncidentsResponse.to_cbor = _list_incidents_response_to_cbor
+ListIncidentsResponse.from_cbor = staticmethod(_list_incidents_response_from_cbor)

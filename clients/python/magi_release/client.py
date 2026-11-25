@@ -51,3 +51,11 @@ class ReleaseClient:
         """list-targets"""
         return ListTargetsResponse.from_cbor(self._transport.call("ReleaseService", "list-targets", req.to_cbor()))
 
+    def database_status(self, req: DatabaseStatusRequest) -> DatabaseStatusResponse:
+        """database-status"""
+        return DatabaseStatusResponse.from_cbor(self._transport.call("ReleaseService", "database-status", req.to_cbor()))
+
+    def list_incidents(self, req: ListIncidentsRequest) -> ListIncidentsResponse:
+        """list-incidents"""
+        return ListIncidentsResponse.from_cbor(self._transport.call("ReleaseService", "list-incidents", req.to_cbor()))
+

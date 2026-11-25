@@ -22,9 +22,11 @@ rules:
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["get", "list"]
-  # Only for targets with preflight_args: the controller makes one pod with
+  # For targets with preflight_args: the controller makes one pod with
   # the pod spec of the Deployment and the new image, reads its log, and
   # deletes it. This gives no more access than the patch of a Deployment.
+  # For the database watch (MAGI_RELEASE_DATABASE): the controller deletes
+  # the pod of a database instance that stays not ready.
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["create", "delete"]

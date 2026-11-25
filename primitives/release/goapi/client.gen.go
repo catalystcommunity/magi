@@ -107,3 +107,29 @@ func (c *ReleaseClient) ListTargets(ctx context.Context, req ListTargetsRequest)
 	}
 	return DecodeListTargetsResponse(csilResp)
 }
+
+func (c *ReleaseClient) DatabaseStatus(ctx context.Context, req DatabaseStatusRequest) (DatabaseStatusResponse, error) {
+	var csilZero DatabaseStatusResponse
+	csilReq, csilErr := EncodeDatabaseStatusRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ReleaseService", "database-status", csilReq)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeDatabaseStatusResponse(csilResp)
+}
+
+func (c *ReleaseClient) ListIncidents(ctx context.Context, req ListIncidentsRequest) (ListIncidentsResponse, error) {
+	var csilZero ListIncidentsResponse
+	csilReq, csilErr := EncodeListIncidentsRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ReleaseService", "list-incidents", csilReq)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeListIncidentsResponse(csilResp)
+}

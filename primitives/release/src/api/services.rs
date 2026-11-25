@@ -45,4 +45,16 @@ pub trait ReleaseService {
         ctx: &Self::Context,
         input: ListTargetsRequest,
     ) -> Result<ListTargetsResponse, ServiceError>;
+    /// database-status (request/response).
+    fn database_status(
+        &self,
+        ctx: &Self::Context,
+        input: DatabaseStatusRequest,
+    ) -> Result<DatabaseStatusResponse, ServiceError>;
+    /// list-incidents (request/response).
+    fn list_incidents(
+        &self,
+        ctx: &Self::Context,
+        input: ListIncidentsRequest,
+    ) -> Result<ListIncidentsResponse, ServiceError>;
 }

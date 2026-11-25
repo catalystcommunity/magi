@@ -89,6 +89,13 @@ pub struct Settings {
     pub stabilize: Duration,
     pub health_via_proxy: bool,
     pub kube_context: Option<String>,
+    /// The database to watch: (namespace, CloudNativePG cluster).
+    pub database: Option<(String, String)>,
+    /// An instance that is not ready for this long is restarted.
+    pub database_restart_after: Duration,
+    /// An instance that is not ready this long after the restart needs a
+    /// person.
+    pub database_give_up_after: Duration,
 }
 
 impl Settings {
@@ -120,8 +127,18 @@ impl Settings {
         }
         let health = get("health", "MAGI_RELEASE_HEALTH").unwrap_or_else(|| "direct".into());
         anyhow::ensure!(health == "direct" || health == "proxy", "MAGI_RELEASE_HEALTH: direct or proxy");
+        let database = match get("database", "MAGI_RELEASE_DATABASE") {
+            Some(v) => match v.split_once('/') {
+                Some((ns, name)) if !ns.is_empty() && !name.is_empty() => Some((ns.to_string(), name.to_string())),
+                _ => anyhow::bail!("MAGI_RELEASE_DATABASE: expected namespace/cluster"),
+            },
+            None => None,
+        };
         Ok(Settings {
             listen,
+            database,
+            database_restart_after: secs("database-restart-after", "MAGI_RELEASE_DATABASE_RESTART_AFTER", 180)?,
+            database_give_up_after: secs("database-give-up-after", "MAGI_RELEASE_DATABASE_GIVE_UP_AFTER", 600)?,
             auth_keys: get("auth-keys", "MAGI_AUTH_KEYS")
                 .map(|v| v.split(',').map(str::trim).filter(|s| !s.is_empty()).map(PathBuf::from).collect())
                 .unwrap_or_default(),

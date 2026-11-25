@@ -73,3 +73,42 @@ pub struct ListTargetsRequest {
 pub struct ListTargetsResponse {
     pub targets: Vec<Target>,
 }
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DatabaseInstance {
+    pub name: String,
+    pub role: String,
+    pub ready: bool,
+    pub restarts: u64,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DatabaseIncident {
+    pub seq: u64,
+    pub kind: String,
+    pub instance: String,
+    pub message: String,
+    pub at_ms: u64,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DatabaseStatusRequest {
+    pub cluster: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DatabaseStatusResponse {
+    pub watched: bool,
+    pub instances: Vec<DatabaseInstance>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ListIncidentsRequest {
+    pub after: Option<u64>,
+    pub limit: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ListIncidentsResponse {
+    pub incidents: Vec<DatabaseIncident>,
+}

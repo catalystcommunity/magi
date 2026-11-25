@@ -8,7 +8,9 @@ metadata:
   namespace: ${NAMESPACE}
   labels: {app.kubernetes.io/part-of: magi}
 spec:
-  instances: 1
+  # Two instances: the operator promotes the standby when the primary
+  # fails. DB_INSTANCES=1 is for an installation with no data to lose.
+  instances: ${DB_INSTANCES}
   storage:
     size: 10Gi
     storageClass: ${STORAGE_CLASS}

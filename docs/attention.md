@@ -88,8 +88,19 @@ Decisions:
 
 - `revise` sends the task back to the apprentice with a comment. The
   persona can do this when the person asks for changes.
-- `approve` (merge and release) and `reject` need the agreement of the
-  person. Magi checks three conditions before it does the decision:
+- `approve` (merge and release), `reject`, and `merge` (an open pull
+  request) are decisions of the person.
+- The person tells the decision: no confirmation. Magi does the decision
+  when the message of the person names it ("Merge it", "Approve the flag
+  change") and the task is clear. The task is clear when it is the only
+  task of the person that waits for that decision, or when the message has
+  its id or two words of its title. A question ("Did that get merged?"), a
+  condition ("Merge it after the tests pass"), and a refusal ("Do not merge
+  it yet") are not instructions (`tells` in `magi/compose/personas.go`).
+  The code reads the message of the person, thus text of a task that the
+  turn read cannot make or change this decision.
+- The persona proposes the decision: one agreement. Magi checks three
+  conditions before it does the decision:
   1. The call has `confirm` true.
   2. An earlier turn of the persona (in the last 30 minutes, in one of the
      last four messages of the person) asked to confirm the same outcome
@@ -113,12 +124,11 @@ Promises: a turn ends with its reply. When a reply ends with something
 that the persona will do now ("I'll merge it now"), Magi tells the model
 so one time: do it with a tool, or ask the person (`emptyPromise`).
 
-Agreement that the model does not record: the turn before asked the
-person to confirm a decision, and the message of the person only agrees
-("Yes", "Go ahead"). When the model does not call `decide_task` in that
-turn, Magi makes the call with the task and the outcome of its record
-(`agreedDecision`). The same three conditions apply. The reply is then a
-fixed sentence of Magi.
+A decision that the model does not record: the message of the person
+tells a decision, or it only agrees ("Yes", "Go ahead") with a request of
+the turn before. When the model does not call `decide_task` in that turn,
+Magi makes the call (`toldRun`, `agreedDecision`). The same conditions
+apply. The reply is then a fixed sentence of Magi.
 
 ## 5. Call a persona by name
 

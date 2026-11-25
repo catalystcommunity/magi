@@ -120,6 +120,10 @@ type noticeReq struct {
 	key string
 }
 
+// repeatMargin is more than the difference of the clocks of two services.
+// It is a variable for the tests.
+var repeatMargin = 30 * time.Second
+
 // sendNotice posts the text as a notice utterance of the persona and
 // sends the notice. A notice that is said (normal or high) gets its audio
 // in parts, as a spoken reply, so that a client can say it at once.
@@ -144,9 +148,15 @@ func (s *System) sendNotice(ctx context.Context, r noticeReq) (conversationapi.N
 		}
 		post.Links = append(post.Links, conversationapi.NewLink{Target: ref, Kind: kind})
 	}
+	start := time.Now()
 	u, err := s.Conversation.Post(sctx, post)
 	if err != nil {
 		return conversationapi.Notice{}, fmt.Errorf("post: %w", err)
+	}
+	// A post with a key that was sent before gives the first utterance
+	// back. Its notice was sent then: a second notice is a repeat.
+	if r.key != "" && time.UnixMilli(int64(u.CreatedMs)).Before(start.Add(-repeatMargin)) {
+		return conversationapi.Notice{Utterance: u.Id, Stream: u.Stream}, nil
 	}
 	n, err := s.Conversation.Notify(sctx, conversationapi.NotifyRequest{Utterance: u.Id, Title: r.title, Urgency: optional(r.urgency), Device: optional(r.device)})
 	if err != nil {

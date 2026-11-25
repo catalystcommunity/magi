@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	releaseapi "github.com/catalystcommunity/magi/primitives/release/goapi"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -602,7 +603,7 @@ func TestAgreedDecisionWithoutCall(t *testing.T) {
 		case 1: // the event turn
 			id = regexp.MustCompile(`run_[A-Za-z0-9_-]+`).FindString(msgs[len(msgs)-1].Content)
 			return model.Message{Role: "assistant", Content: "The change is ready for your review."}, nil
-		case 2: // "Approve it."
+		case 2: // the persona proposes the decision itself
 			return toolCall("decide_task", `{"task":"`+id+`","outcome":"approve"}`), nil
 		case 3:
 			return model.Message{Role: "assistant", Content: "I will approve the task. Do you agree?"}, nil
@@ -613,7 +614,7 @@ func TestAgreedDecisionWithoutCall(t *testing.T) {
 	s.Model = m
 	c := evalCase{Id: "h03", Persona: Engineering, Steps: []evalStep{
 		{Event: "Ready for review", Task: evalTask{Title: "Add a flag", State: "review"}, ReplyAll: []string{"review"}},
-		{Say: "Approve it.", ToolsNone: []string{"start_code_change"}, ReplyAll: []string{"agree"}},
+		{Say: "What do you think of it?", ToolsNone: []string{"start_code_change"}, ReplyAll: []string{"agree"}},
 		{Say: "Yes", ToolsAll: []string{"decide_task"}, ReplyAll: []string{"I approved it. Magi tells you"}, ReplyNone: []string{"Magi check"}},
 	}}
 	if res := runEvalCase(t, s, c, 1); !res.Pass {
@@ -622,5 +623,67 @@ func TestAgreedDecisionWithoutCall(t *testing.T) {
 	run, err := s.Workflow.GetRun(s.AsService(context.Background()), workflowapi.GetRunRequest{Id: id})
 	if err != nil || run.CurrentStep == "review" {
 		t.Fatalf("the task was not decided: step %s, %v", run.CurrentStep, err)
+	}
+}
+
+// The person tells the decision and the model only says that it did it:
+// Magi records the decision, with no confirmation.
+func TestToldDecisionWithoutCall(t *testing.T) {
+	s := turnSystem(t)
+	m := &scriptModel{}
+	id := ""
+	m.reply = func(n int, msgs []model.Message) (model.Message, error) {
+		if n == 1 { // the event turn
+			id = regexp.MustCompile(`run_[A-Za-z0-9_-]+`).FindString(msgs[len(msgs)-1].Content)
+			return model.Message{Role: "assistant", Content: "The change is ready for your review."}, nil
+		}
+		return model.Message{Role: "assistant", Content: "I merged it."}, nil
+	}
+	s.Model = m
+	c := evalCase{Id: "h04", Persona: Engineering, Steps: []evalStep{
+		{Event: "Ready for review", Task: evalTask{Title: "Add a flag", State: "review"}, ReplyAll: []string{"review"}},
+		{Say: "Great, merge it.", ToolsAll: []string{"decide_task"}, ReplyAll: []string{"I approved it. Magi tells you"}, ReplyNone: []string{"Magi check"}},
+	}}
+	if res := runEvalCase(t, s, c, 1); !res.Pass {
+		t.Fatalf("result = %+v", res)
+	}
+	run, err := s.Workflow.GetRun(s.AsService(context.Background()), workflowapi.GetRunRequest{Id: id})
+	if err != nil || run.CurrentStep == "review" {
+		t.Fatalf("the task was not decided: step %s, %v", run.CurrentStep, err)
+	}
+}
+
+// A notice with a key that is sent two times gives one notice: Magi reads
+// the incidents of the database watch again after each start.
+func TestNoticeWithKeyIsNotRepeated(t *testing.T) {
+	s := turnSystem(t)
+	ctx := s.AsService(context.Background())
+	owner := "user:notice-key@example.local"
+	inc := releaseapi.DatabaseIncident{Seq: 7, Kind: "failover", Instance: "db-2", Message: "The primary of the database changed from db-1 to db-2.", AtMs: nowMs()}
+	count := func() int {
+		res, err := s.Conversation.ListNotices(ctx, conversationapi.ListNoticesRequest{Person: ptr(owner)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return len(res.Notices)
+	}
+	if err := s.incidentNotice(ctx, owner, inc); err != nil || count() != 1 {
+		t.Fatalf("first send: %v, %d notices", err, count())
+	}
+	res, _ := s.Conversation.ListNotices(ctx, conversationapi.ListNoticesRequest{Person: ptr(owner)})
+	if n := res.Notices[0]; n.Title != "Database failover" || !strings.Contains(n.Text, "from db-1 to db-2") || n.Persona != Engineering {
+		t.Fatalf("notice = %+v", n)
+	}
+	// The first send is old now, as after a start of Magi.
+	old := repeatMargin
+	repeatMargin = 50 * time.Millisecond
+	defer func() { repeatMargin = old }()
+	time.Sleep(200 * time.Millisecond)
+	if err := s.incidentNotice(ctx, owner, inc); err != nil || count() != 1 {
+		t.Fatalf("second send: %v, %d notices", err, count())
+	}
+	inc.Seq = 8
+	if err := s.incidentNotice(ctx, owner, inc); err != nil || count() != 2 {
+		t.Fatalf("another incident: %v, %d notices", err, count())
 	}
 }

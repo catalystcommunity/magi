@@ -62,6 +62,28 @@ func ReleaseServiceOps(impl ReleaseService) map[string]func(context.Context, []b
 			}
 			return EncodeListTargetsResponse(resp)
 		},
+		"database-status": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeDatabaseStatusRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.DatabaseStatus(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeDatabaseStatusResponse(resp)
+		},
+		"list-incidents": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeListIncidentsRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.ListIncidents(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeListIncidentsResponse(resp)
+		},
 	}
 }
 

@@ -15,7 +15,7 @@ use crate::auth::Verifier;
 use crate::controller::App;
 
 pub const SERVICE: &str = "ReleaseService";
-const OPS: &[&str] = &["create", "get", "list", "rollback", "list-targets"];
+const OPS: &[&str] = &["create", "get", "list", "rollback", "list-targets", "database-status", "list-incidents"];
 
 pub struct Server {
     pub app: App,
@@ -72,6 +72,8 @@ async fn call(State(s): State<Arc<Server>>, Path((service, op)): Path<(String, S
         "get" => decode(api::decode_get_release_request(b)).and_then(|r| app.get(&principal, r)).and_then(|r| encode(api::encode_release(&r))),
         "list" => decode(api::decode_list_releases_request(b)).and_then(|r| app.list(&principal, r)).and_then(|r| encode(api::encode_list_releases_response(&r))),
         "rollback" => decode(api::decode_rollback_request(b)).and_then(|r| app.rollback(&principal, r)).and_then(|r| encode(api::encode_release(&r))),
+        "database-status" => decode(api::decode_database_status_request(b)).and_then(|r| app.database_status(&principal, r)).and_then(|r| encode(api::encode_database_status_response(&r))),
+        "list-incidents" => decode(api::decode_list_incidents_request(b)).and_then(|r| app.list_incidents(&principal, r)).and_then(|r| encode(api::encode_list_incidents_response(&r))),
         _ => decode(api::decode_list_targets_request(b)).and_then(|r| app.list_targets(&principal, r)).and_then(|r| encode(api::encode_list_targets_response(&r))),
     };
     let code = res.as_ref().err().map_or(0, |e| e.code);

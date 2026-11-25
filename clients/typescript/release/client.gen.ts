@@ -2,8 +2,8 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { CreateReleaseRequest, GetReleaseRequest, ListReleasesRequest, ListReleasesResponse, ListTargetsRequest, ListTargetsResponse, Release, RollbackRequest } from "./types.gen.ts";
-import { fromListReleasesResponseCbor, fromListTargetsResponseCbor, fromReleaseCbor, toCreateReleaseRequestCbor, toGetReleaseRequestCbor, toListReleasesRequestCbor, toListTargetsRequestCbor, toRollbackRequestCbor } from "./codec.gen.ts";
+import type { CreateReleaseRequest, DatabaseStatusRequest, DatabaseStatusResponse, GetReleaseRequest, ListIncidentsRequest, ListIncidentsResponse, ListReleasesRequest, ListReleasesResponse, ListTargetsRequest, ListTargetsResponse, Release, RollbackRequest } from "./types.gen.ts";
+import { fromDatabaseStatusResponseCbor, fromListIncidentsResponseCbor, fromListReleasesResponseCbor, fromListTargetsResponseCbor, fromReleaseCbor, toCreateReleaseRequestCbor, toDatabaseStatusRequestCbor, toGetReleaseRequestCbor, toListIncidentsRequestCbor, toListReleasesRequestCbor, toListTargetsRequestCbor, toRollbackRequestCbor } from "./codec.gen.ts";
 
 export interface ServiceTransport {
   call(service: string, op: string, req: Uint8Array): Uint8Array;
@@ -59,6 +59,24 @@ export class ReleaseClient {
   listTargets(req: ListTargetsRequest): ListTargetsResponse {
     const csilResp = this.t.call("ReleaseService", "list-targets", toListTargetsRequestCbor(req));
     return fromListTargetsResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  databaseStatus(req: DatabaseStatusRequest): DatabaseStatusResponse {
+    const csilResp = this.t.call("ReleaseService", "database-status", toDatabaseStatusRequestCbor(req));
+    return fromDatabaseStatusResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  listIncidents(req: ListIncidentsRequest): ListIncidentsResponse {
+    const csilResp = this.t.call("ReleaseService", "list-incidents", toListIncidentsRequestCbor(req));
+    return fromListIncidentsResponseCbor(csilResp);
   }
 }
 

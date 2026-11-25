@@ -428,11 +428,15 @@ func (s *System) personaTurnOnce(ctx context.Context, a workflowapi.Assignment, 
 	if reply == "" {
 		reply = "I could not finish my answer. Please ask again."
 	}
-	// The person agreed to a decision that the turn before asked about,
-	// and the model did not record it (it answered "I merged it" with no
+	// The person agreed to a decision that the turn before asked about, or
+	// told the decision in this message, and the model did not record it (it answered "I merged it" with no
 	// call, also after the correction). Magi records it. The handler makes
 	// all its checks.
-	if d, ok := agreedDecision(ctx, s, ts.hist, utt); ok && !decided(log.Calls) {
+	d, ok := agreedDecision(ctx, s, ts.hist, utt)
+	if !ok {
+		d, ok = s.toldRun(ctx, a.Owner, utt)
+	}
+	if ok && !decided(log.Calls) {
 		res := s.toolGate(ctx, gate, "decide_task", map[string]string{"task": d.task, "outcome": d.outcome, "confirm": "true"})
 		res.Call["by"] = "magi"
 		log.Calls = append(log.Calls, res.Call)

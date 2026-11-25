@@ -74,3 +74,42 @@ type ListTargetsRequest struct {
 type ListTargetsResponse struct {
 	Targets []Target `json:"targets" yaml:"targets"`
 }
+
+// DatabaseInstance represents a structured data type
+type DatabaseInstance struct {
+	Name     string `json:"name" yaml:"name"`
+	Role     string `json:"role" yaml:"role"`
+	Ready    bool   `json:"ready" yaml:"ready"`
+	Restarts uint64 `json:"restarts" yaml:"restarts"`
+}
+
+// DatabaseIncident represents a structured data type
+type DatabaseIncident struct {
+	Seq      uint64 `json:"seq" yaml:"seq"`
+	Kind     string `json:"kind" yaml:"kind"`
+	Instance string `json:"instance" yaml:"instance"`
+	Message  string `json:"message" yaml:"message"`
+	AtMs     uint64 `json:"at_ms" yaml:"at_ms"`
+}
+
+// DatabaseStatusRequest represents a structured data type
+type DatabaseStatusRequest struct {
+	Cluster *string `json:"cluster,omitempty" yaml:"cluster,omitempty"`
+}
+
+// DatabaseStatusResponse represents a structured data type
+type DatabaseStatusResponse struct {
+	Watched   bool               `json:"watched" yaml:"watched"`
+	Instances []DatabaseInstance `json:"instances" yaml:"instances"`
+}
+
+// ListIncidentsRequest represents a structured data type
+type ListIncidentsRequest struct {
+	After *uint64 `json:"after,omitempty" yaml:"after,omitempty"`
+	Limit *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+}
+
+// ListIncidentsResponse represents a structured data type
+type ListIncidentsResponse struct {
+	Incidents []DatabaseIncident `json:"incidents" yaml:"incidents"`
+}
