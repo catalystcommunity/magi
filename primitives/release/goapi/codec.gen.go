@@ -1239,22 +1239,25 @@ func DecodeListTargetsResponse(csilData []byte) (ListTargetsResponse, error) {
 	return csilDecListTargetsResponse(csilRoot)
 }
 
-// csilEncDatabaseInstance builds the canonical CBOR value tree for a DatabaseInstance.
-func csilEncDatabaseInstance(csilV DatabaseInstance, csilDepth int) (cborValue, error) {
+// csilEncWorkload builds the canonical CBOR value tree for a Workload.
+func csilEncWorkload(csilV Workload, csilDepth int) (cborValue, error) {
 	if csilDepth > csilEncDepthLimit {
 		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
 	}
-	csilEntries := make(cborMap, 0, 4)
+	csilEntries := make(cborMap, 0, 5)
+	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
 	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
-	csilEntries = append(csilEntries, cborEntry{cborText("role"), cborText(csilV.Role)})
+	if csilV.Role != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("role"), cborText((*csilV.Role))})
+	}
 	csilEntries = append(csilEntries, cborEntry{cborText("ready"), cborBool(csilV.Ready)})
 	csilEntries = append(csilEntries, cborEntry{cborText("restarts"), cborUint(csilV.Restarts)})
 	return csilEntries, nil
 }
 
-// csilDecDatabaseInstance reconstructs a DatabaseInstance from a decoded CBOR value tree.
-func csilDecDatabaseInstance(csilRoot cborValue) (DatabaseInstance, error) {
-	var csilOut DatabaseInstance
+// csilDecWorkload reconstructs a Workload from a decoded CBOR value tree.
+func csilDecWorkload(csilRoot cborValue) (Workload, error) {
+	var csilOut Workload
 	{
 		csilField, csilErr := cborRequire(csilRoot, "name")
 		if csilErr != nil {
@@ -1267,7 +1270,7 @@ func csilDecDatabaseInstance(csilRoot cborValue) (DatabaseInstance, error) {
 		csilOut.Name = csilVal
 	}
 	{
-		csilField, csilErr := cborRequire(csilRoot, "role")
+		csilField, csilErr := cborRequire(csilRoot, "kind")
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -1275,7 +1278,14 @@ func csilDecDatabaseInstance(csilRoot cborValue) (DatabaseInstance, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilOut.Role = csilVal
+		csilOut.Kind = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "role"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Role = &csilVal
 	}
 	{
 		csilField, csilErr := cborRequire(csilRoot, "ready")
@@ -1302,23 +1312,23 @@ func csilDecDatabaseInstance(csilRoot cborValue) (DatabaseInstance, error) {
 	return csilOut, nil
 }
 
-// EncodeDatabaseInstance encodes a DatabaseInstance to canonical CSIL CBOR bytes.
-func EncodeDatabaseInstance(csilV DatabaseInstance) ([]byte, error) {
-	return cborEncodeE(csilEncDatabaseInstance(csilV, 0))
+// EncodeWorkload encodes a Workload to canonical CSIL CBOR bytes.
+func EncodeWorkload(csilV Workload) ([]byte, error) {
+	return cborEncodeE(csilEncWorkload(csilV, 0))
 }
 
-// DecodeDatabaseInstance decodes canonical CSIL CBOR bytes into a DatabaseInstance.
-func DecodeDatabaseInstance(csilData []byte) (DatabaseInstance, error) {
+// DecodeWorkload decodes canonical CSIL CBOR bytes into a Workload.
+func DecodeWorkload(csilData []byte) (Workload, error) {
 	csilRoot, csilErr := cborDecode(csilData)
 	if csilErr != nil {
-		var csilZero DatabaseInstance
+		var csilZero Workload
 		return csilZero, csilErr
 	}
-	return csilDecDatabaseInstance(csilRoot)
+	return csilDecWorkload(csilRoot)
 }
 
-// csilEncDatabaseIncident builds the canonical CBOR value tree for a DatabaseIncident.
-func csilEncDatabaseIncident(csilV DatabaseIncident, csilDepth int) (cborValue, error) {
+// csilEncIncident builds the canonical CBOR value tree for a Incident.
+func csilEncIncident(csilV Incident, csilDepth int) (cborValue, error) {
 	if csilDepth > csilEncDepthLimit {
 		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
 	}
@@ -1327,13 +1337,13 @@ func csilEncDatabaseIncident(csilV DatabaseIncident, csilDepth int) (cborValue, 
 	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
 	csilEntries = append(csilEntries, cborEntry{cborText("at_ms"), cborUint(csilV.AtMs)})
 	csilEntries = append(csilEntries, cborEntry{cborText("message"), cborText(csilV.Message)})
-	csilEntries = append(csilEntries, cborEntry{cborText("instance"), cborText(csilV.Instance)})
+	csilEntries = append(csilEntries, cborEntry{cborText("subject"), cborText(csilV.Subject)})
 	return csilEntries, nil
 }
 
-// csilDecDatabaseIncident reconstructs a DatabaseIncident from a decoded CBOR value tree.
-func csilDecDatabaseIncident(csilRoot cborValue) (DatabaseIncident, error) {
-	var csilOut DatabaseIncident
+// csilDecIncident reconstructs a Incident from a decoded CBOR value tree.
+func csilDecIncident(csilRoot cborValue) (Incident, error) {
+	var csilOut Incident
 	{
 		csilField, csilErr := cborRequire(csilRoot, "seq")
 		if csilErr != nil {
@@ -1357,7 +1367,7 @@ func csilDecDatabaseIncident(csilRoot cborValue) (DatabaseIncident, error) {
 		csilOut.Kind = csilVal
 	}
 	{
-		csilField, csilErr := cborRequire(csilRoot, "instance")
+		csilField, csilErr := cborRequire(csilRoot, "subject")
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -1365,7 +1375,7 @@ func csilDecDatabaseIncident(csilRoot cborValue) (DatabaseIncident, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilOut.Instance = csilVal
+		csilOut.Subject = csilVal
 	}
 	{
 		csilField, csilErr := cborRequire(csilRoot, "message")
@@ -1392,78 +1402,76 @@ func csilDecDatabaseIncident(csilRoot cborValue) (DatabaseIncident, error) {
 	return csilOut, nil
 }
 
-// EncodeDatabaseIncident encodes a DatabaseIncident to canonical CSIL CBOR bytes.
-func EncodeDatabaseIncident(csilV DatabaseIncident) ([]byte, error) {
-	return cborEncodeE(csilEncDatabaseIncident(csilV, 0))
+// EncodeIncident encodes a Incident to canonical CSIL CBOR bytes.
+func EncodeIncident(csilV Incident) ([]byte, error) {
+	return cborEncodeE(csilEncIncident(csilV, 0))
 }
 
-// DecodeDatabaseIncident decodes canonical CSIL CBOR bytes into a DatabaseIncident.
-func DecodeDatabaseIncident(csilData []byte) (DatabaseIncident, error) {
+// DecodeIncident decodes canonical CSIL CBOR bytes into a Incident.
+func DecodeIncident(csilData []byte) (Incident, error) {
 	csilRoot, csilErr := cborDecode(csilData)
 	if csilErr != nil {
-		var csilZero DatabaseIncident
+		var csilZero Incident
 		return csilZero, csilErr
 	}
-	return csilDecDatabaseIncident(csilRoot)
+	return csilDecIncident(csilRoot)
 }
 
-// csilEncDatabaseStatusRequest builds the canonical CBOR value tree for a DatabaseStatusRequest.
-func csilEncDatabaseStatusRequest(csilV DatabaseStatusRequest, csilDepth int) (cborValue, error) {
+// csilEncHealthStatusRequest builds the canonical CBOR value tree for a HealthStatusRequest.
+func csilEncHealthStatusRequest(csilV HealthStatusRequest, csilDepth int) (cborValue, error) {
 	if csilDepth > csilEncDepthLimit {
 		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
 	}
 	csilEntries := make(cborMap, 0, 1)
-	if csilV.Cluster != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("cluster"), cborText((*csilV.Cluster))})
+	if csilV.Kind != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText((*csilV.Kind))})
 	}
 	return csilEntries, nil
 }
 
-// csilDecDatabaseStatusRequest reconstructs a DatabaseStatusRequest from a decoded CBOR value tree.
-func csilDecDatabaseStatusRequest(csilRoot cborValue) (DatabaseStatusRequest, error) {
-	var csilOut DatabaseStatusRequest
-	if csilField, csilOk := cborMapGet(csilRoot, "cluster"); csilOk {
+// csilDecHealthStatusRequest reconstructs a HealthStatusRequest from a decoded CBOR value tree.
+func csilDecHealthStatusRequest(csilRoot cborValue) (HealthStatusRequest, error) {
+	var csilOut HealthStatusRequest
+	if csilField, csilOk := cborMapGet(csilRoot, "kind"); csilOk {
 		csilVal, csilErr := (cborAsText)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilOut.Cluster = &csilVal
+		csilOut.Kind = &csilVal
 	}
 	return csilOut, nil
 }
 
-// EncodeDatabaseStatusRequest encodes a DatabaseStatusRequest to canonical CSIL CBOR bytes.
-func EncodeDatabaseStatusRequest(csilV DatabaseStatusRequest) ([]byte, error) {
-	return cborEncodeE(csilEncDatabaseStatusRequest(csilV, 0))
+// EncodeHealthStatusRequest encodes a HealthStatusRequest to canonical CSIL CBOR bytes.
+func EncodeHealthStatusRequest(csilV HealthStatusRequest) ([]byte, error) {
+	return cborEncodeE(csilEncHealthStatusRequest(csilV, 0))
 }
 
-// DecodeDatabaseStatusRequest decodes canonical CSIL CBOR bytes into a DatabaseStatusRequest.
-func DecodeDatabaseStatusRequest(csilData []byte) (DatabaseStatusRequest, error) {
+// DecodeHealthStatusRequest decodes canonical CSIL CBOR bytes into a HealthStatusRequest.
+func DecodeHealthStatusRequest(csilData []byte) (HealthStatusRequest, error) {
 	csilRoot, csilErr := cborDecode(csilData)
 	if csilErr != nil {
-		var csilZero DatabaseStatusRequest
+		var csilZero HealthStatusRequest
 		return csilZero, csilErr
 	}
-	return csilDecDatabaseStatusRequest(csilRoot)
+	return csilDecHealthStatusRequest(csilRoot)
 }
 
-// csilEncDatabaseStatusResponse builds the canonical CBOR value tree for a DatabaseStatusResponse.
-func csilEncDatabaseStatusResponse(csilV DatabaseStatusResponse, csilDepth int) (cborValue, error) {
+// csilEncHealthStatusResponse builds the canonical CBOR value tree for a HealthStatusResponse.
+func csilEncHealthStatusResponse(csilV HealthStatusResponse, csilDepth int) (cborValue, error) {
 	if csilDepth > csilEncDepthLimit {
 		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
 	}
 	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 2)
 	csilEntries = append(csilEntries, cborEntry{cborText("watched"), cborBool(csilV.Watched)})
-	csilEntries = append(csilEntries, cborEntry{cborText("instances"), csilE.val(cborEncArray(csilV.Instances, func(csilElem DatabaseInstance) (cborValue, error) {
-		return csilEncDatabaseInstance(csilElem, csilDepth+1)
-	}))})
+	csilEntries = append(csilEntries, cborEntry{cborText("workloads"), csilE.val(cborEncArray(csilV.Workloads, func(csilElem Workload) (cborValue, error) { return csilEncWorkload(csilElem, csilDepth+1) }))})
 	return csilE.result(csilEntries)
 }
 
-// csilDecDatabaseStatusResponse reconstructs a DatabaseStatusResponse from a decoded CBOR value tree.
-func csilDecDatabaseStatusResponse(csilRoot cborValue) (DatabaseStatusResponse, error) {
-	var csilOut DatabaseStatusResponse
+// csilDecHealthStatusResponse reconstructs a HealthStatusResponse from a decoded CBOR value tree.
+func csilDecHealthStatusResponse(csilRoot cborValue) (HealthStatusResponse, error) {
+	var csilOut HealthStatusResponse
 	{
 		csilField, csilErr := cborRequire(csilRoot, "watched")
 		if csilErr != nil {
@@ -1476,32 +1484,32 @@ func csilDecDatabaseStatusResponse(csilRoot cborValue) (DatabaseStatusResponse, 
 		csilOut.Watched = csilVal
 	}
 	{
-		csilField, csilErr := cborRequire(csilRoot, "instances")
+		csilField, csilErr := cborRequire(csilRoot, "workloads")
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) ([]DatabaseInstance, error) { return cborDecArray(csilV, csilDecDatabaseInstance) })(csilField)
+		csilVal, csilErr := (func(csilV cborValue) ([]Workload, error) { return cborDecArray(csilV, csilDecWorkload) })(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilOut.Instances = csilVal
+		csilOut.Workloads = csilVal
 	}
 	return csilOut, nil
 }
 
-// EncodeDatabaseStatusResponse encodes a DatabaseStatusResponse to canonical CSIL CBOR bytes.
-func EncodeDatabaseStatusResponse(csilV DatabaseStatusResponse) ([]byte, error) {
-	return cborEncodeE(csilEncDatabaseStatusResponse(csilV, 0))
+// EncodeHealthStatusResponse encodes a HealthStatusResponse to canonical CSIL CBOR bytes.
+func EncodeHealthStatusResponse(csilV HealthStatusResponse) ([]byte, error) {
+	return cborEncodeE(csilEncHealthStatusResponse(csilV, 0))
 }
 
-// DecodeDatabaseStatusResponse decodes canonical CSIL CBOR bytes into a DatabaseStatusResponse.
-func DecodeDatabaseStatusResponse(csilData []byte) (DatabaseStatusResponse, error) {
+// DecodeHealthStatusResponse decodes canonical CSIL CBOR bytes into a HealthStatusResponse.
+func DecodeHealthStatusResponse(csilData []byte) (HealthStatusResponse, error) {
 	csilRoot, csilErr := cborDecode(csilData)
 	if csilErr != nil {
-		var csilZero DatabaseStatusResponse
+		var csilZero HealthStatusResponse
 		return csilZero, csilErr
 	}
-	return csilDecDatabaseStatusResponse(csilRoot)
+	return csilDecHealthStatusResponse(csilRoot)
 }
 
 // csilEncListIncidentsRequest builds the canonical CBOR value tree for a ListIncidentsRequest.
@@ -1561,9 +1569,7 @@ func csilEncListIncidentsResponse(csilV ListIncidentsResponse, csilDepth int) (c
 	}
 	var csilE csilEncErr
 	csilEntries := make(cborMap, 0, 1)
-	csilEntries = append(csilEntries, cborEntry{cborText("incidents"), csilE.val(cborEncArray(csilV.Incidents, func(csilElem DatabaseIncident) (cborValue, error) {
-		return csilEncDatabaseIncident(csilElem, csilDepth+1)
-	}))})
+	csilEntries = append(csilEntries, cborEntry{cborText("incidents"), csilE.val(cborEncArray(csilV.Incidents, func(csilElem Incident) (cborValue, error) { return csilEncIncident(csilElem, csilDepth+1) }))})
 	return csilE.result(csilEntries)
 }
 
@@ -1575,7 +1581,7 @@ func csilDecListIncidentsResponse(csilRoot cborValue) (ListIncidentsResponse, er
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) ([]DatabaseIncident, error) { return cborDecArray(csilV, csilDecDatabaseIncident) })(csilField)
+		csilVal, csilErr := (func(csilV cborValue) ([]Incident, error) { return cborDecArray(csilV, csilDecIncident) })(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -1597,4 +1603,321 @@ func DecodeListIncidentsResponse(csilData []byte) (ListIncidentsResponse, error)
 		return csilZero, csilErr
 	}
 	return csilDecListIncidentsResponse(csilRoot)
+}
+
+// csilEncPodFacts builds the canonical CBOR value tree for a PodFacts.
+func csilEncPodFacts(csilV PodFacts, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
+	csilEntries := make(cborMap, 0, 8)
+	csilEntries = append(csilEntries, cborEntry{cborText("log"), cborText(csilV.Log)})
+	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
+	csilEntries = append(csilEntries, cborEntry{cborText("phase"), cborText(csilV.Phase)})
+	csilEntries = append(csilEntries, cborEntry{cborText("ready"), cborBool(csilV.Ready)})
+	csilEntries = append(csilEntries, cborEntry{cborText("state"), cborText(csilV.State)})
+	csilEntries = append(csilEntries, cborEntry{cborText("events"), csilE.val(cborEncArray(csilV.Events, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
+	csilEntries = append(csilEntries, cborEntry{cborText("restarts"), cborUint(csilV.Restarts)})
+	if csilV.LastExit != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("last_exit"), cborText((*csilV.LastExit))})
+	}
+	return csilE.result(csilEntries)
+}
+
+// csilDecPodFacts reconstructs a PodFacts from a decoded CBOR value tree.
+func csilDecPodFacts(csilRoot cborValue) (PodFacts, error) {
+	var csilOut PodFacts
+	{
+		csilField, csilErr := cborRequire(csilRoot, "name")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Name = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "phase")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Phase = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "ready")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Ready = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "restarts")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Restarts = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "state")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.State = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "last_exit"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.LastExit = &csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "log")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Log = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "events")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]string, error) { return cborDecArray(csilV, cborAsText) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Events = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodePodFacts encodes a PodFacts to canonical CSIL CBOR bytes.
+func EncodePodFacts(csilV PodFacts) ([]byte, error) {
+	return cborEncodeE(csilEncPodFacts(csilV, 0))
+}
+
+// DecodePodFacts decodes canonical CSIL CBOR bytes into a PodFacts.
+func DecodePodFacts(csilData []byte) (PodFacts, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero PodFacts
+		return csilZero, csilErr
+	}
+	return csilDecPodFacts(csilRoot)
+}
+
+// csilEncDiagnoseRequest builds the canonical CBOR value tree for a DiagnoseRequest.
+func csilEncDiagnoseRequest(csilV DiagnoseRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("subject"), cborText(csilV.Subject)})
+	return csilEntries, nil
+}
+
+// csilDecDiagnoseRequest reconstructs a DiagnoseRequest from a decoded CBOR value tree.
+func csilDecDiagnoseRequest(csilRoot cborValue) (DiagnoseRequest, error) {
+	var csilOut DiagnoseRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "subject")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Subject = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeDiagnoseRequest encodes a DiagnoseRequest to canonical CSIL CBOR bytes.
+func EncodeDiagnoseRequest(csilV DiagnoseRequest) ([]byte, error) {
+	return cborEncodeE(csilEncDiagnoseRequest(csilV, 0))
+}
+
+// DecodeDiagnoseRequest decodes canonical CSIL CBOR bytes into a DiagnoseRequest.
+func DecodeDiagnoseRequest(csilData []byte) (DiagnoseRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero DiagnoseRequest
+		return csilZero, csilErr
+	}
+	return csilDecDiagnoseRequest(csilRoot)
+}
+
+// csilEncDiagnosis builds the canonical CBOR value tree for a Diagnosis.
+func csilEncDiagnosis(csilV Diagnosis, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
+	csilEntries := make(cborMap, 0, 2)
+	csilEntries = append(csilEntries, cborEntry{cborText("pods"), csilE.val(cborEncArray(csilV.Pods, func(csilElem PodFacts) (cborValue, error) { return csilEncPodFacts(csilElem, csilDepth+1) }))})
+	csilEntries = append(csilEntries, cborEntry{cborText("subject"), cborText(csilV.Subject)})
+	return csilE.result(csilEntries)
+}
+
+// csilDecDiagnosis reconstructs a Diagnosis from a decoded CBOR value tree.
+func csilDecDiagnosis(csilRoot cborValue) (Diagnosis, error) {
+	var csilOut Diagnosis
+	{
+		csilField, csilErr := cborRequire(csilRoot, "subject")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Subject = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "pods")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]PodFacts, error) { return cborDecArray(csilV, csilDecPodFacts) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Pods = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeDiagnosis encodes a Diagnosis to canonical CSIL CBOR bytes.
+func EncodeDiagnosis(csilV Diagnosis) ([]byte, error) {
+	return cborEncodeE(csilEncDiagnosis(csilV, 0))
+}
+
+// DecodeDiagnosis decodes canonical CSIL CBOR bytes into a Diagnosis.
+func DecodeDiagnosis(csilData []byte) (Diagnosis, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero Diagnosis
+		return csilZero, csilErr
+	}
+	return csilDecDiagnosis(csilRoot)
+}
+
+// csilEncRestartWorkloadRequest builds the canonical CBOR value tree for a RestartWorkloadRequest.
+func csilEncRestartWorkloadRequest(csilV RestartWorkloadRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	csilEntries := make(cborMap, 0, 2)
+	if csilV.Reason != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("reason"), cborText((*csilV.Reason))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("subject"), cborText(csilV.Subject)})
+	return csilEntries, nil
+}
+
+// csilDecRestartWorkloadRequest reconstructs a RestartWorkloadRequest from a decoded CBOR value tree.
+func csilDecRestartWorkloadRequest(csilRoot cborValue) (RestartWorkloadRequest, error) {
+	var csilOut RestartWorkloadRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "subject")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Subject = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "reason"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Reason = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeRestartWorkloadRequest encodes a RestartWorkloadRequest to canonical CSIL CBOR bytes.
+func EncodeRestartWorkloadRequest(csilV RestartWorkloadRequest) ([]byte, error) {
+	return cborEncodeE(csilEncRestartWorkloadRequest(csilV, 0))
+}
+
+// DecodeRestartWorkloadRequest decodes canonical CSIL CBOR bytes into a RestartWorkloadRequest.
+func DecodeRestartWorkloadRequest(csilData []byte) (RestartWorkloadRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero RestartWorkloadRequest
+		return csilZero, csilErr
+	}
+	return csilDecRestartWorkloadRequest(csilRoot)
+}
+
+// csilEncRestartWorkloadResponse builds the canonical CBOR value tree for a RestartWorkloadResponse.
+func csilEncRestartWorkloadResponse(csilV RestartWorkloadResponse, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	var csilE csilEncErr
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("restarted"), csilE.val(cborEncArray(csilV.Restarted, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
+	return csilE.result(csilEntries)
+}
+
+// csilDecRestartWorkloadResponse reconstructs a RestartWorkloadResponse from a decoded CBOR value tree.
+func csilDecRestartWorkloadResponse(csilRoot cborValue) (RestartWorkloadResponse, error) {
+	var csilOut RestartWorkloadResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "restarted")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]string, error) { return cborDecArray(csilV, cborAsText) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Restarted = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeRestartWorkloadResponse encodes a RestartWorkloadResponse to canonical CSIL CBOR bytes.
+func EncodeRestartWorkloadResponse(csilV RestartWorkloadResponse) ([]byte, error) {
+	return cborEncodeE(csilEncRestartWorkloadResponse(csilV, 0))
+}
+
+// DecodeRestartWorkloadResponse decodes canonical CSIL CBOR bytes into a RestartWorkloadResponse.
+func DecodeRestartWorkloadResponse(csilData []byte) (RestartWorkloadResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero RestartWorkloadResponse
+		return csilZero, csilErr
+	}
+	return csilDecRestartWorkloadResponse(csilRoot)
 }

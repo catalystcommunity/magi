@@ -75,32 +75,33 @@ type ListTargetsResponse struct {
 	Targets []Target `json:"targets" yaml:"targets"`
 }
 
-// DatabaseInstance represents a structured data type
-type DatabaseInstance struct {
-	Name     string `json:"name" yaml:"name"`
-	Role     string `json:"role" yaml:"role"`
-	Ready    bool   `json:"ready" yaml:"ready"`
-	Restarts uint64 `json:"restarts" yaml:"restarts"`
+// Workload represents a structured data type
+type Workload struct {
+	Name     string  `json:"name" yaml:"name"`
+	Kind     string  `json:"kind" yaml:"kind"`
+	Role     *string `json:"role,omitempty" yaml:"role,omitempty"`
+	Ready    bool    `json:"ready" yaml:"ready"`
+	Restarts uint64  `json:"restarts" yaml:"restarts"`
 }
 
-// DatabaseIncident represents a structured data type
-type DatabaseIncident struct {
-	Seq      uint64 `json:"seq" yaml:"seq"`
-	Kind     string `json:"kind" yaml:"kind"`
-	Instance string `json:"instance" yaml:"instance"`
-	Message  string `json:"message" yaml:"message"`
-	AtMs     uint64 `json:"at_ms" yaml:"at_ms"`
+// Incident represents a structured data type
+type Incident struct {
+	Seq     uint64 `json:"seq" yaml:"seq"`
+	Kind    string `json:"kind" yaml:"kind"`
+	Subject string `json:"subject" yaml:"subject"`
+	Message string `json:"message" yaml:"message"`
+	AtMs    uint64 `json:"at_ms" yaml:"at_ms"`
 }
 
-// DatabaseStatusRequest represents a structured data type
-type DatabaseStatusRequest struct {
-	Cluster *string `json:"cluster,omitempty" yaml:"cluster,omitempty"`
+// HealthStatusRequest represents a structured data type
+type HealthStatusRequest struct {
+	Kind *string `json:"kind,omitempty" yaml:"kind,omitempty"`
 }
 
-// DatabaseStatusResponse represents a structured data type
-type DatabaseStatusResponse struct {
-	Watched   bool               `json:"watched" yaml:"watched"`
-	Instances []DatabaseInstance `json:"instances" yaml:"instances"`
+// HealthStatusResponse represents a structured data type
+type HealthStatusResponse struct {
+	Watched   bool       `json:"watched" yaml:"watched"`
+	Workloads []Workload `json:"workloads" yaml:"workloads"`
 }
 
 // ListIncidentsRequest represents a structured data type
@@ -111,5 +112,39 @@ type ListIncidentsRequest struct {
 
 // ListIncidentsResponse represents a structured data type
 type ListIncidentsResponse struct {
-	Incidents []DatabaseIncident `json:"incidents" yaml:"incidents"`
+	Incidents []Incident `json:"incidents" yaml:"incidents"`
+}
+
+// PodFacts represents a structured data type
+type PodFacts struct {
+	Name     string   `json:"name" yaml:"name"`
+	Phase    string   `json:"phase" yaml:"phase"`
+	Ready    bool     `json:"ready" yaml:"ready"`
+	Restarts uint64   `json:"restarts" yaml:"restarts"`
+	State    string   `json:"state" yaml:"state"`
+	LastExit *string  `json:"last_exit,omitempty" yaml:"last_exit,omitempty"`
+	Log      string   `json:"log" yaml:"log"`
+	Events   []string `json:"events" yaml:"events"`
+}
+
+// DiagnoseRequest represents a structured data type
+type DiagnoseRequest struct {
+	Subject string `json:"subject" yaml:"subject"`
+}
+
+// Diagnosis represents a structured data type
+type Diagnosis struct {
+	Subject string     `json:"subject" yaml:"subject"`
+	Pods    []PodFacts `json:"pods" yaml:"pods"`
+}
+
+// RestartWorkloadRequest represents a structured data type
+type RestartWorkloadRequest struct {
+	Subject string  `json:"subject" yaml:"subject"`
+	Reason  *string `json:"reason,omitempty" yaml:"reason,omitempty"`
+}
+
+// RestartWorkloadResponse represents a structured data type
+type RestartWorkloadResponse struct {
+	Restarted []string `json:"restarted" yaml:"restarted"`
 }

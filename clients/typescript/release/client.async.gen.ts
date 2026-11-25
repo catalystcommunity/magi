@@ -2,8 +2,8 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { CreateReleaseRequest, DatabaseStatusRequest, DatabaseStatusResponse, GetReleaseRequest, ListIncidentsRequest, ListIncidentsResponse, ListReleasesRequest, ListReleasesResponse, ListTargetsRequest, ListTargetsResponse, Release, RollbackRequest } from "./types.gen.ts";
-import { fromDatabaseStatusResponseCbor, fromListIncidentsResponseCbor, fromListReleasesResponseCbor, fromListTargetsResponseCbor, fromReleaseCbor, toCreateReleaseRequestCbor, toDatabaseStatusRequestCbor, toGetReleaseRequestCbor, toListIncidentsRequestCbor, toListReleasesRequestCbor, toListTargetsRequestCbor, toRollbackRequestCbor } from "./codec.gen.ts";
+import type { CreateReleaseRequest, DiagnoseRequest, Diagnosis, GetReleaseRequest, HealthStatusRequest, HealthStatusResponse, ListIncidentsRequest, ListIncidentsResponse, ListReleasesRequest, ListReleasesResponse, ListTargetsRequest, ListTargetsResponse, Release, RestartWorkloadRequest, RestartWorkloadResponse, RollbackRequest } from "./types.gen.ts";
+import { fromDiagnosisCbor, fromHealthStatusResponseCbor, fromListIncidentsResponseCbor, fromListReleasesResponseCbor, fromListTargetsResponseCbor, fromReleaseCbor, fromRestartWorkloadResponseCbor, toCreateReleaseRequestCbor, toDiagnoseRequestCbor, toGetReleaseRequestCbor, toHealthStatusRequestCbor, toListIncidentsRequestCbor, toListReleasesRequestCbor, toListTargetsRequestCbor, toRestartWorkloadRequestCbor, toRollbackRequestCbor } from "./codec.gen.ts";
 
 export interface AsyncServiceTransport {
   call(service: string, op: string, req: Uint8Array): Promise<Uint8Array>;
@@ -65,9 +65,9 @@ export class ReleaseAsyncClient {
    * @throws {ServiceError} when the API returns an error response
    * @throws transport errors (network, timeout) raised by the transport
    */
-  async databaseStatus(req: DatabaseStatusRequest): Promise<DatabaseStatusResponse> {
-    const csilResp = await this.t.call("ReleaseService", "database-status", toDatabaseStatusRequestCbor(req));
-    return fromDatabaseStatusResponseCbor(csilResp);
+  async healthStatus(req: HealthStatusRequest): Promise<HealthStatusResponse> {
+    const csilResp = await this.t.call("ReleaseService", "health-status", toHealthStatusRequestCbor(req));
+    return fromHealthStatusResponseCbor(csilResp);
   }
 
   /**
@@ -77,6 +77,24 @@ export class ReleaseAsyncClient {
   async listIncidents(req: ListIncidentsRequest): Promise<ListIncidentsResponse> {
     const csilResp = await this.t.call("ReleaseService", "list-incidents", toListIncidentsRequestCbor(req));
     return fromListIncidentsResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async diagnose(req: DiagnoseRequest): Promise<Diagnosis> {
+    const csilResp = await this.t.call("ReleaseService", "diagnose", toDiagnoseRequestCbor(req));
+    return fromDiagnosisCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  async restartWorkload(req: RestartWorkloadRequest): Promise<RestartWorkloadResponse> {
+    const csilResp = await this.t.call("ReleaseService", "restart-workload", toRestartWorkloadRequestCbor(req));
+    return fromRestartWorkloadResponseCbor(csilResp);
   }
 }
 

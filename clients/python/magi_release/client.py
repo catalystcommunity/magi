@@ -51,11 +51,19 @@ class ReleaseClient:
         """list-targets"""
         return ListTargetsResponse.from_cbor(self._transport.call("ReleaseService", "list-targets", req.to_cbor()))
 
-    def database_status(self, req: DatabaseStatusRequest) -> DatabaseStatusResponse:
-        """database-status"""
-        return DatabaseStatusResponse.from_cbor(self._transport.call("ReleaseService", "database-status", req.to_cbor()))
+    def health_status(self, req: HealthStatusRequest) -> HealthStatusResponse:
+        """health-status"""
+        return HealthStatusResponse.from_cbor(self._transport.call("ReleaseService", "health-status", req.to_cbor()))
 
     def list_incidents(self, req: ListIncidentsRequest) -> ListIncidentsResponse:
         """list-incidents"""
         return ListIncidentsResponse.from_cbor(self._transport.call("ReleaseService", "list-incidents", req.to_cbor()))
+
+    def diagnose(self, req: DiagnoseRequest) -> Diagnosis:
+        """diagnose"""
+        return Diagnosis.from_cbor(self._transport.call("ReleaseService", "diagnose", req.to_cbor()))
+
+    def restart_workload(self, req: RestartWorkloadRequest) -> RestartWorkloadResponse:
+        """restart-workload"""
+        return RestartWorkloadResponse.from_cbor(self._transport.call("ReleaseService", "restart-workload", req.to_cbor()))
 

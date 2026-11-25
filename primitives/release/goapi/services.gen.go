@@ -14,6 +14,8 @@ type ReleaseService interface {
 	List(ctx context.Context, req ListReleasesRequest) (ListReleasesResponse, error)
 	Rollback(ctx context.Context, req RollbackRequest) (Release, error)
 	ListTargets(ctx context.Context, req ListTargetsRequest) (ListTargetsResponse, error)
-	DatabaseStatus(ctx context.Context, req DatabaseStatusRequest) (DatabaseStatusResponse, error)
+	HealthStatus(ctx context.Context, req HealthStatusRequest) (HealthStatusResponse, error)
 	ListIncidents(ctx context.Context, req ListIncidentsRequest) (ListIncidentsResponse, error)
+	Diagnose(ctx context.Context, req DiagnoseRequest) (Diagnosis, error)
+	RestartWorkload(ctx context.Context, req RestartWorkloadRequest) (RestartWorkloadResponse, error)
 }

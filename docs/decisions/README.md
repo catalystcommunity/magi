@@ -26,6 +26,7 @@ obeys the record), `replaced` (a later record replaces it).
 | [0012](0012-stall-check.md) | A task that makes no progress is found and stopped | done |
 | [0013](0013-not-done.md) | Things that Magi does not do | accepted |
 | [0014](0014-automatic-destinations.md) | Magi permits known public destinations with no person | accepted |
+| [0015](0015-health.md) | Magi keeps itself healthy: the platform, code rules, then a model | accepted |
 
 ## Who decides
 
@@ -47,4 +48,6 @@ content. A person decides what cannot be undone.
 | Does a persona start work with no message from a person? | Code: the event rules and the loop limit | record 0009 |
 | Is a task stopped because it makes no progress? | Code | record 0012 |
 | Can a task environment connect to a new host? | Code for known software sources and for private names; the review model for a host that it knows with high confidence; a person for the rest | record 0014 |
+| Is a part of the installation that is not ready restarted? | Code: the rules of the watch. Then the model, one more time, in the limits of code | record 0015 |
+| Is a release rolled back because a part broke after it? | The model selects it; code permits it only for the newest release of that part in the last 2 hours | record 0015 |
 | Is a remembered fact changed or retracted? | The note taker proposes; code applies the change rules; a person reviews the queue | `docs/knowledge.md` |

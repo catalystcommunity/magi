@@ -971,29 +971,37 @@ pub fn decode_list_targets_response(
     csil_dec_list_targets_response(&csil_root)
 }
 
-/// Build the canonical CBOR value tree for a DatabaseInstance.
-fn csil_enc_database_instance(csil_v: &DatabaseInstance) -> Result<CsilCborValue, CsilCborError> {
-    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(4);
+/// Build the canonical CBOR value tree for a Workload.
+fn csil_enc_workload(csil_v: &Workload) -> Result<CsilCborValue, CsilCborError> {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(5);
+    csil_entries.push((cbor_text("kind"), cbor_text(&csil_v.kind)));
     csil_entries.push((cbor_text("name"), cbor_text(&csil_v.name)));
-    csil_entries.push((cbor_text("role"), cbor_text(&csil_v.role)));
+    if let Some(csil_inner) = &csil_v.role {
+        csil_entries.push((cbor_text("role"), cbor_text(csil_inner)));
+    }
     csil_entries.push((cbor_text("ready"), cbor_bool(csil_v.ready)));
     csil_entries.push((cbor_text("restarts"), cbor_uint(csil_v.restarts)));
     Ok(CsilCborValue::Map(csil_entries))
 }
 
-/// Reconstruct a DatabaseInstance from a decoded CBOR value tree.
-fn csil_dec_database_instance(
-    csil_root: &CsilCborValue,
-) -> Result<DatabaseInstance, CsilCborError> {
+/// Reconstruct a Workload from a decoded CBOR value tree.
+fn csil_dec_workload(csil_root: &CsilCborValue) -> Result<Workload, CsilCborError> {
     let name = {
         let csil_field = cbor_require(csil_root, "name")?;
         let csil_decode = cbor_as_text;
         csil_decode(csil_field)?
     };
-    let role = {
-        let csil_field = cbor_require(csil_root, "role")?;
+    let kind = {
+        let csil_field = cbor_require(csil_root, "kind")?;
         let csil_decode = cbor_as_text;
         csil_decode(csil_field)?
+    };
+    let role = match cbor_map_get(csil_root, "role") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_text;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
     };
     let ready = {
         let csil_field = cbor_require(csil_root, "ready")?;
@@ -1005,41 +1013,40 @@ fn csil_dec_database_instance(
         let csil_decode = cbor_as_u64;
         csil_decode(csil_field)?
     };
-    Ok(DatabaseInstance {
+    Ok(Workload {
         name,
+        kind,
         role,
         ready,
         restarts,
     })
 }
 
-/// Encode a DatabaseInstance to canonical CSIL CBOR bytes.
-pub fn encode_database_instance(csil_v: &DatabaseInstance) -> Result<Vec<u8>, CsilCborError> {
-    let csil_tree = csil_enc_database_instance(csil_v)?;
+/// Encode a Workload to canonical CSIL CBOR bytes.
+pub fn encode_workload(csil_v: &Workload) -> Result<Vec<u8>, CsilCborError> {
+    let csil_tree = csil_enc_workload(csil_v)?;
     Ok(cbor_encode(&csil_tree))
 }
 
-/// Decode canonical CSIL CBOR bytes into a DatabaseInstance.
-pub fn decode_database_instance(csil_data: &[u8]) -> Result<DatabaseInstance, CsilCborError> {
+/// Decode canonical CSIL CBOR bytes into a Workload.
+pub fn decode_workload(csil_data: &[u8]) -> Result<Workload, CsilCborError> {
     let csil_root = cbor_decode(csil_data)?;
-    csil_dec_database_instance(&csil_root)
+    csil_dec_workload(&csil_root)
 }
 
-/// Build the canonical CBOR value tree for a DatabaseIncident.
-fn csil_enc_database_incident(csil_v: &DatabaseIncident) -> Result<CsilCborValue, CsilCborError> {
+/// Build the canonical CBOR value tree for a Incident.
+fn csil_enc_incident(csil_v: &Incident) -> Result<CsilCborValue, CsilCborError> {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(5);
     csil_entries.push((cbor_text("seq"), cbor_uint(csil_v.seq)));
     csil_entries.push((cbor_text("kind"), cbor_text(&csil_v.kind)));
     csil_entries.push((cbor_text("at_ms"), cbor_uint(csil_v.at_ms)));
     csil_entries.push((cbor_text("message"), cbor_text(&csil_v.message)));
-    csil_entries.push((cbor_text("instance"), cbor_text(&csil_v.instance)));
+    csil_entries.push((cbor_text("subject"), cbor_text(&csil_v.subject)));
     Ok(CsilCborValue::Map(csil_entries))
 }
 
-/// Reconstruct a DatabaseIncident from a decoded CBOR value tree.
-fn csil_dec_database_incident(
-    csil_root: &CsilCborValue,
-) -> Result<DatabaseIncident, CsilCborError> {
+/// Reconstruct a Incident from a decoded CBOR value tree.
+fn csil_dec_incident(csil_root: &CsilCborValue) -> Result<Incident, CsilCborError> {
     let seq = {
         let csil_field = cbor_require(csil_root, "seq")?;
         let csil_decode = cbor_as_u64;
@@ -1050,8 +1057,8 @@ fn csil_dec_database_incident(
         let csil_decode = cbor_as_text;
         csil_decode(csil_field)?
     };
-    let instance = {
-        let csil_field = cbor_require(csil_root, "instance")?;
+    let subject = {
+        let csil_field = cbor_require(csil_root, "subject")?;
         let csil_decode = cbor_as_text;
         csil_decode(csil_field)?
     };
@@ -1065,112 +1072,112 @@ fn csil_dec_database_incident(
         let csil_decode = cbor_as_u64;
         csil_decode(csil_field)?
     };
-    Ok(DatabaseIncident {
+    Ok(Incident {
         seq,
         kind,
-        instance,
+        subject,
         message,
         at_ms,
     })
 }
 
-/// Encode a DatabaseIncident to canonical CSIL CBOR bytes.
-pub fn encode_database_incident(csil_v: &DatabaseIncident) -> Result<Vec<u8>, CsilCborError> {
-    let csil_tree = csil_enc_database_incident(csil_v)?;
+/// Encode a Incident to canonical CSIL CBOR bytes.
+pub fn encode_incident(csil_v: &Incident) -> Result<Vec<u8>, CsilCborError> {
+    let csil_tree = csil_enc_incident(csil_v)?;
     Ok(cbor_encode(&csil_tree))
 }
 
-/// Decode canonical CSIL CBOR bytes into a DatabaseIncident.
-pub fn decode_database_incident(csil_data: &[u8]) -> Result<DatabaseIncident, CsilCborError> {
+/// Decode canonical CSIL CBOR bytes into a Incident.
+pub fn decode_incident(csil_data: &[u8]) -> Result<Incident, CsilCborError> {
     let csil_root = cbor_decode(csil_data)?;
-    csil_dec_database_incident(&csil_root)
+    csil_dec_incident(&csil_root)
 }
 
-/// Build the canonical CBOR value tree for a DatabaseStatusRequest.
-fn csil_enc_database_status_request(
-    csil_v: &DatabaseStatusRequest,
+/// Build the canonical CBOR value tree for a HealthStatusRequest.
+fn csil_enc_health_status_request(
+    csil_v: &HealthStatusRequest,
 ) -> Result<CsilCborValue, CsilCborError> {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(1);
-    if let Some(csil_inner) = &csil_v.cluster {
-        csil_entries.push((cbor_text("cluster"), cbor_text(csil_inner)));
+    if let Some(csil_inner) = &csil_v.kind {
+        csil_entries.push((cbor_text("kind"), cbor_text(csil_inner)));
     }
     Ok(CsilCborValue::Map(csil_entries))
 }
 
-/// Reconstruct a DatabaseStatusRequest from a decoded CBOR value tree.
-fn csil_dec_database_status_request(
+/// Reconstruct a HealthStatusRequest from a decoded CBOR value tree.
+fn csil_dec_health_status_request(
     csil_root: &CsilCborValue,
-) -> Result<DatabaseStatusRequest, CsilCborError> {
-    let cluster = match cbor_map_get(csil_root, "cluster") {
+) -> Result<HealthStatusRequest, CsilCborError> {
+    let kind = match cbor_map_get(csil_root, "kind") {
         Some(csil_field) => {
             let csil_decode = cbor_as_text;
             Some(csil_decode(csil_field)?)
         }
         None => None,
     };
-    Ok(DatabaseStatusRequest { cluster })
+    Ok(HealthStatusRequest { kind })
 }
 
-/// Encode a DatabaseStatusRequest to canonical CSIL CBOR bytes.
-pub fn encode_database_status_request(
-    csil_v: &DatabaseStatusRequest,
+/// Encode a HealthStatusRequest to canonical CSIL CBOR bytes.
+pub fn encode_health_status_request(
+    csil_v: &HealthStatusRequest,
 ) -> Result<Vec<u8>, CsilCborError> {
-    let csil_tree = csil_enc_database_status_request(csil_v)?;
+    let csil_tree = csil_enc_health_status_request(csil_v)?;
     Ok(cbor_encode(&csil_tree))
 }
 
-/// Decode canonical CSIL CBOR bytes into a DatabaseStatusRequest.
-pub fn decode_database_status_request(
+/// Decode canonical CSIL CBOR bytes into a HealthStatusRequest.
+pub fn decode_health_status_request(
     csil_data: &[u8],
-) -> Result<DatabaseStatusRequest, CsilCborError> {
+) -> Result<HealthStatusRequest, CsilCborError> {
     let csil_root = cbor_decode(csil_data)?;
-    csil_dec_database_status_request(&csil_root)
+    csil_dec_health_status_request(&csil_root)
 }
 
-/// Build the canonical CBOR value tree for a DatabaseStatusResponse.
-fn csil_enc_database_status_response(
-    csil_v: &DatabaseStatusResponse,
+/// Build the canonical CBOR value tree for a HealthStatusResponse.
+fn csil_enc_health_status_response(
+    csil_v: &HealthStatusResponse,
 ) -> Result<CsilCborValue, CsilCborError> {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(2);
     csil_entries.push((cbor_text("watched"), cbor_bool(csil_v.watched)));
     csil_entries.push((
-        cbor_text("instances"),
-        cbor_enc_array(&csil_v.instances, csil_enc_database_instance)?,
+        cbor_text("workloads"),
+        cbor_enc_array(&csil_v.workloads, csil_enc_workload)?,
     ));
     Ok(CsilCborValue::Map(csil_entries))
 }
 
-/// Reconstruct a DatabaseStatusResponse from a decoded CBOR value tree.
-fn csil_dec_database_status_response(
+/// Reconstruct a HealthStatusResponse from a decoded CBOR value tree.
+fn csil_dec_health_status_response(
     csil_root: &CsilCborValue,
-) -> Result<DatabaseStatusResponse, CsilCborError> {
+) -> Result<HealthStatusResponse, CsilCborError> {
     let watched = {
         let csil_field = cbor_require(csil_root, "watched")?;
         let csil_decode = cbor_as_bool;
         csil_decode(csil_field)?
     };
-    let instances = {
-        let csil_field = cbor_require(csil_root, "instances")?;
-        let csil_decode = |csil_v| cbor_dec_array(csil_v, csil_dec_database_instance);
+    let workloads = {
+        let csil_field = cbor_require(csil_root, "workloads")?;
+        let csil_decode = |csil_v| cbor_dec_array(csil_v, csil_dec_workload);
         csil_decode(csil_field)?
     };
-    Ok(DatabaseStatusResponse { watched, instances })
+    Ok(HealthStatusResponse { watched, workloads })
 }
 
-/// Encode a DatabaseStatusResponse to canonical CSIL CBOR bytes.
-pub fn encode_database_status_response(
-    csil_v: &DatabaseStatusResponse,
+/// Encode a HealthStatusResponse to canonical CSIL CBOR bytes.
+pub fn encode_health_status_response(
+    csil_v: &HealthStatusResponse,
 ) -> Result<Vec<u8>, CsilCborError> {
-    let csil_tree = csil_enc_database_status_response(csil_v)?;
+    let csil_tree = csil_enc_health_status_response(csil_v)?;
     Ok(cbor_encode(&csil_tree))
 }
 
-/// Decode canonical CSIL CBOR bytes into a DatabaseStatusResponse.
-pub fn decode_database_status_response(
+/// Decode canonical CSIL CBOR bytes into a HealthStatusResponse.
+pub fn decode_health_status_response(
     csil_data: &[u8],
-) -> Result<DatabaseStatusResponse, CsilCborError> {
+) -> Result<HealthStatusResponse, CsilCborError> {
     let csil_root = cbor_decode(csil_data)?;
-    csil_dec_database_status_response(&csil_root)
+    csil_dec_health_status_response(&csil_root)
 }
 
 /// Build the canonical CBOR value tree for a ListIncidentsRequest.
@@ -1231,7 +1238,7 @@ fn csil_enc_list_incidents_response(
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(1);
     csil_entries.push((
         cbor_text("incidents"),
-        cbor_enc_array(&csil_v.incidents, csil_enc_database_incident)?,
+        cbor_enc_array(&csil_v.incidents, csil_enc_incident)?,
     ));
     Ok(CsilCborValue::Map(csil_entries))
 }
@@ -1242,7 +1249,7 @@ fn csil_dec_list_incidents_response(
 ) -> Result<ListIncidentsResponse, CsilCborError> {
     let incidents = {
         let csil_field = cbor_require(csil_root, "incidents")?;
-        let csil_decode = |csil_v| cbor_dec_array(csil_v, csil_dec_database_incident);
+        let csil_decode = |csil_v| cbor_dec_array(csil_v, csil_dec_incident);
         csil_decode(csil_field)?
     };
     Ok(ListIncidentsResponse { incidents })
@@ -1262,4 +1269,245 @@ pub fn decode_list_incidents_response(
 ) -> Result<ListIncidentsResponse, CsilCborError> {
     let csil_root = cbor_decode(csil_data)?;
     csil_dec_list_incidents_response(&csil_root)
+}
+
+/// Build the canonical CBOR value tree for a PodFacts.
+fn csil_enc_pod_facts(csil_v: &PodFacts) -> Result<CsilCborValue, CsilCborError> {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(8);
+    csil_entries.push((cbor_text("log"), cbor_text(&csil_v.log)));
+    csil_entries.push((cbor_text("name"), cbor_text(&csil_v.name)));
+    csil_entries.push((cbor_text("phase"), cbor_text(&csil_v.phase)));
+    csil_entries.push((cbor_text("ready"), cbor_bool(csil_v.ready)));
+    csil_entries.push((cbor_text("state"), cbor_text(&csil_v.state)));
+    csil_entries.push((
+        cbor_text("events"),
+        cbor_enc_array(&csil_v.events, |csil_elem| Ok(cbor_text(csil_elem)))?,
+    ));
+    csil_entries.push((cbor_text("restarts"), cbor_uint(csil_v.restarts)));
+    if let Some(csil_inner) = &csil_v.last_exit {
+        csil_entries.push((cbor_text("last_exit"), cbor_text(csil_inner)));
+    }
+    Ok(CsilCborValue::Map(csil_entries))
+}
+
+/// Reconstruct a PodFacts from a decoded CBOR value tree.
+fn csil_dec_pod_facts(csil_root: &CsilCborValue) -> Result<PodFacts, CsilCborError> {
+    let name = {
+        let csil_field = cbor_require(csil_root, "name")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let phase = {
+        let csil_field = cbor_require(csil_root, "phase")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let ready = {
+        let csil_field = cbor_require(csil_root, "ready")?;
+        let csil_decode = cbor_as_bool;
+        csil_decode(csil_field)?
+    };
+    let restarts = {
+        let csil_field = cbor_require(csil_root, "restarts")?;
+        let csil_decode = cbor_as_u64;
+        csil_decode(csil_field)?
+    };
+    let state = {
+        let csil_field = cbor_require(csil_root, "state")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let last_exit = match cbor_map_get(csil_root, "last_exit") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_text;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let log = {
+        let csil_field = cbor_require(csil_root, "log")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let events = {
+        let csil_field = cbor_require(csil_root, "events")?;
+        let csil_decode = |csil_v| cbor_dec_array(csil_v, cbor_as_text);
+        csil_decode(csil_field)?
+    };
+    Ok(PodFacts {
+        name,
+        phase,
+        ready,
+        restarts,
+        state,
+        last_exit,
+        log,
+        events,
+    })
+}
+
+/// Encode a PodFacts to canonical CSIL CBOR bytes.
+pub fn encode_pod_facts(csil_v: &PodFacts) -> Result<Vec<u8>, CsilCborError> {
+    let csil_tree = csil_enc_pod_facts(csil_v)?;
+    Ok(cbor_encode(&csil_tree))
+}
+
+/// Decode canonical CSIL CBOR bytes into a PodFacts.
+pub fn decode_pod_facts(csil_data: &[u8]) -> Result<PodFacts, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_pod_facts(&csil_root)
+}
+
+/// Build the canonical CBOR value tree for a DiagnoseRequest.
+fn csil_enc_diagnose_request(csil_v: &DiagnoseRequest) -> Result<CsilCborValue, CsilCborError> {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(1);
+    csil_entries.push((cbor_text("subject"), cbor_text(&csil_v.subject)));
+    Ok(CsilCborValue::Map(csil_entries))
+}
+
+/// Reconstruct a DiagnoseRequest from a decoded CBOR value tree.
+fn csil_dec_diagnose_request(csil_root: &CsilCborValue) -> Result<DiagnoseRequest, CsilCborError> {
+    let subject = {
+        let csil_field = cbor_require(csil_root, "subject")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    Ok(DiagnoseRequest { subject })
+}
+
+/// Encode a DiagnoseRequest to canonical CSIL CBOR bytes.
+pub fn encode_diagnose_request(csil_v: &DiagnoseRequest) -> Result<Vec<u8>, CsilCborError> {
+    let csil_tree = csil_enc_diagnose_request(csil_v)?;
+    Ok(cbor_encode(&csil_tree))
+}
+
+/// Decode canonical CSIL CBOR bytes into a DiagnoseRequest.
+pub fn decode_diagnose_request(csil_data: &[u8]) -> Result<DiagnoseRequest, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_diagnose_request(&csil_root)
+}
+
+/// Build the canonical CBOR value tree for a Diagnosis.
+fn csil_enc_diagnosis(csil_v: &Diagnosis) -> Result<CsilCborValue, CsilCborError> {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(2);
+    csil_entries.push((
+        cbor_text("pods"),
+        cbor_enc_array(&csil_v.pods, csil_enc_pod_facts)?,
+    ));
+    csil_entries.push((cbor_text("subject"), cbor_text(&csil_v.subject)));
+    Ok(CsilCborValue::Map(csil_entries))
+}
+
+/// Reconstruct a Diagnosis from a decoded CBOR value tree.
+fn csil_dec_diagnosis(csil_root: &CsilCborValue) -> Result<Diagnosis, CsilCborError> {
+    let subject = {
+        let csil_field = cbor_require(csil_root, "subject")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let pods = {
+        let csil_field = cbor_require(csil_root, "pods")?;
+        let csil_decode = |csil_v| cbor_dec_array(csil_v, csil_dec_pod_facts);
+        csil_decode(csil_field)?
+    };
+    Ok(Diagnosis { subject, pods })
+}
+
+/// Encode a Diagnosis to canonical CSIL CBOR bytes.
+pub fn encode_diagnosis(csil_v: &Diagnosis) -> Result<Vec<u8>, CsilCborError> {
+    let csil_tree = csil_enc_diagnosis(csil_v)?;
+    Ok(cbor_encode(&csil_tree))
+}
+
+/// Decode canonical CSIL CBOR bytes into a Diagnosis.
+pub fn decode_diagnosis(csil_data: &[u8]) -> Result<Diagnosis, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_diagnosis(&csil_root)
+}
+
+/// Build the canonical CBOR value tree for a RestartWorkloadRequest.
+fn csil_enc_restart_workload_request(
+    csil_v: &RestartWorkloadRequest,
+) -> Result<CsilCborValue, CsilCborError> {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(2);
+    if let Some(csil_inner) = &csil_v.reason {
+        csil_entries.push((cbor_text("reason"), cbor_text(csil_inner)));
+    }
+    csil_entries.push((cbor_text("subject"), cbor_text(&csil_v.subject)));
+    Ok(CsilCborValue::Map(csil_entries))
+}
+
+/// Reconstruct a RestartWorkloadRequest from a decoded CBOR value tree.
+fn csil_dec_restart_workload_request(
+    csil_root: &CsilCborValue,
+) -> Result<RestartWorkloadRequest, CsilCborError> {
+    let subject = {
+        let csil_field = cbor_require(csil_root, "subject")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let reason = match cbor_map_get(csil_root, "reason") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_text;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    Ok(RestartWorkloadRequest { subject, reason })
+}
+
+/// Encode a RestartWorkloadRequest to canonical CSIL CBOR bytes.
+pub fn encode_restart_workload_request(
+    csil_v: &RestartWorkloadRequest,
+) -> Result<Vec<u8>, CsilCborError> {
+    let csil_tree = csil_enc_restart_workload_request(csil_v)?;
+    Ok(cbor_encode(&csil_tree))
+}
+
+/// Decode canonical CSIL CBOR bytes into a RestartWorkloadRequest.
+pub fn decode_restart_workload_request(
+    csil_data: &[u8],
+) -> Result<RestartWorkloadRequest, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_restart_workload_request(&csil_root)
+}
+
+/// Build the canonical CBOR value tree for a RestartWorkloadResponse.
+fn csil_enc_restart_workload_response(
+    csil_v: &RestartWorkloadResponse,
+) -> Result<CsilCborValue, CsilCborError> {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(1);
+    csil_entries.push((
+        cbor_text("restarted"),
+        cbor_enc_array(&csil_v.restarted, |csil_elem| Ok(cbor_text(csil_elem)))?,
+    ));
+    Ok(CsilCborValue::Map(csil_entries))
+}
+
+/// Reconstruct a RestartWorkloadResponse from a decoded CBOR value tree.
+fn csil_dec_restart_workload_response(
+    csil_root: &CsilCborValue,
+) -> Result<RestartWorkloadResponse, CsilCborError> {
+    let restarted = {
+        let csil_field = cbor_require(csil_root, "restarted")?;
+        let csil_decode = |csil_v| cbor_dec_array(csil_v, cbor_as_text);
+        csil_decode(csil_field)?
+    };
+    Ok(RestartWorkloadResponse { restarted })
+}
+
+/// Encode a RestartWorkloadResponse to canonical CSIL CBOR bytes.
+pub fn encode_restart_workload_response(
+    csil_v: &RestartWorkloadResponse,
+) -> Result<Vec<u8>, CsilCborError> {
+    let csil_tree = csil_enc_restart_workload_response(csil_v)?;
+    Ok(cbor_encode(&csil_tree))
+}
+
+/// Decode canonical CSIL CBOR bytes into a RestartWorkloadResponse.
+pub fn decode_restart_workload_response(
+    csil_data: &[u8],
+) -> Result<RestartWorkloadResponse, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_restart_workload_response(&csil_root)
 }

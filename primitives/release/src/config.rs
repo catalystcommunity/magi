@@ -89,13 +89,18 @@ pub struct Settings {
     pub stabilize: Duration,
     pub health_via_proxy: bool,
     pub kube_context: Option<String>,
-    /// The database to watch: (namespace, CloudNativePG cluster).
-    pub database: Option<(String, String)>,
-    /// An instance that is not ready for this long is restarted.
+    /// The watch: the namespace, the CloudNativePG cluster of the
+    /// database, and the label (name, value) of the pods of the services.
+    pub watch_namespace: Option<String>,
+    pub watch_database: Option<String>,
+    pub watch_services: Option<(String, String)>,
+    /// A database instance that is not ready for this long is restarted.
     pub database_restart_after: Duration,
-    /// An instance that is not ready this long after the restart needs a
-    /// person.
-    pub database_give_up_after: Duration,
+    /// A service that is not ready for this long is restarted.
+    pub service_restart_after: Duration,
+    /// A workload that is not ready this long after the restart is
+    /// "unhealthy".
+    pub give_up_after: Duration,
 }
 
 impl Settings {
@@ -127,18 +132,35 @@ impl Settings {
         }
         let health = get("health", "MAGI_RELEASE_HEALTH").unwrap_or_else(|| "direct".into());
         anyhow::ensure!(health == "direct" || health == "proxy", "MAGI_RELEASE_HEALTH: direct or proxy");
-        let database = match get("database", "MAGI_RELEASE_DATABASE") {
-            Some(v) => match v.split_once('/') {
-                Some((ns, name)) if !ns.is_empty() && !name.is_empty() => Some((ns.to_string(), name.to_string())),
-                _ => anyhow::bail!("MAGI_RELEASE_DATABASE: expected namespace/cluster"),
+        // MAGI_RELEASE_DATABASE is namespace/cluster. MAGI_RELEASE_SERVICES
+        // is namespace/label=value.
+        let split = |env: &str, v: String| -> anyhow::Result<(String, String)> {
+            match v.split_once('/') {
+                Some((ns, rest)) if !ns.is_empty() && !rest.is_empty() => Ok((ns.to_string(), rest.to_string())),
+                _ => anyhow::bail!("{env}: expected namespace/name"),
+            }
+        };
+        let database = get("database", "MAGI_RELEASE_DATABASE").map(|v| split("MAGI_RELEASE_DATABASE", v)).transpose()?;
+        let services = get("services", "MAGI_RELEASE_SERVICES").map(|v| split("MAGI_RELEASE_SERVICES", v)).transpose()?;
+        let watch_services = match &services {
+            Some((_, l)) => match l.split_once('=') {
+                Some((k, v)) if !k.is_empty() && !v.is_empty() => Some((k.to_string(), v.to_string())),
+                _ => anyhow::bail!("MAGI_RELEASE_SERVICES: expected namespace/label=value"),
             },
             None => None,
         };
+        if let (Some((a, _)), Some((b, _))) = (&database, &services) {
+            anyhow::ensure!(a == b, "MAGI_RELEASE_DATABASE and MAGI_RELEASE_SERVICES must name one namespace");
+        }
+        let watch_namespace = database.as_ref().or(services.as_ref()).map(|(ns, _)| ns.clone());
         Ok(Settings {
             listen,
-            database,
-            database_restart_after: secs("database-restart-after", "MAGI_RELEASE_DATABASE_RESTART_AFTER", 180)?,
-            database_give_up_after: secs("database-give-up-after", "MAGI_RELEASE_DATABASE_GIVE_UP_AFTER", 600)?,
+            watch_namespace,
+            watch_database: database.map(|(_, name)| name),
+            watch_services,
+            database_restart_after: secs("database-restart-after", "MAGI_RELEASE_DATABASE_RESTART_AFTER", 90)?,
+            service_restart_after: secs("service-restart-after", "MAGI_RELEASE_SERVICE_RESTART_AFTER", 180)?,
+            give_up_after: secs("give-up-after", "MAGI_RELEASE_GIVE_UP_AFTER", 600)?,
             auth_keys: get("auth-keys", "MAGI_AUTH_KEYS")
                 .map(|v| v.split(',').map(str::trim).filter(|s| !s.is_empty()).map(PathBuf::from).collect())
                 .unwrap_or_default(),
@@ -165,5 +187,17 @@ mod tests {
         assert_eq!(parse_targets(j).unwrap()[0].name, "a");
         assert!(parse_targets(r#"[{"name":"a","namespace":"n","deployment":"d","container":"c"},{"name":"a","namespace":"n","deployment":"d","container":"c"}]"#).is_err());
         assert!(parse_targets(r#"[{"name":"a","namespace":"","deployment":"d","container":"c"}]"#).is_err());
+    }
+
+    #[test]
+    fn watch_settings() {
+        let args = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let s = Settings::from_args(&args(&["--database", "magi/magi-db", "--services", "magi/app.kubernetes.io/part-of=magi"])).unwrap();
+        assert_eq!(s.watch_namespace.as_deref(), Some("magi"));
+        assert_eq!(s.watch_database.as_deref(), Some("magi-db"));
+        assert_eq!(s.watch_services, Some(("app.kubernetes.io/part-of".to_string(), "magi".to_string())));
+        assert!(Settings::from_args(&args(&["--database", "magi-db"])).is_err());
+        assert!(Settings::from_args(&args(&["--services", "magi/part-of"])).is_err());
+        assert!(Settings::from_args(&args(&["--database", "a/db", "--services", "b/k=v"])).is_err());
     }
 }

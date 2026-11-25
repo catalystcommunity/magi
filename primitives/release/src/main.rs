@@ -4,8 +4,8 @@ use std::sync::Arc;
 use magi_release::auth::Verifier;
 use magi_release::cluster::KubeCluster;
 use magi_release::config::{Settings, load_targets};
-use magi_release::controller::{App, Worker};
-use magi_release::database::{Incidents, KubeDatabase, Watch};
+use magi_release::controller::{App, Worker, is_terminal};
+use magi_release::watch::{Blocking, Incidents, KubeWorkloads, Operator, Watch};
 use magi_release::server::{Server, router};
 use magi_release::store::Store;
 
@@ -27,16 +27,20 @@ async fn main() -> anyhow::Result<()> {
     let store = Arc::new(Store::open(&cfg.data)?);
     let cluster = KubeCluster::connect(cfg.kube_context.clone(), cfg.health_via_proxy).await?;
     let incidents = Arc::new(Incidents::open(Some(&cfg.data))?);
-    let watch = cfg.database.clone().map(|(namespace, name)| {
-        tracing::info!(namespace, cluster = name, "database watch started");
-        let db = KubeDatabase { client: cluster.client.clone(), namespace, cluster: name };
-        let rules = Watch::new(cfg.database_restart_after, cfg.database_give_up_after);
-        tokio::spawn(magi_release::database::run(db, rules, incidents.clone(), std::time::Duration::from_secs(15)))
+    let mut operator: Option<Arc<dyn Operator>> = None;
+    let watch = cfg.watch_namespace.clone().map(|namespace| {
+        tracing::info!(namespace, database = ?cfg.watch_database, services = ?cfg.watch_services, "watch started");
+        let k = KubeWorkloads { client: cluster.client.clone(), namespace, database: cfg.watch_database.clone(), services: cfg.watch_services.clone() };
+        operator = Some(Arc::new(Blocking(k.clone())));
+        let rules = Watch::new(cfg.database_restart_after, cfg.service_restart_after, cfg.give_up_after);
+        let releases = store.clone();
+        let releasing = move || releases.all().iter().any(|r| !is_terminal(&r.release.status));
+        tokio::spawn(magi_release::watch::run(k, rules, incidents.clone(), std::time::Duration::from_secs(15), releasing))
     });
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     let worker = Worker { store: store.clone(), targets: targets.clone(), cluster, timeout: cfg.timeout, stabilize: cfg.stabilize };
     let worker = tokio::spawn(worker.run(rx));
-    let server = Arc::new(Server { app: App { store, targets, queue: tx, incidents }, verifier });
+    let server = Arc::new(Server { app: App { store, targets, queue: tx, incidents, operator }, verifier });
     let listener = tokio::net::TcpListener::bind(&cfg.listen).await?;
     tracing::info!(listen = %cfg.listen, "release controller started");
     axum::serve(listener, router(server)).with_graceful_shutdown(shutdown()).await?;

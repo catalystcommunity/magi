@@ -276,6 +276,8 @@ type System struct {
 	EgressProxy *EgressProxy
 	// egressReviews caches decided egress reviews (egressreview.go).
 	egressReviews *egressReviews
+	// healthLimit counts the actions of Magi on its own installation.
+	healthLimit healthLimiter
 	// Popularity replaces the list of the most visited domains of the
 	// binary (popularity.go) in a test.
 	Popularity *Popularity

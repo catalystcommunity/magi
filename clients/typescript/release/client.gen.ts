@@ -2,8 +2,8 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { CreateReleaseRequest, DatabaseStatusRequest, DatabaseStatusResponse, GetReleaseRequest, ListIncidentsRequest, ListIncidentsResponse, ListReleasesRequest, ListReleasesResponse, ListTargetsRequest, ListTargetsResponse, Release, RollbackRequest } from "./types.gen.ts";
-import { fromDatabaseStatusResponseCbor, fromListIncidentsResponseCbor, fromListReleasesResponseCbor, fromListTargetsResponseCbor, fromReleaseCbor, toCreateReleaseRequestCbor, toDatabaseStatusRequestCbor, toGetReleaseRequestCbor, toListIncidentsRequestCbor, toListReleasesRequestCbor, toListTargetsRequestCbor, toRollbackRequestCbor } from "./codec.gen.ts";
+import type { CreateReleaseRequest, DiagnoseRequest, Diagnosis, GetReleaseRequest, HealthStatusRequest, HealthStatusResponse, ListIncidentsRequest, ListIncidentsResponse, ListReleasesRequest, ListReleasesResponse, ListTargetsRequest, ListTargetsResponse, Release, RestartWorkloadRequest, RestartWorkloadResponse, RollbackRequest } from "./types.gen.ts";
+import { fromDiagnosisCbor, fromHealthStatusResponseCbor, fromListIncidentsResponseCbor, fromListReleasesResponseCbor, fromListTargetsResponseCbor, fromReleaseCbor, fromRestartWorkloadResponseCbor, toCreateReleaseRequestCbor, toDiagnoseRequestCbor, toGetReleaseRequestCbor, toHealthStatusRequestCbor, toListIncidentsRequestCbor, toListReleasesRequestCbor, toListTargetsRequestCbor, toRestartWorkloadRequestCbor, toRollbackRequestCbor } from "./codec.gen.ts";
 
 export interface ServiceTransport {
   call(service: string, op: string, req: Uint8Array): Uint8Array;
@@ -65,9 +65,9 @@ export class ReleaseClient {
    * @throws {ServiceError} when the API returns an error response
    * @throws transport errors (network, timeout) raised by the transport
    */
-  databaseStatus(req: DatabaseStatusRequest): DatabaseStatusResponse {
-    const csilResp = this.t.call("ReleaseService", "database-status", toDatabaseStatusRequestCbor(req));
-    return fromDatabaseStatusResponseCbor(csilResp);
+  healthStatus(req: HealthStatusRequest): HealthStatusResponse {
+    const csilResp = this.t.call("ReleaseService", "health-status", toHealthStatusRequestCbor(req));
+    return fromHealthStatusResponseCbor(csilResp);
   }
 
   /**
@@ -77,6 +77,24 @@ export class ReleaseClient {
   listIncidents(req: ListIncidentsRequest): ListIncidentsResponse {
     const csilResp = this.t.call("ReleaseService", "list-incidents", toListIncidentsRequestCbor(req));
     return fromListIncidentsResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  diagnose(req: DiagnoseRequest): Diagnosis {
+    const csilResp = this.t.call("ReleaseService", "diagnose", toDiagnoseRequestCbor(req));
+    return fromDiagnosisCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  restartWorkload(req: RestartWorkloadRequest): RestartWorkloadResponse {
+    const csilResp = this.t.call("ReleaseService", "restart-workload", toRestartWorkloadRequestCbor(req));
+    return fromRestartWorkloadResponseCbor(csilResp);
   }
 }
 

@@ -24,21 +24,26 @@ pub struct Running {
     pub base: String,
     pub http: reqwest::Client,
     pub _dir: tempfile::TempDir,
-    pub incidents: Arc<magi_release::database::Incidents>,
+    pub incidents: Arc<magi_release::watch::Incidents>,
 }
 
 /// Starts the controller with `cluster`. Durations are in seconds.
 pub async fn start<C: Cluster>(cluster: C, targets: Vec<TargetConfig>, timeout: u64, stabilize: u64) -> Running {
+    start_with(cluster, targets, timeout, stabilize, None).await
+}
+
+/// `start` with the calls of the API that act on the cluster.
+pub async fn start_with<C: Cluster>(cluster: C, targets: Vec<TargetConfig>, timeout: u64, stabilize: u64, operator: Option<Arc<dyn magi_release::watch::Operator>>) -> Running {
     let dir = tempfile::tempdir().unwrap();
     let store = Arc::new(Store::open(dir.path()).unwrap());
     let targets: Arc<HashMap<_, _>> = Arc::new(targets.into_iter().map(|t| (t.name.clone(), t)).collect());
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     let w = Worker { store: store.clone(), targets: targets.clone(), cluster, timeout: Duration::from_secs(timeout), stabilize: Duration::from_secs(stabilize) };
     tokio::spawn(w.run(rx));
-    let incidents = Arc::new(magi_release::database::Incidents::open(None).unwrap());
+    let incidents = Arc::new(magi_release::watch::Incidents::open(None).unwrap());
     let mut v = Verifier::default();
     v.add(serde_json::from_value(vector()["key"].clone()).unwrap()).unwrap();
-    let srv = Arc::new(Server { app: App { store, targets, queue: tx, incidents: incidents.clone() }, verifier: Some(v) });
+    let srv = Arc::new(Server { app: App { store, targets, queue: tx, incidents: incidents.clone(), operator }, verifier: Some(v) });
     let l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", l.local_addr().unwrap());
     tokio::spawn(async move { axum::serve(l, router(srv)).await.unwrap() });

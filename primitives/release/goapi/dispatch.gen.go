@@ -62,16 +62,16 @@ func ReleaseServiceOps(impl ReleaseService) map[string]func(context.Context, []b
 			}
 			return EncodeListTargetsResponse(resp)
 		},
-		"database-status": func(ctx context.Context, b []byte) ([]byte, error) {
-			req, err := DecodeDatabaseStatusRequest(b)
+		"health-status": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeHealthStatusRequest(b)
 			if err != nil {
 				return nil, &DecodeError{Err: err}
 			}
-			resp, err := impl.DatabaseStatus(ctx, req)
+			resp, err := impl.HealthStatus(ctx, req)
 			if err != nil {
 				return nil, err
 			}
-			return EncodeDatabaseStatusResponse(resp)
+			return EncodeHealthStatusResponse(resp)
 		},
 		"list-incidents": func(ctx context.Context, b []byte) ([]byte, error) {
 			req, err := DecodeListIncidentsRequest(b)
@@ -83,6 +83,28 @@ func ReleaseServiceOps(impl ReleaseService) map[string]func(context.Context, []b
 				return nil, err
 			}
 			return EncodeListIncidentsResponse(resp)
+		},
+		"diagnose": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeDiagnoseRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.Diagnose(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeDiagnosis(resp)
+		},
+		"restart-workload": func(ctx context.Context, b []byte) ([]byte, error) {
+			req, err := DecodeRestartWorkloadRequest(b)
+			if err != nil {
+				return nil, &DecodeError{Err: err}
+			}
+			resp, err := impl.RestartWorkload(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return EncodeRestartWorkloadResponse(resp)
 		},
 	}
 }

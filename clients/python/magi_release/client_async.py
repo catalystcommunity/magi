@@ -51,11 +51,19 @@ class ReleaseAsyncClient:
         """list-targets"""
         return ListTargetsResponse.from_cbor(await self._transport.call("ReleaseService", "list-targets", req.to_cbor()))
 
-    async def database_status(self, req: DatabaseStatusRequest) -> DatabaseStatusResponse:
-        """database-status"""
-        return DatabaseStatusResponse.from_cbor(await self._transport.call("ReleaseService", "database-status", req.to_cbor()))
+    async def health_status(self, req: HealthStatusRequest) -> HealthStatusResponse:
+        """health-status"""
+        return HealthStatusResponse.from_cbor(await self._transport.call("ReleaseService", "health-status", req.to_cbor()))
 
     async def list_incidents(self, req: ListIncidentsRequest) -> ListIncidentsResponse:
         """list-incidents"""
         return ListIncidentsResponse.from_cbor(await self._transport.call("ReleaseService", "list-incidents", req.to_cbor()))
+
+    async def diagnose(self, req: DiagnoseRequest) -> Diagnosis:
+        """diagnose"""
+        return Diagnosis.from_cbor(await self._transport.call("ReleaseService", "diagnose", req.to_cbor()))
+
+    async def restart_workload(self, req: RestartWorkloadRequest) -> RestartWorkloadResponse:
+        """restart-workload"""
+        return RestartWorkloadResponse.from_cbor(await self._transport.call("ReleaseService", "restart-workload", req.to_cbor()))
 

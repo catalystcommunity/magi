@@ -108,17 +108,17 @@ func (c *ReleaseClient) ListTargets(ctx context.Context, req ListTargetsRequest)
 	return DecodeListTargetsResponse(csilResp)
 }
 
-func (c *ReleaseClient) DatabaseStatus(ctx context.Context, req DatabaseStatusRequest) (DatabaseStatusResponse, error) {
-	var csilZero DatabaseStatusResponse
-	csilReq, csilErr := EncodeDatabaseStatusRequest(req)
+func (c *ReleaseClient) HealthStatus(ctx context.Context, req HealthStatusRequest) (HealthStatusResponse, error) {
+	var csilZero HealthStatusResponse
+	csilReq, csilErr := EncodeHealthStatusRequest(req)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	csilResp, csilErr := c.transport.Call(ctx, "ReleaseService", "database-status", csilReq)
+	csilResp, csilErr := c.transport.Call(ctx, "ReleaseService", "health-status", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeDatabaseStatusResponse(csilResp)
+	return DecodeHealthStatusResponse(csilResp)
 }
 
 func (c *ReleaseClient) ListIncidents(ctx context.Context, req ListIncidentsRequest) (ListIncidentsResponse, error) {
@@ -132,4 +132,30 @@ func (c *ReleaseClient) ListIncidents(ctx context.Context, req ListIncidentsRequ
 		return csilZero, csilErr
 	}
 	return DecodeListIncidentsResponse(csilResp)
+}
+
+func (c *ReleaseClient) Diagnose(ctx context.Context, req DiagnoseRequest) (Diagnosis, error) {
+	var csilZero Diagnosis
+	csilReq, csilErr := EncodeDiagnoseRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ReleaseService", "diagnose", csilReq)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeDiagnosis(csilResp)
+}
+
+func (c *ReleaseClient) RestartWorkload(ctx context.Context, req RestartWorkloadRequest) (RestartWorkloadResponse, error) {
+	var csilZero RestartWorkloadResponse
+	csilReq, csilErr := EncodeRestartWorkloadRequest(req)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	csilResp, csilErr := c.transport.Call(ctx, "ReleaseService", "restart-workload", csilReq)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeRestartWorkloadResponse(csilResp)
 }

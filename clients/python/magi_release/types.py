@@ -333,16 +333,19 @@ class ListTargetsResponse:
 
 
 @dataclass
-class DatabaseInstance:
+class Workload:
     name: str
-    role: str
+    kind: str
     ready: bool
     restarts: int
+    role: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'name') and self.name is not None:
             result['name'] = self.name
+        if hasattr(self, 'kind') and self.kind is not None:
+            result['kind'] = self.kind
         if hasattr(self, 'role') and self.role is not None:
             result['role'] = self.role
         if hasattr(self, 'ready') and self.ready is not None:
@@ -352,25 +355,25 @@ class DatabaseInstance:
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'DatabaseInstance':
+    def from_dict(cls, data: Dict[str, Any]) -> 'Workload':
         """Create instance from dictionary."""
-        return cls(name=data.get('name'), role=data.get('role'), ready=data.get('ready'), restarts=data.get('restarts'))
+        return cls(name=data.get('name'), kind=data.get('kind'), role=data.get('role'), ready=data.get('ready'), restarts=data.get('restarts'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
         return json.dumps(self.to_dict())
 
     @classmethod
-    def from_json(cls, json_str: str) -> 'DatabaseInstance':
+    def from_json(cls, json_str: str) -> 'Workload':
         """Create instance from JSON string."""
         return cls.from_dict(json.loads(json_str))
 
 
 @dataclass
-class DatabaseIncident:
+class Incident:
     seq: int
     kind: str
-    instance: str
+    subject: str
     message: str
     at_ms: int
     def to_dict(self) -> Dict[str, Any]:
@@ -380,8 +383,8 @@ class DatabaseIncident:
             result['seq'] = self.seq
         if hasattr(self, 'kind') and self.kind is not None:
             result['kind'] = self.kind
-        if hasattr(self, 'instance') and self.instance is not None:
-            result['instance'] = self.instance
+        if hasattr(self, 'subject') and self.subject is not None:
+            result['subject'] = self.subject
         if hasattr(self, 'message') and self.message is not None:
             result['message'] = self.message
         if hasattr(self, 'at_ms') and self.at_ms is not None:
@@ -389,69 +392,69 @@ class DatabaseIncident:
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'DatabaseIncident':
+    def from_dict(cls, data: Dict[str, Any]) -> 'Incident':
         """Create instance from dictionary."""
-        return cls(seq=data.get('seq'), kind=data.get('kind'), instance=data.get('instance'), message=data.get('message'), at_ms=data.get('at_ms'))
+        return cls(seq=data.get('seq'), kind=data.get('kind'), subject=data.get('subject'), message=data.get('message'), at_ms=data.get('at_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
         return json.dumps(self.to_dict())
 
     @classmethod
-    def from_json(cls, json_str: str) -> 'DatabaseIncident':
+    def from_json(cls, json_str: str) -> 'Incident':
         """Create instance from JSON string."""
         return cls.from_dict(json.loads(json_str))
 
 
 @dataclass
-class DatabaseStatusRequest:
-    cluster: Optional[str] = None
+class HealthStatusRequest:
+    kind: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
-        if hasattr(self, 'cluster') and self.cluster is not None:
-            result['cluster'] = self.cluster
+        if hasattr(self, 'kind') and self.kind is not None:
+            result['kind'] = self.kind
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'DatabaseStatusRequest':
+    def from_dict(cls, data: Dict[str, Any]) -> 'HealthStatusRequest':
         """Create instance from dictionary."""
-        return cls(cluster=data.get('cluster'))
+        return cls(kind=data.get('kind'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
         return json.dumps(self.to_dict())
 
     @classmethod
-    def from_json(cls, json_str: str) -> 'DatabaseStatusRequest':
+    def from_json(cls, json_str: str) -> 'HealthStatusRequest':
         """Create instance from JSON string."""
         return cls.from_dict(json.loads(json_str))
 
 
 @dataclass
-class DatabaseStatusResponse:
+class HealthStatusResponse:
     watched: bool
-    instances: List[DatabaseInstance]
+    workloads: List[Workload]
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
         if hasattr(self, 'watched') and self.watched is not None:
             result['watched'] = self.watched
-        if hasattr(self, 'instances') and self.instances is not None:
-            result['instances'] = [item0.to_dict() for item0 in self.instances]
+        if hasattr(self, 'workloads') and self.workloads is not None:
+            result['workloads'] = [item0.to_dict() for item0 in self.workloads]
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'DatabaseStatusResponse':
+    def from_dict(cls, data: Dict[str, Any]) -> 'HealthStatusResponse':
         """Create instance from dictionary."""
-        return cls(watched=data.get('watched'), instances=(None if data.get('instances') is None else [DatabaseInstance.from_dict(item0) for item0 in data['instances']]))
+        return cls(watched=data.get('watched'), workloads=(None if data.get('workloads') is None else [Workload.from_dict(item0) for item0 in data['workloads']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
         return json.dumps(self.to_dict())
 
     @classmethod
-    def from_json(cls, json_str: str) -> 'DatabaseStatusResponse':
+    def from_json(cls, json_str: str) -> 'HealthStatusResponse':
         """Create instance from JSON string."""
         return cls.from_dict(json.loads(json_str))
 
@@ -486,7 +489,7 @@ class ListIncidentsRequest:
 
 @dataclass
 class ListIncidentsResponse:
-    incidents: List[DatabaseIncident]
+    incidents: List[Incident]
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -497,7 +500,7 @@ class ListIncidentsResponse:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ListIncidentsResponse':
         """Create instance from dictionary."""
-        return cls(incidents=(None if data.get('incidents') is None else [DatabaseIncident.from_dict(item0) for item0 in data['incidents']]))
+        return cls(incidents=(None if data.get('incidents') is None else [Incident.from_dict(item0) for item0 in data['incidents']]))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -505,6 +508,158 @@ class ListIncidentsResponse:
 
     @classmethod
     def from_json(cls, json_str: str) -> 'ListIncidentsResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class PodFacts:
+    name: str
+    phase: str
+    ready: bool
+    restarts: int
+    state: str
+    log: str
+    events: List[str]
+    last_exit: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'name') and self.name is not None:
+            result['name'] = self.name
+        if hasattr(self, 'phase') and self.phase is not None:
+            result['phase'] = self.phase
+        if hasattr(self, 'ready') and self.ready is not None:
+            result['ready'] = self.ready
+        if hasattr(self, 'restarts') and self.restarts is not None:
+            result['restarts'] = self.restarts
+        if hasattr(self, 'state') and self.state is not None:
+            result['state'] = self.state
+        if hasattr(self, 'last_exit') and self.last_exit is not None:
+            result['last_exit'] = self.last_exit
+        if hasattr(self, 'log') and self.log is not None:
+            result['log'] = self.log
+        if hasattr(self, 'events') and self.events is not None:
+            result['events'] = self.events
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'PodFacts':
+        """Create instance from dictionary."""
+        return cls(name=data.get('name'), phase=data.get('phase'), ready=data.get('ready'), restarts=data.get('restarts'), state=data.get('state'), last_exit=data.get('last_exit'), log=data.get('log'), events=data.get('events'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'PodFacts':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class DiagnoseRequest:
+    subject: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'subject') and self.subject is not None:
+            result['subject'] = self.subject
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'DiagnoseRequest':
+        """Create instance from dictionary."""
+        return cls(subject=data.get('subject'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'DiagnoseRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class Diagnosis:
+    subject: str
+    pods: List[PodFacts]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'subject') and self.subject is not None:
+            result['subject'] = self.subject
+        if hasattr(self, 'pods') and self.pods is not None:
+            result['pods'] = [item0.to_dict() for item0 in self.pods]
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Diagnosis':
+        """Create instance from dictionary."""
+        return cls(subject=data.get('subject'), pods=(None if data.get('pods') is None else [PodFacts.from_dict(item0) for item0 in data['pods']]))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'Diagnosis':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class RestartWorkloadRequest:
+    subject: str
+    reason: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'subject') and self.subject is not None:
+            result['subject'] = self.subject
+        if hasattr(self, 'reason') and self.reason is not None:
+            result['reason'] = self.reason
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'RestartWorkloadRequest':
+        """Create instance from dictionary."""
+        return cls(subject=data.get('subject'), reason=data.get('reason'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'RestartWorkloadRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class RestartWorkloadResponse:
+    restarted: List[str]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'restarted') and self.restarted is not None:
+            result['restarted'] = self.restarted
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'RestartWorkloadResponse':
+        """Create instance from dictionary."""
+        return cls(restarted=data.get('restarted'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'RestartWorkloadResponse':
         """Create instance from JSON string."""
         return cls.from_dict(json.loads(json_str))
 

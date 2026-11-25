@@ -659,7 +659,7 @@ func TestNoticeWithKeyIsNotRepeated(t *testing.T) {
 	s := turnSystem(t)
 	ctx := s.AsService(context.Background())
 	owner := "user:notice-key@example.local"
-	inc := releaseapi.DatabaseIncident{Seq: 7, Kind: "failover", Instance: "db-2", Message: "The primary of the database changed from db-1 to db-2.", AtMs: nowMs()}
+	inc := releaseapi.Incident{Seq: 7, Kind: "failover", Subject: "database/db-2", Message: "The primary of the database changed from db-1 to db-2.", AtMs: nowMs()}
 	count := func() int {
 		res, err := s.Conversation.ListNotices(ctx, conversationapi.ListNoticesRequest{Person: ptr(owner)})
 		if err != nil {
@@ -667,7 +667,7 @@ func TestNoticeWithKeyIsNotRepeated(t *testing.T) {
 		}
 		return len(res.Notices)
 	}
-	if err := s.incidentNotice(ctx, owner, inc); err != nil || count() != 1 {
+	if err := s.incidentNotice(ctx, owner, inc, ""); err != nil || count() != 1 {
 		t.Fatalf("first send: %v, %d notices", err, count())
 	}
 	res, _ := s.Conversation.ListNotices(ctx, conversationapi.ListNoticesRequest{Person: ptr(owner)})
@@ -679,11 +679,11 @@ func TestNoticeWithKeyIsNotRepeated(t *testing.T) {
 	repeatMargin = 50 * time.Millisecond
 	defer func() { repeatMargin = old }()
 	time.Sleep(200 * time.Millisecond)
-	if err := s.incidentNotice(ctx, owner, inc); err != nil || count() != 1 {
+	if err := s.incidentNotice(ctx, owner, inc, ""); err != nil || count() != 1 {
 		t.Fatalf("second send: %v, %d notices", err, count())
 	}
 	inc.Seq = 8
-	if err := s.incidentNotice(ctx, owner, inc); err != nil || count() != 2 {
+	if err := s.incidentNotice(ctx, owner, inc, ""); err != nil || count() != 2 {
 		t.Fatalf("another incident: %v, %d notices", err, count())
 	}
 }

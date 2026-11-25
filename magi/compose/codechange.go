@@ -126,7 +126,7 @@ func (s *System) RunWorkers(ctx context.Context) {
 		go s.grantReminders(ctx)
 	}
 	go s.Librarian(ctx)
-	go s.DatabaseWatch(ctx)
+	go s.HealthWatch(ctx)
 }
 
 func (s *System) exec(ctx context.Context, envID, cwd, script string, timeoutMs uint64) (executionapi.ExecResult, error) {

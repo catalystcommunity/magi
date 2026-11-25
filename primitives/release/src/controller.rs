@@ -62,8 +62,10 @@ pub struct App {
     pub store: Arc<Store>,
     pub targets: Arc<HashMap<String, TargetConfig>>,
     pub queue: UnboundedSender<String>,
-    /// The records of the database watch.
-    pub incidents: Arc<crate::database::Incidents>,
+    /// The records of the watch.
+    pub incidents: Arc<crate::watch::Incidents>,
+    /// The calls that act on the cluster. `None` with no watch.
+    pub operator: Option<Arc<dyn crate::watch::Operator>>,
 }
 
 fn can_operate(p: &Principal) -> bool {
@@ -173,12 +175,13 @@ impl api::ReleaseService for App {
         Ok(api::ListTargetsResponse { targets })
     }
 
-    fn database_status(&self, p: &Principal, _: api::DatabaseStatusRequest) -> Result<api::DatabaseStatusResponse, ServiceError> {
+    fn health_status(&self, p: &Principal, input: api::HealthStatusRequest) -> Result<api::HealthStatusResponse, ServiceError> {
         if !can_read_all(p) {
             return Err(err(403, "scope release:read required"));
         }
         let st = self.incidents.status();
-        Ok(api::DatabaseStatusResponse { watched: st.is_some(), instances: st.unwrap_or_default() })
+        let workloads = st.clone().unwrap_or_default().into_iter().filter(|w| input.kind.as_ref().is_none_or(|k| *k == w.kind)).collect();
+        Ok(api::HealthStatusResponse { watched: st.is_some(), workloads })
     }
 
     fn list_incidents(&self, p: &Principal, input: api::ListIncidentsRequest) -> Result<api::ListIncidentsResponse, ServiceError> {
@@ -187,6 +190,42 @@ impl api::ReleaseService for App {
         }
         let limit = input.limit.unwrap_or(100).clamp(1, 500) as usize;
         Ok(api::ListIncidentsResponse { incidents: self.incidents.after(input.after.unwrap_or(0), limit) })
+    }
+
+    fn diagnose(&self, p: &Principal, input: api::DiagnoseRequest) -> Result<api::Diagnosis, ServiceError> {
+        if !can_read_all(p) {
+            return Err(err(403, "scope release:read required"));
+        }
+        let op = self.watched(&input.subject)?;
+        op.diagnose(&input.subject).map_err(|e| err(502, format!("diagnose {}: {e}", input.subject)))
+    }
+
+    fn restart_workload(&self, p: &Principal, input: api::RestartWorkloadRequest) -> Result<api::RestartWorkloadResponse, ServiceError> {
+        if !can_operate(p) {
+            return Err(err(403, "scope release:operate required"));
+        }
+        let op = self.watched(&input.subject)?;
+        let restarted = op.restart(&input.subject).map_err(|e| err(502, format!("restart {}: {e}", input.subject)))?;
+        if !restarted.is_empty() {
+            let why = input.reason.as_deref().map(str::trim).filter(|r| !r.is_empty()).map(|r| r.chars().take(300).collect::<String>());
+            let m = format!("{} was restarted on request of {}{}.", input.subject, p.sub, why.map(|w| format!(": {w}")).unwrap_or_default());
+            tracing::warn!(subject = %input.subject, by = %p.sub, "restart on request");
+            self.incidents.add("restarted", &input.subject, &m, now_ms());
+        }
+        Ok(api::RestartWorkloadResponse { restarted })
+    }
+}
+
+impl App {
+    /// The operator, when `subject` is a workload that the watch saw. A
+    /// caller cannot name another pod of the cluster.
+    fn watched(&self, subject: &str) -> Result<&Arc<dyn crate::watch::Operator>, ServiceError> {
+        let op = self.operator.as_ref().ok_or_else(|| err(404, "the controller watches nothing"))?;
+        let known = self.incidents.status().unwrap_or_default().iter().any(|w| crate::watch::subject(w) == subject);
+        if !known {
+            return Err(err(404, format!("workload {subject} not found")));
+        }
+        Ok(op)
     }
 }
 

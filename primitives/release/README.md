@@ -18,8 +18,10 @@ non-2xx status with a JSON body `{"code": <status>, "message": "..."}`.
 | `list` | `release:read` (all), else the caller's own releases | Newest first. Default limit 50, maximum 500. |
 | `rollback` | `release:operate` | Starts a new release that restores the previous images of a `succeeded` release. When it succeeds, the old release becomes `rolled-back`. |
 | `list-targets` | `release:read` | The configured targets. |
-| `database-status` | `release:read` | The instances of the database that the controller watches, as the watch saw them last. |
-| `list-incidents` | `release:read` | The incidents of the database watch after a sequence number, the oldest first. |
+| `health-status` | `release:read` | The workloads that the controller watches (database instances and services), as the watch saw them last. |
+| `list-incidents` | `release:read` | The incidents of the watch after a sequence number, the oldest first. |
+| `diagnose` | `release:read` | The facts of the pods of one workload: state, last exit, the last 40 lines of the log, the last 10 events. |
+| `restart-workload` | `release:operate` | Deletes the pods of one workload that are not ready, and records the incident `restarted`. Only a workload that the watch saw. |
 
 `release:admin`, `release:*`, and `*` permit all operations. The owner of a
 release is the subject of the caller.
@@ -67,10 +69,13 @@ Status values: `pending`, `rolling`, `verifying`, `succeeded`,
 If the process stops during a release, the next start restores the previous
 images of that release.
 
-## Database watch
+## Watch
 
-With `MAGI_RELEASE_DATABASE`, the controller looks at the instances of one
-CloudNativePG cluster each 15 seconds. The watch is in this controller for
+With `MAGI_RELEASE_DATABASE` or `MAGI_RELEASE_SERVICES`, the controller
+looks at the workloads of one namespace each 15 seconds
+(`docs/decisions/0015-health.md`). A workload is one instance of a
+CloudNativePG cluster, or all pods of one Deployment (the pods with the
+same label `app.kubernetes.io/name`). The watch is in this controller for
 two reasons. The controller has the access to the cluster. The controller
 keeps its records in a file, thus the watch works while the database does
 not.
@@ -82,20 +87,25 @@ broken.
 | Incident | When |
 | --- | --- |
 | `failover` | The ready primary is a different instance than before. |
-| `restarted` | An instance was not ready for 3 minutes. The controller deleted its pod. The operator starts it again with the same data. |
-| `unhealthy` | The instance is still not ready 10 minutes after the restart, or the restart failed. A person must look at it. |
-| `recovered` | An instance of an earlier incident is ready again. |
+| `restarted` | A database instance was not ready for 90 seconds, or a service for 3 minutes. The controller deleted the pods that were not ready. The platform starts them again with the same data. Also: a caller asked for the restart (`restart-workload`). |
+| `unhealthy` | The workload is still not ready 10 minutes after the restart, or the restart failed. The rules have no more to do. Magi looks at it with a model. |
+| `recovered` | A workload of an earlier incident is ready again. |
 
-- The controller restarts an instance one time. It restarts the instance
-  again only after the instance was ready.
-- The controller does not restart an instance that is ready.
-- The incidents are in `database-incidents.jsonl` in the data directory.
+- The controller restarts a workload one time. It restarts the workload
+  again only after the workload was ready.
+- The controller does not restart a pod that is ready.
+- The controller does not act on a service while the database has no
+  ready primary, or while a release runs.
+- The controller deletes a pod with 30 seconds to stop. The default of a
+  database pod is 30 minutes, and the operator of the database does not
+  promote the standby before the old primary is gone.
+- The incidents are in `incidents.jsonl` in the data directory.
 - Magi reads `list-incidents` and sends each incident to the admins as a
-  notice (`magi/compose/dbwatch.go`).
+  notice (`magi/compose/health.go`).
 - Example: the volume of an instance gets an input/output error. The pod
   of the instance starts again and again, and it does not become ready.
-  With two instances, the operator promotes the standby (`failover`).
-  After 3 minutes the controller deletes the pod (`restarted`). The volume
+  After 90 seconds the controller deletes the pod (`restarted`). With two
+  instances, the operator promotes the standby (`failover`). The volume
   attaches again, and the instance joins as the standby (`recovered`).
 
 ## Configuration
@@ -111,9 +121,11 @@ Each flag has an environment variable default.
 | `--timeout` | `MAGI_RELEASE_TIMEOUT` | `180` seconds for each rollout |
 | `--stabilize` | `MAGI_RELEASE_STABILIZE` | `20` seconds |
 | `--health` | `MAGI_RELEASE_HEALTH` | `direct`: probe `podIP:port`. `proxy`: probe through the API server pod proxy (needs `pods/proxy` get). |
-| `--database` | `MAGI_RELEASE_DATABASE` | none: no database watch. `namespace/cluster` of a CloudNativePG cluster. |
-| `--database-restart-after` | `MAGI_RELEASE_DATABASE_RESTART_AFTER` | `180` seconds that an instance is not ready before the restart |
-| `--database-give-up-after` | `MAGI_RELEASE_DATABASE_GIVE_UP_AFTER` | `600` seconds after the restart before the incident `unhealthy` |
+| `--database` | `MAGI_RELEASE_DATABASE` | none. `namespace/cluster` of a CloudNativePG cluster to watch. |
+| `--services` | `MAGI_RELEASE_SERVICES` | none. `namespace/label=value`: the pods of the services to watch. The namespace is the same as of the database. |
+| `--database-restart-after` | `MAGI_RELEASE_DATABASE_RESTART_AFTER` | `90` seconds that a database instance is not ready before the restart |
+| `--service-restart-after` | `MAGI_RELEASE_SERVICE_RESTART_AFTER` | `180` seconds that a service is not ready before the restart |
+| `--give-up-after` | `MAGI_RELEASE_GIVE_UP_AFTER` | `600` seconds after the restart before the incident `unhealthy` |
 | `--kube-context` | `MAGI_KUBE_CONTEXT` | none. Without it, the controller uses the in-cluster configuration, then the default kubeconfig. |
 
 `RUST_LOG` sets the log level. Logs are JSON on stdout.
@@ -183,6 +195,8 @@ MAGI_TEST_KUBE=1 cargo test    # also the live test
 ## Limits
 
 - One replica only. The JSON-lines file is not shared.
+- The watch sees pods only. A Deployment with no pod is not an incident.
+- The watch does not see its own controller stop.
 - One release at a time. There is no cancel operation.
 - Only Deployments, and only one container of each Deployment.
 - The restore does not do a health check. It waits for the rollout only.

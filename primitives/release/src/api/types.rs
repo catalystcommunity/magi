@@ -75,31 +75,32 @@ pub struct ListTargetsResponse {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct DatabaseInstance {
+pub struct Workload {
     pub name: String,
-    pub role: String,
+    pub kind: String,
+    pub role: Option<String>,
     pub ready: bool,
     pub restarts: u64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct DatabaseIncident {
+pub struct Incident {
     pub seq: u64,
     pub kind: String,
-    pub instance: String,
+    pub subject: String,
     pub message: String,
     pub at_ms: u64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct DatabaseStatusRequest {
-    pub cluster: Option<String>,
+pub struct HealthStatusRequest {
+    pub kind: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct DatabaseStatusResponse {
+pub struct HealthStatusResponse {
     pub watched: bool,
-    pub instances: Vec<DatabaseInstance>,
+    pub workloads: Vec<Workload>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -110,5 +111,39 @@ pub struct ListIncidentsRequest {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ListIncidentsResponse {
-    pub incidents: Vec<DatabaseIncident>,
+    pub incidents: Vec<Incident>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PodFacts {
+    pub name: String,
+    pub phase: String,
+    pub ready: bool,
+    pub restarts: u64,
+    pub state: String,
+    pub last_exit: Option<String>,
+    pub log: String,
+    pub events: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DiagnoseRequest {
+    pub subject: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Diagnosis {
+    pub subject: String,
+    pub pods: Vec<PodFacts>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RestartWorkloadRequest {
+    pub subject: String,
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RestartWorkloadResponse {
+    pub restarted: Vec<String>,
 }

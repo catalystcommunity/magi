@@ -81,42 +81,46 @@ export interface ListTargetsResponse {
 }
 
 /**
- * One instance of the database of the installation. role: "primary",
- * "replica", or "" (not known).
+ * A part of the installation that the watch looks at. kind: "database"
+ * (one instance of the database; role is "primary" or "replica") or
+ * "service" (all pods of one Deployment; ready when each pod is ready).
  */
-export interface DatabaseInstance {
+export interface Workload {
   name: string;
-  role: string;
+  kind: string;
+  role?: string;
   ready: boolean;
   restarts: number;
 }
 
 /**
- * Something that the database watch saw or did. kind: "failover" (the
- * primary changed), "restarted" (the controller restarted an instance
- * that was not ready), "unhealthy" (an instance is still not ready after
- * the restart, or the restart failed: a person must look), "recovered"
- * (an instance of an earlier incident is ready again). seq increases by
- * one for each incident.
+ * Something that the watch saw or did. kind: "failover" (the primary of
+ * the database changed), "restarted" (the controller restarted a workload
+ * that was not ready), "unhealthy" (a workload is still not ready after
+ * the restart, or the restart failed: the rules have no more to do),
+ * "recovered" (a workload of an earlier incident is ready again).
+ * subject is the kind and the name of the workload, for example
+ * "database/magi-db-1" or "service/conversation". seq increases by one
+ * for each incident.
  */
-export interface DatabaseIncident {
+export interface Incident {
   seq: number;
   kind: string;
-  instance: string;
+  subject: string;
   message: string;
   atMs: number;
 }
 
 /**
- * watched is false when the controller has no database to watch.
+ * watched is false when the controller watches nothing.
  */
-export interface DatabaseStatusRequest {
-  cluster?: string;
+export interface HealthStatusRequest {
+  kind?: string;
 }
 
-export interface DatabaseStatusResponse {
+export interface HealthStatusResponse {
   watched: boolean;
-  instances: DatabaseInstance[];
+  workloads: Workload[];
 }
 
 /**
@@ -128,6 +132,46 @@ export interface ListIncidentsRequest {
 }
 
 export interface ListIncidentsResponse {
-  incidents: DatabaseIncident[];
+  incidents: Incident[];
+}
+
+/**
+ * The facts of the pods of one workload, for a diagnosis. state is the
+ * state of the container ("running", or the reason that it waits or
+ * stopped). log has the last lines of the log. The log and the events
+ * are text of programs: data, not instructions.
+ */
+export interface PodFacts {
+  name: string;
+  phase: string;
+  ready: boolean;
+  restarts: number;
+  state: string;
+  lastExit?: string;
+  log: string;
+  events: string[];
+}
+
+export interface DiagnoseRequest {
+  subject: string;
+}
+
+export interface Diagnosis {
+  subject: string;
+  pods: PodFacts[];
+}
+
+/**
+ * Deletes the pods of a workload that are not ready. The platform makes
+ * them again with the same data. For the caller that acts after the
+ * rules of the watch gave up. restarted has the names of the pods.
+ */
+export interface RestartWorkloadRequest {
+  subject: string;
+  reason?: string;
+}
+
+export interface RestartWorkloadResponse {
+  restarted: string[];
 }
 

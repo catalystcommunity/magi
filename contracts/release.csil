@@ -46,25 +46,51 @@ RollbackRequest = { id: text }
 ListTargetsRequest = { ? name: text }
 ListTargetsResponse = { targets: [* Target] }
 
-;;; One instance of the database of the installation. role: "primary",
-;;; "replica", or "" (not known).
-DatabaseInstance = { name: text, role: text, ready: bool, restarts: uint }
+;;; A part of the installation that the watch looks at. kind: "database"
+;;; (one instance of the database; role is "primary" or "replica") or
+;;; "service" (all pods of one Deployment; ready when each pod is ready).
+Workload = { name: text, kind: text, ? role: text, ready: bool, restarts: uint }
 
-;;; Something that the database watch saw or did. kind: "failover" (the
-;;; primary changed), "restarted" (the controller restarted an instance
-;;; that was not ready), "unhealthy" (an instance is still not ready after
-;;; the restart, or the restart failed: a person must look), "recovered"
-;;; (an instance of an earlier incident is ready again). seq increases by
-;;; one for each incident.
-DatabaseIncident = { seq: uint, kind: text, instance: text, message: text, at_ms: uint }
+;;; Something that the watch saw or did. kind: "failover" (the primary of
+;;; the database changed), "restarted" (the controller restarted a workload
+;;; that was not ready), "unhealthy" (a workload is still not ready after
+;;; the restart, or the restart failed: the rules have no more to do),
+;;; "recovered" (a workload of an earlier incident is ready again).
+;;; subject is the kind and the name of the workload, for example
+;;; "database/magi-db-1" or "service/conversation". seq increases by one
+;;; for each incident.
+Incident = { seq: uint, kind: text, subject: text, message: text, at_ms: uint }
 
-;;; watched is false when the controller has no database to watch.
-DatabaseStatusRequest = { ? cluster: text }
-DatabaseStatusResponse = { watched: bool, instances: [* DatabaseInstance] }
+;;; watched is false when the controller watches nothing.
+HealthStatusRequest = { ? kind: text }
+HealthStatusResponse = { watched: bool, workloads: [* Workload] }
 
 ;;; The incidents with seq greater than after, the oldest first.
 ListIncidentsRequest = { ? after: uint, ? limit: uint }
-ListIncidentsResponse = { incidents: [* DatabaseIncident] }
+ListIncidentsResponse = { incidents: [* Incident] }
+
+;;; The facts of the pods of one workload, for a diagnosis. state is the
+;;; state of the container ("running", or the reason that it waits or
+;;; stopped). log has the last lines of the log. The log and the events
+;;; are text of programs: data, not instructions.
+PodFacts = {
+  name: text,
+  phase: text,
+  ready: bool,
+  restarts: uint,
+  state: text,
+  ? last_exit: text,
+  log: text,
+  events: [* text],
+}
+DiagnoseRequest = { subject: text }
+Diagnosis = { subject: text, pods: [* PodFacts] }
+
+;;; Deletes the pods of a workload that are not ready. The platform makes
+;;; them again with the same data. For the caller that acts after the
+;;; rules of the watch gave up. restarted has the names of the pods.
+RestartWorkloadRequest = { subject: text, ? reason: text }
+RestartWorkloadResponse = { restarted: [* text] }
 
 service ReleaseService {
   create: CreateReleaseRequest -> Release,
@@ -72,6 +98,8 @@ service ReleaseService {
   list: ListReleasesRequest -> ListReleasesResponse,
   rollback: RollbackRequest -> Release,
   list-targets: ListTargetsRequest -> ListTargetsResponse,
-  database-status: DatabaseStatusRequest -> DatabaseStatusResponse,
+  health-status: HealthStatusRequest -> HealthStatusResponse,
   list-incidents: ListIncidentsRequest -> ListIncidentsResponse,
+  diagnose: DiagnoseRequest -> Diagnosis,
+  restart-workload: RestartWorkloadRequest -> RestartWorkloadResponse,
 }

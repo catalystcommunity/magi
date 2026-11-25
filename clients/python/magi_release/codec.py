@@ -739,115 +739,119 @@ def _list_targets_response_from_cbor(data: bytes) -> "ListTargetsResponse":
 ListTargetsResponse.to_cbor = _list_targets_response_to_cbor
 ListTargetsResponse.from_cbor = staticmethod(_list_targets_response_from_cbor)
 
-def _encode_database_instance_value(v: "DatabaseInstance") -> Dict[Any, Any]:
+def _encode_workload_value(v: "Workload") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
+    csil_m["kind"] = v.kind
     csil_m["name"] = v.name
-    csil_m["role"] = v.role
+    csil_x = v.role
+    if csil_x is not None:
+        csil_m["role"] = csil_x
     csil_m["ready"] = v.ready
     csil_m["restarts"] = v.restarts
     return csil_m
 
-def _decode_database_instance_value(tree: Any) -> "DatabaseInstance":
+def _decode_workload_value(tree: Any) -> "Workload":
     tree = _csil_expect_map(tree)
-    return DatabaseInstance(
+    return Workload(
         name=_csil_expect_text(tree["name"]),
-        role=_csil_expect_text(tree["role"]),
+        kind=_csil_expect_text(tree["kind"]),
+        role=(None if tree.get("role") is None else _csil_expect_text(tree["role"])),
         ready=_csil_expect_bool(tree["ready"]),
         restarts=_csil_expect_uint(tree["restarts"]),
     )
 
 
-def _database_instance_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_database_instance_value(self))
+def _workload_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_workload_value(self))
 
 
-def _database_instance_from_cbor(data: bytes) -> "DatabaseInstance":
-    return _decode_database_instance_value(cbor_decode(data))
+def _workload_from_cbor(data: bytes) -> "Workload":
+    return _decode_workload_value(cbor_decode(data))
 
 
-DatabaseInstance.to_cbor = _database_instance_to_cbor
-DatabaseInstance.from_cbor = staticmethod(_database_instance_from_cbor)
+Workload.to_cbor = _workload_to_cbor
+Workload.from_cbor = staticmethod(_workload_from_cbor)
 
-def _encode_database_incident_value(v: "DatabaseIncident") -> Dict[Any, Any]:
+def _encode_incident_value(v: "Incident") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["seq"] = v.seq
     csil_m["kind"] = v.kind
     csil_m["at_ms"] = v.at_ms
     csil_m["message"] = v.message
-    csil_m["instance"] = v.instance
+    csil_m["subject"] = v.subject
     return csil_m
 
-def _decode_database_incident_value(tree: Any) -> "DatabaseIncident":
+def _decode_incident_value(tree: Any) -> "Incident":
     tree = _csil_expect_map(tree)
-    return DatabaseIncident(
+    return Incident(
         seq=_csil_expect_uint(tree["seq"]),
         kind=_csil_expect_text(tree["kind"]),
-        instance=_csil_expect_text(tree["instance"]),
+        subject=_csil_expect_text(tree["subject"]),
         message=_csil_expect_text(tree["message"]),
         at_ms=_csil_expect_uint(tree["at_ms"]),
     )
 
 
-def _database_incident_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_database_incident_value(self))
+def _incident_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_incident_value(self))
 
 
-def _database_incident_from_cbor(data: bytes) -> "DatabaseIncident":
-    return _decode_database_incident_value(cbor_decode(data))
+def _incident_from_cbor(data: bytes) -> "Incident":
+    return _decode_incident_value(cbor_decode(data))
 
 
-DatabaseIncident.to_cbor = _database_incident_to_cbor
-DatabaseIncident.from_cbor = staticmethod(_database_incident_from_cbor)
+Incident.to_cbor = _incident_to_cbor
+Incident.from_cbor = staticmethod(_incident_from_cbor)
 
-def _encode_database_status_request_value(v: "DatabaseStatusRequest") -> Dict[Any, Any]:
+def _encode_health_status_request_value(v: "HealthStatusRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
-    csil_x = v.cluster
+    csil_x = v.kind
     if csil_x is not None:
-        csil_m["cluster"] = csil_x
+        csil_m["kind"] = csil_x
     return csil_m
 
-def _decode_database_status_request_value(tree: Any) -> "DatabaseStatusRequest":
+def _decode_health_status_request_value(tree: Any) -> "HealthStatusRequest":
     tree = _csil_expect_map(tree)
-    return DatabaseStatusRequest(
-        cluster=(None if tree.get("cluster") is None else _csil_expect_text(tree["cluster"])),
+    return HealthStatusRequest(
+        kind=(None if tree.get("kind") is None else _csil_expect_text(tree["kind"])),
     )
 
 
-def _database_status_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_database_status_request_value(self))
+def _health_status_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_health_status_request_value(self))
 
 
-def _database_status_request_from_cbor(data: bytes) -> "DatabaseStatusRequest":
-    return _decode_database_status_request_value(cbor_decode(data))
+def _health_status_request_from_cbor(data: bytes) -> "HealthStatusRequest":
+    return _decode_health_status_request_value(cbor_decode(data))
 
 
-DatabaseStatusRequest.to_cbor = _database_status_request_to_cbor
-DatabaseStatusRequest.from_cbor = staticmethod(_database_status_request_from_cbor)
+HealthStatusRequest.to_cbor = _health_status_request_to_cbor
+HealthStatusRequest.from_cbor = staticmethod(_health_status_request_from_cbor)
 
-def _encode_database_status_response_value(v: "DatabaseStatusResponse") -> Dict[Any, Any]:
+def _encode_health_status_response_value(v: "HealthStatusResponse") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["watched"] = v.watched
-    csil_m["instances"] = [_encode_database_instance_value(csil_e) for csil_e in v.instances]
+    csil_m["workloads"] = [_encode_workload_value(csil_e) for csil_e in v.workloads]
     return csil_m
 
-def _decode_database_status_response_value(tree: Any) -> "DatabaseStatusResponse":
+def _decode_health_status_response_value(tree: Any) -> "HealthStatusResponse":
     tree = _csil_expect_map(tree)
-    return DatabaseStatusResponse(
+    return HealthStatusResponse(
         watched=_csil_expect_bool(tree["watched"]),
-        instances=[_decode_database_instance_value(csil_e) for csil_e in _csil_expect_array(tree["instances"])],
+        workloads=[_decode_workload_value(csil_e) for csil_e in _csil_expect_array(tree["workloads"])],
     )
 
 
-def _database_status_response_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_database_status_response_value(self))
+def _health_status_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_health_status_response_value(self))
 
 
-def _database_status_response_from_cbor(data: bytes) -> "DatabaseStatusResponse":
-    return _decode_database_status_response_value(cbor_decode(data))
+def _health_status_response_from_cbor(data: bytes) -> "HealthStatusResponse":
+    return _decode_health_status_response_value(cbor_decode(data))
 
 
-DatabaseStatusResponse.to_cbor = _database_status_response_to_cbor
-DatabaseStatusResponse.from_cbor = staticmethod(_database_status_response_from_cbor)
+HealthStatusResponse.to_cbor = _health_status_response_to_cbor
+HealthStatusResponse.from_cbor = staticmethod(_health_status_response_from_cbor)
 
 def _encode_list_incidents_request_value(v: "ListIncidentsRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
@@ -880,13 +884,13 @@ ListIncidentsRequest.from_cbor = staticmethod(_list_incidents_request_from_cbor)
 
 def _encode_list_incidents_response_value(v: "ListIncidentsResponse") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
-    csil_m["incidents"] = [_encode_database_incident_value(csil_e) for csil_e in v.incidents]
+    csil_m["incidents"] = [_encode_incident_value(csil_e) for csil_e in v.incidents]
     return csil_m
 
 def _decode_list_incidents_response_value(tree: Any) -> "ListIncidentsResponse":
     tree = _csil_expect_map(tree)
     return ListIncidentsResponse(
-        incidents=[_decode_database_incident_value(csil_e) for csil_e in _csil_expect_array(tree["incidents"])],
+        incidents=[_decode_incident_value(csil_e) for csil_e in _csil_expect_array(tree["incidents"])],
     )
 
 
@@ -900,3 +904,140 @@ def _list_incidents_response_from_cbor(data: bytes) -> "ListIncidentsResponse":
 
 ListIncidentsResponse.to_cbor = _list_incidents_response_to_cbor
 ListIncidentsResponse.from_cbor = staticmethod(_list_incidents_response_from_cbor)
+
+def _encode_pod_facts_value(v: "PodFacts") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["log"] = v.log
+    csil_m["name"] = v.name
+    csil_m["phase"] = v.phase
+    csil_m["ready"] = v.ready
+    csil_m["state"] = v.state
+    csil_m["events"] = v.events
+    csil_m["restarts"] = v.restarts
+    csil_x = v.last_exit
+    if csil_x is not None:
+        csil_m["last_exit"] = csil_x
+    return csil_m
+
+def _decode_pod_facts_value(tree: Any) -> "PodFacts":
+    tree = _csil_expect_map(tree)
+    return PodFacts(
+        name=_csil_expect_text(tree["name"]),
+        phase=_csil_expect_text(tree["phase"]),
+        ready=_csil_expect_bool(tree["ready"]),
+        restarts=_csil_expect_uint(tree["restarts"]),
+        state=_csil_expect_text(tree["state"]),
+        last_exit=(None if tree.get("last_exit") is None else _csil_expect_text(tree["last_exit"])),
+        log=_csil_expect_text(tree["log"]),
+        events=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["events"])],
+    )
+
+
+def _pod_facts_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_pod_facts_value(self))
+
+
+def _pod_facts_from_cbor(data: bytes) -> "PodFacts":
+    return _decode_pod_facts_value(cbor_decode(data))
+
+
+PodFacts.to_cbor = _pod_facts_to_cbor
+PodFacts.from_cbor = staticmethod(_pod_facts_from_cbor)
+
+def _encode_diagnose_request_value(v: "DiagnoseRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["subject"] = v.subject
+    return csil_m
+
+def _decode_diagnose_request_value(tree: Any) -> "DiagnoseRequest":
+    tree = _csil_expect_map(tree)
+    return DiagnoseRequest(
+        subject=_csil_expect_text(tree["subject"]),
+    )
+
+
+def _diagnose_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_diagnose_request_value(self))
+
+
+def _diagnose_request_from_cbor(data: bytes) -> "DiagnoseRequest":
+    return _decode_diagnose_request_value(cbor_decode(data))
+
+
+DiagnoseRequest.to_cbor = _diagnose_request_to_cbor
+DiagnoseRequest.from_cbor = staticmethod(_diagnose_request_from_cbor)
+
+def _encode_diagnosis_value(v: "Diagnosis") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["pods"] = [_encode_pod_facts_value(csil_e) for csil_e in v.pods]
+    csil_m["subject"] = v.subject
+    return csil_m
+
+def _decode_diagnosis_value(tree: Any) -> "Diagnosis":
+    tree = _csil_expect_map(tree)
+    return Diagnosis(
+        subject=_csil_expect_text(tree["subject"]),
+        pods=[_decode_pod_facts_value(csil_e) for csil_e in _csil_expect_array(tree["pods"])],
+    )
+
+
+def _diagnosis_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_diagnosis_value(self))
+
+
+def _diagnosis_from_cbor(data: bytes) -> "Diagnosis":
+    return _decode_diagnosis_value(cbor_decode(data))
+
+
+Diagnosis.to_cbor = _diagnosis_to_cbor
+Diagnosis.from_cbor = staticmethod(_diagnosis_from_cbor)
+
+def _encode_restart_workload_request_value(v: "RestartWorkloadRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.reason
+    if csil_x is not None:
+        csil_m["reason"] = csil_x
+    csil_m["subject"] = v.subject
+    return csil_m
+
+def _decode_restart_workload_request_value(tree: Any) -> "RestartWorkloadRequest":
+    tree = _csil_expect_map(tree)
+    return RestartWorkloadRequest(
+        subject=_csil_expect_text(tree["subject"]),
+        reason=(None if tree.get("reason") is None else _csil_expect_text(tree["reason"])),
+    )
+
+
+def _restart_workload_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_restart_workload_request_value(self))
+
+
+def _restart_workload_request_from_cbor(data: bytes) -> "RestartWorkloadRequest":
+    return _decode_restart_workload_request_value(cbor_decode(data))
+
+
+RestartWorkloadRequest.to_cbor = _restart_workload_request_to_cbor
+RestartWorkloadRequest.from_cbor = staticmethod(_restart_workload_request_from_cbor)
+
+def _encode_restart_workload_response_value(v: "RestartWorkloadResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["restarted"] = v.restarted
+    return csil_m
+
+def _decode_restart_workload_response_value(tree: Any) -> "RestartWorkloadResponse":
+    tree = _csil_expect_map(tree)
+    return RestartWorkloadResponse(
+        restarted=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["restarted"])],
+    )
+
+
+def _restart_workload_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_restart_workload_response_value(self))
+
+
+def _restart_workload_response_from_cbor(data: bytes) -> "RestartWorkloadResponse":
+    return _decode_restart_workload_response_value(cbor_decode(data))
+
+
+RestartWorkloadResponse.to_cbor = _restart_workload_response_to_cbor
+RestartWorkloadResponse.from_cbor = staticmethod(_restart_workload_response_from_cbor)

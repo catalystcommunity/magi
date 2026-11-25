@@ -321,8 +321,10 @@ def render(img, v):
     rel = service(v, "release", img["IMAGE_RELEASE"], [
         {"name": "MAGI_RELEASE_TARGETS", "value": "/etc/magi/release/targets.json"},
         {"name": "MAGI_RELEASE_DATA", "value": "/var/lib/magi-release"},
-        # The database watch: deploy/base/postgres.yaml names the cluster.
-        {"name": "MAGI_RELEASE_DATABASE", "value": f"{ns}/magi-db"}],
+        # The watch: deploy/base/postgres.yaml names the cluster, and
+        # LABELS is on the pods of each service.
+        {"name": "MAGI_RELEASE_DATABASE", "value": f"{ns}/magi-db"},
+        {"name": "MAGI_RELEASE_SERVICES", "value": f"{ns}/app.kubernetes.io/part-of=magi"}],
         volumes=[("data", "/var/lib/magi-release", "release-data")], sa="release", mem="128Mi")
     pod = rel[0]["spec"]["template"]["spec"]
     pod["containers"][0]["volumeMounts"].append({"name": "targets", "mountPath": "/etc/magi/release", "readOnly": True})

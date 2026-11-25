@@ -25,14 +25,18 @@ rules:
   # For targets with preflight_args: the controller makes one pod with
   # the pod spec of the Deployment and the new image, reads its log, and
   # deletes it. This gives no more access than the patch of a Deployment.
-  # For the database watch (MAGI_RELEASE_DATABASE): the controller deletes
-  # the pod of a database instance that stays not ready.
+  # For the watch (MAGI_RELEASE_DATABASE, MAGI_RELEASE_SERVICES): the
+  # controller deletes a pod that stays not ready, and it reads the log and
+  # the events of a pod for a diagnosis.
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["create", "delete"]
   - apiGroups: [""]
     resources: ["pods/log"]
     verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list"]
   # Only for MAGI_RELEASE_HEALTH=proxy:
   # - apiGroups: [""]
   #   resources: ["pods/proxy"]

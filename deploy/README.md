@@ -99,10 +99,13 @@ DETECTOR_THRESHOLD=           # optional: 0.98
 
 The PostgreSQL cluster has two instances. When the primary fails, the
 operator promotes the standby, and the services connect again through
-`magi-db-rw`. The release controller watches the instances
-(`MAGI_RELEASE_DATABASE`, set by `render.py`): it restarts an instance that
-stays not ready, and Magi tells the admins each incident
-(`primitives/release/README.md`, "Database watch").
+`magi-db-rw`. The release controller watches the database instances and
+the services (`MAGI_RELEASE_DATABASE` and `MAGI_RELEASE_SERVICES`, set by
+`render.py`): it restarts a part that stays not ready, and Magi tells the
+admins each incident and looks with a model at what the restart did not
+repair (`docs/decisions/0015-health.md`, `primitives/release/README.md`,
+"Watch"). Apply `primitives/release/deploy/rbac.yaml` again after an
+update: the diagnosis reads the events of a pod.
 
 A database that `postgres.yaml` adds later is not made in an existing
 cluster (`postInitSQL` runs one time). Make it by hand, for example:

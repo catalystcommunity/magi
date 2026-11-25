@@ -115,6 +115,9 @@ type noticeReq struct {
 	device         string // optional: a device id
 	refs           []conversationapi.Ref
 	voice          string
+	// system: the author is the Magi system, not the persona. The notice
+	// is in the conversation of the persona, where the person looks for it.
+	system bool
 	// key, when set, makes the notice safe to send again: a second send
 	// with the key posts nothing new.
 	key string
@@ -141,6 +144,9 @@ func (s *System) sendNotice(ctx context.Context, r noticeReq) (conversationapi.N
 	}
 	post := conversationapi.PostRequest{Stream: r.stream, Text: r.text, Author: ptr(r.persona), AuthorKind: ptr("persona"),
 		Modality: ptr("notice"), Attachments: r.refs, Key: optional(r.key)}
+	if r.system {
+		post.Author, post.AuthorKind = ptr("magi"), ptr("system")
+	}
 	for _, ref := range r.refs {
 		kind := "refers-to"
 		if ref.Kind == "workflow-run" {
