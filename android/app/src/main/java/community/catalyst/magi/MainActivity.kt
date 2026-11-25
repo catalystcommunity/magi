@@ -490,7 +490,7 @@ class MainActivity : Activity() {
     /** The version of the app, the time of its build, and the server. */
     private fun about() {
         val info = packageManager.getPackageInfo(packageName, 0)
-        val built = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(ChatTime.buildMs(info.longVersionCode)))
+        val built = ChatTime.built(info.longVersionCode)
         val col = ui.column(20)
         for ((name, value) in listOf(
             "Version" to "${info.versionName} (${info.longVersionCode})",
