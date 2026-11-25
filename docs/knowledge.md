@@ -129,6 +129,25 @@ The persona and programs use typed operations, not a query language:
 Claims are current by default. `at_ms` gives the claims that were true at a
 time. `include_ended` also gives ended claims.
 
+A persona has two tools for these operations. `recall` finds records by
+the words of a question. `query_knowledge` lists records by type and
+filter, for a question that words do not answer ("Which doctors do I
+have?", "What happened in March?"):
+
+| Argument | Use |
+| --- | --- |
+| `what` | `things`, `facts`, `events`, or `procedures` |
+| `kind` | The kind of the things or of the events |
+| `about` | One thing: its id, its name, or `me`. The tool makes no new record for a name that it does not find |
+| `relation` | The relation of the facts |
+| `since`, `until` | A period. Facts: recorded, started, or ended in it. Events: started in it |
+| `include_past` | Also facts that are no longer true |
+| `limit` | Default 20, at most 50 |
+
+Each read acts for the person, as `recall` does: the person gets the
+records that they own or can read (`queryKnowledge` in
+`magi/compose/lookup.go`).
+
 The October tests (`~/agent-learning/magi-retrieval-comparison.md`) found
 that explicit links find a correction that text search does not find, and
 that a model that writes the search did not help. Thus links are made when
@@ -300,6 +319,10 @@ apprentice shows them in its first message, before the task instructions.
 If the knowledge service fails, the code change starts without lessons.
 
 ## Investigations
+
+One kind of investigation exists: a question about a repository, which
+an apprentice answers in an environment (`magi/README.md`, "Investigation
+workflow"). The rest of this section is the plan for the general kind.
 
 A question that needs data from many systems, calculations, or answers of
 other people is an investigation. Examples: the failures of a disk array in

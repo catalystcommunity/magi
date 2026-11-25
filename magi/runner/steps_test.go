@@ -44,7 +44,9 @@ func fakeApprentice(t *testing.T, result string) (python, path string) {
 		t.Fatal(err)
 	}
 	script := "import json, os, sys\n" +
-		"open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'args.txt'), 'w').write('\\n'.join(sys.argv[1:]))\n" +
+		"d = os.path.dirname(os.path.abspath(__file__))\n" +
+		"open(os.path.join(d, 'args.txt'), 'w').write('\\n'.join(sys.argv[1:]))\n" +
+		"open(os.path.join(d, 'env.txt'), 'w').write('\\n'.join(k + '=' + v for k, v in sorted(os.environ.items()) if k.startswith('MAGI_APPRENTICE_')))\n" +
 		"print(json.dumps(" + result + "))\n"
 	if err := os.WriteFile(filepath.Join(pkg, "__main__.py"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
@@ -77,6 +79,15 @@ func workStepResult(t *testing.T, result string, vars map[string]string) (Result
 // workStepConfig also takes the runner configuration (StateDir is set here).
 func workStepConfig(t *testing.T, result string, vars map[string]string, cfg Config) (Result, []string, string) {
 	t.Helper()
+	res, fake, args, _ := apprenticeStep(t, "work", result, vars, cfg)
+	return res, fake.notes, args
+}
+
+// apprenticeStep runs the step of the apprentice with the name step (work,
+// or investigate for a question). It also gives the fake of Magi, and the
+// arguments and the MAGI_APPRENTICE_ variables that the apprentice got.
+func apprenticeStep(t *testing.T, step, result string, vars map[string]string, cfg Config) (Result, *fakeMagi, string, string) {
+	t.Helper()
 	python, path := fakeApprentice(t, result)
 	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
 	iss := &authn.Issuer{Name: "test", KeyID: "k1", Key: priv}
@@ -98,16 +109,71 @@ func workStepConfig(t *testing.T, result string, vars map[string]string, cfg Con
 		vars[k] = v
 	}
 	res, err := r.work(context.Background(),
-		magiapi.RunnerAssignment{Run: "run_w", Step: "work", Vars: vars},
-		magiapi.RunnerStep{Run: "run_w", Step: "work", Claim: "c"})
+		magiapi.RunnerAssignment{Run: "run_w", Step: step, Vars: vars},
+		magiapi.RunnerStep{Run: "run_w", Step: step, Claim: "c"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := os.ReadFile(filepath.Join(path, "magi_apprentice", "args.txt"))
-	if err != nil {
-		t.Fatal(err)
+	read := func(name string) string {
+		b, err := os.ReadFile(filepath.Join(path, "magi_apprentice", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
 	}
-	return res, fake.notes, string(b)
+	return res, fake, read("args.txt"), read("env.txt")
+}
+
+// A question (the investigate step) runs the apprentice in question mode:
+// no check, no review, no supervisor, no lessons, and shorter limits. The
+// summary is the answer, and the runner posts nothing to the person: the
+// answer step of Magi tells them.
+func TestInvestigateStep(t *testing.T) {
+	var cfg Config
+	cfg.Apprentice.SupervisorModel, cfg.Apprentice.ReviewModel, cfg.Apprentice.WorkReview, cfg.Apprentice.Tester = "sup", "rev", true, true
+	cfg.Apprentice.MaxSteps = 400
+	vars := map[string]string{"mode": "question", "title": "Chain limit", "check_command": "./tools/check.sh", "lessons": "a lesson"}
+	res, fake, args, env := apprenticeStep(t, "investigate",
+		`{"status": "finished", "outcome": "done", "summary": "The limit is 4 (events.go:70).", "steps": 5, "tool_calls": 9}`, vars, cfg)
+	if res.Outcome != "done" || res.Outputs["apprentice.summary"] != "The limit is 4 (events.go:70)." || res.Outputs["apprentice.status"] != "finished" {
+		t.Fatalf("result = %+v", res)
+	}
+	if !strings.Contains(args, "--question") || !strings.Contains(args, "--title\nChain limit") {
+		t.Errorf("arguments = %q", args)
+	}
+	for _, flag := range []string{"--check-command", "--lessons", "--supervisor-model", "--review-model", "--tester", "--max-steps", "--review-comment"} {
+		if strings.Contains(args, flag) {
+			t.Errorf("a question got %s: %q", flag, args)
+		}
+	}
+	if !strings.Contains(env, "MAGI_APPRENTICE_MAX_STEPS=60") || !strings.Contains(env, "MAGI_APPRENTICE_MAX_SECONDS=900") {
+		t.Errorf("limits = %q", env)
+	}
+	if len(fake.posts) != 0 {
+		t.Errorf("the runner posted to the person: %q", fake.posts)
+	}
+	if _, ok := res.Outputs["plan.tried"]; ok {
+		t.Errorf("a question got a plan: %+v", res.Outputs)
+	}
+	// A stop at a limit or by a guard goes on with what the apprentice
+	// found; the runner sends no "Task blocked" report.
+	res, fake, _, _ = apprenticeStep(t, "investigate",
+		`{"status": "loop", "outcome": "blocked", "summary": "I found a.go:1 and then repeated a command.", "steps": 9, "tool_calls": 9}`, vars, cfg)
+	if res.Outcome != "blocked" || res.Outputs["apprentice.summary"] == "" || res.Outputs["apprentice.blocked"] != "" || len(fake.posts) != 0 {
+		t.Fatalf("blocked: result = %+v, posts = %q", res, fake.posts)
+	}
+	// An error is the outcome "fail" with the outputs, not a failed step
+	// with no outputs: the answer step then tells the person why.
+	res, _, _, _ = apprenticeStep(t, "investigate",
+		`{"status": "error", "outcome": "fail", "summary": "The model call failed.", "steps": 1, "tool_calls": 0, "error": "HTTP 500"}`, vars, cfg)
+	if res.Outcome != "fail" || res.Outputs["apprentice.error"] != "HTTP 500" {
+		t.Fatalf("error: result = %+v", res)
+	}
+	// The same code is a change with the step name work and no mode.
+	_, fake, args, env = apprenticeStep(t, "work", `{"status": "finished", "outcome": "done", "summary": "ok", "steps": 1, "tool_calls": 1}`, nil, cfg)
+	if strings.Contains(args, "--question") || !strings.Contains(env, "MAGI_APPRENTICE_MAX_STEPS=150") || len(fake.posts) == 0 {
+		t.Errorf("work: arguments = %q, env = %q, posts = %q", args, env, fake.posts)
+	}
 }
 
 // A guard stop or a gone endpoint is the outcome "blocked", not a failed

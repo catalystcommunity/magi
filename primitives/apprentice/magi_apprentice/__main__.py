@@ -11,7 +11,7 @@ import time
 from dataclasses import replace
 
 from ._clients import artifacts as art, execution as ex, token_source, transport, workflow as wf
-from .apprentice import Task
+from .apprentice import QUESTION, Task
 from .config import Limits, ModelConfig, ServiceConfig
 from .guards import outcome_of
 from .local import LocalExecution
@@ -74,7 +74,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     artifacts = art.ArtifactClient(transport(sc.artifacts_url, sc.token_file)) if sc.artifacts_url and not args.no_upload else None
     task = Task(instructions=instructions, workdir=workdir, check_command=args.check_command,
                 check_output=args.check_output, title=args.title, review_comment=args.review_comment,
-                lessons=args.lessons)
+                lessons=args.lessons, mode=QUESTION if args.question else "change")
     t0 = time.monotonic()
     out = run_task(task, execution=execution, environment=env_id, model_cfg=model_cfg, limits=limits,
                    artifacts=artifacts, labels={"run": "cli", "step": "cli"},
@@ -129,6 +129,9 @@ def main(argv: list[str] | None = None) -> int:
     w.add_argument("--max-tasks", type=int, help="exit after this many tasks")
     r = sub.add_parser("run", help="run one task without the workflow service")
     r.add_argument("--instructions", required=True, help="task text, or @file")
+    r.add_argument("--question", action="store_true",
+                   help="the instructions are a question about the repository: the summary is the "
+                        "answer, and the run keeps no change (no check, no review)")
     r.add_argument("--environment", help="execution environment id")
     r.add_argument("--local", metavar="DIR", help="run tools on this host in DIR (no isolation)")
     r.add_argument("--workdir")

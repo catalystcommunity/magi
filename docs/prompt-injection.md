@@ -209,12 +209,20 @@ This gap remains:
 
 ### 5.2 Persona turn
 
-The tools are recall, remember, change_knowledge, search_conversation,
-start_code_change, list_tasks, and cancel_task. Search results and memory
+The tools are the read tools of each persona (`docs/attention.md`, 4.1)
+and the tools of its work, for example remember, change_knowledge,
+start_code_change, and cancel_task. Search results and memory
 can contain untrusted text now. `remember` can make an injection permanent,
 and `change_knowledge` can change a correct record. Both act only on the
 records of the person, and the history keeps each change.
-`start_code_change` can turn attacker text into a task. A web fetch tool
+`start_code_change` can turn attacker text into a task.
+`investigate` can turn attacker text into a question for an apprentice.
+The run keeps no change, its environment gets no secret, and a person has
+at most three at one time. The answer is text that a task made: the
+persona turn gets it in the fence, a turn that got it cannot approve,
+reject, or merge a task, and the event text does not have it. The topic
+`diagnose` of `magi_system` gives log lines, which a program wrote: the
+same rule applies, and only an admin gets them. A web fetch tool
 will add a way to send data out: a URL that the model makes can carry data
 in the request.
 

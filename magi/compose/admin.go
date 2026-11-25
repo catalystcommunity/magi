@@ -36,7 +36,7 @@ func (s *System) adminCall(ctx context.Context, role, op, target string) error {
 }
 
 // adminDefinitions are the run definitions that an admin can list.
-var adminDefinitions = []string{CodeChange, PersonaTurn, Todo}
+var adminDefinitions = []string{CodeChange, Investigation, PersonaTurn, Todo}
 
 // adminStatuses are the run statuses that an admin can filter by.
 var adminStatuses = []string{"running", "waiting", "succeeded", "failed", "cancelled"}

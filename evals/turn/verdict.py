@@ -121,7 +121,7 @@ def report(v):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--base", default="HEAD", help="the commit of the baseline (default HEAD)")
-    ap.add_argument("--set", default=str(ROOT / "evals/turn/core-v2.json"))
+    ap.add_argument("--set", default=str(ROOT / "evals/turn/core-v3.json"))
     ap.add_argument("--url", required=True, help="an OpenAI-compatible model server that serves no other traffic")
     ap.add_argument("--model", required=True)
     ap.add_argument("--runs", type=int, default=3)

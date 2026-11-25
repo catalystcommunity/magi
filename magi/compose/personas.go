@@ -32,21 +32,33 @@ type personaProfile struct {
 	tools  []string
 }
 
+// readTools are the tools that only read, and that each persona has: the
+// records of the person, the earlier conversation, the web, the tasks, and
+// the facts of the installation. A persona does not answer from the
+// conversation alone.
+var readTools = []string{"recall", "query_knowledge", "search_conversation", "web_search", "read_page",
+	"magi_system", "list_models", "list_runners", "list_devices", "list_tasks", "task_status"}
+
 var profiles = map[string]personaProfile{
-	Persona: {name: "Magi", prompt: personaPrompt + knowledgeRules + planRules + workRules + lookupRules + noticeRules, tools: []string{
-		"recall", "remember", "change_knowledge", "start_code_change", "search_conversation", "list_tasks", "cancel_task", "send_notice", "list_devices",
-		"web_search", "read_page", "add_todo", "set_reminder", "list_todos", "finish_todo", "change_todo",
-		"make_page", "connect_account", "calendar_events", "find_events", "create_event", "change_event", "cancel_event", "free_busy",
-		"longhouse_projects", "longhouse_tasks", "add_longhouse_task", "update_longhouse_task", "add_longhouse_project"}},
-	Engineering: {name: "Engineering manager", prompt: engineeringPrompt + knowledgeRules + planRules + workRules + lookupRules + noticeRules, tools: []string{
-		"list_tasks", "task_status", "task_diff", "terminal_link", "start_code_change", "decide_task", "cancel_task", "list_runners", "list_models",
-		"send_notice", "list_devices", "search_conversation", "recall", "remember", "change_knowledge", "web_search", "read_page",
+	Persona: {name: "Magi", prompt: personaPrompt + knowledgeRules + planRules + workRules + lookupRules + sourceRules + askEngineering + noticeRules, tools: withRead(
+		"remember", "change_knowledge", "start_code_change", "cancel_task", "send_notice",
 		"add_todo", "set_reminder", "list_todos", "finish_todo", "change_todo",
-		"make_page", "connect_account", "calendar_events", "find_events", "free_busy", "longhouse_projects", "longhouse_tasks", "add_longhouse_task", "update_longhouse_task", "add_longhouse_project"}},
-	Assistant: {name: "Executive assistant", prompt: assistantPrompt + knowledgeRules + planRules + workRules + lookupRules + noticeRules, tools: []string{
-		"recall", "remember", "change_knowledge", "add_todo", "set_reminder", "list_todos", "finish_todo", "change_todo",
-		"send_notice", "list_devices", "search_conversation", "web_search", "read_page", "list_tasks",
-		"make_page", "connect_account", "calendar_events", "find_events", "create_event", "change_event", "cancel_event", "free_busy", "longhouse_projects", "longhouse_tasks", "add_longhouse_task", "update_longhouse_task", "add_longhouse_project"}},
+		"make_page", "connect_account", "calendar_events", "find_events", "create_event", "change_event", "cancel_event", "free_busy",
+		"longhouse_projects", "longhouse_tasks", "add_longhouse_task", "update_longhouse_task", "add_longhouse_project")},
+	Engineering: {name: "Engineering manager", prompt: engineeringPrompt + knowledgeRules + planRules + workRules + lookupRules + sourceRules + investigateRules + noticeRules, tools: withRead(
+		"task_diff", "terminal_link", "start_code_change", "investigate", "decide_task", "cancel_task",
+		"send_notice", "remember", "change_knowledge",
+		"add_todo", "set_reminder", "list_todos", "finish_todo", "change_todo",
+		"make_page", "connect_account", "calendar_events", "find_events", "free_busy", "longhouse_projects", "longhouse_tasks", "add_longhouse_task", "update_longhouse_task", "add_longhouse_project")},
+	Assistant: {name: "Executive assistant", prompt: assistantPrompt + knowledgeRules + planRules + workRules + lookupRules + sourceRules + askEngineering + noticeRules, tools: withRead(
+		"remember", "change_knowledge", "add_todo", "set_reminder", "list_todos", "finish_todo", "change_todo",
+		"send_notice",
+		"make_page", "connect_account", "calendar_events", "find_events", "create_event", "change_event", "cancel_event", "free_busy", "longhouse_projects", "longhouse_tasks", "add_longhouse_task", "update_longhouse_task", "add_longhouse_project")},
+}
+
+// withRead gives readTools and the tools of one persona.
+func withRead(tools ...string) []string {
+	return append(slices.Clone(readTools), tools...)
 }
 
 const assistantPrompt = `You are %s, the executive assistant of %s. You keep their plans, to-dos, and reminders, and you know the facts of their life and work: people, places, accounts, calendars, and things.
@@ -94,6 +106,25 @@ const lookupRules = `
 - The web has no facts about the person's family and friends. Do not offer to search the web for them.
 - Say that you do not know only when the answer is a private fact that the records and the conversation do not have (then ask the person), or when no one can know it. For a question that no one can answer for certain (the meaning of life, whether a god exists, what happens after death), give the main views and the reasoning, briefly, and what you think is the strongest view.`
 
+// sourceRules: the persona answers from its tools, not only from the
+// conversation. Each kind of question has its tool.
+const sourceRules = `
+Where an answer comes from:
+- Do not answer from the conversation alone when a tool has the facts. Look first, then answer.
+- The person, their people, things, and plans: "recall" finds records by words. "query_knowledge" lists records by type: all things of one kind, all facts with one relation or about one thing, or what happened in a period.
+- Something that was said before: "search_conversation".
+- Magi itself (is it healthy, what went wrong, releases and versions): "magi_system". Its models: "list_models". Its runner machines: "list_runners". The devices: "list_devices". Its tasks: "list_tasks" and "task_status".
+- The world: "web_search" and "read_page".`
+
+// investigateRules: the engineering persona has an apprentice read the
+// code for a question that its other tools do not answer.
+const investigateRules = `
+- How the software works, why it did something, where something is in the code, or what a change needs: when your other tools do not answer the question, use "investigate". An apprentice reads and runs the code in an environment on a runner and changes nothing. The answer comes back to you as an event some minutes later. Tell the person only that you look into it. Do not guess about code, and do not start a code change for a question.`
+
+// askEngineering: the other personas do not read code.
+const askEngineering = `
+- How the software of Magi works, or why it did something: you cannot read code. Say that the engineering manager can find out, and that the person can ask them.`
+
 const noticeRules = `
 - The person can get notices on their devices (phone, browser, computer). When the person asks you to send something somewhere ("send it to my phone", "put the report on my laptop"), write the full text of what they asked for and use "send_notice" with that device. When they want to be told later or when you finish something long, also use "send_notice". Say where you sent it.
 - Your replies are often spoken. Keep them short and easy to hear: no tables, no lists of more than four items, no code. Put long material in a notice instead and say so.
@@ -123,7 +154,7 @@ func toolDefs() map[string]model.Tool {
 	}
 	str := func(d string) map[string]any { return map[string]any{"type": "string", "description": d} }
 	defs := map[string]model.Tool{}
-	for _, t := range append(append(append(append(personaTools(), searchTools()...), planTools(obj, str)...), workTools(obj, str)...), pageTools(obj, str)...) {
+	for _, t := range slices.Concat(personaTools(), searchTools(), planTools(obj, str), workTools(obj, str), pageTools(obj, str), lookTools(obj, str), investigationTools(obj, str)) {
 		defs[t.Name] = t
 	}
 	for _, t := range []model.Tool{
@@ -145,7 +176,7 @@ func toolDefs() map[string]model.Tool {
 		}, "task")},
 		{Name: "decide_task", Description: "Decide a task that waits for a person. At the review step: approve (merge and release), revise (back to the apprentice with a comment), or reject. At the blocked step (the apprentice stopped): resume (another work round, with a comment that says what to do differently), check (run the checks on the work as it is), or reject. At the pr-wait step (an open pull request on GitHub): merge (Magi merges the pull request on GitHub), or merged (the person says that it is merged on GitHub: Magi checks it now). When the message of the person tells the decision, call at once. When you propose approve, reject, or merge yourself, ask first and call with confirm true after the person agrees.", Parameters: obj(map[string]any{
 			"task":    str("Task id."),
-			"outcome": map[string]any{"type": "string", "enum": []string{"approve", "revise", "reject", "merge", "resume", "check"}},
+			"outcome": map[string]any{"type": "string", "enum": []string{"approve", "revise", "reject", "merge", "merged", "resume", "check"}},
 			"comment": str("For revise and resume: what the apprentice must change or do differently. Optional otherwise."),
 			"confirm": map[string]any{"type": "boolean", "description": "True only when the person agreed in a new message after you asked."},
 		}, "task", "outcome")},
@@ -229,6 +260,28 @@ func (s *System) extraTool(ctx context.Context, a workflowapi.Assignment, as con
 		return describeRunners(s.fleet.connected()), nil, true
 	case "list_models":
 		return s.describeModels(ctx), nil, true
+	case "query_knowledge":
+		return s.queryKnowledge(ctx, a.Owner, displayName(a), args, time.Now()), nil, true
+	case "magi_system":
+		out, sensitive := s.describeSystem(ctx, a.Owner, args["topic"], args["subject"], time.Now())
+		if sensitive {
+			// A log can carry instructions, as the output of a task can.
+			ts.readTask = true
+		}
+		return out, nil, true
+	case "investigate":
+		// The key makes the start safe when the turn starts again.
+		d, err := s.investigationDispatch(a, utt.Stream, utt.Id)
+		if err != nil {
+			return "error: " + err.Error(), nil, true
+		}
+		from := origin{stream: utt.Stream, utterance: utt.Id, persona: as.persona, key: "turn/" + utt.Id + "/" + effectKey(name, args), dispatch: d}
+		run, err := s.startInvestigation(ctx, a.Owner, from, args["title"], args["question"], args["repo"], args["runner"])
+		if err != nil {
+			return "error: " + err.Error(), nil, true
+		}
+		return fmt.Sprintf("Investigation %s started: an apprentice looks into it on a runner. It takes some minutes. The answer comes to you as an event, and then you give it to the person. Tell the person now only that you look into it and that you tell them the answer when you have it. Do not guess the answer.", run.Id),
+			&conversationapi.Ref{Kind: "workflow-run", Ref: run.Id, Title: optional(run.Vars["title"])}, true
 	case "terminal_link":
 		run, err := s.ownRun(ctx, a.Owner, args["task"])
 		if err != nil {
@@ -236,11 +289,14 @@ func (s *System) extraTool(ctx context.Context, a workflowapi.Assignment, as con
 		}
 		return terminalLinkText(s.Cfg.PublicURL, run), nil, true
 	case "task_status":
-		run, err := s.ownRun(ctx, a.Owner, args["task"])
+		run, err := s.ownTask(ctx, a.Owner, args["task"])
 		if err != nil {
 			return "error: " + err.Error(), nil, true
 		}
 		ts.readTask = true
+		if run.Definition == Investigation {
+			return s.describeInvestigation(run), nil, true
+		}
 		desc := describeTask(run)
 		// The end of the last check output, when the last check failed.
 		if failedCheck(run) {
@@ -676,6 +732,8 @@ var claims = []struct {
 	re   *regexp.Regexp
 }{
 	{"start_code_change", regexp.MustCompile(`(?i)\b(task|change|work)\b[^.!?\n]{0,40}\b(started|has begun|is running now)\b|\bI(?:'ve| have)? started\b`)},
+	// "An apprentice is looking into it." with no call: no answer comes.
+	{"investigate", regexp.MustCompile(`(?i)\binvestigation\b[^.!?\n]{0,40}\b(started|has begun|is running)\b|\bI(?:'ve| have)? (?:started|begun) (?:an |the )?investigation\b|\bI(?:'ve| have)? asked (?:an |the )?apprentice\b|\b(?:an|the) apprentice (?:is|will be) (?:looking|checking|reading|investigating)\b`)},
 	{"send_notice", regexp.MustCompile(`(?i)\b(sent|put|pushed)\b[^.!?\n]{0,40}\b(phone|computer|laptop|browser|device|devices|notice|notification)\b`)},
 	{"decide_task", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (approved|rejected|sent (?:it|the task|the change) back)\b`)},
 	{"cancel_task", regexp.MustCompile(`(?i)\bI(?:'ve| have)? (stopped|cancell?ed) (?:the |that |your )?task\b`)},
@@ -695,6 +753,7 @@ var claims = []struct {
 // claimNote says what did not happen, for each tool of claims.
 var claimNote = map[string]string{
 	"start_code_change":  "no task was started.",
+	"investigate":        "no investigation was started.",
 	"send_notice":        "no notice was sent.",
 	"decide_task":        "no decision was recorded.",
 	"cancel_task":        "no task was stopped.",
@@ -713,7 +772,10 @@ var claimNote = map[string]string{
 // by the note taker), and the reply "I corrected it" is then true.
 func sameAction(called any, tool string) bool {
 	writes := func(t any) bool { return t == "remember" || t == "change_knowledge" }
-	return called == tool || (writes(called) && writes(tool)) || (planWrite(called) && planWrite(tool))
+	// An investigation is a task that started: "I started a task to find
+	// out" is true after either call.
+	starts := func(t any) bool { return t == "start_code_change" || t == "investigate" }
+	return called == tool || (writes(called) && writes(tool)) || (planWrite(called) && planWrite(tool)) || (starts(called) && starts(tool))
 }
 
 // planWrite is a tool that adds or changes a to-do or a reminder.

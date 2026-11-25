@@ -91,7 +91,7 @@ func codeChangeDefinition(runners bool) workflowapi.Definition {
 // InstallDefinitions writes the workflow definitions that Magi uses.
 func (s *System) InstallDefinitions(ctx context.Context) error {
 	ctx = s.AsService(ctx)
-	for _, d := range []workflowapi.Definition{codeChangeDefinition(s.Cfg.Runner != ""), personaTurnDefinition(), personaEventDefinition(), todoDefinition()} {
+	for _, d := range []workflowapi.Definition{codeChangeDefinition(s.Cfg.Runner != ""), investigationDefinition(s.Cfg.Runner != ""), personaTurnDefinition(), personaEventDefinition(), todoDefinition()} {
 		if _, err := s.Workflow.PutDefinition(ctx, d); err != nil {
 			return fmt.Errorf("put definition %s: %w", d.Name, err)
 		}
@@ -110,6 +110,7 @@ func (s *System) RunWorkers(ctx context.Context) {
 	go s.Work(ctx, "magi.check", s.check)
 	go s.Work(ctx, "magi.merge", s.merge)
 	go s.Work(ctx, "magi.cleanup", s.cleanup)
+	go s.Work(ctx, "magi.answer", s.answer)
 	go s.Work(ctx, "magi.release", s.release)
 	go s.Work(ctx, "magi.publish", s.publish)
 	go s.Work(ctx, "magi.rollout", s.rollout)
@@ -203,7 +204,10 @@ git rev-parse HEAD`, repo.DefaultBranch, branch, checkout)
 	}
 	base := strings.TrimSpace(string(r.Stdout))
 	note(fmt.Sprintf("Environment %s is ready on branch %s.", envr.Id, branch))
-	s.post(ctx, a, fmt.Sprintf("I started work on %q. The apprentice works on branch %s.", a.Vars["title"], branch))
+	// A question changes nothing: the persona said that it looks into it.
+	if a.Vars["mode"] != QuestionMode {
+		s.post(ctx, a, fmt.Sprintf("I started work on %q. The apprentice works on branch %s.", a.Vars["title"], branch))
+	}
 	return Result{Outcome: "done", Outputs: map[string]string{
 		"environment": envr.Id, "workdir": "/work/repo", "branch": branch, "base_commit": base,
 		"repo": repoName, "default_branch": repo.DefaultBranch,
@@ -403,7 +407,11 @@ func (s *System) cancelTask(ctx context.Context, run workflowapi.Run, by, reason
 	if reason != "" {
 		msg += ": " + reason
 	}
-	s.report(ctx, workflowapi.Assignment{Run: run.Id, Owner: run.Owner, Vars: run.Vars}, "low", "Task stopped", msg+". I removed its environment. The branch stays for reference.")
+	kept := ". I removed its environment. The branch stays for reference."
+	if run.Definition == Investigation {
+		kept = ". I removed its environment. There is no answer."
+	}
+	s.report(ctx, workflowapi.Assignment{Run: run.Id, Owner: run.Owner, Vars: run.Vars}, "low", "Task stopped", msg+kept)
 	s.Log.Info("task cancelled", "run", run.Id, "by", by, "step", step)
 	return run, nil
 }

@@ -225,8 +225,10 @@ func LoadConfig(path string) (Config, error) {
 	return c, nil
 }
 
-// Steps are the code-change steps that a runner runs.
-var Steps = []string{"prepare", "work", "check", "merge", "publish", "pr-check", "pr-merge", "cleanup"}
+// Steps are the steps that a runner runs: those of a code change, and
+// "investigate", the step of the apprentice for a question
+// (compose.Investigation).
+var Steps = []string{"prepare", "work", "investigate", "check", "merge", "publish", "pr-check", "pr-merge", "cleanup"}
 
 const lease = 2 * time.Minute
 
@@ -300,7 +302,7 @@ func (r *Runner) Run(ctx context.Context) error {
 		return err
 	}
 	defer stopExec()
-	handlers := map[string]handler{"prepare": r.prepare, "work": r.work, "check": r.check,
+	handlers := map[string]handler{"prepare": r.prepare, "work": r.work, "investigate": r.work, "check": r.check,
 		"merge": r.merge, "publish": r.publish, "pr-check": r.prCheck, "pr-merge": r.prMerge, "cleanup": r.cleanup}
 	for _, step := range Steps {
 		go r.loop(ctx, step, handlers[step])

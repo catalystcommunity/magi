@@ -61,7 +61,7 @@ func turnSystem(t *testing.T) *System {
 	// task are in the queues of its runner, and an event step of a case
 	// does them (evalEvent).
 	s.Cfg.Repo = "magi"
-	for _, d := range []workflowapi.Definition{codeChangeDefinition(true), personaEventDefinition()} {
+	for _, d := range []workflowapi.Definition{codeChangeDefinition(true), investigationDefinition(true), personaEventDefinition()} {
 		if _, err := s.Workflow.PutDefinition(sctx, d); err != nil {
 			t.Fatal(err)
 		}
@@ -137,7 +137,9 @@ type evalGiven struct {
 // evalTask is the task of an event step. State is "review" (the checks
 // passed and the task waits for a decision), "stopped" (the checks
 // failed and the task gave up), or "blocked" (a guard stopped the
-// apprentice in a loop, and the task waits for a decision).
+// apprentice in a loop, and the task waits for a decision). For the event
+// "Answer" the task is an investigation, the title is its question, and
+// the state is "answered".
 type evalTask struct {
 	Title string `json:"title"`
 	State string `json:"state"`
@@ -203,8 +205,12 @@ func loadEvalCases(t *testing.T, path string) []evalCase {
 		}
 		seen[c.Id] = true
 		for _, st := range c.Steps {
-			if (st.Say == "") == (st.Event == "") || st.Event != "" && (eventTitles[st.Event] == "" || st.Task.Title == "" || !slices.Contains([]string{"review", "stopped", "blocked"}, st.Task.State)) {
-				t.Fatalf("%s: case %s: a step has say, or an event (a report that starts a turn) with a task (title, and state review, stopped, or blocked)", path, c.Id)
+			states := []string{"review", "stopped", "blocked"}
+			if st.Event == answerReport {
+				states = []string{"answered"}
+			}
+			if (st.Say == "") == (st.Event == "") || st.Event != "" && (eventTitles[st.Event] == "" && st.Event != answerReport || st.Task.Title == "" || !slices.Contains(states, st.Task.State)) {
+				t.Fatalf("%s: case %s: a step has say, or an event (a report that starts a turn) with a task (title, and state review, stopped, or blocked; for the event Answer, the state answered)", path, c.Id)
 			}
 			for _, re := range slices.Concat(st.ReplyAll, st.ReplyAny, st.ReplyNone) {
 				if _, err := regexp.Compile("(?i)" + re); err != nil {
@@ -295,6 +301,10 @@ const evalPatch = `--- a/cmd/status/main.go
 +	fmt.Println(status())
 `
 
+// evalAnswer is the answer of the apprentice to the question of an
+// "Answer" event step.
+const evalAnswer = `The limit is in magi/compose/events.go:59 (func eventLimits): no more than 6 event turns of one persona in one conversation start in 10 minutes, and a chain has at most 4 events with no message of a person. The gate that applies it is eventGate (magi/compose/events.go:180): an event above the rate waits, and a chain that is too long ends with one notice. I did not find a setting in the deploy files.`
+
 // evalEvent makes the task of an event step, does its steps as a runner
 // does, and sends the report. It gives the event message and the
 // assignment of the event turn, after the gate.
@@ -307,9 +317,14 @@ func (s *System) evalEvent(ctx context.Context, a workflowapi.Assignment, stream
 	// The queues of this task have its own runner name: no other case
 	// has steps in them.
 	runner := fmt.Sprintf("eval%d", time.Now().UnixNano())
-	run, err := s.Workflow.Start(ctx, workflowapi.StartRequest{Definition: CodeChange, Owner: &a.Owner, Vars: map[string]string{
+	def, vars := CodeChange, map[string]string{
 		"title": step.Task.Title, "instructions": step.Task.Title, "repo": "magi", "runner": runner, "publisher": runner,
-		"stream": stream, "persona": a.Vars["persona"], "owner_name": a.Vars["owner_name"], dispatchVar: d}})
+		"stream": stream, "persona": a.Vars["persona"], "owner_name": a.Vars["owner_name"], dispatchVar: d}
+	if step.Event == answerReport {
+		def, vars["mode"] = Investigation, QuestionMode
+		delete(vars, "publisher")
+	}
+	run, err := s.Workflow.Start(ctx, workflowapi.StartRequest{Definition: def, Owner: &a.Owner, Vars: vars})
 	if err != nil {
 		return none, a, err
 	}
@@ -334,8 +349,30 @@ func (s *System) evalEvent(ctx context.Context, a workflowapi.Assignment, stream
 	} else {
 		steps = append(steps, func() error { return do("work", "done", map[string]string{"apprentice.summary": "I made the change."}) })
 	}
+	if step.Event == answerReport {
+		// An investigation: the apprentice answers, and the answer step of
+		// Magi sends the event.
+		steps = []func() error{
+			func() error { return do("prepare", "done", map[string]string{"environment": run.Id}) },
+			func() error {
+				return do("investigate", "done", map[string]string{"apprentice.summary": evalAnswer, "apprentice.status": "finished"})
+			},
+			func() error {
+				res, err := s.Workflow.Claim(ctx, workflowapi.ClaimRequest{Queue: "magi.answer", Worker: "eval", WaitMs: ptr(uint64(5000)), LeaseMs: ptr(uint64(60000))})
+				if err != nil || res.Assignment == nil || res.Assignment.Run != run.Id {
+					return fmt.Errorf("claim the answer step: %v", err)
+				}
+				out, err := s.answer(ctx, *res.Assignment, func(string) {})
+				if err != nil {
+					return err
+				}
+				_, err = s.Workflow.Complete(ctx, workflowapi.CompleteRequest{Run: run.Id, Step: res.Assignment.Step, Claim: res.Assignment.Claim, Outcome: out.Outcome, Outputs: out.Outputs})
+				return err
+			},
+		}
+	}
 	switch step.Task.State {
-	case "blocked":
+	case "blocked", "answered":
 	case "review":
 		patch, err := s.Artifacts.Put(ctx, artifactsapi.PutRequest{MediaType: "text/x-diff", Body: []byte(evalPatch)})
 		if err != nil {
@@ -363,7 +400,9 @@ func (s *System) evalEvent(ctx context.Context, a workflowapi.Assignment, stream
 	if err != nil {
 		return none, a, err
 	}
-	s.report(ctx, workflowapi.Assignment{Run: run.Id, Step: last.Step, Claim: last.Claim, Owner: run.Owner, Vars: run.Vars}, "normal", step.Event, "See the task.")
+	if step.Event != answerReport {
+		s.report(ctx, workflowapi.Assignment{Run: run.Id, Step: last.Step, Claim: last.Claim, Owner: run.Owner, Vars: run.Vars}, "normal", step.Event, "See the task.")
+	}
 	evs, err := s.eventRuns(ctx, a.Owner)
 	if err != nil {
 		return none, a, err
@@ -589,6 +628,53 @@ func TestTurnEvalHarness(t *testing.T) {
 	}
 	if f := checkEvalStep(evalStep{ToolsAll: []string{"add_todo"}}, []map[string]any{{"tool": "add_todo", "result": "error: no title"}}, "x"); len(f) != 1 {
 		t.Fatalf("a failed call counted as work: %q", f)
+	}
+}
+
+// The cases of the newest set are valid, and the cases for the read tools
+// run on the real services with a script as the model: a query of the
+// records, the facts of the installation, a question to an apprentice, and
+// the answer event.
+func TestTurnEvalReadCases(t *testing.T) {
+	s := turnSystem(t)
+	s.Cfg.PublicURL = "https://magi.example.local"
+	cases := map[string]evalCase{}
+	for _, c := range loadEvalCases(t, "../../evals/turn/core-v3.json") {
+		cases[c.Id] = c
+	}
+	script := func(replies ...model.Message) *scriptModel {
+		m := &scriptModel{}
+		m.reply = func(n int, _ []model.Message) (model.Message, error) { return replies[min(n, len(replies))-1], nil }
+		return m
+	}
+	say := func(text string) model.Message { return model.Message{Role: "assistant", Content: text} }
+	for id, m := range map[string]*scriptModel{
+		"r01": script(toolCall("query_knowledge", `{"what":"things","kind":"person"}`), say("I have records of Dr. Rivera, Dr. Okafor, and your sister Dana.")),
+		"r02": script(toolCall("magi_system", `{"topic":"overview"}`), say("I do not know the health of Magi: this installation has no release controller.")),
+		"r03": script(toolCall("list_models", `{}`), say("This installation has no model catalog, so I cannot name the model.")),
+		"r04": script(toolCall("investigate", `{"question":"Where is the limit of event turns, and what are the numbers?","title":"Event turn limit"}`), say("I'll look into it and tell you when I have the answer.")),
+		"r05": script(say("I cannot read the code. The engineering manager can find out; ask them.")),
+		"r06": script(toolCall("magi_system", `{"topic":"incidents"}`), say("I do not know: this installation has no release controller, so Magi has no record of incidents.")),
+		"v05": script(say("The limit is in magi/compose/events.go, line 59: 6 event turns in 10 minutes, and a chain of 4. The full answer is on the page.")),
+	} {
+		c, ok := cases[id]
+		if !ok {
+			t.Fatalf("the set has no case %s", id)
+		}
+		s.Model = m
+		if res := runEvalCase(t, s, c, 1); !res.Pass {
+			t.Errorf("case %s = %+v", id, res)
+		}
+		if id == "v05" {
+			// The event turn got the answer with the event.
+			found := false
+			for _, msg := range m.seen[0] {
+				found = found || strings.Contains(msg.Content, "func eventLimits") && strings.Contains(msg.Content, "/#/page/")
+			}
+			if !found {
+				t.Errorf("the turn of the answer event did not get the answer")
+			}
+		}
 	}
 }
 

@@ -47,6 +47,20 @@ class WorkerTest(unittest.TestCase):
         self.assertIn("finished", notes[-1])
         self.assertIn("old failure", model.requests[0][1]["content"])
 
+    def test_a_question_runs_in_question_mode(self):
+        s = FakeServices([assignment(environment="env_1", instructions="Where is the limit?", workdir="/w",
+                                     mode="question", title="Limit")])
+        model = FakeModel([reply(call("finish", summary="In a.go:3."))])
+        w = worker(s, model)  # with the default check command
+        w.serve(max_tasks=1)
+        done = s.of("complete")[0]
+        self.assertEqual((done.outcome, done.outputs["apprentice.summary"]), ("done", "In a.go:3."))
+        # No check ran, and the model got the question prompt.
+        self.assertNotIn("apprentice.check_passed", done.outputs)
+        self.assertFalse([e for e in w.execution.execs if "check.sh" in e.argv[-1]])
+        self.assertIn("Question:\nWhere is the limit?", model.requests[0][1]["content"])
+        self.assertIn("Budget: 60 model calls, 900 seconds", model.requests[0][1]["content"])
+
     def test_default_check_command(self):
         s = FakeServices([assignment(environment="env_1", instructions="t")])
         w = worker(s, FakeModel([reply(call("finish", summary="s"))]))

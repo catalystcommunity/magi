@@ -14,7 +14,7 @@ export function Admin() {
 }
 // The kinds of runs that the workflow service knows, and the states that a
 // run can have. The server checks both again.
-const kinds = ["", "code-change", "persona-turn", "todo"];
+const kinds = ["", "code-change", "investigation", "persona-turn", "todo"];
 const states = ["", "running", "waiting", "succeeded", "failed", "cancelled"];
 // All runs of all people. The workflow service returns them newest first.
 export function AdminRuns() {

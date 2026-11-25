@@ -29,7 +29,8 @@ const eventRules = `
 This turn starts from an event, not from a message of the person. The newest message is the event.
 - First read the result with a tool. For a task, call "task_status" with the task id of the event.
 - Then do one thing: do the next step of what the person asked for before, or tell the person in one or two sentences what happened and what they must decide.
-- Do not start the same work again when nothing changed. Do not ask a question that the result answers.`
+- Do not start the same work again when nothing changed. Do not ask a question that the result answers.
+- When the event says that a task has an answer to a question, the answer of the apprentice comes with the event. Give the person the answer in your own plain words: the conclusion first, then the files and lines that support it, and the link to the page with the full answer. This reply can be longer than two sentences. When the answer says that something is not known, say that too.`
 
 func personaEventDefinition() workflowapi.Definition {
 	return workflowapi.Definition{
@@ -116,22 +117,23 @@ func (s *System) wake(ctx context.Context, a workflowapi.Assignment, report stri
 
 // wakeFor is wake for an event that is not a report of a step: what is the
 // end of the sentence "Task ... ...", and report is the name of the event
-// (one turn for each name of one run).
-func (s *System) wakeFor(ctx context.Context, a workflowapi.Assignment, report, what string) {
+// (one turn for each name of one run). It gives true when a turn started,
+// or started before for this event.
+func (s *System) wakeFor(ctx context.Context, a workflowapi.Assignment, report, what string) bool {
 	if s.Cfg.Events.Off {
-		return
+		return false
 	}
 	au, err := s.restore(a.Owner, a.Vars)
 	stream := a.Vars["stream"]
 	if err != nil || au.Persona == "" || stream == "" || !(principal{subject: au.Principal}).person() {
 		s.Log.Debug("event: no persona of a person started this work", "run", a.Run, "report", report, "err", err)
-		return
+		return false
 	}
 	ctx = s.AsService(ctx)
 	runs, err := s.eventRuns(ctx, a.Owner)
 	if err != nil {
 		s.Log.Warn("event: list", "run", a.Run, "err", err)
-		return
+		return false
 	}
 	// Each event of one piece of work makes the chain longer, and so does
 	// each piece of work that an event turn started.
@@ -145,7 +147,7 @@ func (s *System) wakeFor(ctx context.Context, a workflowapi.Assignment, report, 
 	d.Chain = au.Chain + 1 + earlier
 	if d.Chain > s.eventLimits().Chain+1 {
 		// The gate stopped this chain already, with its notice.
-		return
+		return false
 	}
 	key := fmt.Sprintf("event:%s/%s/%d", a.Run, report, earlier)
 	if a.Claim != "" {
@@ -161,7 +163,7 @@ func (s *System) wakeFor(ctx context.Context, a workflowapi.Assignment, report, 
 	})
 	if err != nil {
 		s.Log.Warn("event: post", "run", a.Run, "err", err)
-		return
+		return false
 	}
 	d.Cause = u.Id
 	vars := map[string]string{"stream": stream, "utterance": u.Id, "persona": au.Persona, dispatchVar: d.encode(),
@@ -171,7 +173,9 @@ func (s *System) wakeFor(ctx context.Context, a workflowapi.Assignment, report, 
 	}
 	if _, err := s.Workflow.Start(ctx, workflowapi.StartRequest{Definition: PersonaEvent, Vars: vars, Owner: ptr(a.Owner), Key: &key}); err != nil {
 		s.Log.Warn("event: start", "run", a.Run, "err", err)
+		return false
 	}
+	return true
 }
 
 // eventGate is the loop limit (docs/decisions/0009). "go" starts the turn.

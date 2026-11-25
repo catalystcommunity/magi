@@ -36,11 +36,13 @@ API in `contracts/magi.csil`, two clients, and the background workers.
    this person told this persona, and what the audience of the persona
    shares. The model gets the newest 30 turns and "earlier, related"
    utterances: matches of the words of the new message, with the
-   utterances that they link to and from. It can call `recall`,
-   `remember`, `change_knowledge`, `search_conversation`,
-   `start_code_change`, `list_tasks`, and `cancel_task`. The knowledge tools
-   follow `docs/knowledge.md`: a correction is a `fix`, `update`, or
-   `retract` of the record, not a second record.
+   utterances that they link to and from. Each persona has the read
+   tools (`docs/attention.md`, 4.1): the records of the person, the
+   earlier conversation, the web, the tasks, and the facts of the
+   installation. Each persona also has the tools of its work
+   (`compose/personas.go`). The knowledge tools follow
+   `docs/knowledge.md`: a correction is a `fix`, `update`, or `retract` of
+   the record, not a second record.
 4. The reply goes to the stream as a persona utterance, with a `reply-to`
    link, and a `started` link to each task that it started. The tool calls
    are kept as an `interpretation` annotation on the person's utterance.
@@ -84,6 +86,46 @@ prepare -> work (apprentice) -> check --pass--> review (human) --approve--> merg
   failed version. The step can resume after Magi itself restarts.
 
 Environments never receive Git or registry credentials.
+
+## Investigation workflow
+
+An investigation is one question about a repository. An apprentice
+answers it in an environment. The engineering persona starts it with the
+tool `investigate` (`compose/investigation.go`).
+
+```text
+prepare -> investigate (apprentice, question mode) -> answer -> cleanup
+   |                |                                  ^
+   +---- fail ------+---- fail, blocked ---------------+
+```
+
+- `prepare` is the step of a code change: an environment with a clone of
+  the repository. The run has the variable `mode` with the value
+  `question`.
+- `investigate` runs the apprentice in question mode
+  (`primitives/apprentice/README.md`, "Question mode"). The apprentice
+  reads the code and runs commands. Its summary is the answer, with the
+  files and the lines that support it. The limits are 60 model calls and
+  15 minutes.
+- `answer` is a step of Magi. It keeps the answer as a page of the
+  person. Then it starts a turn of the persona that asked (an event,
+  `docs/decisions/0009-events-wake-personas.md`). The turn gets the
+  answer and the link to the page, and it tells the person. When no turn
+  can start, the person gets a notice with the link.
+- `cleanup` removes the environment.
+
+An investigation keeps no change. It has no check, no review, no merge,
+no release, and no pull request. Its dispatch has no grants, thus its
+environment gets no secret (no GitHub token). A failure of the
+environment or of the apprentice goes to `answer`, which tells the person
+that there is no answer. A person has at most three investigations at one
+time. `list_tasks`, `task_status`, and `cancel_task` show and stop an
+investigation.
+
+On a runner, the step of the apprentice has the name `investigate`, not
+`work`. A runner release from before this workflow does not claim it, so
+it cannot make a change for a question. The run waits until the runner
+has the new release.
 
 ## Runners
 

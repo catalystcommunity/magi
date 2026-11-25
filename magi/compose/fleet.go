@@ -64,26 +64,42 @@ func (f *fleet) get(name string) (magiapi.RunnerInfo, bool) {
 	return magiapi.RunnerInfo{}, false
 }
 
+// chooseRunner picks the runner that does the work of a task in repo. An
+// explicit runner must be connected and have the repository. "" means
+// that Magi itself does the work (no runners).
+func (s *System) chooseRunner(runner, repo string) (string, error) {
+	if runner == "" {
+		return s.Cfg.Runner, nil
+	}
+	info, ok := s.fleet.get(runner)
+	if !ok {
+		return "", rpc.Invalid("runner %s is not connected (connected: %s)", runner, s.runnerNames())
+	}
+	if !slices.Contains(info.Repos, repo) {
+		return "", rpc.Invalid("runner %s has no repository %s", runner, repo)
+	}
+	return runner, nil
+}
+
+// runnerNames gives the names of the connected runners for a message.
+func (s *System) runnerNames() string {
+	var n []string
+	for _, r := range s.fleet.connected() {
+		n = append(n, r.Name)
+	}
+	if len(n) == 0 {
+		return "none"
+	}
+	return strings.Join(n, ", ")
+}
+
 // chooseRunners picks the runner that works on a change and the runner
 // that publishes it. An explicit runner must be connected and have the
 // repository.
 func (s *System) chooseRunners(runner, repo string) (string, string, error) {
-	names := func() string {
-		var n []string
-		for _, r := range s.fleet.connected() {
-			n = append(n, r.Name)
-		}
-		if len(n) == 0 {
-			return "none"
-		}
-		return strings.Join(n, ", ")
-	}
-	if runner == "" {
-		runner = s.Cfg.Runner
-	} else if info, ok := s.fleet.get(runner); !ok {
-		return "", "", rpc.Invalid("runner %s is not connected (connected: %s)", runner, names())
-	} else if !slices.Contains(info.Repos, repo) {
-		return "", "", rpc.Invalid("runner %s has no repository %s", runner, repo)
+	runner, err := s.chooseRunner(runner, repo)
+	if err != nil {
+		return "", "", err
 	}
 	if runner == "" {
 		return "", "", nil
@@ -102,7 +118,7 @@ func (s *System) chooseRunners(runner, repo string) (string, string, error) {
 		}
 	}
 	if publisher == "" {
-		return "", "", rpc.Invalid("no connected runner can publish %s (connected: %s)", repo, names())
+		return "", "", rpc.Invalid("no connected runner can publish %s (connected: %s)", repo, s.runnerNames())
 	}
 	return runner, publisher, nil
 }

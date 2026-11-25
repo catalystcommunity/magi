@@ -128,6 +128,31 @@ reply becomes `apprentice.summary`. The status stays `step_limit` or
 `time_limit`. When that call fails, the harness keeps the summary text that
 says that the task stopped at the limit.
 
+## Question mode
+
+In question mode the task is a question about the repository, not a
+change. The summary of `finish` is the answer. Magi uses this mode for an
+investigation (`magi/README.md`, "Investigation workflow").
+
+- The system prompt tells the model to answer from the repository: search,
+  read, and run commands, and give the conclusion first, then the evidence
+  with `path:line` or the command and its output, then what it did not
+  find.
+- The run has no check command, no diff rules, no test of new tests, no
+  self-review, and no spec step. The guard for steps with no change to a
+  file is off. The other guards apply.
+- The first `finish` whose answer names no file with a line is rejected one
+  time, with a request for the evidence. The second answer is accepted, so
+  "I did not find it" is a possible answer.
+- At a limit, the last model call asks for the answer from what the model
+  found, and for what is still open.
+- The model can write a temporary file or a small test. The environment is
+  removed after the answer, thus no change is kept.
+
+Start it with `--question` in one-shot mode, or with the run variable
+`mode` with the value `question` in worker mode. A worker gives a question
+at most 60 model calls and 900 seconds.
+
 ## Thinking cuts
 
 A thinking model can spend the whole output limit on reasoning. The reply then
@@ -401,6 +426,9 @@ python -m magi_apprentice run --environment env_123 --instructions "Fix the fail
 python -m magi_apprentice run --local /tmp/work --instructions @task.txt \
   --check-command "python3 -m unittest" --transcript /tmp/t.jsonl
 ```
+
+With `--question`, the instructions are a question, and the summary of the
+result is the answer (see "Question mode").
 
 The command prints a JSON result. The exit code is 0 when the task finished
 and no check failed. The result has `usage` with the totals of the task:

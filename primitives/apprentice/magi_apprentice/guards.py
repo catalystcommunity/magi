@@ -149,7 +149,10 @@ class Guards:
     """The guards of one run. The loop calls step() before each model call
     and tool() after each tool result."""
 
-    def __init__(self, revise: bool = False):
+    def __init__(self, revise: bool = False, edits: bool = True):
+        # edits is False for a run that changes no file (a question): the
+        # rule for steps with no change does not apply to it.
+        self.edits = edits
         self.no_edit_limit = NO_EDIT_STEPS_REVISE if revise else NO_EDIT_STEPS
         self.calls: deque[tuple[str, str]] = deque(maxlen=REPEAT_WINDOW)
         self.noted_repeat: set[str] = set()
@@ -163,6 +166,8 @@ class Guards:
     def step(self) -> Action | None:
         """Count one model call. A run with no change to a file gets a note at
         the limit and ends at NO_EDIT_STOP times the limit."""
+        if not self.edits:
+            return None
         self.steps_since_edit += 1
         n = self.steps_since_edit
         if n >= NO_EDIT_STOP * self.no_edit_limit:

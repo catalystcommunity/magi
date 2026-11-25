@@ -148,19 +148,45 @@ git rev-parse HEAD`, repo.DefaultBranch, branch, shellQuote(r.Cfg.Author.Name), 
 		return Result{}, fmt.Errorf("clone failed: %s", tail(string(res.Stderr), 2000))
 	}
 	r.note(ctx, st, fmt.Sprintf("Environment %s is ready on runner %s, branch %s.", env, r.Cfg.Name, branch))
-	r.post(ctx, st, fmt.Sprintf("I started work on %q on runner %s. The apprentice works on branch %s.", a.Vars["title"], r.Cfg.Name, branch))
+	// A question changes nothing: the persona said that it looks into it,
+	// and the branch is not kept.
+	if !question(a) {
+		r.post(ctx, st, fmt.Sprintf("I started work on %q on runner %s. The apprentice works on branch %s.", a.Vars["title"], r.Cfg.Name, branch))
+	}
 	return Result{Outcome: "done", Outputs: map[string]string{
 		"environment": env, "workdir": w + "/repo", "branch": branch, "base_commit": strings.TrimSpace(string(res.Stdout)),
 		"default_branch": repo.DefaultBranch,
 	}}, nil
 }
 
+// question is true for a step of an investigation: the apprentice answers
+// a question about the repository and keeps no change.
+func question(a magiapi.RunnerAssignment) bool {
+	return a.Step == "investigate" || a.Vars["mode"] == compose.QuestionMode
+}
+
+// Limits of the apprentice for a question. A question needs reading, not
+// a change with tests, so the limits are below those of a code change: a
+// person waits for the answer.
+const (
+	questionSeconds = 900
+	questionSteps   = 60
+)
+
 // work runs the apprentice on this machine. Its tools use the sandbox
 // through the loopback execution API; its model calls go through Magi.
+// For an investigation (question), the apprentice runs in question mode:
+// no plan, no check, no review, and each end of the run goes on to the
+// answer step, which tells the person.
 func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiapi.RunnerStep) (Result, error) {
+	ask := question(a)
 	why, err := r.preflight(ctx, a.Vars["environment"], a.Vars["workdir"])
 	if err != nil {
 		return Result{}, err
+	}
+	if why != "" && ask {
+		return Result{Outcome: "blocked", Outputs: map[string]string{"apprentice.status": "preflight",
+			"apprentice.error": "The environment check failed before the apprentice started: " + why}}, nil
 	}
 	if why != "" {
 		r.report(ctx, st, "normal", "Task blocked", "The work did not start: the environment check failed. "+why+". The work is kept. Decide on the task: resume tries again.")
@@ -173,7 +199,10 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 	}
 	defer os.RemoveAll(dir)
 	instr := filepath.Join(dir, "instructions")
-	plan, planTried := r.plan(ctx, a, st)
+	plan, planTried := "", false
+	if !ask {
+		plan, planTried = r.plan(ctx, a, st)
+	}
 	instructions := a.Vars["instructions"]
 	if plan != "" {
 		instructions += "\n\n" + planNote + plan
@@ -184,22 +213,33 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 	transcript := filepath.Join(dir, "transcript.jsonl")
 	args := []string{"-m", "magi_apprentice", "run", "--environment", a.Vars["environment"], "--workdir", a.Vars["workdir"],
 		"--instructions", "@" + instr, "--transcript", transcript, "--no-upload"}
-	for flag, v := range map[string]string{"--check-command": a.Vars["check_command"], "--check-output": a.Vars["check_output"],
-		"--title": a.Vars["title"], "--review-comment": roundComment(a.Vars), "--lessons": a.Vars["lessons"], "--model": a.Vars["model"]} {
+	flags := map[string]string{"--check-command": a.Vars["check_command"], "--check-output": a.Vars["check_output"],
+		"--title": a.Vars["title"], "--review-comment": roundComment(a.Vars), "--lessons": a.Vars["lessons"], "--model": a.Vars["model"]}
+	if ask {
+		// No check, no review round, no lessons of code reviews.
+		flags = map[string]string{"--title": a.Vars["title"], "--model": a.Vars["model"]}
+		args = append(args, "--question")
+	}
+	for flag, v := range flags {
 		if v != "" {
 			args = append(args, flag, v)
 		}
 	}
-	if r.Cfg.Apprentice.MaxSteps > 0 {
-		args = append(args, "--max-steps", strconv.Itoa(r.Cfg.Apprentice.MaxSteps))
-	}
-	if r.Cfg.Apprentice.SupervisorModel != "" {
-		args = append(args, "--supervisor-model", r.Cfg.Apprentice.SupervisorModel)
-	}
-	if r.Cfg.Apprentice.WorkReview && r.Cfg.Apprentice.ReviewModel != "" {
-		args = append(args, "--review-model", r.Cfg.Apprentice.ReviewModel)
-		if r.Cfg.Apprentice.Tester {
-			args = append(args, "--tester")
+	steps, seconds := 150, 3600
+	if ask {
+		steps, seconds = questionSteps, questionSeconds
+	} else {
+		if r.Cfg.Apprentice.MaxSteps > 0 {
+			args = append(args, "--max-steps", strconv.Itoa(r.Cfg.Apprentice.MaxSteps))
+		}
+		if r.Cfg.Apprentice.SupervisorModel != "" {
+			args = append(args, "--supervisor-model", r.Cfg.Apprentice.SupervisorModel)
+		}
+		if r.Cfg.Apprentice.WorkReview && r.Cfg.Apprentice.ReviewModel != "" {
+			args = append(args, "--review-model", r.Cfg.Apprentice.ReviewModel)
+			if r.Cfg.Apprentice.Tester {
+				args = append(args, "--tester")
+			}
 		}
 	}
 	cmd := exec.CommandContext(ctx, r.Cfg.Apprentice.Python, args...)
@@ -210,10 +250,10 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 		// again until the step limit (world eval, 2026-11-09). A reasoning
 		// model also needs room to think before it writes.
 		"MAGI_APPRENTICE_CONTEXT_TOKENS=100000", "MAGI_MODEL_MAX_TOKENS=16384",
-		"MAGI_APPRENTICE_TOOL_OUTPUT_CHARS=16000", "MAGI_APPRENTICE_MAX_SECONDS=3600",
+		"MAGI_APPRENTICE_TOOL_OUTPUT_CHARS=16000", "MAGI_APPRENTICE_MAX_SECONDS="+strconv.Itoa(seconds),
 		// GLM makes about one tool call for each model call: a change of
 		// five files with tests used all of 60 steps (2026-11-14).
-		"MAGI_APPRENTICE_MAX_STEPS=150",
+		"MAGI_APPRENTICE_MAX_STEPS="+strconv.Itoa(steps),
 	)
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
@@ -221,7 +261,9 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 	}
 	var stdout strings.Builder
 	cmd.Stdout = &stdout
-	r.post(ctx, st, "The apprentice started.")
+	if !ask {
+		r.post(ctx, st, "The apprentice started.")
+	}
 	if err := cmd.Start(); err != nil {
 		return Result{}, err
 	}
@@ -284,6 +326,23 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 	}
 	r.note(ctx, st, fmt.Sprintf("apprentice %s after %d steps, %d tool calls%s: %s",
 		out.Status, out.Steps, out.ToolCalls, cost, out.Summary))
+	if ask {
+		// The summary is the answer, or what the apprentice found until a
+		// limit or a guard stopped it. The answer step tells the person in
+		// each case, also after an error.
+		if out.Error != "" {
+			outputs["apprentice.error"] = tail(out.Error, 2000)
+		}
+		switch {
+		case out.Outcome == "retry":
+			return Result{Outcome: "retry", Outputs: outputs}, nil
+		case out.Status == "error" || out.Outcome == "fail":
+			return Result{Outcome: "fail", Outputs: outputs}, nil
+		case out.Outcome == "blocked":
+			return Result{Outcome: "blocked", Outputs: outputs}, nil
+		}
+		return Result{Outcome: "done", Outputs: outputs}, nil
+	}
 	// Each round sets it, so that a later round does not see an old value.
 	outputs["apprentice.blocked"], outputs["apprentice.guard_stop"] = "", ""
 	if (out.Status == "loop" || out.Status == "stalled") && r.changed(ctx, a) {

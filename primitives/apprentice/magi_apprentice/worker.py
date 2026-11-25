@@ -5,10 +5,11 @@ import json
 import logging
 import threading
 import time
+from dataclasses import replace
 from typing import Any, Callable
 
 from ._clients import RpcError, workflow as wf
-from .apprentice import Steering, Task
+from .apprentice import QUESTION, Steering, Task
 from .config import Limits, ModelConfig
 from .guards import outcome_of, round_comment
 from .model import Model
@@ -16,6 +17,10 @@ from .runner import apply_model_override, run_task
 
 log = logging.getLogger("magi_apprentice.worker")
 
+# The limits of a question (an investigation). The runner has the same
+# numbers (magi/runner/steps.go).
+QUESTION_STEPS = 60
+QUESTION_SECONDS = 900
 CLAIM_WAIT_MS = 20000
 LEASE_MS = 120000
 NOTE_MAX = 1000
@@ -131,6 +136,12 @@ class Worker:
                     check_command=v.get("check_command") or self.check_command or None,
                     check_output=v.get("check_output") or None, title=v.get("title") or None,
                     review_comment=round_comment(v), lessons=v.get("lessons") or None)
+        if v.get("mode") == QUESTION:
+            # An investigation: the instructions are a question, and the
+            # summary is the answer. The limits fit a person who waits.
+            task = Task(instructions=instructions, workdir=task.workdir, title=task.title, mode=QUESTION)
+            limits = replace(limits, max_steps=min(limits.max_steps, QUESTION_STEPS),
+                             max_seconds=min(limits.max_seconds, QUESTION_SECONDS))
         with Heartbeat(self.wf, a, self.lease_ms) as hb:
             self._progress(a, f"apprentice started (attempt {a.attempt}, model {model_cfg.name})")
             out = run_task(

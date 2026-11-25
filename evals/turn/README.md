@@ -45,13 +45,21 @@ No model judges a result. A check that needs a judge is not in this set.
 | --- | --- | --- |
 | `core-v1.json` | 19 | Turns from a message of the person |
 | `core-v2.json` | 23 | `core-v1`, and 4 turns from an event (`v01` to `v04`, not core until they pass each run of two baselines) |
+| `core-v3.json` | 30 | `core-v2`, and 7 turns for the read tools and for questions to an apprentice: `r01` to `r06` (a query of the records, the facts of the installation, the models, `investigate`, a persona that does not read code) and `v05` (the event with the answer of an apprentice). They are not core until they pass each run of two baselines |
 
-The default set of the verdict is the newest.
+The default set of the verdict is the newest. A baseline from before a
+set cannot run it when the set names a tool that the baseline does not
+have: use the set before it for that verdict (`--set`), and run the new
+cases on the candidate only (`MAGI_TURN_EVAL_ONLY`).
+
+An event step with the event `Answer` makes an investigation in place of
+a code change: the `title` of the task is the question, the `state` is
+`answered`, and the harness gives a fixed answer of the apprentice.
 
 ## Rules
 
 - Do not change a set after a verdict used it. Make a new version
-  (`core-v2.json`).
+  (`core-v3.json`).
 - Use only synthetic data.
 - Use a local model server that serves no other traffic. An inference
   host that stops its engine when the machine compiles is not usable:

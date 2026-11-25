@@ -33,9 +33,10 @@ var (
 
 // toolRules has the rule of each tool.
 var toolRules = map[string]toolRule{
-	"recall": readRule, "search_conversation": readRule, "remember": writeRule, "change_knowledge": writeRule,
-	"start_code_change": writeRule, "decide_task": writeRule, "cancel_task": writeRule,
-	"list_tasks": readRule, "task_status": readRule, "task_diff": readRule, "terminal_link": readRule, "list_runners": readRule, "list_models": readRule,
+	"recall": readRule, "query_knowledge": readRule, "search_conversation": readRule, "remember": writeRule, "change_knowledge": writeRule,
+	"start_code_change": writeRule, "investigate": writeRule, "decide_task": writeRule, "cancel_task": writeRule,
+	"magi_system": readRule,
+	"list_tasks":  readRule, "task_status": readRule, "task_diff": readRule, "terminal_link": readRule, "list_runners": readRule, "list_models": readRule,
 	"send_notice": writeRule, "list_devices": readRule,
 	"web_search": publicRule, "read_page": publicRule,
 	"add_todo": writeRule, "set_reminder": writeRule, "list_todos": readRule, "finish_todo": writeRule, "change_todo": writeRule,

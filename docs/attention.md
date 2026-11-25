@@ -84,6 +84,18 @@ tasks of the person. It starts tasks with complete instructions, follows
 many tasks at the same time, gives the status in a few sentences, reads
 the change of a task that waits for review, and gives a short summary.
 
+Questions about the code: when the person asks how the software works,
+why it did something, or what a change needs, and the other tools do not
+answer it, the persona starts an investigation (`investigate`). An
+apprentice reads and runs the code in an environment on a runner and
+changes nothing. The persona says only that it looks into it. Some
+minutes later Magi gives the persona the answer with an event, and the
+persona tells the person: the conclusion, the files and lines that
+support it, and the link to a page with the full answer
+(`magi/README.md`, "Investigation workflow"). The persona starts an
+investigation with no confirmation: it changes nothing, it gets no
+secret, and code limits the number.
+
 Decisions:
 
 - `revise` sends the task back to the apprentice with a comment. The
@@ -129,13 +141,45 @@ makes Magi read its state on GitHub at once. It needs no agreement.
 
 Promises: a turn ends with its reply. When a reply ends with something
 that the persona will do now ("I'll merge it now"), Magi tells the model
-so one time: do it with a tool, or ask the person (`emptyPromise`).
+so one time: do it with a tool, or ask the person (`emptyPromise`). A
+turn that started an investigation is the exception: "I'll look into it"
+is then true, because the answer comes with an event (`investigating`).
 
 A decision that the model does not record: the message of the person
 tells a decision, or it only agrees ("Yes", "Go ahead") with a request of
 the turn before. When the model does not call `decide_task` in that turn,
 Magi makes the call (`toldRun`, `agreedDecision`). The same conditions
 apply. The reply is then a fixed sentence of Magi.
+
+### 4.1 Read tools of each persona
+
+A persona does not answer from the conversation alone. Each persona has
+these tools, which change nothing (`readTools` in
+`magi/compose/personas.go`):
+
+| Tool | Gives |
+| --- | --- |
+| `recall` | The records of the person that the words of a question find |
+| `query_knowledge` | The records of the person by type and filter: all things of one kind, all facts with one relation or about one thing, the events of a period (`docs/knowledge.md`, "Queries") |
+| `search_conversation` | Earlier messages |
+| `web_search`, `read_page` | The web |
+| `magi_system` | The installation: health, incidents, releases and versions, runners, models, devices |
+| `list_models`, `list_runners`, `list_devices` | The models, the runner machines, and the devices of the person |
+| `list_tasks`, `task_status` | The tasks of the person and the state of one task |
+
+`magi_system` has a topic. A person who is not an admin (`MAGI_ADMINS`)
+gets a summary of each topic: the number of parts that are not ready and
+their names, the number of incidents, the last release. An admin also
+gets each part, each incident with its message, and each release with
+its reason. The topic `diagnose` gives the pods, the cluster events, and
+the last log lines of one part. It is for an admin only. A log is the
+output of a program, thus a turn that read it cannot approve, reject, or
+merge a task.
+
+The tools that act on tasks (`start_code_change`, `investigate`,
+`decide_task`, `task_diff`, `terminal_link`) stay with the engineering
+manager, and `start_code_change` also with the default persona. The
+executive assistant says that the engineering manager does software work.
 
 ## 5. Call a persona by name
 

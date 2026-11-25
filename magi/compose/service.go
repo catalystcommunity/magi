@@ -126,7 +126,7 @@ func (m *Service) GetTask(ctx context.Context, req magiapi.GetTaskRequest) (magi
 	if err != nil {
 		return magiapi.Task{}, err
 	}
-	if run.Definition != CodeChange {
+	if !slices.Contains(taskKinds, run.Definition) {
 		return magiapi.Task{}, rpc.NotFound("no task %s", req.Id)
 	}
 	return task(run), nil

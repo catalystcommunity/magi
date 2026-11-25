@@ -49,6 +49,8 @@ content. A person decides what cannot be undone.
 | Which host runs a model? | Code, from the roles, the memory that a model needs, and the reports of the hosts. The rules of the owner of a machine come first | record 0016 |
 | Does a persona start work with no message from a person? | Code: the event rules and the loop limit | record 0009 |
 | Is a task stopped because it makes no progress? | Code | record 0012 |
+| Does an apprentice look into the code for a question, with no confirmation of a person? | The model of the engineering persona starts it. Code sets the limits: that persona only, no change is kept, no secret, three for a person at one time, and the loop limit of events | `magi/compose/investigation.go` |
+| Who gets the details of the installation (parts, incident messages, log lines)? | Code: an admin. Other people get a summary | `describeSystem` in `magi/compose/lookup.go` |
 | Can a task environment connect to a new host? | Code for known software sources and for private names; the review model for a host that it knows with high confidence; a person for the rest | record 0014 |
 | Is a part of the installation that is not ready restarted? | Code: the rules of the watch. Then the model, one more time, in the limits of code | record 0015 |
 | Is a release rolled back because a part broke after it? | The model selects it; code permits it only for the newest release of that part in the last 2 hours | record 0015 |

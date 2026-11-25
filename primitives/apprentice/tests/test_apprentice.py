@@ -6,7 +6,8 @@ import urllib.error
 
 from fakes import FakeModel, MemExecution, call, reply
 
-from magi_apprentice.apprentice import SELF_REVIEW, Apprentice, Context, Task, model_wait_recorder
+from magi_apprentice.apprentice import (NO_EVIDENCE, QUESTION, QUESTION_TEXTS, SELF_REVIEW, Apprentice, Context, Task,
+                                        model_wait_recorder)
 from magi_apprentice.config import Limits, ModelConfig
 from magi_apprentice.model import ChatModel, ModelError
 from magi_apprentice.tools import Tools, Workspace
@@ -388,6 +389,51 @@ class LoopTest(unittest.TestCase):
         r = a.run(Task("t"))
         self.assertEqual(r.usage, {"prompt_tokens": 100, "completion_tokens": 10,
                                    "cached_tokens": 0, "cost": 0.0})
+
+
+class QuestionTest(unittest.TestCase):
+    """Question mode: the summary is the answer, and the run has no check
+    and no review of a change."""
+
+    def test_the_answer_is_the_summary_and_no_check_runs(self):
+        answer = "The limit is 3. See magi/compose/events.go:70."
+        # The default limits have the self-review and the gates on, and the
+        # task has a check command: question mode uses none of them.
+        a, model, m, tr = apprentice([reply(call("search", pattern="Chain")), reply(call("finish", summary=answer))])
+        r = a.run(Task("What is the chain limit?", title="Chain limit", check_command="./check.sh", mode=QUESTION))
+        self.assertEqual((r.status, r.summary, r.check_passed), ("finished", answer, None))
+        self.assertFalse([e for e in m.execs if "./check.sh" in e.argv[-1]])
+        self.assertFalse([k for k in kinds(tr) if k in ("check", "self_review", "test_gate", "diff_gate")])
+        system, user = model.requests[0][0]["content"], model.requests[0][1]["content"]
+        self.assertIn("asked a question", system)
+        self.assertIn("Question:\nWhat is the chain limit?", user)
+        self.assertNotIn("Task instructions", user)
+        self.assertEqual(records(tr, "task")[0]["mode"], QUESTION)
+
+    def test_an_answer_with_no_file_is_asked_for_evidence_one_time(self):
+        a, model, _, tr = apprentice([reply(call("finish", summary="It is 3.")),
+                                      reply(call("finish", summary="I searched for Chain and did not find it."))])
+        r = a.run(Task("What is the chain limit?", mode=QUESTION))
+        # The second answer goes through: "I did not find it" is an answer.
+        self.assertEqual((r.status, r.summary), ("finished", "I searched for Chain and did not find it."))
+        self.assertEqual(model.requests[1][-1]["content"], NO_EVIDENCE)
+        self.assertEqual(len(records(tr, "answer_gate")), 1)
+
+    def test_many_steps_with_no_edit_do_not_stop_a_question(self):
+        # 130 reads: a change run ends with no_progress at 120 steps.
+        lim = Limits(max_steps=200)
+        a, _, _, tr = apprentice(distinct_calls(130) + [reply(call("finish", summary="See a.go:1."))], limits=lim)
+        r = a.run(Task("How does it work?", mode=QUESTION))
+        self.assertEqual((r.status, r.steps), ("finished", 131))
+        self.assertFalse(records(tr, "guard"))
+
+    def test_a_question_at_the_step_limit_ends_with_what_it_found(self):
+        lim = Limits(max_steps=3)
+        a, model, _, _ = apprentice(distinct_calls(3) + [reply(content="I found x in a.go:1; the rest is open.",
+                                                               finish_reason="stop")], limits=lim)
+        r = a.run(Task("How does it work?", mode=QUESTION))
+        self.assertEqual((r.status, r.summary), ("step_limit", "I found x in a.go:1; the rest is open."))
+        self.assertEqual(model.requests[-1][-1]["content"], QUESTION_TEXTS["last"])
 
 
 class BudgetTest(unittest.TestCase):
