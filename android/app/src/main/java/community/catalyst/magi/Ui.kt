@@ -17,6 +17,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import java.text.DateFormat
+import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
@@ -85,12 +86,14 @@ object ChatTime {
     /**
      * The build time as a readable string in the given zone and locale.
      * zone and locale are parameters for the tests, as day does for now.
+     * The text ends with the abbreviation of the zone at the build time.
      */
     fun built(versionCode: Long, zone: TimeZone = TimeZone.getDefault(), locale: Locale = Locale.getDefault()): String {
         val ms = buildMs(versionCode)
         val dateFmt = DateFormat.getDateInstance(DateFormat.MEDIUM, locale).apply { timeZone = zone }
         val timeFmt = DateFormat.getTimeInstance(DateFormat.SHORT, locale).apply { timeZone = zone }
-        return "${dateFmt.format(Date(ms))} at ${timeFmt.format(Date(ms))} (local time)"
+        val zoneFmt = SimpleDateFormat("z", locale).apply { timeZone = zone }
+        return "${dateFmt.format(Date(ms))} at ${timeFmt.format(Date(ms))} ${zoneFmt.format(Date(ms))}"
     }
 
     /** True when two times are on different days of the local calendar. */

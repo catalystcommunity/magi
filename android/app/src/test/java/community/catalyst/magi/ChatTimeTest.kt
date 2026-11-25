@@ -48,11 +48,14 @@ class ChatTimeTest {
     fun builtIsInTheGivenZone() {
         val tokyo = TimeZone.getTimeZone("Asia/Tokyo")
         val ny = TimeZone.getTimeZone("America/New_York")
+        val denver = TimeZone.getTimeZone("America/Denver")
         val us = Locale.US
         val tokyoResult = ChatTime.built(3_627_275L, tokyo, us).replace('\u202F', ' ')
         val nyResult = ChatTime.built(3_627_275L, ny, us).replace('\u202F', ' ')
-        assertEquals("Nov 24, 2026 at 7:35 AM (local time)", tokyoResult)
-        assertEquals("Nov 23, 2026 at 5:35 PM (local time)", nyResult)
+        val denverResult = ChatTime.built(3_627_275L, denver, us).replace('\u202F', ' ')
+        assertEquals("Nov 24, 2026 at 7:35 AM JST", tokyoResult)
+        assertEquals("Nov 23, 2026 at 5:35 PM EST", nyResult)
+        assertEquals("Nov 23, 2026 at 3:35 PM MST", denverResult)
     }
 
     @Test
@@ -61,7 +64,7 @@ class ChatTimeTest {
         try {
             TimeZone.setDefault(TimeZone.getTimeZone("Asia/Tokyo"))
             val result = ChatTime.built(3_627_275L, locale = Locale.US).replace('\u202F', ' ')
-            assertEquals("Nov 24, 2026 at 7:35 AM (local time)", result)
+            assertEquals("Nov 24, 2026 at 7:35 AM JST", result)
         } finally {
             TimeZone.setDefault(old)
         }
@@ -72,7 +75,15 @@ class ChatTimeTest {
         val utc = TimeZone.getTimeZone("UTC")
         val us = Locale.US
         val result = ChatTime.built(3_627_275L, utc, us).replace('\u202F', ' ')
-        assertEquals("Nov 23, 2026 at 10:35 PM (local time)", result)
+        assertEquals("Nov 23, 2026 at 10:35 PM UTC", result)
+    }
+
+    @Test
+    fun builtShowsTheSummerAbbreviation() {
+        val ny = TimeZone.getTimeZone("America/New_York")
+        val us = Locale.US
+        val result = ChatTime.built(3_417_840L, ny, us).replace('\u202F', ' ')
+        assertEquals("Jul 1, 2026 at 8:00 AM EDT", result)
     }
 
     @Test
