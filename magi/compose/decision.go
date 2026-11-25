@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -66,6 +67,53 @@ func (s *System) Decide(ctx context.Context, task string, sel *modelsapi.Selecto
 		return magiapi.DecisionResponse{}, rpc.Unavailable("no decision model for task %s", task)
 	}
 	return magiapi.DecisionResponse{}, rpc.Unavailable("no decision model answered: %s", strings.Join(errs, "; "))
+}
+
+// HostDecisionTask is the task of the question about a new host
+// (egressauto.go). An installation with no such task in its catalog uses
+// DecisionTask. A model with a scoring head for this question is the first
+// model of the task, and the adapter of DecisionTask is its fallback.
+const HostDecisionTask = "decide.host"
+
+// autoLimitAttribute is the attribute of a model in the catalog with the
+// least probability of "yes" that permits a host. It is a measured number
+// of that model (evals/egress/README.md).
+const autoLimitAttribute = "egress-auto-limit"
+
+// hostDecision asks the first model that answers one yes or no question
+// about a host. It returns the probability of "yes", the name of the
+// model, and the limit of that model (0: the model has none).
+func (s *System) hostDecision(ctx context.Context, state string, q magiapi.DecisionQuestion) (float64, string, float64, error) {
+	if s.Router == nil {
+		return 0, "", 0, rpc.Unavailable("this installation has no model catalog")
+	}
+	ms, err := s.Router.Models(ctx, HostDecisionTask, nil, false)
+	if err == nil && len(ms) == 0 {
+		ms, err = s.Router.Models(ctx, DecisionTask, nil, false)
+	}
+	if err != nil {
+		return 0, "", 0, err
+	}
+	var errs []string
+	for _, mdl := range ms {
+		res, err := s.decideWith(ctx, mdl, state, []magiapi.DecisionQuestion{q})
+		if err == nil && (len(res.Answers) != 1 || len(res.Answers[0].Probs) == 0) {
+			err = fmt.Errorf("the decision model gave no probability")
+		}
+		if err != nil {
+			errs = append(errs, mdl.Name+": "+err.Error())
+			continue
+		}
+		limit, _ := strconv.ParseFloat(mdl.Attributes[autoLimitAttribute], 64)
+		if limit <= 0 || limit > 1 {
+			limit = 0
+		}
+		return res.Answers[0].Probs[0], res.Model, limit, nil
+	}
+	if len(ms) == 0 {
+		return 0, "", 0, rpc.Unavailable("no decision model for task %s", HostDecisionTask)
+	}
+	return 0, "", 0, rpc.Unavailable("no decision model answered: %s", strings.Join(errs, "; "))
 }
 
 func (s *System) decideWith(ctx context.Context, mdl modelsapi.Model, state string, qs []magiapi.DecisionQuestion) (magiapi.DecisionResponse, error) {

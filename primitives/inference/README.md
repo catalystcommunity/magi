@@ -91,6 +91,15 @@ the engine reuses the prompt of the state. For this, Gemma 4 needs
 recurrent layers (Qwen 3.5) cannot reuse a part of a prompt; each question
 reads the full state.
 
+With `"decide": "head"` in `engine`, the engine is a decision model: a
+model with a scoring head in place of its language head (a GGUF file of
+the training library, served by llama-server on `/v1/systemone`). The host
+sends the state and all questions in one call, and the engine gives the
+probability of "yes" for each one. Such a model answers only `noul`
+questions, only the questions that it was trained on, and it has no chat.
+The `question` text of the request is the instruction of the training, so
+it must be the same text. The temperature of a question is not used.
+
 The host counts decide as its own work, as a chat request. Do not send
 requests straight to the engine: the host then sees a busy GPU and stops
 the engine.

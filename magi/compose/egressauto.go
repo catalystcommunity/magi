@@ -25,7 +25,8 @@ type EgressAuto struct {
 	// Model lets the decision model (task "decide" of the catalog) permit a
 	// host that it knows as a public source of software, documentation, or
 	// reference data. Limit is the least probability that permits; 0 is
-	// autoLimit.
+	// the measured limit of the model that answers (its attribute
+	// "egress-auto-limit" in the catalog), else autoLimit.
 	Model bool    `json:"model,omitempty"`
 	Limit float64 `json:"limit,omitempty"`
 }
@@ -258,11 +259,7 @@ func (e *Egress) autoDestination(ctx context.Context, req magiapi.EgressDestinat
 	}
 	mctx, cancel := context.WithTimeout(ctx, autoModelTimeout)
 	defer cancel()
-	limit := auto.Limit
-	if limit <= 0 {
-		limit = autoLimit
-	}
-	why, err := e.autoModel(mctx, host, run, limit)
+	why, err := e.autoModel(mctx, host, run, auto.Limit)
 	if err != nil {
 		e.S.Log.Warn("egress automatic decision", "destination", req.Destination, "err", err)
 	}
@@ -283,11 +280,25 @@ const hostQuestion = "Is this host the official site of a well-known public sour
 // hostQuestionID names the question for the calibration of the catalog.
 const hostQuestionID = "egress-known-source"
 
-// autoLimit is the default least probability of "yes" that permits a host.
-// It is the measured limit of the adapter that was trained with the
+// autoLimit is the least probability of "yes" that permits a host, for a
+// model with no limit of its own in the catalog. It is the measured limit
+// of the adapter that was trained with the
 // popularity line: no wrong host in the two halves of the corpus
 // (evals/egress/README.md). Measure again after a new training.
 const autoLimit = 0.97
+
+// pickLimit gives the limit of a decision: the setting of the
+// installation, else the measured limit of the model that answered, else
+// autoLimit.
+func pickLimit(setting, model float64) float64 {
+	switch {
+	case setting > 0:
+		return setting
+	case model > 0:
+		return model
+	}
+	return autoLimit
+}
 
 // hostState is the state of the question. It has the host, the line of
 // the popularity list, and the title of the task, and no data from the
@@ -297,24 +308,18 @@ func hostState(host, popularity, title string) string {
 		host, popularity, trunc(title, 200))
 }
 
-// autoModel asks the decision model (task "decide") about a host. It gives
-// the reason to permit the host when the probability of "yes" is at least
-// the limit; a smaller probability, and no answer, is "". The decision
+// autoModel asks the decision model (task "decide.host", else "decide")
+// about a host. It gives the reason to permit the host when the
+// probability of "yes" is at least the limit; a smaller probability, and
+// no answer, is "". limit is the setting of the installation; 0 uses the
+// measured limit of the model that answered. The decision
 // model gives a probability, not text: a chat model gave the confidence
 // "high" for each of its verdicts, also for the wrong ones.
 func (e *Egress) autoModel(ctx context.Context, host string, run workflowapi.Run, limit float64) (string, error) {
 	decide := e.S.hostDecide
 	if decide == nil {
-		decide = func(ctx context.Context, state string) (float64, string, error) {
-			res, err := e.S.Decide(ctx, DecisionTask, nil, false, state,
-				[]magiapi.DecisionQuestion{{Id: hostQuestionID, Type: "noul", Question: hostQuestion}})
-			if err != nil {
-				return 0, "", err
-			}
-			if len(res.Answers) != 1 || len(res.Answers[0].Probs) == 0 {
-				return 0, res.Model, fmt.Errorf("the decision model gave no probability")
-			}
-			return res.Answers[0].Probs[0], res.Model, nil
+		decide = func(ctx context.Context, state string) (float64, string, float64, error) {
+			return e.S.hostDecision(ctx, state, magiapi.DecisionQuestion{Id: hostQuestionID, Type: "noul", Question: hostQuestion})
 		}
 	}
 	pop, err := e.S.popularity()
@@ -323,10 +328,11 @@ func (e *Egress) autoModel(ctx context.Context, host string, run workflowapi.Run
 		// its probability has no measured meaning: a person decides.
 		return "", err
 	}
-	yes, mdl, err := decide(ctx, hostState(host, pop.line(host), run.Vars["title"]))
+	yes, mdl, own, err := decide(ctx, hostState(host, pop.line(host), run.Vars["title"]))
 	if err != nil {
 		return "", err
 	}
+	limit = pickLimit(limit, own)
 	// The probability is in the log for each host: a person who looks at an
 	// open review can see why Magi did not decide it.
 	e.S.Log.Info("egress automatic decision: model", "host", host, "model", mdl, "yes", yes, "limit", limit)

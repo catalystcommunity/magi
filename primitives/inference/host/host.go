@@ -34,6 +34,12 @@ type Engine struct {
 	Model   string   `json:"model"`
 	// Description tells what the base model is for (GET /v1/models).
 	Description string `json:"description,omitempty"`
+	// Decide is how the engine answers decide. "" reads the probabilities
+	// of the answer labels of a language model. "head" is for a decision
+	// model: a model with a scoring head in place of the language head
+	// (llama-server /v1/systemone). Such a model answers only the
+	// questions that it was trained on, and it has no chat.
+	Decide string `json:"decide,omitempty"`
 	// Models are more model names of the engine: the base model with an
 	// adapter (llama-server per-request LoRA; start the engine with
 	// --lora FILE --lora-init-without-apply).

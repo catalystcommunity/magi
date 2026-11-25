@@ -213,7 +213,15 @@ The hosts of `neverAutoHosts` go to a person, as in the server.
   the limit from the scores of the exported model.
 - The head serves only the questions that it was trained on. The note
   questions stay on the adapter.
-- The server does not use the head yet.
+- The server uses the head when the catalog has it. The question about
+  a host goes to the task `decide.host`, and then to the task `decide`
+  when no model of that task answers. The inference host of the head has
+  `"decide": "head"` in its engine settings. The model of the head has the
+  attribute `egress-auto-limit` with its limit (0.95). A model with no
+  such attribute uses the default limit (0.97).
+- On a laptop GPU with 8 GB (RTX 4060), one decision takes about 0.1
+  seconds and the model holds 4.5 GB. On a CPU with 6 cores it takes 2.5
+  seconds, which is too slow for a decision.
 
 ### One head for all decision questions
 

@@ -219,6 +219,9 @@ func (h *Host) Decide(ctx context.Context, req api.DecideRequest) (api.DecideRes
 		}
 		name, lora = *req.Model, v.Lora
 	}
+	if h.cfg.Engine.Decide == "head" {
+		return h.decideHead(ctx, req, name)
+	}
 	type prepared struct {
 		q   api.Question
 		ls  []string
@@ -294,4 +297,54 @@ func (h *Host) Decide(ctx context.Context, req api.DecideRequest) (api.DecideRes
 		out = append(out, a)
 	}
 	return api.DecideResponse{Answers: out, Model: name, Ms: uint64(time.Since(start).Milliseconds())}, nil
+}
+
+// decideHead answers the questions with a decision model: the engine has a
+// scoring head and gives the probability of "yes" for each question in one
+// call (llama-server /v1/systemone). The question text is the instruction
+// that the head was trained with. A head has its calibration from its
+// training, so the temperature of a question is not used.
+func (h *Host) decideHead(ctx context.Context, req api.DecideRequest, name string) (api.DecideResponse, error) {
+	qs := map[string]any{}
+	for _, q := range req.Questions {
+		if q.Type != "noul" {
+			return api.DecideResponse{}, rpc.Invalid("question %s: the decision model of this host answers only yes or no questions", q.Id)
+		}
+		if _, dup := qs[q.Id]; dup || q.Id == "" {
+			return api.DecideResponse{}, rpc.Invalid("each question needs its own id")
+		}
+		qs[q.Id] = map[string]string{"type": "noul", "instructions": q.Question}
+	}
+	if err := h.acquire(ctx); err != nil {
+		var b *refusal
+		if errors.As(err, &b) {
+			return api.DecideResponse{}, rpc.Unavailable("%s: %s", b.kind, b.msg)
+		}
+		return api.DecideResponse{}, err
+	}
+	defer h.release()
+	start := time.Now()
+	var res struct {
+		Answers map[string]struct {
+			Noul *float64 `json:"noul"`
+		} `json:"answers"`
+	}
+	if err := h.engine().post(ctx, "/v1/systemone", map[string]any{"model": h.cfg.Engine.Model, "state": req.State, "questions": qs}, &res); err != nil {
+		return api.DecideResponse{}, err
+	}
+	ms := uint64(time.Since(start).Milliseconds())
+	out := make([]api.Answer, 0, len(req.Questions))
+	for _, q := range req.Questions {
+		a, ok := res.Answers[q.Id]
+		if !ok || a.Noul == nil || *a.Noul < 0 || *a.Noul > 1 {
+			return api.DecideResponse{}, fmt.Errorf("the decision model gave no probability for question %s", q.Id)
+		}
+		yes := *a.Noul
+		ans := api.Answer{Id: q.Id, Probs: []float64{yes, 1 - yes}, Answer: "yes", Confidence: yes, Ms: ms}
+		if yes < 0.5 {
+			ans.Answer, ans.Confidence = "no", 1-yes
+		}
+		out = append(out, ans)
+	}
+	return api.DecideResponse{Answers: out, Model: name, Ms: ms}, nil
 }

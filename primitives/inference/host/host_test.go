@@ -33,6 +33,7 @@ func TestMain(m *testing.M) {
 			fmt.Fprintf(w, `{"model":"local","echo":%q,"auth":%q}`, b, r.Header.Get("Authorization"))
 		})
 		fakeDecideEngine()
+		fakeHeadEngine()
 		// A restart uses the port of the engine that the host just stopped,
 		// and on a loaded machine that process can still hold it.
 		for i := 0; i < 100; i++ {

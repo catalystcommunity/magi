@@ -285,7 +285,7 @@ type System struct {
 	egressAsked egressAutoAsked
 	// hostDecide replaces the decision model of the automatic destination
 	// decision in a test: the probability of "yes" and the model name.
-	hostDecide   func(ctx context.Context, state string) (float64, string, error)
+	hostDecide   func(ctx context.Context, state string) (float64, string, float64, error)
 	Artifacts    *artifactsapi.ArtifactClient
 	Conversation *conversationapi.ConversationClient
 	Execution    *executionapi.ExecutionClient

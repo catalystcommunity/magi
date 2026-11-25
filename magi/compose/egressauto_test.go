@@ -62,15 +62,16 @@ func TestAutoHost(t *testing.T) {
 // hostModel is a decision model: the probability of "yes" for each host.
 type hostModel struct {
 	yes   float64
+	own   float64 // the limit of the model in the catalog
 	err   error
 	calls int
 	got   string
 }
 
-func (f *hostModel) decide(_ context.Context, state string) (float64, string, error) {
+func (f *hostModel) decide(_ context.Context, state string) (float64, string, float64, error) {
 	f.calls++
 	f.got = state
-	return f.yes, "local", f.err
+	return f.yes, "local", f.own, f.err
 }
 
 type autoWorkflow struct{ workflowapi.WorkflowService }

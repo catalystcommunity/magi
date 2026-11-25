@@ -46,6 +46,72 @@ func fakeDecideEngine() {
 	})
 }
 
+// fakeHeadEngine is the llama-server API of a decision model in the fake
+// engine: the probability of "yes" is 0.96 when the state has "official",
+// else 0.02. A question with the id "lost" gets no answer.
+func fakeHeadEngine() {
+	http.HandleFunc("/v1/systemone", func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			Model     string
+			State     string
+			Questions map[string]struct{ Type, Instructions string }
+		}
+		json.NewDecoder(r.Body).Decode(&in)
+		answers := map[string]any{}
+		for id, q := range in.Questions {
+			if id == "lost" || q.Type != "noul" || q.Instructions == "" || in.Model != "local" {
+				continue
+			}
+			p := 0.02
+			if strings.Contains(in.State, "official") {
+				p = 0.96
+			}
+			answers[id] = map[string]any{"type": "noul", "noul": p}
+		}
+		json.NewEncoder(w).Encode(map[string]any{"answers": answers})
+	})
+}
+
+// A host with a decision model answers decide with one call to the engine.
+func TestDecideWithAHead(t *testing.T) {
+	e := setup(t, 30*time.Second, func(c *Config) { c.Engine.Decide = "head" })
+	s := &rpc.Server{Verifier: e.h.ver}
+	s.Register("InferenceService", api.InferenceServiceOps(e.h))
+	hs := httptest.NewServer(rpc.Mux(s, nil))
+	t.Cleanup(hs.Close)
+	c := api.NewInferenceClient(rpc.NewClient(hs.URL, rpc.StaticToken(e.tok(Scope))))
+	ctx := context.Background()
+	q := api.Question{Id: "source", Type: "noul", Question: "Is this host a known public source?"}
+	var res api.DecideResponse
+	var err error
+	// The first call starts the engine.
+	for i := 0; i < 100; i++ {
+		if res, err = c.Decide(ctx, api.DecideRequest{State: "Host: the official site", Questions: []api.Question{q}}); err == nil || rpc.CodeOf(err) != 503 {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if err != nil || len(res.Answers) != 1 {
+		t.Fatalf("decide: %+v, %v", res, err)
+	}
+	if a := res.Answers[0]; a.Answer != "yes" || a.Probs[0] != 0.96 || a.Confidence != 0.96 || res.Model != "local" {
+		t.Fatalf("answer = %+v, model %s", a, res.Model)
+	}
+	res, err = c.Decide(ctx, api.DecideRequest{State: "Host: a paste site", Questions: []api.Question{q}})
+	if err != nil || res.Answers[0].Answer != "no" || res.Answers[0].Probs[0] != 0.02 || res.Answers[0].Confidence != 0.98 {
+		t.Fatalf("no: %+v, %v", res, err)
+	}
+	// A head answers only yes or no questions, and an answer that is not
+	// there is an error, not a "no".
+	if _, err := c.Decide(ctx, api.DecideRequest{State: "x", Questions: []api.Question{{Id: "k", Type: "choice", Question: "?", Choices: []string{"a", "b"}}}}); rpc.CodeOf(err) != 400 {
+		t.Fatalf("choice: %v", err)
+	}
+	q.Id = "lost"
+	if _, err := c.Decide(ctx, api.DecideRequest{State: "x", Questions: []api.Question{q}}); err == nil || rpc.CodeOf(err) == 400 {
+		t.Fatalf("lost answer: %v", err)
+	}
+}
+
 func withVariants(c *Config) {
 	c.Engine.Description = "base"
 	c.Engine.Models = map[string]Variant{"local-notetaker": {Lora: []LoraScale{{Id: 0, Scale: 1}}, Description: "Tuned for the note taker."}}

@@ -31,6 +31,7 @@ type fakeCatalog struct {
 	base     string
 	bases    []string // more candidates after the first (decision)
 	cal      map[string]float64
+	attrs    map[string]string // of the first candidate
 	tasks    map[string]modelsapi.Selector
 	down     bool
 	mu       sync.Mutex
@@ -60,7 +61,7 @@ func (f *fakeCatalog) Select(_ context.Context, r modelsapi.SelectRequest) (mode
 	if r.Selector != nil && r.Selector.Name != nil {
 		name = *r.Selector.Name
 	}
-	m := modelsapi.Model{Name: name, Endpoint: modelsapi.Endpoint{BaseUrl: f.base, Model: name, KeyRef: ptr("inference")}, Enabled: true, Calibration: f.cal}
+	m := modelsapi.Model{Name: name, Endpoint: modelsapi.Endpoint{BaseUrl: f.base, Model: name, KeyRef: ptr("inference")}, Enabled: true, Calibration: f.cal, Attributes: f.attrs}
 	out := []modelsapi.Candidate{{Model: m, Reason: "test"}}
 	for i, b := range f.bases {
 		out = append(out, modelsapi.Candidate{Model: modelsapi.Model{Name: fmt.Sprintf("more-%d", i), Endpoint: modelsapi.Endpoint{BaseUrl: b, Model: "m", KeyRef: ptr("inference")}, Enabled: true, Calibration: f.cal}})
@@ -229,6 +230,41 @@ func TestDecision(t *testing.T) {
 	}
 	if _, err := sys.Decide(context.Background(), "no-such-task", nil, false, "state", qs); rpc.CodeOf(err) != 503 {
 		t.Fatalf("no model: %v", err)
+	}
+
+	// The host question: with no task "decide.host" in the catalog, the
+	// models of "decide" answer, and they have no limit of their own.
+	hq := magiapi.DecisionQuestion{Id: hostQuestionID, Type: "noul", Question: hostQuestion}
+	yes, name, limit, err := sys.hostDecision(context.Background(), "state", hq)
+	if err != nil || yes != 0.9 || name != "more-0" || limit != 0 {
+		t.Fatalf("host decision with the task decide: %v %s %v %v", yes, name, limit, err)
+	}
+	// With the task, its first model answers, with the limit of the catalog.
+	head := &fakeDecider{yes: 0.96}
+	cat.mu.Lock()
+	cat.base, cat.attrs = serve("InferenceService", inferenceapi.InferenceServiceOps(head))+"/v1", map[string]string{autoLimitAttribute: "0.95"}
+	cat.tasks[HostDecisionTask] = modelsapi.Selector{Any: []string{"host-head", "decide"}}
+	cat.mu.Unlock()
+	// The router keeps the task of a catalog for some time.
+	sys.Router.mu.Lock()
+	sys.Router.tasks = nil
+	sys.Router.mu.Unlock()
+	yes, name, limit, err = sys.hostDecision(context.Background(), "state", hq)
+	if err != nil || yes != 0.96 || name != "default-"+HostDecisionTask || limit != 0.95 {
+		t.Fatalf("host decision with a head: %v %s %v %v", yes, name, limit, err)
+	}
+	if len(head.got.Questions) != 1 || head.got.Questions[0].Question != hostQuestion {
+		t.Fatalf("the head got %+v", head.got.Questions)
+	}
+	// The head is down: the next model answers, with no limit of its own.
+	head.down = true
+	if yes, name, limit, err = sys.hostDecision(context.Background(), "state", hq); err != nil || yes != 0.9 || name != "more-0" || limit != 0 {
+		t.Fatalf("fallback: %v %s %v %v", yes, name, limit, err)
+	}
+	for _, c := range []struct{ setting, model, want float64 }{{0, 0, autoLimit}, {0, 0.95, 0.95}, {0.9, 0.95, 0.9}, {0.9, 0, 0.9}} {
+		if got := pickLimit(c.setting, c.model); got != c.want {
+			t.Errorf("pickLimit(%v, %v) = %v, want %v", c.setting, c.model, got, c.want)
+		}
 	}
 
 	// The note gate: off, yes, and no.

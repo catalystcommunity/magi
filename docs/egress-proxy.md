@@ -160,7 +160,7 @@ about a destination that has no decision, Magi permits it in these cases:
 | --- | --- |
 | `"sources": true` | A host in the list of public software sources of Magi (`sourceHosts` in `magi/compose/egressauto.go`): package indexes, toolchains, operating system packages, source and release files, container images |
 | `"hosts": [...]` | A host that matches a pattern of the installation (`name` or `*.name`) |
-| `"model": true` | A host that the decision model (task `decide` of the model catalog) knows as a public source of software, documentation, or reference data: the probability of "yes" is `limit` or more (default 0.95) |
+| `"model": true` | A host that the decision model (task `decide.host` of the model catalog, else task `decide`) knows as a public source of software, documentation, or reference data: the probability of "yes" is the limit or more. The limit is `limit` of this setting, else the attribute `egress-auto-limit` of the model that answers, else 0.97 |
 
 - Magi never permits these automatically: an address, a name with one
   label, a private or reserved name (`.local`, `.internal`, `.svc`,
