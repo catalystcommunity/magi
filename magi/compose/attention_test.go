@@ -78,6 +78,28 @@ func TestAskedBefore(t *testing.T) {
 	if askedBefore(ctx, sys, []conversationapi.Utterance{reply, ask}, ask, "run_1", "approve") {
 		t.Fatal("the same turn")
 	}
+	// A message that only agrees takes the decision of the turn before.
+	for text, want := range map[string]bool{"Yes": true, "Please go ahead yes": true, "ok, do it.": true, "yes, approve it": false,
+		"Yes but change the title first": false, "no": false, "What does it change?": false} {
+		yes.Text = text
+		d, ok := agreedDecision(ctx, sys, hist, yes)
+		if ok != want || ok && d != (askedDecision{"run_1", "approve"}) {
+			t.Errorf("agreedDecision(%q) = %v %v, want %v", text, d, ok, want)
+		}
+	}
+	yes.Text = "Yes"
+	if _, ok := agreedDecision(ctx, sys, []conversationapi.Utterance{yes}, yes); ok {
+		t.Fatal("no request before")
+	}
+	if got := decidedReply(askedDecision{"run_1", "merge"}, "Task run_1: merge. Magi merges"); !strings.HasPrefix(got, "I asked Magi to merge") {
+		t.Fatal(got)
+	}
+	if decided([]map[string]any{{"tool": "decide_task", "result": "confirmation needed: tell"}}) || !decided([]map[string]any{{"tool": "decide_task", "result": "Task run_1: approve."}}) {
+		t.Fatal("decided")
+	}
+	if got := decidedReply(askedDecision{"run_1", "merge"}, "error: the task is not waiting"); !strings.Contains(got, "could not record") {
+		t.Fatal(got)
+	}
 }
 
 type personaConversation struct {

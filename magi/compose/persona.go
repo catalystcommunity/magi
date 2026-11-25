@@ -428,6 +428,19 @@ func (s *System) personaTurnOnce(ctx context.Context, a workflowapi.Assignment, 
 	if reply == "" {
 		reply = "I could not finish my answer. Please ask again."
 	}
+	// The person agreed to a decision that the turn before asked about,
+	// and the model did not record it (it answered "I merged it" with no
+	// call, also after the correction). Magi records it. The handler makes
+	// all its checks.
+	if d, ok := agreedDecision(ctx, s, ts.hist, utt); ok && !decided(log.Calls) {
+		res := s.toolGate(ctx, gate, "decide_task", map[string]string{"task": d.task, "outcome": d.outcome, "confirm": "true"})
+		res.Call["by"] = "magi"
+		log.Calls = append(log.Calls, res.Call)
+		if res.Ref != nil {
+			refs = append(refs, *res.Ref)
+		}
+		reply = decidedReply(d, res.Out)
+	}
 	// The claim is still there after the correction: say what is true.
 	if tool := falseClaim(reply, log.Calls, prof.tools); tool != "" && corrected {
 		reply += "\n\n(Magi check: " + claimNote[tool] + " Ask again, please.)"
@@ -739,4 +752,16 @@ func (k *keyedMutex) lock(key string) func() {
 		}
 		k.mu.Unlock()
 	}
+}
+
+// decided is true when the turn called decide_task and the call was more
+// than a request for confirmation.
+func decided(calls []map[string]any) bool {
+	for _, c := range calls {
+		res, _ := c["result"].(string)
+		if c["tool"] == "decide_task" && !strings.HasPrefix(res, "confirmation needed") {
+			return true
+		}
+	}
+	return false
 }

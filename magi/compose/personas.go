@@ -342,9 +342,25 @@ func (s *System) ownRun(ctx context.Context, owner, id string) (workflowapi.Run,
 // of the person before utt) asked to confirm outcome for task: then the
 // person had a chance to answer.
 func askedBefore(ctx context.Context, s *System, hist []conversationapi.Utterance, utt conversationapi.Utterance, task, outcome string) bool {
+	for _, d := range askedDecisions(ctx, s, hist, utt, 4) {
+		if d.task == task && d.outcome == outcome {
+			return true
+		}
+	}
+	return false
+}
+
+// askedDecision is a decision that a turn asked the person to confirm.
+type askedDecision struct{ task, outcome string }
+
+// askedDecisions returns the decisions that the turns of the last n
+// messages of the person before utt asked to confirm, the newest first.
+// A request older than 30 minutes does not count.
+func askedDecisions(ctx context.Context, s *System, hist []conversationapi.Utterance, utt conversationapi.Utterance, n int) []askedDecision {
 	cutoff := time.Now().Add(-30 * time.Minute)
+	var out []askedDecision
 	seen := 0
-	for i := len(hist) - 1; i >= 0 && seen < 4; i-- {
+	for i := len(hist) - 1; i >= 0 && seen < n; i-- {
 		u := hist[i]
 		if u.Id == utt.Id || u.AuthorKind != "human" {
 			continue
@@ -365,16 +381,51 @@ func askedBefore(ctx context.Context, s *System, hist []conversationapi.Utteranc
 			if json.Unmarshal([]byte(an.Body), &log) != nil {
 				continue
 			}
-			for _, c := range log.Calls {
+			for k := len(log.Calls) - 1; k >= 0; k-- {
+				c := log.Calls[k]
 				args, _ := c["args"].(map[string]any)
 				result, _ := c["result"].(string)
-				if c["tool"] == "decide_task" && args["task"] == task && args["outcome"] == outcome && strings.HasPrefix(result, "confirmation needed") {
-					return true
+				task, _ := args["task"].(string)
+				outcome, _ := args["outcome"].(string)
+				if c["tool"] == "decide_task" && task != "" && outcome != "" && strings.HasPrefix(result, "confirmation needed") {
+					out = append(out, askedDecision{task, outcome})
 				}
 			}
 		}
 	}
-	return false
+	return out
+}
+
+// agreement is a message of the person that only agrees.
+var agreement = regexp.MustCompile(`(?i)^\W*(?:(?:yes|yep|yeah|yup|ok|okay|sure|please|do it|do that|go ahead|go for it|confirm(?:ed)?|approved?|merge it|i agree|that's fine|sounds good)\b[\s,.!]*)+(?:please|thanks|thank you)?\W*$`)
+
+// agreedDecision returns the decision that the turn of the message just
+// before utt asked the person to confirm, when utt only agrees. The model
+// must then record it. When the model does not, Magi does: the person
+// agreed to a question that Magi has in its record.
+func agreedDecision(ctx context.Context, s *System, hist []conversationapi.Utterance, utt conversationapi.Utterance) (askedDecision, bool) {
+	if utt.AuthorKind != "human" || !agreement.MatchString(strings.TrimSpace(utt.Text)) {
+		return askedDecision{}, false
+	}
+	ds := askedDecisions(ctx, s, hist, utt, 1)
+	if len(ds) == 0 {
+		return askedDecision{}, false
+	}
+	return ds[0], true
+}
+
+// decidedReply is the reply of Magi after it recorded an agreed decision.
+func decidedReply(d askedDecision, out string) string {
+	if !strings.HasPrefix(out, "Task "+d.task+": "+d.outcome+".") {
+		return "I could not record your decision (" + d.outcome + "): " + strings.TrimPrefix(out, "error: ")
+	}
+	switch d.outcome {
+	case "approve":
+		return "I approved it. Magi tells you when it is released."
+	case "merge":
+		return "I asked Magi to merge the pull request. Magi tells you when it is merged."
+	}
+	return "Done: " + d.outcome + "."
 }
 
 // askedInReply is true when the persona reply just before utt (the message

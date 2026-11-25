@@ -109,6 +109,17 @@ in the same turn, Magi tells the model so one time: call the tool, or write
 the reply again without the claim (`falseClaim` in
 `magi/compose/personas.go`).
 
+Promises: a turn ends with its reply. When a reply ends with something
+that the persona will do now ("I'll merge it now"), Magi tells the model
+so one time: do it with a tool, or ask the person (`emptyPromise`).
+
+Agreement that the model does not record: the turn before asked the
+person to confirm a decision, and the message of the person only agrees
+("Yes", "Go ahead"). When the model does not call `decide_task` in that
+turn, Magi makes the call with the task and the outcome of its record
+(`agreedDecision`). The same three conditions apply. The reply is then a
+fixed sentence of Magi.
+
 ## 5. Call a persona by name
 
 A message that starts with the name of a persona and a comma, colon, or
