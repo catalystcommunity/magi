@@ -78,3 +78,22 @@ func TestCodeChangeBlockedStep(t *testing.T) {
 		t.Fatalf("blocked next = %v", b.Next)
 	}
 }
+
+// The person approved the change at the review step: the pull request is
+// merged with no second question, and the task waits only when the merge
+// fails.
+func TestPullRequestMergesAfterApproval(t *testing.T) {
+	steps := map[string]workflowapi.Step{}
+	for _, st := range codeChangeDefinition(true).Steps {
+		steps[st.Id] = st
+	}
+	if got := steps["publish"].Next["proposed"]; got != "pr-merge" {
+		t.Fatalf("publish proposed -> %q, want pr-merge", got)
+	}
+	if m := steps["pr-merge"]; m.Kind != "task" || m.Next["merged"] != "pr-check" || m.Next["fail"] != "pr-wait" {
+		t.Fatalf("pr-merge = %+v", m)
+	}
+	if w := steps["pr-wait"]; w.Kind != "human" || w.Next["merge"] != "pr-merge" {
+		t.Fatalf("pr-wait = %+v", w)
+	}
+}

@@ -66,8 +66,10 @@ func codeChangeDefinition(runners bool) workflowapi.Definition {
 			// Only a change that released and stayed healthy (or that has
 			// no release) goes to the upstream.
 			// A runner with pull_requests opens a pull request instead
-			// ("proposed"); the change lands when a person merges it there.
-			task("publish", "magi.publish", map[string]string{"done": "rollout", "skipped": "cleanup", "rejected": "cleanup", "proposed": "pr-wait"}, 3),
+			// ("proposed"). The person approved the change at the review
+			// step, so Magi merges the pull request at once. The task waits
+			// (pr-wait) only when that merge fails.
+			task("publish", "magi.publish", map[string]string{"done": "rollout", "skipped": "cleanup", "rejected": "cleanup", "proposed": "pr-merge"}, 3),
 			// Runners update to a published change that built new packages.
 			task("rollout", "magi.rollout", map[string]string{"done": "cleanup", "skipped": "cleanup", "fail": "cleanup"}, 3),
 			task("cleanup", "magi.cleanup", map[string]string{}, 3),

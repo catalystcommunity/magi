@@ -134,11 +134,15 @@ prepare -> work -> check --> review --> merge (and build) -> release -> publish 
 - With `"pull_requests": true` on the repository of the publishing runner,
   `publish` pushes the merge to the branch `magi/<task>` of the GitHub
   upstream and opens a pull request with the `gh` command of that machine
-  (outcome `proposed`). The task then waits in `pr-wait`. Each 10 minutes
+  (outcome `proposed`). The person approved the change at the review
+  step, so `pr-merge` merges the pull request at once, with no second
+  question. When that merge fails (a conflict, a review rule of the
+  repository, no token), the task waits in `pr-wait`. Each 10 minutes
   `pr-check` reads the pull request on the same runner: merged goes to
   `rollout`, closed goes to `cleanup`, open waits again. The owner can
-  decide `pr-wait` with `merged` (Magi checks it) or `closed`. A new push to
-  the branch replaces it only when no one else pushed to it.
+  decide `pr-wait` with `merge` (Magi tries again), `merged` (Magi checks
+  it), or `closed`. A new push to the branch replaces it only when no one
+  else pushed to it.
 - `rollout` makes the new runner packages the runner release, when they
   differ from the current release. See "Runner updates".
 - The review diff is the patch that the runner uploads.
