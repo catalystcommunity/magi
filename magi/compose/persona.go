@@ -372,7 +372,7 @@ func (s *System) personaTurnOnce(ctx context.Context, a workflowapi.Assignment, 
 			// A reply that says that the persona did something (started a
 			// task, sent a notice) when it did not call the tool: one
 			// correction, then the reply as it is.
-			if tool := falseClaim(reply, log.Calls, prof.tools); tool != "" && !corrected {
+			if tool := falseClaim(reply, log.Calls, prof.tools); tool != "" && !corrected && !personSaid(utt.Text, tool) {
 				corrected = true
 				msgs = append(msgs, model.Message{Role: "user", Content: fmt.Sprintf("(Magi check) Your reply says that you did something "+
 					"that needs the tool %q, but you did not call it with success in this turn. If the person asked for it, call %q now. "+
@@ -446,7 +446,7 @@ func (s *System) personaTurnOnce(ctx context.Context, a workflowapi.Assignment, 
 		reply = decidedReply(d, res.Out)
 	}
 	// The claim is still there after the correction: say what is true.
-	if tool := falseClaim(reply, log.Calls, prof.tools); tool != "" && corrected {
+	if tool := falseClaim(reply, log.Calls, prof.tools); tool != "" && corrected && !personSaid(utt.Text, tool) {
 		reply += "\n\n(Magi check: " + claimNote[tool] + " Ask again, please.)"
 	}
 	if emptyPromise(reply) && corrected {

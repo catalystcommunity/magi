@@ -118,22 +118,30 @@ func (r *Runner) prMerge(ctx context.Context, a magiapi.RunnerAssignment, st mag
 		return Result{}, fmt.Errorf("the task has no GitHub pull request URL")
 	}
 	env := a.Vars["environment"]
-	script := fmt.Sprintf(`set -e
+	// A repository permits some merge methods only. The merge commit is
+	// first: it keeps the commits of the task as they are.
+	var v mergeAnswer
+	var out string
+	for _, method := range []string{"merge", "rebase", "squash"} {
+		script := fmt.Sprintf(`set -e
 if [ -z "$GH_TOKEN" ]; then echo "no GH_TOKEN: this task may not use the GitHub token"; exit 3; fi
 curl -sS -X PUT -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
-  -d '{"merge_method":"merge"}' https://api.github.com/repos/%s/%s/pulls/%s/merge`, m[1], m[2], m[3])
-	res, err := r.exec(ctx, env, a.Vars["workdir"], script, 120000)
-	if err != nil {
-		return Result{}, err
+  -d '{"merge_method":"%s"}' https://api.github.com/repos/%s/%s/pulls/%s/merge`, method, m[1], m[2], m[3])
+		res, err := r.exec(ctx, env, a.Vars["workdir"], script, 120000)
+		if err != nil {
+			return Result{}, err
+		}
+		out = strings.TrimSpace(string(res.Stdout) + string(res.Stderr))
+		v = mergeAnswer{}
+		json.Unmarshal(res.Stdout, &v)
+		if res.ExitCode != 0 {
+			v.Merged = false
+		}
+		if v.Merged || !v.otherMethod() {
+			break
+		}
 	}
-	out := strings.TrimSpace(string(res.Stdout) + string(res.Stderr))
-	var v struct {
-		Merged  bool   `json:"merged"`
-		Sha     string `json:"sha"`
-		Message string `json:"message"`
-	}
-	json.Unmarshal(res.Stdout, &v)
-	if res.ExitCode != 0 || !v.Merged {
+	if !v.Merged {
 		msg := v.Message
 		if msg == "" {
 			msg = tail(out, 300)
@@ -143,6 +151,20 @@ curl -sS -X PUT -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd
 	}
 	r.report(ctx, st, "normal", "Merged", "I merged the pull request: "+a.Vars["pr.url"])
 	return Result{Outcome: "merged", Outputs: map[string]string{"publish.commit": v.Sha}}, nil
+}
+
+// mergeAnswer is the answer of GitHub to a merge of a pull request.
+type mergeAnswer struct {
+	Merged  bool   `json:"merged"`
+	Sha     string `json:"sha"`
+	Message string `json:"message"`
+}
+
+// otherMethod is true when GitHub refused the merge method, not the merge:
+// "Merge commits are not allowed on this repository." A different method
+// can then merge the same pull request.
+func (v mergeAnswer) otherMethod() bool {
+	return !v.Merged && strings.Contains(v.Message, "not allowed on this repository")
 }
 
 // prCheckState gives the outcome of pr-check for the state on GitHub.

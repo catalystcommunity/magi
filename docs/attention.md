@@ -120,6 +120,13 @@ in the same turn, Magi tells the model so one time: call the tool, or write
 the reply again without the claim (`falseClaim` in
 `magi/compose/personas.go`).
 
+A reply that repeats the person is not a claim. When the person writes
+"PR is merged" and the persona answers "Got it. The PR is merged.", Magi
+adds no check note (`personSaid`).
+
+When the person says that a pull request is merged, the decision `merged`
+makes Magi read its state on GitHub at once. It needs no agreement.
+
 Promises: a turn ends with its reply. When a reply ends with something
 that the persona will do now ("I'll merge it now"), Magi tells the model
 so one time: do it with a tool, or ask the person (`emptyPromise`).

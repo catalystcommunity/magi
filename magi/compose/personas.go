@@ -39,7 +39,7 @@ var profiles = map[string]personaProfile{
 		"make_page", "connect_account", "calendar_events", "find_events", "create_event", "change_event", "cancel_event", "free_busy",
 		"longhouse_projects", "longhouse_tasks", "add_longhouse_task", "update_longhouse_task", "add_longhouse_project"}},
 	Engineering: {name: "Engineering manager", prompt: engineeringPrompt + knowledgeRules + planRules + workRules + lookupRules + noticeRules, tools: []string{
-		"list_tasks", "task_status", "task_diff", "terminal_link", "start_code_change", "decide_task", "cancel_task", "list_runners",
+		"list_tasks", "task_status", "task_diff", "terminal_link", "start_code_change", "decide_task", "cancel_task", "list_runners", "list_models",
 		"send_notice", "list_devices", "search_conversation", "recall", "remember", "change_knowledge", "web_search", "read_page",
 		"add_todo", "set_reminder", "list_todos", "finish_todo", "change_todo",
 		"make_page", "connect_account", "calendar_events", "find_events", "free_busy", "longhouse_projects", "longhouse_tasks", "add_longhouse_task", "update_longhouse_task", "add_longhouse_project"}},
@@ -143,13 +143,14 @@ func toolDefs() map[string]model.Tool {
 		{Name: "task_diff", Description: "The change of a task: changed files with sizes, and the start of the patch.", Parameters: obj(map[string]any{
 			"task": str("Task id, from list_tasks."),
 		}, "task")},
-		{Name: "decide_task", Description: "Decide a task that waits for a person. At the review step: approve (merge and release), revise (back to the apprentice with a comment), or reject. At the blocked step (the apprentice stopped): resume (another work round, with a comment that says what to do differently), check (run the checks on the work as it is), or reject. At the pr-wait step (an open pull request on GitHub): merge (Magi merges the pull request on GitHub). When the message of the person tells the decision, call at once. When you propose approve, reject, or merge yourself, ask first and call with confirm true after the person agrees.", Parameters: obj(map[string]any{
+		{Name: "decide_task", Description: "Decide a task that waits for a person. At the review step: approve (merge and release), revise (back to the apprentice with a comment), or reject. At the blocked step (the apprentice stopped): resume (another work round, with a comment that says what to do differently), check (run the checks on the work as it is), or reject. At the pr-wait step (an open pull request on GitHub): merge (Magi merges the pull request on GitHub), or merged (the person says that it is merged on GitHub: Magi checks it now). When the message of the person tells the decision, call at once. When you propose approve, reject, or merge yourself, ask first and call with confirm true after the person agrees.", Parameters: obj(map[string]any{
 			"task":    str("Task id."),
 			"outcome": map[string]any{"type": "string", "enum": []string{"approve", "revise", "reject", "merge", "resume", "check"}},
 			"comment": str("For revise and resume: what the apprentice must change or do differently. Optional otherwise."),
 			"confirm": map[string]any{"type": "boolean", "description": "True only when the person agreed in a new message after you asked."},
 		}, "task", "outcome")},
 		{Name: "list_runners", Description: "List the runner machines that do tasks, and whether they are busy.", Parameters: obj(map[string]any{})},
+		{Name: "list_models", Description: "List the models that Magi uses: each model with its host and GPU, and which model each kind of work uses first (persona replies, coding, decisions, notes). Use it for a question about which model runs where.", Parameters: obj(map[string]any{})},
 	} {
 		defs[t.Name] = t
 	}
@@ -226,6 +227,8 @@ func (s *System) extraTool(ctx context.Context, a workflowapi.Assignment, as con
 		return s.describeDevices(ctx, a.Owner), nil, true
 	case "list_runners":
 		return describeRunners(s.fleet.connected()), nil, true
+	case "list_models":
+		return s.describeModels(ctx), nil, true
 	case "terminal_link":
 		run, err := s.ownRun(ctx, a.Owner, args["task"])
 		if err != nil {
@@ -285,9 +288,9 @@ func (s *System) extraTool(ctx context.Context, a workflowapi.Assignment, as con
 		if run.Status != "waiting" {
 			return fmt.Sprintf("error: the task is not waiting for a decision (status %s, step %s)", run.Status, run.CurrentStep), nil, true
 		}
-		possible := map[string][]string{"review": {"approve", "revise", "reject"}, "blocked": {"resume", "check", "reject"}, "pr-wait": {"merge"}}
+		possible := map[string][]string{"review": {"approve", "revise", "reject"}, "blocked": {"resume", "check", "reject"}, "pr-wait": {"merge", "merged"}}
 		if !slices.Contains(possible[run.CurrentStep], outcome) {
-			return fmt.Sprintf("error: at step %s the outcome %s is not possible (review: approve, revise, reject; blocked: resume, check, reject; pr-wait, an open pull request: merge)", run.CurrentStep, outcome), nil, true
+			return fmt.Sprintf("error: at step %s the outcome %s is not possible (review: approve, revise, reject; blocked: resume, check, reject; pr-wait, an open pull request: merge, merged)", run.CurrentStep, outcome), nil, true
 		}
 		if outcome == "approve" && run.Vars["base"] != "" {
 			return refusal(fmt.Sprintf("task %s was not approved.", run.Id), fmt.Sprintf("An eval run (base %s) ends at review and is never merged.", run.Vars["base"]), "Reject the task after the grade, with outcome reject."), nil, true
@@ -298,6 +301,9 @@ func (s *System) extraTool(ctx context.Context, a workflowapi.Assignment, as con
 				return "error: " + outcome + " needs a comment for the apprentice", nil, true
 			}
 		case "check":
+		case "merged":
+			// The person says that the pull request is merged. Magi reads
+			// its state on GitHub now, so this needs no agreement.
 		case "approve", "reject", "merge":
 			if utt.AuthorKind != "human" {
 				return refusal(fmt.Sprintf("the decision %s for task %s was not made.", outcome, run.Id), "Only a message of the person can approve, reject, or merge a task. This turn started from an event.", "Tell the person what you found and what you recommend. They decide."), nil, true
@@ -319,7 +325,7 @@ func (s *System) extraTool(ctx context.Context, a workflowapi.Assignment, as con
 				return "confirmation needed: no earlier request for this decision in the conversation. Tell the person what you will do and ask them to agree. Then call again with confirm true.", nil, true
 			}
 		default:
-			return "error: outcome must be approve, revise, reject, merge, resume, or check", nil, true
+			return "error: outcome must be approve, revise, reject, merge, merged, resume, or check", nil, true
 		}
 		comment := strings.TrimSpace(args["comment"])
 		note := "decided by " + displayName(a) + " through " + as.persona
@@ -330,6 +336,9 @@ func (s *System) extraTool(ctx context.Context, a workflowapi.Assignment, as con
 			return "error: " + err.Error(), nil, true
 		}
 		res := fmt.Sprintf("Task %s: %s.", run.Id, outcome)
+		if outcome == "merged" {
+			res += " Magi reads the state of the pull request on GitHub now and tells the person the result. Say only that Magi checks it."
+		}
 		if outcome == "merge" {
 			res += " Magi merges the pull request on GitHub now; the merge can fail (a conflict, a review rule). Say only that you asked for the merge and that Magi tells the person when it is merged. Do not say that it is merged, and do not mark tracking tasks done yet."
 		}
@@ -424,15 +433,25 @@ var (
 )
 
 // decisionSteps: the step at which a decision is possible.
-var decisionSteps = map[string]string{"approve": "review", "reject": "review", "merge": "pr-wait"}
+var decisionSteps = map[string]string{"approve": "review", "reject": "review", "merge": "pr-wait", "merged": "pr-wait"}
+
+// saysMerged: the person says that the pull request is merged ("PR is
+// merged", "I merged it"). negated: the person says that it is not.
+var (
+	saysMerged = regexp.MustCompile(`(?i)\bmerged\b`)
+	negated    = regexp.MustCompile(`(?i)\b(not|never|no)\b|n't\b`)
+)
 
 // tells is true when text is an instruction of the person to make the
 // decision outcome: it names the decision, and it is not a question, a
 // condition, or a refusal. "Yes, try merging it now" is one. "Did that get
 // merged?" and "Don't merge it yet" are not.
 func tells(text, outcome string) bool {
-	re := tellsOutcome[outcome]
 	t := strings.TrimSpace(text)
+	if outcome == "merged" {
+		return t != "" && !strings.Contains(t, "?") && saysMerged.MatchString(t) && !negated.MatchString(t)
+	}
+	re := tellsOutcome[outcome]
 	if re == nil || t == "" || strings.Contains(t, "?") {
 		return false
 	}
@@ -489,14 +508,14 @@ func (s *System) toldDecision(ctx context.Context, owner string, utt conversatio
 
 // toldRun returns the decision that the message utt tells, when it is for
 // exactly one task. The outcomes are tried in the order approve, merge,
-// reject: "merge it" with one task at review and no pull request is
-// approve.
+// reject, merged: "merge it" with one task at review and no pull request
+// is approve.
 func (s *System) toldRun(ctx context.Context, owner string, utt conversationapi.Utterance) (askedDecision, bool) {
 	if utt.AuthorKind != "human" {
 		return askedDecision{}, false
 	}
 	var found []askedDecision
-	for _, outcome := range []string{"approve", "merge", "reject"} {
+	for _, outcome := range []string{"approve", "merge", "reject", "merged"} {
 		if !tells(utt.Text, outcome) {
 			continue
 		}
@@ -546,6 +565,8 @@ func decidedReply(d askedDecision, out string) string {
 		return "I could not record your decision (" + d.outcome + "): " + strings.TrimPrefix(out, "error: ")
 	}
 	switch d.outcome {
+	case "merged":
+		return "Magi reads the pull request on GitHub now and tells you the result."
 	case "approve":
 		return "I approved it. Magi tells you when it is released."
 	case "merge":
@@ -722,6 +743,19 @@ func emptyPromise(reply string) bool {
 
 // runningTask: the result of a status tool names a task that runs.
 var runningTask = regexp.MustCompile(`(?i)\b(running|step work|claimed)\b`)
+
+// personSaid is true when the message of the person says the same thing
+// as the claim of tool: the reply repeats the person ("PR is merged." -
+// "Got it. The PR is merged."), and the persona did not say that it did
+// something.
+func personSaid(text, tool string) bool {
+	for _, c := range claims {
+		if c.tool == tool && c.re.MatchString(text) {
+			return true
+		}
+	}
+	return false
+}
 
 // falseClaim returns the tool of an action that reply says was done, when
 // that tool (of the persona) did not succeed in this turn, or "".

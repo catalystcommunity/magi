@@ -322,3 +322,51 @@ func (r *ModelRouter) Models(ctx context.Context, task string, sel *modelsapi.Se
 	}
 	return out, nil
 }
+
+// describeModels is the text of the tool list_models: the models that are
+// on, each with its host and GPU, and the first model of each task.
+func (s *System) describeModels(ctx context.Context) string {
+	r := s.Router
+	if r == nil || r.Catalog == nil {
+		return "This installation has no model catalog."
+	}
+	cctx, cancel := r.ctx(ctx)
+	defer cancel()
+	ml, err := r.Catalog.ListModels(cctx, modelsapi.ListModelsRequest{})
+	if err != nil {
+		return "error: " + err.Error()
+	}
+	tl, err := r.Catalog.ListTasks(cctx, modelsapi.ListTasksRequest{})
+	if err != nil {
+		return "error: " + err.Error()
+	}
+	var b strings.Builder
+	b.WriteString("Models in use:\n")
+	off := 0
+	for _, m := range ml.Models {
+		if !m.Enabled {
+			off++
+			continue
+		}
+		where := "a hosted provider"
+		if h := m.Attributes["host"]; h != "" {
+			where = "host " + h
+			if g := m.Attributes["gpu"]; g != "" {
+				where += ", GPU " + g
+			}
+		}
+		fmt.Fprintf(&b, "- %s (%s): %s\n", m.Name, where, clip(m.Description, 240))
+	}
+	if off > 0 {
+		fmt.Fprintf(&b, "%d more models are in the catalog and not in use.\n", off)
+	}
+	b.WriteString("\nThe first model of each kind of work (the other models that fit are the fallback):\n")
+	for _, t := range tl.Tasks {
+		first := deref(t.Selector.Name)
+		if first == "" {
+			first = "the best model by score"
+		}
+		fmt.Fprintf(&b, "- %s: %s. %s\n", t.Task, first, clip(deref(t.Description), 200))
+	}
+	return b.String()
+}

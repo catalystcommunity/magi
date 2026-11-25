@@ -136,8 +136,10 @@ prepare -> work -> check --> review --> merge (and build) -> release -> publish 
   upstream and opens a pull request with the `gh` command of that machine
   (outcome `proposed`). The person approved the change at the review
   step, so `pr-merge` merges the pull request at once, with no second
-  question. When that merge fails (a conflict, a review rule of the
-  repository, no token), the task waits in `pr-wait`. Each 10 minutes
+  question. `pr-merge` tries a merge commit first, then a rebase, then a
+  squash, because a repository can permit only some of these. When that
+  merge fails (a conflict, a review rule of the repository, no token), the
+  task waits in `pr-wait`. Each 10 minutes
   `pr-check` reads the pull request on the same runner: merged goes to
   `rollout`, closed goes to `cleanup`, open waits again. The owner can
   decide `pr-wait` with `merge` (Magi tries again), `merged` (Magi checks

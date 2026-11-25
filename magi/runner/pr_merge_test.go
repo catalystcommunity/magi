@@ -13,3 +13,22 @@ func TestPRURL(t *testing.T) {
 		}
 	}
 }
+
+// GitHub refuses a merge method that the repository does not permit. A
+// different method can merge then. Another refusal ends the try.
+func TestMergeAnswer(t *testing.T) {
+	for msg, want := range map[string]bool{
+		"Merge commits are not allowed on this repository.": true,
+		"Rebase merges are not allowed on this repository.": true,
+		"Pull Request is not mergeable":                     false,
+		"At least 1 approving review is required.":          false,
+		"": false,
+	} {
+		if got := (mergeAnswer{Message: msg}).otherMethod(); got != want {
+			t.Errorf("otherMethod(%q) = %v, want %v", msg, got, want)
+		}
+	}
+	if (mergeAnswer{Merged: true, Message: "not allowed on this repository"}).otherMethod() {
+		t.Error("a merge that passed needs no other method")
+	}
+}

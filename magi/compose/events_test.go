@@ -411,6 +411,30 @@ func TestToldDecisionNeedsNoConfirmation(t *testing.T) {
 	if out := turn("Merge the time zone change", false)(map[string]string{"task": two.Id, "outcome": "approve"}); !toolDone(out.Out) {
 		t.Fatalf("named: %s", out.Out)
 	}
+	// The person says that the pull request is merged: Magi checks it now,
+	// with no agreement, and a reply that repeats the person is no claim.
+	for text, want := range map[string]bool{"PR is merged": true, "I merged it on GitHub.": true, "It's merged now": true,
+		"Is it merged?": false, "It is not merged yet": false, "I haven't merged it": false, "Merge it": false} {
+		if got := tells(text, "merged"); got != want {
+			t.Errorf("tells(%q, merged) = %v, want %v", text, got, want)
+		}
+	}
+	pr := start("Show the about screen")
+	pr.CurrentStep = "pr-wait"
+	said := conversationapi.Utterance{AuthorKind: "human", Text: "PR is merged"}
+	if d, ok := sys.toldRun(ctx, turnOwner, said); !ok || d != (askedDecision{pr.Id, "merged"}) {
+		t.Fatalf("toldRun merged: %v %v", d, ok)
+	}
+	if out := turn("PR is merged", false)(map[string]string{"task": pr.Id, "outcome": "merged"}); !toolDone(out.Out) || !strings.HasPrefix(pr.Vars["test.decided"], "merged: ") {
+		t.Fatalf("merged: %s (%q)", out.Out, pr.Vars["test.decided"])
+	}
+	if !personSaid("PR is merged", "decide_task") || personSaid("Is the build done", "decide_task") || personSaid("PR is merged", "send_notice") {
+		t.Fatal("personSaid")
+	}
+	if falseClaim("Got it. The PR is merged on GitHub.", nil, profiles[Engineering].tools) != "decide_task" {
+		t.Fatal("the reply alone is a claim; the message of the person makes it a repeat")
+	}
+
 	// A task of another person does not count, and an event is no person.
 	if _, ok := sys.toldRun(ctx, "user:b@example.local", conversationapi.Utterance{AuthorKind: "human", Text: "Merge it"}); ok {
 		t.Fatal("another person")

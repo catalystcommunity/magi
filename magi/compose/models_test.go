@@ -53,6 +53,21 @@ func (f *fakeCatalog) GetTask(_ context.Context, r modelsapi.GetTaskRequest) (mo
 	return modelsapi.TaskDefault{Task: r.Task, Selector: s}, nil
 }
 
+func (f *fakeCatalog) ListModels(context.Context, modelsapi.ListModelsRequest) (modelsapi.ListModelsResponse, error) {
+	return modelsapi.ListModelsResponse{Models: []modelsapi.Model{
+		{Name: "coder-big", Enabled: true, Description: "A coding model.", Attributes: map[string]string{"host": "host-a", "gpu": "rtx3090"}},
+		{Name: "hosted-1", Enabled: true, Description: "A hosted model."},
+		{Name: "old-1", Attributes: map[string]string{"host": "host-b"}},
+	}}, nil
+}
+
+func (f *fakeCatalog) ListTasks(context.Context, modelsapi.ListTasksRequest) (modelsapi.ListTasksResponse, error) {
+	return modelsapi.ListTasksResponse{Tasks: []modelsapi.TaskDefault{
+		{Task: "step.code-change.work", Selector: modelsapi.Selector{Name: ptr("coder-big")}, Description: ptr("The apprentice.")},
+		{Task: "note-taker", Selector: modelsapi.Selector{Any: []string{"schema"}}},
+	}}, nil
+}
+
 func (f *fakeCatalog) Select(_ context.Context, r modelsapi.SelectRequest) (modelsapi.SelectResponse, error) {
 	f.mu.Lock()
 	f.selects = append(f.selects, r)
@@ -230,6 +245,19 @@ func TestDecision(t *testing.T) {
 	}
 	if _, err := sys.Decide(context.Background(), "no-such-task", nil, false, "state", qs); rpc.CodeOf(err) != 503 {
 		t.Fatalf("no model: %v", err)
+	}
+
+	// The tool list_models: the models in use with host and GPU, and the
+	// first model of each task. A model that is off is only counted.
+	text := sys.describeModels(context.Background())
+	for _, want := range []string{"- coder-big (host host-a, GPU rtx3090): A coding model.", "- hosted-1 (a hosted provider)", "1 more models are in the catalog and not in use.",
+		"- step.code-change.work: coder-big. The apprentice.", "- note-taker: the best model by score."} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("list_models has no %q:\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, "old-1") || strings.Contains(text, "host-b") {
+		t.Fatalf("a model that is off is in the list:\n%s", text)
 	}
 
 	// The host question: with no task "decide.host" in the catalog, the
