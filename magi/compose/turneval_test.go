@@ -590,3 +590,37 @@ func TestTurnEvalHarness(t *testing.T) {
 		t.Fatalf("a failed call counted as work: %q", f)
 	}
 }
+
+// The person agrees to a decision and the model only says that it did
+// it: Magi records the decision.
+func TestAgreedDecisionWithoutCall(t *testing.T) {
+	s := turnSystem(t)
+	m := &scriptModel{}
+	id := ""
+	m.reply = func(n int, msgs []model.Message) (model.Message, error) {
+		switch n {
+		case 1: // the event turn
+			id = regexp.MustCompile(`run_[A-Za-z0-9_-]+`).FindString(msgs[len(msgs)-1].Content)
+			return model.Message{Role: "assistant", Content: "The change is ready for your review."}, nil
+		case 2: // "Approve it."
+			return toolCall("decide_task", `{"task":"`+id+`","outcome":"approve"}`), nil
+		case 3:
+			return model.Message{Role: "assistant", Content: "I will approve the task. Do you agree?"}, nil
+		}
+		// "Yes": a claim with no call, also after the correction.
+		return model.Message{Role: "assistant", Content: "I approved it."}, nil
+	}
+	s.Model = m
+	c := evalCase{Id: "h03", Persona: Engineering, Steps: []evalStep{
+		{Event: "Ready for review", Task: evalTask{Title: "Add a flag", State: "review"}, ReplyAll: []string{"review"}},
+		{Say: "Approve it.", ToolsNone: []string{"start_code_change"}, ReplyAll: []string{"agree"}},
+		{Say: "Yes", ToolsAll: []string{"decide_task"}, ReplyAll: []string{"I approved it. Magi tells you"}, ReplyNone: []string{"Magi check"}},
+	}}
+	if res := runEvalCase(t, s, c, 1); !res.Pass {
+		t.Fatalf("result = %+v", res)
+	}
+	run, err := s.Workflow.GetRun(s.AsService(context.Background()), workflowapi.GetRunRequest{Id: id})
+	if err != nil || run.CurrentStep == "review" {
+		t.Fatalf("the task was not decided: step %s, %v", run.CurrentStep, err)
+	}
+}
