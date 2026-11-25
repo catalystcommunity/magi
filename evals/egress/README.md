@@ -222,6 +222,13 @@ The hosts of `neverAutoHosts` go to a person, as in the server.
 - On a laptop GPU with 8 GB (RTX 4060), one decision takes about 0.1
   seconds and the model holds 4.5 GB. On a CPU with 6 cores it takes 2.5
   seconds, which is too slow for a decision.
+- Measured through the server with the head on that laptop GPU, limit
+  0.95, with `neverAutoHosts`: 326 of 388 official hosts of the dev half
+  and 333 of 389 of the test half, and no wrong host of each half. The
+  numbers of a different GPU differ by one host, so measure the limit
+  again when the model moves.
+- With the host of the head stopped, the adapter of the task `decide`
+  answers the same question, with its limit.
 
 ### One head for all decision questions
 
