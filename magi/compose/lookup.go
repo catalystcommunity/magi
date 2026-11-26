@@ -3,6 +3,7 @@ package compose
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -625,4 +626,47 @@ func imageVersion(image string) string {
 		return name[i+1:]
 	}
 	return name
+}
+
+// systemAsks are questions whose answer is a fact of the installation
+// that changes: the devices of the person, the health, the models, the
+// runners. The answer must come from a tool of this turn. A small model
+// answers such a question from nothing (it named three devices with
+// battery levels that no record had).
+var systemAsks = []struct {
+	re    *regexp.Regexp
+	tools []string
+	what  string
+}{
+	{regexp.MustCompile(`(?i)\b(my|your|the|which|what|list|any)\b[^.?!\n]{0,40}\bdevices\b|\bbattery\b[^.?!\n]{0,40}\b(level|left|percent|charge|use|of (my|the|each))\b|\b(phone|device|tablet|laptop)(\x27s)? battery\b`),
+		[]string{"list_devices", "magi_system"}, "the devices of the person"},
+	{regexp.MustCompile(`(?i)\b(is|are)\s+(magi|the system|everything|all parts|the installation|the database|the services)\b[^.?!\n]{0,30}\b(healthy|ok|okay|up|running|working|down|broken)\b|\b(any|what|which|the|last|recent)\b[^.?!\n]{0,20}\b(incidents?|outages?)\b`),
+		[]string{"magi_system"}, "the health of the installation"},
+	{regexp.MustCompile(`(?i)\b(which|what) (ai |language )?models?\b[^.?!\n]{0,40}\b(you|your|magi|this (reply|response|answer))\b|\bon (which|what) gpu\b`),
+		[]string{"list_models", "magi_system"}, "the models that Magi uses"},
+	{regexp.MustCompile(`(?i)\b(which|what|list|are|is|how many)\b[^.?!\n]{0,30}\brunners?\b`),
+		[]string{"list_runners", "magi_system"}, "the runners"},
+}
+
+// unread returns the subject of a question of the person about the
+// installation, and a tool of the persona that answers it, when no such
+// tool gave a result in this turn. It returns "" for each other message.
+func unread(text string, calls []map[string]any, tools []string) (what, tool string) {
+	for _, a := range systemAsks {
+		if !a.re.MatchString(text) {
+			continue
+		}
+		for _, c := range calls {
+			res, _ := c["result"].(string)
+			if name, _ := c["tool"].(string); slices.Contains(a.tools, name) && !toolFailed(res) {
+				return "", ""
+			}
+		}
+		for _, t := range a.tools {
+			if slices.Contains(tools, t) {
+				return a.what, t
+			}
+		}
+	}
+	return "", ""
 }

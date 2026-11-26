@@ -255,3 +255,46 @@ func TestImageVersion(t *testing.T) {
 		}
 	}
 }
+
+// A question about the installation needs a look-up in the turn.
+func TestUnread(t *testing.T) {
+	all := []string{"list_devices", "magi_system", "list_models", "list_runners"}
+	for text, tool := range map[string]string{
+		"List my devices, with the battery of each.":           "list_devices",
+		"What is the battery level of my phone?":               "list_devices",
+		"Which devices do I have?":                             "list_devices",
+		"Is Magi healthy right now?":                           "magi_system",
+		"Were there any incidents this week?":                  "magi_system",
+		"Which model answers you, and on which GPU?":           "list_models",
+		"Hey, what model are you gonna use for this response?": "list_models",
+		"How many runners are there?":                          "list_runners",
+	} {
+		if _, got := unread(text, nil, all); got != tool {
+			t.Errorf("%q: tool %q, want %q", text, got, tool)
+		}
+	}
+	for _, text := range []string{
+		"Remind me to buy a battery tomorrow.",
+		"What model of car did Dana buy?",
+		"What is on my list today?",
+		"Add a runner-up prize to the plan.",
+		"Is everything on my calendar for tomorrow?",
+	} {
+		if what, tool := unread(text, nil, all); tool != "" {
+			t.Errorf("%q: wants %q for %s; it is not about the installation", text, tool, what)
+		}
+	}
+	// A result of a tool that answers it is a look-up; a refusal is not.
+	ok := []map[string]any{{"tool": "magi_system", "result": "Devices: ..."}}
+	if _, tool := unread("List my devices.", ok, all); tool != "" {
+		t.Errorf("a look-up was made, but unread wants %q", tool)
+	}
+	bad := []map[string]any{{"tool": "list_devices", "result": "error: no"}}
+	if _, tool := unread("List my devices.", bad, all); tool != "list_devices" {
+		t.Errorf("after a failed call unread = %q", tool)
+	}
+	// A persona with none of the tools gets no push.
+	if _, tool := unread("List my devices.", nil, []string{"recall"}); tool != "" {
+		t.Errorf("no tool, but unread = %q", tool)
+	}
+}

@@ -513,3 +513,62 @@ func TestInvestigateRefusesAChange(t *testing.T) {
 		t.Fatalf("code changes = %+v, %v: want one", runs.Runs, err)
 	}
 }
+
+// A persona that answers a question about the devices with no look-up
+// gets one push, and then it answers from the tool.
+func TestUnreadAnswerIsPushed(t *testing.T) {
+	s, _ := invSystem(t)
+	ctx := s.AsService(context.Background())
+	person := fmt.Sprintf("user:unread-%d@example.local", time.Now().UnixNano())
+	st, err := s.Conversation.OpenStream(ctx, conversationapi.OpenStreamRequest{Persona: Engineering, Person: &person})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := &scriptModel{}
+	var push string
+	m.reply = func(n int, msgs []model.Message) (model.Message, error) {
+		switch n {
+		case 1:
+			return model.Message{Role: "assistant", Content: "You have an iPhone at 84% and a laptop at 62%."}, nil
+		case 2:
+			push = msgs[len(msgs)-1].Content
+			return toolCall("list_devices", "{}"), nil
+		}
+		return model.Message{Role: "assistant", Content: "You have no devices with Magi now."}, nil
+	}
+	s.Model = m
+	u, err := s.Conversation.Post(ctx, conversationapi.PostRequest{Stream: st.Id, Text: "List my devices, with the battery of each.", Author: &person, AuthorKind: ptr("human")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := workflowapi.Assignment{Run: "run_unread", Step: "reply", Attempt: 1, Owner: person, Vars: map[string]string{
+		"stream": st.Id, "persona": Engineering, "owner_name": "Kim", "utterance": u.Id, dispatchVar: s.newDispatch(person, Engineering, st.Id, "").encode()}}
+	if _, err := s.personaTurn(ctx, a, nil); err != nil {
+		t.Fatal(err)
+	}
+	log, reply := s.readTurn(t, ctx, st.Id, u, person, Engineering)
+	if !strings.Contains(push, "(Magi check)") || !strings.Contains(push, "list_devices") {
+		t.Fatalf("the push = %q", push)
+	}
+	if m.calls != 3 || reply != "You have no devices with Magi now." || len(log.Calls) != 1 || log.Calls[0]["tool"] != "list_devices" {
+		t.Fatalf("%d model calls, reply %q, calls %+v", m.calls, reply, log.Calls)
+	}
+
+	// A model that still does not look it up: the reply says so.
+	m2 := &scriptModel{}
+	m2.reply = func(n int, msgs []model.Message) (model.Message, error) {
+		return model.Message{Role: "assistant", Content: "You have an iPhone at 84%."}, nil
+	}
+	s.Model = m2
+	u2, err := s.Conversation.Post(ctx, conversationapi.PostRequest{Stream: st.Id, Text: "What is the battery level of my phone?", Author: &person, AuthorKind: ptr("human")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.Run, a.Vars["utterance"] = "run_unread2", u2.Id
+	if _, err := s.personaTurn(ctx, a, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, reply := s.readTurn(t, ctx, st.Id, u2, person, Engineering); !strings.Contains(reply, "(Magi check: this answer is not from a look-up") {
+		t.Fatalf("reply = %q: want the note", reply)
+	}
+}

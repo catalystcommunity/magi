@@ -330,7 +330,7 @@ func (s *System) personaTurnOnce(ctx context.Context, a workflowapi.Assignment, 
 		tools = slices.DeleteFunc(tools, func(t model.Tool) bool { return t.Name == "web_search" || t.Name == "read_page" })
 	}
 	searchable := s.Search != nil && slices.Contains(prof.tools, "web_search")
-	corrected, pushed := false, false
+	corrected, pushed, unreadPush := false, false, false
 	gateTools := make([]string, 0, len(tools))
 	for _, t := range tools {
 		gateTools = append(gateTools, t.Name)
@@ -401,6 +401,17 @@ func (s *System) personaTurnOnce(ctx context.Context, a workflowapi.Assignment, 
 				reply = ""
 				continue
 			}
+			// An answer to a question about the installation (the devices,
+			// the health, the models, the runners) with no look-up in this
+			// turn is not from facts: one push to look it up.
+			if what, tool := unread(utt.Text, log.Calls, prof.tools); tool != "" && !isEvent && !corrected {
+				corrected, unreadPush = true, true
+				msgs = append(msgs, model.Message{Role: "user", Content: fmt.Sprintf("(Magi check) The person asks about %s. You did not look that up in this turn, "+
+					"so your answer is not from facts. Call %q now and answer only from its result. If the message is not about that, write your reply again. "+
+					"Do not apologize, and do not mention this check.", what, tool)})
+				reply = ""
+				continue
+			}
 			// A reply that says that the persona cannot answer, when it did
 			// not search: one push to look it up (cantAnswerNote). Not when
 			// recall found nothing: that is a private fact that Magi does
@@ -462,6 +473,11 @@ func (s *System) personaTurnOnce(ctx context.Context, a workflowapi.Assignment, 
 	}
 	if emptyPromise(reply) && corrected && !investigating(log.Calls) {
 		reply += "\n\n(Magi check: that is not done yet. Ask again, please.)"
+	}
+	// The persona still did not look it up: the person must know that the
+	// answer is not from the records of the installation.
+	if what, tool := unread(utt.Text, log.Calls, prof.tools); tool != "" && unreadPush {
+		reply += "\n\n(Magi check: this answer is not from a look-up of " + what + ". Ask again, please.)"
 	}
 	log.Reply = reply
 	served, ms := "", int64(0)

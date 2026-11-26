@@ -143,6 +143,14 @@ adds no check note (`personSaid`).
 When the person says that a pull request is merged, the decision `merged`
 makes Magi read its state on GitHub at once. It needs no agreement.
 
+Facts of the installation: a small model can answer a question about
+the devices of the person, the health of the installation, the models, or
+the runners with facts that it made up. When the message of the person
+asks about one of these and no tool for it gave a result in the turn, Magi
+tells the model so one time: look it up and answer from the result
+(`unread` in `magi/compose/lookup.go`). When the model still does not look
+it up, the reply gets the note "this answer is not from a look-up".
+
 Promises: a turn ends with its reply. When a reply ends with something
 that the persona will do now ("I'll merge it now"), Magi tells the model
 so one time: do it with a tool, or ask the person (`emptyPromise`). A
