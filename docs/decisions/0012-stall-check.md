@@ -43,8 +43,20 @@ a worker, because a step can wait in the queue of a runner. The run is
 cancelled with the reason. The person gets a notice, and the persona
 that started the task gets the event (record 0009).
 
+A question to an apprentice (an investigation) has the same check. A
+person waits for its answer, so two times are shorter, and code sets
+them:
+
+- The quiet time is 20 minutes at most. The apprentice of a question
+  stops itself after 15 minutes.
+- A question that no runner takes for 15 minutes is stopped (the runner
+  is off, or it is busy). A code change can wait for a runner.
+
+The person gets "I stopped the question ...: there is no answer", with
+the reason.
+
 Tests: `TestStallCheckStopsATaskThatRepeats`,
-`TestStallCheckStopsAQuietTask`.
+`TestStallCheckStopsAQuietTask`, `TestStallCheckStopsAQuestion`.
 
 Open: no request sets `stall_ms` or `stall_repeat` of one task yet. The
 settings of the installation apply to all tasks.

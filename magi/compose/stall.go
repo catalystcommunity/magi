@@ -12,7 +12,7 @@ import (
 )
 
 // The stall check (docs/decisions/0012) looks at each task whose
-// apprentice works. The apprentice writes a status line (a progress note
+// apprentice works: a code change, and a question (an investigation). The apprentice writes a status line (a progress note
 // of the step) each few tool calls. A task with no new line for too long,
 // or whose lines repeat, is stopped, and the persona that started it gets
 // the event. The guards of the apprentice find a loop from the inside;
@@ -46,9 +46,20 @@ func (s *System) stallLimits() stallLimits {
 	return l
 }
 
-// stallStep is the step that the check looks at: the work of the
-// apprentice. The other steps are short, or they wait for a person.
-const stallStep = "work"
+// stallSteps has the step that the check looks at for each kind of task:
+// the step of the apprentice. The other steps are short, or they wait for
+// a person.
+var stallSteps = map[string]string{CodeChange: "work", Investigation: "investigate"}
+
+// A question has a limit of 15 minutes in the apprentice (the runner sets
+// it). The stall check finds the apprentice that hangs, so its limit for a
+// question is a little above that. A person waits for the answer.
+const questionStall = 20 * time.Minute
+
+// questionWait: a question that no runner takes for this time is stopped
+// (the runner is off, or it is busy for a long time). A code change can
+// wait for a runner; a person who asked a question waits for an answer.
+const questionWait = 15 * time.Minute
 
 // actions gives the part of a status line that says what the apprentice
 // did, with no counters ("step 12, 30 tool calls: ").
@@ -63,7 +74,8 @@ func actions(note string) string {
 // the check first saw the step with a worker: the start time of a step is
 // the time when it went to the queue, and a step can wait there.
 func stalled(run workflowapi.Run, lim stallLimits, seen, now time.Time) string {
-	if run.Status != "running" || run.CurrentStep != stallStep || len(run.History) == 0 {
+	stallStep := stallSteps[run.Definition]
+	if run.Status != "running" || stallStep == "" || run.CurrentStep != stallStep || len(run.History) == 0 {
 		return ""
 	}
 	st := run.History[len(run.History)-1]
@@ -72,6 +84,9 @@ func stalled(run workflowapi.Run, lim stallLimits, seen, now time.Time) string {
 		return ""
 	}
 	after, repeat := lim.After, lim.Repeat
+	if run.Definition == Investigation && after > questionStall {
+		after = questionStall
+	}
 	if ms, err := strconv.ParseInt(run.Vars["stall_ms"], 10, 64); err == nil && ms > 0 {
 		after = time.Duration(ms) * time.Millisecond
 	}
@@ -105,15 +120,35 @@ func stalled(run workflowapi.Run, lim stallLimits, seen, now time.Time) string {
 	return ""
 }
 
+// unanswered says why a question waits too long for a runner at now, or
+// "". The steps on a runner before the answer are prepare and investigate.
+func unanswered(run workflowapi.Run, now time.Time) string {
+	if run.Definition != Investigation || run.Status != "running" || len(run.History) == 0 {
+		return ""
+	}
+	st := run.History[len(run.History)-1]
+	if (st.Step != "prepare" && st.Step != "investigate") || st.Status == "claimed" || st.StartedMs == 0 {
+		return ""
+	}
+	if wait := now.Sub(time.UnixMilli(int64(st.StartedMs))); wait > questionWait {
+		return fmt.Sprintf("no runner took the question for %s (runner %s)", wait.Round(time.Minute), firstNonEmpty(run.Vars["runner"], "of Magi"))
+	}
+	return ""
+}
+
 // checkStalls stops each task that is stalled at now, and gives their
 // ids. The owner gets a notice, and the persona that started the task
 // gets the event (events.go).
 func (s *System) checkStalls(ctx context.Context, now time.Time) []string {
 	ctx = s.AsService(ctx)
-	res, err := s.Workflow.ListRuns(ctx, workflowapi.ListRunsRequest{Definition: ptr(CodeChange), Status: ptr("running"), Limit: ptr(uint64(200))})
-	if err != nil {
-		s.Log.Warn("stall check: list", "err", err)
-		return nil
+	var runs []workflowapi.Run
+	for def := range stallSteps {
+		res, err := s.Workflow.ListRuns(ctx, workflowapi.ListRunsRequest{Definition: ptr(def), Status: ptr("running"), Limit: ptr(uint64(200))})
+		if err != nil {
+			s.Log.Warn("stall check: list", "definition", def, "err", err)
+			continue
+		}
+		runs = append(runs, res.Runs...)
 	}
 	lim := s.stallLimits()
 	var stopped []string
@@ -123,17 +158,20 @@ func (s *System) checkStalls(ctx context.Context, now time.Time) []string {
 		s.stallSeen = map[string]time.Time{}
 	}
 	working := map[string]bool{}
-	for _, run := range res.Runs {
-		if run.CurrentStep != stallStep || len(run.History) == 0 || run.History[len(run.History)-1].Status != "claimed" {
-			continue
+	for _, run := range runs {
+		why := unanswered(run, now)
+		if why == "" {
+			if run.CurrentStep != stallSteps[run.Definition] || len(run.History) == 0 || run.History[len(run.History)-1].Status != "claimed" {
+				continue
+			}
+			// One time for each attempt of the step.
+			key := fmt.Sprintf("%s/%d/%d", run.Id, len(run.History), run.History[len(run.History)-1].Attempt)
+			working[key] = true
+			if _, ok := s.stallSeen[key]; !ok {
+				s.stallSeen[key] = now
+			}
+			why = stalled(run, lim, s.stallSeen[key], now)
 		}
-		// One time for each attempt of the step.
-		key := fmt.Sprintf("%s/%d/%d", run.Id, len(run.History), run.History[len(run.History)-1].Attempt)
-		working[key] = true
-		if _, ok := s.stallSeen[key]; !ok {
-			s.stallSeen[key] = now
-		}
-		why := stalled(run, lim, s.stallSeen[key], now)
 		if why == "" {
 			continue
 		}
@@ -151,8 +189,15 @@ func (s *System) checkStalls(ctx context.Context, now time.Time) []string {
 				s.Log.Warn("destroy environment", "env", id, "err", err)
 			}
 		}
-		s.report(ctx, workflowapi.Assignment{Run: got.Id, Owner: got.Owner, Vars: got.Vars}, "normal", "Task stopped",
-			"I stopped the task: "+why+". The branch stays for reference.")
+		if run.Definition == Investigation {
+			// A question has no branch and no review: the person only
+			// waits for the answer, so they must know that none comes.
+			s.report(ctx, workflowapi.Assignment{Run: got.Id, Owner: got.Owner, Vars: got.Vars}, "normal", "No answer",
+				"I stopped the question \""+clip(got.Vars["title"], 100)+"\": "+why+". There is no answer. Ask again if you still want to know.")
+		} else {
+			s.report(ctx, workflowapi.Assignment{Run: got.Id, Owner: got.Owner, Vars: got.Vars}, "normal", "Task stopped",
+				"I stopped the task: "+why+". The branch stays for reference.")
+		}
 		stopped = append(stopped, run.Id)
 	}
 	for key := range s.stallSeen {

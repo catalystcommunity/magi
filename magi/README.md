@@ -517,7 +517,9 @@ cancels a task whose apprentice wrote no status line for
 `MAGI_STALL_AFTER` (default `30m`), or whose last `MAGI_STALL_REPEAT`
 status lines (default 6) have the same actions. The person gets the
 reason as a notice, and the persona gets the event. Make the numbers
-smaller where model capacity is small.
+smaller where model capacity is small. For a question to an apprentice
+the quiet time is 20 minutes at most, and a question that no runner
+takes for 15 minutes is stopped: the person gets "there is no answer".
 
 ## Authorization
 

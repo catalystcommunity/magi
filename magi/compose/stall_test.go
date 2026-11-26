@@ -103,3 +103,52 @@ func TestStallCheckStopsAQuietTask(t *testing.T) {
 		t.Fatal("the check stopped a task that wrote a status line")
 	}
 }
+
+// A question to an apprentice has the same check, with a shorter time: a
+// person waits for the answer. A question that no runner takes is stopped
+// too, and the person gets the reason in each case.
+func TestStallCheckStopsAQuestion(t *testing.T) {
+	sys, w, wf := eventEnv(t, nil)
+	now := time.Now()
+	question := func(id, step, status string, started, line time.Time) *workflowapi.Run {
+		run := working(sys, wf, id, line, "step 3, 6 tool calls: read watch.rs")
+		run.Definition, run.CurrentStep = Investigation, step
+		run.Vars["title"], run.Vars["mode"] = "Restart limits", QuestionMode
+		run.History[1].Step, run.History[1].Status, run.History[1].StartedMs = step, status, uint64(started.UnixMilli())
+		return run
+	}
+	// The apprentice wrote its last line 25 minutes ago: more than the
+	// limit of a question, less than the limit of a code change.
+	quiet := question("run_q_quiet", "investigate", "claimed", now.Add(-40*time.Minute), now.Add(-25*time.Minute))
+	fine := question("run_q_fine", "investigate", "claimed", now.Add(-10*time.Minute), now.Add(-2*time.Minute))
+	// No runner took these steps.
+	waits := question("run_q_waits", "investigate", "pending", now.Add(-20*time.Minute), now.Add(-20*time.Minute))
+	fresh := question("run_q_fresh", "prepare", "pending", now.Add(-5*time.Minute), now.Add(-5*time.Minute))
+	change := working(sys, wf, "run_change", now.Add(-25*time.Minute), "step 3, 6 tool calls: edit a.go")
+
+	// The first look starts the clock of the steps that work.
+	if stopped := sys.checkStalls(context.Background(), now.Add(-21*time.Minute)); len(stopped) != 0 {
+		t.Fatalf("the first look stopped %v", stopped)
+	}
+	stopped := sys.checkStalls(context.Background(), now)
+	if len(stopped) != 2 || quiet.Status != "cancelled" || waits.Status != "cancelled" {
+		t.Fatalf("stopped %v: quiet %s, waits %s", stopped, quiet.Status, waits.Status)
+	}
+	if fine.Status != "running" || fresh.Status != "running" || change.Status != "running" {
+		t.Fatalf("stopped a task that works or just started: %s %s %s", fine.Status, fresh.Status, change.Status)
+	}
+	if !strings.Contains(deref(quiet.Error), "no status line") || !strings.Contains(deref(waits.Error), "no runner took the question") {
+		t.Fatalf("reasons: %q, %q", deref(quiet.Error), deref(waits.Error))
+	}
+	// The person gets each reason (as a message and as a notice).
+	for _, why := range []string{"no status line", "no runner took the question"} {
+		told := false
+		for _, u := range w.utts {
+			told = told || (u.AuthorKind == "persona" && strings.Contains(u.Text, "I stopped the question \"Restart limits\"") &&
+				strings.Contains(u.Text, why) && strings.Contains(u.Text, "There is no answer"))
+		}
+		if !told {
+			t.Fatalf("the person did not get the reason %q", why)
+		}
+	}
+}
