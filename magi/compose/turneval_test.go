@@ -59,8 +59,11 @@ func turnSystem(t *testing.T) *System {
 	sctx := s.AsService(context.Background())
 	// A code change can start. No runner does the work: the steps of a
 	// task are in the queues of its runner, and an event step of a case
-	// does them (evalEvent).
+	// does them (evalEvent). The installation has a runner name: with no
+	// name a task has no queue and fails at its first step, and a model
+	// that sees a failed task can start it again.
 	s.Cfg.Repo = "magi"
+	s.Cfg.Runner = fmt.Sprintf("turn%d", time.Now().UnixNano())
 	for _, d := range []workflowapi.Definition{codeChangeDefinition(true), investigationDefinition(true), personaEventDefinition()} {
 		if _, err := s.Workflow.PutDefinition(sctx, d); err != nil {
 			t.Fatal(err)
@@ -537,6 +540,7 @@ func TestTurnEval(t *testing.T) {
 	w := bufio.NewWriter(out)
 	defer w.Flush()
 	s := turnSystem(t)
+	evalReleaseController(t, s)
 	s.Model = &model.Client{BaseURL: strings.TrimRight(base, "/"), Model: name, HTTP: &http.Client{Timeout: 5 * time.Minute}}
 	for run := 1; run <= runs; run++ {
 		for _, c := range cases {
@@ -635,8 +639,50 @@ func TestTurnEvalHarness(t *testing.T) {
 // run on the real services with a script as the model: a query of the
 // records, the facts of the installation, a question to an apprentice, and
 // the answer event.
+// evalRelease is the release controller of the turn eval: an installation
+// with three parts that are ready, and one incident that Magi repaired.
+// A case that asks for the health or the incidents has facts to tell.
+type evalRelease struct {
+	releaseapi.ReleaseService
+}
+
+func (evalRelease) HealthStatus(context.Context, releaseapi.HealthStatusRequest) (releaseapi.HealthStatusResponse, error) {
+	return releaseapi.HealthStatusResponse{Watched: true, Workloads: []releaseapi.Workload{
+		{Name: "db-1", Kind: "database", Role: ptr("primary"), Ready: true}, {Name: "magi", Kind: "service", Ready: true}, {Name: "search", Kind: "service", Ready: true}}}, nil
+}
+
+func (evalRelease) ListIncidents(_ context.Context, r releaseapi.ListIncidentsRequest) (releaseapi.ListIncidentsResponse, error) {
+	at := nowMs() - 26*3600*1000
+	all := []releaseapi.Incident{
+		{Seq: 1, Kind: "restarted", Subject: "service/search", Message: "Service search was not ready for 3 minutes. The controller restarted it.", AtMs: at},
+		{Seq: 2, Kind: "recovered", Subject: "service/search", Message: "Service search is ready again.", AtMs: at + 60_000},
+	}
+	out := releaseapi.ListIncidentsResponse{Incidents: []releaseapi.Incident{}}
+	for _, i := range all {
+		if i.Seq > deref(r.After) {
+			out.Incidents = append(out.Incidents, i)
+		}
+	}
+	return out, nil
+}
+
+func (evalRelease) List(context.Context, releaseapi.ListReleasesRequest) (releaseapi.ListReleasesResponse, error) {
+	return releaseapi.ListReleasesResponse{Releases: []releaseapi.Release{{Id: "rel_eval", Status: "succeeded", UpdatedMs: nowMs() - 3*3600*1000,
+		Items: []releaseapi.ReleaseItem{{Target: "magi"}}}}}, nil
+}
+
+func evalReleaseController(t *testing.T, s *System) {
+	t.Helper()
+	rs := &rpc.Server{Verifier: testVerifier}
+	rs.Register("ReleaseService", releaseapi.ReleaseServiceOps(evalRelease{}))
+	hs := httptest.NewServer(rpc.Mux(rs, nil))
+	t.Cleanup(hs.Close)
+	s.Release = releaseapi.NewReleaseClient(rpc.NewClient(hs.URL, nil))
+}
+
 func TestTurnEvalReadCases(t *testing.T) {
 	s := turnSystem(t)
+	evalReleaseController(t, s)
 	s.Cfg.PublicURL = "https://magi.example.local"
 	cases := map[string]evalCase{}
 	for _, c := range loadEvalCases(t, "../../evals/turn/core-v3.json") {
@@ -650,11 +696,11 @@ func TestTurnEvalReadCases(t *testing.T) {
 	say := func(text string) model.Message { return model.Message{Role: "assistant", Content: text} }
 	for id, m := range map[string]*scriptModel{
 		"r01": script(toolCall("query_knowledge", `{"what":"things","kind":"person"}`), say("I have records of Dr. Rivera, Dr. Okafor, and your sister Dana.")),
-		"r02": script(toolCall("magi_system", `{"topic":"overview"}`), say("I do not know the health of Magi: this installation has no release controller.")),
+		"r02": script(toolCall("magi_system", `{"topic":"health"}`), say("Yes. All 3 parts of Magi are ready.")),
 		"r03": script(toolCall("list_models", `{}`), say("This installation has no model catalog, so I cannot name the model.")),
 		"r04": script(toolCall("investigate", `{"question":"Where is the limit of event turns, and what are the numbers?","title":"Event turn limit"}`), say("I'll look into it and tell you when I have the answer.")),
 		"r05": script(say("I cannot read the code. The engineering manager can find out; ask them.")),
-		"r06": script(toolCall("magi_system", `{"topic":"incidents"}`), say("I do not know: this installation has no release controller, so Magi has no record of incidents.")),
+		"r06": script(toolCall("magi_system", `{"topic":"incidents"}`), say("One: the search service was not ready, the controller restarted it, and it recovered.")),
 		"v05": script(say("The limit is in magi/compose/events.go, line 59: 6 event turns in 10 minutes, and a chain of 4. The full answer is on the page.")),
 	} {
 		c, ok := cases[id]

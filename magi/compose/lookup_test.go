@@ -258,7 +258,7 @@ func TestImageVersion(t *testing.T) {
 
 // A question about the installation needs a look-up in the turn.
 func TestUnread(t *testing.T) {
-	all := []string{"list_devices", "magi_system", "list_models", "list_runners"}
+	all := []string{"list_devices", "magi_system", "list_models", "list_runners", "query_knowledge", "recall"}
 	for text, tool := range map[string]string{
 		"List my devices, with the battery of each.":           "list_devices",
 		"What is the battery level of my phone?":               "list_devices",
@@ -268,6 +268,8 @@ func TestUnread(t *testing.T) {
 		"Which model answers you, and on which GPU?":           "list_models",
 		"Hey, what model are you gonna use for this response?": "list_models",
 		"How many runners are there?":                          "list_runners",
+		"List every person that you have a record of for me.":  "query_knowledge",
+		"Show me all the places you know.":                     "query_knowledge",
 	} {
 		if _, got := unread(text, nil, all); got != tool {
 			t.Errorf("%q: tool %q, want %q", text, got, tool)
@@ -279,6 +281,8 @@ func TestUnread(t *testing.T) {
 		"What is on my list today?",
 		"Add a runner-up prize to the plan.",
 		"Is everything on my calendar for tomorrow?",
+		"Who is my dentist?",
+		"Tell me what you know about Dana.",
 	} {
 		if what, tool := unread(text, nil, all); tool != "" {
 			t.Errorf("%q: wants %q for %s; it is not about the installation", text, tool, what)

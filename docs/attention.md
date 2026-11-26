@@ -148,7 +148,10 @@ the devices of the person, the health of the installation, the models, or
 the runners with facts that it made up. When the message of the person
 asks about one of these and no tool for it gave a result in the turn, Magi
 tells the model so one time: look it up and answer from the result
-(`unread` in `magi/compose/lookup.go`). When the model still does not look
+(`unread` in `magi/compose/lookup.go`). The same rule applies to a
+question for all records of a kind ("list every person that you have a
+record of"): the context of a turn has only the records that the words
+of the message found, and the query gives the whole list. When the model still does not look
 it up, the reply gets the note "this answer is not from a look-up".
 
 Promises: a turn ends with its reply. When a reply ends with something

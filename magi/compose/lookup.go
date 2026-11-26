@@ -628,9 +628,10 @@ func imageVersion(image string) string {
 	return name
 }
 
-// systemAsks are questions whose answer is a fact of the installation
-// that changes: the devices of the person, the health, the models, the
-// runners. The answer must come from a tool of this turn. A small model
+// systemAsks are questions whose answer must come from a tool of this
+// turn: a fact of the installation that changes (the devices of the
+// person, the health, the models, the runners), and a complete list of
+// the records of the person. A small model
 // answers such a question from nothing (it named three devices with
 // battery levels that no record had).
 var systemAsks = []struct {
@@ -646,6 +647,11 @@ var systemAsks = []struct {
 		[]string{"list_models", "magi_system"}, "the models that Magi uses"},
 	{regexp.MustCompile(`(?i)\b(which|what|list|are|is|how many)\b[^.?!\n]{0,30}\brunners?\b`),
 		[]string{"list_runners", "magi_system"}, "the runners"},
+	// "All" or "every" record of a kind: the context of a turn has only
+	// the records that the words of the message found, so a list from it
+	// can be short. The query gives the whole list.
+	{regexp.MustCompile(`(?i)\b(list|show|name|tell me|give me|what are|who are|which are)\b[^.?!\n]{0,40}\b(all|every|each)\b[^.?!\n]{0,80}\b(records?|recorded|know|remember|stored)\b`),
+		[]string{"query_knowledge", "recall"}, "all records of that kind"},
 }
 
 // unread returns the subject of a question of the person about the

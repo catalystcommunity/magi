@@ -117,7 +117,7 @@
    "steps": [{"say": "List every person that you have a record of for me.", "tools_any": ["query_knowledge", "recall"], "reply_all": ["Rivera", "Okafor", "Dana"], "tools_none": ["remember", "change_knowledge", "add_todo", "set_reminder", "send_notice", "start_code_change"]}]},
 
   {"id": "r02", "core": false, "persona": "persona:magi",
-   "steps": [{"say": "Is Magi itself healthy right now?", "tools_all": ["magi_system"], "tools_none": ["remember", "change_knowledge", "add_todo", "set_reminder", "send_notice", "start_code_change"], "reply_none": ["\\bI (cannot|can't|do not|don't) (check|look|have access)"]}]},
+   "steps": [{"say": "Is Magi itself healthy right now?", "tools_all": ["magi_system"], "reply_any": ["(?i)healthy", "(?i)\\bready\\b", "(?i)no problems?"], "tools_none": ["remember", "change_knowledge", "add_todo", "set_reminder", "send_notice", "start_code_change"], "reply_none": ["\\bI (cannot|can't|do not|don't) (check|look|have access)"]}]},
 
   {"id": "r03", "core": false, "persona": "persona:assistant",
    "steps": [{"say": "Which model answers when I talk to you?", "tools_any": ["list_models", "magi_system"], "tools_none": ["remember", "change_knowledge", "add_todo", "set_reminder", "send_notice", "start_code_change"]}]},
@@ -129,7 +129,7 @@
    "steps": [{"say": "How does the code of Magi decide when it restarts one of its services?", "reply_any": ["engineering"], "tools_none": ["start_code_change", "remember", "add_todo", "set_reminder"]}]},
 
   {"id": "r06", "core": false, "persona": "persona:engineering",
-   "steps": [{"say": "Did Magi have any incidents this week?", "tools_all": ["magi_system"], "tools_none": ["start_code_change", "investigate", "decide_task", "cancel_task"]}]},
+   "steps": [{"say": "Did Magi have any incidents this week?", "tools_all": ["magi_system"], "reply_any": ["(?i)recover", "(?i)\\b(2|two|one|1)\\b"], "tools_none": ["start_code_change", "investigate", "decide_task", "cancel_task"]}]},
 
   {"id": "v05", "core": false, "persona": "persona:engineering",
    "steps": [{"event": "Answer", "task": {"title": "Where is the limit of event turns, and what are the numbers?", "state": "answered"}, "reply_all": ["events\\.go"], "reply_any": ["\\b6\\b", "\\bsix\\b", "\\b4\\b", "\\bfour\\b"], "tools_none": ["start_code_change", "investigate", "decide_task", "cancel_task"], "reply_none": ["Magi check"]}]}

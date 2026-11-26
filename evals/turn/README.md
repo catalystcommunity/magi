@@ -47,6 +47,18 @@ No model judges a result. A check that needs a judge is not in this set.
 | `core-v2.json` | 23 | `core-v1`, and 4 turns from an event (`v01` to `v04`, not core until they pass each run of two baselines) |
 | `core-v3.json` | 30 | `core-v2`, and 7 turns for the read tools and for questions to an apprentice: `r01` to `r06` (a query of the records, the facts of the installation, the models, `investigate`, a persona that does not read code) and `v05` (the event with the answer of an apprentice). They are not core until they pass each run of two baselines |
 
+The harness has a release controller with three parts that are ready
+and one incident that Magi repaired (`evalRelease`), so a case about the
+health or the incidents has facts to tell: `r02` wants "healthy" or
+"ready" in the reply, and `r06` wants the count of the incidents or that
+the part recovered (a person who is no admin gets no part names). No
+verdict had used `core-v3` when these two cases got these checks.
+
+The installation of the harness has a runner name, so a task that a case
+starts waits for a runner, as a real task does. With no name the task
+failed at its first step, and a model that saw the failed task started
+it again in some runs (`e03`).
+
 The default set of the verdict is the newest. A baseline from before a
 set cannot run it when the set names a tool that the baseline does not
 have: use the set before it for that verdict (`--set`), and run the new
