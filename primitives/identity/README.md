@@ -158,11 +158,34 @@ Both commands make files with mode 600 and do not overwrite files. Give
 - `store/`: PostgreSQL store with an embedded schema.
 - `linkkeys/`: Go port of the begin and complete steps of the LinkKeys
   TypeScript regular-RP SDK. It has its own pinned CSIL-RPC TLS transport.
-  `rp.csil` is a copy of the needed part of the LinkKeys contract. Run
-  `linkkeys/gen.sh` after you change it. This module does not import the
-  LinkKeys Go SDK, because that SDK needs Go 1.26.4 and the Magi modules
-  use Go 1.26.0.
+  `rp.csil` is the needed part of the LinkKeys contract. `subset.py`
+  makes it from the upstream file, with no change to the rules. The act-as
+  grants and the application keys (`server/grants.go`) use the LinkKeys Go
+  SDK.
 - `internal/fakelk/`: fake LinkKeys domain and RP server for tests.
+
+## A new LinkKeys version
+
+The LinkKeys servers and Magi must have the same contract. A server with
+a newer contract refuses the calls of Magi ("Invalid payload"), and no
+person can sign in. LinkKeys 0.16.11 changed its types: a time is a CSIL
+`timestamp`, a closed value set is a number, and a reply of the Rp
+service names its arm (the result or an `RpError`). For each LinkKeys
+version that changes the contract:
+
+1. Set `VERSION` in `linkkeys/subset.py`, and run
+   `python3 -I linkkeys/subset.py PATH/linkkeys.csil > linkkeys/rp.csil`
+   with the contract of that version (`git show vX:csil/linkkeys.csil`).
+2. Run `linkkeys/gen.sh`.
+3. Set the LinkKeys Go SDK in `go.mod` to the commit of that version
+   (`go get github.com/catalystcommunity/linkkeys/sdks/regular-rp/go@COMMIT`).
+4. Correct the code that the compiler names, and run the tests.
+5. Deploy, and complete one sign in. The log of the service must have
+   "login complete" and "application key attestations renewed".
+
+A time in a payload that LinkKeys signs is whole seconds. A time with a
+fraction of a second was never signed, so the code gives an error for it
+and does not round it.
 
 ## Tests
 

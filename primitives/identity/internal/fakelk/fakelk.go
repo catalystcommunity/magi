@@ -38,6 +38,9 @@ type Domain struct {
 	Tamper func(*lk.IdentityAssertion)
 	// Unverified makes verify-assertion report verified=false.
 	Unverified bool
+	// NotApplication: sign-request answers with the RpError arm, as a
+	// LinkKeys server does for an account that is not an application account.
+	NotApplication bool
 }
 
 // New starts a fake domain on a loopback TLS listener.
@@ -94,9 +97,10 @@ func (d *Domain) Authorize(idpURL, userID, handle string) (string, error) {
 	delete(d.pending, q.Get("nonce"))
 	d.n++
 	tok := fmt.Sprintf("enc_%d", d.n)
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Second)
 	d.tokens[tok] = lk.IdentityAssertion{UserId: userID, Domain: d.Name, Audience: d.Name, Nonce: req.Nonce,
-		IssuedAt: now.Format(time.RFC3339), ExpiresAt: now.Add(5 * time.Minute).Format(time.RFC3339), AuthorizedClaims: []string{lk.HandleClaim}}
+		IssuedAt: now, ExpiresAt: now.Add(5 * time.Minute), AuthorizedClaims: []string{lk.HandleClaim},
+		Application: lk.ApplicationRef{SubjectUserId: "app-account", SubjectDomain: d.Name, ApplicationId: "magi"}}
 	d.handles[userID] = handle
 	cb, _ := url.Parse(req.CallbackUrl)
 	cq := cb.Query()
@@ -106,6 +110,9 @@ func (d *Domain) Authorize(idpURL, userID, handle string) (string, error) {
 }
 
 func (d *Domain) SignRequest(_ context.Context, r lk.RpSignRequest) (lk.RpSignResponse, error) {
+	if d.NotApplication {
+		return lk.RpSignResponse{}, &lk.Fault{RpError: lk.RpError{Code: lk.RpErrorCodeNotApplicationAccount, Message: "the account is not an application account"}}
+	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.pending[r.Nonce] = r
@@ -141,9 +148,14 @@ func (d *Domain) VerifyAssertion(_ context.Context, r lk.RpVerifyRequest) (lk.Rp
 
 // SignClaim returns a claim signed by the domain key.
 func (d *Domain) SignClaim(userID, claimType, value string) lk.Claim {
-	now := time.Now().UTC().Format(time.RFC3339)
+	// LinkKeys signs whole seconds.
+	now := time.Now().UTC().Truncate(time.Second)
 	c := lk.Claim{ClaimId: "clm_" + userID, UserId: userID, ClaimType: claimType, ClaimValue: []byte(value), AttestedAt: now, CreatedAt: now}
-	c.Signatures = []lk.ClaimSignature{{Domain: d.Name, SignedByKeyId: d.keyID, Signature: ed25519.Sign(d.key, lk.ClaimPayload(c, d.Name, d.Name))}}
+	payload, err := lk.ClaimPayload(c, d.Name, d.Name)
+	if err != nil {
+		panic(err)
+	}
+	c.Signatures = []lk.ClaimSignature{{Domain: d.Name, SignedByKeyId: d.keyID, Signature: ed25519.Sign(d.key, payload)}}
 	return c
 }
 
@@ -167,8 +179,8 @@ func (d *Domain) ResolveDomainKeys(_ context.Context, r lk.RpResolveDomainKeysRe
 	pub := d.key.Public().(ed25519.PublicKey)
 	return lk.RpResolveDomainKeysResponse{
 		Domain: r.Domain,
-		Keys: []lk.DomainPublicKey{{KeyId: d.keyID, PublicKey: pub, Fingerprint: lk.Fingerprint(pub), Algorithm: "ed25519", KeyUsage: "sign",
-			CreatedAt: now.Add(-time.Hour).Format(time.RFC3339), ExpiresAt: now.Add(24 * time.Hour).Format(time.RFC3339)}},
-		Revocations: []lk.RevocationCertificate{}, FetchedAt: now.Format(time.RFC3339), RevocationsCheckedAt: now.Format(time.RFC3339), CacheStatus: "fresh",
+		Keys: []lk.DomainPublicKey{{KeyId: d.keyID, PublicKey: pub, Fingerprint: lk.Fingerprint(pub), Algorithm: lk.KeyAlgorithmEd25519, KeyUsage: lk.KeyUsageSign,
+			CreatedAt: now.Add(-time.Hour), ExpiresAt: now.Add(24 * time.Hour)}},
+		Revocations: []lk.RevocationCertificate{}, FetchedAt: now, RevocationsCheckedAt: now, CacheStatus: lk.RpCacheStatusFresh,
 	}, nil
 }

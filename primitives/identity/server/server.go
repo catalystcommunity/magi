@@ -146,7 +146,7 @@ func (s *Service) BeginLogin(ctx context.Context, req api.BeginLoginRequest) (ap
 	}
 	idpURL, p, err := s.LinkKeys.Begin(ctx, id, s.PublicURL+"/login/callback")
 	if err != nil {
-		s.log().Error("begin login", "err", err)
+		s.log().Error("begin login", "err", err, "why", linkkeys.Why(err))
 		return api.BeginLoginResponse{}, rpc.Unavailable("LinkKeys is not available")
 	}
 	loginID, start := "lgn_"+token(), "lst_"+token()

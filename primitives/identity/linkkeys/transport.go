@@ -49,6 +49,24 @@ type PinnedTransport struct {
 
 // Call sends one request on a fresh pinned TLS connection.
 func (t *PinnedTransport) Call(ctx context.Context, service, op string, payload []byte) ([]byte, error) {
+	r, err := t.CallReply(ctx, service, op, payload)
+	return r.Payload, err
+}
+
+// CallReply is Call for an operation with more than one reply arm (the Rp
+// operations with an RpError arm): it also gives the name of the arm. The
+// generated client decodes the arm, and an RpError becomes an
+// *RPCApplicationError[RpError].
+func (t *PinnedTransport) CallReply(ctx context.Context, service, op string, payload []byte) (WireReply, error) {
+	frame, err := t.roundTrip(ctx, service, op, payload)
+	if err != nil {
+		return WireReply{}, err
+	}
+	return decodeResponse(frame)
+}
+
+// roundTrip sends one request frame and reads one response frame.
+func (t *PinnedTransport) roundTrip(ctx context.Context, service, op string, payload []byte) ([]byte, error) {
 	if t.APIKey == "" || t.Address == "" || len(t.Fingerprints) == 0 {
 		return nil, errors.New("linkkeys rp: address, fingerprints, and api key are required")
 	}
@@ -90,7 +108,7 @@ func (t *PinnedTransport) Call(ctx context.Context, service, op string, payload 
 	if err != nil {
 		return nil, fmt.Errorf("linkkeys rp read: %w", err)
 	}
-	return decodeResponse(frame)
+	return frame, nil
 }
 
 func pinVerifier(pins []string) func([][]byte, [][]*x509.Certificate) error {
@@ -172,30 +190,42 @@ func envelopeVersionOK(v cborValue) error {
 	return nil
 }
 
-func decodeResponse(frame []byte) ([]byte, error) {
+// decodeResponse reads a response envelope. variant is the name of the
+// reply arm of a status-zero response, when the operation has more than
+// one arm.
+func decodeResponse(frame []byte) (WireReply, error) {
 	v, err := cborDecode(frame)
 	if err != nil {
-		return nil, err
+		return WireReply{}, err
 	}
 	if err := envelopeVersionOK(v); err != nil {
-		return nil, err
+		return WireReply{}, err
 	}
 	sv, err := cborRequire(v, "status")
 	if err != nil {
-		return nil, err
+		return WireReply{}, err
 	}
 	status, err := cborAsI64(sv)
 	if err != nil {
-		return nil, err
+		return WireReply{}, err
 	}
 	if status != 0 {
 		msg := ""
 		if ev, ok := cborMapGet(v, "error"); ok {
 			msg, _ = cborAsText(ev)
 		}
-		return nil, &ServerError{Status: status, Message: msg}
+		return WireReply{}, &ServerError{Status: status, Message: msg}
 	}
-	return untag24(cborMapGet(v, "payload"))
+	var out WireReply
+	if vv, ok := cborMapGet(v, "variant"); ok {
+		name, err := cborAsText(vv)
+		if err != nil {
+			return WireReply{}, fmt.Errorf("envelope variant: %w", err)
+		}
+		out.Variant = &name
+	}
+	out.Payload, err = untag24(cborMapGet(v, "payload"))
+	return out, err
 }
 
 func writeFrame(w io.Writer, b []byte) error {

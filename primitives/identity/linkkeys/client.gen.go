@@ -23,14 +23,24 @@ func (e *ClientError) Error() string {
 	return fmt.Sprintf("service error %d: %s", e.Code, e.Message)
 }
 
+// WireReply is a status-zero CSIL-RPC reply: Variant names the declared output arm
+// that Payload encodes. A transport returns it from CallReply.
+type WireReply struct {
+	Variant *string
+	Payload []byte
+}
+
 // Transport is the caller-supplied byte carrier: it performs the call named by
 // (service, op) with the already-encoded request bytes and returns the response
 // bytes, or an error. Both names are the verbatim CSIL names (service as written,
 // op in kebab-case as written), ready to go on the wire unmodified. The generated
 // client owns (de)serialization via the codec; the carrier only moves bytes, so
-// it can be HTTP, a queue, or an in-process loop.
+// it can be HTTP, a queue, or an in-process loop. CallReply serves operations
+// that declare several reply arms: it also returns the reply variant, so the
+// client can return the success arm or the declared error arm.
 type Transport interface {
 	Call(ctx context.Context, service string, op string, req []byte) ([]byte, error)
+	CallReply(ctx context.Context, service string, op string, req []byte) (WireReply, error)
 }
 
 // RpClient is a typed client for the Rp service. The client owns
@@ -49,11 +59,19 @@ func (c *RpClient) SignRequest(ctx context.Context, req RpSignRequest) (RpSignRe
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	csilResp, csilErr := c.transport.Call(ctx, "Rp", "sign-request", csilReq)
+	csilReply, csilErr := c.transport.CallReply(ctx, "Rp", "sign-request", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeRpSignResponse(csilResp)
+	csilResp, csilErr := ResolveRPCReply("Rp", "sign-request", csilReply.Variant, csilReply.Payload)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	value, err := DecodeRpSignResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *RpClient) DecryptToken(ctx context.Context, req RpDecryptRequest) (RpDecryptResponse, error) {
@@ -62,11 +80,19 @@ func (c *RpClient) DecryptToken(ctx context.Context, req RpDecryptRequest) (RpDe
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	csilResp, csilErr := c.transport.Call(ctx, "Rp", "decrypt-token", csilReq)
+	csilReply, csilErr := c.transport.CallReply(ctx, "Rp", "decrypt-token", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeRpDecryptResponse(csilResp)
+	csilResp, csilErr := ResolveRPCReply("Rp", "decrypt-token", csilReply.Variant, csilReply.Payload)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	value, err := DecodeRpDecryptResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *RpClient) VerifyAssertion(ctx context.Context, req RpVerifyRequest) (RpVerifyResponse, error) {
@@ -75,11 +101,19 @@ func (c *RpClient) VerifyAssertion(ctx context.Context, req RpVerifyRequest) (Rp
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	csilResp, csilErr := c.transport.Call(ctx, "Rp", "verify-assertion", csilReq)
+	csilReply, csilErr := c.transport.CallReply(ctx, "Rp", "verify-assertion", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeRpVerifyResponse(csilResp)
+	csilResp, csilErr := ResolveRPCReply("Rp", "verify-assertion", csilReply.Variant, csilReply.Payload)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	value, err := DecodeRpVerifyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *RpClient) UserinfoFetch(ctx context.Context, req RpUserInfoRequest) (UserInfo, error) {
@@ -88,11 +122,19 @@ func (c *RpClient) UserinfoFetch(ctx context.Context, req RpUserInfoRequest) (Us
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	csilResp, csilErr := c.transport.Call(ctx, "Rp", "userinfo-fetch", csilReq)
+	csilReply, csilErr := c.transport.CallReply(ctx, "Rp", "userinfo-fetch", csilReq)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeUserInfo(csilResp)
+	csilResp, csilErr := ResolveRPCReply("Rp", "userinfo-fetch", csilReply.Variant, csilReply.Payload)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	value, err := DecodeUserInfo(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *RpClient) ResolveDomainKeys(ctx context.Context, req RpResolveDomainKeysRequest) (RpResolveDomainKeysResponse, error) {

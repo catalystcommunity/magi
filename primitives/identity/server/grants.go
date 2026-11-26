@@ -93,7 +93,7 @@ func LoadAppKeys(path string) (AppKeys, error) {
 
 func (k AppKeys) signer(i int) rp.ApplicationSigner {
 	seed, _ := base64.StdEncoding.DecodeString(k.Keys[i].Seed)
-	return rp.ApplicationSigner{KeyID: k.Keys[i].KeyID, Algorithm: "ed25519", PrivateKeyBytes: seed}
+	return rp.ApplicationSigner{KeyID: k.Keys[i].KeyID, Algorithm: lk.KeyAlgorithmEd25519, PrivateKeyBytes: seed}
 }
 
 func (k AppKeys) public(i int) ed25519.PublicKey {
@@ -135,14 +135,14 @@ func (g *Grantee) RenewKeys(ctx context.Context) error {
 	a := g.Keys.Application
 	for i := range g.Keys.Keys {
 		signer := g.Keys.signer(i)
-		ch, err := c.StartKeyChallenge(ctx, lk.StartApplicationKeyChallengeRequest{SubjectUserId: a.SubjectUserID, ApplicationId: a.ApplicationID, InstanceId: g.Keys.InstanceID, Purpose: "renew", KeyUsage: "sign", Algorithm: "ed25519", PublicKey: g.Keys.public(i)})
+		ch, err := c.StartKeyChallenge(ctx, lk.StartApplicationKeyChallengeRequest{SubjectUserId: a.SubjectUserID, ApplicationId: a.ApplicationID, InstanceId: g.Keys.InstanceID, Purpose: lk.ApplicationKeyChallengePurposeRenew, KeyUsage: lk.KeyUsageSign, Algorithm: lk.KeyAlgorithmEd25519, PublicKey: g.Keys.public(i)})
 		if err != nil {
 			return err
 		}
 		if ch.Challenge == nil {
 			return errors.New("home domain did not return a signing challenge")
 		}
-		req, err := rp.SignRenewal(lk.ApplicationKeyRenewal{SubjectUserId: a.SubjectUserID, SubjectDomain: a.SubjectDomain, ApplicationId: a.ApplicationID, InstanceId: g.Keys.InstanceID, KeyId: g.Keys.Keys[i].KeyID, ChallengeId: ch.ChallengeId, Challenge: *ch.Challenge, RequestedAt: time.Now().UTC().Format(time.RFC3339), ExpiresAt: ch.ExpiresAt}, nil, &signer)
+		req, err := rp.SignRenewal(lk.ApplicationKeyRenewal{SubjectUserId: a.SubjectUserID, SubjectDomain: a.SubjectDomain, ApplicationId: a.ApplicationID, InstanceId: g.Keys.InstanceID, KeyId: g.Keys.Keys[i].KeyID, ChallengeId: ch.ChallengeId, Challenge: *ch.Challenge, RequestedAt: time.Now().UTC().Truncate(time.Second), ExpiresAt: ch.ExpiresAt}, nil, &signer)
 		if err != nil {
 			return err
 		}
@@ -162,14 +162,14 @@ func (g *Grantee) Enroll(ctx context.Context, account lk.Transport) error {
 	for i := range g.Keys.Keys {
 		signer := g.Keys.signer(i)
 		pub := g.Keys.public(i)
-		ch, err := c.StartKeyChallenge(ctx, lk.StartApplicationKeyChallengeRequest{SubjectUserId: a.SubjectUserID, ApplicationId: a.ApplicationID, InstanceId: g.Keys.InstanceID, Purpose: "add", KeyUsage: "sign", Algorithm: "ed25519", PublicKey: pub})
+		ch, err := c.StartKeyChallenge(ctx, lk.StartApplicationKeyChallengeRequest{SubjectUserId: a.SubjectUserID, ApplicationId: a.ApplicationID, InstanceId: g.Keys.InstanceID, Purpose: lk.ApplicationKeyChallengePurposeAdd, KeyUsage: lk.KeyUsageSign, Algorithm: lk.KeyAlgorithmEd25519, PublicKey: pub})
 		if err != nil {
 			return err
 		}
 		if ch.Challenge == nil {
 			return errors.New("home domain did not return a signing challenge")
 		}
-		add, err := rp.SignAddition(lk.ApplicationKeyAddition{SubjectUserId: a.SubjectUserID, SubjectDomain: a.SubjectDomain, ApplicationId: a.ApplicationID, InstanceId: g.Keys.InstanceID, KeyId: g.Keys.Keys[i].KeyID, KeyUsage: "sign", Algorithm: "ed25519", PublicKey: pub, Fingerprint: rp.Fingerprint(pub), RequestedKeyLifetimeSeconds: 365 * 24 * 3600, ChallengeId: ch.ChallengeId, Challenge: *ch.Challenge, RequestedAt: time.Now().UTC().Format(time.RFC3339), ExpiresAt: ch.ExpiresAt}, nil, &signer)
+		add, err := rp.SignAddition(lk.ApplicationKeyAddition{SubjectUserId: a.SubjectUserID, SubjectDomain: a.SubjectDomain, ApplicationId: a.ApplicationID, InstanceId: g.Keys.InstanceID, KeyId: g.Keys.Keys[i].KeyID, KeyUsage: lk.KeyUsageSign, Algorithm: lk.KeyAlgorithmEd25519, PublicKey: pub, Fingerprint: rp.Fingerprint(pub), RequestedKeyLifetimeSeconds: 365 * 24 * 3600, ChallengeId: ch.ChallengeId, Challenge: *ch.Challenge, RequestedAt: time.Now().UTC().Truncate(time.Second), ExpiresAt: ch.ExpiresAt}, nil, &signer)
 		if err != nil {
 			return err
 		}
@@ -335,7 +335,7 @@ func (s *Service) BeginGrant(ctx context.Context, req api.BeginGrantRequest) (ap
 	// Ask for the longest terms; the home domain gives its maximum or less.
 	// Without them a grant lives one hour and cannot be renewed.
 	life, window := int64(GrantLifetime/time.Second), int64(GrantRenewalWindow/time.Second)
-	signedReq, err := rp.SignGrantRequest(lk.ActAsGrantRequest{Grantee: g.ref(), ScopeSet: signed, CallbackUrl: s.PublicURL + "/login/grant/callback", Nonce: nonce, RequestedAt: now.Format(time.RFC3339), ExpiresAt: exp.Format(time.RFC3339),
+	signedReq, err := rp.SignGrantRequest(lk.ActAsGrantRequest{Grantee: g.ref(), ScopeSet: signed, CallbackUrl: s.PublicURL + "/login/grant/callback", Nonce: nonce, RequestedAt: now.Truncate(time.Second), ExpiresAt: exp.Truncate(time.Second),
 		RequestedLifetimeSeconds: &life, RequestedRenewalWindowSeconds: &window}, g.signer)
 	if err != nil {
 		return api.BeginGrantResponse{}, err
@@ -418,17 +418,20 @@ func (s *Service) grantCallback(w http.ResponseWriter, r *http.Request) {
 		Back: req.ReturnURL})
 }
 
-func ms(t string) int64 {
-	v, err := time.Parse(time.RFC3339, t)
-	if err != nil {
+func ms(t time.Time) int64 {
+	if t.IsZero() {
 		return 0
 	}
-	return v.UnixMilli()
+	return t.UnixMilli()
 }
 
 func grantRow(owner, domain, audience string, g rp.RefreshedGrant, now time.Time) (store.Grant, error) {
+	bytes, err := lk.EncodeSignedActAsGrant(g.Grant)
+	if err != nil {
+		return store.Grant{}, err
+	}
 	return store.Grant{ID: g.Decoded.GrantId, Owner: owner, Domain: domain, Audience: audience, State: "active",
-		Scopes: g.Decoded.ApprovedScope, Bytes: lk.EncodeSignedActAsGrant(g.Grant),
+		Scopes: g.Decoded.ApprovedScope, Bytes: bytes,
 		ExpiresMs: ms(g.Decoded.ExpiresAt), RenewableUntilMs: ms(g.Decoded.RenewableUntil),
 		CreatedMs: now.UnixMilli(), UpdatedMs: now.UnixMilli()}, nil
 }
@@ -486,7 +489,7 @@ var errGrantGone = errors.New("the grant is revoked or expired")
 
 func (s *Service) refresh(ctx context.Context, g *Grantee, domain, grantID string) (rp.RefreshedGrant, error) {
 	now := s.now().UTC()
-	req, err := rp.SignRefreshRequest(lk.ActAsRefreshRequest{GrantId: grantID, Grantee: g.ref(), RequestedAt: now.Format(time.RFC3339), ExpiresAt: now.Add(5 * time.Minute).Format(time.RFC3339), Nonce: token()}, g.signer)
+	req, err := rp.SignRefreshRequest(lk.ActAsRefreshRequest{GrantId: grantID, Grantee: g.ref(), RequestedAt: now.Truncate(time.Second), ExpiresAt: now.Add(5 * time.Minute).Truncate(time.Second), Nonce: token()}, g.signer)
 	if err != nil {
 		return rp.RefreshedGrant{}, err
 	}
@@ -592,11 +595,15 @@ func (s *Service) PresentGrant(ctx context.Context, req api.PresentGrantRequest)
 	}
 	nonce := make([]byte, 32)
 	rand.Read(nonce)
-	cred, err := rp.Present(fresh.Grant, lkApp(req.Audience), req.RequestDigest, now.UTC(), nonce, g.signer)
+	cred, err := rp.Present(fresh.Grant, lkApp(req.Audience), req.RequestDigest, now.UTC().Truncate(time.Second), nonce, g.signer)
 	if err != nil {
 		return api.PresentGrantResponse{}, err
 	}
-	return api.PresentGrantResponse{Credential: lk.EncodeActAsCredential(cred), GrantId: use.ID,
+	credential, err := lk.EncodeActAsCredential(cred)
+	if err != nil {
+		return api.PresentGrantResponse{}, err
+	}
+	return api.PresentGrantResponse{Credential: credential, GrantId: use.ID,
 		Scopes: fresh.Decoded.ApprovedScope, ExpiresMs: uint64(ms(fresh.Decoded.ExpiresAt))}, nil
 }
 

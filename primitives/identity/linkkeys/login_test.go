@@ -163,6 +163,51 @@ func TestTransportPin(t *testing.T) {
 	}
 }
 
+// A reply of the RP server names its arm. The error arm (for example an
+// API key of an account that is not an application account) comes back as
+// a typed error with the code of LinkKeys, not as a decode failure.
+func TestReplyArms(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	c := lk.NewRpClient(e.d.Runtime().Transport())
+	if r, err := c.SignRequest(ctx, lk.RpSignRequest{CallbackUrl: "https://x.example.local", Nonce: "nonce-123456"}); err != nil || r.SignedRequest == "" {
+		t.Fatalf("sign-request = %+v, %v", r, err)
+	}
+	e.d.NotApplication = true
+	_, err := c.SignRequest(ctx, lk.RpSignRequest{CallbackUrl: "https://x.example.local", Nonce: "nonce-123456"})
+	var app *lk.RPCApplicationError[lk.RpError]
+	if !errors.As(err, &app) || app.Value.Code != lk.RpErrorCodeNotApplicationAccount {
+		t.Fatalf("err = %v: want the RpError arm with not_application_account", err)
+	}
+	if why := lk.Why(err); !strings.Contains(why, "application account") {
+		t.Fatalf("Why = %q", why)
+	}
+}
+
+// A time in a signed payload is whole seconds: a time with a fraction was
+// never signed, so the payload cannot be made.
+func TestSignedTimes(t *testing.T) {
+	at := time.Unix(1795000000, 0).UTC()
+	cl := lk.Claim{ClaimId: "c", UserId: "u", ClaimType: "handle", ClaimValue: []byte("kim"), AttestedAt: at}
+	a, err := lk.ClaimPayload(cl, "example.local", "example.local")
+	if err != nil || len(a) == 0 {
+		t.Fatalf("payload: %v", err)
+	}
+	later := at.Add(time.Hour)
+	cl.ExpiresAt = &later
+	b, err := lk.ClaimPayload(cl, "example.local", "example.local")
+	if err != nil || string(a) == string(b) {
+		t.Fatalf("the expiry is not in the payload: %v", err)
+	}
+	cl.AttestedAt = at.Add(time.Millisecond)
+	if _, err := lk.ClaimPayload(cl, "example.local", "example.local"); err == nil {
+		t.Fatal("a payload with a fraction of a second")
+	}
+	if _, err := lk.RevocationPayload("k", "fp", at.Add(time.Microsecond), "example.local"); err == nil {
+		t.Fatal("a revocation payload with a fraction of a second")
+	}
+}
+
 type pinless struct{ d *fakelk.Domain }
 
 func (p pinless) LookupTXT(ctx context.Context, name string) ([]string, error) {

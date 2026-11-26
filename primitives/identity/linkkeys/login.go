@@ -190,7 +190,7 @@ func (c *Client) Begin(ctx context.Context, id Identity, callbackURL string) (st
 	signed, err := c.RP.SignRequest(ctx, RpSignRequest{
 		CallbackUrl:     cb,
 		Nonce:           p.Nonce,
-		RequestedClaims: &ClaimRequest{Required: []RequestedClaim{}, Optional: []RequestedClaim{{ClaimType: HandleClaim, Datatype: "text"}}},
+		RequestedClaims: &ClaimRequest{Required: []RequestedClaim{}, Optional: []RequestedClaim{{ClaimType: HandleClaim, Datatype: ClaimValueTypeText}}},
 	})
 	if err != nil {
 		return "", p, fmt.Errorf("linkkeys sign-request: %w", err)
@@ -270,9 +270,8 @@ func (c *Client) Complete(ctx context.Context, p Pending, encryptedToken string)
 		skew = time.Minute
 	}
 	now := c.now()
-	iat, err1 := time.Parse(time.RFC3339, a.IssuedAt)
-	exp, err2 := time.Parse(time.RFC3339, a.ExpiresAt)
-	if err1 != nil || err2 != nil || iat.After(now.Add(skew)) || exp.Before(now) || exp.Before(iat) {
+	iat, exp := a.IssuedAt, a.ExpiresAt
+	if iat.IsZero() || exp.IsZero() || iat.After(now.Add(skew)) || exp.Before(now) || exp.Before(iat) {
 		return Verified{}, fail("invalid-assertion-time", "")
 	}
 	info, err := c.RP.UserinfoFetch(ctx, RpUserInfoRequest{Token: dec.SignedAssertion, ApiBase: p.APIBase, Domain: p.Domain})
@@ -307,4 +306,20 @@ func randomToken() string {
 	b := make([]byte, 32)
 	rand.Read(b)
 	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+// Why gives the reason of a failed call for a log: the code and the message
+// of the RpError arm of LinkKeys when the error has one, else the error.
+// An operator reads from it what to change (for example: the API key is of
+// an account that is not an application account).
+func Why(err error) string {
+	var app *RPCApplicationError[RpError]
+	if errors.As(err, &app) {
+		code, _ := app.Value.Code.MarshalText()
+		return fmt.Sprintf("LinkKeys refused the request (%s): %s", code, app.Value.Message)
+	}
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }

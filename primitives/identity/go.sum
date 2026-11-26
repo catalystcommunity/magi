@@ -1,7 +1,7 @@
-github.com/catalystcommunity/csilgen/transports/go v0.0.0-20260713013116-a661c8727022 h1:2Gr90Egbv1QOjg4k+MPwSOZj8xCVp/q8S0EYBvUYUIk=
-github.com/catalystcommunity/csilgen/transports/go v0.0.0-20260713013116-a661c8727022/go.mod h1:7CdM6CycSuRgLJ1Qt8A10qJZlIIlvSZG8PfkU8s0fCM=
-github.com/catalystcommunity/linkkeys/sdks/regular-rp/go v0.0.0-20261012235123-03fcbd8e7007 h1:zkozAL+JLYCq+tudRcb+31A/gN2qeBm4egCllrBbRfA=
-github.com/catalystcommunity/linkkeys/sdks/regular-rp/go v0.0.0-20261012235123-03fcbd8e7007/go.mod h1:Ksn3Q1C8CiaOYADgD1uMajzSN5NqoycdsMDv0STqxZE=
+github.com/catalystcommunity/csilgen/transports/go v0.0.0-20260926220402-baec1dad191c h1:9jKjVvpkeHdvT3MPT0He5PW/Mm+M9/MCug280ZGE+5U=
+github.com/catalystcommunity/csilgen/transports/go v0.0.0-20260926220402-baec1dad191c/go.mod h1:7CdM6CycSuRgLJ1Qt8A10qJZlIIlvSZG8PfkU8s0fCM=
+github.com/catalystcommunity/linkkeys/sdks/regular-rp/go v0.0.0-20261125235542-0996efcfa718 h1:TKd+mTXHGHqBXhOPrMJYBueQtn5dtLR/pXI9GlgZTHE=
+github.com/catalystcommunity/linkkeys/sdks/regular-rp/go v0.0.0-20261125235542-0996efcfa718/go.mod h1:pd0VHM0TvCR11tI+BJAVUgCGVLIJTd89nOQa96iOWsM=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

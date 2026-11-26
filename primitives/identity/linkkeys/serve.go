@@ -28,18 +28,29 @@ func Serve(ctx context.Context, l net.Listener, cert tls.Certificate, apiKey str
 	}
 }
 
+// Fault is an error of an Rp implementation that the server sends as the
+// RpError arm of the reply (status 0), as a LinkKeys server does: for
+// example "the account is not an application account".
+type Fault struct{ RpError }
+
+func (f *Fault) Error() string { return "linkkeys rp: " + f.Message }
+
 func serveOne(ctx context.Context, frame []byte, apiKey string, impl Rp) []byte {
-	reply := func(status int64, msg string, payload []byte) []byte {
+	replyArm := func(status int64, msg, variant string, payload []byte) []byte {
 		e := []cborEntry{
 			{cborText("v"), cborUint(envelopeVersion)},
 			{cborText("status"), cborInt(status)},
 			{cborText("payload"), cborTag{num: 24, inner: cborBytes(payload)}},
+		}
+		if variant != "" {
+			e = append(e, cborEntry{cborText("variant"), cborText(variant)})
 		}
 		if msg != "" {
 			e = append(e, cborEntry{cborText("error"), cborText(msg)})
 		}
 		return cborEncode(canonical(e...))
 	}
+	reply := func(status int64, msg string, payload []byte) []byte { return replyArm(status, msg, "", payload) }
 	v, err := cborDecode(frame)
 	if err == nil {
 		err = envelopeVersionOK(v)
@@ -59,11 +70,29 @@ func serveOne(ctx context.Context, frame []byte, apiKey string, impl Rp) []byte 
 	if err != nil {
 		return reply(1, err.Error(), nil)
 	}
-	out, err := dispatch(ctx, impl, text("service")+"/"+text("op"), req)
+	name := text("service") + "/" + text("op")
+	out, err := dispatch(ctx, impl, name, req)
+	var fault *Fault
+	if errors.As(err, &fault) && arms[name] != "" {
+		b, encErr := EncodeRpError(fault.RpError)
+		if encErr != nil {
+			return reply(13, encErr.Error(), nil)
+		}
+		return replyArm(0, "", "RpError", b)
+	}
 	if err != nil {
 		return reply(13, err.Error(), nil)
 	}
-	return reply(0, "", out)
+	return replyArm(0, "", arms[name], out)
+}
+
+// arms has the name of the success arm of each operation that also has an
+// RpError arm. A reply of such an operation names its arm.
+var arms = map[string]string{
+	"Rp/sign-request":     "RpSignResponse",
+	"Rp/decrypt-token":    "RpDecryptResponse",
+	"Rp/verify-assertion": "RpVerifyResponse",
+	"Rp/userinfo-fetch":   "UserInfo",
 }
 
 func dispatch(ctx context.Context, impl Rp, name string, b []byte) ([]byte, error) {

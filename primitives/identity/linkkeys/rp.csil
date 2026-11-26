@@ -1,88 +1,304 @@
+;;; The part of the LinkKeys 0.16.12 contract (linkkeys/csil/linkkeys.csil)
+;;; that a regular relying party needs for a browser login. subset.py makes
+;;; this file from the upstream contract. Do not edit it by hand.
+
 options {
   go_package: "linkkeys",
 }
 
-;;; Subset of the LinkKeys Rp service (linkkeys/csil/linkkeys.csil) that a
-;;; regular relying party needs for browser login. Field names and types
-;;; must match the upstream contract exactly. Regenerate with gen.sh.
+;; Public-key algorithm of a domain, user, or application key.
+KeyAlgorithm = &(
+    ed25519: 1,
+    x25519: 2
+)
 
-RequestedClaim = { claim_type: text, datatype: text }
-ClaimRequest = { required: [* RequestedClaim], optional: [* RequestedClaim] }
-AuthenticationRequirements = { minimum_factor_count: int }
-AuthFlowContext = { flow: text, ? prior_session: text, ? request_reason: text }
+;; What a key is for. Domain and user keys are `sign` or `encrypt`.
+;; Application keys are `sign` or `agree` (X25519 key agreement).
+KeyUsage = &(
+    sign: 1,
+    encrypt: 2,
+    agree: 3
+)
 
-RpSignRequest = {
-  callback_url: text,
-  nonce: text,
-  ? requested_claims: ClaimRequest,
-  ? authentication_requirements: AuthenticationRequirements,
-  ? flow_context: AuthFlowContext,
+;; The type a claim value carries. Advisory for the consent UI and for RP
+;; validation; claim values stay opaque bytes.
+ClaimValueType = &(
+    text: 1,
+    url: 2,
+    email: 3,
+    bool: 4,
+    int: 5,
+    float: 6,
+    decimal: 7,
+    date: 8,
+    timestamp: 9,
+    opaque: 10
+)
+
+;; Why an RP sends a browser to the IDP. `login` is the default.
+;; `claims_update` asks an already-signed-in user to review changed claim
+;; requirements.
+AuthFlow = &(
+    login: 1,
+    claims_update: 2
+)
+
+;; How current RP-cached key material is. `fresh`: served within the allowed
+;; age. `refreshed`: fetched for this call. `stale`: the home domain was
+;; unreachable and these are the last verified records; never presented as
+;; current trust.
+RpCacheStatus = &(
+    fresh: 1,
+    refreshed: 2,
+    stale: 3
+)
+
+;; Why an `Rp` operation refused a request, so an application can act on it.
+;; - not_application_account: the calling account is not an application
+;;   account, so it cannot start or finish an RP login.
+;; - application_mismatch: the token or assertion was issued for another
+;;   application of this RP.
+;; - application_user_limit: a new user would take the application over its
+;;   distinct-user limit ("this application is full").
+;; - bad_request / upstream_failed / internal: other failures; see `message`.
+;; An account over its request rate gets the transport status Unavailable (6),
+;; as for any throttle.
+RpErrorCode = &(
+    not_application_account: 1,
+    application_mismatch: 2,
+    application_user_limit: 3,
+    bad_request: 4,
+    upstream_failed: 5,
+    internal: 6
+)
+
+;; Fingerprint is SHA-256 of the public key bytes, hex-encoded.
+;; key_usage is `sign` (Ed25519 identity/signing) or `encrypt` (X25519 sealed-box
+;; recipient). Keys are single-purpose: a sign key never receives sealed boxes and
+;; an encrypt key never verifies signatures.
+;;
+;; Trust anchoring differs by usage. Only SIGN keys are fingerprint-pinned in DNS
+;; (the _linkkeys TXT fp= set). An ENCRYPT key is trusted because a DNS-pinned
+;; signing key vouches for it: signed_by_key_id names that signing key, and
+;; key_signature is its signature over the encrypt key's fingerprint (+ expiry).
+;; This keeps DNS lean (3 sign FPs) and lets encrypt keys rotate without DNS edits.
+DomainPublicKey = {
+    key_id: text,
+    public_key: bytes,
+    fingerprint: text,
+    algorithm: KeyAlgorithm,
+    key_usage: KeyUsage,
+    created_at: timestamp,
+    expires_at: timestamp,
+    ? revoked_at: timestamp,
+    ;; encrypt keys only: the signing key that vouches for this key, and its signature
+    ? signed_by_key_id: text,
+    ? key_signature: bytes
 }
-RpSignResponse = { signed_request: text }
 
-RpDecryptRequest = { encrypted_token: text }
-RpDecryptResponse = { signed_assertion: text }
+;; One signature over a claim. A claim is signed by one or more domains; each
+;; domain signs with several of its keys (>=3 by design) for redundancy and
+;; rotation. The signing domain is bound into the signed payload (see
+;; liblinkkeys::claims) so it is tamper-evident: a verifier knows which domain
+;; vouched for the claim, which is what trust policy is keyed on.
+ClaimSignature = {
+    domain: text,
+    signed_by_key_id: text,
+    signature: bytes
+}
+
+;; SEC-08: a sibling-signed revocation certificate. A domain's signing keys are
+;; equal peers; when one is compromised the OTHERS co-sign its revocation. A
+;; verifier accepts it only with a quorum (>= 2) of distinct, currently-valid
+;; signing keys of the domain, over a canonical tagged payload
+;; (linkkeys-key-revocation-v1alpha); the revoked key may never sign its own
+;; revocation. The signing/verifying logic lives in liblinkkeys::revocation.
+;; NOTE: not yet emitted into the generated codec — the checked-in generated code
+;; predates the current csilgen and a full regen is a separate reconciliation
+;; task (see docs/csilgen-requests/2026-07-02-revocation-and-pin-rpc.md).
+RevocationCertificate = {
+    target_key_id: text,
+    target_fingerprint: text,
+    revoked_at: timestamp,
+    signatures: [* ClaimSignature]
+}
+
+Claim = {
+    claim_id: text,
+    user_id: text,
+    claim_type: text,
+    claim_value: bytes,
+    signatures: [* ClaimSignature],
+    ;; SEC-08: the signed attestation time — WHEN this claim was
+    ;; signed. Bound into every signature so it is tamper-evident. This is what a
+    ;; verifier compares against a signer key's revoked_at: a signature made
+    ;; before the key's revocation stays trustworthy; one dated after does not.
+    ;; (created_at below is DB-assigned and NOT signed.)
+    attested_at: timestamp,
+    created_at: timestamp,
+    ? expires_at: timestamp,
+    ? revoked_at: timestamp
+}
+
+;; One claim a relying party asks for, with the datatype it expects the value
+;; to carry. `datatype` is advisory metadata for the consent UI and RP-side
+;; validation. The protocol does not enforce it; claim values remain opaque
+;; bytes.
+RequestedClaim = {
+    claim_type: text,
+    datatype: ClaimValueType
+}
+
+;; What a relying party advertises it wants on first contact. `required` means
+;; the RP says the app cannot function without the claim; `optional` is
+;; best-effort. A spec-compliant IDP shows both to the user and lets the user
+;; decline user-controlled claims. The RP receives the narrowed authorization
+;; set and decides whether to reject or degrade the app session. Showing is
+;; unenforceable (a non-spec server could skip the UI), which is fine — the IDP
+;; still applies its own allow/deny policy server-side regardless.
+ClaimRequest = {
+    required: [* RequestedClaim],
+    optional: [* RequestedClaim]
+}
+
+;; Authentication assurance requested by an RP. The RP may request only a
+;; number of distinct factors. It does not select authentication methods.
+;; The user's home domain decides which enabled methods count as factors and
+;; can require stronger assurance for the RP under its own policy.
+AuthenticationRequirements = {
+    minimum_factor_count: int
+}
+
+;; Browser/native flows can attach context explaining why this auth request is
+;; being made. IDPs treat this as signed RP metadata for display/audit only; the
+;; claim request itself remains the source of truth for consent decisions.
+AuthFlowContext = {
+    flow: AuthFlow,
+    ;; RP-local session/grant handle. Opaque to the IDP, signed by the RP.
+    ? prior_session: text,
+    ;; Human-readable reason the RP wants the changed claims.
+    ? request_reason: text
+}
 
 IdentityAssertion = {
-  user_id: text,
-  domain: text,
-  audience: text,
-  nonce: text,
-  issued_at: text,
-  expires_at: text,
-  authorized_claims: [* text],
-  ? display_name: text,
+    user_id: text,
+    domain: text,
+    audience: text,
+    nonce: text,
+    issued_at: timestamp,
+    expires_at: timestamp,
+    ;; The effective set of claim_types this redemption may release, as resolved
+    ;; by the user's consent plus home-domain policy. Required and fail-closed:
+    ;; an empty list releases no claims. get-user-info scopes its response to
+    ;; exactly this set (liblinkkeys::consent::scope_claims).
+    authorized_claims: [* text],
+    ? display_name: text,
+    ;; The application principal the login was for, copied from the signed
+    ;; `AuthRequest.application`. A relying party server refuses to decrypt,
+    ;; verify, or redeem an assertion for an application other than the
+    ;; calling account's.
+    application: ApplicationRef
 }
-RpVerifyRequest = { signed_assertion: text, expected_domain: text }
-RpVerifyResponse = { assertion: IdentityAssertion, verified: bool }
 
-ClaimSignature = { domain: text, signed_by_key_id: text, signature: bytes }
-Claim = {
-  claim_id: text,
-  user_id: text,
-  claim_type: text,
-  claim_value: bytes,
-  signatures: [* ClaimSignature],
-  attested_at: text,
-  created_at: text,
-  ? expires_at: text,
-  ? revoked_at: text,
+UserInfo = {
+    user_id: text,
+    domain: text,
+    display_name: text,
+    claims: [* Claim]
 }
-RpUserInfoRequest = { token: text, api_base: text, domain: text }
-UserInfo = { user_id: text, domain: text, display_name: text, claims: [* Claim] }
 
-DomainPublicKey = {
-  key_id: text,
-  public_key: bytes,
-  fingerprint: text,
-  algorithm: text,
-  key_usage: text,
-  created_at: text,
-  expires_at: text,
-  ? revoked_at: text,
-  ? signed_by_key_id: text,
-  ? key_signature: bytes,
+;; Sign an auth request for the login redirect.
+;; The calling account must be an application account. The signed request
+;; names the application as the account's own `ApplicationRef`.
+RpSignRequest = {
+    callback_url: text,
+    nonce: text,
+    ;; Optional per-request override. Absent => use RP_CLAIMS_CONFIG.
+    ? requested_claims: ClaimRequest,
+    ;; Optional factor-count request. The RP cannot name provider methods.
+    ? authentication_requirements: AuthenticationRequirements,
+    ;; Optional signed flow context displayed by the IDP.
+    ? flow_context: AuthFlowContext
 }
-RevocationCertificate = {
-  target_key_id: text,
-  target_fingerprint: text,
-  revoked_at: text,
-  signatures: [* ClaimSignature],
+
+RpSignResponse = {
+    ;; URL-param-encoded SignedAuthRequest.
+    signed_request: text
 }
-RpResolveDomainKeysRequest = { domain: text, ? max_cache_age_seconds: int }
+
+;; Decrypt the encrypted token the RP received on its callback.
+RpDecryptRequest = {
+    ;; URL-param-encoded encrypted token.
+    encrypted_token: text
+}
+
+RpDecryptResponse = {
+    ;; base64url(CBOR(SignedIdentityAssertion)).
+    signed_assertion: text
+}
+
+;; Verify a signed assertion against the issuing domain's published keys.
+RpVerifyRequest = {
+    signed_assertion: text,
+    expected_domain: text
+}
+
+RpVerifyResponse = {
+    assertion: IdentityAssertion,
+    verified: bool
+}
+
+;; Fetch a user's claims from the IDP on the RP's behalf (proof-of-possession via
+;; the RP's domain cert over mutual TLS to the IDP).
+RpUserInfoRequest = {
+    ;; URL-param-encoded SignedIdentityAssertion (the decrypt-token result).
+    token: text,
+    ;; The IDP's https API base, used only to detect the single-instance self-call.
+    api_base: text,
+    ;; The user's domain, used to resolve the IDP's tcp= endpoint + fingerprints.
+    domain: text
+}
+
+;; Ask this RP server, acting as its domain, to issue an attested claim from a
+;; user-supplied SignedSigningRequest. The caller must be API-key authenticated
+;; to this RP helper; the server also enforces its issuer policy and allowed
+;; claim list before signing.
+RpError = {
+    code: RpErrorCode,
+    message: text
+}
+
+;; An application asks ITS OWN RP server for cached remote key material. The RP
+;; does the discovery, the fetch, the verification, and the caching; the
+;; application never calls a remote home domain itself when it uses a regular RP.
+;; `max_cache_age_seconds` can only ask for material FRESHER than the operator's
+;; policy, never staler.
+RpResolveDomainKeysRequest = {
+    domain: text,
+    ? max_cache_age_seconds: int
+}
+
 RpResolveDomainKeysResponse = {
-  domain: text,
-  keys: [* DomainPublicKey],
-  revocations: [* RevocationCertificate],
-  fetched_at: text,
-  revocations_checked_at: text,
-  cache_status: text,
+    domain: text,
+    keys: [* DomainPublicKey],
+    revocations: [* RevocationCertificate],
+    fetched_at: timestamp,
+    revocations_checked_at: timestamp,
+    cache_status: RpCacheStatus
+}
+
+;; An application, as an application-key attestation binds it. No instance_id:
+;; any enrolled instance of the application can use a grant to it.
+ApplicationRef = {
+    subject_user_id: text,
+    subject_domain: text,
+    application_id: text
 }
 
 service Rp {
-  sign-request: RpSignRequest -> RpSignResponse,
-  decrypt-token: RpDecryptRequest -> RpDecryptResponse,
-  verify-assertion: RpVerifyRequest -> RpVerifyResponse,
-  userinfo-fetch: RpUserInfoRequest -> UserInfo,
+  sign-request: RpSignRequest -> RpSignResponse / RpError,
+  decrypt-token: RpDecryptRequest -> RpDecryptResponse / RpError,
+  verify-assertion: RpVerifyRequest -> RpVerifyResponse / RpError,
+  userinfo-fetch: RpUserInfoRequest -> UserInfo / RpError,
   resolve-domain-keys: RpResolveDomainKeysRequest -> RpResolveDomainKeysResponse,
 }
