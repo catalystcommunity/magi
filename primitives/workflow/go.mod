@@ -3,7 +3,7 @@ module github.com/catalystcommunity/magi/primitives/workflow
 go 1.26.0
 
 require (
-	github.com/CatalystCommunity/corndogs/clients/corndogs v0.0.0-20260930033320-f1b6ec6086dd
+	github.com/CatalystCommunity/corndogs/clients/corndogs v0.0.0-20261125195707-5d2a74fa00e3
 	github.com/catalystcommunity/magi/lib/authn v0.0.0
 	github.com/catalystcommunity/magi/lib/rpc v0.0.0
 	github.com/jackc/pgx/v5 v5.10.0

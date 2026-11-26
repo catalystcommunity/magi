@@ -2,7 +2,8 @@
 # Build Magi images and push them to the Magi registry.
 #   tools/build-images.sh [name...]     (default: all)
 # Pushes 127.0.0.1:55000/magi/<name>:<tag>. Nodes pull localhost:30500/magi/<name>:<tag>.
-# Writes the image references to .build/images.env.
+# Writes the image references to .build/images.env, and the reference of the
+# Corndogs image with them.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"
@@ -10,6 +11,10 @@ tag=${MAGI_TAG:-$(date -u +%Y%m%d%H%M%S)}
 push=${MAGI_PUSH_REGISTRY:-127.0.0.1:55000}
 pull=${MAGI_PULL_REGISTRY:-localhost:30500}
 "$root/tools/registry-forward.sh" >/dev/null
+
+# Corndogs is an image from outside of this repository. This line is its pin:
+# change the version and the digest here.
+corndogs=${MAGI_CORNDOGS_IMAGE:-containers.catalystsquad.com/public/catalystcommunity/corndogs:0.8.1@sha256:02972688f72e971106224f116d2cb49b67da033aa8f2650099064e22ded4dfc2}
 
 # name -> "go MODULE CMD" or "file DOCKERFILE"
 declare -A images=(
@@ -31,6 +36,8 @@ names=("$@")
 [[ ${#names[@]} -eq 0 ]] && names=("${!images[@]}")
 mkdir -p .build
 touch .build/images.env
+sed -i "/^IMAGE_CORNDOGS=/d" .build/images.env
+echo "IMAGE_CORNDOGS=$corndogs" >> .build/images.env
 for n in "${names[@]}"; do
   read -r kind a b <<<"${images[$n]}"
   ref="$push/magi/$n:$tag"

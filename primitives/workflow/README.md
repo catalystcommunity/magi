@@ -84,7 +84,7 @@ docker run -d --name magi-test-corndogs --cpus 1 --memory 512m \
   -p 127.0.0.1:55080:5080 --tmpfs /data:uid=65532,gid=65532,size=64m \
   -e STORAGE_BACKEND=file -e CORNDOGS_FILESTORE_DIR=/data \
   -e CORNDOGS_SUBMISSION_KEY_POLICY=required -e CORNDOGS_TASK_GUARD_POLICY=required \
-  containers.catalystsquad.com/public/catalystcommunity/corndogs:0.8.0
+  containers.catalystsquad.com/public/catalystcommunity/corndogs:0.8.1
 ```
 
 ## Test

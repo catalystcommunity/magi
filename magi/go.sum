@@ -1,6 +1,6 @@
 github.com/BurntSushi/toml v1.2.1/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
-github.com/CatalystCommunity/corndogs/clients/corndogs v0.0.0-20260930033320-f1b6ec6086dd h1:aX4eDoKKMKx738miVdRlrk4A0sNLHNsmYRkG4Me+HPI=
-github.com/CatalystCommunity/corndogs/clients/corndogs v0.0.0-20260930033320-f1b6ec6086dd/go.mod h1:rAPWej/OeWAb2Ov9mjRWDuJFrSReQux4tRTNNnqPus8=
+github.com/CatalystCommunity/corndogs/clients/corndogs v0.0.0-20261125195707-5d2a74fa00e3 h1:S6azDS6S+e458/fYkSH/kcwHlTkBe5leAriUW5/DQiw=
+github.com/CatalystCommunity/corndogs/clients/corndogs v0.0.0-20261125195707-5d2a74fa00e3/go.mod h1:rAPWej/OeWAb2Ov9mjRWDuJFrSReQux4tRTNNnqPus8=
 github.com/catalystcommunity/catalystcal/clients/go v0.3.0 h1:vmI7oxlca3Y1fBbDG720F8O2XaHMx25vuD+uZVJIMcM=
 github.com/catalystcommunity/catalystcal/clients/go v0.3.0/go.mod h1:xReCRnOUhP9ei8KE0oVMI60/LXooXdt2b8RxGYB3gao=
 github.com/catalystcommunity/longhouse/clients/go v0.0.0-20261108205303-831c2556920a h1:RfqLABgxrb967pE32Oxxygsg3VBaIigLfLGHhzQfm1A=

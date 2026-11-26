@@ -213,6 +213,12 @@ python3 deploy/render.py --images .build/images.env --values VALUES.env > out.js
 kubectl apply -f out.json
 ```
 
+Corndogs is an image from outside of this repository. `tools/build-images.sh`
+has its version and its digest, and writes them to `.build/images.env`. For a
+new Corndogs version, change that line, and change the Go client in
+`primitives/workflow/go.mod` to the commit of the same release. Apply
+`corndogs` first, then `workflow`.
+
 Use `--only name,name` to render a subset. The public route sends `/login/`
 and `/rpc/IdentityService/` to identity and all other paths to `magi`.
 Every API call except login needs a token.
