@@ -130,6 +130,9 @@ object Talk {
     /** This build has the models, so the phone finds the wake names itself. */
     val hasModels: Boolean get() = Senses.present(app)
 
+    /** The build has the models, and they did not load on this phone. */
+    val modelsFailed: Boolean get() = Senses.failed
+
     /** The counters of the microphone for the health report (any thread). */
     val counters: Ear.Counters? get() = ear?.counters
 

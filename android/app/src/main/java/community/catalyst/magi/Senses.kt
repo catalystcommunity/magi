@@ -124,7 +124,9 @@ class Senses private constructor(context: Context) {
         fun label(name: String): String = name.trim().uppercase().replace(Regex("[^A-Z0-9]+"), "_")
 
         @Volatile private var loaded: Senses? = null
-        @Volatile private var failed = false
+        /** The library or a model did not load on this phone. */
+        @Volatile var failed = false
+            private set
 
         /** True when this build has the models. */
         fun present(context: Context): Boolean = runCatching { context.assets.list(DIR)?.contains("speaker.onnx") == true }.getOrDefault(false)

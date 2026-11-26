@@ -646,6 +646,7 @@ class MainActivity : Activity() {
     private fun listeningText(): String = when {
         !Talk.on -> Talk.micProblem
         Talk.conversationOpen -> "In a conversation: talk with no name. \u201cGoodbye\u201d or \u201cEnd of line\u201d ends it."
+        Talk.modelsFailed -> "The voice models did not load on this phone. Magi finds the name in the words of each turn, so each turn goes to Magi."
         !settings.wakeWord -> "Hands-free: talk at any time. Talk over Magi to stop it."
         Talk.hasModels && !Talk.prints.enrolled -> "Listening for a name: \u201cHey, ${personaName(persona)}\u201d. Teach Magi your voice in the menu, and it hears only you."
         else -> "Listening for a name: \u201cHey, ${personaName(persona)}, \u2026\u201d. Magi keeps nothing of other talk."
