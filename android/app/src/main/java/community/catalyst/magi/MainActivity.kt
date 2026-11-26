@@ -93,16 +93,13 @@ class MainActivity : Activity() {
         const val RETURN_URL = "community.catalyst.magi:/signed-in"
         const val MIC_REQUEST = 1
         const val NOTIFY_REQUEST = 2
+        /** The notices that the conversation shows before the person opens the list. */
+        const val NOTICES_SHOWN = 2
         const val WORKING_MS = 3 * 60 * 1000L
-        /** A conversation with no turn and no reply for this time ends by itself. */
-        const val CONVERSATION_IDLE_MS = 5 * 60 * 1000L
     }
 
     internal lateinit var settings: Settings
-    private lateinit var player: Player
-    private lateinit var handsFree: HandsFree
     private val main = Handler(Looper.getMainLooper())
-    @Volatile private var hearing = false
     private var micButton: ImageView? = null
     internal lateinit var ui: Ui
     /** The tabs at the bottom. The keyboard hides them. */
@@ -129,14 +126,12 @@ class MainActivity : Activity() {
         if (Build.VERSION.SDK_INT >= 33) android.window.OnBackInvokedCallback { back?.let { readGen++; it() } } else null
     private var noticeBar: LinearLayout? = null
     private val work = Executors.newCachedThreadPool()
-    private var rpc: HttpCarrier? = null
 
     internal var persona = "persona:magi"
     private var personas: List<PersonaInfo> = emptyList()
     private val shown = HashMap<String, View>()
     @Volatile private var lastSeq = 0UL
     @Volatile private var readGen = 0
-    @Volatile private var voiceTurn = false
     private lateinit var messages: LinearLayout
     /** Shows that Magi builds a reply to the newest message of a person. */
     private var workingRow: View? = null
@@ -155,27 +150,31 @@ class MainActivity : Activity() {
         setTheme(if (dark) R.style.Magi else R.style.Magi_Light)
         super.onCreate(state)
         ui = Ui(this, Palette(dark))
-        player = Player(this)
-        player.onIdle = { speechEnded("done") }
-        handsFree = HandsFree(this, voice)
+        Talk.init(this)
+        persona = settings.lastPersona
         runCatching { Updater.schedule(this) }.onFailure { android.util.Log.w("MagiUpdater", "schedule: $it") }
         runCatching { Updater.settled(this) }
         if (!handleReturn(intent)) start()
         openNotice(intent)
         openUpdate(intent)
+        // A start again of the activity (a new theme) is no new gesture.
+        if (state == null) openAssist(intent)
     }
 
     override fun onResume() {
         super.onResume()
         Updater.foreground = this
         Updater.onReady = { runOnUiThread { showUpdateReady() } }
-        Attention.foreground = ::onNotice
-        Attention.closed = { ids -> runOnUiThread { ids.forEach { removeNotice(it) } } }
+        Talk.view = talkView
         work.execute {
             runCatching { Updater.check(applicationContext) }
             runOnUiThread { showUpdateReady() }
         }
-        if (settings.token != null) background(null) { Attention.hello(this, client()) }
+        if (settings.token != null) {
+            // The microphone as the person left it.
+            Talk.resume()
+            background(null) { Attention.hello(this, client()) }
+        }
     }
 
     override fun onPause() {
@@ -183,11 +182,8 @@ class MainActivity : Activity() {
             Updater.foreground = null
             Updater.onReady = null
         }
-        // Hands-free talk keeps the notices here: the person still talks with the app.
-        if (!handsFree.on) {
-            Attention.foreground = null
-            Attention.closed = null
-        }
+        // Talk goes on with no screen: the name of a persona still opens a conversation.
+        if (Talk.view === talkView) Talk.view = null
         if (settings.token != null) background(null) { Attention.hello(this, client()) }
         super.onPause()
     }
@@ -206,28 +202,25 @@ class MainActivity : Activity() {
 
     override fun onRequestPermissionsResult(code: Int, permissions: Array<out String>, results: IntArray) {
         super.onRequestPermissionsResult(code, permissions, results)
-        // The person permitted the microphone for the wake word: listen now.
-        if (code == MIC_REQUEST && results.firstOrNull() == PackageManager.PERMISSION_GRANTED) listenForWakeWord()
+        // The person permitted the microphone: turn it on now.
+        if (code == MIC_REQUEST && results.firstOrNull() == PackageManager.PERMISSION_GRANTED) toggleMic()
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (!handleReturn(intent)) openNotice(intent)
         openUpdate(intent)
+        openAssist(intent)
     }
 
     override fun onDestroy() {
         readGen++
-        handsFree.stop()
-        Attention.handsFree = false
-        if (Attention.foreground == ::onNotice) Attention.foreground = null
-        player.stop()
+        if (Talk.view === talkView) Talk.view = null
         work.shutdownNow()
         super.onDestroy()
     }
 
-    internal fun client(): HttpCarrier =
-        rpc ?: HttpCarrier(settings.server) { settings.token }.also { rpc = it }
+    internal fun client(): HttpCarrier = Talk.client()
 
     /** Runs block on a worker thread and shows a failure in status. */
     internal fun background(status: TextView?, block: () -> Unit) {
@@ -251,12 +244,23 @@ class MainActivity : Activity() {
                     try {
                         val t = client().identity.refresh(RefreshRequest())
                         settings.saveToken(t.token, t.subject, t.expiresMs.toLong())
-                        runOnUiThread { showConversation() }
+                        runOnUiThread { showLast() }
                     } catch (e: Exception) {
                         runOnUiThread { signOut("Sign in again.") }
                     }
                 }
             }
+            else -> showLast()
+        }
+    }
+
+    /** The tab that the person used last. The conversation is the one of the last persona. */
+    private fun showLast() {
+        when (settings.lastTab.takeIf { settings.operator || (it != "Network" && it != "Admin") }) {
+            "Review" -> showReviews()
+            "Network" -> showNetwork()
+            "Tasks" -> showTasks()
+            "Admin" -> showAdmin()
             else -> showConversation()
         }
     }
@@ -289,7 +293,6 @@ class MainActivity : Activity() {
             server.setText(s)
             settings.server = s
             settings.identity = id
-            rpc = null
             status.text = "Opening the browser..."
             background(status) {
                 val b = client().identity.beginLogin(BeginLoginRequest(identity = id, client = "android", returnUrl = RETURN_URL))
@@ -345,6 +348,8 @@ class MainActivity : Activity() {
 
     private fun signOut(message: String) {
         readGen++
+        // The microphone stops; the choice of the person stays for the next sign in.
+        Talk.stop(remember = false)
         settings.clearToken()
         showLogin(message)
     }
@@ -402,10 +407,11 @@ class MainActivity : Activity() {
             .setOnMenuItemClickListener {
                 settings.wakeWord = !settings.wakeWord
                 // On: listen now. Off: the microphone stops, so that the app does not take all talk in the room.
-                val status = chatStatus
-                if (settings.wakeWord) listenForWakeWord() else if (handsFree.on && status != null) toggleHandsFree(status)
+                if (settings.wakeWord != Talk.on) toggleMic() else talkView.talkChanged()
                 true
             }
+        m.menu.add(if (Talk.prints.enrolled) "Your voice (Magi knows it)" else "Your voice (teach Magi)").setOnMenuItemClickListener { showVoiceSetup(); true }
+        m.menu.add(if (AssistantService.active(this)) "Assistant app: Magi" else "Make Magi the assistant app").setOnMenuItemClickListener { showAssistant(); true }
         val theme = m.menu.addSubMenu("Theme")
         for ((label, value) in listOf("Dark" to "dark", "Light" to "light", "As the phone" to "system")) {
             theme.add(label).apply { isCheckable = true; isChecked = settings.theme == value }
@@ -504,6 +510,9 @@ class MainActivity : Activity() {
         AlertDialog.Builder(this).setTitle("Magi").setView(col).setPositiveButton("Close", null).show()
     }
 
+    /** The names of the personas, the one of the open conversation first. */
+    internal fun personaNames(): List<String> = (personas.filter { it.id == persona } + personas.filter { it.id != persona }).map { it.name }
+
     internal fun personaName(id: String) = personas.firstOrNull { it.id == id }?.name ?: id.removePrefix("persona:").replaceFirstChar { it.uppercase() }
 
     internal fun day(ms: ULong) = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(ms.toLong()))
@@ -512,6 +521,11 @@ class MainActivity : Activity() {
         readGen++
         back = null
         persona = id
+        settings.lastTab = "Talk"
+        settings.lastPersona = id
+        // Speech with no name goes to the persona on the screen. An open
+        // conversation stays with its persona.
+        if (!Talk.conversationOpen) Talk.persona = id
         lastSeq = 0UL
         shown.clear()
         lastAuthor = null
@@ -551,13 +565,13 @@ class MainActivity : Activity() {
         workingRow = workingWrap
         waitingSince = 0L
         chatStatus = status
-        val mic = ui.icon(R.drawable.ic_mic, "Hands-free talk", bg = ui.p.raised) { toggleHandsFree(status) }
+        val mic = ui.icon(R.drawable.ic_mic, "Hands-free talk", bg = ui.p.raised) { toggleMic() }
         val send = ui.icon(R.drawable.ic_send, "Send", tint = ui.p.onAccent, bg = ui.p.accent) {
             val text = input.text.toString().trim()
             if (text.isNotEmpty()) {
                 input.setText("")
-                voiceTurn = false
-                say(SayRequest(persona = persona, text = text, speakReply = settings.speakReplies), status)
+                Talk.voiceTurn = false
+                Talk.say(SayRequest(persona = persona, text = text, speakReply = settings.speakReplies)) { status.text = it }
             }
         }
         for (b in listOf(mic, send)) (b.layoutParams as LinearLayout.LayoutParams).leftMargin = ui.dp(6)
@@ -571,10 +585,19 @@ class MainActivity : Activity() {
         }
         val bar0 = ui.column().apply { setPadding(ui.dp(10), 0, ui.dp(10), 0) }
         noticeBar = bar0
+        noticeViews.clear()
+        allNotices = false
+        moreNotices = null
         val root = ui.column().apply {
             addView(topBar(personaName(persona), avatar = true))
             addView(HorizontalScrollView(this@MainActivity).apply { isHorizontalScrollBarEnabled = false; addView(personaRow) })
-            addView(bar0)
+            // The open list of notices takes at most the half of the page and scrolls.
+            addView(object : ScrollView(this@MainActivity) {
+                override fun onMeasure(w: Int, h: Int) {
+                    val max = resources.displayMetrics.heightPixels * 2 / 5
+                    super.onMeasure(w, View.MeasureSpec.makeMeasureSpec(max, View.MeasureSpec.AT_MOST))
+                }
+            }.apply { addView(bar0) })
             addView(scroll, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
             addView(workingWrap)
             addView(status)
@@ -590,6 +613,8 @@ class MainActivity : Activity() {
         val gen = readGen
         background(status) {
             personas = runCatching { client().magi.listPersonas(ListPersonasRequest()).personas }.getOrDefault(emptyList())
+            // The names of the personas are the wake names.
+            Talk.setPersonas(personas.associate { it.id to it.name })
             // The tabs come from the role of the last visit. A changed role builds the page again.
             val operator = runCatching { client().magi.getAccess(GetAccessRequest()).operator }.getOrDefault(settings.operator)
             if (operator != settings.operator) {
@@ -612,84 +637,92 @@ class MainActivity : Activity() {
                 first.messages.forEach { show(it, false) }
                 lastSeq = first.lastSeq
                 follow(gen)
-                listenForWakeWord()
+                talkView.talkChanged()
             }
         }
     }
 
     /** The line that tells what the microphone waits for. */
     private fun listeningText(): String = when {
+        !Talk.on -> Talk.micProblem
+        Talk.conversationOpen -> "In a conversation: talk with no name. \u201cGoodbye\u201d or \u201cEnd of line\u201d ends it."
         !settings.wakeWord -> "Hands-free: talk at any time. Talk over Magi to stop it."
-        conversationOpen -> "In a conversation: talk with no name. \u201cGoodbye\u201d or \u201cEnd of line\u201d ends it."
+        Talk.hasModels && !Talk.prints.enrolled -> "Listening for a name: \u201cHey, ${personaName(persona)}\u201d. Teach Magi your voice in the menu, and it hears only you."
         else -> "Listening for a name: \u201cHey, ${personaName(persona)}, \u2026\u201d. Magi keeps nothing of other talk."
     }
 
     /**
-     * The wake word needs the microphone: with the option on, the app
-     * listens from its start, with no touch of the microphone button. An
-     * update of the app starts the app again, and the app listens again.
+     * Turns hands-free talk on or off. The app keeps the choice: it turns
+     * the microphone on again when it starts, and it listens for the names
+     * of the personas with the app in the background.
      */
-    private fun listenForWakeWord() {
-        val status = chatStatus ?: return
-        if (!settings.wakeWord || handsFree.on) {
-            if (handsFree.on) status.text = listeningText()
-            return
-        }
-        toggleHandsFree(status)
-    }
-
-    /** Starts or stops hands-free talk. */
-    private fun toggleHandsFree(status: TextView) {
+    private fun toggleMic() {
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), MIC_REQUEST)
             return
         }
-        if (handsFree.on) {
-            handsFree.stop()
-            player.communication = false
-            Attention.handsFree = false
-            Attention.start(this, mic = false)
-            status.text = ""
-        } else {
-            try {
-                player.communication = true
-                handsFree.start()
-                Attention.handsFree = true
-                Attention.start(this, mic = true)
-                status.text = listeningText()
-            } catch (e: Exception) {
-                player.communication = false
-                status.text = "The microphone did not start: ${e.message}"
+        if (Talk.on) Talk.stop() else {
+            val problem = Talk.start()
+            if (problem != null) chatStatus?.text = problem
+            else if (!AssistantService.active(this) && !settings.askedAssistant) {
+                settings.askedAssistant = true
+                showAssistant()
             }
         }
-        updateMic()
-        background(null) { Attention.hello(this, client()) }
+        talkView.talkChanged()
     }
 
     /** The microphone button shows the state: off, listening, or hearing the person. */
     private fun updateMic() {
         val mic = micButton ?: return
-        val on = handsFree.on
+        val on = Talk.on
+        val hearing = Talk.hearing
         mic.background = ui.shape(if (!on) ui.p.raised else if (hearing) ui.p.danger else ui.p.accent, 22)
         mic.imageTintList = ColorStateList.valueOf(if (on) ui.p.onAccent else ui.p.text)
         mic.contentDescription = if (!on) "Hands-free talk" else if (hearing) "Hearing you" else "Listening"
     }
 
-    private fun say(req: SayRequest, status: TextView) {
-        status.text = "Sending..."
-        background(status) {
-            val r = client().magi.say(req)
-            if (r.ended == true) { runOnUiThread { status.text = ""; endConversation() }; return@background }
-            if (r.ignored == true) { runOnUiThread { status.text = "" }; return@background }
-            // Magi took a spoken turn: the conversation is open, and the next turns need no name.
-            if (req.audio != null) runOnUiThread { openConversation() }
-            // The tone says that Magi heard the person and builds the reply:
-            // for speech, and for text when replies are spoken.
-            if (req.audio != null || req.speakReply == true) runOnUiThread { Ack.play(player.communication) }
-            // A message that names another persona ("Engineering, ...") went to that persona.
-            val p = r.message.persona
-            runOnUiThread { status.text = ""; if (p.isNotEmpty() && p != persona) showConversation(p) }
+    /** What Talk tells the open screen. Main thread. */
+    private val talkView = object : Talk.View {
+        override fun talkChanged() {
+            updateMic()
+            val status = chatStatus ?: return
+            // The line stays when it shows the progress or the failure of a message.
+            val t = status.text.toString()
+            if (t.isEmpty() || t == lastListening) {
+                lastListening = listeningText()
+                status.text = lastListening
+            }
         }
+        override fun tookTurn(persona: String) {
+            if (persona.isNotEmpty() && persona != this@MainActivity.persona && chatStatus != null && settings.lastTab == "Talk") showConversation(persona)
+        }
+        override fun talkStatus(text: String) {
+            chatStatus?.text = text
+            if (text.isEmpty()) talkChanged()
+        }
+        override fun notice(n: Notice) = addNotice(n)
+        override fun noticeClosed(id: String) = removeNotice(id)
+        override fun signedOut() = signOut("Your sign in ended. Sign in again.")
+    }
+    private var lastListening = ""
+
+    /** Tells the person how Magi becomes the assistant app, and opens the setting of the phone. */
+    internal fun showAssistant() {
+        val active = AssistantService.active(this)
+        val text = if (active) "Magi is the assistant app of this phone. It listens for the names of the personas after the phone starts and with the app closed, and the assistant gesture of the phone opens a conversation."
+        else "Android gives the microphone to an app in the background only when it is the assistant app of the phone. As the assistant app, Magi listens for the names of the personas after the phone starts and with the app closed.\n\nIn the setting that opens, select Magi as the digital assistant app."
+        val d = android.app.AlertDialog.Builder(this).setTitle("Assistant app").setMessage(text)
+        if (active) d.setPositiveButton("OK", null) else {
+            d.setNegativeButton("Not now", null)
+            d.setPositiveButton("Open the setting") { _, _ ->
+                val opened = listOf(android.provider.Settings.ACTION_VOICE_INPUT_SETTINGS, android.provider.Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).any {
+                    runCatching { startActivity(Intent(it)) }.isSuccess
+                }
+                if (!opened) Toast.makeText(this, "Open the settings of the phone: Apps, Default apps, Digital assistant app.", Toast.LENGTH_LONG).show()
+            }
+        }
+        d.show()
     }
 
     /** Long-polls the stream and shows new messages until the view changes. */
@@ -821,9 +854,9 @@ class MainActivity : Activity() {
     private fun show(m: Message, live: Boolean) {
         if (shown.containsKey(m.id)) return
         val audio = m.audio
-        // A notice is said by the notice flow (onNotice), not as a reply.
+        // A notice is said by the notice flow (Talk.notice), not as a reply.
         val spoken = m.authorKind == "persona" && (m.modality == "voice" || m.modality == "notice")
-        val play: (() -> Unit)? = if (spoken || audio != null) ({ if (spoken) speakParts(m.id, m.text) else playAudio(audio!!) }) else null
+        val play: (() -> Unit)? = if (spoken || audio != null) ({ if (spoken) Talk.speak(m.id, m.text, again = true) else playAudio(audio!!) }) else null
         val ms = m.createdMs.toLong()
         if (lastShownMs == 0L || ChatTime.otherDay(lastShownMs, ms)) {
             messages.addView(ui.text(ChatTime.day(ms), 12f, ui.p.muted).apply {
@@ -837,8 +870,8 @@ class MainActivity : Activity() {
         val author = "${m.authorKind}:${m.author}:${m.persona}"
         val own = m.authorKind == "persona" && m.persona.ifEmpty { m.author } == persona
         val box = messageView(m, named = author != lastAuthor && !own, onPlay = play)
-        // Speak a reply to a voice message, or when spoken replies are on.
-        if (play != null && live && m.modality == "voice" && (voiceTurn || settings.speakReplies || handsFree.on)) speakParts(m.id, m.text)
+        // Talk speaks a reply to a voice message, or when spoken replies are on.
+        if (live) Talk.arrived(m)
         shown[m.id] = box
         messages.addView(box, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = ui.dp(if (author == lastAuthor) 2 else 10) })
         lastAuthor = author
@@ -1023,192 +1056,6 @@ class MainActivity : Activity() {
         return box
     }
 
-    // A spoken reply comes in parts while Magi makes them (listen); each
-    // part plays after the one before it.
-    @Volatile private var speakingId: String? = null
-    private var speakingText = ""
-    private var speakingDone: ((String) -> Unit)? = null
-
-    /** Plays the parts of a spoken message as they come. onEnd gets the reason when it ends. */
-    private fun speakParts(id: String, text: String, onEnd: ((String) -> Unit)? = null) {
-        if (speakingId != null) speechEnded("user")
-        player.stop()
-        player.volume = 1f
-        speakingId = id
-        speakingText = text
-        speakingDone = onEnd
-        background(null) {
-            var after = 0UL
-            while (speakingId == id) {
-                val r = client().magi.listen(ListenRequest(message = id, after = after, waitMs = 20000UL))
-                for (p in r.parts) {
-                    val a = client().magi.getAudio(GetAudioRequest(digest = p.audio))
-                    runOnUiThread { if (speakingId == id) player.enqueue(a.body, a.mediaType, p) }
-                }
-                after += r.parts.size.toULong()
-                if (r.done) {
-                    if (after == 0UL) runOnUiThread { if (speakingId == id) speechEnded("error") }
-                    break
-                }
-            }
-        }
-    }
-
-    /** The spoken cursor: the end of the last word that the person heard. */
-    private fun heardUntil(): Int {
-        val (tag, ms) = player.position() ?: return 0
-        val part = tag as? SpeechPart ?: return 0
-        var heard = part.start.toInt()
-        for (w in part.words) if (w.startMs.toLong() <= ms) heard = maxOf(heard, w.end.toInt())
-        return heard
-    }
-
-    /** The spoken message ended: played to the end ("done") or stopped. Main thread. */
-    private var lastReplyEnd = 0L
-    /** The person stopped the last reply with speech (check-overlap gave "stop"). */
-    private var lastReplyStopped = false
-
-    /** A conversation that the name of a persona opened. Its turns need no name. */
-    private var conversationOpen = false
-    /** The time of the last turn or the end of the last reply of the conversation. */
-    private var conversationSeen = 0L
-    private val idleClose = Runnable { closeIdleConversation() }
-
-    private fun openConversation() {
-        conversationOpen = true
-        conversationSeen = System.currentTimeMillis()
-        main.removeCallbacks(idleClose)
-        main.postDelayed(idleClose, CONVERSATION_IDLE_MS)
-        if (handsFree.on) chatStatus?.text = listeningText()
-    }
-
-    /** Magi said that the conversation ended, or nobody talked for a long time. */
-    private fun endConversation() {
-        if (!conversationOpen) return
-        conversationOpen = false
-        main.removeCallbacks(idleClose)
-        if (handsFree.on) {
-            runCatching { ToneGenerator(if (player.communication) AudioManager.STREAM_VOICE_CALL else AudioManager.STREAM_MUSIC, 60).startTone(ToneGenerator.TONE_PROP_NACK, 200) }
-            chatStatus?.text = listeningText()
-        }
-    }
-
-    /** A microphone that nobody talks to does not stay open: the name is needed again. */
-    private fun closeIdleConversation() {
-        if (!conversationOpen) return
-        val left = conversationSeen + CONVERSATION_IDLE_MS - System.currentTimeMillis()
-        if (left > 0 || speakingId != null) main.postDelayed(idleClose, maxOf(left, 10_000L)) else endConversation()
-    }
-
-    private fun speechEnded(reason: String) {
-        val id = speakingId ?: return
-        lastReplyEnd = System.currentTimeMillis()
-        lastReplyStopped = reason == "interrupted"
-        if (conversationOpen) conversationSeen = lastReplyEnd
-        val heard = if (reason == "done") speakingText.codePointCount(0, speakingText.length) else heardUntil()
-        speakingId = null
-        val done = speakingDone
-        speakingDone = null
-        player.volume = 1f
-        background(null) {
-            client().magi.reportDelivery(ReportDeliveryRequest(message = id, spokenUntil = heard.toULong(), reason = reason,
-                stoppedMs = if (reason == "done") null else System.currentTimeMillis().toULong()))
-        }
-        done?.invoke(reason)
-    }
-
-    /** Stops a spoken message when the person (or a notice) takes the turn. */
-    private fun interruptSpeech(reason: String = "interrupted") {
-        val id = speakingId ?: return
-        if (player.playing) {
-            speechEnded(reason)
-            player.stop()
-        } else {
-            speechEnded(reason)
-        }
-        background(null) { client().magi.stopSpeech(StopSpeechRequest(message = id, reason = reason)) }
-    }
-
-    // --- Hands-free talk and notices ----------------------------------------
-
-    private val voice = object : HandsFree.Callbacks {
-        override fun speaking() = speakingId
-        override fun heardUntil(): Int {
-            var h = 0
-            val l = java.util.concurrent.CountDownLatch(1)
-            main.post { h = this@MainActivity.heardUntil(); l.countDown() }
-            l.await(200, java.util.concurrent.TimeUnit.MILLISECONDS)
-            return h
-        }
-        override fun duck(level: Float) { main.post { player.volume = level } }
-        override fun interrupt() { main.post { interruptSpeech() } }
-        override fun check(message: String, wav: ByteArray, heardUntil: Int, final: Boolean): String = try {
-            client().magi.checkOverlap(CheckOverlapRequest(message = message, audio = wav, audioType = "audio/wav",
-                heardUntil = heardUntil.toULong(), final = final, wakeWord = if (settings.wakeWord) true else null)).decision
-        } catch (e: RpcException) {
-            if (e.code == 404 || e.code == 501 || e.code == 503) "missing" else "error"
-        } catch (e: Exception) { "error" }
-        override fun turn(wav: ByteArray) {
-            main.post {
-                // A turn that the microphone heard while a reply played is the
-                // voice of the persona from the loudspeaker, not a turn of the
-                // person: also when the reply ended with a failure of the
-                // speech. (A reply that the person stopped is different: Magi
-                // found the name of a persona in the speech.)
-                val now = System.currentTimeMillis()
-                val turnMs = (wav.size - 44).coerceAtLeast(0) / 32L // 16 kHz, 16 bit, one channel
-                if (speakingId != null || (!lastReplyStopped && now - lastReplyEnd < turnMs + 300)) return@post
-                voiceTurn = true
-                val status = TextView(this@MainActivity)
-                // The name of a persona opens a conversation. In it, a turn
-                // needs no name. Magi ends it (a closing phrase alone), and
-                // then the next turn needs the name again.
-                if (conversationOpen && now - conversationSeen >= CONVERSATION_IDLE_MS) endConversation()
-                val needName = settings.wakeWord && !conversationOpen
-                say(SayRequest(persona = persona, audio = wav, audioType = "audio/wav", speakReply = true, wakeWord = if (needName) true else null), status)
-            }
-        }
-        override fun hearing(on: Boolean) {
-            hearing = on
-            main.post { updateMic() }
-        }
-    }
-
-    private val noticeQueue = ArrayDeque<Notice>()
-    private var noticeSaying = false
-
-    /** A notice while the app is open (Attention.foreground). Any thread. */
-    private fun onNotice(n: Notice): String {
-        val say = n.urgency != "low"
-        main.post {
-            addNotice(n)
-            if (say) { noticeQueue.addLast(n); pumpNotices() }
-        }
-        return if (say) "spoken" else "shown"
-    }
-
-    /** Says the next notice when the turn is free: at once when it is urgent. */
-    private fun pumpNotices() {
-        if (noticeSaying) return
-        val n = noticeQueue.firstOrNull() ?: return
-        if (n.urgency != "high" && (speakingId != null || hearing)) {
-            main.postDelayed(::pumpNotices, 400)
-            return
-        }
-        noticeQueue.removeFirst()
-        noticeSaying = true
-        if (speakingId != null) interruptSpeech("notice")
-        val stream = if (player.communication) AudioManager.STREAM_VOICE_CALL else AudioManager.STREAM_MUSIC
-        runCatching { ToneGenerator(stream, 70).startTone(if (n.urgency == "high") ToneGenerator.TONE_PROP_BEEP2 else ToneGenerator.TONE_PROP_ACK, 250) }
-        main.postDelayed({
-            speakParts(n.message, n.text) { reason ->
-                noticeSaying = false
-                if (reason == "done") { removeNotice(n.id); background(null) { Attention.ack(this, client(), n.id) } }
-                pumpNotices()
-            }
-        }, 350)
-    }
-
     private val noticeViews = HashMap<String, View>()
 
     private fun addNotice(n: Notice) {
@@ -1221,11 +1068,52 @@ class MainActivity : Activity() {
         box.addView(ui.button("Dismiss", Kind.LINK) { removeNotice(n.id); background(null) { Attention.ack(this@MainActivity, client(), n.id) } }
             .apply { gravity = Gravity.END; minHeight = 0; setPadding(0, ui.dp(6), 0, 0) })
         noticeViews[n.id] = box
-        bar.addView(box)
+        // The newest notice is at the top.
+        bar.addView(box, 0)
+        layoutNotices()
     }
 
     private fun removeNotice(id: String) {
         noticeViews.remove(id)?.let { (it.parent as? LinearLayout)?.removeView(it) }
+        layoutNotices()
+    }
+
+    private var allNotices = false
+    private var moreNotices: View? = null
+
+    /**
+     * The conversation keeps its place: the bar shows the two newest
+     * notices, and a line opens the others.
+     */
+    private fun layoutNotices() {
+        val bar = noticeBar ?: return
+        moreNotices?.let { bar.removeView(it) }
+        moreNotices = null
+        val boxes = (0 until bar.childCount).map { bar.getChildAt(it) }
+        if (boxes.size <= NOTICES_SHOWN) allNotices = false
+        boxes.forEachIndexed { i, v -> v.visibility = if (allNotices || i < NOTICES_SHOWN) View.VISIBLE else View.GONE }
+        if (boxes.size > NOTICES_SHOWN) {
+            val label = if (allNotices) "Show fewer notices" else "${boxes.size - NOTICES_SHOWN} more notices"
+            val more = ui.button(label, Kind.LINK) { allNotices = !allNotices; layoutNotices() }.apply { minHeight = 0; setPadding(ui.dp(6), ui.dp(4), 0, ui.dp(4)) }
+            moreNotices = more
+            bar.addView(more)
+        }
+    }
+
+    /**
+     * The assistant gesture of the phone opened the app: the conversation
+     * shows, and Magi listens with no name, as after "Hey, Magi".
+     */
+    private fun openAssist(intent: Intent?) {
+        if (intent == null || (intent.action != Intent.ACTION_ASSIST && !intent.getBooleanExtra(AssistantService.EXTRA_ASSIST, false))) return
+        intent.removeExtra(AssistantService.EXTRA_ASSIST)
+        if (settings.token == null) return
+        if (settings.lastTab != "Talk" || chatStatus == null) showConversation(Talk.persona)
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), MIC_REQUEST)
+            return
+        }
+        Talk.gesture()?.let { chatStatus?.text = it }
     }
 
     /** Opened from a notification: show the conversation of its persona and acknowledge it. */
@@ -1239,12 +1127,12 @@ class MainActivity : Activity() {
     }
 
     /** Plays a sample of a voice (the voice dialog). */
-    internal fun playSample(body: ByteArray, mediaType: String) = player.play(body, mediaType)
+    internal fun playSample(body: ByteArray, mediaType: String) = Talk.play(body, mediaType)
 
     private fun playAudio(digest: String) {
         background(null) {
             val a = client().magi.getAudio(GetAudioRequest(digest = digest))
-            runOnUiThread { player.play(a.body, a.mediaType) }
+            runOnUiThread { Talk.play(a.body, a.mediaType) }
         }
     }
 
@@ -1356,6 +1244,9 @@ class MainActivity : Activity() {
     internal fun page(tab: String, title: String, vararg views: View) {
         val col = ui.column(14)
         views.forEach { col.addView(it) }
+        settings.lastTab = tab
+        chatStatus = null
+        micButton = null
         // The back button of a list page goes to the conversation.
         back = { showConversation() }
         show(ui.column().apply {

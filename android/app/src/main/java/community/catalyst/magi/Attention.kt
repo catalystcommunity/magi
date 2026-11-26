@@ -15,6 +15,7 @@ import android.util.Log
 import community.catalyst.magi.client.identity.RefreshRequest
 import community.catalyst.magi.client.magi.AckNoticeRequest
 import community.catalyst.magi.client.magi.DeliverNoticeRequest
+import community.catalyst.magi.client.magi.DeviceHealth
 import community.catalyst.magi.client.magi.Notice
 import community.catalyst.magi.client.magi.PutDeviceRequest
 import community.catalyst.magi.client.magi.WaitNoticesRequest
@@ -22,20 +23,17 @@ import java.security.SecureRandom
 
 /**
  * Devices and notices (docs/attention.md). The phone is a device of the
- * person. NoticeService waits for notices while the app is not open and
- * shows them as system notifications; while the app is open, the activity
- * gets them (Attention.foreground) and says or shows them.
+ * person. NoticeService waits for notices. Talk says or shows a notice to
+ * a person who is there (the app is on the screen, or a conversation is
+ * open); else the service shows it as a system notification. The service
+ * also keeps the process for hands-free talk (Talk.kt).
  */
 object Attention {
     private const val TAG = "MagiNotices"
     const val EXTRA_NOTICE = "community.catalyst.magi.NOTICE"
     const val EXTRA_PERSONA = "community.catalyst.magi.PERSONA"
 
-    /** The activity takes notices while it is open; it returns how it delivered one, or null. */
-    @Volatile var foreground: ((Notice) -> String?)? = null
-    /** The activity removes notices that another device closed. */
-    @Volatile var closed: ((List<String>) -> Unit)? = null
-    @Volatile var handsFree = false
+    private var lastHealth = 0L
 
     fun deviceId(context: Context): String {
         val p = context.getSharedPreferences("magi", Context.MODE_PRIVATE)
@@ -51,20 +49,53 @@ object Attention {
         // update installed. The failure is "" when the last update installed.
         val info = context.packageManager.getPackageInfo(context.packageName, 0)
         client.magi.putDevice(PutDeviceRequest(id = deviceId(context), kind = "phone", name = Build.MODEL.take(80).ifEmpty { "Android phone" },
-            can = listOf("speak", "notify", "show"), active = foreground != null, handsFree = handsFree,
-            appVersion = info.versionName?.take(80), appBuild = info.longVersionCode.toULong(), updateError = Settings(context).updateError))
+            can = listOf("speak", "notify", "show"), active = Talk.view != null, handsFree = Talk.on,
+            appVersion = info.versionName?.take(80), appBuild = info.longVersionCode.toULong(), updateError = Settings(context).updateError,
+            health = health(context)))
+    }
+
+    /**
+     * The health of the phone for Magi: the battery, and what the
+     * microphone did since the report before. With it Magi finds a build
+     * that uses too much battery. At most one report in 5 minutes has the
+     * counters; the calls between have none.
+     */
+    @Synchronized private fun health(context: Context): DeviceHealth? {
+        val now = System.currentTimeMillis()
+        if (lastHealth != 0L && now - lastHealth < 5 * 60_000) return null
+        val window = if (lastHealth == 0L) 0L else (now - lastHealth) / 1000
+        lastHealth = now
+        val b = context.registerReceiver(null, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val level = b?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale = b?.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1) ?: -1
+        val status = b?.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1) ?: -1
+        val c = Talk.counters
+        return DeviceHealth(
+            battery = if (level >= 0 && scale > 0) (level * 100 / scale).toULong() else null,
+            charging = if (status < 0) null else status == android.os.BatteryManager.BATTERY_STATUS_CHARGING || status == android.os.BatteryManager.BATTERY_STATUS_FULL,
+            windowS = window.toULong(),
+            listenS = c?.listenMs?.getAndSet(0)?.let { (it / 1000).toULong() },
+            soundS = c?.soundMs?.getAndSet(0)?.let { (it / 1000).toULong() },
+            wakes = c?.wakes?.getAndSet(0)?.toULong(),
+            turns = c?.turns?.getAndSet(0)?.toULong(),
+            dropped = c?.dropped?.getAndSet(0)?.toULong())
     }
 
     const val EXTRA_MIC = "community.catalyst.magi.MIC"
+    const val EXTRA_RESUME = "community.catalyst.magi.RESUME"
 
     /**
      * Starts the notice service. mic: hands-free talk is on; then the
      * service also has the microphone type, so that Android lets the app
-     * use the microphone with the screen off. Call it with mic true only
-     * while the app is in the foreground.
+     * use the microphone with the app in the background and the screen
+     * off. Android permits that type for an app on the screen and for the
+     * assistant app of the phone; for another app in the background the
+     * service tells Talk that it has no microphone (Talk.micRefused).
+     * resume: the phone or the app started; Talk turns the microphone on
+     * when the person left it on.
      */
-    fun start(context: Context, mic: Boolean = handsFree) {
-        val i = Intent(context, NoticeService::class.java).putExtra(EXTRA_MIC, mic)
+    fun start(context: Context, mic: Boolean = Talk.on, resume: Boolean = false) {
+        val i = Intent(context, NoticeService::class.java).putExtra(EXTRA_MIC, mic).putExtra(EXTRA_RESUME, resume)
         runCatching { context.startForegroundService(i) }.onFailure { Log.w(TAG, "start: $it") }
     }
 
@@ -115,26 +146,61 @@ class NoticeService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val nm = getSystemService(NotificationManager::class.java)
-        Attention.channels(nm)
+    override fun onCreate() {
+        super.onCreate()
+        Talk.init(this)
+    }
+
+    private fun note(text: String): Notification {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
-        val mic = intent?.getBooleanExtra(Attention.EXTRA_MIC, false) == true
-        val note = Notification.Builder(this, "service")
+        return Notification.Builder(this, "service")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("Magi")
-            .setContentText(if (mic) "Hands-free: listening" else "Ready for notices")
+            .setContentText(text)
             .setContentIntent(open)
             .setOngoing(true)
             .build()
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Attention.channels(getSystemService(NotificationManager::class.java))
+        // A start for another reason (the phone started, a page opened) keeps
+        // the microphone type while the microphone is on.
+        val mic = intent?.getBooleanExtra(Attention.EXTRA_MIC, false) == true || Talk.on
         var type = 0
         if (Build.VERSION.SDK_INT >= 34) type = ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING
-        if (mic && Build.VERSION.SDK_INT >= 30) type = type or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-        if (type != 0) startForeground(1, note, type) else startForeground(1, note)
+        var refused = false
+        if (mic && Build.VERSION.SDK_INT >= 30) {
+            // Android refuses the microphone type to an app that is not on
+            // the screen and is not the assistant app (a SecurityException).
+            try {
+                startForeground(1, note("Listening for a name"), type or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+            } catch (e: Exception) {
+                Log.w("MagiNotices", "no microphone for the service: $e")
+                refused = true
+            }
+        }
+        if (!mic || refused || Build.VERSION.SDK_INT < 30) {
+            val text = if (refused) "Open Magi to turn the microphone on" else "Ready for notices"
+            try {
+                if (type != 0) startForeground(1, note(text), type) else startForeground(1, note(text))
+            } catch (e: Exception) {
+                // Android did not permit a foreground service now (the app is
+                // in the background). The next open of the app starts it.
+                Log.w("MagiNotices", "no foreground service: $e")
+                stopSelf()
+                return START_NOT_STICKY
+            }
+        }
+        if (refused) Talk.micRefused()
         if (!running) {
             running = true
             Thread({ loop() }, "magi-notices").start()
         }
+        // Android started the service again after it stopped the app
+        // (intent is null), or the phone started: the microphone as the
+        // person left it.
+        if (intent == null || intent.getBooleanExtra(Attention.EXTRA_RESUME, false)) Talk.resume()
         return START_STICKY
     }
 
@@ -180,10 +246,10 @@ class NoticeService : Service() {
                 if (r.closed.isNotEmpty()) {
                     val nm = getSystemService(NotificationManager::class.java)
                     r.closed.forEach { nm.cancel(it, 0) }
-                    Attention.closed?.invoke(r.closed)
+                    Talk.view?.let { v -> android.os.Handler(android.os.Looper.getMainLooper()).post { r.closed.forEach { v.noticeClosed(it) } } }
                 }
                 for (n in r.notices) {
-                    val how = Attention.foreground?.invoke(n) ?: run { Attention.notify(this, n); "notified" }
+                    val how = Talk.notice(n) ?: run { Attention.notify(this, n); "notified" }
                     runCatching { client.magi.deliverNotice(DeliverNoticeRequest(id = n.id, device = dev, how = how)) }
                 }
             } catch (e: Exception) {
@@ -215,6 +281,9 @@ class NoticeAckReceiver : BroadcastReceiver() {
 /** Starts the notice service after the phone starts. */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED && Settings(context).token != null) Attention.start(context)
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED && Settings(context).token != null) {
+            Talk.init(context)
+            Attention.start(context, mic = false, resume = true)
+        }
     }
 }

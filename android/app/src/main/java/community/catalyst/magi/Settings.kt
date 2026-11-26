@@ -20,13 +20,36 @@ class Settings(context: Context) {
     var askedNotify: Boolean
         get() = p.getBoolean("asked_notify", false)
         set(v) = p.edit().putBoolean("asked_notify", v).apply()
-    /** Hands-free talk takes only speech that starts with a persona name ("Computer, ..."). */
+    /** The app showed how Magi becomes the assistant app of the phone, one time. */
+    var askedAssistant: Boolean
+        get() = p.getBoolean("asked_assistant", false)
+        set(v) = p.edit().putBoolean("asked_assistant", v).apply()
+    /**
+     * The first turn of a conversation needs the name of a persona ("Hey,
+     * Archimedes"). Off: with the app on the screen, Magi takes each turn.
+     * With the app in the background, a name is always needed.
+     */
     var wakeWord: Boolean
-        get() = p.getBoolean("wake_word", false)
+        get() = p.getBoolean("wake_word", true)
         set(v) = p.edit().putBoolean("wake_word", v).apply()
     var speakReplies: Boolean
         get() = p.getBoolean("speak", true)
         set(v) = p.edit().putBoolean("speak", v).apply()
+
+    /**
+     * The microphone of hands-free talk as the person left it. The app turns
+     * it on again when it starts, and after the phone starts.
+     */
+    var micOn: Boolean
+        get() = p.getBoolean("mic_on", false)
+        set(v) = p.edit().putBoolean("mic_on", v).apply()
+    /** The tab that the person used last ("Talk", "Tasks", ...), and the persona of the last conversation. */
+    var lastTab: String
+        get() = p.getString("last_tab", "Talk") ?: "Talk"
+        set(v) { if (v != lastTab) p.edit().putString("last_tab", v).apply() }
+    var lastPersona: String
+        get() = p.getString("last_persona", "persona:magi") ?: "persona:magi"
+        set(v) { if (v != lastPersona) p.edit().putString("last_persona", v).apply() }
 
     /** Why the last update of the app did not install; "" after an update that installed. Magi gets it (put-device). */
     var updateError: String

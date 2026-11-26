@@ -34,6 +34,19 @@ func TestAppBuildScript(t *testing.T) {
 	}
 }
 
+// The build reads the voice files of the app from a directory of the host:
+// the view has it, and the build gets its path.
+func TestAppBuildVoice(t *testing.T) {
+	c := AppBuild{Sdk: "/sdk", Gradle: "/gradle", JavaHome: "/jdk", DepCache: "/cache"}
+	if slices.Contains(c.env(), "MAGI_ANDROID_VOICE=") || len(c.readOnly()) != 4 {
+		t.Fatalf("with no voice directory: %v %v", c.env(), c.readOnly())
+	}
+	c.Voice = "/voice"
+	if !slices.Contains(c.env(), "MAGI_ANDROID_VOICE=/voice") || !slices.Contains(c.readOnly(), "/voice") {
+		t.Fatalf("with a voice directory: %v %v", c.env(), c.readOnly())
+	}
+}
+
 // The view of a build has no network: code of a change cannot send what it
 // reads. The view of the checker keeps the network for its coding agent.
 func TestHostViewNetwork(t *testing.T) {

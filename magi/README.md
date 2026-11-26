@@ -252,6 +252,7 @@ merged change. Set `app` in the configuration of the runner:
   "gradle": "~/gradle-8.11.1",
   "java_home": "~/jdk17",
   "dep_cache": "~/.gradle/caches",
+  "voice": "~/.cache/magi/android-voice",
   "keystore": "~/.android/debug.keystore"
 }
 ```
@@ -267,6 +268,12 @@ merged change. Set `app` in the configuration of the runner:
 - The build is offline. `dep_cache` is a Gradle cache directory that has
   the dependencies of the app. Build the app one time on the host to fill
   it (`tools/build-android.sh`).
+- `voice` is the directory with the speech library and the voice models
+  of the app. They are not in the repository. Run
+  `tools/fetch-android-voice.sh` on the host one time, and again when
+  `android/voice-pins.txt` changes. The view has the directory read-only.
+  With no `voice`, or with old files, the build stops and the person gets
+  the notice "App not built".
 - The signing key is not in the view. The runner signs the package after
   the build. An update of an installed app needs the same key each time,
   so one runner builds the app. `keystore_pass_file` names a file with

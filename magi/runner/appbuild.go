@@ -33,6 +33,10 @@ type AppBuild struct {
 	// dependencies of the app (the directory with modules-2). The build is
 	// offline and reads them from there (GRADLE_RO_DEP_CACHE).
 	DepCache string `json:"dep_cache"`
+	// Voice is the directory with the speech library and the voice models
+	// of the app (tools/fetch-android-voice.sh). The build reads it; they
+	// are not in the repository.
+	Voice string `json:"voice"`
 	// Keystore signs the package. Updates of an installed app need the
 	// same key each time. KeyAlias defaults to androiddebugkey.
 	Keystore string `json:"keystore"`
@@ -130,6 +134,25 @@ func (r *Runner) buildApp(ctx context.Context, env, workdir, base, commit string
 	r.note(ctx, st, fmt.Sprintf("Built app build %d (%s).", code, name))
 }
 
+// readOnly are the directories of the host that the build reads.
+func (c AppBuild) readOnly() []string {
+	ro := []string{c.Sdk, c.Gradle, c.JavaHome, filepath.Join(c.DepCache, "modules-2")}
+	if c.Voice != "" {
+		ro = append(ro, c.Voice)
+	}
+	return ro
+}
+
+// env are the variables that tell the build where its tools are. With no
+// Voice, the build stops and says that the voice files are missing.
+func (c AppBuild) env() []string {
+	e := []string{"ANDROID_HOME=" + c.Sdk, "JAVA_HOME=" + c.JavaHome, "GRADLE_RO_DEP_CACHE=" + c.DepCache}
+	if c.Voice != "" {
+		e = append(e, "MAGI_ANDROID_VOICE="+c.Voice)
+	}
+	return e
+}
+
 // build makes the signed package from dir/app-src.tar.
 func (c AppBuild) build(ctx context.Context, dir string, code uint64, name string) ([]byte, error) {
 	home, _ := os.UserHomeDir()
@@ -141,8 +164,7 @@ func (c AppBuild) build(ctx context.Context, dir string, code uint64, name strin
 	if err := os.Mkdir(gradleHome, 0o700); err != nil {
 		return nil, err
 	}
-	argv, err := hostView(bwrap, home, dir, []string{"/bin/sh", "-c", appBuildScript(c.Gradle, code, name)}, nil,
-		[]string{c.Sdk, c.Gradle, c.JavaHome, filepath.Join(c.DepCache, "modules-2")}, false)
+	argv, err := hostView(bwrap, home, dir, []string{"/bin/sh", "-c", appBuildScript(c.Gradle, code, name)}, nil, c.readOnly(), false)
 	if err != nil {
 		return nil, err
 	}
@@ -150,8 +172,7 @@ func (c AppBuild) build(ctx context.Context, dir string, code uint64, name strin
 	defer cancel()
 	cmd := exec.CommandContext(bctx, argv[0], argv[1:]...)
 	cmd.Dir = dir
-	cmd.Env = []string{"HOME=" + home, "PATH=/usr/local/bin:/usr/bin:/bin", "LANG=C.UTF-8", "TERM=dumb", "ANDROID_HOME=" + c.Sdk,
-		"JAVA_HOME=" + c.JavaHome, "GRADLE_USER_HOME=" + gradleHome, "GRADLE_RO_DEP_CACHE=" + c.DepCache}
+	cmd.Env = append([]string{"HOME=" + home, "PATH=/usr/local/bin:/usr/bin:/bin", "LANG=C.UTF-8", "TERM=dumb", "GRADLE_USER_HOME=" + gradleHome}, c.env()...)
 	if b, err := cmd.CombinedOutput(); err != nil {
 		return nil, fmt.Errorf("gradle: %v\n%s", err, tail(string(b), 3000))
 	}

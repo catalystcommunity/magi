@@ -34,6 +34,34 @@ class VadTest {
     @Test fun steadyNoise() = assertEquals("", run(3000 to -40.0))
     @Test fun pause() = assertEquals("onset@1100 turn@2080 end@3380", run(1000 to -70.0, 600 to -20.0, 400 to -70.0, 600 to -20.0, 1200 to -70.0))
 
+    /** A check of the loud frames (a speech model): a loud noise that is not speech is no turn. */
+    @Test fun noiseIsNotSpeech() {
+        val v = Vad()
+        val ev = mutableListOf<String>()
+        var asked = 0
+        for (i in 0 until 150) v.push(frame(if (i < 50) -70.0 else -20.0, i)) { asked++; false }?.let { ev.add(it.name) }
+        assertEquals(emptyList(), ev)
+        // The check ran only for the loud frames, and not for the 50 quiet
+        // ones. A steady noise becomes the floor of the room after a second
+        // or two: then it is not loud, and the check does not run.
+        assertEquals(true, asked in 50..90, "asked $asked")
+        assertEquals(false, v.loud)
+        assertEquals(false, v.voiced)
+    }
+
+    /** The samples of a WAV file for the speaker model: one channel at 16 kHz. */
+    @Test fun samples() {
+        val mono = Vad.samples(Vad.wav(listOf(ShortArray(1600) { 16384 }), 16000))!!
+        assertEquals(1600, mono.size)
+        assertEquals(0.5f, mono[10])
+        // 24 kHz (the speech of a persona) becomes 16 kHz.
+        val fast = Vad.samples(Vad.wav(listOf(ShortArray(2400) { (it % 100 * 100).toShort() }), 24000))!!
+        assertEquals(1600, fast.size)
+        assertEquals(null, Vad.samples(ByteArray(100)))
+        assertEquals(null, Vad.samples("OggS".toByteArray() + ByteArray(100)))
+        assertEquals(3200, Vad.floats(listOf(ShortArray(1600), ShortArray(1600), ShortArray(1600)), from = 1).size)
+    }
+
     @Test fun wav() {
         val w = Vad.wav(listOf(ShortArray(8000) { 1000 }), 16000)
         val b = java.nio.ByteBuffer.wrap(w).order(java.nio.ByteOrder.LITTLE_ENDIAN)

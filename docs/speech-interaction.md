@@ -421,6 +421,38 @@ the tiers.
 This agrees with `docs/prompt-injection.md`: speech in the room can come
 from a television or a guest.
 
+### 4.4 What the Android phone does (2026-11-25)
+
+The details are in `android/README.md` ("Voice"). In short:
+
+- The microphone belongs to the app process and works with the app in the
+  background. While it waits for a name, a loud stretch goes to a speech
+  detector (Silero) and to a keyword spotter (sherpa-onnx, the Zipformer
+  model of 3.3 million parameters). The wake names are the names of the
+  personas, as text.
+- **Measured for the spotter** with the names "Archimedes" and "Beatrice":
+  31 of 34 spoken names found (6 of 6 from the phone of one person), one
+  false wake in 122 minutes of read speech of other people, and none in 92
+  minutes of the persona voices. The voice print and the name check of
+  Magi come after a wake, so a false wake opens nothing.
+- After a name, and for each turn of a conversation, the phone makes the
+  voice print (section 3.2) and takes, sends as "unsure", or drops the
+  turn.
+- **Echo.** The phone makes a print of each persona voice from the speech
+  that it plays. A turn that is nearer to a persona voice than to the
+  person is the loudspeaker (of this phone, or of a second device) and is
+  dropped on the phone. While a persona speaks, only speech that the
+  voice print takes for the person makes the persona quieter and goes to
+  `check-overlap`.
+- **Background.** As the digital assistant app of the phone, Magi gets the
+  microphone after the phone starts, with no open of the app (tested on
+  Android 15). Without the role, Android refuses the microphone to a
+  service that starts in the background.
+- **Not built:** an echo canceller of our own with the played audio as
+  the reference, and a measurement of the battery use on a real phone.
+  The phone reports its battery and the counters of the microphone
+  (`docs/attention.md`), so Magi can compute the use.
+
 ## 5. People who talk at the same time
 
 In recorded dinner parties, two people talk at the same time for 18–25% of

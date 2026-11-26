@@ -167,7 +167,7 @@ func LoadConfig(path string) (Config, error) {
 	fix(&c.Sandbox.VM.Template)
 	fix(&c.Sandbox.VM.Hypervisor)
 	fix(&c.Sandbox.VM.Virtiofsd)
-	for _, p := range []*string{&c.App.Sdk, &c.App.Gradle, &c.App.JavaHome, &c.App.DepCache, &c.App.Keystore, &c.App.KeystorePassFile} {
+	for _, p := range []*string{&c.App.Sdk, &c.App.Gradle, &c.App.JavaHome, &c.App.DepCache, &c.App.Voice, &c.App.Keystore, &c.App.KeystorePassFile} {
 		fix(p)
 	}
 	for _, ac := range []*AgentCommand{&c.Checker, &c.Planner} {

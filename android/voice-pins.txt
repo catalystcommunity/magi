@@ -1,0 +1,16 @@
+# The speech library and the voice models of the Android app (Senses.kt).
+# They are not in the repository: tools/fetch-android-voice.sh gets them
+# and checks each digest. One line for each file: sha256, URL, and for an
+# archive the member, then the path below the voice directory.
+# sherpa-onnx 2.0.1 with ONNX Runtime in the library (Apache-2.0, MIT).
+07e042d97f3a6bd5b7fe74d4eef0513dc01a714b16c15a903250095aba43a575 https://github.com/k2-fsa/sherpa-onnx/releases/download/v2.0.1/sherpa-onnx-static-link-onnxruntime-2.0.1.aar - sherpa-onnx.aar
+# The spotter of the wake names: Zipformer, 3.3 million parameters, GigaSpeech (Apache-2.0).
+f170013b4716e41b62b9bfd809687c207cef798ef9bc6534d524e17af9b6561a https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.tar.bz2 sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01/encoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx assets/voice/kws/encoder.onnx
+f170013b4716e41b62b9bfd809687c207cef798ef9bc6534d524e17af9b6561a https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.tar.bz2 sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01/decoder-epoch-12-avg-2-chunk-16-left-64.onnx assets/voice/kws/decoder.onnx
+f170013b4716e41b62b9bfd809687c207cef798ef9bc6534d524e17af9b6561a https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.tar.bz2 sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01/joiner-epoch-12-avg-2-chunk-16-left-64.int8.onnx assets/voice/kws/joiner.onnx
+f170013b4716e41b62b9bfd809687c207cef798ef9bc6534d524e17af9b6561a https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.tar.bz2 sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01/tokens.txt assets/voice/kws/tokens.txt
+f170013b4716e41b62b9bfd809687c207cef798ef9bc6534d524e17af9b6561a https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.tar.bz2 sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01/bpe.model assets/voice/kws/bpe.model
+# The speaker model for the voice print: 3D-Speaker ERes2Net, English, VoxCeleb (Apache-2.0).
+c4947caf150b8502fdd75bbe4089b971ab1ec42e90ee3ba547faca2cde44d9ee https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/3dspeaker_speech_eres2net_sv_en_voxceleb_16k.onnx - assets/voice/speaker.onnx
+# The speech detector: Silero VAD (MIT).
+9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6 https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx - assets/voice/vad.onnx
