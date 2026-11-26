@@ -87,8 +87,10 @@ many tasks at the same time, gives the status in a few sentences, reads
 the change of a task that waits for review, and gives a short summary.
 
 Questions about the code: when the person asks how the software works,
-why it did something, or what a change needs, and the other tools do not
-answer it, the persona starts an investigation (`investigate`). An
+why it did something, or where something is, and the other tools do not
+answer it, the persona starts an investigation (`investigate`). A request
+for a change is not a question: the persona starts the code change at
+once, and the apprentice of that change reads the code. An
 apprentice reads and runs the code in an environment on a runner and
 changes nothing. The persona says only that it looks into it. Some
 minutes later Magi gives the persona the answer with an event, and the

@@ -3,6 +3,7 @@ package compose
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -60,13 +61,23 @@ func investigationDefinition(runners bool) workflowapi.Definition {
 }
 
 func investigationTools(obj func(map[string]any, ...string) map[string]any, str func(string) map[string]any) []model.Tool {
-	return []model.Tool{{Name: "investigate", Description: "Ask an apprentice a question that needs a look into a repository: how the code works, why the software did something, where something is, or what a change needs. The apprentice reads and runs the code in an environment on a runner and changes nothing. It takes some minutes. The answer comes back to you as an event; then you give it to the person. Use it when your other tools do not answer the question.", Parameters: obj(map[string]any{
+	return []model.Tool{{Name: "investigate", Description: "Ask an apprentice a question that needs a look into a repository: how the code works, why the software did something, or where something is. The apprentice reads and runs the code in an environment on a runner and changes nothing. It takes some minutes. The answer comes back to you as an event; then you give it to the person. Use it only for a question that your other tools do not answer. A request to add, fix, or change something is not a question: use start_code_change for it.", Parameters: obj(map[string]any{
 		"question": str("The complete question: what the person wants to know, and what you know already (names, error text, times, task ids)."),
 		"title":    str("Short title of the question."),
 		"repo":     str("Repository name. Default: magi."),
 		"runner":   str("Name of the runner (machine), only when the person names one. Default: Magi chooses."),
 	}, "question")}}
 }
+
+// changeRequest finds a message that starts with a request for a change:
+// "Please add ...", "Archimedes, can you fix ...". A greeting, the name of
+// a persona, and a polite start can come first.
+var changeRequest = regexp.MustCompile(`(?i)^\s*(?:(?:hey|hi|ok|okay)[, ]+)?(?:[a-z]+, +)?(?:please[, ]+)?(?:(?:can|could|would|will) you |i want you to |i need you to |go ahead and )?(?:please )?(?:add|fix|change|update|remove|delete|implement|rename|refactor|modify|build)\b`)
+
+// asksChange is true when the message of the person asks for a change to
+// software, not for an answer. Code decides it from the first words: the
+// check must not depend on the model that made the call.
+func asksChange(text string) bool { return changeRequest.MatchString(text) }
 
 // taskKinds are the workflows that the task tools of a persona show.
 var taskKinds = []string{CodeChange, Investigation}

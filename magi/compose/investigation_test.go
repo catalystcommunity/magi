@@ -436,3 +436,80 @@ func TestInvestigateClaims(t *testing.T) {
 		t.Errorf("activity = %q", activityOf("investigate", nil))
 	}
 }
+
+// A request for a change is no question: the investigate tool refuses
+// it, so the persona starts the code change.
+func TestAsksChange(t *testing.T) {
+	for _, text := range []string{
+		"Please add a summary of the health endpoint to the Magi README.",
+		"Archimedes, can you modify the about screen in the mobile app?",
+		"Hey Archimedes, fix the timezone on the about screen",
+		"could you rename the flag to dry_run",
+		"Go ahead and remove the old endpoint.",
+		"update the README with the new ports",
+	} {
+		if !asksChange(text) {
+			t.Errorf("%q is a request for a change", text)
+		}
+	}
+	for _, text := range []string{
+		"How does the health watch decide to restart a service?",
+		"Where do we update the thresholds?",
+		"Why did the build fail last night?",
+		"What would change if we used two replicas?",
+		"Can you find out why the phone did not update?",
+		"Is the fix released?",
+		"Archimedes, what is running right now?",
+	} {
+		if asksChange(text) {
+			t.Errorf("%q is a question", text)
+		}
+	}
+}
+
+// A persona that calls investigate for a request to change something gets
+// a refusal, and then it starts the code change in the same turn.
+func TestInvestigateRefusesAChange(t *testing.T) {
+	s, _ := invSystem(t)
+	ctx := s.AsService(context.Background())
+	person := fmt.Sprintf("user:invc-%d@example.local", time.Now().UnixNano())
+	st, err := s.Conversation.OpenStream(ctx, conversationapi.OpenStreamRequest{Persona: Engineering, Person: &person})
+	if err != nil {
+		t.Fatal(err)
+	}
+	const ask = "Please add a summary of the health endpoint to the Magi README."
+	m := &scriptModel{}
+	var refused string
+	m.reply = func(n int, msgs []model.Message) (model.Message, error) {
+		switch n {
+		case 1:
+			b, _ := json.Marshal(map[string]string{"question": "What does the health endpoint return?", "title": "Health endpoint"})
+			return toolCall("investigate", string(b)), nil
+		case 2:
+			refused = msgs[len(msgs)-1].Content
+			b, _ := json.Marshal(map[string]string{"title": "README: health endpoint", "instructions": "Add a summary of the health endpoint to README.md."})
+			return toolCall("start_code_change", string(b)), nil
+		}
+		return model.Message{Role: "assistant", Content: "I started the task for the README."}, nil
+	}
+	s.Model = m
+	u, err := s.Conversation.Post(ctx, conversationapi.PostRequest{Stream: st.Id, Text: ask, Author: &person, AuthorKind: ptr("human")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := workflowapi.Assignment{Run: "run_invc", Step: "reply", Attempt: 1, Owner: person, Vars: map[string]string{
+		"stream": st.Id, "persona": Engineering, "owner_name": "Kim", "utterance": u.Id, dispatchVar: s.newDispatch(person, Engineering, st.Id, "").encode()}}
+	if _, err := s.personaTurn(ctx, a, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(refused, refusalMark) || !strings.Contains(refused, "start_code_change") {
+		t.Fatalf("the result of investigate = %q: want a refusal that names start_code_change", refused)
+	}
+	if runs, err := s.Workflow.ListRuns(ctx, workflowapi.ListRunsRequest{Definition: ptr(Investigation)}); err != nil || len(runs.Runs) != 0 {
+		t.Fatalf("investigations = %+v, %v: want none", runs.Runs, err)
+	}
+	runs, err := s.Workflow.ListRuns(ctx, workflowapi.ListRunsRequest{Definition: ptr(CodeChange)})
+	if err != nil || len(runs.Runs) != 1 || runs.Runs[0].Owner != person {
+		t.Fatalf("code changes = %+v, %v: want one", runs.Runs, err)
+	}
+}

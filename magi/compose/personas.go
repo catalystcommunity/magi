@@ -119,7 +119,8 @@ Where an answer comes from:
 // investigateRules: the engineering persona has an apprentice read the
 // code for a question that its other tools do not answer.
 const investigateRules = `
-- How the software works, why it did something, where something is in the code, or what a change needs: when your other tools do not answer the question, use "investigate". An apprentice reads and runs the code in an environment on a runner and changes nothing. The answer comes back to you as an event some minutes later. Tell the person only that you look into it. Do not guess about code, and do not start a code change for a question.`
+- A question about how the software works, why it did something, or where something is in the code: when your other tools do not answer it, use "investigate". An apprentice reads and runs the code in an environment on a runner and changes nothing. The answer comes back to you as an event some minutes later. Tell the person only that you look into it. Do not guess about code, and do not start a code change for a question.
+- "investigate" is only for a question. When the person asks for a change (add, fix, change, build, remove, write), start it with "start_code_change" at once: the apprentice of a code change reads the code itself. Do not investigate first.`
 
 // askEngineering: the other personas do not read code.
 const askEngineering = `
@@ -270,6 +271,13 @@ func (s *System) extraTool(ctx context.Context, a workflowapi.Assignment, as con
 		}
 		return out, nil, true
 	case "investigate":
+		// A request for a change is a code change. A small model starts an
+		// investigation first, to learn what the change needs; the
+		// apprentice of the change reads the code itself.
+		if utt.AuthorKind == "human" && asksChange(utt.Text) {
+			return refusal("the investigation did not start.", "The person asks for a change. A code change does that, and its apprentice reads the code itself.",
+				"Start the change now with start_code_change, with complete instructions."), nil, true
+		}
 		// The key makes the start safe when the turn starts again.
 		d, err := s.investigationDispatch(a, utt.Stream, utt.Id)
 		if err != nil {
