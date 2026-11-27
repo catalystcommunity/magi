@@ -356,6 +356,7 @@ model must read much more text before it can change the code. The set
 | --- | --- | --- | --- |
 | `long1` | 4179d99, "Placement: record 0016, and a host reports its GPUs" | A decision record, `contracts/inference.csil`, the generated code of three languages, `primitives/inference/host`, two documents | 15 files, 532 lines added. 264 of these lines are generated code |
 | `long2` | 9c6b6ed, "Decisions: a decision model with a scoring head answers the host question" | `primitives/inference/host`, `magi/compose`, three documents | 12 files, 262 lines added |
+| `long3` | The host part of 8658974, "Code change: a backup model for the work that the usual model cannot finish" | `contracts/inference.csil`, the generated code of three languages, `primitives/inference/host` (engines, load, hold), the host program, one document | 21 files, 940 lines added. 266 of these lines are generated code |
 
 A person made these changes, not a workflow run of Magi. Thus `run` is
 empty, and the instructions in `cases/<id>.md` are written from the
@@ -397,7 +398,15 @@ Notes about the probes of the long cases:
   and `mount` of util-linux. On a machine without them, these three
   probes fail for each change.
 - A probe that tests "as before" passes on the base with no change: 1 of
-  the 18 probes of `long1`, and 3 of the 21 probes of `long2`.
+  the 18 probes of `long1`, 3 of the 21 probes of `long2`, and 3 of the 29
+  probes of `long3`.
+- The Go probes of `long3` start the host program from a configuration
+  file, with the test binary as each engine. They call `load` with a
+  request that the probe writes as CBOR, so they do not use the Go names
+  of the new request type. The approved change of `long3` has more than
+  the task of the case: the instructions and the probes are for the host
+  only. Two probes wait for the end of a hold of 1 second, which the host
+  sees at its next sample (5 seconds).
 
 To add a long case:
 
