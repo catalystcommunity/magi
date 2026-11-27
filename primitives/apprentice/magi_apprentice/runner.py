@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -18,6 +19,9 @@ from . import tester
 from .supervisor import Supervisor
 from .tools import Tools, Workspace
 from .transcript import Transcript, default_redactor
+
+
+log = logging.getLogger("magi_apprentice.runner")
 
 
 @dataclass
@@ -43,14 +47,23 @@ def fetch_limits(cfg: ModelConfig, opener: Callable[..., Any] = urllib.request.u
     if not cfg.base_url:
         return {}
     url = cfg.base_url.rstrip("/") + "/models/" + urllib.parse.quote(cfg.name, safe="")
-    headers = {"Authorization": f"Bearer {cfg.api_key}"} if cfg.api_key else {}
+    # The agent of the model calls (model.py): a gateway can refuse the
+    # default agent of urllib, and the run then keeps limits that do not
+    # fit its model, with no error.
+    headers = {"User-Agent": "magi-apprentice/1"}
+    if cfg.api_key:
+        headers["Authorization"] = f"Bearer {cfg.api_key}"
     try:
         with opener(urllib.request.Request(url, headers=headers), timeout=15) as resp:
             d = json.loads(resp.read(65536))
     except urllib.error.HTTPError as e:
         e.close()
+        if e.code != 404:
+            # 404: an endpoint that has no such request (a plain provider).
+            log.warning("no limits for model %s: the endpoint answered %d", cfg.name, e.code)
         return {}
-    except (OSError, ValueError):
+    except (OSError, ValueError) as e:
+        log.warning("no limits for model %s: %s", cfg.name, e)
         return {}
     return d if isinstance(d, dict) else {}
 

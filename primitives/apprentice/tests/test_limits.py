@@ -71,7 +71,10 @@ class Fetch(unittest.TestCase):
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self):
                 seen.append((self.path, self.headers.get("Authorization")))
-                if self.path == "/v1/models/careful":
+                if not (self.headers.get("User-Agent") or "").startswith("magi-apprentice/"):
+                    # A gateway that refuses the default agent of urllib.
+                    body, code = b"error code: 1010", 403
+                elif self.path == "/v1/models/careful":
                     body, code = json.dumps({"id": "careful", "context": 131072, "work_seconds": 7200}).encode(), 200
                 elif self.path == "/v1/models/a%2Fb":
                     body, code = b'{"context": 4096}', 200
@@ -100,6 +103,14 @@ class Fetch(unittest.TestCase):
         got = fetch_limits(ModelConfig(base_url=self.base + "/", name="careful", api_key="key-1"))
         self.assertEqual((got["context"], got["work_seconds"]), (131072, 7200))
         self.assertEqual(self.seen, [("/v1/models/careful", "Bearer key-1")])
+
+    def test_a_bad_answer_is_logged(self):
+        with self.assertLogs("magi_apprentice.runner", level="WARNING") as logs:
+            # A plain provider with no such request (404) is no warning.
+            fetch_limits(ModelConfig(base_url=self.base, name="unknown"))
+            self.assertEqual(fetch_limits(ModelConfig(base_url=self.base, name="text")), {})
+        self.assertEqual(len(logs.output), 1, logs.output)
+        self.assertIn("text", logs.output[0])
 
     def test_the_name_is_one_path_segment(self):
         self.assertEqual(fetch_limits(ModelConfig(base_url=self.base, name="a/b")), {"context": 4096})
