@@ -213,8 +213,10 @@ func TestBackupRoundInTheWorkflow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The task has no stream: a person started it with the CLI. The notices
+	// still go to the stream of the person with the persona.
 	run, err := s.Workflow.Start(ctx, workflowapi.StartRequest{Definition: CodeChange, Owner: &person, Vars: map[string]string{
-		"title": "Fix the worker", "instructions": "Fix it.", "runner": runner, "publisher": runner, "stream": st.Id, "persona": Engineering}})
+		"title": "Fix the worker", "instructions": "Fix it.", "runner": runner, "publisher": runner, "persona": Engineering}})
 	if err != nil {
 		t.Fatal(err)
 	}

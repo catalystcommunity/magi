@@ -45,7 +45,10 @@ func (s *System) backup(ctx context.Context, a workflowapi.Assignment, note func
 			why = fmt.Sprintf("The checks failed %s times", a.Vars["check.attempts"])
 		}
 		note("A work round with the backup model " + name + " starts.")
-		s.post(ctx, a, why+". I started one more work round with the backup model "+name+
+		// A notice, not a post: a task that no conversation started has no
+		// stream, and its owner must also know why the task takes longer.
+		// "low": the persona does not get an event for it.
+		s.report(ctx, a, "low", "Backup model", why+". I started one more work round with the backup model "+name+
 			". It is slower than the usual model: the round can take two hours.")
 		return Result{Outcome: "work", Outputs: map[string]string{
 			"model": string(m), "backup.model": name,
