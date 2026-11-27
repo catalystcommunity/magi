@@ -54,9 +54,12 @@ person can make such a list with no Magi.
       with `detail`).
 - [ ] A host reports the model files on its disk. An admin can read the
       reports of all hosts.
-- [ ] A host loads and unloads a model when Magi tells it to, and it can
-      hold more than one engine when the memory permits. It gets a file
-      that it does not have from the artifacts.
+- [x] A host with more than one engine loads a model when Magi tells it
+      to, and goes back to its first engine after a hold (`load`). Magi
+      loads the model that a code change names or prefers
+      (`magi/compose/placement.go`).
+- [ ] A host runs more than one engine at the same time when the memory
+      permits. It gets a file that it does not have from the artifacts.
 - [ ] The registry has models with no host in the name, and the routes of
       the roles use them.
 - [ ] Magi makes the placement from the roles and the reports of the

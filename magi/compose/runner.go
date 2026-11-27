@@ -260,7 +260,17 @@ func nonNil(v []string) []string {
 // the fallback. A streamed answer goes to the runner chunk by chunk, so
 // that the runner sees a provider that stops sending (its idle limit).
 // Each call is logged with its status and time.
+//
+// A host with more than one engine refuses a model that it did not load
+// ("not_loaded"). For the first model of the chain, the model that the run
+// names or that the task prefers, the proxy tells the host to load it
+// (decision record 0016), waits, and sends the call again. The host goes
+// back to its first engine after the hold of the load.
 func ModelProxy(ver *authn.Verifier, c *model.Client, router *ModelRouter, log *slog.Logger) http.Handler {
+	return modelProxy(ver, c, router, log, newPlacer())
+}
+
+func modelProxy(ver *authn.Verifier, c *model.Client, router *ModelRouter, log *slog.Logger, place *placer) http.Handler {
 	// The gateway route /runner/v1/ permits 900 s (deploy/render.py).
 	hc := &http.Client{Timeout: 15 * time.Minute}
 	if c.HTTP != nil {
@@ -299,7 +309,9 @@ func ModelProxy(ver *authn.Verifier, c *model.Client, router *ModelRouter, log *
 		}
 		start := time.Now()
 		stream, _ := body["stream"].(bool)
-		for i, m := range chain {
+		loaded := false
+		for i := 0; i < len(chain); i++ {
+			m := chain[i]
 			// A busy inference host answers 503; a host that is down fails
 			// the connection. The next model of the chain takes the call.
 			body["model"] = m.Model
@@ -313,11 +325,29 @@ func ModelProxy(ver *authn.Verifier, c *model.Client, router *ModelRouter, log *
 				}
 				continue
 			}
-			if resp.StatusCode == http.StatusServiceUnavailable && i < len(chain)-1 {
-				resp.Body.Close()
-				log.Log(r.Context(), slog.LevelWarn, "runner model call", "runner", p.Subject, "model", m.Model, "catalog", m.Name,
-					"stream", stream, "status", resp.StatusCode, "ms", time.Since(start).Milliseconds())
-				continue
+			var src io.Reader = resp.Body
+			if resp.StatusCode == http.StatusServiceUnavailable {
+				refusal, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+				if i == 0 && !loaded && m.Name != "" && notLoaded(refusal) {
+					// One load for a call: a host that refuses again after
+					// its load has a different problem.
+					loaded = true
+					resp.Body.Close()
+					err := place.load(r.Context(), m)
+					log.Info("model load", "runner", p.Subject, "model", m.Model, "catalog", m.Name, "err", err,
+						"ms", time.Since(start).Milliseconds())
+					if err == nil {
+						i--
+						continue
+					}
+				}
+				if i < len(chain)-1 {
+					resp.Body.Close()
+					log.Log(r.Context(), slog.LevelWarn, "runner model call", "runner", p.Subject, "model", m.Model, "catalog", m.Name,
+						"stream", stream, "status", resp.StatusCode, "ms", time.Since(start).Milliseconds())
+					continue
+				}
+				src = bytes.NewReader(refusal)
 			}
 			defer resp.Body.Close()
 			w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
@@ -326,7 +356,7 @@ func ModelProxy(ver *authn.Verifier, c *model.Client, router *ModelRouter, log *
 			}
 			w.WriteHeader(resp.StatusCode)
 			first := time.Since(start).Milliseconds()
-			n, err := flushCopy(w, resp.Body)
+			n, err := flushCopy(w, src)
 			lvl := slog.LevelInfo
 			if resp.StatusCode >= 400 || err != nil {
 				lvl = slog.LevelWarn
@@ -372,6 +402,59 @@ type runnerModel struct {
 	// (it reaches inference hosts that connect out), or nil for the
 	// client of the proxy.
 	HTTP *http.Client
+	// Attributes are the attributes of the catalog model.
+	Attributes map[string]string
+}
+
+// RunnerModelLimits serves GET /runner/v1/models/<name>: the limits of a
+// run with the model name of a runner call ("coder", or a model of the
+// catalog). They come from the attributes of the first model of the chain
+// of that name: "context" (the tokens of the context window of the engine)
+// and "work_seconds" (the time limit of one work round). A model with no
+// such attribute gives no such limit, and the apprentice keeps its own.
+func RunnerModelLimits(ver *authn.Verifier, c *model.Client, router *ModelRouter) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "use GET", http.StatusMethodNotAllowed)
+			return
+		}
+		tok, _ := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+		p, err := ver.Verify(tok)
+		if err == nil {
+			_, err = runnerName(authn.With(r.Context(), p))
+		}
+		if err != nil {
+			http.Error(w, `{"error":{"message":"a runner token is required"}}`, http.StatusUnauthorized)
+			return
+		}
+		name := strings.TrimPrefix(r.URL.Path, "/runner/v1/models/")
+		chain, err := runnerModels(r.Context(), c, router, name)
+		if err != nil {
+			status := http.StatusBadRequest
+			if code := rpc.CodeOf(err); code != 0 {
+				status = code
+			}
+			http.Error(w, `{"error":{"message":`+strconv.Quote(err.Error())+`}}`, status)
+			return
+		}
+		out := map[string]any{"id": name}
+		var served []string
+		for _, m := range chain {
+			if m.Name != "" {
+				served = append(served, m.Name)
+			}
+		}
+		if len(served) > 0 {
+			out["models"] = served
+		}
+		for _, k := range []string{"context", "work_seconds"} {
+			if n, err := strconv.Atoi(chain[0].Attributes[k]); err == nil && n > 0 {
+				out[k] = n
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(out)
+	})
 }
 
 // runnerModels gives the models of a runner call: the catalog models of
@@ -408,7 +491,7 @@ func runnerModels(ctx context.Context, c *model.Client, router *ModelRouter, nam
 			}
 			continue
 		}
-		out = append(out, &runnerModel{Name: m.Name, BaseURL: cl.BaseURL, Model: cl.Model, APIKey: cl.APIKey, HTTP: cl.HTTP})
+		out = append(out, &runnerModel{Name: m.Name, BaseURL: cl.BaseURL, Model: cl.Model, APIKey: cl.APIKey, HTTP: cl.HTTP, Attributes: m.Attributes})
 	}
 	if len(out) == 0 {
 		if sel != nil {

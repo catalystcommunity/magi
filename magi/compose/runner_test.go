@@ -135,6 +135,10 @@ type proxyCatalog struct {
 	bases map[string]string
 	sel   []modelsapi.SelectRequest
 	down  bool
+	// attrs are the attributes of a model, by name.
+	attrs map[string]map[string]string
+	// byTask are the models of a select for a task, when the task is here.
+	byTask map[string][]string
 }
 
 func (f *proxyCatalog) GetTask(_ context.Context, r modelsapi.GetTaskRequest) (modelsapi.TaskDefault, error) {
@@ -158,6 +162,9 @@ func (f *proxyCatalog) Select(_ context.Context, r modelsapi.SelectRequest) (mod
 	}
 	f.sel = append(f.sel, r)
 	names := f.chain
+	if ns, ok := f.byTask[deref(r.Task)]; ok {
+		names = ns
+	}
 	if r.Selector != nil && r.Selector.Name != nil {
 		names = []string{*r.Selector.Name}
 	}
@@ -167,7 +174,7 @@ func (f *proxyCatalog) Select(_ context.Context, r modelsapi.SelectRequest) (mod
 			continue
 		}
 		out.Candidates = append(out.Candidates, modelsapi.Candidate{Model: modelsapi.Model{Name: n,
-			Endpoint: modelsapi.Endpoint{BaseUrl: f.bases[n], Model: n, KeyRef: ptr("inference")}, Enabled: true}, Reason: "test"})
+			Endpoint: modelsapi.Endpoint{BaseUrl: f.bases[n], Model: n, KeyRef: ptr("inference")}, Attributes: f.attrs[n], Enabled: true}, Reason: "test"})
 	}
 	return out, nil
 }

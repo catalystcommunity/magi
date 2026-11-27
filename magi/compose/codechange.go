@@ -35,7 +35,7 @@ func codeChangeDefinition(runners bool) workflowapi.Definition {
 	task := func(id, queue string, next map[string]string, attempts uint64) workflowapi.Step {
 		if runners {
 			switch id {
-			case "release", "rollout":
+			case "release", "rollout", "backup":
 			case "publish", "pr-check":
 				queue = "runner.${publisher}." + id
 			default:
@@ -50,7 +50,16 @@ func codeChangeDefinition(runners bool) workflowapi.Definition {
 		Start:       "prepare",
 		Steps: []workflowapi.Step{
 			task("prepare", "magi.prepare", map[string]string{"done": "work"}, 2),
-			task("work", "apprentice", map[string]string{"done": "check", "blocked": "blocked"}, 2),
+			// "environment": the check of the environment failed before the
+			// apprentice started (a runner). No model did work, so a person
+			// decides at once.
+			task("work", "apprentice", map[string]string{"done": "check", "blocked": "backup", "environment": "blocked"}, 2),
+			// The model of the run could not finish the change: a guard ended
+			// a run that went wrong, or the checks failed too many times. One
+			// time for each run, Magi starts a work round with the backup model
+			// of the catalog (backup.go). Else a person decides (blocked), or
+			// the task stops (give-up).
+			task("backup", "magi.backup", map[string]string{"work": "work", "blocked": "blocked", "give-up": "cleanup"}, 2),
 			// The apprentice stopped without a result that the check can judge:
 			// the model endpoint or its money is gone, or a guard ended a run
 			// that went wrong (a loop, no progress, stalled thinking). The work
@@ -58,7 +67,9 @@ func codeChangeDefinition(runners bool) workflowapi.Definition {
 			// another work round, so a person decides first.
 			{Id: "blocked", Kind: "human", Prompt: ptr("The apprentice stopped (apprentice.status, apprentice.summary, apprentice.error), or the environment broke the checks (check.blocked). Resume to start another work round (the comment goes to the apprentice), check to run the checks on the work as it is, or reject."),
 				Outcomes: []string{"resume", "check", "reject"}, Next: map[string]string{"resume": "work", "check": "check", "reject": "cleanup"}},
-			task("check", "magi.check", map[string]string{"pass": "review", "fail-checks": "work", "give-up": "cleanup", "blocked": "blocked"}, 2),
+			// "guard-stop": the work round ended in a loop or a stall, and the
+			// checks failed on the change that it left.
+			task("check", "magi.check", map[string]string{"pass": "review", "fail-checks": "work", "give-up": "backup", "guard-stop": "backup", "blocked": "blocked"}, 2),
 			{Id: "review", Kind: "human", Prompt: ptr("Read the change and the check results. Approve to merge, revise to send it back to the apprentice with a comment, or reject."),
 				Outcomes: []string{"approve", "revise", "reject"}, Next: map[string]string{"approve": "merge", "revise": "work", "reject": "cleanup"}},
 			task("merge", "magi.merge", map[string]string{"done": "release", "conflict": "cleanup", "build-failed": "cleanup"}, 2),
@@ -110,6 +121,7 @@ func (s *System) RunWorkers(ctx context.Context) {
 	go s.Work(ctx, "magi.check", s.check)
 	go s.Work(ctx, "magi.merge", s.merge)
 	go s.Work(ctx, "magi.cleanup", s.cleanup)
+	go s.Work(ctx, "magi.backup", s.backup)
 	go s.Work(ctx, "magi.answer", s.answer)
 	go s.Work(ctx, "magi.release", s.release)
 	go s.Work(ctx, "magi.publish", s.publish)
@@ -235,8 +247,9 @@ func (s *System) check(ctx context.Context, a workflowapi.Assignment, note func(
 	if r.ExitCode != 0 || r.TimedOut {
 		out["check_output"] = tail(output, 6000)
 		if attempts >= maxCheckAttempts {
+			// The backup step starts a round with the backup model, or it
+			// stops the task and tells the person.
 			out["task.result"] = "gave-up"
-			s.report(ctx, a, "normal", "Task stopped", fmt.Sprintf("The checks failed %d times. I stopped the task. The last output is in artifact %s.", attempts, art.Digest))
 			return Result{Outcome: "give-up", Outputs: out}, nil
 		}
 		note(fmt.Sprintf("Checks failed (attempt %d). The apprentice will try again.", attempts))

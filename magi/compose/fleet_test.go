@@ -51,7 +51,17 @@ func TestChooseRunners(t *testing.T) {
 func TestCodeChangeQueues(t *testing.T) {
 	d := codeChangeDefinition(true)
 	want := map[string]string{"prepare": "runner.${runner}.prepare", "work": "runner.${runner}.work", "merge": "runner.${runner}.merge",
-		"publish": "runner.${publisher}.publish", "pr-check": "runner.${publisher}.pr-check", "release": "magi.release", "rollout": "magi.rollout", "cleanup": "runner.${runner}.cleanup"}
+		"publish": "runner.${publisher}.publish", "pr-check": "runner.${publisher}.pr-check", "release": "magi.release", "rollout": "magi.rollout", "cleanup": "runner.${runner}.cleanup",
+		"backup": "magi.backup", "check": "runner.${runner}.check"}
+	seen := map[string]bool{}
+	for _, st := range d.Steps {
+		seen[st.Id] = true
+	}
+	for id := range want {
+		if !seen[id] {
+			t.Errorf("no step %s", id)
+		}
+	}
 	for _, st := range d.Steps {
 		if q, ok := want[st.Id]; ok && deref(st.Queue) != q {
 			t.Errorf("%s queue = %s, want %s", st.Id, deref(st.Queue), q)
@@ -67,8 +77,23 @@ func TestCodeChangeBlockedStep(t *testing.T) {
 	for _, st := range d.Steps {
 		steps[st.Id] = st
 	}
-	if got := steps["work"].Next["blocked"]; got != "blocked" {
-		t.Fatalf("work blocked -> %q", got)
+	// A work that the model could not finish goes to the backup step first:
+	// it starts a round with the backup model, or it hands on to the person
+	// (blocked) or stops the task (give-up).
+	for from, outcome := range map[string]string{"work": "blocked", "check": "give-up"} {
+		if got := steps[from].Next[outcome]; got != "backup" {
+			t.Fatalf("%s %s -> %q, want backup", from, outcome, got)
+		}
+	}
+	if got := steps["check"].Next["guard-stop"]; got != "backup" {
+		t.Fatalf("check guard-stop -> %q, want backup", got)
+	}
+	if !maps.Equal(steps["backup"].Next, map[string]string{"work": "work", "blocked": "blocked", "give-up": "cleanup"}) {
+		t.Fatalf("backup next = %v", steps["backup"].Next)
+	}
+	// A failure of the environment needs a person, not a different model.
+	if steps["work"].Next["environment"] != "blocked" || steps["check"].Next["blocked"] != "blocked" {
+		t.Fatalf("environment failures: work %v, check %v", steps["work"].Next, steps["check"].Next)
 	}
 	b := steps["blocked"]
 	if b.Kind != "human" || !slices.Equal(b.Outcomes, []string{"resume", "check", "reject"}) {

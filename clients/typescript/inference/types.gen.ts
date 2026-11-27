@@ -16,7 +16,7 @@ export interface ServiceError {
  * 
  * Chat requests use the OpenAI Chat Completions format at
  * POST /v1/chat/completions. A refused request has status 503 and the JSON
- * error type "host_busy" or "warming". Every request needs a Magi token
+ * error type "host_busy", "warming", or "not_loaded". Every request needs a Magi token
  * with the scope "inference:use".
  * 
  * state: "off", "starting", "ready", or "busy".
@@ -36,6 +36,10 @@ export interface Gpu {
  * machine, the GPU memory of the engine, and the model names that the
  * engine serves. Magi places the models with these facts
  * (docs/decisions/0016-placement.md).
+ * model: the base model of the engine that the host runs or starts next.
+ * loadable: the base model of each engine of a host with more than one
+ * engine (load). hold_until_ms: when the host goes back to its first
+ * engine, while a different engine is loaded.
  */
 export interface Status {
   state: string;
@@ -47,6 +51,8 @@ export interface Status {
   gpus?: Gpu[];
   engineMib?: number;
   models?: string[];
+  loadable?: string[];
+  holdUntilMs?: number;
 }
 
 export interface StatusRequest {
@@ -59,6 +65,23 @@ export interface StatusRequest {
  */
 export interface WarmRequest {
   detail?: boolean;
+}
+
+/**
+ * A host with more than one engine runs one of them: its first engine,
+ * until a load. load makes the engine that serves model the engine of the
+ * host. Requests in flight end first, then the old engine stops and the
+ * new one starts. load does not wait: the status has the state "starting"
+ * until the new engine is ready. A chat request for a model of an engine
+ * that is not loaded has status 503 and the error type "not_loaded".
+ * hold_seconds: the host keeps an engine that is not its first one for
+ * this time after its last request (default 900, at most 14400). Then it
+ * goes back to its first engine. A load of a model of the first engine
+ * ends the hold at once. The answer is the status with detail.
+ */
+export interface LoadRequest {
+  model: string;
+  holdSeconds?: number;
 }
 
 /**

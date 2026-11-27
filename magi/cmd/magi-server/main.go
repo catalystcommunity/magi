@@ -205,6 +205,7 @@ func run(listen, keys string, workers bool, log *slog.Logger) error {
 	// Runners use the coding model through Magi, so they hold no provider key.
 	// sys.Router is nil without a catalog: then the proxy uses the fixed model.
 	mux.Handle("/runner/v1/chat/completions", compose.ModelProxy(ver, m, sys.Router, log))
+	mux.Handle("/runner/v1/models/", compose.RunnerModelLimits(ver, m, sys.Router))
 	// Runner sandboxes reach the egress proxy through Magi.
 	mux.Handle("/runner/egress", compose.EgressTunnel(ver, sys.EgressProxy))
 	// Terminals in task sandboxes: people open /api/terminal (WebSocket);

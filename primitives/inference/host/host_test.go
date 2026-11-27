@@ -25,12 +25,20 @@ import (
 
 // The test binary is also the fake engine.
 func TestMain(m *testing.M) {
-	if port := os.Getenv("FAKE_ENGINE_PORT"); port != "" {
+	port, name := os.Getenv("FAKE_ENGINE_PORT"), "local"
+	if len(os.Args) == 4 && os.Args[1] == "fake-engine" {
+		// A second engine of a host: its own port and model name.
+		port, name = os.Args[2], os.Args[3]
+	}
+	if port != "" {
 		http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {})
 		http.HandleFunc("/v1/chat/completions", func(w http.ResponseWriter, r *http.Request) {
 			b, _ := io.ReadAll(r.Body)
+			if strings.Contains(string(b), "slow") {
+				time.Sleep(600 * time.Millisecond)
+			}
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"model":"local","echo":%q,"auth":%q}`, b, r.Header.Get("Authorization"))
+			fmt.Fprintf(w, `{"model":%q,"echo":%q,"auth":%q}`, name, b, r.Header.Get("Authorization"))
 		})
 		fakeDecideEngine()
 		fakeHeadEngine()

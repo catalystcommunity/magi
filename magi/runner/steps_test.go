@@ -177,16 +177,21 @@ func TestInvestigateStep(t *testing.T) {
 }
 
 // A guard stop or a gone endpoint is the outcome "blocked", not a failed
-// step: the work stays, and a person decides. The error goes to the outputs.
+// step: the work stays, and the backup step of Magi decides and tells the
+// person. The error goes to the outputs.
 func TestWorkStepBlocked(t *testing.T) {
-	res, notes, _ := workStepResult(t, `{"status": "blocked_provider", "outcome": "blocked", "summary": "The model call failed.",
-		"steps": 1, "tool_calls": 0, "error": "HTTP 429: BudgetLimitError"}`, nil)
-	if res.Outcome != "blocked" || res.Outputs["apprentice.blocked"] != "true" ||
+	res, fake, _, _ := apprenticeStep(t, "work", `{"status": "blocked_provider", "outcome": "blocked", "summary": "The model call failed.",
+		"steps": 1, "tool_calls": 0, "error": "HTTP 429: BudgetLimitError"}`, nil, Config{})
+	notes := fake.notes
+	if res.Outcome != "blocked" || res.Outputs["apprentice.blocked"] != "true" || res.Outputs["apprentice.steps"] != "1" ||
 		res.Outputs["apprentice.error"] != "HTTP 429: BudgetLimitError" || res.Outputs["apprentice.status"] != "blocked_provider" {
 		t.Fatalf("result = %+v", res)
 	}
 	if !hasNote(notes, "apprentice blocked_provider after 1 steps, 0 tool calls: The model call failed.") {
 		t.Errorf("notes = %q", notes)
+	}
+	if hasReport(fake, "Task blocked") {
+		t.Errorf("the runner told the person; the backup step does that: %q", fake.posts)
 	}
 	// A done round clears the flag of an earlier blocked round.
 	res, _, _ = workStepResult(t, `{"status": "finished", "outcome": "done", "summary": "done", "steps": 2, "tool_calls": 2}`,
@@ -391,5 +396,28 @@ func TestModelReviewFailure(t *testing.T) {
 	verdict, sum := r.modelReview(context.Background(), magiapi.RunnerAssignment{Vars: map[string]string{}})
 	if verdict != "" || !strings.HasPrefix(sum, "The model review failed: ") {
 		t.Errorf("modelReview = %q, %q", verdict, sum)
+	}
+}
+
+// The reviews of a run use the review model of the model var of the run,
+// else the review model of the runner.
+func TestReviewModelOfTheRun(t *testing.T) {
+	var cfg Config
+	cfg.Apprentice.ReviewModel, cfg.Apprentice.WorkReview = "usual", true
+	const done = `{"status": "finished", "outcome": "done", "summary": "ok", "steps": 1, "tool_calls": 1}`
+	_, _, args, _ := apprenticeStep(t, "work", done, nil, cfg)
+	if !strings.Contains(args, "--review-model\nusual") && !strings.Contains(args, "--review-model usual") {
+		t.Errorf("no model var: arguments = %q", args)
+	}
+	_, _, args, _ = apprenticeStep(t, "work", done, map[string]string{"model": `{"name": "careful", "review_model": "careful"}`}, cfg)
+	if strings.Contains(args, "usual") || !strings.Contains(args, "careful") {
+		t.Errorf("a model var with a review model: arguments = %q", args)
+	}
+	r := &Runner{Cfg: cfg}
+	for vars, want := range map[string]string{``: "usual", `careful`: "usual", `{"name": "careful"}`: "usual",
+		`{"name": "careful", "review_model": "careful"}`: "careful"} {
+		if got := r.reviewModel(map[string]string{"model": vars}); got != want {
+			t.Errorf("reviewModel(%q) = %q, want %q", vars, got, want)
+		}
 	}
 }

@@ -395,7 +395,7 @@ Assignment vars:
 | `check_output` | Output of a failed check from an earlier attempt. |
 | `review.comment` | Changes that a reviewer asked for. |
 | `lessons` | Review lessons of this repository that relate to the task. The first message shows them before the task instructions. |
-| `model` | A model name, or JSON with `name`, `temperature`, `max_tokens`, `max_steps`. The base URL and the key cannot change through vars. |
+| `model` | A model name, or JSON with `name`, `temperature`, `max_tokens`, `max_steps`, `max_seconds`, `context_tokens`. The base URL and the key cannot change through vars. See "Limits from the model endpoint". |
 
 Outputs: `apprentice.summary`, `apprentice.transcript` (artifact digest), `apprentice.steps`,
 `apprentice.status`, `apprentice.tool_calls`, `apprentice.check_passed` (when a check
@@ -409,13 +409,35 @@ Outcomes:
   (`apprentice.status` tells which). The workflow checks are the independent
   judgment.
 - `blocked`: status `loop`, `no_progress`, `stalled`, `blocked_provider`, or
-  `model_unavailable`. The work stays in the environment, and a person
-  decides (step `blocked` of the code-change workflow). `apprentice.error` has
-  the error of the model call.
+  `model_unavailable`. The work stays in the environment. The code-change
+  workflow starts a round with the backup model (step `backup`), or a person
+  decides (step `blocked`). `apprentice.error` has the error of the model
+  call.
 - `fail`: an error that the apprentice cannot recover from, for example a model
   that does not answer. `error` has the cause.
 - `retry`: the worker got SIGTERM during the task.
 - No completion: the claim was lost (for example, the run was cancelled).
+
+## Limits from the model endpoint
+
+The limits of a run must fit the model that does the run. A compaction
+limit above the context window of the engine makes each long call fail,
+and a slow model needs more time for the same work.
+
+Before a run, the apprentice asks the model endpoint for the limits of its
+model name: `GET <base URL>/models/<name>`. Magi answers from the model
+catalog (`docs/models.md`, "Limits of a run"):
+
+| Field | Limit of the run |
+| --- | --- |
+| `context` | The tokens of the context window of the engine. The compaction limit is 91.5 % of it: 59965 for 65536. |
+| `work_seconds` | The time limit of one work round. |
+
+The sequence is: a key of the `model` var (`context_tokens`,
+`max_seconds`), then the limit of the endpoint, then the setting of the
+worker (`MAGI_APPRENTICE_CONTEXT_TOKENS`, `MAGI_APPRENTICE_MAX_SECONDS`).
+An endpoint that does not answer this request gives no limits. A question
+keeps its own limits (60 model calls, 900 seconds).
 
 ## One-shot mode
 

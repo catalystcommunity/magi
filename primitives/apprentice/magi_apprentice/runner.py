@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import json
+import urllib.error
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass, replace
 from typing import Any, Callable
 
@@ -25,16 +28,53 @@ class Outcome:
     upload_error: str | None = None
 
 
-def apply_model_override(cfg: ModelConfig, limits: Limits, value: str | None) -> tuple[ModelConfig, Limits]:
+# The part of the context window of the engine that the conversation can
+# use before a compaction. The rest is room for the answer and for the
+# error of the token estimate. 60000 of 65536 tokens was the measured value.
+CONTEXT_SHARE = 0.915
+
+
+def fetch_limits(cfg: ModelConfig, opener: Callable[..., Any] = urllib.request.urlopen) -> dict:
+    """The limits that the model endpoint tells for the model name of cfg:
+    GET <base_url>/models/<name>. Magi answers from the model catalog with
+    `context` (the tokens of the context window of the engine) and
+    `work_seconds` (the time limit of one work round). An endpoint that does
+    not answer, or that answers something else, gives no limits."""
+    if not cfg.base_url:
+        return {}
+    url = cfg.base_url.rstrip("/") + "/models/" + urllib.parse.quote(cfg.name, safe="")
+    headers = {"Authorization": f"Bearer {cfg.api_key}"} if cfg.api_key else {}
+    try:
+        with opener(urllib.request.Request(url, headers=headers), timeout=15) as resp:
+            d = json.loads(resp.read(65536))
+    except urllib.error.HTTPError as e:
+        e.close()
+        return {}
+    except (OSError, ValueError):
+        return {}
+    return d if isinstance(d, dict) else {}
+
+
+def _positive(v: Any) -> int:
+    return v if isinstance(v, int) and not isinstance(v, bool) and v > 0 else 0
+
+
+def apply_model_override(cfg: ModelConfig, limits: Limits, value: str | None,
+                         endpoint_limits: Callable[[ModelConfig], dict] | None = None) -> tuple[ModelConfig, Limits]:
     """Apply a `model` assignment var. It is a model name, or JSON with name,
-    temperature, max_tokens, max_steps, context_tokens. The base URL and key
-    cannot change here, so task data cannot send the key to another host."""
-    if not value:
-        return cfg, limits
-    value = value.strip()
-    if not value.startswith("{"):
-        return replace(cfg, name=value), limits
-    d = json.loads(value)
+    temperature, max_tokens, max_steps, max_seconds, context_tokens. The base
+    URL and key cannot change here, so task data cannot send the key to
+    another host.
+
+    endpoint_limits gives the limits of the model from the endpoint
+    (fetch_limits). They set the context and the time of the run when the
+    var does not: the limits of a run fit the model that does the run."""
+    value = (value or "").strip()
+    d: dict = {}
+    if value.startswith("{"):
+        d = json.loads(value)
+    elif value:
+        d = {"name": value}
     if "name" in d:
         cfg = replace(cfg, name=str(d["name"]))
     if "temperature" in d:
@@ -43,8 +83,15 @@ def apply_model_override(cfg: ModelConfig, limits: Limits, value: str | None) ->
         cfg = replace(cfg, max_tokens=int(d["max_tokens"]))
     if "max_steps" in d:
         limits = replace(limits, max_steps=int(d["max_steps"]))
+    if "max_seconds" in d:
+        limits = replace(limits, max_seconds=int(d["max_seconds"]))
     if "context_tokens" in d:
         limits = replace(limits, context_tokens=int(d["context_tokens"]))
+    told = endpoint_limits(cfg) if endpoint_limits else {}
+    if "context_tokens" not in d and _positive(told.get("context")):
+        limits = replace(limits, context_tokens=int(told["context"] * CONTEXT_SHARE))
+    if "max_seconds" not in d and _positive(told.get("work_seconds")):
+        limits = replace(limits, max_seconds=told["work_seconds"])
     return cfg, limits
 
 

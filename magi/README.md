@@ -80,9 +80,18 @@ prepare -> work (apprentice) -> check --pass--> review (human) --approve--> merg
   and makes branch `task/<run>`.
 - `work` is done by the apprentice (queue `apprentice`).
 - `check` runs `./tools/check.sh`. On success it commits and moves the branch
-  out as a bundle (`push-bundle`). Three failures stop the task. A failure
-  with an environment error in the output (for example `Connection reset by
-  peer`) goes to `blocked`, and does not count as a failure.
+  out as a bundle (`push-bundle`). After three failures, the run goes to
+  `backup`. A failure with an environment error in the output (for example
+  `Connection reset by peer`) goes to `blocked`, and does not count as a
+  failure.
+- `backup` runs when the model of the run could not finish the change: the
+  checks failed three times, or a guard stopped the apprentice (a loop, no
+  progress, a stall). One time for each run, it starts a work round with
+  the backup model (`docs/models.md`, "Backup model"). With no backup
+  model, or after the backup round, the task stops (three failed checks) or
+  waits in `blocked`. Code decides this; the step makes no model call. A
+  run with a model that an operator named, and an eval run, get no backup
+  round.
 - `blocked` waits for `decide` from the run owner when the apprentice stopped
   without a result (a guard stop, a model endpoint that is down, or no money
   or quota left at the provider), or when the environment broke the check.
@@ -167,8 +176,8 @@ prepare -> work -> check --> review --> merge (and build) -> release -> publish 
 - `sandbox.preflight` in the runner configuration is an optional shell
   command that runs in the sandbox before each work round, for example
   `curl -fsS -o /dev/null --max-time 20 https://proxy.golang.org/`. When it
-  fails, the round does not start, and the task waits in step `blocked`
-  with the output in `apprentice.error`.
+  fails, the round does not start (outcome `environment`), and the task
+  waits in step `blocked` with the output in `apprentice.error`.
 - The apprentice runs from the runner release (not from a checkout that a
   task can change). Its tools use the sandbox through an execution API on
   loopback. Its model calls go to `/runner/v1/chat/completions` on Magi,

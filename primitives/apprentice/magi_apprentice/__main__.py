@@ -17,9 +17,9 @@ from .guards import outcome_of
 from .local import LocalExecution
 from .model import ChatModel, ModelError
 from .prereview import pre_review, summary
-from .runner import apply_model_override, run_task
+from .runner import apply_model_override, fetch_limits, run_task
 from .tools import Tools, Workspace
-from .worker import DEFAULT_CHECK, Worker
+from .worker import DEFAULT_CHECK, Worker, question_limits
 
 
 def _need(value: str, name: str) -> str:
@@ -54,7 +54,11 @@ def cmd_worker(args: argparse.Namespace) -> int:
 
 def cmd_run(args: argparse.Namespace) -> int:
     sc = ServiceConfig.from_env()
-    model_cfg, limits = apply_model_override(ModelConfig.from_env(), Limits.from_env(), args.model)
+    model_cfg, limits = apply_model_override(ModelConfig.from_env(), Limits.from_env(), args.model, fetch_limits)
+    if args.question:
+        # The catalog gives the work time of a change. A person waits for
+        # the answer to a question.
+        limits = question_limits(limits)
     if args.max_steps:
         limits.max_steps = args.max_steps
     if args.tester:

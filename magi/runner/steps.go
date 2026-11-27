@@ -190,7 +190,9 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 	}
 	if why != "" {
 		r.report(ctx, st, "normal", "Task blocked", "The work did not start: the environment check failed. "+why+". The work is kept. Decide on the task: resume tries again.")
-		return Result{Outcome: "blocked", Outputs: map[string]string{"apprentice.status": "preflight", "apprentice.blocked": "true",
+		// "environment", not "blocked": no model did work, so a round with
+		// the backup model (the backup step of Magi) cannot help.
+		return Result{Outcome: "environment", Outputs: map[string]string{"apprentice.status": "preflight", "apprentice.blocked": "true",
 			"apprentice.error": why, "apprentice.summary": "The environment check failed before the work started."}}, nil
 	}
 	dir, err := os.MkdirTemp(r.Cfg.StateDir, "apprentice-")
@@ -235,8 +237,8 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 		if r.Cfg.Apprentice.SupervisorModel != "" {
 			args = append(args, "--supervisor-model", r.Cfg.Apprentice.SupervisorModel)
 		}
-		if r.Cfg.Apprentice.WorkReview && r.Cfg.Apprentice.ReviewModel != "" {
-			args = append(args, "--review-model", r.Cfg.Apprentice.ReviewModel)
+		if rm := r.reviewModel(a.Vars); r.Cfg.Apprentice.WorkReview && rm != "" {
+			args = append(args, "--review-model", rm)
 			if r.Cfg.Apprentice.Tester {
 				args = append(args, "--tester")
 			}
@@ -365,14 +367,13 @@ func (r *Runner) work(ctx context.Context, a magiapi.RunnerAssignment, st magiap
 		}
 	case "blocked":
 		// The endpoint or the money is gone, or a guard stopped a run that
-		// went wrong. The work stays in the environment, and a person
-		// decides: resume, check what is there, or reject.
+		// went wrong. The work stays in the environment. The backup step
+		// of Magi starts a round with the backup model, or it tells a
+		// person, who decides: resume, check what is there, or reject.
 		outputs["apprentice.blocked"] = "true"
 		if out.Error != "" {
 			outputs["apprentice.error"] = tail(out.Error, 2000)
 		}
-		// Without this report, a blocked task waits and nobody knows.
-		r.report(ctx, st, "normal", "Task blocked", fmt.Sprintf("The apprentice stopped (%s) after %d steps. The work stays in the environment. Resume it, run the checks on it, or reject it.", out.Status, out.Steps))
 		return Result{Outcome: "blocked", Outputs: outputs}, nil
 	case "retry":
 		return Result{Outcome: "retry", Outputs: outputs}, nil
@@ -400,8 +401,25 @@ func (r *Runner) apprenticeEnv(home string) []string {
 }
 
 // modelReviewTimeout: one sample of each lens takes about 3 minutes on a
-// local model on one GPU (evals/review, 2026-11-17).
-const modelReviewTimeout = 20 * time.Minute
+// local model on one GPU (evals/review, 2026-11-17). A dense model of the
+// same size is 3 to 4 times slower: its review took 13 to 17 minutes
+// (evals/coding, 2026-11-26).
+const modelReviewTimeout = 40 * time.Minute
+
+// reviewModel gives the catalog model of the reviews of a run: the
+// review_model of the model var of the run, else the review model of the
+// runner. A run on a model that its host must load names the same model for
+// its reviews. With a different model on the same host, each review would
+// make the host change its engine.
+func (r *Runner) reviewModel(vars map[string]string) string {
+	var m struct {
+		ReviewModel string `json:"review_model"`
+	}
+	if json.Unmarshal([]byte(vars["model"]), &m) == nil && m.ReviewModel != "" {
+		return m.ReviewModel
+	}
+	return r.Cfg.Apprentice.ReviewModel
+}
 
 // modelReview runs the review of a model on a change whose checks passed
 // (primitives/apprentice prereview.py). The result is a hint in the review
@@ -424,7 +442,7 @@ func (r *Runner) modelReview(ctx context.Context, a magiapi.RunnerAssignment) (v
 		return fail(err.Error())
 	}
 	args := []string{"-m", "magi_apprentice", "review", "--environment", a.Vars["environment"], "--workdir", a.Vars["workdir"],
-		"--base", a.Vars["base_commit"], "--instructions", "@" + instr, "--model", r.Cfg.Apprentice.ReviewModel}
+		"--base", a.Vars["base_commit"], "--instructions", "@" + instr, "--model", r.reviewModel(a.Vars)}
 	if l := a.Vars["lessons"]; l != "" {
 		args = append(args, "--lessons", l)
 	}
@@ -532,14 +550,15 @@ func (r *Runner) check(ctx context.Context, a magiapi.RunnerAssignment, st magia
 		out["check_output"] = why
 		if a.Vars["apprentice.guard_stop"] == "true" {
 			// The work round ended in a loop or a stall, not with a finish. One more
-			// round of the same model has a small chance: a person decides.
+			// round of the same model has a small chance: the backup step of
+			// Magi starts a round with the backup model, or a person decides.
 			out["apprentice.blocked"] = "true"
-			r.report(ctx, st, "normal", "Task blocked", "The apprentice stopped before it finished, and the checks failed on the change that it left. The work is kept. Resume it, run the checks again, or reject it.")
-			return Result{Outcome: "blocked", Outputs: out}, nil
+			return Result{Outcome: "guard-stop", Outputs: out}, nil
 		}
 		if attempts >= maxCheckAttempts {
+			// The backup step of Magi starts a round with the backup model,
+			// or it stops the task and tells the person.
 			out["task.result"] = "gave-up"
-			r.report(ctx, st, "normal", "Task stopped", fmt.Sprintf("The checks failed %d times. I stopped the task. The last output is in artifact %s.", attempts, art.Digest))
 			return Result{Outcome: "give-up", Outputs: out}, nil
 		}
 		r.post(ctx, st, fmt.Sprintf("The checks failed (attempt %d of %d, %s). I sent the output back to the apprentice.", attempts, maxCheckAttempts, exitText(res)))
@@ -619,7 +638,7 @@ git rev-parse HEAD`, a.Vars["base_commit"], branch, shellQuote(w)), 120000)
 			hint = "\n\nThe checker still finds these defects after one round of corrections:\n" + must + edge
 		}
 	}
-	if r.Cfg.Apprentice.ReviewModel != "" {
+	if r.reviewModel(a.Vars) != "" {
 		r.note(ctx, st, "Checks passed. The model review started.")
 		verdict, sum := r.modelReview(ctx, a)
 		out["review.model_verdict"], hint = verdict, "\n\n"+sum

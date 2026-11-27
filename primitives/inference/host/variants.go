@@ -6,66 +6,58 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sort"
 	"strconv"
 )
 
 // applyVariant changes a request for a model name of Engine.Models: the
 // model becomes the engine model, and the request gets the adapters of the
 // variant. It returns the variant name, or "" for the base model.
-func (h *Host) applyVariant(r *http.Request) (string, error) {
+func (e Engine) applyVariant(r *http.Request) (string, error) {
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
 		return "", err
 	}
 	r.Body.Close()
-	name, out, err := h.variantBody(b)
+	name, out, err := e.variantBody(b)
 	if err != nil {
 		return "", err
 	}
-	r.Body = io.NopCloser(bytes.NewReader(out))
-	r.ContentLength = int64(len(out))
-	r.Header.Set("Content-Length", strconv.Itoa(len(out)))
+	setBody(r, out)
 	return name, nil
 }
 
 // variantBody is applyVariant on a request body.
-func (h *Host) variantBody(b []byte) (string, []byte, error) {
+func (e Engine) variantBody(b []byte) (string, []byte, error) {
 	var req map[string]json.RawMessage
 	if json.Unmarshal(b, &req) != nil {
 		return "", b, nil // not JSON: the engine answers
 	}
 	var model string
 	json.Unmarshal(req["model"], &model)
-	v, ok := h.cfg.Engine.Models[model]
+	v, ok := e.Models[model]
 	if !ok {
 		if _, has := req["lora"]; has {
 			return "", nil, fmt.Errorf("use a model name for an adapter, not a lora field")
 		}
 		return "", b, nil
 	}
-	req["model"], _ = json.Marshal(h.cfg.Engine.Model)
+	req["model"], _ = json.Marshal(e.Model)
 	req["lora"], _ = json.Marshal(v.Lora)
 	out, err := json.Marshal(req)
 	return model, out, err
 }
 
 // writeModels answers GET /v1/models with the base model and the variants.
-func (h *Host) writeModels(w http.ResponseWriter) {
+func (e Engine) writeModels(w http.ResponseWriter) {
 	type entry struct {
 		Id          string `json:"id"`
 		Object      string `json:"object"`
 		OwnedBy     string `json:"owned_by"`
 		Description string `json:"description,omitempty"`
 	}
-	list := []entry{{Id: h.cfg.Engine.Model, Object: "model", OwnedBy: "magi-inference", Description: h.cfg.Engine.Description}}
-	names := make([]string, 0, len(h.cfg.Engine.Models))
-	for n := range h.cfg.Engine.Models {
-		names = append(names, n)
-	}
-	sort.Strings(names)
-	for _, n := range names {
-		list = append(list, entry{Id: n, Object: "model", OwnedBy: "magi-inference", Description: h.cfg.Engine.Models[n].Description})
+	list := []entry{{Id: e.Model, Object: "model", OwnedBy: "magi-inference", Description: e.Description}}
+	for _, n := range e.names()[1:] {
+		list = append(list, entry{Id: n, Object: "model", OwnedBy: "magi-inference", Description: e.Models[n].Description})
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{"object": "list", "data": list})

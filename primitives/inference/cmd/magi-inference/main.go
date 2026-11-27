@@ -28,10 +28,13 @@ import (
 type config struct {
 	// Listen is the address for callers that connect in. Default
 	// 127.0.0.1:8095; with connect and no listen, the host does not listen.
-	Listen    *string       `json:"listen"`
-	Connect   *connect      `json:"connect"`
-	AuthKeys  []string      `json:"auth_keys"`
-	Engine    host.Engine   `json:"engine"`
+	Listen   *string     `json:"listen"`
+	Connect  *connect    `json:"connect"`
+	AuthKeys []string    `json:"auth_keys"`
+	Engine   host.Engine `json:"engine"`
+	// Engines are more engines; the host runs one engine at a time (README,
+	// "More than one engine").
+	Engines   []host.Engine `json:"engines"`
 	Rules     *host.Rules   `json:"rules"`
 	IdleStop  host.Duration `json:"idle_stop"`
 	KeepWarm  bool          `json:"keep_warm"`
@@ -89,6 +92,9 @@ func run(ctx context.Context, path string, log *slog.Logger) error {
 	if len(cfg.AuthKeys) == 0 || len(cfg.Engine.Command) == 0 || cfg.Engine.Port == 0 {
 		return errors.New("auth_keys, engine.command, and engine.port are required")
 	}
+	if err := host.CheckEngines(cfg.Engine, cfg.Engines); err != nil {
+		return err
+	}
 	if cfg.Connect != nil && (cfg.Connect.URL == "" || cfg.Connect.TokenFile == "") {
 		return errors.New("connect needs url and token_file")
 	}
@@ -109,7 +115,7 @@ func run(ctx context.Context, path string, log *slog.Logger) error {
 	ctx, stop := context.WithCancel(ctx)
 	defer stop()
 	h := host.New(host.Config{
-		Engine: cfg.Engine, Rules: rules, IdleStop: time.Duration(cfg.IdleStop), KeepWarm: cfg.KeepWarm,
+		Engine: cfg.Engine, Engines: cfg.Engines, Rules: rules, IdleStop: time.Duration(cfg.IdleStop), KeepWarm: cfg.KeepWarm,
 		StartWait: time.Duration(cfg.StartWait), LogFile: cfg.LogFile,
 	}, host.System{}, ver, log)
 	done := make(chan struct{})

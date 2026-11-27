@@ -13,15 +13,17 @@ type Gpu struct {
 
 // Status represents a structured data type
 type Status struct {
-	State      string   `json:"state" yaml:"state"`
-	Reason     *string  `json:"reason,omitempty" yaml:"reason,omitempty"`
-	Model      string   `json:"model" yaml:"model"`
-	InFlight   uint64   `json:"in_flight" yaml:"in_flight"`
-	LastUsedMs *uint64  `json:"last_used_ms,omitempty" yaml:"last_used_ms,omitempty"`
-	StartedMs  *uint64  `json:"started_ms,omitempty" yaml:"started_ms,omitempty"`
-	Gpus       []Gpu    `json:"gpus,omitempty" yaml:"gpus,omitempty"`
-	EngineMib  *uint64  `json:"engine_mib,omitempty" yaml:"engine_mib,omitempty"`
-	Models     []string `json:"models,omitempty" yaml:"models,omitempty"`
+	State       string   `json:"state" yaml:"state"`
+	Reason      *string  `json:"reason,omitempty" yaml:"reason,omitempty"`
+	Model       string   `json:"model" yaml:"model"`
+	InFlight    uint64   `json:"in_flight" yaml:"in_flight"`
+	LastUsedMs  *uint64  `json:"last_used_ms,omitempty" yaml:"last_used_ms,omitempty"`
+	StartedMs   *uint64  `json:"started_ms,omitempty" yaml:"started_ms,omitempty"`
+	Gpus        []Gpu    `json:"gpus,omitempty" yaml:"gpus,omitempty"`
+	EngineMib   *uint64  `json:"engine_mib,omitempty" yaml:"engine_mib,omitempty"`
+	Models      []string `json:"models,omitempty" yaml:"models,omitempty"`
+	Loadable    []string `json:"loadable,omitempty" yaml:"loadable,omitempty"`
+	HoldUntilMs *uint64  `json:"hold_until_ms,omitempty" yaml:"hold_until_ms,omitempty"`
 }
 
 // StatusRequest represents a structured data type
@@ -32,6 +34,12 @@ type StatusRequest struct {
 // WarmRequest represents a structured data type
 type WarmRequest struct {
 	Detail *bool `json:"detail,omitempty" yaml:"detail,omitempty"`
+}
+
+// LoadRequest represents a structured data type
+type LoadRequest struct {
+	Model       string  `json:"model" yaml:"model"`
+	HoldSeconds *uint64 `json:"hold_seconds,omitempty" yaml:"hold_seconds,omitempty"`
 }
 
 // Question represents a structured data type

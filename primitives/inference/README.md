@@ -20,6 +20,7 @@ Contract: `contracts/inference.csil`, service `InferenceService`.
 | `InferenceService/status` | State, reason, model, requests in flight |
 | `InferenceService/decide` | Probabilities for typed questions about a state ("Decide") |
 | `InferenceService/warm` | Starts the engine if the machine is not busy. It does not wait. |
+| `InferenceService/load` | Makes the engine of a model the engine of the host ("More than one engine"). It does not wait. |
 | `GET /healthz` | Health of the host process |
 
 Every request, except `/healthz`, needs a Magi token with the scope
@@ -33,6 +34,7 @@ error with one of these types:
 | `warming` | The engine is starting. Use another provider now, or try again soon. |
 | `host_busy` | The machine is busy. The message tells why. |
 | `engine_error` | The engine did not start or did not answer. |
+| `not_loaded` | The model is a model of an engine that the host does not run now. Load it, or use a different model. |
 
 States: `off`, `starting`, `ready`, `busy`.
 
@@ -44,6 +46,50 @@ total and used memory, the GPU memory of the engine, and the model names
 that the engine serves. NVIDIA GPUs come from `nvidia-smi`. On Linux, AMD
 and Intel GPUs come from `/sys/class/drm`. A value that the host cannot
 read is absent. The busy rules use the first NVIDIA GPU only.
+
+A host with more than one engine also reports `loadable`: the base model
+of each engine. While an engine that is not the first one is loaded,
+`hold_until_ms` tells when the host goes back to its first engine.
+
+## More than one engine
+
+A GPU that holds one large model can serve a second model, but not at the
+same time. Give the host each engine: `engine` is the first engine, and
+`engines` is a list of more engines with the same fields.
+
+```json
+"engine": {"command": ["llama-server", "-m", "usual.gguf", "--port", "18091", "..."], "port": 18091, "model": "usual"},
+"engines": [
+  {"command": ["llama-server", "-m", "careful.gguf", "--port", "18092", "..."], "port": 18092, "model": "careful"}
+]
+```
+
+- The host runs one engine at a time. It runs the first engine until a
+  load.
+- `InferenceService/load` with `model` makes the engine of that model the
+  engine of the host. Requests in flight get their answers from the old
+  engine. Then the old engine stops, and the new engine starts after the
+  old process ended, because the old process holds the GPU memory until
+  then. `load` does not wait: `status` has the state `starting` until the
+  new engine is ready.
+- The host keeps a loaded engine for `hold_seconds` after its last request
+  (the default is 900, the maximum is 14400). Then it goes back to its
+  first engine. Thus a caller that stops does not leave the host on the
+  wrong model. With `keep_warm`, the first engine starts at once; else it
+  starts with the next request.
+- A load of a model of the first engine ends the hold at once.
+- A chat request does not change the engine. A request for a model of an
+  engine that is not loaded gets status 503 with the type `not_loaded`.
+  With more than one engine, a model name that no engine has gets the same
+  answer. A host with one engine sends each model name to that engine.
+- Each model name (base models and adapter names) must be in one engine
+  only, and each engine needs `model`. The host does not start with a
+  configuration that breaks this rule.
+- The busy rules apply to each engine: a busy machine starts no engine, and
+  a load on a busy machine leaves the state `busy`.
+
+Magi loads a model for a code change that names it (`docs/models.md`,
+"Backup model").
 
 ## Models
 

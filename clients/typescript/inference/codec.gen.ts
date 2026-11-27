@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { Answer, DecideRequest, DecideResponse, Gpu, Question, Status, StatusRequest, WarmRequest } from "./types.gen.ts";
+import type { Answer, DecideRequest, DecideResponse, Gpu, LoadRequest, Question, Status, StatusRequest, WarmRequest } from "./types.gen.ts";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -505,10 +505,12 @@ export function toStatusCborValue(v: Status): CborValue {
   csilMap.set("state", v.state);
   if (v.models !== undefined) csilMap.set("models", v.models);
   if (v.reason !== undefined) csilMap.set("reason", v.reason);
+  if (v.loadable !== undefined) csilMap.set("loadable", v.loadable);
   csilMap.set("in_flight", v.inFlight);
   if (v.engineMib !== undefined) csilMap.set("engine_mib", v.engineMib);
   if (v.startedMs !== undefined) csilMap.set("started_ms", v.startedMs);
   if (v.lastUsedMs !== undefined) csilMap.set("last_used_ms", v.lastUsedMs);
+  if (v.holdUntilMs !== undefined) csilMap.set("hold_until_ms", v.holdUntilMs);
   return csilMap;
 }
 
@@ -523,6 +525,8 @@ export function fromStatusCborValue(value: CborValue): Status {
     gpus: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => fromGpuCborValue(csilE)))(mapGet(value, "gpus")),
     engineMib: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "engine_mib")),
     models: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "models")),
+    loadable: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "loadable")),
+    holdUntilMs: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "hold_until_ms")),
   };
 }
 
@@ -572,6 +576,28 @@ export function toWarmRequestCbor(v: WarmRequest): Uint8Array {
 
 export function fromWarmRequestCbor(bytes: Uint8Array): WarmRequest {
   return fromWarmRequestCborValue(decode(bytes));
+}
+
+export function toLoadRequestCborValue(v: LoadRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("model", v.model);
+  if (v.holdSeconds !== undefined) csilMap.set("hold_seconds", v.holdSeconds);
+  return csilMap;
+}
+
+export function fromLoadRequestCborValue(value: CborValue): LoadRequest {
+  return {
+    model: asString(requireKey(value, "model")),
+    holdSeconds: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "hold_seconds")),
+  };
+}
+
+export function toLoadRequestCbor(v: LoadRequest): Uint8Array {
+  return encodeValue(toLoadRequestCborValue(v));
+}
+
+export function fromLoadRequestCbor(bytes: Uint8Array): LoadRequest {
+  return fromLoadRequestCborValue(decode(bytes));
 }
 
 export function toQuestionCborValue(v: Question): CborValue {

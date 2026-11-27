@@ -3,10 +3,12 @@
 package host
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httputil"
@@ -14,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -60,7 +63,11 @@ type LoraScale struct {
 }
 
 type Config struct {
-	Engine   Engine
+	Engine Engine
+	// Engines are more engines of the host. One engine runs at a time:
+	// Engine, until Magi loads a different one (Load). After the hold of a
+	// load ends, the host goes back to Engine.
+	Engines  []Engine
 	Rules    Rules
 	IdleStop time.Duration // stop the engine after this time without requests
 	// KeepWarm: start the engine when the host starts and each time the
@@ -83,8 +90,27 @@ type Host struct {
 	log    *slog.Logger
 	now    func() time.Time
 
-	mu        sync.Mutex
-	cmd       *exec.Cmd
+	// engines is Engine and then Engines; proxies has the reverse proxy of
+	// each one.
+	engines []Engine
+	proxies []*httputil.ReverseProxy
+
+	mu  sync.Mutex
+	cmd *exec.Cmd
+	// active is the engine that the host runs, or starts next. running is
+	// the engine of cmd: it is not active while the engine before a load
+	// still answers its last requests.
+	active, running int
+	// stopped is the exit of the engine that the host stopped last. The
+	// next engine starts after it, because the old process holds the GPU
+	// memory until it ends.
+	stopped chan struct{}
+	// pending: the active engine starts as soon as the engine before it ended.
+	pending bool
+	// holdFor and holdUntil keep an engine that is not the first one: each
+	// request moves holdUntil to holdFor after the request.
+	holdFor   time.Duration
+	holdUntil time.Time
 	exited    chan struct{}
 	ready     bool
 	readyCh   chan struct{} // closed when ready or when the start failed
@@ -112,7 +138,132 @@ func New(cfg Config, s Sampler, v *authn.Verifier, log *slog.Logger) *Host {
 	if cfg.MaxBody == 0 {
 		cfg.MaxBody = 16 << 20
 	}
-	return &Host{cfg: cfg, sampler: s, ver: v, log: log, now: time.Now}
+	h := &Host{cfg: cfg, sampler: s, ver: v, log: log, now: time.Now}
+	h.engines = append([]Engine{cfg.Engine}, cfg.Engines...)
+	for _, e := range h.engines {
+		target, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", e.Port))
+		proxy := httputil.NewSingleHostReverseProxy(target)
+		proxy.FlushInterval = -1
+		proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+			h.log.Warn("engine request", "err", err)
+			refuse(w, "engine_error", "the engine did not answer", 0)
+		}
+		h.proxies = append(h.proxies, proxy)
+	}
+	return h
+}
+
+// Hold limits of Load.
+const (
+	defaultHold = 15 * time.Minute
+	maxHold     = 4 * time.Hour
+)
+
+// engineOf gives the engine that serves the model name: a base model or a
+// name of Models. An empty name is the active engine. h.mu is held.
+func (h *Host) engineOf(model string) (int, bool) {
+	if model == "" {
+		return h.active, true
+	}
+	for i, e := range h.engines {
+		if e.Model == model {
+			return i, true
+		}
+		if _, ok := e.Models[model]; ok {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
+// baseOf gives the base model of the engine that serves the model name.
+func (h *Host) baseOf(model string) string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	i, _ := h.engineOf(model)
+	return h.engines[i].Model
+}
+
+// CheckEngines tells what is wrong with the engines of a configuration:
+// the first engine and the others. With more than one engine, a request
+// finds its engine by the model name, so each name must be there one time.
+func CheckEngines(first Engine, more []Engine) error {
+	if len(more) == 0 {
+		return nil
+	}
+	seen := map[string]bool{}
+	for i, e := range append([]Engine{first}, more...) {
+		if len(e.Command) == 0 || e.Port == 0 || e.Model == "" {
+			return fmt.Errorf("engine %d: command, port, and model are required when the host has more than one engine", i)
+		}
+		for _, n := range e.names() {
+			if seen[n] {
+				return fmt.Errorf("model name %q is in more than one engine", n)
+			}
+			seen[n] = true
+		}
+	}
+	return nil
+}
+
+// switchLocked makes engine i the active one. The engine that runs stops
+// when no request uses it; the new engine starts after the old one ended.
+// h.mu is held.
+func (h *Host) switchLocked(i int, start bool, why string) {
+	if h.active == i {
+		return
+	}
+	h.log.Info("engine change", "from", h.engines[h.active].Model, "to", h.engines[i].Model, "reason", why)
+	h.active, h.pending = i, start
+	h.drainLocked(why)
+}
+
+// drainLocked stops an engine that is not the active one when no request
+// uses it, and starts the active engine after it. h.mu is held.
+func (h *Host) drainLocked(why string) {
+	if h.cmd == nil || h.running == h.active || h.inFlight > 0 {
+		return
+	}
+	h.stopLocked(why)
+	if h.pending {
+		go h.startAfter(h.stopped)
+	}
+}
+
+// startAfter starts the active engine when the stopped engine ended.
+func (h *Host) startAfter(stopped chan struct{}) {
+	<-stopped
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.pending = false
+	h.startLocked()
+}
+
+// Load implements InferenceService: the engine of req.Model becomes the
+// engine of the host. It does not wait for the engine to be ready.
+func (h *Host) Load(ctx context.Context, req api.LoadRequest) (api.Status, error) {
+	if err := h.allowed(ctx); err != nil {
+		return api.Status{}, err
+	}
+	hold := defaultHold
+	if req.HoldSeconds != nil && *req.HoldSeconds > 0 {
+		hold = min(time.Duration(*req.HoldSeconds)*time.Second, maxHold)
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	i, ok := h.engineOf(req.Model)
+	if !ok || req.Model == "" {
+		return api.Status{}, rpc.NotFound("no model %q on this host", req.Model)
+	}
+	h.holdFor, h.holdUntil = hold, h.now().Add(hold)
+	h.switchLocked(i, true, "load "+req.Model)
+	if h.cmd == nil {
+		h.startLocked()
+	}
+	h.lastUsed = h.now()
+	st := h.statusLocked()
+	h.detailLocked(&st)
+	return st, nil
 }
 
 // Run samples the machine until ctx ends, then stops the engine.
@@ -170,6 +321,13 @@ func (h *Host) check(ctx context.Context) {
 			h.busy = ""
 		}
 	}
+	if h.active != 0 && h.inFlight == 0 && !now.Before(h.holdUntil) {
+		// The hold of a load ended: the first engine is the engine of the
+		// host again.
+		// It starts by the rules of the host: at once with KeepWarm, else
+		// with a request.
+		h.switchLocked(0, h.cfg.KeepWarm, "the hold ended")
+	}
 	if !h.cfg.KeepWarm && h.cmd != nil && h.inFlight == 0 && h.cfg.IdleStop > 0 && now.Sub(h.lastUsed) >= h.cfg.IdleStop {
 		h.stopLocked("idle")
 	}
@@ -179,12 +337,40 @@ func (h *Host) check(ctx context.Context) {
 	}
 }
 
-// startLocked starts the engine if it does not run. h.mu is held.
+// stoppingLocked tells if a stopped engine did not end yet. h.mu is held.
+func (h *Host) stoppingLocked() bool {
+	if h.stopped == nil {
+		return false
+	}
+	select {
+	case <-h.stopped:
+		h.stopped = nil
+		return false
+	default:
+		return true
+	}
+}
+
+// startLocked starts the active engine if no engine runs. While a stopped
+// engine did not end, the start waits for it. h.mu is held.
 func (h *Host) startLocked() {
 	if h.cmd != nil || h.busy != "" {
 		return
 	}
-	c := h.cfg.Engine.Command
+	if h.stoppingLocked() {
+		if !h.pending {
+			h.pending = true
+			go h.startAfter(h.stopped)
+		}
+		return
+	}
+	e := h.engines[h.active]
+	if h.running != h.active {
+		// The token ids of the labels are those of one model.
+		h.ec = nil
+	}
+	h.running, h.pending = h.active, false
+	c := e.Command
 	cmd := exec.Command(c[0], c[1:]...)
 	setGroup(cmd)
 	if h.cfg.LogFile != "" {
@@ -200,7 +386,7 @@ func (h *Host) startLocked() {
 	}
 	h.cmd, h.ready, h.readyCh, h.exited = cmd, false, make(chan struct{}), make(chan struct{})
 	h.started, h.lastUsed = h.now(), h.now()
-	h.log.Info("engine starting", "pid", cmd.Process.Pid)
+	h.log.Info("engine starting", "pid", cmd.Process.Pid, "model", e.Model)
 	exited, readyCh := h.exited, h.readyCh
 	go func() {
 		err := cmd.Wait()
@@ -214,10 +400,10 @@ func (h *Host) startLocked() {
 			closeOnce(readyCh)
 		}
 	}()
-	go h.waitReady(cmd, readyCh, exited)
+	go h.waitReady(cmd, e.Port, readyCh, exited)
 }
 
-func (h *Host) waitReady(cmd *exec.Cmd, readyCh, exited chan struct{}) {
+func (h *Host) waitReady(cmd *exec.Cmd, port int, readyCh, exited chan struct{}) {
 	deadline := time.Now().Add(h.cfg.StartLimit)
 	hc := &http.Client{Timeout: 2 * time.Second}
 	for time.Now().Before(deadline) {
@@ -226,7 +412,7 @@ func (h *Host) waitReady(cmd *exec.Cmd, readyCh, exited chan struct{}) {
 			return
 		case <-time.After(500 * time.Millisecond):
 		}
-		resp, err := hc.Get(fmt.Sprintf("http://127.0.0.1:%d/health", h.cfg.Engine.Port))
+		resp, err := hc.Get(fmt.Sprintf("http://127.0.0.1:%d/health", port))
 		if err == nil {
 			resp.Body.Close()
 			if resp.StatusCode == 200 {
@@ -255,7 +441,7 @@ func (h *Host) stopLocked(why string) {
 		return
 	}
 	cmd, exited := h.cmd, h.exited
-	h.cmd, h.ready, h.reason = nil, false, why
+	h.cmd, h.ready, h.reason, h.stopped = nil, false, why, exited
 	closeOnce(h.readyCh)
 	h.log.Info("engine stopping", "reason", why)
 	pid := cmd.Process.Pid
@@ -281,8 +467,11 @@ func closeOnce(c chan struct{}) {
 }
 
 func (h *Host) statusLocked() api.Status {
-	st := api.Status{Model: h.cfg.Engine.Model, InFlight: uint64(h.inFlight)}
+	st := api.Status{Model: h.engines[h.active].Model, InFlight: uint64(h.inFlight)}
 	switch {
+	case h.cmd != nil && h.running != h.active, h.cmd == nil && h.pending && h.busy == "":
+		// The engine before a load ends its requests, or its process ends.
+		st.State = "starting"
 	case h.busy != "" && h.cmd == nil:
 		st.State, st.Reason = "busy", ptr(h.busy)
 	case h.cmd == nil:
@@ -334,13 +523,27 @@ func (h *Host) detailLocked(st *api.Status) {
 	if h.cmd != nil && h.sample.EngineMiB > 0 {
 		st.EngineMib = ptr(uint64(h.sample.EngineMiB))
 	}
-	st.Models = []string{h.cfg.Engine.Model}
-	names := make([]string, 0, len(h.cfg.Engine.Models))
-	for n := range h.cfg.Engine.Models {
+	st.Models = h.engines[h.active].names()
+	if len(h.engines) > 1 {
+		st.Loadable = []string{}
+		for _, e := range h.engines {
+			st.Loadable = append(st.Loadable, e.Model)
+		}
+	}
+	if h.active != 0 {
+		st.HoldUntilMs = ptr(uint64(h.holdUntil.UnixMilli()))
+	}
+}
+
+// names gives the model names of the engine: the base model, then the
+// names of Models in order.
+func (e Engine) names() []string {
+	names := make([]string, 0, len(e.Models))
+	for n := range e.Models {
 		names = append(names, n)
 	}
 	sort.Strings(names)
-	st.Models = append(st.Models, names...)
+	return append([]string{e.Model}, names...)
 }
 
 func (h *Host) Warm(ctx context.Context, _ api.WarmRequest) (api.Status, error) {
@@ -365,15 +568,9 @@ func (h *Host) allowed(ctx context.Context) error {
 	return nil
 }
 
-// OpenAI serves /v1/ by forwarding to the engine.
+// OpenAI serves /v1/ by forwarding to the engine of the model that the
+// request names.
 func (h *Host) OpenAI() http.Handler {
-	target, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", h.cfg.Engine.Port))
-	proxy := httputil.NewSingleHostReverseProxy(target)
-	proxy.FlushInterval = -1
-	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
-		h.log.Warn("engine request", "err", err)
-		refuse(w, "engine_error", "the engine did not answer", 0)
-	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tok, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 		p, err := h.ver.Verify(tok)
@@ -385,7 +582,20 @@ func (h *Host) OpenAI() http.Handler {
 			writeError(w, http.StatusForbidden, "forbidden", Scope+" is required")
 			return
 		}
-		if err := h.acquire(r.Context()); err != nil {
+		r.Body = http.MaxBytesReader(w, r.Body, h.cfg.MaxBody)
+		model := ""
+		if r.Method == http.MethodPost {
+			b, err := io.ReadAll(r.Body)
+			if err != nil {
+				writeError(w, http.StatusBadRequest, "bad_request", err.Error())
+				return
+			}
+			r.Body.Close()
+			setBody(r, b)
+			model = modelOf(b)
+		}
+		i, err := h.acquire(r.Context(), model)
+		if err != nil {
 			var b *refusal
 			if errors.As(err, &b) {
 				refuse(w, b.kind, b.msg, b.retry)
@@ -395,21 +605,21 @@ func (h *Host) OpenAI() http.Handler {
 			return
 		}
 		defer h.release()
-		r.Body = http.MaxBytesReader(w, r.Body, h.cfg.MaxBody)
+		e, proxy := h.engines[i], h.proxies[i]
 		r.Header.Del("Authorization")
 		if r.Method == http.MethodGet && r.URL.Path == "/v1/models" {
-			h.writeModels(w)
+			e.writeModels(w)
 			return
 		}
-		if r.Method == http.MethodPost && len(h.cfg.Engine.Models) > 0 {
-			name, err := h.applyVariant(r)
+		if r.Method == http.MethodPost && len(e.Models) > 0 {
+			name, err := e.applyVariant(r)
 			if err != nil {
 				writeError(w, http.StatusBadRequest, "bad_request", err.Error())
 				return
 			}
 			if name != "" {
 				// The answer names the variant, as the caller asked.
-				rw := &renameWriter{ResponseWriter: w, from: h.cfg.Engine.Model, to: name}
+				rw := &renameWriter{ResponseWriter: w, from: e.Model, to: name}
 				proxy.ServeHTTP(rw, r)
 				rw.finish()
 				return
@@ -417,6 +627,21 @@ func (h *Host) OpenAI() http.Handler {
 		}
 		proxy.ServeHTTP(w, r)
 	})
+}
+
+// modelOf gives the model name of a JSON request body, or "".
+func modelOf(b []byte) string {
+	var req struct {
+		Model string `json:"model"`
+	}
+	json.Unmarshal(b, &req)
+	return req.Model
+}
+
+func setBody(r *http.Request, b []byte) {
+	r.Body = io.NopCloser(bytes.NewReader(b))
+	r.ContentLength = int64(len(b))
+	r.Header.Set("Content-Length", strconv.Itoa(len(b)))
 }
 
 type refusal struct {
@@ -430,51 +655,112 @@ func (r *refusal) Error() string { return r.msg }
 // engine's own.
 const ownUseGrace = 20 * time.Second
 
-// acquire counts a request in flight once the engine is ready.
-func (h *Host) acquire(ctx context.Context) error {
+// acquire counts a request for model in flight once the engine of the
+// model is ready, and gives the index of that engine. A model of an engine
+// that is not the active one is refused: Magi loads it first (Load), or it
+// uses a different model.
+func (h *Host) acquire(ctx context.Context, model string) (int, error) {
 	h.mu.Lock()
+	i, ok := h.engineOf(model)
+	if !ok {
+		// A host with one engine sends each name to it, as before. A host
+		// with more engines cannot tell which engine a wrong name means.
+		if len(h.engines) > 1 {
+			h.mu.Unlock()
+			return 0, &refusal{"not_loaded", fmt.Sprintf("no model %q on this host", model), 0}
+		}
+		i = 0
+	}
+	if i != h.active {
+		msg := fmt.Sprintf("model %s is not loaded: the host runs %s", h.engines[i].Model, h.engines[h.active].Model)
+		h.mu.Unlock()
+		return 0, &refusal{"not_loaded", msg, 30}
+	}
 	if h.busy != "" && h.cmd == nil {
 		why := h.busy
 		h.mu.Unlock()
-		return &refusal{"host_busy", "the host is busy: " + why, 60}
+		return 0, &refusal{"host_busy", "the host is busy: " + why, 60}
+	}
+	if h.cmd != nil && h.running != h.active {
+		// The engine before a load ends its requests.
+		h.mu.Unlock()
+		return 0, &refusal{"warming", "the host changes its engine", 15}
 	}
 	h.startLocked()
+	if h.cmd == nil && h.pending {
+		// A stopped engine did not end yet; the engine starts after it.
+		stopped := h.stopped
+		h.mu.Unlock()
+		if h.cfg.StartWait <= 0 || stopped == nil {
+			return 0, &refusal{"warming", "the engine is starting", 15}
+		}
+		select {
+		case <-stopped:
+		case <-time.After(h.cfg.StartWait):
+			return 0, &refusal{"warming", "the engine is starting", 15}
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		}
+		h.mu.Lock()
+		if i != h.active {
+			// A load came while the request waited.
+			msg := fmt.Sprintf("model %s is not loaded: the host runs %s", h.engines[i].Model, h.engines[h.active].Model)
+			h.mu.Unlock()
+			return 0, &refusal{"not_loaded", msg, 30}
+		}
+		// startAfter can be behind this request: start the engine here.
+		if !h.stoppingLocked() {
+			h.pending = false
+		}
+		h.startLocked()
+	}
 	if h.cmd == nil {
 		why := h.reason
 		h.mu.Unlock()
-		return &refusal{"engine_error", why, 30}
+		return 0, &refusal{"engine_error", why, 30}
 	}
-	h.lastUsed = h.now()
+	h.touchLocked()
 	if h.ready {
 		h.inFlight++
 		h.mu.Unlock()
-		return nil
+		return i, nil
 	}
-	readyCh := h.readyCh
+	cmd, readyCh := h.cmd, h.readyCh
 	h.mu.Unlock()
 	if h.cfg.StartWait <= 0 {
-		return &refusal{"warming", "the engine is starting", 15}
+		return 0, &refusal{"warming", "the engine is starting", 15}
 	}
 	select {
 	case <-readyCh:
 	case <-time.After(h.cfg.StartWait):
-		return &refusal{"warming", "the engine is starting", 15}
+		return 0, &refusal{"warming", "the engine is starting", 15}
 	case <-ctx.Done():
-		return ctx.Err()
+		return 0, ctx.Err()
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if !h.ready {
-		return &refusal{"engine_error", "the engine did not start: " + h.reason, 30}
+	if !h.ready || h.cmd != cmd {
+		return 0, &refusal{"engine_error", "the engine did not start: " + h.reason, 30}
 	}
 	h.inFlight++
-	return nil
+	return i, nil
+}
+
+// touchLocked records a use of the engine. It also moves the end of the
+// hold of an engine that is not the first one. h.mu is held.
+func (h *Host) touchLocked() {
+	h.lastUsed = h.now()
+	if h.active != 0 && h.running == h.active {
+		h.holdUntil = h.lastUsed.Add(h.holdFor)
+	}
 }
 
 func (h *Host) release() {
 	h.mu.Lock()
 	h.inFlight--
-	h.lastUsed = h.now()
+	h.touchLocked()
+	// A load came while this request ran: the old engine can stop now.
+	h.drainLocked("engine change to " + h.engines[h.active].Model)
 	h.mu.Unlock()
 }
 

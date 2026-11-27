@@ -51,6 +51,8 @@ class Status:
     gpus: Optional[List[Gpu]] = None
     engine_mib: Optional[int] = None
     models: Optional[List[str]] = None
+    loadable: Optional[List[str]] = None
+    hold_until_ms: Optional[int] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -72,12 +74,16 @@ class Status:
             result['engine_mib'] = self.engine_mib
         if hasattr(self, 'models') and self.models is not None:
             result['models'] = self.models
+        if hasattr(self, 'loadable') and self.loadable is not None:
+            result['loadable'] = self.loadable
+        if hasattr(self, 'hold_until_ms') and self.hold_until_ms is not None:
+            result['hold_until_ms'] = self.hold_until_ms
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Status':
         """Create instance from dictionary."""
-        return cls(state=data.get('state'), reason=data.get('reason'), model=data.get('model'), in_flight=data.get('in_flight'), last_used_ms=data.get('last_used_ms'), started_ms=data.get('started_ms'), gpus=(None if data.get('gpus') is None else [Gpu.from_dict(item0) for item0 in data['gpus']]), engine_mib=data.get('engine_mib'), models=data.get('models'))
+        return cls(state=data.get('state'), reason=data.get('reason'), model=data.get('model'), in_flight=data.get('in_flight'), last_used_ms=data.get('last_used_ms'), started_ms=data.get('started_ms'), gpus=(None if data.get('gpus') is None else [Gpu.from_dict(item0) for item0 in data['gpus']]), engine_mib=data.get('engine_mib'), models=data.get('models'), loadable=data.get('loadable'), hold_until_ms=data.get('hold_until_ms'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -135,6 +141,34 @@ class WarmRequest:
 
     @classmethod
     def from_json(cls, json_str: str) -> 'WarmRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class LoadRequest:
+    model: str
+    hold_seconds: Optional[int] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'model') and self.model is not None:
+            result['model'] = self.model
+        if hasattr(self, 'hold_seconds') and self.hold_seconds is not None:
+            result['hold_seconds'] = self.hold_seconds
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'LoadRequest':
+        """Create instance from dictionary."""
+        return cls(model=data.get('model'), hold_seconds=data.get('hold_seconds'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'LoadRequest':
         """Create instance from JSON string."""
         return cls.from_dict(json.loads(json_str))
 

@@ -661,7 +661,7 @@ func csilEncStatus(csilV Status, csilDepth int) (cborValue, error) {
 		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
 	}
 	var csilE csilEncErr
-	csilEntries := make(cborMap, 0, 9)
+	csilEntries := make(cborMap, 0, 11)
 	if csilV.Gpus != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("gpus"), csilE.val(cborEncArray(csilV.Gpus, func(csilElem Gpu) (cborValue, error) { return csilEncGpu(csilElem, csilDepth+1) }))})
 	}
@@ -673,6 +673,9 @@ func csilEncStatus(csilV Status, csilDepth int) (cborValue, error) {
 	if csilV.Reason != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("reason"), cborText((*csilV.Reason))})
 	}
+	if csilV.Loadable != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("loadable"), csilE.val(cborEncArray(csilV.Loadable, func(csilElem string) (cborValue, error) { return cborText(csilElem), nil }))})
+	}
 	csilEntries = append(csilEntries, cborEntry{cborText("in_flight"), cborUint(csilV.InFlight)})
 	if csilV.EngineMib != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("engine_mib"), cborUint((*csilV.EngineMib))})
@@ -682,6 +685,9 @@ func csilEncStatus(csilV Status, csilDepth int) (cborValue, error) {
 	}
 	if csilV.LastUsedMs != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("last_used_ms"), cborUint((*csilV.LastUsedMs))})
+	}
+	if csilV.HoldUntilMs != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("hold_until_ms"), cborUint((*csilV.HoldUntilMs))})
 	}
 	return csilE.result(csilEntries)
 }
@@ -763,6 +769,20 @@ func csilDecStatus(csilRoot cborValue) (Status, error) {
 			return csilOut, csilErr
 		}
 		csilOut.Models = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "loadable"); csilOk {
+		csilVal, csilErr := (func(csilV cborValue) ([]string, error) { return cborDecArray(csilV, cborAsText) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Loadable = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "hold_until_ms"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.HoldUntilMs = &csilVal
 	}
 	return csilOut, nil
 }
@@ -860,6 +880,58 @@ func DecodeWarmRequest(csilData []byte) (WarmRequest, error) {
 		return csilZero, csilErr
 	}
 	return csilDecWarmRequest(csilRoot)
+}
+
+// csilEncLoadRequest builds the canonical CBOR value tree for a LoadRequest.
+func csilEncLoadRequest(csilV LoadRequest, csilDepth int) (cborValue, error) {
+	if csilDepth > csilEncDepthLimit {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
+	csilEntries := make(cborMap, 0, 2)
+	csilEntries = append(csilEntries, cborEntry{cborText("model"), cborText(csilV.Model)})
+	if csilV.HoldSeconds != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("hold_seconds"), cborUint((*csilV.HoldSeconds))})
+	}
+	return csilEntries, nil
+}
+
+// csilDecLoadRequest reconstructs a LoadRequest from a decoded CBOR value tree.
+func csilDecLoadRequest(csilRoot cborValue) (LoadRequest, error) {
+	var csilOut LoadRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "model")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Model = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "hold_seconds"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.HoldSeconds = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeLoadRequest encodes a LoadRequest to canonical CSIL CBOR bytes.
+func EncodeLoadRequest(csilV LoadRequest) ([]byte, error) {
+	return cborEncodeE(csilEncLoadRequest(csilV, 0))
+}
+
+// DecodeLoadRequest decodes canonical CSIL CBOR bytes into a LoadRequest.
+func DecodeLoadRequest(csilData []byte) (LoadRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero LoadRequest
+		return csilZero, csilErr
+	}
+	return csilDecLoadRequest(csilRoot)
 }
 
 // csilEncQuestion builds the canonical CBOR value tree for a Question.

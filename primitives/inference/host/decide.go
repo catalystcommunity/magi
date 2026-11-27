@@ -192,7 +192,7 @@ func (h *Host) engine() *engineClient {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.ec == nil {
-		h.ec = &engineClient{base: fmt.Sprintf("http://127.0.0.1:%d", h.cfg.Engine.Port), http: &http.Client{Timeout: 2 * time.Minute}}
+		h.ec = &engineClient{base: fmt.Sprintf("http://127.0.0.1:%d", h.engines[h.running].Port), http: &http.Client{Timeout: 2 * time.Minute}}
 	}
 	return h.ec
 }
@@ -210,16 +210,21 @@ func (h *Host) Decide(ctx context.Context, req api.DecideRequest) (api.DecideRes
 	if len(req.State) > maxState {
 		return api.DecideResponse{}, rpc.Invalid("the state is more than %d bytes", maxState)
 	}
-	name := h.cfg.Engine.Model
+	// The engine of the model answers. It must be the engine that the host
+	// runs: acquire refuses a model of a different engine.
+	h.mu.Lock()
+	i, ok := h.engineOf(deref(req.Model))
+	h.mu.Unlock()
+	if !ok {
+		return api.DecideResponse{}, rpc.Invalid("no model %s on this host", *req.Model)
+	}
+	e := h.engines[i]
+	name := e.Model
 	var lora []LoraScale
-	if req.Model != nil && *req.Model != "" && *req.Model != name {
-		v, ok := h.cfg.Engine.Models[*req.Model]
-		if !ok {
-			return api.DecideResponse{}, rpc.Invalid("no model %s on this host", *req.Model)
-		}
+	if v, ok := e.Models[deref(req.Model)]; ok {
 		name, lora = *req.Model, v.Lora
 	}
-	if h.cfg.Engine.Decide == "head" {
+	if e.Decide == "head" {
 		return h.decideHead(ctx, req, name)
 	}
 	type prepared struct {
@@ -228,7 +233,7 @@ func (h *Host) Decide(ctx context.Context, req api.DecideRequest) (api.DecideRes
 		ts  []string
 		ids []int
 	}
-	if err := h.acquire(ctx); err != nil {
+	if _, err := h.acquire(ctx, name); err != nil {
 		var b *refusal
 		if errors.As(err, &b) {
 			return api.DecideResponse{}, rpc.Unavailable("%s: %s", b.kind, b.msg)
@@ -315,7 +320,7 @@ func (h *Host) decideHead(ctx context.Context, req api.DecideRequest, name strin
 		}
 		qs[q.Id] = map[string]string{"type": "noul", "instructions": q.Question}
 	}
-	if err := h.acquire(ctx); err != nil {
+	if _, err := h.acquire(ctx, name); err != nil {
 		var b *refusal
 		if errors.As(err, &b) {
 			return api.DecideResponse{}, rpc.Unavailable("%s: %s", b.kind, b.msg)
@@ -329,7 +334,7 @@ func (h *Host) decideHead(ctx context.Context, req api.DecideRequest, name strin
 			Noul *float64 `json:"noul"`
 		} `json:"answers"`
 	}
-	if err := h.engine().post(ctx, "/v1/systemone", map[string]any{"model": h.cfg.Engine.Model, "state": req.State, "questions": qs}, &res); err != nil {
+	if err := h.engine().post(ctx, "/v1/systemone", map[string]any{"model": h.baseOf(name), "state": req.State, "questions": qs}, &res); err != nil {
 		return api.DecideResponse{}, err
 	}
 	ms := uint64(time.Since(start).Milliseconds())
@@ -347,4 +352,11 @@ func (h *Host) decideHead(ctx context.Context, req api.DecideRequest, name strin
 		out = append(out, ans)
 	}
 	return api.DecideResponse{Answers: out, Model: name, Ms: ms}, nil
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

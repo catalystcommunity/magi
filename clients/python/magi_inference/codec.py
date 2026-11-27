@@ -486,6 +486,9 @@ def _encode_status_value(v: "Status") -> Dict[Any, Any]:
     csil_x = v.reason
     if csil_x is not None:
         csil_m["reason"] = csil_x
+    csil_x = v.loadable
+    if csil_x is not None:
+        csil_m["loadable"] = csil_x
     csil_m["in_flight"] = v.in_flight
     csil_x = v.engine_mib
     if csil_x is not None:
@@ -496,6 +499,9 @@ def _encode_status_value(v: "Status") -> Dict[Any, Any]:
     csil_x = v.last_used_ms
     if csil_x is not None:
         csil_m["last_used_ms"] = csil_x
+    csil_x = v.hold_until_ms
+    if csil_x is not None:
+        csil_m["hold_until_ms"] = csil_x
     return csil_m
 
 def _decode_status_value(tree: Any) -> "Status":
@@ -510,6 +516,8 @@ def _decode_status_value(tree: Any) -> "Status":
         gpus=(None if tree.get("gpus") is None else [_decode_gpu_value(csil_e) for csil_e in _csil_expect_array(tree["gpus"])]),
         engine_mib=(None if tree.get("engine_mib") is None else _csil_expect_uint(tree["engine_mib"])),
         models=(None if tree.get("models") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["models"])]),
+        loadable=(None if tree.get("loadable") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["loadable"])]),
+        hold_until_ms=(None if tree.get("hold_until_ms") is None else _csil_expect_uint(tree["hold_until_ms"])),
     )
 
 
@@ -573,6 +581,33 @@ def _warm_request_from_cbor(data: bytes) -> "WarmRequest":
 
 WarmRequest.to_cbor = _warm_request_to_cbor
 WarmRequest.from_cbor = staticmethod(_warm_request_from_cbor)
+
+def _encode_load_request_value(v: "LoadRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["model"] = v.model
+    csil_x = v.hold_seconds
+    if csil_x is not None:
+        csil_m["hold_seconds"] = csil_x
+    return csil_m
+
+def _decode_load_request_value(tree: Any) -> "LoadRequest":
+    tree = _csil_expect_map(tree)
+    return LoadRequest(
+        model=_csil_expect_text(tree["model"]),
+        hold_seconds=(None if tree.get("hold_seconds") is None else _csil_expect_uint(tree["hold_seconds"])),
+    )
+
+
+def _load_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_load_request_value(self))
+
+
+def _load_request_from_cbor(data: bytes) -> "LoadRequest":
+    return _decode_load_request_value(cbor_decode(data))
+
+
+LoadRequest.to_cbor = _load_request_to_cbor
+LoadRequest.from_cbor = staticmethod(_load_request_from_cbor)
 
 def _encode_question_value(v: "Question") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}

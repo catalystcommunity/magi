@@ -333,7 +333,12 @@ func (s *System) evalEvent(ctx context.Context, a workflowapi.Assignment, stream
 	}
 	var last workflowapi.Assignment
 	do := func(id, outcome string, outputs map[string]string) error {
-		res, err := s.Workflow.Claim(ctx, workflowapi.ClaimRequest{Queue: "runner." + runner + "." + id, Worker: "eval", WaitMs: ptr(uint64(5000)), LeaseMs: ptr(uint64(60000))})
+		queue := "runner." + runner + "." + id
+		if id == "backup" {
+			// The backup step is a step of Magi, not of a runner.
+			queue = "magi.backup"
+		}
+		res, err := s.Workflow.Claim(ctx, workflowapi.ClaimRequest{Queue: queue, Worker: "eval", WaitMs: ptr(uint64(5000)), LeaseMs: ptr(uint64(60000))})
 		if err != nil || res.Assignment == nil {
 			return fmt.Errorf("claim %s: %v", id, err)
 		}
@@ -349,6 +354,8 @@ func (s *System) evalEvent(ctx context.Context, a workflowapi.Assignment, stream
 			return do("work", "blocked", map[string]string{"apprentice.status": "loop", "apprentice.blocked": "true",
 				"apprentice.summary": "The same command ran 6 times with the same result: go test ./cmd/status fails with 'undefined: asJSON'."})
 		})
+		// The installation of the eval has no backup model.
+		steps = append(steps, func() error { return do("backup", "blocked", nil) })
 	} else {
 		steps = append(steps, func() error { return do("work", "done", map[string]string{"apprentice.summary": "I made the change."}) })
 	}
@@ -392,6 +399,7 @@ func (s *System) evalEvent(ctx context.Context, a workflowapi.Assignment, stream
 				return do("check", "give-up", map[string]string{"check.summary": "go test ./...: FAIL TestStatusJSON. The checks failed 3 times.",
 					"check.attempts": "3", "task.result": "gave-up"})
 			},
+			func() error { return do("backup", "give-up", nil) },
 			func() error { return do("cleanup", "done", map[string]string{"task.result": "gave-up"}) })
 	}
 	for _, f := range steps {

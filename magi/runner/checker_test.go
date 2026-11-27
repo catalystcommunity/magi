@@ -27,12 +27,16 @@ func fakeChecker(t *testing.T, result string) (command []string, seen string) {
 	return []string{script, "{out}", "{diff}", "{schema}"}, seen
 }
 
-// After a loop stop, a failed check goes to a person and not to a new
-// work round. A passed check goes on as after a finish.
+// After a loop stop, a failed check does not go to a new work round of the
+// same model: the outcome is "guard-stop", and the backup step of Magi
+// decides and tells the person. A passed check goes on as after a finish.
 func TestCheckAfterLoopStop(t *testing.T) {
-	res, _, _ := checkWithVars(t, `{"verdict": "approve", "findings": []}`, map[string]string{"apprentice.guard_stop": "true", "check_command": "false"})
-	if res.Outcome != "blocked" || res.Outputs["apprentice.blocked"] != "true" {
+	res, _, fake := checkWithVars(t, `{"verdict": "approve", "findings": []}`, map[string]string{"apprentice.guard_stop": "true", "check_command": "false"})
+	if res.Outcome != "guard-stop" || res.Outputs["apprentice.blocked"] != "true" {
 		t.Fatalf("a failed check after a loop stop: %+v", res)
+	}
+	if hasReport(fake, "Task blocked") {
+		t.Fatalf("the runner told the person; the backup step does that: %q", fake.posts)
 	}
 	res, _, _ = checkWithVars(t, `{"verdict": "approve", "findings": []}`, map[string]string{"check_command": "false"})
 	if res.Outcome != "fail-checks" {
@@ -41,6 +45,31 @@ func TestCheckAfterLoopStop(t *testing.T) {
 	res, _, _ = checkWithVars(t, `{"verdict": "approve", "findings": []}`, map[string]string{"apprentice.guard_stop": "true"})
 	if res.Outcome != "pass" {
 		t.Fatalf("a passed check after a loop stop: %+v", res)
+	}
+}
+
+// hasReport tells if the runner sent a notice with a title that has part.
+func hasReport(f *fakeMagi, part string) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, p := range f.posts {
+		if strings.Contains(p, part) {
+			return true
+		}
+	}
+	return false
+}
+
+// The third failed check is the outcome "give-up" with no notice: the
+// backup step of Magi starts a round with the backup model, or it stops the
+// task and tells the person.
+func TestCheckGivesUpWithNoNotice(t *testing.T) {
+	res, _, fake := checkWithVars(t, `{"verdict": "approve", "findings": []}`, map[string]string{"check.attempts": "2", "check_command": "false"})
+	if res.Outcome != "give-up" || res.Outputs["task.result"] != "gave-up" || res.Outputs["check.attempts"] != "3" {
+		t.Fatalf("the third failed check: %+v", res)
+	}
+	if hasReport(fake, "Task stopped") || hasReport(fake, "I stopped the task") {
+		t.Fatalf("the runner told the person; the backup step does that: %q", fake.posts)
 	}
 }
 

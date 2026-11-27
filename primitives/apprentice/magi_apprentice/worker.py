@@ -13,7 +13,7 @@ from .apprentice import QUESTION, Steering, Task
 from .config import Limits, ModelConfig
 from .guards import outcome_of, round_comment
 from .model import Model
-from .runner import apply_model_override, run_task
+from .runner import apply_model_override, fetch_limits, run_task
 
 log = logging.getLogger("magi_apprentice.worker")
 
@@ -21,6 +21,13 @@ log = logging.getLogger("magi_apprentice.worker")
 # numbers (magi/runner/steps.go).
 QUESTION_STEPS = 60
 QUESTION_SECONDS = 900
+
+
+def question_limits(limits: Limits) -> Limits:
+    """The limits of a question: at most QUESTION_STEPS and QUESTION_SECONDS,
+    also when the model of the run has a longer work time for a change."""
+    return replace(limits, max_steps=min(limits.max_steps, QUESTION_STEPS),
+                   max_seconds=min(limits.max_seconds, QUESTION_SECONDS))
 CLAIM_WAIT_MS = 20000
 LEASE_MS = 120000
 NOTE_MAX = 1000
@@ -128,7 +135,7 @@ class Worker:
             self._complete(a, "fail", {}, "assignment needs vars environment and instructions")
             return
         try:
-            model_cfg, limits = apply_model_override(self.model_cfg, self.limits, v.get("model"))
+            model_cfg, limits = apply_model_override(self.model_cfg, self.limits, v.get("model"), fetch_limits)
         except (ValueError, TypeError) as e:
             self._complete(a, "fail", {}, f"invalid model var: {e}")
             return
@@ -140,8 +147,7 @@ class Worker:
             # An investigation: the instructions are a question, and the
             # summary is the answer. The limits fit a person who waits.
             task = Task(instructions=instructions, workdir=task.workdir, title=task.title, mode=QUESTION)
-            limits = replace(limits, max_steps=min(limits.max_steps, QUESTION_STEPS),
-                             max_seconds=min(limits.max_seconds, QUESTION_SECONDS))
+            limits = question_limits(limits)
         with Heartbeat(self.wf, a, self.lease_ms) as hb:
             self._progress(a, f"apprentice started (attempt {a.attempt}, model {model_cfg.name})")
             out = run_task(
