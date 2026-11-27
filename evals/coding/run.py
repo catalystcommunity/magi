@@ -1,7 +1,11 @@
 """Run the cases of the coding eval through the code-change workflow of Magi.
 
   python3 evals/coding/run.py --url URL --token-file F --model JSON --label L
-      [--cases pr2,pr5] [--max-minutes 240] [--out evals/coding/results]
+      [--cases pr2,pr5 | --set long] [--max-minutes 240]
+      [--out evals/coding/results]
+
+Without --cases and --set, the script runs the short cases: the cases that
+have no "set" field in cases.jsonl. --set runs the cases of one set.
 
 Each case starts one task: kind code-change, repo magi, the title of the
 case, the instructions of cases/<id>.md, the base of the case, and the
@@ -44,10 +48,20 @@ def load_cases(path):
         return [json.loads(line) for line in f if line.strip()]
 
 
-def pick_cases(cases, want):
-    """The cases to run: all of them, or the ones that --names lists."""
+def pick_cases(cases, want, case_set=""):
+    """The cases to run: the ones that --cases lists, or the cases of one set.
+
+    A case with no "set" field is a short case. They are the default, so
+    that a run with no option does not start the long cases, which take
+    hours.
+    """
+    if want and case_set:
+        raise SystemExit("use --cases or --set, not the two")
     if not want:
-        return cases
+        out = [c for c in cases if c.get("set", "") == case_set]
+        if not out:
+            raise SystemExit("no case of the set %s in cases.jsonl" % case_set)
+        return out
     ids = [i.strip() for i in want.split(",") if i.strip()]
     by_id = {c["id"]: c for c in cases}
     missing = [i for i in ids if i not in by_id]
@@ -221,7 +235,8 @@ def main(argv=None, client=None, sleep=time.sleep):
     ap.add_argument("--model", required=True,
                     help='the model field of StartTask, for example \'{"name": "qwen3.6-35b-a3b-studiodt"}\'')
     ap.add_argument("--label", required=True, help="names the candidate in the output path")
-    ap.add_argument("--cases", default="", help="comma-separated case ids; the default is all cases")
+    ap.add_argument("--cases", default="", help="comma-separated case ids; the default is the short cases")
+    ap.add_argument("--set", default="", help='run the cases of this set, for example "long"')
     ap.add_argument("--max-minutes", type=float, default=240)
     ap.add_argument("--out", default=os.path.join(here, "results"))
     ap.add_argument("--checks-dir", default="",
@@ -230,7 +245,7 @@ def main(argv=None, client=None, sleep=time.sleep):
     model = json.loads(args.model)
     if not isinstance(model, dict) or not model.get("name"):
         raise SystemExit('--model must be a JSON object with a "name" field')
-    cases = pick_cases(load_cases(os.path.join(here, "cases.jsonl")), args.cases)
+    cases = pick_cases(load_cases(os.path.join(here, "cases.jsonl")), args.cases, args.set)
     if client is None:
         client = MagiClient(HttpTransport(args.url, open(args.token_file).read().strip()))
     out_root = os.path.join(args.out, args.label)

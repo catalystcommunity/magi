@@ -106,6 +106,45 @@ class TestWithChecks(unittest.TestCase):
             self.assertEqual(R.with_checks("Task text.\n", "", "pr2"), "Task text.\n")
 
 
+class TestPickCases(unittest.TestCase):
+    CASES = [{"id": "pr2"}, {"id": "pr5"}, {"id": "long1", "set": "long"}, {"id": "long2", "set": "long"}]
+
+    def ids(self, want="", case_set=""):
+        return [c["id"] for c in R.pick_cases(self.CASES, want, case_set)]
+
+    def test_no_option_gives_the_short_cases(self):
+        """A long case takes hours, so a run with no option does not start it."""
+        self.assertEqual(self.ids(), ["pr2", "pr5"])
+
+    def test_a_set_gives_the_cases_of_the_set(self):
+        self.assertEqual(self.ids(case_set="long"), ["long1", "long2"])
+
+    def test_cases_names_a_case_of_each_set(self):
+        self.assertEqual(self.ids("long1"), ["long1"])
+        self.assertEqual(self.ids("long2, pr5"), ["long2", "pr5"])
+
+    def test_a_set_with_no_case_stops(self):
+        with self.assertRaises(SystemExit) as e:
+            self.ids(case_set="huge")
+        self.assertIn("huge", str(e.exception))
+
+    def test_cases_and_a_set_together_stop(self):
+        with self.assertRaises(SystemExit):
+            self.ids("pr2", "long")
+
+    def test_the_cases_file(self):
+        """Each case of cases.jsonl has its instructions, and the six short cases have no set."""
+        here = os.path.dirname(os.path.abspath(R.__file__))
+        cases = R.load_cases(os.path.join(here, "cases.jsonl"))
+        self.assertEqual([c["id"] for c in R.pick_cases(cases, "")], ["pr2", "pr3", "pr4", "pr5", "pr6", "pr7"])
+        long = R.pick_cases(cases, "", "long")
+        self.assertGreaterEqual(len(long), 2)
+        for c in cases:
+            self.assertTrue(os.path.exists(os.path.join(here, "cases", c["id"] + ".md")), c["id"])
+            self.assertEqual(set(c) - {"set"}, {"id", "title", "run", "base", "approved", "changed", "hidden_tests"})
+            self.assertTrue(set(c["hidden_tests"]) <= set(c["changed"]), c["id"])
+
+
 class TestCall401(unittest.TestCase):
     def test_401_raises_token_expired(self):
         class C:
@@ -322,6 +361,43 @@ class TestMain(unittest.TestCase):
     def test_unknown_case_id(self):
         with self.assertRaises(SystemExit):
             self.run_main(None, cases="nope")
+
+    def started(self, cases, extra=()):
+        """The ids of the cases that one run starts, by their titles."""
+        class C:
+            def __init__(self):
+                self.titles = []
+
+            def start_task(self, req):
+                self.titles.append(req.title)
+                return task("running", [], "prepare")
+
+            def get_task(self, req):
+                return task("waiting", [step("review", "waiting")], "review")
+
+            def get_task_diff(self, req):
+                return T.TaskDiff(task=req.id, patch="", truncated=False, files=[])
+
+            def get_task_output(self, req):
+                raise RpcError(404, "no check.output")
+
+        c = C()
+        self.run_main(c, cases=cases, extra=extra)
+        with open(os.path.join(os.path.dirname(__file__), "cases.jsonl")) as f:
+            by_title = {json.loads(line)["title"]: json.loads(line)["id"] for line in f if line.strip()}
+        return [by_title[t] for t in c.titles]
+
+    def test_no_option_runs_the_short_cases_only(self):
+        self.assertEqual(self.started(""), ["pr2", "pr3", "pr4", "pr5", "pr6", "pr7"])
+
+    def test_set_long_runs_the_long_cases(self):
+        ids = self.started("", extra=("--set", "long"))
+        self.assertEqual(ids[:2], ["long1", "long2"])
+        self.assertFalse([i for i in ids if i.startswith("pr")])
+        self.assertTrue(os.path.exists(os.path.join(self.out, "cand", "long1", "result.json")))
+
+    def test_cases_runs_one_long_case(self):
+        self.assertEqual(self.started("long1"), ["long1"])
 
     def test_time_limit_writes_a_result(self):
         """A case that does not end in time still gets a result file."""

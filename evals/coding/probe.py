@@ -4,8 +4,10 @@
       [--repo .] [--only pr7] [--approved]
 
 A probe is one test of one sentence of the task, through code that exists
-at the base of the case (probes/<id>.py, probes/<id>_test.go). The first
-line of a probe file names the directory where it runs. This script applies
+at the base of the case (probes/<id>.py, probes/<id>_test.go, and for a
+case with more than one directory probes/<id>_<part>.py and
+probes/<id>_<part>_test.go). The first line of a probe file names the
+directory where it runs. This script applies
 the diff.patch of each case to a worktree at the base, copies the probe
 files in, runs each probe, and writes probe.json next to the diff: the
 probes that pass, the probes that fail with the sentence of each, the tests
@@ -33,9 +35,18 @@ DIFF_FILE = re.compile(r"^diff --git a/(\S+) b/(\S+)$", re.M)
 
 
 def probe_files(probes_dir: str, case_id: str) -> list[tuple[str, str]]:
-    """(path, target directory) of each probe file of the case."""
+    """(path, target directory) of each probe file of the case.
+
+    A case that changes more than one directory has more than one file of
+    a language: <id>_<part>.py and <id>_<part>_test.go, after <id>.py and
+    <id>_test.go.
+    """
+    part = re.compile(re.escape(case_id) + r"_[a-z0-9]+(\.py|_test\.go)$")
+    names = [case_id + ".py", case_id + "_test.go"]
+    if os.path.isdir(probes_dir):
+        names += sorted(n for n in os.listdir(probes_dir) if part.fullmatch(n) and n not in names)
     out = []
-    for name in (case_id + ".py", case_id + "_test.go"):
+    for name in names:
         path = os.path.join(probes_dir, name)
         if os.path.exists(path):
             with open(path) as f:

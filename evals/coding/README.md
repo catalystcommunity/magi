@@ -15,13 +15,14 @@ first attempt.
 
 | Field | Meaning |
 | --- | --- |
-| `id` | `pr<number>`: the pull request of the approved change |
+| `id` | `pr<number>`: the pull request of the approved change. `long<number>`: a long case ("Long cases") |
 | `title` | The title of the task |
-| `run` | The workflow run that made the approved change |
+| `run` | The workflow run that made the approved change. It is empty for a change that no workflow run made |
 | `base` | The commit where the task started |
 | `approved` | The last commit of the approved change |
 | `changed` | The files that the approved change touched |
 | `hidden_tests` | The test files of the approved change |
+| `set` | The set of the case. A case with no `set` is a short case. `long` is the set of the long cases |
 
 To add a case, use the pull request of an approved code change of Magi.
 The instructions are the first instructions of the task, not the review
@@ -236,8 +237,11 @@ python3 evals/coding/run.py --url URL --token-file F \
 
 `--model` is the JSON object of the `model` field of `StartTask`
 (`docs/models.md`). `--label` names the candidate in the output path.
-`--cases pr2,pr5` runs a part of the cases, and `--max-minutes` sets the
-time limit of one case (the default is 240).
+With no more options, the script runs the short cases: the cases that
+have no `set`. `--cases pr2,pr5` runs the cases that it names, of each
+set. `--set long` runs the cases of one set ("Long cases"). Use `--cases`
+or `--set`, not the two. `--max-minutes` sets the time limit of one case
+(the default is 240).
 
 `--checks-dir DIR` adds the acceptance checks of `DIR/<id>.md` at the end
 of the instructions, under "Acceptance checks:". A spec step makes these
@@ -291,7 +295,9 @@ A probe is one test of one sentence of the task. It uses only code that
 exists at the base of the case, so it does not depend on the names that
 the candidate chose. `probes/<id>.py` and `probes/<id>_test.go` hold the
 probes of a case; the first line of each file names the directory where
-the file runs. `probe.py` applies `diff.patch` to a worktree at the base,
+the file runs. A case that changes more than one directory can have more
+files: `probes/<id>_<part>.py` and `probes/<id>_<part>_test.go`, where the
+part has lower-case letters and digits only. `probe.py` applies `diff.patch` to a worktree at the base,
 copies the probe files in, and runs each probe. It writes `probe.json`
 next to the diff:
 
@@ -333,6 +339,88 @@ Grade each run, then close it:
 ```sh
 magi decide RUN reject
 ```
+
+### Long cases
+
+The short cases (`pr2` to `pr7`) change one or two modules. A local model
+does one of them in 30 to 70 minutes, and it compacts its context 0 to 2
+times at 64,000 tokens. Thus the short cases do not show what a larger
+context window or a longer time limit gives.
+
+A long case is a change that touches many parts of the repository: a
+contract, the generated code, a service, its tests, and the documents. The
+model must read much more text before it can change the code. The set
+`long` has these cases:
+
+| Case | Approved change | Parts | Size |
+| --- | --- | --- | --- |
+| `long1` | 4179d99, "Placement: record 0016, and a host reports its GPUs" | A decision record, `contracts/inference.csil`, the generated code of three languages, `primitives/inference/host`, two documents | 15 files, 532 lines added. 264 of these lines are generated code |
+| `long2` | 9c6b6ed, "Decisions: a decision model with a scoring head answers the host question" | `primitives/inference/host`, `magi/compose`, three documents | 12 files, 262 lines added |
+
+A person made these changes, not a workflow run of Magi. Thus `run` is
+empty, and the instructions in `cases/<id>.md` are written from the
+approved change: they tell the behavior and the public names (contract
+fields, settings, paths), not the names in the code.
+
+Run the set:
+
+```sh
+python3 evals/coding/run.py --url URL --token-file F --set long --max-minutes 480 \
+  --model '{"name": "qwen3.6-35b-a3b-vr1", "context_tokens": 120000, "max_steps": 400, "max_seconds": 14400}' \
+  --label qwen3.6-35b-a3b-long-120k
+```
+
+The model object of `--model` has the limits of the run. To compare two
+limits, run the set two times with different values and different labels.
+
+| Key | Limit |
+| --- | --- |
+| `context_tokens` | The estimate of the context size at which the harness compacts |
+| `max_steps` | The model calls of one task |
+| `max_seconds` | The time of one task on the clock, in seconds |
+
+`--max-minutes` is the time that `run.py` waits for one case. Make it
+longer than `max_seconds`: the check and the review add time after the
+work of the model. A directory of `--checks-dir` that has no file for a
+case adds no checks to that case.
+
+Then run `dbcheck.py`, `probe.py`, and `verdict.py` on the result
+directories, as for the short cases. They read the cases of each set.
+Notes about the probes of the long cases:
+
+- `python3 -I evals/coding/probe.py DIR --approved --only long1,long2`
+  runs the probes of the long cases on the approved changes.
+- The probes of `long1` need no GPU. The test binary is also a stand-in
+  for `nvidia-smi` and for the engine.
+- Three probes of `long1` put a directory of the probe in the place of
+  `/sys/class/drm`. They need Linux with user namespaces, and `unshare`
+  and `mount` of util-linux. On a machine without them, these three
+  probes fail for each change.
+- A probe that tests "as before" passes on the base with no change: 1 of
+  the 18 probes of `long1`, and 3 of the 21 probes of `long2`.
+
+To add a long case:
+
+1. Find a merged change that touches three or more parts of the
+   repository, with a behavior that a test can see. Do not use a change
+   that needs model weights, a GPU, or a service outside the repository
+   for its tests.
+2. Write `cases/<id>.md`: the instructions that an operator gives for the
+   first attempt. Tell each behavior in one sentence that a test can
+   compare. Tell the public names that the task fixes: contract fields,
+   operation names, settings, file paths. Tell all facts that are not in
+   the repository at the base (for example the API of an outside
+   program). Do not tell the names of functions that the approved change
+   added. When the contract changes, tell the model to run `tools/gen.sh`.
+3. Add a line to `cases.jsonl` with `"set": "long"`, `"run": ""`, the
+   parent commit as `base`, and the commit as `approved`.
+4. Write one probe for each behavior sentence, with the sentence as the
+   doc comment of the probe. Reach a new contract field through the real
+   HTTP transport and the JSON form of the generated type, so that the
+   probe does not depend on the Go names of new types.
+5. Run `probe.py DIR --approved --only <id>`: each probe must pass. Then
+   run `probe.py` on a result directory whose `diff.patch` adds one file
+   that no probe reads: most probes must fail.
 
 ### The verdict for a harness change
 

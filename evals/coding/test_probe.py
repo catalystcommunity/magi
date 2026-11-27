@@ -58,6 +58,19 @@ class TestParse(unittest.TestCase):
                 P.probe_files(d, "c1")
             self.assertEqual(P.probe_files(d, "c2"), [])
 
+    def test_a_case_with_more_than_one_directory_has_a_file_for_each(self):
+        with tempfile.TemporaryDirectory() as d:
+            for name, target in (("long2.py", "docs"), ("long2_test.go", "primitives/inference/host"),
+                                 ("long2_compose_test.go", "magi/compose"), ("long2_client.py", "clients/python"),
+                                 ("long20_test.go", "lib/rpc"), ("long2_Notes.py", "docs"), ("long2_a_b.py", "docs")):
+                start = "// Probes." if name.endswith(".go") else '"""Probes.'
+                Path(d, name).write_text(f"{start} Target: {target}\n")
+            got = [(os.path.basename(p), t) for p, t in P.probe_files(d, "long2")]
+            # The files of a different case and other names are not probes of the case.
+            self.assertEqual(got, [("long2.py", "docs"), ("long2_test.go", "primitives/inference/host"),
+                                   ("long2_client.py", "clients/python"), ("long2_compose_test.go", "magi/compose")])
+            self.assertEqual(P.probe_files(os.path.join(d, "none"), "long2"), [])
+
 
 class TestCheckCase(unittest.TestCase):
     """One case in a real repository: the base, a candidate patch, the approved commit."""
